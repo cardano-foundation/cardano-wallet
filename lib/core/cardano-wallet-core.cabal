@@ -170,9 +170,9 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery
       Cardano.Wallet.Primitive.Slotting
       Cardano.Wallet.Primitive.AddressDiscovery.Random
-      Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-      Cardano.Wallet.Primitive.AddressDiscovery.Shared
       Cardano.Wallet.Primitive.AddressDiscovery.Script
+      Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+      Cardano.Wallet.Primitive.AddressDiscovery.SharedState
       Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
       Cardano.Wallet.Primitive.Model
@@ -308,6 +308,7 @@ test-suite unit
     , transformers
     , tree-diff
     , unliftio
+    , unliftio-core
     , unordered-containers
     , x509
     , x509-store
@@ -352,7 +353,7 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
       Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
-      Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
+      Cardano.Wallet.Primitive.AddressDiscovery.SharedStateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
       Cardano.Wallet.Primitive.ModelSpec

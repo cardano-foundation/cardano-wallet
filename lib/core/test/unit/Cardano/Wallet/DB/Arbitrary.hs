@@ -31,6 +31,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( Cosigner (..), Script (..), ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
@@ -67,9 +69,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , ParentContext (..)
     , SeqState (..)
     , coinTypeAda
+    , defaultAddressPoolGap
     , mkAddressPool
     , purposeCIP1852
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedState (..), SharedStateFields (..), purposeCIP1854 )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
@@ -569,6 +574,48 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 {-# NOINLINE rootKeysRnd #-}
 
 {-------------------------------------------------------------------------------
+                                 Shared State
+-------------------------------------------------------------------------------}
+
+-- Shared state is composed of static (ie., not depending on checkpoint) and
+-- depending on checkpoint part. When in pending state all parts are static,
+-- when in active state context address pool is depending on checkpoint the rest is static.
+-- In order to proceed like for sequential/random wallet we will work with active state
+-- and make
+
+instance Arbitrary (SharedState 'Mainnet ShelleyKey) where
+    shrink (SharedState prefix (ReadyFields pool)) =
+        SharedState prefix <$> (ReadyFields <$> shrink pool)
+    shrink _ = []
+    arbitrary =
+        SharedState defaultSharedStatePrefix
+        <$> (ReadyFields <$> arbitrary)
+
+defaultSharedStatePrefix :: DerivationPrefix
+defaultSharedStatePrefix = DerivationPrefix
+    ( purposeCIP1854
+    , coinTypeAda
+    , minBound @(Index 'Hardened 'AccountK)
+    )
+
+instance Arbitrary (Script Cosigner) where
+    arbitrary = pure $
+        RequireAllOf [RequireSignatureOf (Cosigner 0), RequireAnyOf [ActiveFromSlot 200, ActiveUntilSlot 100]]
+
+instance Arbitrary Seq.AddressPoolGap where
+    arbitrary = pure defaultAddressPoolGap
+
+genScriptTemplateHardCoded :: Gen ScriptTemplate
+genScriptTemplateHardCoded =
+    ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey arbitrarySeqAccount)] ) <$> arbitrary
+
+instance Arbitrary (AddressPool 'MultisigScript ShelleyKey) where
+    arbitrary = do
+        ctx <- ParentContextMultisigScript arbitrarySeqAccount
+            <$> genScriptTemplateHardCoded <*> pure Nothing
+        pure $ mkAddressPool @'Mainnet ctx minBound mempty
+
+{-------------------------------------------------------------------------------
                              Protocol Parameters
 -------------------------------------------------------------------------------}
 
@@ -650,6 +697,9 @@ instance Arbitrary Word31 where
 instance Arbitrary AddressState where
     arbitrary = genericArbitrary
 
+instance Arbitrary SomeMnemonic where
+    arbitrary = SomeMnemonic <$> genMnemonic @12
+
 {-------------------------------------------------------------------------------
                                    Buildable
 -------------------------------------------------------------------------------}
@@ -671,5 +721,11 @@ instance Buildable (PrimaryKey WalletId) where
 instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain
 
-instance Arbitrary SomeMnemonic where
-    arbitrary = SomeMnemonic <$> genMnemonic @12
+instance Buildable (SharedState 'Mainnet ShelleyKey) where
+    build (SharedState _ (PendingFields _)) = "not supported here"
+    build (SharedState prefix (ReadyFields pool)) =
+        build (printStateActive <> printIndex prefix) <> printPool
+      where
+        printStateActive = "shared wallet state: active"
+        printPool = build pool
+        printIndex (DerivationPrefix (_,_,ix)) = " hardened index: "<> toText (getIndex ix) <> " "

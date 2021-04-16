@@ -49,6 +49,7 @@ import Cardano.Wallet.Api
     , Proxy_
     , SMASH
     , Settings
+    , SharedWallets
     , ShelleyMigrations
     , StakePools
     , Transactions
@@ -80,7 +81,9 @@ import Cardano.Wallet.Api.Server
     , listWallets
     , migrateWallet
     , mkLegacyWallet
+    , mkSharedWallet
     , mkShelleyWallet
+    , patchSharedWallet
     , postAccountPublicKey
     , postAccountWallet
     , postExternalTransaction
@@ -89,6 +92,7 @@ import Cardano.Wallet.Api.Server
     , postRandomAddress
     , postRandomWallet
     , postRandomWalletFromXPrv
+    , postSharedWallet
     , postTransaction
     , postTransactionFee
     , postTrezorWallet
@@ -139,8 +143,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedState )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Shelley.Compatibility
@@ -196,10 +204,11 @@ server
     => ApiLayer (RndState n) ByronKey
     -> ApiLayer (SeqState n IcarusKey) IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
+    -> ApiLayer (SharedState n ShelleyKey) ShelleyKey
     -> StakePoolLayer
     -> NtpClient
     -> Server (Api n ApiStakePool)
-server byron icarus shelley spl ntp =
+server byron icarus shelley multisig spl ntp =
          wallets
     :<|> walletKeys
     :<|> assets
@@ -218,6 +227,7 @@ server byron icarus shelley spl ntp =
     :<|> proxy
     :<|> settingS
     :<|> smash
+    :<|> sharedWallets
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -476,6 +486,14 @@ server byron icarus shelley spl ntp =
             case poolMetadataSource settings' of
                 FetchSMASH smashServer -> getHealth smashServer
                 _ -> pure (ApiHealthCheck NoSmashConfigured)
+
+    sharedWallets :: Server SharedWallets
+    sharedWallets =
+             postSharedWallet multisig generateKeyFromSeed ShelleyKey
+        :<|> (fmap fst . getWallet multisig mkSharedWallet)
+        :<|> patchSharedWallet multisig ShelleyKey Payment
+        :<|> patchSharedWallet multisig ShelleyKey Delegation
+        :<|> deleteWallet multisig
 
 postAnyAddress
     :: NetworkId

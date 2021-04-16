@@ -114,6 +114,14 @@ module Cardano.Wallet.Api
     , SMASH
         , GetCurrentSMASHHealth
 
+      -- * Shared Wallets
+    , SharedWallets
+        , PostSharedWallet
+        , GetSharedWallet
+        , PatchSharedWalletInPayment
+        , PatchSharedWalletInDelegation
+        , DeleteSharedWallet
+
     , Proxy_
         , PostExternalTransaction
 
@@ -154,6 +162,9 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
+    , ApiSharedWallet
+    , ApiSharedWalletPatchData
+    , ApiSharedWalletPostData
     , ApiT
     , ApiTransactionT
     , ApiTxId
@@ -231,6 +242,7 @@ import Servant.API.Verbs
     ( DeleteAccepted
     , DeleteNoContent
     , Get
+    , Patch
     , Post
     , PostAccepted
     , PostCreated
@@ -245,8 +257,6 @@ import qualified Cardano.Wallet.Primitive.Types as W
 type ApiV2 n apiPool = "v2" :> Api n apiPool
 
 -- | The full cardano-wallet API.
---
--- The API used in cardano-wallet-jormungandr may differ from this one.
 type Api n apiPool =
          Wallets
     :<|> WalletKeys
@@ -266,6 +276,7 @@ type Api n apiPool =
     :<|> Proxy_
     :<|> Settings
     :<|> SMASH
+    :<|> SharedWallets
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -826,6 +837,48 @@ type GetCurrentSMASHHealth = "smash"
     :> "health"
     :> QueryParam "url" (ApiT SmashServer)
     :> Get '[JSON] ApiHealthCheck
+
+{-------------------------------------------------------------------------------
+                                  Shared Wallets
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Shared-Wallets
+-------------------------------------------------------------------------------}
+
+type SharedWallets =
+         PostSharedWallet
+    :<|> GetSharedWallet
+    :<|> PatchSharedWalletInPayment
+    :<|> PatchSharedWalletInDelegation
+    :<|> DeleteSharedWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postSharedWallet
+type PostSharedWallet = "shared-wallets"
+    :> ReqBody '[JSON] ApiSharedWalletPostData
+    :> PostCreated '[JSON] ApiSharedWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getSharedWallet
+type GetSharedWallet = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> Get '[JSON] ApiSharedWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/patchSharedWalletInPayment
+type PatchSharedWalletInPayment = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "payment-script-template"
+    :> ReqBody '[JSON] ApiSharedWalletPatchData
+    :> Patch '[JSON] ApiSharedWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/patchSharedWalletInDelegation
+type PatchSharedWalletInDelegation = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "delegation-script-template"
+    :> ReqBody '[JSON] ApiSharedWalletPatchData
+    :> Patch '[JSON] ApiSharedWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteSharedWallet
+type DeleteSharedWallet = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> DeleteNoContent
 
 {-------------------------------------------------------------------------------
                                    Proxy_

@@ -104,6 +104,12 @@ module Cardano.Wallet.Api.Link
 
     , getCurrentSMASHHealth
 
+     -- * Shared Wallets
+    , postSharedWallet
+    , deleteSharedWallet
+    , getSharedWallet
+    , patchSharedWallet
+
     , PostWallet
     , Discriminate
     ) where
@@ -121,6 +127,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, NetworkDiscriminant (..), Role )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, SmashServer, SortOrder, WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -674,6 +682,52 @@ getCurrentSMASHHealth'
     -> (Method, Text)
 getCurrentSMASHHealth' smash =
     endpoint @Api.GetCurrentSMASHHealth (\mk -> mk (ApiT <$> smash))
+
+--
+-- Shared Wallets
+--
+postSharedWallet
+    :: (Method, Text)
+postSharedWallet =
+    endpoint @Api.PostSharedWallet id
+
+deleteSharedWallet
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+deleteSharedWallet w =
+    endpoint @Api.DeleteSharedWallet (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+getSharedWallet
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+getSharedWallet w =
+    endpoint @Api.GetSharedWallet (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+patchSharedWallet
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> CredentialType
+    -> (Method, Text)
+patchSharedWallet w cred =
+    case cred of
+        Payment ->
+            endpoint @Api.PatchSharedWalletInPayment (wid &)
+        Delegation ->
+            endpoint @Api.PatchSharedWalletInDelegation (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
 
 --
 -- Internals

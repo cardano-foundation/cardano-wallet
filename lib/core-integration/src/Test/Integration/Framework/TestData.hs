@@ -79,6 +79,12 @@ module Test.Integration.Framework.TestData
     , errMsg403WrongIndex
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
+    , errMsg403WalletAlreadyActive
+    , errMsg403NoDelegationTemplate
+    , errMsg403KeyAlreadyPresent
+    , errMsg403NoSuchCosigner
+    , errMsg403CannotUpdateThisCosigner
+    , errMsg403CreateIllegal
     ) where
 
 import Prelude
@@ -495,3 +501,44 @@ errMsg403OutputTokenQuantityExceedsLimit
         , pretty quantityMaxBound
         , "."
         ]
+
+errMsg403WalletAlreadyActive :: String
+errMsg403WalletAlreadyActive = mconcat
+    [ "It looks like you've tried to add a cosigner key for a "
+    , "shared wallet that is active. This can be done only for "
+    , "pending shared wallet."
+    ]
+
+errMsg403NoDelegationTemplate :: String
+errMsg403NoDelegationTemplate = mconcat
+    [ "It looks like you've tried to add a cosigner key to "
+    , "a shared wallet's delegation template. This cannot be done for "
+    , "the wallet that does not define any delegation template."
+    ]
+
+errMsg403KeyAlreadyPresent :: Text -> String
+errMsg403KeyAlreadyPresent cred = mconcat
+    [ "It looks like you've tried to add a cosigner key to a shared wallet's "
+    ,  unpack cred," template that is already ascribed to another cosigner. "
+    , "Please make sure to assign a different key to each cosigner."
+    ]
+
+errMsg403NoSuchCosigner :: Text -> Int -> String
+errMsg403NoSuchCosigner cred cosigner = mconcat
+    [ "It looks like you've tried to add a cosigner key to a shared wallet's "
+    , unpack cred, " template to a non-existing cosigner index: "
+    , show cosigner, "."
+    ]
+
+errMsg403CannotUpdateThisCosigner :: String
+errMsg403CannotUpdateThisCosigner = mconcat
+    [ "It looks like you've tried to update the key of a cosigner having "
+    , "the shared wallet's account key. Only other cosigner key(s) can be updated."
+    ]
+
+errMsg403CreateIllegal :: String
+errMsg403CreateIllegal = mconcat
+    [ "It looks like you've tried to create a shared wallet "
+    , "with a missing account key in the script template(s). This cannot be done "
+    , "as the wallet's account key must be always present for each script template."
+    ]

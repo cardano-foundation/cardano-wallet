@@ -12,6 +12,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -47,6 +48,7 @@ module Cardano.Wallet.DB.StateMachine
     , prop_parallel
     , validateGenerators
     , showLabelledExamples
+    , TestConstraints
     ) where
 
 import Prelude
@@ -103,6 +105,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool (..), SeqState (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -154,8 +158,8 @@ import Control.Foldl
     ( Fold (..) )
 import Control.Monad
     ( forM_, replicateM, void, when )
-import Control.Monad.IO.Class
-    ( liftIO )
+import Control.Monad.IO.Unlift
+    ( MonadIO )
 import Control.Monad.Trans.Except
     ( mapExceptT, runExceptT )
 import Crypto.Hash
@@ -207,7 +211,7 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( monadicIO, run )
 import Test.QuickCheck.Random
     ( mkQCGen )
 import Test.StateMachine
@@ -423,20 +427,16 @@ runMock = \case
   Interpreter: real I/O
 -------------------------------------------------------------------------------}
 
--- | Type alias for the 'DBLayer', just to reduce noise in type signatures. This
--- 'DBLayer' is specialized to a dummy node backend.
-type DBLayerTest s k = DBLayer IO s k
-
 runIO
-    :: forall s k. (MockPrivKey (k 'RootK))
-    => DBLayerTest s k
+    :: forall m s k. (MonadIO m, MockPrivKey (k 'RootK))
+    => DBLayer m s k
     -> Cmd s WalletId
-    -> IO (Resp s WalletId)
+    -> m (Resp s WalletId)
 runIO db@DBLayer{..} = fmap Resp . go
   where
     go
         :: Cmd s WalletId
-        -> IO (Either (Err WalletId) (Success s WalletId))
+        -> m (Either (Err WalletId) (Success s WalletId))
     go = \case
         CleanDB -> do
             Right . Unit <$> cleanDB db
@@ -735,10 +735,10 @@ postcondition m c r =
     e = lockstep m c r
 
 semantics
-    :: MockPrivKey (k 'RootK)
-    => DBLayerTest s k
+    :: (MonadIO m, MockPrivKey (k 'RootK))
+    => DBLayer m s k
     -> Cmd s :@ Concrete
-    -> IO (Resp s :@ Concrete)
+    -> m (Resp s :@ Concrete)
 semantics db (At c) =
     (At . fmap QSM.reference) <$>
         runIO db (fmap QSM.concrete c)
@@ -754,12 +754,13 @@ type TestConstraints s k =
     , Eq s
     , GenState s
     , Arbitrary (Wallet s)
+    , ToExpr s
     )
 
 sm
-    :: TestConstraints s k
-    => DBLayerTest s k
-    -> StateMachine (Model s) (At (Cmd s)) IO (At (Resp s))
+    :: (MonadIO m, TestConstraints s k)
+    => DBLayer m s k
+    -> StateMachine (Model s) (At (Cmd s)) m (At (Resp s))
 sm db = QSM.StateMachine
     { initModel = initModel
     , transition = transition
@@ -882,6 +883,9 @@ instance (Show (key 'AccountK CC.XPub)) =>
         (chain :: Role)
         (key :: Depth -> * -> *)
     ) where
+    toExpr = defaultExprViaShow
+
+instance ToExpr (SharedState 'Mainnet ShelleyKey) where
     toExpr = defaultExprViaShow
 
 instance (ToExpr s, ToExpr xprv) => ToExpr (WalletDatabase s xprv) where
@@ -1251,7 +1255,7 @@ showLabelledExamples mReplay = do
             , replay = Just (mkQCGen replaySeed, 0)
             }
     labelledExamplesWith args $
-        forAllCommands (sm @s @k dbLayerUnused) Nothing $ \cmds ->
+        forAllCommands (sm @IO @s @k dbLayerUnused) Nothing $ \cmds ->
             repeatedly collect (tag . execCmds $ cmds) (property True)
 
 repeatedly :: (a -> b -> b) -> ([a] -> b -> b)
@@ -1261,17 +1265,21 @@ repeatedly = flip . L.foldl' . flip
   Top-level tests
 -------------------------------------------------------------------------------}
 
-prop_sequential :: forall s k. (TestConstraints s k, ToExpr s) => DBLayerTest s k -> Property
-prop_sequential db =
+prop_sequential
+    :: forall s k. (TestConstraints s k)
+    => (IO (IO (), DBLayer IO s k))
+    -> Property
+prop_sequential newDB =
     QC.checkCoverage $
-    forAllCommands (sm @s @k dbLayerUnused) Nothing $ \cmds ->
-    monadicIO $ do
-        liftIO $ cleanDB db
-        let sm' = sm db
-        (hist, _model, res) <- runCommands sm' cmds
-        prettyCommands sm' hist
-            $ measureTagCoverage cmds
-            $ res === Ok
+    forAllCommands (sm @IO @s @k dbLayerUnused) Nothing $ \cmds ->
+        monadicIO $ do
+            (destroyDB, db) <- run newDB
+            let sm' = sm db
+            (hist, _model, res) <- runCommands sm' cmds
+            prettyCommands sm' hist
+                $ measureTagCoverage cmds
+                $ res === Ok
+            run destroyDB -- fixme: bracket difficult
   where
     measureTagCoverage :: Commands (At (Cmd s)) (At (Resp s)) -> Property -> Property
     measureTagCoverage cmds prop = foldl' measureTag prop allTags
@@ -1282,13 +1290,19 @@ prop_sequential db =
         matchedTags :: Set Tag
         matchedTags = Set.fromList $ tag $ execCmds cmds
 
-prop_parallel :: forall s k. TestConstraints s k => DBLayerTest s k -> Property
-prop_parallel db =
-    forAllParallelCommands (sm @s @k dbLayerUnused) nThreads $ \cmds ->
+prop_parallel
+    :: forall s k. TestConstraints s k
+    => (IO (IO (), DBLayer IO s k))
+    -> Property
+prop_parallel newDB =
+    forAllParallelCommands (sm @IO @s @k dbLayerUnused) nThreads $ \cmds ->
     monadicIO $ do
+        (destroyDB, db) <- run newDB
         let sm' = sm db
             cmds' = addCleanDB cmds
-        prettyParallelCommands cmds =<< runParallelCommands sm' cmds'
+        res <- runParallelCommands sm' cmds'
+        prettyParallelCommands cmds res
+        run destroyDB
   where
     nThreads = Just 4
 
@@ -1360,5 +1374,5 @@ addCleanDB (ParallelCommands p s) = ParallelCommands (clean <> p) s
     cmd = Command (At CleanDB)
     resp = At (Resp (Right (Unit ())))
 
-dbLayerUnused :: DBLayerTest s k
+dbLayerUnused :: DBLayer m s k
 dbLayerUnused = error "DBLayer not used during command generation"

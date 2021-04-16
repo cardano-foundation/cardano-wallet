@@ -81,6 +81,9 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForQuit
     , signMetadata
     , postAccountPublicKey
+    , postSharedWallet
+    , patchSharedWallet
+    , mkSharedWallet
 
     -- * Server error responses
     , IsServerError(..)
@@ -108,6 +111,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
+import Cardano.Address.Script
+    ( Cosigner (..) )
 import Cardano.Api.Typed
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
 import Cardano.BM.Tracing
@@ -115,8 +120,10 @@ import Cardano.BM.Tracing
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
-    ( ErrCannotJoin (..)
+    ( ErrAddCosignerKey (..)
+    , ErrCannotJoin (..)
     , ErrCannotQuit (..)
+    , ErrConstructSharedWallet (..)
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
     , ErrDerivePublicKey (..)
@@ -173,6 +180,7 @@ import Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiAccountKey (..)
     , ApiAccountPublicKey (..)
+    , ApiActiveSharedWallet (..)
     , ApiAddress (..)
     , ApiAsset (..)
     , ApiBlockInfo (..)
@@ -192,12 +200,18 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
+    , ApiPendingSharedWallet (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyData (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
     , ApiSelectCoinsPayments
+    , ApiSharedWallet (..)
+    , ApiSharedWalletPatchData (..)
+    , ApiSharedWalletPostData (..)
+    , ApiSharedWalletPostDataFromAccountPubX (..)
+    , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiT (..)
@@ -282,12 +296,27 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..)
+    ( DerivationPrefix (..)
+    , ParentContext (..)
+    , SeqState (..)
+    , context
     , defaultAddressPoolGap
+    , gap
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
     , purposeCIP1852
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( ErrAddCosigner (..)
+    , SharedState (..)
+    , SharedStateFields (..)
+    , SharedStatePending (..)
+    , mkSharedStateFromAccountXPub
+    , mkSharedStateFromRootXPrv
+    , walletCreationInvariant
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
@@ -378,7 +407,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forever, join, void, when, (>=>) )
+    ( forM, forever, join, unless, void, when, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -774,17 +803,21 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         , state = ApiT progress
         , tip = tip'
         }
+
+toApiWalletDelegation
+    :: W.WalletDelegation
+    -> TimeInterpreter IO
+    -> IO ApiWalletDelegation
+toApiWalletDelegation W.WalletDelegation{active,next} ti = do
+    apiNext <- forM next $ \W.WalletDelegationNext{status,changesAt} -> do
+        info <- interpretQuery ti $ toApiEpochInfo changesAt
+        return $ toApiWalletDelegationNext (Just info) status
+
+    return $ ApiWalletDelegation
+        { active = toApiWalletDelegationNext Nothing active
+        , next = apiNext
+        }
   where
-    toApiWalletDelegation W.WalletDelegation{active,next} ti = do
-        apiNext <- forM next $ \W.WalletDelegationNext{status,changesAt} -> do
-            info <- interpretQuery ti $ toApiEpochInfo changesAt
-            return $ toApiWalletDelegationNext (Just info) status
-
-        return $ ApiWalletDelegation
-            { active = toApiWalletDelegationNext Nothing active
-            , next = apiNext
-            }
-
     toApiWalletDelegationNext mepochInfo = \case
         W.Delegating pid -> ApiWalletDelegationNext
             { status = Delegating
@@ -798,6 +831,185 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , changesAt = mepochInfo
             }
 
+--------------------- Shared Wallet
+
+postSharedWallet
+    :: forall ctx s k n.
+        ( s ~ SharedState n k
+        , ctx ~ ApiLayer s k
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
+        , Typeable n
+        )
+    => ctx
+    -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
+    -> (XPub -> k 'AccountK XPub)
+    -> ApiSharedWalletPostData
+    -> Handler ApiSharedWallet
+postSharedWallet ctx generateKey liftKey postData =
+    case postData of
+        ApiSharedWalletPostData (Left body) ->
+            postSharedWalletFromRootXPrv ctx generateKey body
+        ApiSharedWalletPostData (Right body) ->
+            postSharedWalletFromAccountXPub ctx liftKey body
+
+postSharedWalletFromRootXPrv
+    :: forall ctx s k n.
+        ( s ~ SharedState n k
+        , ctx ~ ApiLayer s k
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
+        , Typeable n
+        )
+    => ctx
+    -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
+    -> ApiSharedWalletPostDataFromMnemonics
+    -> Handler ApiSharedWallet
+postSharedWalletFromRootXPrv ctx generateKey body = do
+    unless (walletCreationInvariant accXPub pTemplate dTemplateM) $
+        liftHandler $ throwE ErrConstructSharedWalletMissingKey
+    let state = mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx g pTemplate dTemplateM
+    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        idleWorker
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
+        W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
+    fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
+  where
+    seed = getApiMnemonicT (body ^. #mnemonicSentence)
+    secondFactor = getApiMnemonicT <$> (body ^. #mnemonicSecondFactor)
+    pwd = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
+    rootXPrv = generateKey (seed, secondFactor) pwd
+    g = defaultAddressPoolGap
+    accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
+    wid = WalletId $ digest $ publicKey rootXPrv
+    pTemplate = body ^. #paymentScriptTemplate
+    dTemplateM = body ^. #delegationScriptTemplate
+    wName = getApiT (body ^. #name)
+    accXPub = publicKey $ deriveAccountPrivateKey pwd rootXPrv accIx
+
+postSharedWalletFromAccountXPub
+    :: forall ctx s k n.
+        ( s ~ SharedState n k
+        , ctx ~ ApiLayer s k
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
+        , Typeable n
+        )
+    => ctx
+    -> (XPub -> k 'AccountK XPub)
+    -> ApiSharedWalletPostDataFromAccountPubX
+    -> Handler ApiSharedWallet
+postSharedWalletFromAccountXPub ctx liftKey body = do
+    unless (walletCreationInvariant (liftKey accXPub) pTemplate dTemplateM) $
+        liftHandler $ throwE ErrConstructSharedWalletMissingKey
+    let state = mkSharedStateFromAccountXPub (liftKey accXPub) accIx g pTemplate dTemplateM
+    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        idleWorker
+    fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
+  where
+    g = defaultAddressPoolGap
+    accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
+    pTemplate = body ^. #paymentScriptTemplate
+    dTemplateM = body ^. #delegationScriptTemplate
+    wName = getApiT (body ^. #name)
+    (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
+    accXPub = getApiT accXPubApiT
+    wid = WalletId $ digest (liftKey accXPub)
+
+mkSharedWallet
+    :: forall ctx s k n.
+        ( ctx ~ ApiLayer s k
+        , s ~ SharedState n k
+        , HasWorkerRegistry s k ctx
+        )
+    => MkApiWallet ctx s ApiSharedWallet
+mkSharedWallet ctx wid cp meta pending progress = case getState cp of
+    SharedState (DerivationPrefix (_,_,accIx)) (PendingFields (SharedStatePending _ pTemplate dTemplateM g)) ->
+        pure $ ApiSharedWallet $ Left $ ApiPendingSharedWallet
+        { id = ApiT wid
+        , name = ApiT $ meta ^. #name
+        , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
+        , addressPoolGap = ApiT g
+        , paymentScriptTemplate = pTemplate
+        , delegationScriptTemplate = dTemplateM
+        }
+    SharedState (DerivationPrefix (_,_,accIx)) (ReadyFields pool) -> do
+        reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
+            -- never fails - returns zero if balance not found
+            liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
+
+        let ti = timeInterpreter $ ctx ^. networkLayer
+        apiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
+            (unsafeExtendSafeZone ti)
+
+        tip' <- liftIO $ getWalletTip
+            (neverFails "getWalletTip wallet tip should be behind node tip" ti)
+            cp
+        let available = availableBalance pending cp
+        let total = totalBalance pending reward cp
+        let (ParentContextMultisigScript _ pTemplate dTemplateM) = context pool
+        pure $ ApiSharedWallet $ Right $ ApiActiveSharedWallet
+            { id = ApiT wid
+            , name = ApiT $ meta ^. #name
+            , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
+            , addressPoolGap = ApiT $ gap pool
+            , passphrase = ApiWalletPassphraseInfo
+                <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
+            , paymentScriptTemplate = pTemplate
+            , delegationScriptTemplate = dTemplateM
+            , delegation = apiDelegation
+            , balance = ApiWalletBalance
+                { available = coinToQuantity (available ^. #coin)
+                , total = coinToQuantity (total ^. #coin)
+                , reward = coinToQuantity reward
+                }
+            , assets = ApiWalletAssetsBalance
+                { available = ApiT (available ^. #tokens)
+                , total = ApiT (total ^. #tokens)
+                }
+            , state = ApiT progress
+            , tip = tip'
+            }
+
+patchSharedWallet
+    :: forall ctx s k n.
+        ( s ~ SharedState n k
+        , ctx ~ ApiLayer s k
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
+        , HasDBFactory s k ctx
+        , Typeable n
+        )
+    => ctx
+    -> (XPub -> k 'AccountK XPub)
+    -> CredentialType
+    -> ApiT WalletId
+    -> ApiSharedWalletPatchData
+    -> Handler ApiSharedWallet
+patchSharedWallet ctx liftKey cred (ApiT wid) body = do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        liftHandler $ W.updateCosigner wrk wid (liftKey accXPub) cosigner cred
+    fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
+  where
+      cosigner = getApiT (body ^. #cosigner)
+      (ApiAccountPublicKey accXPubApiT) = (body ^. #accountPublicKey)
+      accXPub = getApiT accXPubApiT
 
 --------------------- Legacy
 
@@ -2848,6 +3060,49 @@ instance IsServerError ErrDerivePublicKey where
     toServerError = \case
         ErrDerivePublicKeyNoSuchWallet e -> toServerError e
         ErrDerivePublicKeyInvalidIndex e -> toServerError e
+
+instance IsServerError ErrAddCosignerKey where
+    toServerError = \case
+        ErrAddCosignerKeyNoSuchWallet e -> toServerError e
+        ErrAddCosignerKey WalletAlreadyActive ->
+            apiError err403 SharedWalletNotPending $ mconcat
+                [ "It looks like you've tried to add a cosigner key for a "
+                , "shared wallet that is active. This can be done only for "
+                , "pending shared wallet."
+                ]
+        ErrAddCosignerKey NoDelegationTemplate ->
+            apiError err403 SharedWalletNoDelegationTemplate $ mconcat
+                [ "It looks like you've tried to add a cosigner key to "
+                , "a shared wallet's delegation template. This cannot be done "
+                , "for the wallet that does not define any delegation template."
+                ]
+        ErrAddCosignerKey (KeyAlreadyPresent cred) ->
+            apiError err403 SharedWalletKeyAlreadyExists $ mconcat
+                [ "It looks like you've tried to add a cosigner key to a "
+                , "shared wallet's ", toText cred, " template that is already "
+                , "ascribed to another cosigner. "
+                , "Please make sure to assign a different key to each cosigner."
+                ]
+        ErrAddCosignerKey (NoSuchCosigner cred (Cosigner c)) ->
+            apiError err403 SharedWalletNoSuchCosigner $ mconcat
+                [ "It looks like you've tried to add a cosigner key to a "
+                , "shared wallet's ", toText cred, " template to a "
+                , "non-existing cosigner index: ", pretty c,"."
+                ]
+        ErrAddCosignerKey CannotUpdateSharedWalletKey ->
+            apiError err403 SharedWalletCannotUpdateKey $ mconcat
+                [ "It looks like you've tried to update the key of a cosigner having "
+                , "the shared wallet's account key. Only other cosigner key(s) can be updated."
+                ]
+
+instance IsServerError ErrConstructSharedWallet where
+    toServerError = \case
+        ErrConstructSharedWalletMissingKey ->
+            apiError err403 SharedWalletCreateNotAllowed $ mconcat
+                [ "It looks like you've tried to create a shared wallet "
+                , "with a missing account key in the script template(s). This cannot be done "
+                , "as the wallet's account key must be always present for each script template."
+                ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
     toServerError = \case

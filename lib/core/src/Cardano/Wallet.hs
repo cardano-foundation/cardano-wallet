@@ -89,6 +89,11 @@ module Cardano.Wallet
     , ErrWalletNotResponding (..)
     , ErrReadRewardAccount (..)
 
+    -- * Shared Wallet
+    , updateCosigner
+    , ErrAddCosignerKey (..)
+    , ErrConstructSharedWallet (..)
+
     -- ** Address
     , createChangeAddress
     , createRandomAddress
@@ -170,6 +175,8 @@ import Prelude hiding
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( Cosigner (..) )
 import Cardano.Api.Typed
     ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
@@ -237,6 +244,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState
     , defaultAddressPoolGap
@@ -246,6 +255,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeBIP44
     , shrinkPool
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( ErrAddCosigner (..), SharedState, addCosignerAccXPub )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
@@ -438,6 +449,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
+
 
 -- $Development
 -- __Naming Conventions__
@@ -2087,6 +2099,33 @@ guardHardIndex ix =
     then throwE $ ErrIndexOutOfBound minBound maxBound ix
     else pure (Index $ getDerivationIndex ix)
 
+updateCosigner
+    :: forall ctx s k n.
+        ( HasDBLayer s k ctx
+        , s ~ SharedState n k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK CC.XPub)
+        , MkKeyFingerprint k Address
+        , SoftDerivation k
+        , Typeable n
+        , WalletKey k
+        )
+    => ctx
+    -> WalletId
+    -> k 'AccountK XPub
+    -> Cosigner
+    -> CredentialType
+    -> ExceptT ErrAddCosignerKey IO ()
+updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
+    mapExceptT atomically $ do
+        cp <- withExceptT ErrAddCosignerKeyNoSuchWallet $ withNoSuchWallet wid $
+              readCheckpoint (PrimaryKey wid)
+        case addCosignerAccXPub accXPub cosigner cred (getState cp) of
+            Left err -> throwE (ErrAddCosignerKey err)
+            Right st' -> withExceptT ErrAddCosignerKeyNoSuchWallet $
+                putCheckpoint (PrimaryKey wid) (updateState st' cp)
+  where
+    db = ctx ^. dbLayer @s @k
+
 {-------------------------------------------------------------------------------
                                    Errors
 -------------------------------------------------------------------------------}
@@ -2105,6 +2144,18 @@ data ErrDerivePublicKey
         -- ^ The wallet doesn't exist?
     | ErrDerivePublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Soft 'AddressK)
         -- ^ User provided a derivation index outside of the 'Soft' domain
+    deriving (Eq, Show)
+
+data ErrAddCosignerKey
+    = ErrAddCosignerKeyNoSuchWallet ErrNoSuchWallet
+        -- ^ The shared wallet doesn't exist?
+    | ErrAddCosignerKey ErrAddCosigner
+        -- ^ Error adding this co-signer to the shared wallet.
+    deriving (Eq, Show)
+
+data ErrConstructSharedWallet
+    = ErrConstructSharedWalletMissingKey
+        -- ^ The shared wallet' script template doesn't have the wallet's account public key
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey

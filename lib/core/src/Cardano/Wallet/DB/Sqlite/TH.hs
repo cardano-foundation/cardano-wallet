@@ -27,10 +27,14 @@ module Cardano.Wallet.DB.Sqlite.TH where
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Cosigner, Script )
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId, HDPassphrase, TxId, sqlSettings' )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType )
 import Data.Quantity
     ( Percentage (..) )
 import Data.Text
@@ -38,7 +42,7 @@ import Data.Text
 import Data.Time.Clock
     ( UTCTime )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32, Word64, Word8 )
 import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
@@ -372,5 +376,31 @@ RndStatePendingAddress
         rndStatePendingAddressIndex
         rndStatePendingAddressAddress
     Foreign Wallet OnDeleteCascade rnd_state_pending_address rndStatePendingAddressWalletId
+    deriving Show Generic
+
+-- Shared Wallet
+SharedState
+    sharedStateWalletId                 W.WalletId                sql=wallet_id
+    sharedStateAccountXPub              B8.ByteString             sql=account_xpub
+    sharedStateScriptGap                W.AddressPoolGap          sql=pool_gap
+    sharedStatePaymentScript            (Script Cosigner)         sql=payment_script
+    sharedStateDelegationScript         (Script Cosigner) Maybe   sql=delegation_script
+    sharedStateDerivationPrefix         W.DerivationPrefix        sql=derivation_prefix
+
+    Primary sharedStateWalletId
+    Foreign Wallet OnDeleteCascade shared_state sharedStateWalletId
+    deriving Show Generic
+
+CosignerKey
+    cosignerKeyWalletId                  W.WalletId                sql=wallet_id
+    cosignerKeyCredential                CredentialType            sql=credential
+    cosignerKeyAccountXPub               B8.ByteString             sql=account_xpub
+    cosignerKeyIndex                     Word8                     sql=cosigner_index
+
+    Primary
+        cosignerKeyWalletId
+        cosignerKeyCredential
+        cosignerKeyIndex
+    Foreign Wallet OnDeleteCascade cosigner_key cosignerKeyWalletId
     deriving Show Generic
 |]

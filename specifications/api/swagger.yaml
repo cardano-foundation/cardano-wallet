@@ -281,6 +281,21 @@ x-walletAccountPubkey: &walletAccountPubkey
   maxLength: 128
   example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
 
+x-cosigner: &cosigner
+  type: string
+  pattern: "^(cosigner#)[0-9]+$"
+
+x-cosigners: &cosigners
+  description: Map of cosigners and their account public keys. Use key as in &cosigner, eg. "cosigner#"
+  type: object
+  additionalProperties: *walletAccountPubkey
+  # Note: propertyNames pattern not supported in current OpenAPI version.
+  # propertyNames:
+  #   pattern: '^(cosigner#)[0-9]+$'
+  example:
+    { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
+    , "cosigner#3": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2" }
+
 x-walletId: &walletId
   description: A unique identifier for the wallet
   type: string
@@ -427,6 +442,88 @@ x-ScriptValue: &ScriptValue
 
 x-script: &script
   <<: *ScriptValue
+
+x-ScriptTemplateValue: &ScriptTemplateValue
+  oneOf:
+    - title: Cosigner
+      description: Leaf value for a script designating a cosigner co-sharing the script.
+      type: string
+      pattern: "^(cosigner#)[0-9]*$"
+
+    - title: All
+      type: object
+      required:
+        - all
+      properties:
+        all:
+          description: Script primitive for which all signing keys corresponding to all list cosigners' verification keys are expected to make the script valid.
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ScriptTemplateValue"
+
+    - title: Any
+      type: object
+      required:
+        - any
+      properties:
+        any:
+          description: Script primitive for which a signing key corresponding to any of the list cosigners' verification keys is expected to make the script valid. It is equivalent to `some` with `"at_least"=1`.
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ScriptTemplateValue"
+
+    - title: Some
+      type: object
+      required:
+        - some
+      properties:
+        some:
+          description: Script primitive for which at least a given number of signing keys corresponding to the list cosigners' verification keys are expected to make the script valid.
+          type: object
+          required:
+            - at_least
+            - from
+          properties:
+            at_least:
+              type: integer
+              minimum: 1
+              maximum: 255
+            from:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ScriptTemplateValue"
+
+    - title: Active from slot
+      type: object
+      required:
+        - active_from
+      properties:
+        active_from:
+          description: Transaction is only valid starting at the specified slot number (`≥ active_from`).
+          type: integer
+          minimum: 0
+
+    - title: Active until slot
+      type: object
+      required:
+        - active_until
+      properties:
+        active_until:
+          description: Transaction is only valid before the specified slot number (`< active_until`).
+          type: integer
+          minimum: 0
+
+x-scriptTemplate: &scriptTemplate
+  type: object
+  required:
+    - cosigners
+    - template
+  properties:
+    cosigners: *cosigners
+    template: *ScriptTemplateValue
 
 x-CredentialValue: &CredentialValue
   nullable: false
@@ -1862,6 +1959,132 @@ components:
         state: *walletState
         tip: *blockReference
 
+    ApiWalletPostData: &ApiWalletPostData
+      type: object
+      description: Restore from root private key
+      required:
+        - name
+        - mnemonic_sentence
+        - passphrase
+      properties:
+        name: *walletName
+        mnemonic_sentence: *walletMnemonicSentence
+        mnemonic_second_factor: *walletSecondFactor
+        passphrase: *walletPassphrase
+        address_pool_gap: *walletAddressPoolGap
+
+    ApiAccountPostData: &ApiAccountPostData
+      type: object
+      description: Restore from account public key
+      required:
+        - name
+        - account_public_key
+      properties:
+        name: *walletName
+        account_public_key: *walletAccountPubkey
+        address_pool_gap: *walletAddressPoolGap
+
+    ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
+      type: object
+      oneOf:
+        - <<: *ApiWalletPostData
+          title: shelley
+        - <<: *ApiAccountPostData
+          title: shelley (from xpub)
+
+    ApiActiveSharedWallet: &ApiActiveSharedWallet
+      type: object
+      required:
+        - id
+        - name
+        - account_index
+        - address_pool_gap
+        - payment_script_template
+        - balance
+        - assets
+        - delegation
+        - state
+        - tip
+      properties:
+        id: *walletId
+        name: *walletName
+        account_index: *derivationSegment
+        address_pool_gap: *walletAddressPoolGap
+        passphrase: *walletPassphraseInfo
+        payment_script_template: *scriptTemplate
+        delegation_script_template: *scriptTemplate
+        balance: *walletBalance
+        assets: *walletAssetsBalance
+        delegation: *ApiWalletDelegation
+        state: *walletState
+        tip: *blockReference
+
+    ApiPendingSharedWallet: &ApiPendingSharedWallet
+      type: object
+      required:
+        - id
+        - name
+        - account_index
+        - address_pool_gap
+        - payment_script_template
+      properties:
+        id: *walletId
+        name: *walletName
+        account_index: *derivationSegment
+        address_pool_gap: *walletAddressPoolGap
+        payment_script_template: *scriptTemplate
+        delegation_script_template: *scriptTemplate
+
+    ApiSharedWallet: &ApiSharedWallet
+      type: object
+      oneOf:
+        - title: Pending shared wallet (collecting account public keys for each co-signer)
+          <<: *ApiPendingSharedWallet
+        - title: Active shared wallet (account public keys for each co-signers is collected)
+          <<: *ApiActiveSharedWallet
+
+    ApiSharedWalletPostDataFromMnemonics: &ApiSharedWalletPostDataFromMnemonics
+      type: object
+      required:
+        - name
+        - mnemonic_sentence
+        - passphrase
+        - account_index
+        - payment_script_template
+      properties:
+        name: *walletName
+        mnemonic_sentence: *walletMnemonicSentence
+        mnemonic_second_factor: *walletSecondFactor
+        passphrase: *walletPassphrase
+        account_index: *derivationSegment
+        payment_script_template: *scriptTemplate
+        delegation_script_template: *scriptTemplate
+
+    ApiSharedWalletPostDataFromAccountPubX: &ApiSharedWalletPostDataFromAccountPubX
+      type: object
+      required:
+        - name
+        - account_public_key
+        - account_index
+        - payment_script_template
+      properties:
+        name: *walletName
+        account_public_key: *walletAccountPubkey
+        account_index: *derivationSegment
+        payment_script_template: *scriptTemplate
+        delegation_script_template: *scriptTemplate
+
+    ApiSharedWalletPostData: &ApiSharedWalletPostData
+      type: object
+      oneOf:
+        - title: Create shared wallet from mnemonics
+          <<: *ApiSharedWalletPostDataFromMnemonics
+        - title: Create shared wallet from account public key
+          <<: *ApiSharedWalletPostDataFromAccountPubX
+
+    ApiSharedWalletPatchData: &ApiSharedWalletPatchData
+      <<: *cosigners
+
     ApiAsset: &ApiAsset
       type: object
       required:
@@ -1961,39 +2184,6 @@ components:
           1000000000000000: 0
           10000000000000000: 0
           45000000000000000: 0
-
-    ApiWalletPostData: &ApiWalletPostData
-      type: object
-      description: Restore from root private key
-      required:
-        - name
-        - mnemonic_sentence
-        - passphrase
-      properties:
-        name: *walletName
-        mnemonic_sentence: *walletMnemonicSentence
-        mnemonic_second_factor: *walletSecondFactor
-        passphrase: *walletPassphrase
-        address_pool_gap: *walletAddressPoolGap
-
-    ApiAccountPostData: &ApiAccountPostData
-      type: object
-      description: Restore from account public key
-      required:
-        - name
-        - account_public_key
-      properties:
-        name: *walletName
-        account_public_key: *walletAccountPubkey
-        address_pool_gap: *walletAddressPoolGap
-
-    ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
-      type: object
-      oneOf:
-        - <<: *ApiWalletPostData
-          title: shelley
-        - <<: *ApiAccountPostData
-          title: shelley (from xpub)
 
     ApiWalletSignData: &ApiWalletSignData
         type: object
@@ -2261,6 +2451,8 @@ components:
     CredentialValue: *CredentialValue
 
     ScriptValue: *ScriptValue
+
+    ScriptTemplateValue: *ScriptTemplateValue
 
     # https://github.com/input-output-hk/cardano-ledger-specs/blob/8d836e61bb88bda4a6a5c00694735928390067a1/shelley/chain-and-ledger/executable-spec/src/Shelley/Spec/Ledger/MetaData.hs#L48-L65
     TransactionMetadataValue: &TransactionMetadataValue
@@ -2731,6 +2923,84 @@ x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
     code:
       type: string
       enum: ['output_token_quantity_exceeds_limit']
+
+x-errSharedWalletNotPending: &errSharedWalletNotPending
+  <<: *responsesErr
+  title: shared_wallet_not_pending
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to add cosigner key to a shared wallet
+        that is active, not pending anymore.
+    code:
+      type: string
+      enum: ['shared_wallet_not_pending']
+
+x-errSharedWalletNoDelegationTemplate: &errSharedWalletNoDelegationTemplate
+  <<: *responsesErr
+  title: shared_wallet_no_delegation_template
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to add cosigner key to a shared wallet
+        for delegation, but the shared wallet misses the delegation template.
+    code:
+      type: string
+      enum: ['shared_wallet_no_delegation_template']
+
+x-errSharedWalletKeyAlreadyExists: &errSharedWalletKeyAlreadyExists
+  <<: *responsesErr
+  title: shared_wallet_key_already_exists
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to add cosigner key to a shared wallet
+        but the same key is already present in a given template.
+    code:
+      type: string
+      enum: ['shared_wallet_key_already_exists']
+
+x-errSharedWalletNoSuchCosigner: &errSharedWalletNoSuchCosigner
+  <<: *responsesErr
+  title: shared_wallet_no_such_cosigner
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to add cosigner key to a shared wallet
+        in script template that misses the cosigner.
+    code:
+      type: string
+      enum: ['shared_wallet_no_such_cosigner']
+
+x-errSharedWalletCannotUpdateKey: &errSharedWalletCannotUpdateKey
+  <<: *responsesErr
+  title: shared_wallet_cannot_update_key
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to update cosigner key that contains a key of a shared wallet.
+        Only other cosigner keys can be updated.
+    code:
+      type: string
+      enum: ['shared_wallet_cannot_update_key']
+
+x-errSharedWalletCreateNotAllowed: &errSharedWalletCreateNotAllowed
+  <<: *responsesErr
+  title: shared_wallet_create_not_allowed
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to create a shared wallet with missing wallet's
+        account key in all the script templates.
+    code:
+      type: string
+      enum: ['shared_wallet_create_not_allowed']
 
 # TODO: Map this error to the place it belongs.
 x-errNetworkUnreachable: &errNetworkUnreachable
@@ -3223,6 +3493,24 @@ x-responsesPostWallet: &responsesPostWallet
       application/json:
         schema: *ApiWallet
 
+x-responsesPostSharedWallet: &responsesPostSharedWallet
+  <<: *responsesErr400
+  <<: *responsesErr406
+  <<: *responsesErr409WalletAlreadyExists
+  <<: *responsesErr415UnsupportedMediaType
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errSharedWalletCreateNotAllowed
+  201:
+    description: Created
+    content:
+      application/json:
+        schema: *ApiSharedWallet
+
 x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr400
   <<: *responsesErr406
@@ -3252,6 +3540,37 @@ x-responsesGetByronWallet: &responsesGetByronWallet
     content:
       application/json:
         schema: *ApiByronWallet
+
+x-responsesGetSharedWallet: &responsesGetSharedWallet
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiSharedWallet
+
+x-responsesPatchSharedWallet: &responsesPatchSharedWallet
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errSharedWalletKeyAlreadyExists
+            - <<: *errSharedWalletNoDelegationTemplate
+            - <<: *errSharedWalletNotPending
+            - <<: *errSharedWalletNoSuchCosigner
+            - <<: *errSharedWalletCannotUpdateKey
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiSharedWallet
 
 x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
   403:
@@ -3737,6 +4056,10 @@ x-tagGroups:
     - Byron Coin Selections
     - Byron Transactions
     - Byron Migrations
+
+  - name: Shelley (Shared Wallets)
+    tags:
+    - Shared Wallets
 
   - name: Miscellaneous
     tags:
@@ -4697,28 +5020,31 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Construct any address by specyfying credential for payment or stake.
+        Construct any address by specyfying credential for payment or delegation.
 
         In Cardano, Addresses are made of three parts:
 
         ```
-        *---------*---------*-------*
-        | NETWORK | PAYMENT | STAKE |
-        *---------*---------*-------*
+        *---------*---------*-----------*
+        | NETWORK | PAYMENT | DELEGATION |
+        *---------*---------*-----------*
         ```
 
         The `NETWORK` part allows for distinguishing addresses between different networks like the mainnet or the testnet. It is implicitly
-        handled by the server without you having to worry about it. The `PAYMENT` and `STAKE` parts however can be constructed similarly, using
+        handled by the server without you having to worry about it. The `PAYMENT` and `DELEGATION` parts however can be constructed similarly, using
         either:
 
         - A public key
         - A script
 
-        The script itself is either constructed out of a public key, or one of the three following primitives:
+        The script itself is either constructed out of a public key, one of two timelocks, or one of the three following primitives:
 
         - all
         - any
         - some
+
+        The timelock can determine validity as respect to the slot. `active_from slot` means the script is valid from the specified slot
+        and onward. `active_until slot` means the script is valid until (not included) the specified slot.
 
         Each of which contains one or more script(s) that can be either keys or primitives, and so on. Schematically:
 
@@ -4726,6 +5052,13 @@ paths:
                                            ┏─────────┓
         SCRIPT = ──┬───────────────────────┤ pub key ├─────────────────────┬──
                    │                       ┗─────────┛                     │
+                   │                       ┏──────────────────┓            │
+                   ├───────────────────────┤ ACTIVE_FROM slot ├──── ───────┤
+                   │                       ┗──────────────────┛            │
+                   │                       ┏───────────────────┓           │
+                   ├───────────────────────┤ ACTIVE_UNTIL slot ├───────────┤
+                   │                       ┗───────────────────┛           │
+                   │                                                       │
                    │  ╭─────╮   ╭────────╮                                 │
                    ├──┤ ALL ├───┤ SCRIPT ├─┬───────────────────────────────┤
                    │  ╰─────╯ ^ ╰────────╯ │                               │
@@ -4733,7 +5066,7 @@ paths:
                    │          └───┤ , ├────┘                               │
                    │              ╰───╯                                    │
                    │  ╭─────╮   ╭────────╮                                 │
-                   ├──┤ ALL ├───┤ SCRIPT ├─┬───────────────────────────────┤
+                   ├──┤ ANY ├───┤ SCRIPT ├─┬───────────────────────────────┤
                    │  ╰─────╯ ^ ╰────────╯ │                               │
                    │          │   ╭───╮    │                               │
                    │          └───┤ , ├────┘                               │
@@ -4792,3 +5125,72 @@ paths:
           required: false
           description: check this url for health instead of the currently configured one
       responses: *responsesGetSmashHealth
+
+  /shared-wallets:
+    post:
+      operationId: postSharedWallet
+      tags: ["Shared Wallets"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Create a shared wallet from an account public key, its index and script templates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSharedWalletPostData
+      responses: *responsesPostSharedWallet
+
+  /shared-wallets/{walletId}:
+    get:
+      operationId: getSharedWallet
+      tags: ["Shared Wallets"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetSharedWallet
+
+    delete:
+      operationId: deleteSharedWallet
+      tags: ["Shared Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
+
+  /shared-wallets/{walletId}/payment-script-template:
+    patch:
+      operationId: patchSharedWalletInPayment
+      tags: ["Shared Wallets"]
+      summary: Update Payment
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSharedWalletPatchData
+      responses: *responsesPatchSharedWallet
+
+  /shared-wallets/{walletId}/delegation-script-template:
+    patch:
+      operationId: patchSharedWalletInDelegation
+      tags: ["Shared Wallets"]
+      summary: Update Delegation
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSharedWalletPatchData
+      responses: *responsesPatchSharedWallet

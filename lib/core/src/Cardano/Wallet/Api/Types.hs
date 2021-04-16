@@ -149,6 +149,15 @@ module Cardano.Wallet.Api.Types
     , EncodeStakeAddress (..)
     , DecodeStakeAddress (..)
 
+    -- * Shared Wallets
+    , ApiSharedWallet (..)
+    , ApiPendingSharedWallet (..)
+    , ApiActiveSharedWallet (..)
+    , ApiSharedWalletPostData (..)
+    , ApiSharedWalletPostDataFromMnemonics (..)
+    , ApiSharedWalletPostDataFromAccountPubX (..)
+    , ApiSharedWalletPatchData (..)
+
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
@@ -180,7 +189,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( KeyHash, Script, ValidationLevel (..) )
+    ( Cosigner (..), KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -262,7 +271,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( guard, (>=>) )
+    ( guard, when, (>=>) )
 import Data.Aeson.Types
     ( FromJSON (..)
     , SumEncoding (..)
@@ -369,6 +378,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.Read as T
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets
@@ -1039,6 +1049,65 @@ data ApiAccountKey = ApiAccountKey
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data ApiSharedWalletPostDataFromMnemonics = ApiSharedWalletPostDataFromMnemonics
+    { name :: !(ApiT WalletName)
+    , mnemonicSentence :: !(ApiMnemonicT (AllowedMnemonics 'Shelley))
+    , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
+    , passphrase :: !(ApiT (Passphrase "raw"))
+    , accountIndex :: !(ApiT DerivationIndex)
+    , paymentScriptTemplate :: !ScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    } deriving (Eq, Generic, Show)
+
+data ApiSharedWalletPostDataFromAccountPubX = ApiSharedWalletPostDataFromAccountPubX
+    { name :: !(ApiT WalletName)
+    , accountPublicKey :: !ApiAccountPublicKey
+    , accountIndex :: !(ApiT DerivationIndex)
+    , paymentScriptTemplate :: !ScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    } deriving (Eq, Generic, Show)
+
+newtype ApiSharedWalletPostData = ApiSharedWalletPostData
+    { wallet :: Either ApiSharedWalletPostDataFromMnemonics ApiSharedWalletPostDataFromAccountPubX
+    } deriving (Eq, Generic, Show)
+
+data ApiActiveSharedWallet = ApiActiveSharedWallet
+    { id :: !(ApiT WalletId)
+    , name :: !(ApiT WalletName)
+    , accountIndex :: !(ApiT DerivationIndex)
+    , addressPoolGap :: !(ApiT AddressPoolGap)
+    , passphrase :: !(Maybe ApiWalletPassphraseInfo)
+    , paymentScriptTemplate :: !ScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , delegation :: !ApiWalletDelegation
+    , balance :: !ApiWalletBalance
+    , assets :: !ApiWalletAssetsBalance
+    , state :: !(ApiT SyncProgress)
+    , tip :: !ApiBlockReference
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiPendingSharedWallet = ApiPendingSharedWallet
+    { id :: !(ApiT WalletId)
+    , name :: !(ApiT WalletName)
+    , accountIndex :: !(ApiT DerivationIndex)
+    , addressPoolGap :: !(ApiT AddressPoolGap)
+    , paymentScriptTemplate :: !ScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+newtype ApiSharedWallet = ApiSharedWallet
+    { wallet :: Either ApiPendingSharedWallet ApiActiveSharedWallet
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiSharedWalletPatchData = ApiSharedWalletPatchData
+    { cosigner :: !(ApiT Cosigner)
+    , accountPublicKey :: !ApiAccountPublicKey
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
     = NoSuchWallet
@@ -1089,6 +1158,12 @@ data ApiErrorCode
     | AssetNotPresent
     | OutputTokenBundleSizeExceedsLimit
     | OutputTokenQuantityExceedsLimit
+    | SharedWalletNotPending
+    | SharedWalletNoDelegationTemplate
+    | SharedWalletKeyAlreadyExists
+    | SharedWalletNoSuchCosigner
+    | SharedWalletCannotUpdateKey
+    | SharedWalletCreateNotAllowed
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
@@ -2224,6 +2299,80 @@ instance {-# OVERLAPS #-} EncodeStakeAddress n
   where
     toJSON (acct, _) = toJSON . encodeStakeAddress @n . getApiT $ acct
 
+instance FromJSON ApiSharedWalletPostDataFromAccountPubX where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiSharedWalletPostDataFromAccountPubX where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiSharedWalletPostDataFromMnemonics where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiSharedWalletPostDataFromMnemonics where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiSharedWalletPostData where
+    parseJSON obj = do
+        mnemonic <-
+            (withObject "postData" $
+             \o -> o .:? "mnemonic_sentence" :: Aeson.Parser (Maybe [Text])) obj
+        case mnemonic of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser ApiSharedWalletPostDataFromAccountPubX
+                pure $ ApiSharedWalletPostData $ Right xs
+            _ -> do
+                xs <- parseJSON obj :: Aeson.Parser ApiSharedWalletPostDataFromMnemonics
+                pure $ ApiSharedWalletPostData $ Left xs
+
+instance ToJSON ApiSharedWalletPostData where
+    toJSON (ApiSharedWalletPostData (Left c))= toJSON c
+    toJSON (ApiSharedWalletPostData (Right c))= toJSON c
+
+instance FromJSON (ApiT Cosigner) where
+    parseJSON =
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
+instance ToJSON (ApiT Cosigner) where
+    toJSON = toJSON . toText
+
+instance FromJSON ApiSharedWalletPatchData where
+    parseJSON = withObject "ApiSharedWalletPatchData" $ \o ->
+        case HM.toList o of
+                [] -> fail "ApiSharedWalletPatchData should not be empty"
+                [(numTxt, str)] -> do
+                    cosigner' <- parseJSON @(ApiT Cosigner) (String numTxt)
+                    xpub <- parseJSON @ApiAccountPublicKey str
+                    pure $ ApiSharedWalletPatchData cosigner' xpub
+                _ -> fail "ApiSharedWalletPatchData should have one pair"
+
+instance ToJSON ApiSharedWalletPatchData where
+    toJSON (ApiSharedWalletPatchData cosigner accXPub) =
+        object [ toText cosigner .= toJSON accXPub ]
+
+instance FromJSON ApiActiveSharedWallet where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiActiveSharedWallet where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPendingSharedWallet where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPendingSharedWallet where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiSharedWallet where
+    parseJSON obj = do
+        balance <-
+            (withObject "ActiveSharedWallet" $
+             \o -> o .:? "balance" :: Aeson.Parser (Maybe ApiWalletBalance)) obj
+        case balance of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser ApiPendingSharedWallet
+                pure $ ApiSharedWallet $ Left xs
+            _ -> do
+                xs <- parseJSON obj :: Aeson.Parser ApiActiveSharedWallet
+                pure $ ApiSharedWallet $ Right xs
+
+instance ToJSON ApiSharedWallet where
+    toJSON (ApiSharedWallet (Left c))= toJSON c
+    toJSON (ApiSharedWallet (Right c))= toJSON c
+
 instance ToJSON ApiErrorCode where
     toJSON = genericToJSON defaultSumTypeOptions
 
@@ -2326,6 +2475,19 @@ instance FromText AnyAddress where
                 "stake_test" -> proceedWhenHrpCorrect RewardAccount 0
                 _ -> Left $ TextDecodingError "AnyAddress is not correctly prefixed."
         _ -> Left $ TextDecodingError "AnyAddress must be must be encoded as Bech32."
+
+instance ToText (ApiT Cosigner) where
+    toText (ApiT (Cosigner ix)) = "cosigner#"<> T.pack (show ix)
+
+instance FromText (ApiT Cosigner) where
+    fromText txt = case T.splitOn "cosigner#" txt of
+        ["",numTxt] ->  case T.decimal @Integer numTxt of
+            Right (num,"") -> do
+                when (num < 0 || num > 255) $
+                        Left $ TextDecodingError "Cosigner number should be between '0' and '255'"
+                pure $ ApiT $ Cosigner $ fromIntegral num
+            _ -> Left $ TextDecodingError "Cosigner should be enumerated with number"
+        _ -> Left $ TextDecodingError "Cosigner should be of form: cosigner#num"
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances

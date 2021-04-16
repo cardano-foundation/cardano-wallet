@@ -74,6 +74,10 @@ module Test.Integration.Framework.DSL
     , emptyWalletWith
     , emptyByronWalletFromXPrvWith
     , rewardWallet
+    , postSharedWallet
+    , deleteSharedWallet
+    , getSharedWallet
+    , patchSharedWallet
 
     -- * Wallet helpers
     , listFilteredWallets
@@ -151,6 +155,8 @@ module Test.Integration.Framework.DSL
     , verifyMetadataSource
     , triggerMaintenanceAction
     , verifyMaintenanceAction
+    , genXPubs
+    , accPubKeyFromMnemonics
 
     -- * Delegation helpers
     , notDelegating
@@ -188,6 +194,8 @@ module Test.Integration.Framework.DSL
     , ResourceT
     ) where
 
+import Cardano.Address.Derivation
+    ( XPub, xpubFromBytes )
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Mnemonic
@@ -214,6 +222,7 @@ import Cardano.Wallet.Api.Types
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
+    , ApiSharedWallet (..)
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -245,6 +254,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPublicKey (..)
     , Role (..)
     , WalletKey (..)
+    , fromHex
     , hex
     , preparePassphrase
     )
@@ -254,6 +264,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -290,7 +302,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Control.Arrow
     ( second )
 import Control.Monad
-    ( forM_, join, unless, void )
+    ( forM_, join, replicateM, unless, void, (>=>) )
 import Control.Monad.IO.Unlift
     ( MonadIO, MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -303,6 +315,10 @@ import Data.Aeson
     ( FromJSON, ToJSON, Value, (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.ByteString
+    ( ByteString )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Foldable
     ( toList )
 import Data.Function
@@ -804,6 +820,38 @@ genMnemonics'
 genMnemonics' =
     liftIO $ mnemonicToText . entropyToMnemonic @mw <$> genEntropy
 
+accPubKeyFromMnemonics
+    :: SomeMnemonic
+    -> Maybe SomeMnemonic
+    -> Word32
+    -> Passphrase "encryption"
+    -> Text
+accPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
+    T.decodeUtf8 $ serializeXPub $ publicKey $
+        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2147483648 + ix)
+  where
+    rootXPrv = Shelley.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
+
+genXPubs :: Int -> IO [(XPub,Text)]
+genXPubs num =
+    replicateM num genXPub
+  where
+    genXPub = do
+        m15txt <- genMnemonics M15
+        m12txt <- genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let accXPubTxt = accPubKeyFromMnemonics m15 (Just m12) 10 mempty
+        let (Just accXPub) = xpubFromText accXPubTxt
+        return (accXPub, accXPubTxt)
+
+    xpubFromText :: Text -> Maybe XPub
+    xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
+
+    fromHexText :: Text -> Either String ByteString
+    fromHexText = fromHex . T.encodeUtf8
+
+
 getTxId :: (ApiTransaction n) -> String
 getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
 
@@ -1298,7 +1346,6 @@ fixtureMultiAssetRandomWallet ctx = do
             ]
         return (getFromResponse id rb)
 
-
 fixtureMultiAssetIcarusWallet
     :: forall n m.
         ( DecodeAddress n
@@ -1338,6 +1385,75 @@ fixtureMultiAssetIcarusWallet ctx = do
                 (`shouldNotBe` TokenMap.empty)
             ]
         return (getFromResponse id rb)
+
+postSharedWallet
+    :: (MonadIO m, MonadUnliftIO m)
+    => Context
+    -> Headers
+    -> Payload
+    -> ResourceT m (HTTP.Status, Either RequestException ApiSharedWallet)
+postSharedWallet ctx headers payload = snd <$> allocate create (free . snd)
+  where
+    create =
+        request @ApiSharedWallet ctx Link.postSharedWallet headers payload
+
+    free (Right (ApiSharedWallet (Left w))) = void $ request @Aeson.Value ctx
+        (Link.deleteSharedWallet w) Default Empty
+    free (Right (ApiSharedWallet (Right w))) = void $ request @Aeson.Value ctx
+        (Link.deleteSharedWallet w) Default Empty
+    free (Left _) = return ()
+
+deleteSharedWallet
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiSharedWallet
+    -> m (HTTP.Status, Either RequestException Value)
+deleteSharedWallet ctx (ApiSharedWallet (Left w)) =
+    request @Aeson.Value ctx
+        (Link.deleteSharedWallet w) Default Empty
+deleteSharedWallet ctx (ApiSharedWallet (Right w)) =
+    request @Aeson.Value ctx
+        (Link.deleteSharedWallet w) Default Empty
+
+getSharedWallet
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiSharedWallet
+    -> m (HTTP.Status, Either RequestException ApiSharedWallet)
+getSharedWallet ctx (ApiSharedWallet (Left w)) = do
+    let link = Link.getSharedWallet w
+    request @ApiSharedWallet ctx link Default Empty
+getSharedWallet ctx (ApiSharedWallet (Right w)) = do
+    let link = Link.getSharedWallet w
+    request @ApiSharedWallet ctx link Default Empty
+
+patchEndpointEnding :: CredentialType -> Text
+patchEndpointEnding = \case
+    Payment -> "payment-script-template"
+    Delegation -> "delegation-script-template"
+
+patchSharedWallet
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiSharedWallet
+    -> CredentialType
+    -> Payload
+    -> m (HTTP.Status, Either RequestException ApiSharedWallet)
+patchSharedWallet ctx (ApiSharedWallet (Left w)) cred payload  = do
+    let endpoint = "v2/shared-wallets" </> w ^. walletId </> patchEndpointEnding cred
+    request @ApiSharedWallet ctx ("PATCH", endpoint) Default payload
+patchSharedWallet ctx (ApiSharedWallet (Right w)) cred payload  = do
+    let endpoint = "v2/shared-wallets" </> w ^. walletId </> patchEndpointEnding cred
+    request @ApiSharedWallet ctx ("PATCH", endpoint) Default payload
 
 fixtureRawTx
     :: Context
@@ -1987,13 +2103,13 @@ listTransactions
     -> Maybe UTCTime
     -> Maybe SortOrder
     -> m [ApiTransaction n]
-listTransactions ctx wallet mStart mEnd mOrder = do
+listTransactions ctx w mStart mEnd mOrder = do
     r <- request @[ApiTransaction n] ctx path Default Empty
     expectResponseCode HTTP.status200 r
     let txs = getFromResponse id r
     return txs
   where
-    path = Link.listTransactions' @'Shelley wallet
+    path = Link.listTransactions' @'Shelley w
         Nothing
         (Iso8601Time <$> mStart)
         (Iso8601Time <$> mEnd)

@@ -34,8 +34,11 @@ module Cardano.Wallet.DB.Sqlite
     , withDBLayer
     , withDBLayerInMemory
     , WalletDBLog (..)
-    , newDBLayerWith
     , CacheBehavior (..)
+
+    -- * Unbracketed internal implementation
+    , newDBLayerWith
+    , newDBLayerInMemory
 
     -- * Interfaces
     , PersistState (..)
@@ -49,6 +52,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -88,6 +93,7 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
+    , CosignerKey (..)
     , DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
@@ -99,6 +105,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , SeqState (..)
     , SeqStateAddress (..)
     , SeqStatePendingIx (..)
+    , SharedState (..)
     , StakeKeyCertificate (..)
     , TxIn (..)
     , TxMeta (..)
@@ -122,6 +129,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
+    , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
     )
@@ -129,6 +137,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , epochOf
@@ -154,6 +164,8 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Bifunctor
+    ( second )
 import Data.Coerce
     ( coerce )
 import Data.Either
@@ -169,7 +181,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, isJust, mapMaybe )
+    ( catMaybes, fromJust, isJust, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -232,6 +244,7 @@ import UnliftIO.MVar
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.SharedState as Shared
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -1193,6 +1206,9 @@ withDBLayerInMemory
 withDBLayerInMemory tr ti action = bracket (newDBLayerInMemory tr ti) fst (action . snd)
 
 -- | Creates a 'DBLayer' backed by a sqlite in-memory database.
+--
+-- Returns a cleanup function which you should always use exactly once when
+-- finished with the 'DBLayer'.
 newDBLayerInMemory
     :: forall s k.
         ( PersistState s
@@ -1951,7 +1967,7 @@ selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
 
 selectLatestCheckpoint
-    :: forall s. (PersistState s)
+    :: forall s. PersistState s
     => W.WalletId
     -> SqlPersistT IO (Maybe (W.Wallet s))
 selectLatestCheckpoint wid = do
@@ -2416,6 +2432,98 @@ selectSeqStatePendingIxs wid =
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
+
+instance
+    ( PersistPublicKey (k 'AccountK)
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , PaymentAddress n k
+    , SoftDerivation k
+    , WalletKey k
+    , Typeable n
+    , Seq.GetPurpose k
+    ) => PersistState (Shared.SharedState n k) where
+    insertState (wid, sl) st = do
+        case st of
+            Shared.SharedState prefix (Shared.PendingFields (Shared.SharedStatePending accXPub pTemplate dTemplateM g)) -> do
+                insertSharedState accXPub g pTemplate dTemplateM prefix
+                insertCosigner (cosigners pTemplate) Payment
+                when (isJust dTemplateM) $
+                    insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+
+            Shared.SharedState prefix (Shared.ReadyFields pool) -> do
+                let (Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM) =
+                        Seq.context pool
+                insertSharedState accXPub (Seq.gap pool) pTemplate dTemplateM prefix
+                insertCosigner (cosigners pTemplate) Payment
+                when (isJust dTemplateM) $
+                    insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+                insertAddressPool @n wid sl pool
+      where
+         insertSharedState accXPub g pTemplate dTemplateM prefix = do
+             deleteWhere [SharedStateWalletId ==. wid]
+
+             insert_ $ SharedState
+                 { sharedStateWalletId = wid
+                 , sharedStateAccountXPub = serializeXPub accXPub
+                 , sharedStateScriptGap = g
+                 , sharedStatePaymentScript = template pTemplate
+                 , sharedStateDelegationScript = template <$> dTemplateM
+                 , sharedStateDerivationPrefix = prefix
+                 }
+         insertCosigner cs cred = do
+             deleteWhere [CosignerKeyWalletId ==. wid]
+
+             dbChunked insertMany_
+                 [ CosignerKey wid cred (serializeXPub @(k 'AccountK) $ liftRawKey xpub) c
+                 | ((Cosigner c), xpub) <- Map.assocs cs
+                 ]
+
+    selectState (wid, sl) = runMaybeT $ do
+        st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []
+        let SharedState _ accountBytes g pScript dScriptM prefix = entityVal st
+        let accXPub = unsafeDeserializeXPub accountBytes
+        pCosigners <- lift $ selectCosigners @k wid Payment
+        let prepareKeys = map (second getRawKey)
+        let pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
+        dCosigners <- lift $ selectCosigners @k wid Delegation
+        let dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
+        lift (multisigPoolAbsent wid sl) >>= \case
+            True -> pure $ Shared.SharedState prefix $ Shared.PendingFields $ Shared.SharedStatePending
+                { Shared.pendingSharedStateAccountKey = accXPub
+                , Shared.pendingSharedStatePaymentTemplate = pTemplate
+                , Shared.pendingSharedStateDelegationTemplate = dTemplateM
+                , Shared.pendingSharedStateAddressPoolGap = g
+                }
+            False -> do
+                let ctx = Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM
+                pool <- lift $ selectAddressPool @n wid sl g ctx
+                pure $ Shared.SharedState prefix (Shared.ReadyFields pool)
+
+selectCosigners
+    :: forall k. PersistPublicKey (k 'AccountK)
+    => W.WalletId
+    -> CredentialType
+    -> SqlPersistT IO [(Cosigner, k 'AccountK XPub)]
+selectCosigners wid cred = do
+    fmap (cosignerFromEntity . entityVal) <$> selectList
+        [ CosignerKeyWalletId ==. wid
+        , CosignerKeyCredential ==. cred
+        ] []
+ where
+   cosignerFromEntity (CosignerKey _ _ key c) =
+       (Cosigner c, unsafeDeserializeXPub key)
+
+multisigPoolAbsent
+    :: W.WalletId
+    -> W.SlotNo
+    -> SqlPersistT IO Bool
+multisigPoolAbsent wid sl = do
+    entries <- selectList
+        [ SeqStateAddressWalletId ==. wid
+        , SeqStateAddressSlot ==. sl
+        , SeqStateAddressRole ==. Seq.role @'MultisigScript
+        ] []
+    pure $ null entries
 
 {-------------------------------------------------------------------------------
                           HD Random address discovery
