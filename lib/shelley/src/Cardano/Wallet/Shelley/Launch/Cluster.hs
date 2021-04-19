@@ -1366,11 +1366,18 @@ moveInstantaneousRewardsTo tr conn dir targets = do
     mkMIRCertificate (pub, stakeVK, Coin reward) = do
         let mirCert = dir </> pub <> ".mir"
         stakeCert <- issueStakeCert tr dir pub stakeVK
+        stakeAddr <- cliLine tr
+            [ "stake-address"
+            , "build"
+            , "--mainnet"
+            , "--stake-verification-key-file" , stakeVK
+            ]
+
         cli tr
             [ "governance", "create-mir-certificate"
             , "--reserves"
             , "--reward", show reward
-            , "--stake-verification-key-file", stakeVK
+            , "--stake-address", stakeAddr
             , "--out-file", mirCert
             ]
         pure [stakeCert, mirCert]
