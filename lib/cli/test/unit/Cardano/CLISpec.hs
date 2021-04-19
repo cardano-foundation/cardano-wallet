@@ -506,7 +506,7 @@ spec = do
             , "  \ESC[1m$ cat root.prv \\\ESC[0m"
             , "    \ESC[1m| "<>progName<>" key child 1852H/1815H/0H \\\ESC[0m"
             , "    \ESC[1m| tee acct.prv \\\ESC[0m"
-            , "    \ESC[1m| "<>progName<>" key public > acct.pub\ESC[0m"
+            , "    \ESC[1m| "<>progName<>" key public --with-chain-code > acct.pub\ESC[0m"
             , "  "
             , "  \ESC[1m$ "<>progName<>" key inspect <<< $(cat acct.prv)\ESC[0m"
             , "  {"
