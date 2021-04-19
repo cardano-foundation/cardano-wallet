@@ -519,7 +519,7 @@ withCluster tr dir LocalClusterConfig{..} onClusterStart =
         withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
             waitForSocket tr bftSocket
 
-            (rawTx, faucetPrv) <- prepareKeyRegistration tr cfgLastHardFork dir
+            (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
             tx <- signTx tr dir rawTx [] [faucetPrv]
             submitTx tr bftSocket "pre-registered stake key" tx
 
@@ -769,7 +769,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
             , mPoolRetirementCert
             ]
     (rawTx, faucetPrv) <- preparePoolRegistration
-        tr hardForks dir stakePub certificates pledgeAmt
+        tr dir stakePub certificates pledgeAmt
     tx <- signTx tr dir rawTx [] [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
@@ -817,7 +817,7 @@ withStakePool tr baseDir idx params pledgeAmt poolConfig action =
                 submitTx tr socket name tx
                 timeout 120
                     ( "pool registration"
-                    , waitUntilRegistered tr socket name (nodeHardForks params) opPub )
+                    , waitUntilRegistered tr socket name opPub )
                 action
   where
     dir = baseDir </> name
@@ -1142,13 +1142,12 @@ issueDlgCert tr dir stakePub opPub = do
 -- automatically delegating 'pledge' amount to the given stake key.
 preparePoolRegistration
     :: Tracer IO ClusterLog
-    -> ClusterEra
     -> FilePath
     -> FilePath
     -> [FilePath]
     -> Integer
     -> IO (FilePath, FilePath)
-preparePoolRegistration tr era dir stakePub certs pledgeAmt = do
+preparePoolRegistration tr dir stakePub certs pledgeAmt = do
     let file = dir </> "tx.raw"
     addr <- genSinkAddress tr dir (Just stakePub)
     (faucetInput, faucetPrv) <- takeFaucet
@@ -1159,7 +1158,6 @@ preparePoolRegistration tr era dir stakePub certs pledgeAmt = do
         , "--ttl", "400"
         , "--fee", show (faucetAmt - pledgeAmt - depositAmt)
         , "--out-file", file
-        , cardanoCliEra era
         ] ++ mconcat ((\cert -> ["--certificate-file",cert]) <$> certs)
 
     pure (file, faucetPrv)
@@ -1285,7 +1283,6 @@ sendFaucet tr conn dir what targets = do
 
     let targetAssets = concatMap (snd . TokenBundle.toFlatList . fst . snd) targets
 
-    era <- getClusterEra dir
     cli tr $
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
@@ -1294,7 +1291,6 @@ sendFaucet tr conn dir what targets = do
             -- before the wallet API supports it.
         , "--fee", show (faucetAmt - total)
         , "--out-file", file
-        , cardanoCliEra era
         ] ++
         concatMap (uncurry mkOutput . fmap fst) targets ++
         mkMint targetAssets
@@ -1335,7 +1331,6 @@ moveInstantaneousRewardsTo tr conn dir targets = do
 
     sink <- genSinkAddress tr dir Nothing
 
-    era <- getClusterEra dir
     cli tr $
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
@@ -1343,7 +1338,6 @@ moveInstantaneousRewardsTo tr conn dir targets = do
         , "--fee", show (faucetAmt - 1_000_000 - totalDeposit)
         , "--tx-out", sink <> "+" <> "1000000"
         , "--out-file", file
-        , cardanoCliEra era
         ] ++ concatMap (\x -> ["--certificate-file", x]) (mconcat certs)
 
     testData <- getShelleyTestDataPath
@@ -1385,10 +1379,9 @@ moveInstantaneousRewardsTo tr conn dir targets = do
 -- automatically delegating 'pledge' amount to the given stake key.
 prepareKeyRegistration
     :: Tracer IO ClusterLog
-    -> ClusterEra
     -> FilePath
     -> IO (FilePath, FilePath)
-prepareKeyRegistration tr era dir = do
+prepareKeyRegistration tr dir = do
     let file = dir </> "tx.raw"
 
     let stakePub = dir </> "pre-registered-stake.pub"
@@ -1407,7 +1400,6 @@ prepareKeyRegistration tr era dir = do
         , "--fee", show (faucetAmt - depositAmt - 1_000_000)
         , "--certificate-file", cert
         , "--out-file", file
-        , cardanoCliEra era
         ]
     pure (file, faucetPrv)
 
@@ -1478,8 +1470,8 @@ waitForSocket tr conn = do
     traceWith tr $ MsgSocketIsReady conn
 
 -- | Wait until a stake pool shows as registered on-chain.
-waitUntilRegistered :: Tracer IO ClusterLog -> CardanoNodeConn -> String -> ClusterEra -> FilePath -> IO ()
-waitUntilRegistered tr conn name era opPub = do
+waitUntilRegistered :: Tracer IO ClusterLog -> CardanoNodeConn -> String -> FilePath -> IO ()
+waitUntilRegistered tr conn name opPub = do
     poolId <- fmap getFirstLine . readProcessStdout_ =<< cliConfig tr
         [ "stake-pool", "id"
         , "--stake-pool-verification-key-file", opPub
@@ -1487,12 +1479,11 @@ waitUntilRegistered tr conn name era opPub = do
     (exitCode, distribution, err) <- cliNode tr conn
         [ "query", "stake-distribution"
         , "--mainnet"
-        , cardanoCliEra era
         ]
     traceWith tr $ MsgStakeDistribution name exitCode distribution err
     unless (BL8.toStrict poolId `BS.isInfixOf` BL8.toStrict distribution) $ do
         threadDelay 5000000
-        waitUntilRegistered tr conn name era opPub
+        waitUntilRegistered tr conn name opPub
 
 
 -- | Hard-wired faucets referenced in the genesis file. Purpose is simply to
@@ -1641,9 +1632,6 @@ resetGlobals :: IO ()
 resetGlobals = do
     void $ swapMVar faucetIndex 1
     void $ swapMVar operators operatorsFixture
-
-cardanoCliEra :: ClusterEra -> String
-cardanoCliEra era = "--" ++ clusterEraName era ++ "-era"
 
 getClusterEra :: FilePath -> IO ClusterEra
 getClusterEra dir = read <$> readFile (dir </> "era")
