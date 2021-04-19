@@ -133,6 +133,8 @@ allow-newer:
     hjsonschema:*
   , hjsonpointer:*
   , cardano-sl-x509:ip
+  , cardano-api
+  , aeson
 
 constraints:
     hedgehog >= 1.0.2
