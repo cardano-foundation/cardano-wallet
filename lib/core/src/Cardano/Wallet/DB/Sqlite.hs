@@ -85,7 +85,9 @@ import Cardano.DB.Sqlite.Delete
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
+    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -1521,9 +1523,14 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     ]
 
         , putLocalTxSubmission = \(PrimaryKey wid) txid tx sl -> ExceptT $ do
+            let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
+                    ErrNoSuchWallet wid
+            let errNoSuchTx = ErrPutLocalTxSubmissionNoSuchTransaction $
+                    ErrNoSuchTransaction wid txid
+
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> Right <$> do
+                Nothing -> pure $ Left errNoSuchWallet
+                Just _ -> handleConstraint errNoSuchTx $ do
                     let record = LocalTxSubmission (TxId txid) wid sl tx
                     void $ upsert record [ LocalTxSubmissionLastSlot =. sl ]
 
@@ -1543,7 +1550,8 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
             let errNoMorePending =
                     Left $ ErrRemoveTxAlreadyInLedger tid
             let errNoSuchTransaction =
-                    Left $ ErrRemoveTxNoSuchTransaction tid
+                    Left $ ErrRemoveTxNoSuchTransaction $
+                    ErrNoSuchTransaction wid tid
             selectWallet wid >>= \case
                 Nothing -> pure errNoSuchWallet
                 Just _  -> selectTxMeta wid tid >>= \case
@@ -2279,12 +2287,14 @@ listPendingLocalTxSubmissionQuery
     -> SqlPersistT IO [(W.SlotNo, LocalTxSubmission)]
 listPendingLocalTxSubmissionQuery wid = fmap unRaw <$> rawSql query params
   where
+    -- fixme: sort results
     query =
         "SELECT tx_meta.slot,?? " <>
         "FROM tx_meta INNER JOIN local_tx_submission " <>
         "ON tx_meta.wallet_id=local_tx_submission.wallet_id " <>
         "    AND tx_meta.tx_id=local_tx_submission.tx_id " <>
-        "WHERE tx_meta.wallet_id=? AND tx_meta.status=?"
+        "WHERE tx_meta.wallet_id=? AND tx_meta.status=? " <>
+        "ORDER BY local_tx_submission.wallet_id, local_tx_submission.tx_id"
     params = [toPersistValue wid, toPersistValue W.Pending]
     unRaw (Single sl, Entity _ tx) = (sl, tx)
 

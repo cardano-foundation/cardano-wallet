@@ -58,7 +58,9 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..)
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
+    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -67,7 +69,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Model
-    ( Database
+    ( Database (..)
     , Err (..)
     , TxHistory
     , WalletDatabase (..)
@@ -186,7 +188,7 @@ import Data.Map
 import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
 import Data.Maybe
-    ( catMaybes, fromJust, isJust, isNothing )
+    ( catMaybes, fromJust, isJust, isNothing, mapMaybe )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
@@ -504,7 +506,7 @@ runIO db@DBLayer{..} = fmap Resp . go
             catchNoSuchWallet (TxHistory . maybe [] pure) $
             mapExceptT atomically $ getTx (PrimaryKey wid) tid
         PutLocalTxSubmission wid tid sl ->
-            catchNoSuchWallet Unit $
+            catchPutLocalTxSubmission Unit $
             mapExceptT atomically $
             putLocalTxSubmission (PrimaryKey wid) tid (unMockSealedTx tid) sl
         ReadLocalTxSubmissionPending wid ->
@@ -537,6 +539,8 @@ runIO db@DBLayer{..} = fmap Resp . go
         fmap (bimap errNoSuchWallet f) . runExceptT
     catchCannotRemovePendingTx wid f =
         fmap (bimap (errCannotRemovePendingTx wid) f) . runExceptT
+    catchPutLocalTxSubmission f =
+        fmap (bimap errPutLocalTxSubmission f) . runExceptT
 
     errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
     errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
@@ -544,13 +548,22 @@ runIO db@DBLayer{..} = fmap Resp . go
     errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
     errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 
+    errNoSuchTransaction :: ErrNoSuchTransaction -> Err WalletId
+    errNoSuchTransaction (ErrNoSuchTransaction wid tid) = NoSuchTx wid tid
+
     errCannotRemovePendingTx :: WalletId -> ErrRemoveTx -> Err WalletId
     errCannotRemovePendingTx _ (ErrRemoveTxNoSuchWallet e) =
         errNoSuchWallet e
-    errCannotRemovePendingTx wid (ErrRemoveTxNoSuchTransaction tid) =
-        NoSuchTx wid tid
+    errCannotRemovePendingTx _ (ErrRemoveTxNoSuchTransaction e) =
+        errNoSuchTransaction e
     errCannotRemovePendingTx wid (ErrRemoveTxAlreadyInLedger tid) =
         CantRemoveTxInLedger wid tid
+
+    errPutLocalTxSubmission :: ErrPutLocalTxSubmission -> Err WalletId
+    errPutLocalTxSubmission (ErrPutLocalTxSubmissionNoSuchWallet e) =
+        errNoSuchWallet e
+    errPutLocalTxSubmission (ErrPutLocalTxSubmissionNoSuchTransaction e) =
+        errNoSuchTransaction e
 
     unPrimaryKey :: PrimaryKey key -> key
     unPrimaryKey (PrimaryKey key) = key
@@ -639,10 +652,13 @@ generator
     :: forall s. (Arbitrary (Wallet s), GenState s)
     => Model s Symbolic
     -> Maybe (Gen (Cmd s :@ Symbolic))
-generator (Model _ wids) = Just $ frequency $ fmap (fmap At) . snd <$> concat
+generator m@(Model _ wids) = Just $ frequency $ fmap (fmap At) . snd <$> concat
     [ generatorWithoutId
     , if null wids then [] else generatorWithWid (fst <$> wids)
+    , if null tids then [] else generatorWithTids tids
     ]
+  where
+    tids = filter (not . null . snd) (txIdsFromModel m)
 
 declareGenerator
     :: String -- ^ A readable name
@@ -699,11 +715,6 @@ generatorWithWid wids =
             <*> genSortOrder
             <*> genRange
             <*> arbitrary
-    -- TODO: Implement mGetTx
-    -- , declareGenerator "GetTx" 3
-    --     $ GetTx <$> genId <*> arbitrary
-    , declareGenerator "PutLocalTxSubmission" 3
-        $ PutLocalTxSubmission <$> genId <*> arbitrary <*> arbitrary
     , declareGenerator "ReadLocalTxSubmissionPending" 3
         $ ReadLocalTxSubmissionPending <$> genId
     , declareGenerator "UpdatePendingTxForExpiry" 4
@@ -741,11 +752,34 @@ generatorWithWid wids =
         , (1, Just <$> arbitrary)
         ]
 
+generatorWithTids
+    :: forall s r. (Arbitrary (Wallet s), GenState s, Eq (Reference WalletId r))
+    => [(Reference WalletId r, [Hash "Tx"])]
+    -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
+generatorWithTids tids =
+    [ declareGenerator "PutLocalTxSubmission" 3 genValidPutLocalTxSubmission
+    -- TODO: Implement mGetTx
+    -- , declareGenerator "GetTx" 3
+    --     $ GetTx <$> genId <*> arbitrary
+    ]
+  where
+    -- A valid LocalTxSubmission entry references a TxMeta of the wallet.
+    genValidPutLocalTxSubmission = do
+        wid <- elements (fst <$> tids)
+        tid <- maybe arbitrary elements $ lookup wid tids
+        PutLocalTxSubmission wid tid <$> arbitrary
+
+txIdsFromModel :: Model s r -> [(Reference WalletId r, [Hash "Tx"])]
+txIdsFromModel (Model db widRefs) = mapMaybe getTids widRefs
+  where
+    getTids (widRef, wid) = (widRef,) . Map.keys . txHistory <$>
+        Map.lookup wid (wallets db)
+
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
 
 shrinker
-    :: (Arbitrary (Wallet s))
+    :: Arbitrary (Wallet s)
     => Cmd s :@ r
     -> [Cmd s :@ r]
 shrinker (At cmd) = case cmd of

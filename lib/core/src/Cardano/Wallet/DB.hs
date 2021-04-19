@@ -29,9 +29,11 @@ module Cardano.Wallet.DB
     , gapSize
 
       -- * Errors
-    , ErrRemoveTx (..)
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
+    , ErrNoSuchTransaction (..)
+    , ErrRemoveTx (..)
+    , ErrPutLocalTxSubmission (..)
     ) where
 
 import Prelude
@@ -259,7 +261,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> Hash "Tx"
         -> SealedTx
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm ()
+        -> ExceptT ErrPutLocalTxSubmission stm ()
         -- ^ Add or update a transaction in the local submission pool with the
         -- most recent submission slot.
 
@@ -334,16 +336,23 @@ newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
     deriving (Eq, Show)
 
+-- | Can't add a transaction to the local tx submission pool.
+data ErrPutLocalTxSubmission
+    = ErrPutLocalTxSubmissionNoSuchWallet ErrNoSuchWallet
+    | ErrPutLocalTxSubmissionNoSuchTransaction ErrNoSuchTransaction
+    deriving (Eq, Show)
+
 -- | Can't remove pending or expired transaction.
 data ErrRemoveTx
     = ErrRemoveTxNoSuchWallet ErrNoSuchWallet
-    | ErrRemoveTxNoSuchTransaction (Hash "Tx")
+    | ErrRemoveTxNoSuchTransaction ErrNoSuchTransaction
     | ErrRemoveTxAlreadyInLedger (Hash "Tx")
     deriving (Eq, Show)
 
--- | Can't perform given operation because there's no transaction
-newtype ErrNoSuchTransaction
-    = ErrNoSuchTransaction (Hash "Tx")
+-- | Indicates that the specified transaction hash is not found in the
+-- transaction history of the given wallet.
+data ErrNoSuchTransaction
+    = ErrNoSuchTransaction WalletId (Hash "Tx")
     deriving (Eq, Show)
 
 -- | Forbidden operation was executed on an already existing wallet

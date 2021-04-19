@@ -515,16 +515,21 @@ mReadDelegationRewardBalance wid db@(Database wallets _) =
     (Right (maybe minBound rewardAccountBalance $ Map.lookup wid wallets), db)
 
 mPutLocalTxSubmission :: Ord wid => wid -> Hash "Tx" -> SealedTx -> SlotNo -> ModelOp wid s xprv ()
-mPutLocalTxSubmission wid txid tx sl = alterModel wid $ \wal ->
-    ((), wal { submittedTxs = Map.insertWith upsert txid (tx, sl) (submittedTxs wal) })
+mPutLocalTxSubmission wid tid tx sl = alterModelErr wid $ \wal ->
+    case Map.lookup tid (txHistory wal) of
+        Nothing -> (Left (NoSuchTx wid tid), wal)
+        Just _ -> (Right (), insertSubmittedTx wal)
   where
-    upsert (origTx, _) (_, newSl) = (origTx, newSl)
+    insertSubmittedTx wal = wal { submittedTxs = putTx (submittedTxs wal) }
+    putTx = Map.insertWith upsert tid (tx, sl)
+    upsert (_, newSl) (origTx, _) = (origTx, newSl)
 
 mReadLocalTxSubmissionPending
     :: Ord wid
     => wid
     -> ModelOp wid s xprv [LocalTxSubmissionStatus SealedTx]
-mReadLocalTxSubmissionPending wid = readWalletModel wid (\wal -> mapMaybe (getSubmission wal) (pendings wal))
+mReadLocalTxSubmissionPending wid = readWalletModel wid $ \wal ->
+    sortOn (view #txId) $ mapMaybe (getSubmission wal) (pendings wal)
   where
     pendings = mapMaybe getPending . Map.toList . txHistory
 

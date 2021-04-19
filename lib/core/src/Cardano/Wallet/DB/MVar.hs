@@ -22,7 +22,9 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..)
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
+    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -186,7 +188,7 @@ newDBLayer timeInterpreter = do
         -----------------------------------------------------------------------}
 
         , putLocalTxSubmission = \pk txid tx sl -> ExceptT $
-            alterDB errNoSuchWallet db $
+            alterDB (fmap ErrPutLocalTxSubmissionNoSuchWallet . errNoSuchWallet) db $
             mPutLocalTxSubmission pk txid tx sl
 
         , readLocalTxSubmissionPending =
@@ -258,8 +260,8 @@ errNoSuchWallet _ = Nothing
 errCannotRemovePendingTx :: Err (PrimaryKey WalletId) -> Maybe ErrRemoveTx
 errCannotRemovePendingTx (NoSuchWallet (PrimaryKey wid)) =
     Just (ErrRemoveTxNoSuchWallet (ErrNoSuchWallet wid))
-errCannotRemovePendingTx (NoSuchTx _ tid) =
-    Just (ErrRemoveTxNoSuchTransaction tid)
+errCannotRemovePendingTx (NoSuchTx (PrimaryKey wid) tid) =
+    Just (ErrRemoveTxNoSuchTransaction (ErrNoSuchTransaction wid tid))
 errCannotRemovePendingTx (CantRemoveTxInLedger _ tid) =
     Just (ErrRemoveTxAlreadyInLedger tid)
 errCannotRemovePendingTx _ = Nothing
