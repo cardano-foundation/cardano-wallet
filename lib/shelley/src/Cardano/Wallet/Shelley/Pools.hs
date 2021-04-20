@@ -864,8 +864,8 @@ instance HasSeverityAnnotation StakePoolLog where
     getSeverityAnnotation = \case
         MsgExitMonitoring msg -> getSeverityAnnotation msg
         MsgStakePoolGarbageCollection{} -> Debug
-        MsgStakePoolRegistration{} -> Info
-        MsgStakePoolRetirement{} -> Info
+        MsgStakePoolRegistration{} -> Debug
+        MsgStakePoolRetirement{} -> Debug
         MsgErrProduction{} -> Error
         MsgFetchPoolMetadata e -> getSeverityAnnotation e
         MsgFetchTakeBreak{} -> Debug
