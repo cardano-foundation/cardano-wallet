@@ -128,13 +128,15 @@ source-repository-package
 -- -------------------------------------------------------------------------
 -- Constraints tweaking
 
--- Relax overly strict bounds in hjsonschema and hjsonpointer
+-- cardano-addresses unit tests bring in some version constraint conflicts.
+--
+-- 1. hjsonschema and hjsonpointer deps have overly strict bounds.
+-- 2. it has strict aeson < 1.5 dep - this will be fixed in the next release.
 allow-newer:
     hjsonschema:*
   , hjsonpointer:*
   , cardano-sl-x509:ip
-  , cardano-api
-  , aeson
+  , cardano-addresses:aeson
 
 constraints:
     hedgehog >= 1.0.2
