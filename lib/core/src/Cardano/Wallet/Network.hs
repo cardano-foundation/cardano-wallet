@@ -292,8 +292,9 @@ follow nl tr cps yield header =
 
     step :: Bool -> Cursor -> IO FollowExit
     step hasRolledForward cursor = nextBlocks nl cursor >>= \case
-        RollForward cursor' _ [] -> do -- FIXME Make RollForward return NE
-            traceWith tr MsgSynced
+        RollForward cursor' _ [] -> do
+            -- FIXME Make RollForward return NE
+            -- This case seems to never happen.
             sleep delay0 hasRolledForward cursor'
 
         RollForward cursor' tip (blockFirst : blocksRest) -> do
@@ -351,7 +352,6 @@ follow nl tr cps yield header =
 data FollowLog tr
     = MsgFollowAction (FollowAction String)
     | MsgUnhandledException Text
-    | MsgSynced
     | MsgApplyBlocks BlockHeader (NonEmpty BlockHeader)
     | MsgFollowLog tr -- Inner tracer
     | MsgWillRollback SlotNo
@@ -365,8 +365,6 @@ instance ToText tr => ToText (FollowLog tr) where
             _ -> T.pack $ "Follower says " <> show action
         MsgUnhandledException err ->
             "Unexpected error following the chain: " <> err
-        MsgSynced ->
-            "In sync with the node."
         MsgApplyBlocks tipHdr hdrs ->
             let slot = pretty . slotNo
                 buildRange (x :| []) = x
@@ -390,7 +388,6 @@ instance HasSeverityAnnotation tr => HasSeverityAnnotation (FollowLog tr) where
         MsgFollowAction (ExitWith _) -> Error
         MsgFollowAction _ -> Debug
         MsgUnhandledException _ -> Error
-        MsgSynced -> Debug
         MsgApplyBlocks _ _ -> Info
         MsgFollowLog msg -> getSeverityAnnotation msg
         MsgWillRollback _ -> Debug
