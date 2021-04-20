@@ -71,10 +71,10 @@ import Test.QuickCheck
     , choose
     , counterexample
     , cover
-    , label
     , oneof
     , property
     , shrinkList
+    , tabulate
     , withMaxSuccess
     , (===)
     )
@@ -180,13 +180,18 @@ genArgsForCreatePlan (inputCountMin, inputCountMax) genInput = do
 
 prop_createPlan :: ArgsForCreatePlan -> Property
 prop_createPlan mockArgs =
-    label labelTransactionCount $
-    label labelMeanTransactionInputCount $
-    label labelMeanTransactionOutputCount $
-    label (labelNotSelectedPercentage "freeriders" freeriders) $
-    label (labelNotSelectedPercentage "supporters" supporters) $
-    label (labelNotSelectedPercentage "ignorables" ignorables) $
-
+    tabulate "Number of transactions required"
+        [transactionCount] $
+    tabulate "Mean number of inputs per transaction"
+        [meanTransactionInputCount] $
+    tabulate "Mean number of outputs per transaction"
+        [meanTransactionOutputCount] $
+    tabulate "Percentage of supporters selected"
+        [percentageSelected supporters] $
+    tabulate "Percentage of freeriders selected"
+        [percentageSelected freeriders] $
+    tabulate "Percentage of ignorables selected"
+        [percentageSelected ignorables] $
     counterexample counterexampleText $
     conjoinMap
         [ ( "inputs are not preserved"
@@ -201,8 +206,8 @@ prop_createPlan mockArgs =
           , null (supporters (unselected result)) )
         ]
   where
-    labelTransactionCount = pretty $ mconcat
-        [ "number of transactions required: ["
+    transactionCount = pretty $ mconcat
+        [ "["
         , padLeftF 3 '0' (10 * selectionCountDiv10)
         , " – "
         , padLeftF 3 '0' (10 * (selectionCountDiv10 + 1) - 1)
@@ -211,8 +216,8 @@ prop_createPlan mockArgs =
       where
         selectionCountDiv10 = selectionCount `div` 10
 
-    labelMeanTransactionInputCount = pretty $ mconcat
-        [ "mean number of inputs per transaction: ["
+    meanTransactionInputCount = pretty $ mconcat
+        [ "["
         , padLeftF 3 '0' (10 * meanTxInputCountDiv10)
         , " – "
         , padLeftF 3 '0' (10 * (meanTxInputCountDiv10 + 1) - 1)
@@ -230,10 +235,8 @@ prop_createPlan mockArgs =
         totalSelectedInputCount =
             L.sum $ L.length . view #inputIds <$> selections result
 
-    labelMeanTransactionOutputCount = pretty $ mconcat
-        [ "mean number of outputs per transaction: "
-        , padLeftF 3 '0' meanTxOutputCount
-        ]
+    meanTransactionOutputCount = pretty $
+        padLeftF 3 ' ' meanTxOutputCount
       where
         meanTxOutputCount :: Int
         meanTxOutputCount
@@ -245,20 +248,15 @@ prop_createPlan mockArgs =
         totalSelectedOutputCount =
             L.sum $ L.length . view #outputs <$> selections result
 
-    labelNotSelectedPercentage categoryName category = pretty $ mconcat
-        [ categoryName
-        , " not selected: "
-        , maybe
-            ("no entries available")
-            (\p -> padLeftF 3 '0' p <> "%")
-            (percentage)
-        ]
+    percentageSelected category = pretty $
+        padLeftF 3 ' ' percentage <> "%"
       where
+        percentage :: Int
         percentage
             | entriesAvailable == 0 =
-                Nothing
+                100
             | otherwise =
-                Just $ (entriesNotSelected * 100) `div` entriesAvailable
+                100 - ((entriesNotSelected * 100) `div` entriesAvailable)
 
         entriesAvailable :: Int
         entriesAvailable = length $ category categorizedUTxO
