@@ -847,6 +847,15 @@ genMockInput mockConstraints = (,)
     <$> genMockInputId
     <*> genTokenBundleMixed mockConstraints
 
+shrinkMockInput :: (MockInputId, TokenBundle) -> [(MockInputId, TokenBundle)]
+shrinkMockInput (inputId, TokenBundle c m)
+    | c /= Coin 0, m /= mempty =
+        [(inputId, TokenBundle c mempty)]
+    | c /= Coin 0, m == mempty =
+        [(inputId, TokenBundle (Coin 0) mempty)]
+    | otherwise =
+        []
+
 genMockInputAdaOnly :: MockTxConstraints -> Gen (MockInputId, TokenBundle)
 genMockInputAdaOnly mockConstraints = (,)
     <$> genMockInputId

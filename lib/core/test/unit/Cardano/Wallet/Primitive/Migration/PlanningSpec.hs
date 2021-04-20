@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -26,6 +27,7 @@ import Cardano.Wallet.Primitive.Migration.Selection
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockInputId
     , MockTxConstraints (..)
+    , Pretty (..)
     , conjoinMap
     , counterexampleMap
     , genCoinRange
@@ -33,6 +35,7 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     , genMockInputAdaOnly
     , genMockTxConstraints
     , genTokenBundleMixed
+    , shrinkMockInput
     , unMockTxConstraints
     )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -51,6 +54,8 @@ import Data.Set
     ( Set )
 import Fmt
     ( padLeftF, pretty )
+import GHC.Generics
+    ( Generic )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck
@@ -69,7 +74,9 @@ import Test.QuickCheck
     , label
     , oneof
     , property
+    , shrinkList
     , withMaxSuccess
+    , (===)
     )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
@@ -99,6 +106,8 @@ spec = describe "Cardano.Wallet.Primitive.Migration.PlanningSpec" $
 
     parallel $ describe "Categorizing UTxO entries" $ do
 
+        it "prop_categorizeUTxOEntries" $
+            property prop_categorizeUTxOEntries
         it "prop_categorizeUTxOEntry" $
             property prop_categorizeUTxOEntry
 
@@ -319,7 +328,49 @@ prop_createPlan mockArgs =
         ]
 
 --------------------------------------------------------------------------------
--- Categorizing UTxO entries
+-- Categorizing multiple UTxO entries
+--------------------------------------------------------------------------------
+
+data ArgsForCategorizeUTxOEntries = ArgsForCategorizeUTxOEntries
+    { mockConstraints :: MockTxConstraints
+    , mockEntries :: [(MockInputId, TokenBundle)]
+    }
+    deriving (Eq, Generic, Show)
+
+instance Arbitrary ArgsForCategorizeUTxOEntries where
+    arbitrary = genArgsForCategorizeUTxOEntries
+    shrink = shrinkArgsForCategorizeUTxOEntries
+
+genArgsForCategorizeUTxOEntries :: Gen ArgsForCategorizeUTxOEntries
+genArgsForCategorizeUTxOEntries = do
+    mockConstraints <- genMockTxConstraints
+    mockEntryCount <- choose (0, 100)
+    mockEntries <- replicateM mockEntryCount (genMockInput mockConstraints)
+    pure ArgsForCategorizeUTxOEntries {mockConstraints, mockEntries}
+
+shrinkArgsForCategorizeUTxOEntries
+    :: ArgsForCategorizeUTxOEntries -> [ArgsForCategorizeUTxOEntries]
+shrinkArgsForCategorizeUTxOEntries args = do
+    mockEntriesShrunk <- shrinkList shrinkMockInput (mockEntries args)
+    pure ArgsForCategorizeUTxOEntries
+        { mockConstraints = view #mockConstraints args
+        , mockEntries = mockEntriesShrunk
+        }
+
+prop_categorizeUTxOEntries :: Pretty ArgsForCategorizeUTxOEntries -> Property
+prop_categorizeUTxOEntries args =
+    Pretty (L.sortOn fst (uncategorizeUTxOEntries categorizedEntries))
+        === Pretty (L.sortOn fst mockEntries)
+  where
+    categorizedEntries = categorizeUTxOEntries constraints mockEntries
+    Pretty ArgsForCategorizeUTxOEntries
+        { mockConstraints
+        , mockEntries
+        } = args
+    constraints = unMockTxConstraints mockConstraints
+
+--------------------------------------------------------------------------------
+-- Categorizing individual UTxO entries
 --------------------------------------------------------------------------------
 
 data ArgsForCategorizeUTxOEntry = ArgsForCategorizeUTxOEntry
