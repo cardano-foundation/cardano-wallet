@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedLabels #-}
 
@@ -34,6 +35,8 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import GHC.Generics
+    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Migration.Planning as Planning
 
@@ -51,7 +54,7 @@ data MigrationPlan s = MigrationPlan
       -- ^ The total fee payable: equal to the sum of the fees of the
       -- individual selections.
     }
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 -- | Creates a migration plan for the given UTxO set and reward withdrawal
 --   amount.
@@ -70,5 +73,5 @@ createPlan constraints utxo reward = MigrationPlan
     , totalFee = view #totalFee plan
     }
   where
-    categorizedUTxO = Planning.categorizeUTxO constraints utxo
-    plan = Planning.createPlan constraints categorizedUTxO reward
+    plan = Planning.createPlan
+        constraints (Planning.categorizeUTxO constraints utxo) reward

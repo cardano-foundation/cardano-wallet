@@ -118,6 +118,7 @@ data Selection i s = Selection
 
 newtype RewardWithdrawal = RewardWithdrawal
     { unRewardWithdrawal :: Coin }
+    deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 -- Selection correctness
