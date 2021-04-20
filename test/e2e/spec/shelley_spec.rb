@@ -2,7 +2,7 @@ RSpec.describe CardanoWallet::Shelley do
 
   describe CardanoWallet::Shelley::Wallets do
 
-    before(:each) do
+    after(:each) do
       teardown
     end
 
@@ -55,7 +55,6 @@ RSpec.describe CardanoWallet::Shelley do
         wid = wallet['id']
         g = w.get(wid)
         expect(g).to be_correct_and_respond 200
-
         expect(w.delete(wid)).to be_correct_and_respond 204
       end
 
