@@ -2561,6 +2561,7 @@ instance HasSeverityAnnotation WalletFollowLog where
         MsgDiscoveredDelegationCert _ _ -> Info
         MsgCheckpoint _ -> Debug
         MsgWalletMetadata _ -> Debug
+        MsgDiscoveredTxs [] -> Debug
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
         MsgBlocks _ -> Debug
