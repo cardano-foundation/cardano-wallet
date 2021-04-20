@@ -295,7 +295,7 @@ import Cardano.Wallet.Primitive.Slotting
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress, SyncTolerance (..), syncProgress )
+    ( SyncProgress, SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
@@ -442,8 +442,6 @@ import Fmt
     ( blockListF, pretty, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 import Safe
     ( lastMay )
 import Statistics.Quantile
@@ -707,24 +705,15 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     db = ctx ^. dbLayer @IO @s @k
 
 walletSyncProgress
-    :: forall ctx s.
-        ( HasGenesisData ctx
-        , HasNetworkLayer IO ctx
-        , HasCallStack
-        )
+    :: forall ctx s. HasNetworkLayer IO ctx
     => ctx
     -> Wallet s
     -> IO SyncProgress
 walletSyncProgress ctx w = do
-    let tip = currentTip w
-    syncProgress st ti tip =<< currentRelativeTime ti
+    let tip = view #slotNo $ currentTip w
+    syncProgress nl tip
   where
-    (_, _, st) = ctx ^. genesisData
-
-    ti :: TimeInterpreter IO
-    ti = neverFails
-            "walletSyncProgress only converts times at the tip or before"
-            (timeInterpreter $ ctx ^. networkLayer)
+    nl = ctx ^. networkLayer
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -786,7 +775,6 @@ restoreWallet
         ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
         , HasLogger WalletWorkerLog ctx
-        , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )
@@ -834,9 +822,8 @@ rollbackBlocks ctx tr wid point = db & \DBLayer{..} -> do
 -- transaction history and corresponding metadata.
 restoreBlocks
     :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
+        ( HasDBLayer s k ctx
         , HasNetworkLayer IO ctx
-        , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )

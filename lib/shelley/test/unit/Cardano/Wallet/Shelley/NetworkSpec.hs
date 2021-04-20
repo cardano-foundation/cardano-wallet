@@ -14,6 +14,8 @@ import Cardano.BM.Trace
     ( nullTracer, traceInTVarIO )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -58,8 +60,9 @@ spec :: Spec
 spec = describe "NetworkLayer regression test #1708" $ do
     it "Parallel local socket connections" $
         withTestNode nullTracer $ \np sock vData -> do
+            let sTol = SyncTolerance 60
             tasks <- replicateM 10 $ async $
-                withNetworkLayer nullTracer np sock vData $ \nl -> do
+                withNetworkLayer nullTracer np sock vData sTol $ \nl -> do
                     -- Wait for the first tip result from the node
                     waiter <- newEmptyMVar
                     race_ (watchNodeTip nl (putMVar waiter)) (takeMVar waiter)

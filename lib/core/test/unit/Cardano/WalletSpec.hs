@@ -1121,6 +1121,8 @@ mockNetworkLayer = dummyNetworkLayer
     , currentProtocolParameters =
         pure (protocolParameters dummyNetworkParameters)
     , timeInterpreter = dummyTimeInterpreter
+    , syncProgress =
+        error "dummyNetworkLayer: syncProgress not implemented"
     }
   where
     dummyTip = BlockHeader (SlotNo 0) (Quantity 0) dummyHash dummyHash

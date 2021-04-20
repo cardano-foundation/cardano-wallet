@@ -107,9 +107,9 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, currentRelativeTime, neverFails )
+    ( TimeInterpreter, neverFails )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress (..), mkSyncTolerance, syncProgress )
+    ( SyncProgress (..), SyncTolerance, mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -598,7 +598,7 @@ bench_restoration proxy tr wlTr socket np vData benchname wallets traceToDisk ta
     putStrLn $ "*** " ++ T.unpack benchname
     let networkId = networkIdVal proxy
     let tl = newTransactionLayer @k networkId
-    withNetworkLayer (trMessageText wlTr) np socket vData $ \nw' -> do
+    withNetworkLayer (trMessageText wlTr) np socket vData sTol $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
@@ -608,7 +608,7 @@ bench_restoration proxy tr wlTr socket np vData benchname wallets traceToDisk ta
             withWalletLayerTracer $ \progressTrace -> do
                 let w = WalletLayer
                         (trMessageText wlTr <> progressTrace)
-                        (emptyGenesis gp, np, mkSyncTolerance 3600)
+                        (emptyGenesis gp, np, sTol)
                         nw
                         tl
                         db
@@ -713,7 +713,7 @@ prepareNode
     -> IO ()
 prepareNode tr proxy socketPath np vData = do
     traceWith tr $ MsgSyncStart proxy
-    sl <- withNetworkLayer nullTracer np socketPath vData $ \nw' -> do
+    sl <- withNetworkLayer nullTracer np socketPath vData sTol $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
@@ -733,28 +733,18 @@ waitForWalletsSyncTo
     -> NodeVersionData
     -> IO ()
 waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData = do
-    let tolerance = mkSyncTolerance 3600
-    now <- currentRelativeTime ti
     posixNow <- utcTimeToPOSIXSeconds <$> getCurrentTime
     progress <- forM wids $ \wid -> do
         w <- fmap fst' <$> unsafeRunExceptT $ W.readWallet walletLayer wid
-        let Quantity bh = blockHeight $ currentTip w
-        prog <- syncProgress
-            tolerance
-            (neverFails "syncProgress never forecasts into the future"
-                $ timeInterpreter nl)
-            (currentTip w)
-            now
-        return (prog, bh)
-    traceWith tr $ MsgRestorationTick posixNow (map fst progress)
+        syncProgress nl (slotNo $ currentTip w)
+    traceWith tr $ MsgRestorationTick posixNow progress
     threadDelay 1000000
 
-    if all ((> Syncing (Quantity targetSync)) . fst) progress
+    if all (> Syncing (Quantity targetSync)) progress
     then return ()
     else waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData
   where
     WalletLayer _ _ nl _ _ = walletLayer
-    ti = timeInterpreter nl
     fst' (x,_,_) = x
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
@@ -770,11 +760,7 @@ waitForNodeSync tr nw = loop 120 -- allow 30 minutes for first tip
     loop retries = do
         nodeTip <- currentNodeTip nw
         if slotNo nodeTip /= 0 then do
-            let tolerance = mkSyncTolerance 300
-            let ti = neverFails "syncProgress never forecasts into the future"
-                    $ timeInterpreter nw
-            now <- currentRelativeTime ti
-            prog <- syncProgress tolerance ti nodeTip now
+            prog <- syncProgress nw $ slotNo nodeTip
             traceWith tr $ MsgNodeTipTick nodeTip prog
             if prog == Ready
                 then pure (slotNo nodeTip)
@@ -837,3 +823,7 @@ showPercentFromPermille =
     display :: Double -> String
     display 0 = "0"
     display x = show x
+
+sTol :: SyncTolerance
+sTol = mkSyncTolerance 3600
+
