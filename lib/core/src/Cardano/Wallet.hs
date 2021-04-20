@@ -2558,9 +2558,9 @@ instance ToText WalletLog where
 instance HasPrivacyAnnotation WalletFollowLog
 instance HasSeverityAnnotation WalletFollowLog where
     getSeverityAnnotation = \case
-        MsgCheckpoint _ -> Info
-        MsgWalletMetadata _ -> Info
         MsgDiscoveredDelegationCert _ _ -> Info
+        MsgCheckpoint _ -> Debug
+        MsgWalletMetadata _ -> Debug
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
         MsgBlocks _ -> Debug
