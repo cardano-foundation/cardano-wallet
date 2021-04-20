@@ -100,6 +100,8 @@ import Test.QuickCheck
     , withMaxSuccess
     , (===)
     )
+import Text.Pretty.Simple
+    ( pShow )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -111,6 +113,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.Lazy as TL
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Migration.SelectionSpec" $
@@ -1006,3 +1009,17 @@ matchRight f result = case result of
 
 scaleCoin :: Coin -> Int -> Coin
 scaleCoin (Coin c) s = Coin $ c * fromIntegral s
+
+--------------------------------------------------------------------------------
+-- Pretty-printing
+--------------------------------------------------------------------------------
+
+newtype Pretty a = Pretty { unPretty :: a }
+    deriving Eq
+
+instance Arbitrary a => Arbitrary (Pretty a) where
+    arbitrary = Pretty <$> arbitrary
+    shrink (Pretty a) = Pretty <$> shrink a
+
+instance Show a => Show (Pretty a) where
+    show (Pretty a) = TL.unpack $ pShow a

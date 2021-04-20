@@ -83,6 +83,7 @@ library
     , persistent
     , persistent-sqlite
     , persistent-template
+    , pretty-simple
     , profunctors
     , quiet
     , random
@@ -286,6 +287,7 @@ test-suite unit
     , network
     , network-uri
     , persistent
+    , pretty-simple
     , regex-pcre-builtin
     , OddWord
     , ouroboros-consensus
