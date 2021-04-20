@@ -194,8 +194,10 @@ prop_createPlan mockArgs =
         [percentageSelected ignorables] $
     counterexample counterexampleText $
     conjoinMap
-        [ ( "inputs are not preserved"
+        [ ( "inputs are not preserved (union)"
           , inputIdsAll == Set.union inputIdsSelected inputIdsNotSelected )
+        , ( "inputs are not preserved (intersection)"
+          , Set.empty == Set.intersection inputIdsSelected inputIdsNotSelected )
         , ( "total fee is incorrect"
           , totalFee result == totalFeeExpected )
         , ( "more than one transaction has reward withdrawal"
