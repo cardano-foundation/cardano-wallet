@@ -125,7 +125,11 @@ newtype RewardWithdrawal = RewardWithdrawal
 
 data SelectionCorrectness s
     = SelectionCorrect
-    | SelectionAssetBalanceIncorrect
+    | SelectionIncorrect (SelectionCorrectnessError s)
+    deriving (Eq, Show)
+
+data SelectionCorrectnessError s
+    = SelectionAssetBalanceIncorrect
       SelectionAssetBalanceIncorrectError
     | SelectionFeeIncorrect
       SelectionFeeIncorrectError
@@ -144,29 +148,34 @@ data SelectionCorrectness s
     deriving (Eq, Show)
 
 verify
-    :: TxSize s
+    :: forall i s. TxSize s
     => TxConstraints s
     -> Selection i s
     -> SelectionCorrectness s
-verify constraints selection
-    | Just e <- checkAssetBalance selection =
-        SelectionAssetBalanceIncorrect e
-    | Just e <- checkFee selection =
-        SelectionFeeIncorrect e
-    | Just e <- checkFeeSufficient constraints selection =
-        SelectionFeeInsufficient e
-    | Just e <- checkFeeExcess constraints selection =
-        SelectionFeeExcessIncorrect e
-    | Just e <- checkOutputMinimumAdaQuantities constraints selection =
-        SelectionOutputBelowMinimumAdaQuantity e
-    | Just e <- checkOutputSizes constraints selection =
-        SelectionOutputSizeExceedsLimit e
-    | Just e <- checkSizeWithinLimit constraints selection =
-        SelectionSizeExceedsLimit e
-    | Just e <- checkSizeCorrectness constraints selection =
-        SelectionSizeIncorrect e
-    | otherwise =
-        SelectionCorrect
+verify constraints selection =
+    either SelectionIncorrect (const SelectionCorrect) verifyAll
+  where
+    verifyAll :: Either (SelectionCorrectnessError s) ()
+    verifyAll = do
+        checkAssetBalance selection
+            `failWith` SelectionAssetBalanceIncorrect
+        checkFee selection
+            `failWith` SelectionFeeIncorrect
+        checkFeeSufficient constraints selection
+            `failWith` SelectionFeeInsufficient
+        checkFeeExcess constraints selection
+            `failWith` SelectionFeeExcessIncorrect
+        checkOutputMinimumAdaQuantities constraints selection
+            `failWith` SelectionOutputBelowMinimumAdaQuantity
+        checkOutputSizes constraints selection
+            `failWith` SelectionOutputSizeExceedsLimit
+        checkSizeWithinLimit constraints selection
+            `failWith` SelectionSizeExceedsLimit
+        checkSizeCorrectness constraints selection
+            `failWith` SelectionSizeIncorrect
+
+    failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
+    onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
 
 --------------------------------------------------------------------------------
 -- Selection correctness: asset balance correctness
