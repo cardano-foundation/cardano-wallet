@@ -4993,6 +4993,11 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Submits a transaction that was created and signed outside of cardano-wallet.
+
+        NOTE: Unlike the postTransaction endpoint, there are no
+        guarantees that a transaction accepted by this endpoint will
+        actually be included in the chain. It's up to the caller to
+        retry submission until the transaction is confirmed.
       requestBody:
         content:
           application/octet-stream:
