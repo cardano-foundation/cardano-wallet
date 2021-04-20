@@ -493,9 +493,9 @@ instance HasSeverityAnnotation tr => HasSeverityAnnotation (FollowLog tr) where
         MsgFollowAction (ExitWith _) -> Error
         MsgFollowAction _ -> Debug
         MsgUnhandledException _ -> Error
-        MsgApplyBlocks _ _ -> Info
+        MsgApplyBlocks _ _ -> Debug
         MsgFollowLog msg -> getSeverityAnnotation msg
-        MsgWillRollback _ -> Info
-        MsgDidRollback _ _ -> Info
+        MsgWillRollback _ -> Debug
+        MsgDidRollback _ _ -> Debug
         MsgFailedRollingBack _ -> Error
         MsgWillIgnoreRollback _ _ -> Debug
