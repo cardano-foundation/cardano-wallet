@@ -630,7 +630,7 @@ addValueToOutputs constraints outputsOriginal outputUnchecked =
         --
         -- As a tie-breaker, we give priority to outputs with smaller numbers
         -- of assets. Merging with a smaller output is more likely to succeed,
-        -- because merging with a larger ouput is more likely to fall foul of
+        -- because merging with a larger output is more likely to fall foul of
         -- the output size limit.
         outputsSorted :: [TokenMap]
         outputsSorted = L.sortOn sortOrder outputs
