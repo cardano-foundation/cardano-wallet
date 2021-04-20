@@ -69,6 +69,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Semigroup
     ( mtimesDefault, stimes )
+import Data.Word
+    ( Word8 )
 import Fmt
     ( pretty )
 import Numeric.Natural
@@ -96,7 +98,7 @@ import Test.QuickCheck
     , property
     , suchThat
     , suchThatMap
-    , vector
+    , vectorOf
     , withMaxSuccess
     , (===)
     )
@@ -111,7 +113,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
-import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as TL
 
@@ -839,7 +840,7 @@ newtype MockInputId = MockInputId
     deriving (Eq, Ord)
 
 instance Show MockInputId where
-    show = T.unpack . T.decodeUtf8 . convertToBase Base16 . unMockInputId
+    show = show . T.decodeUtf8 . convertToBase Base16 . unMockInputId
 
 genMockInput :: MockTxConstraints -> Gen (MockInputId, TokenBundle)
 genMockInput mockConstraints = (,)
@@ -852,7 +853,8 @@ genMockInputAdaOnly mockConstraints = (,)
     <*> (TokenBundle.fromCoin <$> genCoinMixed mockConstraints)
 
 genMockInputId :: Gen MockInputId
-genMockInputId = MockInputId . BS.pack <$> vector 8
+genMockInputId = MockInputId . BS.pack <$>
+    vectorOf 16 (choose (minBound @Word8, maxBound @Word8))
 
 --------------------------------------------------------------------------------
 -- Generating coins, token bundles, token maps, and token quantities
