@@ -145,12 +145,12 @@ instance Arbitrary (Giant ArgsForCreatePlan) where
 
 prop_createPlan_small :: Blind (Small ArgsForCreatePlan) -> Property
 prop_createPlan_small (Blind (Small args)) =
-    withMaxSuccess 1000 $
+    withMaxSuccess 100 $
     prop_createPlan args
 
 prop_createPlan_large :: Blind (Large ArgsForCreatePlan) -> Property
 prop_createPlan_large (Blind (Large args)) =
-    withMaxSuccess 100 $
+    withMaxSuccess 10 $
     prop_createPlan args
 
 prop_createPlan_giant :: Blind (Giant ArgsForCreatePlan) -> Property
