@@ -894,7 +894,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
     logCheckpoint cp = traceWith tr $ MsgCheckpoint (currentTip cp)
 
     logDelegation :: (SlotNo, DelegationCertificate) -> IO ()
-    logDelegation (slotNo, cert) = traceWith tr $ MsgDelegation slotNo cert
+    logDelegation = traceWith tr . uncurry MsgDiscoveredDelegationCert
 
     isParentOf :: Wallet s -> Block -> Bool
     isParentOf cp = (== parent) . parentHeaderHash . header
@@ -2471,7 +2471,7 @@ instance HasSeverityAnnotation WalletWorkerLog where
 
 -- | Log messages arising from the restore and follow process.
 data WalletFollowLog
-    = MsgDelegation SlotNo DelegationCertificate
+    = MsgDiscoveredDelegationCert SlotNo DelegationCertificate
     | MsgCheckpoint BlockHeader
     | MsgWalletMetadata WalletMetadata
     | MsgDiscoveredTxs [(Tx, TxMeta)]
@@ -2495,7 +2495,7 @@ data WalletLog
 
 instance ToText WalletFollowLog where
     toText = \case
-        MsgDelegation slotNo cert -> case cert of
+        MsgDiscoveredDelegationCert slotNo cert -> case cert of
             CertDelegateNone{} -> mconcat
                 [ "Discovered end of delegation within slot "
                 , pretty slotNo
@@ -2558,9 +2558,9 @@ instance ToText WalletLog where
 instance HasPrivacyAnnotation WalletFollowLog
 instance HasSeverityAnnotation WalletFollowLog where
     getSeverityAnnotation = \case
-        MsgDelegation _ _ -> Info
         MsgCheckpoint _ -> Info
         MsgWalletMetadata _ -> Info
+        MsgDiscoveredDelegationCert _ _ -> Info
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
         MsgBlocks _ -> Debug
