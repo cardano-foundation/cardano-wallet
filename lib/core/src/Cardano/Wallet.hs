@@ -2564,7 +2564,7 @@ instance HasSeverityAnnotation WalletFollowLog where
         MsgDiscoveredTxs [] -> Debug
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
-        MsgBlocks _ -> Debug
+        MsgBlocks _ -> Debug -- Ideally move to FollowLog or remove
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
