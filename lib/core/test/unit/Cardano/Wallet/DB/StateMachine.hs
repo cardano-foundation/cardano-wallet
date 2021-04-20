@@ -6,6 +6,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -57,7 +58,9 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..)
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
+    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -66,7 +69,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, GenTxHistory (..), InitialCheckpoint (..) )
 import Cardano.Wallet.DB.Model
-    ( Database
+    ( Database (..)
     , Err (..)
     , TxHistory
     , WalletDatabase (..)
@@ -79,12 +82,14 @@ import Cardano.Wallet.DB.Model
     , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
+    , mPutLocalTxSubmission
     , mPutPrivateKey
     , mPutTxHistory
     , mPutWalletMeta
     , mReadCheckpoint
     , mReadDelegationRewardBalance
     , mReadGenesisParameters
+    , mReadLocalTxSubmissionPending
     , mReadPrivateKey
     , mReadTxHistory
     , mReadWalletMeta
@@ -143,6 +148,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , LocalTxSubmissionStatus (..)
+    , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
@@ -154,6 +161,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
+import Control.DeepSeq
+    ( NFData )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad
@@ -179,7 +188,7 @@ import Data.Map
 import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
 import Data.Maybe
-    ( catMaybes, fromJust, isJust, isNothing )
+    ( catMaybes, fromJust, isJust, isNothing, mapMaybe )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
@@ -189,7 +198,7 @@ import Data.Time.Clock
 import Data.TreeDiff
     ( ToExpr (..), defaultExprViaShow, genericToExpr )
 import GHC.Generics
-    ( Generic )
+    ( Generic, Generic1 )
 import System.Random
     ( getStdRandom, randomR )
 import Test.Hspec
@@ -308,6 +317,15 @@ instance MockPrivKey (ByronKey 'RootK) where
     fromMockPrivKey s = (k, Hash (B8.pack s))
       where (k, _) = unsafeDeserializeXPrv (zeroes <> ":", mempty)
 
+newtype MockSealedTx = MockSealedTx { mockSealedTxId :: Hash "Tx" }
+    deriving (Show, Eq, Generic, NFData)
+
+unMockSealedTx :: Hash "Tx" -> SealedTx
+unMockSealedTx = SealedTx . getHash
+
+mockSealedTx :: SealedTx -> MockSealedTx
+mockSealedTx = MockSealedTx . Hash . getSealedTx
+
 {-------------------------------------------------------------------------------
   Language
 -------------------------------------------------------------------------------}
@@ -328,17 +346,21 @@ data Cmd s wid
         SortOrder
         (Range SlotNo)
         (Maybe TxStatus)
+    | GetTx wid (Hash "Tx")
+    | PutLocalTxSubmission wid (Hash "Tx") SlotNo
+    | ReadLocalTxSubmissionPending wid
+    | UpdatePendingTxForExpiry wid SlotNo
+    | RemovePendingOrExpiredTx wid (Hash "Tx")
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
     | ReadGenesisParameters wid
     | RollbackTo wid SlotNo
-    | RemovePendingTx wid (Hash "Tx")
-    | UpdatePendingTxForExpiry wid SlotNo
     | PutDelegationCertificate wid DelegationCertificate SlotNo
     | IsStakeKeyRegistered wid
     | PutDelegationRewardBalance wid Coin
     | ReadDelegationRewardBalance wid
-    deriving (Show, Functor, Foldable, Traversable)
+    deriving stock (Show, Generic1, Eq, Functor, Foldable, Traversable)
+    deriving anyclass (CommandNames)
 
 data Success s wid
     = Unit ()
@@ -347,13 +369,14 @@ data Success s wid
     | Checkpoint (Maybe (Wallet s))
     | Metadata (Maybe WalletMetadata)
     | TxHistory [TransactionInfo]
+    | LocalTxSubmission [LocalTxSubmissionStatus MockSealedTx]
     | PrivateKey (Maybe MPrivKey)
     | GenesisParams (Maybe GenesisParameters)
     | BlockHeaders [BlockHeader]
     | Point SlotNo
     | DelegationRewardBalance Coin
     | StakeKeyStatus Bool
-    deriving (Show, Eq, Functor, Foldable, Traversable)
+    deriving stock (Show, Generic1, Eq, Functor, Foldable, Traversable)
 
 newtype Resp s wid
     = Resp (Either (Err wid) (Success s wid))
@@ -403,6 +426,21 @@ runMock = \case
     ReadTxHistory wid minW order range status ->
         first (Resp . fmap TxHistory)
         . mReadTxHistory timeInterpreter wid minW order range status
+    GetTx _wid _tid ->
+        first (Resp . fmap (TxHistory . maybe [] pure))
+        -- TODO: Implement mGetTx
+        -- . mGetTx wid tid
+        . (Right Nothing,)
+    PutLocalTxSubmission wid tid sl ->
+        first (Resp . fmap Unit)
+        . mPutLocalTxSubmission wid tid (unMockSealedTx tid) sl
+    ReadLocalTxSubmissionPending wid ->
+        first (Resp . fmap (LocalTxSubmission . map (fmap mockSealedTx)))
+        . mReadLocalTxSubmissionPending wid
+    UpdatePendingTxForExpiry wid sl ->
+        first (Resp . fmap Unit) . mUpdatePendingTxForExpiry wid sl
+    RemovePendingOrExpiredTx wid tid ->
+        first (Resp . fmap Unit) . mRemovePendingOrExpiredTx wid tid
     PutPrivateKey wid pk ->
         first (Resp . fmap Unit) . mPutPrivateKey wid pk
     ReadPrivateKey wid ->
@@ -416,10 +454,6 @@ runMock = \case
         . mReadDelegationRewardBalance wid
     RollbackTo wid sl ->
         first (Resp . fmap Point) . mRollbackTo wid sl
-    RemovePendingTx wid tid ->
-        first (Resp . fmap Unit) . mRemovePendingOrExpiredTx wid tid
-    UpdatePendingTxForExpiry wid sl ->
-        first (Resp . fmap Unit) . mUpdatePendingTxForExpiry wid sl
   where
     timeInterpreter = dummyTimeInterpreter
 
@@ -456,28 +490,44 @@ runIO db@DBLayer{..} = fmap Resp . go
             atomically (listCheckpoints $ PrimaryKey wid)
         PutWalletMeta wid meta -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putWalletMeta (PrimaryKey wid) meta
-        ReadWalletMeta wid -> Right . Metadata <$>
-            atomically (readWalletMeta $ PrimaryKey wid)
+        ReadWalletMeta wid -> fmap (Right . Metadata) $
+            atomically $ readWalletMeta $ PrimaryKey wid
         PutDelegationCertificate wid pool sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putDelegationCertificate (PrimaryKey wid) pool sl
         IsStakeKeyRegistered wid -> catchNoSuchWallet StakeKeyStatus $
             mapExceptT atomically $ isStakeKeyRegistered (PrimaryKey wid)
         PutTxHistory wid txs -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putTxHistory (PrimaryKey wid) txs
-        ReadTxHistory wid minWith order range status -> Right . TxHistory <$>
-            atomically (readTxHistory (PrimaryKey wid) minWith order range status)
-        RemovePendingTx wid tid -> (catchCannotRemovePendingTx wid) Unit $
-            mapExceptT atomically $ removePendingOrExpiredTx (PrimaryKey wid) tid
+        ReadTxHistory wid minWith order range status ->
+            fmap (Right . TxHistory) $
+            atomically $
+            readTxHistory (PrimaryKey wid) minWith order range status
+        GetTx wid tid ->
+            catchNoSuchWallet (TxHistory . maybe [] pure) $
+            mapExceptT atomically $ getTx (PrimaryKey wid) tid
+        PutLocalTxSubmission wid tid sl ->
+            catchPutLocalTxSubmission Unit $
+            mapExceptT atomically $
+            putLocalTxSubmission (PrimaryKey wid) tid (unMockSealedTx tid) sl
+        ReadLocalTxSubmissionPending wid ->
+            Right . LocalTxSubmission . map (fmap mockSealedTx) <$>
+            atomically (readLocalTxSubmissionPending (PrimaryKey wid))
         UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ updatePendingTxForExpiry (PrimaryKey wid) sl
+        RemovePendingOrExpiredTx wid tid ->
+            (catchCannotRemovePendingTx wid) Unit $
+            mapExceptT atomically $
+            removePendingOrExpiredTx (PrimaryKey wid) tid
         PutPrivateKey wid pk -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putPrivateKey (PrimaryKey wid) (fromMockPrivKey pk)
+            mapExceptT atomically $
+            putPrivateKey (PrimaryKey wid) (fromMockPrivKey pk)
         ReadPrivateKey wid -> Right . PrivateKey . fmap toMockPrivKey <$>
             atomically (readPrivateKey $ PrimaryKey wid)
         ReadGenesisParameters wid -> Right . GenesisParams <$>
             atomically (readGenesisParameters $ PrimaryKey wid)
         PutDelegationRewardBalance wid amt -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putDelegationRewardBalance (PrimaryKey wid) amt
+            mapExceptT atomically $
+            putDelegationRewardBalance (PrimaryKey wid) amt
         ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
             atomically (readDelegationRewardBalance $ PrimaryKey wid)
         RollbackTo wid sl -> catchNoSuchWallet Point $
@@ -489,6 +539,8 @@ runIO db@DBLayer{..} = fmap Resp . go
         fmap (bimap errNoSuchWallet f) . runExceptT
     catchCannotRemovePendingTx wid f =
         fmap (bimap (errCannotRemovePendingTx wid) f) . runExceptT
+    catchPutLocalTxSubmission f =
+        fmap (bimap errPutLocalTxSubmission f) . runExceptT
 
     errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
     errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
@@ -496,13 +548,22 @@ runIO db@DBLayer{..} = fmap Resp . go
     errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
     errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 
+    errNoSuchTransaction :: ErrNoSuchTransaction -> Err WalletId
+    errNoSuchTransaction (ErrNoSuchTransaction wid tid) = NoSuchTx wid tid
+
     errCannotRemovePendingTx :: WalletId -> ErrRemoveTx -> Err WalletId
     errCannotRemovePendingTx _ (ErrRemoveTxNoSuchWallet e) =
         errNoSuchWallet e
-    errCannotRemovePendingTx wid (ErrRemoveTxNoSuchTransaction tid) =
-        NoSuchTx wid tid
+    errCannotRemovePendingTx _ (ErrRemoveTxNoSuchTransaction e) =
+        errNoSuchTransaction e
     errCannotRemovePendingTx wid (ErrRemoveTxAlreadyInLedger tid) =
         CantRemoveTxInLedger wid tid
+
+    errPutLocalTxSubmission :: ErrPutLocalTxSubmission -> Err WalletId
+    errPutLocalTxSubmission (ErrPutLocalTxSubmissionNoSuchWallet e) =
+        errNoSuchWallet e
+    errPutLocalTxSubmission (ErrPutLocalTxSubmissionNoSuchTransaction e) =
+        errNoSuchTransaction e
 
     unPrimaryKey :: PrimaryKey key -> key
     unPrimaryKey (PrimaryKey key) = key
@@ -518,6 +579,7 @@ runIO db@DBLayer{..} = fmap Resp . go
 -- Concrete/Symbolic.
 newtype At f r
     = At (f (Reference WalletId r))
+    deriving (Generic)
 
 deriving instance
     Show (f (Reference WalletId r)) => Show (At f r)
@@ -590,10 +652,13 @@ generator
     :: forall s. (Arbitrary (Wallet s), GenState s)
     => Model s Symbolic
     -> Maybe (Gen (Cmd s :@ Symbolic))
-generator (Model _ wids) = Just $ frequency $ fmap (fmap At) . snd <$> concat
+generator m@(Model _ wids) = Just $ frequency $ fmap (fmap At) . snd <$> concat
     [ generatorWithoutId
     , if null wids then [] else generatorWithWid (fst <$> wids)
+    , if null tids then [] else generatorWithTids tids
     ]
+  where
+    tids = filter (not . null . snd) (txIdsFromModel m)
 
 declareGenerator
     :: String -- ^ A readable name
@@ -650,16 +715,21 @@ generatorWithWid wids =
             <*> genSortOrder
             <*> genRange
             <*> arbitrary
-    , declareGenerator "RemovePendingTx" 4
-        $ RemovePendingTx <$> genId <*> arbitrary
+    , declareGenerator "ReadLocalTxSubmissionPending" 3
+        $ ReadLocalTxSubmissionPending <$> genId
     , declareGenerator "UpdatePendingTxForExpiry" 4
         $ UpdatePendingTxForExpiry <$> genId <*> arbitrary
+    , declareGenerator "RemovePendingOrExpiredTx" 4
+        $ RemovePendingOrExpiredTx <$> genId <*> arbitrary
     , declareGenerator "PutPrivateKey" 3
         $ PutPrivateKey <$> genId <*> genPrivKey
     , declareGenerator "ReadPrivateKey" 3
         $ ReadPrivateKey <$> genId
     , declareGenerator "RollbackTo" 1
         $ RollbackTo <$> genId <*> arbitrary
+    -- TODO: Implement mPrune
+    -- , declareGenerator "Prune" 1
+    --     $ Prune <$> genId <*> arbitrary
     , declareGenerator "ReadGenesisParameters" 1
         $ ReadGenesisParameters <$> genId
     ]
@@ -682,11 +752,34 @@ generatorWithWid wids =
         , (1, Just <$> arbitrary)
         ]
 
+generatorWithTids
+    :: forall s r. (Arbitrary (Wallet s), GenState s, Eq (Reference WalletId r))
+    => [(Reference WalletId r, [Hash "Tx"])]
+    -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
+generatorWithTids tids =
+    [ declareGenerator "PutLocalTxSubmission" 3 genValidPutLocalTxSubmission
+    -- TODO: Implement mGetTx
+    -- , declareGenerator "GetTx" 3
+    --     $ GetTx <$> genId <*> arbitrary
+    ]
+  where
+    -- A valid LocalTxSubmission entry references a TxMeta of the wallet.
+    genValidPutLocalTxSubmission = do
+        wid <- elements (fst <$> tids)
+        tid <- maybe arbitrary elements $ lookup wid tids
+        PutLocalTxSubmission wid tid <$> arbitrary
+
+txIdsFromModel :: Model s r -> [(Reference WalletId r, [Hash "Tx"])]
+txIdsFromModel (Model db widRefs) = mapMaybe getTids widRefs
+  where
+    getTids (widRef, wid) = (widRef,) . Map.keys . txHistory <$>
+        Map.lookup wid (wallets db)
+
 isUnordered :: Ord x => [x] -> Bool
 isUnordered xs = xs /= L.sort xs
 
 shrinker
-    :: (Arbitrary (Wallet s))
+    :: Arbitrary (Wallet s)
     => Cmd s :@ r
     -> [Cmd s :@ r]
 shrinker (At cmd) = case cmd of
@@ -777,40 +870,6 @@ sm db = QSM.StateMachine
 {-------------------------------------------------------------------------------
   Additional type class instances required to run the QSM tests
 -------------------------------------------------------------------------------}
-
-instance CommandNames (At (Cmd s)) where
-    cmdName (At CleanDB{}) = "CleanDB"
-    cmdName (At CreateWallet{}) = "CreateWallet"
-    cmdName (At RemoveWallet{}) = "RemoveWallet"
-    cmdName (At ListWallets{}) = "ListWallets"
-    cmdName (At PutCheckpoint{}) = "PutCheckpoint"
-    cmdName (At ListCheckpoints{}) = "ListCheckpoints"
-    cmdName (At ReadCheckpoint{}) = "ReadCheckpoint"
-    cmdName (At PutWalletMeta{}) = "PutWalletMeta"
-    cmdName (At ReadWalletMeta{}) = "ReadWalletMeta"
-    cmdName (At PutDelegationCertificate{}) = "PutDelegationCertificate"
-    cmdName (At IsStakeKeyRegistered{}) = "IsStakeKeyRegistered"
-    cmdName (At PutTxHistory{}) = "PutTxHistory"
-    cmdName (At ReadTxHistory{}) = "ReadTxHistory"
-    cmdName (At PutPrivateKey{}) = "PutPrivateKey"
-    cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
-    cmdName (At ReadGenesisParameters{}) = "ReadGenesisParameters"
-    cmdName (At PutDelegationRewardBalance{}) = "PutDelegationRewardBalance"
-    cmdName (At ReadDelegationRewardBalance{}) = "ReadDelegationRewardBalance"
-    cmdName (At RollbackTo{}) = "RollbackTo"
-    cmdName (At RemovePendingTx{}) = "RemovePendingTx"
-    cmdName (At UpdatePendingTxForExpiry{}) = "UpdatePendingTxForExpiry"
-    cmdNames _ =
-        [ "CleanDB"
-        , "CreateWallet", "RemoveWallet", "ListWallets"
-        , "PutCheckpoint", "ReadCheckpoint", "ListCheckpoints", "RollbackTo"
-        , "PutWalletMeta", "ReadWalletMeta"
-        , "PutDelegationCertificate", "IsStakeKeyRegistered"
-        , "PutTxHistory", "ReadTxHistory"
-        , "RemovePendingTx", "UpdatePendingTxForExpiry"
-        , "PutPrivateKey", "ReadPrivateKey"
-        , "PutDelegationRewardBalance", "ReadDelegationRewardBalance"
-        ]
 
 instance Functor f => Rank2.Functor (At f) where
     fmap = \f (At x) -> At $ fmap (lift f) x
@@ -931,6 +990,12 @@ instance ToExpr Address where
     toExpr = genericToExpr
 
 instance ToExpr TxMeta where
+    toExpr = genericToExpr
+
+instance ToExpr SealedTx where
+    toExpr = genericToExpr
+
+instance ToExpr MockSealedTx where
     toExpr = genericToExpr
 
 instance ToExpr Percentage where
@@ -1088,7 +1153,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
     removePendingTxTwice = countAction RemovePendingTxTwice (>= 2) match
       where
         match ev = case (cmd ev, mockResp ev) of
-            (At (RemovePendingTx wid _), Resp _) ->
+            (At (RemovePendingOrExpiredTx wid _), Resp _) ->
                 Just wid
             _otherwise ->
                 Nothing

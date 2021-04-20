@@ -104,7 +104,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata
     , TxOut (..)
     , TxStatus (..)
-    , txId
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO

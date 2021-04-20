@@ -22,7 +22,9 @@ import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.DB
     ( DBLayer (..)
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
+    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -40,12 +42,14 @@ import Cardano.Wallet.DB.Model
     , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
+    , mPutLocalTxSubmission
     , mPutPrivateKey
     , mPutTxHistory
     , mPutWalletMeta
     , mReadCheckpoint
     , mReadDelegationRewardBalance
     , mReadGenesisParameters
+    , mReadLocalTxSubmissionPending
     , mReadPrivateKey
     , mReadTxHistory
     , mReadWalletMeta
@@ -65,7 +69,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
 import Control.DeepSeq
-    ( NFData, deepseq )
+    ( NFData, force )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Functor.Identity
@@ -90,9 +94,9 @@ newDBLayer timeInterpreter = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \pk cp meta txs gp -> ExceptT $ do
-            cp `deepseq` meta `deepseq`
-                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs gp)
+        { initializeWallet = \pk cp meta txs gp -> ExceptT $
+                alterDB errWalletAlreadyExists db $
+                mInitializeWallet pk cp meta txs gp
 
         , removeWallet = ExceptT . alterDB errNoSuchWallet db . mRemoveWallet
 
@@ -102,15 +106,17 @@ newDBLayer timeInterpreter = do
                                     Checkpoints
         -----------------------------------------------------------------------}
 
-        , putCheckpoint = \pk cp -> ExceptT $ do
-            cp `deepseq` alterDB errNoSuchWallet db (mPutCheckpoint pk cp)
+        , putCheckpoint = \pk cp -> ExceptT $
+            alterDB errNoSuchWallet db $
+            mPutCheckpoint pk cp
 
         , readCheckpoint = readDB db . mReadCheckpoint
 
         , listCheckpoints = readDB db . mListCheckpoints
 
         , rollbackTo = \pk pt -> ExceptT $
-            alterDB errNoSuchWallet db (mRollbackTo pk pt)
+            alterDB errNoSuchWallet db $
+            mRollbackTo pk pt
 
         , prune = \_ _ -> error "MVar.prune: not implemented"
 
@@ -118,14 +124,15 @@ newDBLayer timeInterpreter = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = \pk meta -> ExceptT $ do
-            meta `deepseq` alterDB errNoSuchWallet db (mPutWalletMeta pk meta)
+        , putWalletMeta = \pk meta -> ExceptT $
+            alterDB errNoSuchWallet db $
+            mPutWalletMeta pk meta
 
         , readWalletMeta = readDB db . mReadWalletMeta timeInterpreter
 
-        , putDelegationCertificate = \pk cert sl -> ExceptT $ do
-            cert `deepseq` sl `deepseq`
-                alterDB errNoSuchWallet db (mPutDelegationCertificate pk cert sl)
+        , putDelegationCertificate = \pk cert sl -> ExceptT $
+            alterDB errNoSuchWallet db $
+            mPutDelegationCertificate pk cert sl
 
         , isStakeKeyRegistered =
             ExceptT . alterDB errNoSuchWallet db . mIsStakeKeyRegistered
@@ -134,8 +141,9 @@ newDBLayer timeInterpreter = do
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \pk txh -> ExceptT $ do
-            txh `deepseq` alterDB errNoSuchWallet db (mPutTxHistory pk txh)
+        , putTxHistory = \pk txh -> ExceptT $
+            alterDB errNoSuchWallet db $
+            mPutTxHistory pk txh
 
         , readTxHistory = \pk minWithdrawal order range mstatus ->
             readDB db $
@@ -147,6 +155,7 @@ newDBLayer timeInterpreter = do
                     range
                     mstatus
 
+        -- TODO: shift implementation to mGetTx
         , getTx = \pk tid -> ExceptT $
             alterDB errNoSuchWallet db (mCheckWallet pk) >>= \case
                 Left err -> pure $ Left err
@@ -168,8 +177,9 @@ newDBLayer timeInterpreter = do
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \pk prv -> ExceptT $ do
-            prv `deepseq` alterDB errNoSuchWallet db (mPutPrivateKey pk prv)
+        , putPrivateKey = \pk prv -> ExceptT $
+            alterDB errNoSuchWallet db $
+            mPutPrivateKey pk prv
 
         , readPrivateKey = readDB db . mReadPrivateKey
 
@@ -177,11 +187,20 @@ newDBLayer timeInterpreter = do
                                        Pending Tx
         -----------------------------------------------------------------------}
 
-        , updatePendingTxForExpiry = \pk tip -> ExceptT $ do
-            alterDB errNoSuchWallet db (mUpdatePendingTxForExpiry pk tip)
+        , putLocalTxSubmission = \pk txid tx sl -> ExceptT $
+            alterDB (fmap ErrPutLocalTxSubmissionNoSuchWallet . errNoSuchWallet) db $
+            mPutLocalTxSubmission pk txid tx sl
 
-        , removePendingOrExpiredTx = \pk tid -> ExceptT $ do
-            alterDB errCannotRemovePendingTx db (mRemovePendingOrExpiredTx pk tid)
+        , readLocalTxSubmissionPending =
+            readDB db . mReadLocalTxSubmissionPending
+
+        , updatePendingTxForExpiry = \pk tip -> ExceptT $
+            alterDB errNoSuchWallet db $
+            mUpdatePendingTxForExpiry pk tip
+
+        , removePendingOrExpiredTx = \pk tid -> ExceptT $
+            alterDB errCannotRemovePendingTx db $
+            mRemovePendingOrExpiredTx pk tid
 
         {-----------------------------------------------------------------------
                                  Protocol Parameters
@@ -208,7 +227,8 @@ newDBLayer timeInterpreter = do
 
 -- | Apply an operation to the model database, then update the mutable variable.
 alterDB
-    :: (Err (PrimaryKey WalletId) -> Maybe err)
+    :: (NFData s, NFData xprv)
+    => (Err (PrimaryKey WalletId) -> Maybe err)
     -- ^ Error type converter
     -> MVar (Database (PrimaryKey WalletId) s xprv)
     -- ^ The database variable
@@ -218,14 +238,15 @@ alterDB
 alterDB convertErr db op = modifyMVar db (bubble . op)
   where
     bubble (Left e, db') = case convertErr e of
-        Just e' -> pure (db', Left e')
+        Just e' -> pure (force db', Left e')
         Nothing -> throwIO $ MVarDBError e
-    bubble (Right a, db') = pure (db', Right a)
+    bubble (Right a, db') = pure (force db', Right a)
 
 -- | Run a query operation on the model database. Any error results are turned
 -- into a runtime exception.
 readDB
-    :: MVar (Database (PrimaryKey WalletId) s xprv)
+    :: (NFData s, NFData xprv)
+    => MVar (Database (PrimaryKey WalletId) s xprv)
     -- ^ The database variable
     -> ModelOp (PrimaryKey WalletId) s xprv a
     -- ^ Operation to run on the database
@@ -239,8 +260,8 @@ errNoSuchWallet _ = Nothing
 errCannotRemovePendingTx :: Err (PrimaryKey WalletId) -> Maybe ErrRemoveTx
 errCannotRemovePendingTx (NoSuchWallet (PrimaryKey wid)) =
     Just (ErrRemoveTxNoSuchWallet (ErrNoSuchWallet wid))
-errCannotRemovePendingTx (NoSuchTx _ tid) =
-    Just (ErrRemoveTxNoSuchTransaction tid)
+errCannotRemovePendingTx (NoSuchTx (PrimaryKey wid) tid) =
+    Just (ErrRemoveTxNoSuchTransaction (ErrNoSuchTransaction wid tid))
 errCannotRemovePendingTx (CantRemoveTxInLedger _ tid) =
     Just (ErrRemoveTxAlreadyInLedger tid)
 errCannotRemovePendingTx _ = Nothing

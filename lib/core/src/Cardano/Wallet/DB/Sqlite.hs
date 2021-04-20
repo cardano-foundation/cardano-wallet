@@ -66,6 +66,7 @@ import Cardano.DB.Sqlite
     , chunkSize
     , dbChunked
     , dbChunked'
+    , dbChunkedFor
     , fieldName
     , fieldType
     , handleConstraint
@@ -84,7 +85,9 @@ import Cardano.DB.Sqlite.Delete
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
+    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -98,6 +101,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , DelegationReward (..)
     , EntityField (..)
     , Key (..)
+    , LocalTxSubmission (..)
     , PrivateKey (..)
     , RndState (..)
     , RndStateAddress (..)
@@ -202,6 +206,7 @@ import Database.Persist.Sql
     ( Entity (..)
     , Filter
     , SelectOpt (..)
+    , Single (..)
     , Update (..)
     , deleteCascadeWhere
     , deleteWhere
@@ -209,12 +214,14 @@ import Database.Persist.Sql
     , insertMany_
     , insert_
     , rawExecute
+    , rawSql
     , repsert
     , repsertMany
     , selectFirst
     , selectKeysList
     , selectList
     , updateWhere
+    , upsert
     , (/<-.)
     , (<-.)
     , (<.)
@@ -1434,7 +1441,9 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
             selectLatestCheckpointCached wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do
-                    pruneCheckpoints wid epochStability cp
+                    let tip = cp ^. #currentTip
+                    pruneCheckpoints wid epochStability tip
+                    pruneLocalTxSubmission wid epochStability tip
                     deleteLooseTransactions
 
         {-----------------------------------------------------------------------
@@ -1513,12 +1522,27 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     , (TxMetaStatus ==.) <$> status
                     ]
 
+        , putLocalTxSubmission = \(PrimaryKey wid) txid tx sl -> ExceptT $ do
+            let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
+                    ErrNoSuchWallet wid
+            let errNoSuchTx = ErrPutLocalTxSubmissionNoSuchTransaction $
+                    ErrNoSuchTransaction wid txid
+
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left errNoSuchWallet
+                Just _ -> handleConstraint errNoSuchTx $ do
+                    let record = LocalTxSubmission (TxId txid) wid sl tx
+                    void $ upsert record [ LocalTxSubmissionLastSlot =. sl ]
+
+        , readLocalTxSubmissionPending =
+            fmap (map localTxSubmissionFromEntity)
+            . listPendingLocalTxSubmissionQuery
+            . unPrimaryKey
+
         , updatePendingTxForExpiry = \(PrimaryKey wid) tip -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                  updatePendingTxForExpiryQuery wid tip
-                  pure $ Right ()
+                Just _ -> Right <$> updatePendingTxForExpiryQuery wid tip
 
         , removePendingOrExpiredTx = \(PrimaryKey wid) tid -> ExceptT $ do
             let errNoSuchWallet =
@@ -1526,7 +1550,8 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
             let errNoMorePending =
                     Left $ ErrRemoveTxAlreadyInLedger tid
             let errNoSuchTransaction =
-                    Left $ ErrRemoveTxNoSuchTransaction tid
+                    Left $ ErrRemoveTxNoSuchTransaction $
+                    ErrNoSuchTransaction wid tid
             selectWallet wid >>= \case
                 Nothing -> pure errNoSuchWallet
                 Just _  -> selectTxMeta wid tid >>= \case
@@ -1788,7 +1813,7 @@ mkTxHistory wid txs = flatTxHistory
       , mkTxWithdrawals (txid, tx)
       )
     | (tx, derived) <- txs
-    , let txid = W.txId tx
+    , let txid = view #txId tx
     ]
   where
     -- | Make flat lists of entities from the result of 'mkTxHistory'.
@@ -2007,12 +2032,11 @@ deleteCheckpoints wid filters = do
 pruneCheckpoints
     :: W.WalletId
     -> Quantity "block" Word32
-    -> W.Wallet s
+    -> W.BlockHeader
     -> SqlPersistT IO ()
-pruneCheckpoints wid epochStability cp = do
-    let height = cp ^. #currentTip . #blockHeight
+pruneCheckpoints wid epochStability tip = do
     let cfg = defaultSparseCheckpointsConfig epochStability
-    let cps = sparseCheckpoints cfg height
+    let cps = sparseCheckpoints cfg (tip ^. #blockHeight)
     deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
 
 -- | Delete TxMeta values for a wallet.
@@ -2256,15 +2280,64 @@ deletePendingOrExpiredTx wid tid = do
         Nothing -> fromIntegral <$> deleteWhereCount
             ((TxMetaStatus <-. [W.Pending, W.Expired]):filt)
 
+-- | Returns the initial submission slot and submission record for all pending
+-- transactions in the wallet.
+listPendingLocalTxSubmissionQuery
+    :: W.WalletId
+    -> SqlPersistT IO [(W.SlotNo, LocalTxSubmission)]
+listPendingLocalTxSubmissionQuery wid = fmap unRaw <$> rawSql query params
+  where
+    -- fixme: sort results
+    query =
+        "SELECT tx_meta.slot,?? " <>
+        "FROM tx_meta INNER JOIN local_tx_submission " <>
+        "ON tx_meta.wallet_id=local_tx_submission.wallet_id " <>
+        "    AND tx_meta.tx_id=local_tx_submission.tx_id " <>
+        "WHERE tx_meta.wallet_id=? AND tx_meta.status=? " <>
+        "ORDER BY local_tx_submission.wallet_id, local_tx_submission.tx_id"
+    params = [toPersistValue wid, toPersistValue W.Pending]
+    unRaw (Single sl, Entity _ tx) = (sl, tx)
+
+localTxSubmissionFromEntity
+    :: (W.SlotNo, LocalTxSubmission)
+    -> W.LocalTxSubmissionStatus W.SealedTx
+localTxSubmissionFromEntity (sl0, LocalTxSubmission (TxId txid) _ sl tx) =
+    W.LocalTxSubmissionStatus txid tx sl0 sl
+
+-- | Remove transactions from the local submission pool once they can no longer
+-- be rolled back.
+pruneLocalTxSubmission
+    :: W.WalletId
+    -> Quantity "block" Word32
+    -> W.BlockHeader
+    -> SqlPersistT IO ()
+pruneLocalTxSubmission wid (Quantity epochStability) tip =
+    rawExecute query params
+  where
+    query =
+        "DELETE FROM local_tx_submission " <>
+        "WHERE wallet_id=? AND tx_id IN " <>
+        "( SELECT tx_id FROM tx_meta WHERE tx_meta.block_height < ? )"
+    params = [toPersistValue wid, toPersistValue stableHeight]
+    stableHeight = getQuantity (tip ^. #blockHeight) - epochStability
+
 -- | Mutates all pending transaction entries which have exceeded their TTL so
--- that their status becomes expired. Transaction expiry is not something which
--- can be rolled back.
+-- that their status becomes expired. Then it removes these transactions from
+-- the local tx submission pool.
+--
+-- Transaction expiry is not something which can be rolled back.
 updatePendingTxForExpiryQuery
     :: W.WalletId
     -> W.SlotNo
     -> SqlPersistT IO ()
-updatePendingTxForExpiryQuery wid tip =
+updatePendingTxForExpiryQuery wid tip = do
+    txIds <- fmap (txMetaTxId . entityVal) <$> selectList isExpired []
     updateWhere isExpired [TxMetaStatus =. W.Expired]
+    -- Remove these transactions from the wallet's local submission pool.
+    dbChunkedFor @LocalTxSubmission (\batch -> deleteWhere
+        [ LocalTxSubmissionWalletId ==. wid
+        , LocalTxSubmissionTxId <-. batch
+        ]) txIds
   where
     isExpired =
         [ TxMetaWalletId ==. wid

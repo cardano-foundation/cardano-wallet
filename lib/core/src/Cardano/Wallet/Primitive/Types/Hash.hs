@@ -14,7 +14,10 @@
 --
 -- Types and functions relating to hash values.
 --
-module Cardano.Wallet.Primitive.Types.Hash where
+module Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..)
+    , hashFromText
+    ) where
 
 import Prelude
 

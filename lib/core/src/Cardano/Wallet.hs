@@ -187,6 +187,7 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..)
+    , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
@@ -1695,7 +1696,7 @@ getTransaction ctx wid tid = db & \DBLayer{..} -> do
         Left err -> do
             throwE (ErrGetTransactionNoSuchWallet err)
         Right Nothing -> do
-            let err' = ErrNoSuchTransaction tid
+            let err' = ErrNoSuchTransaction wid tid
             throwE (ErrGetTransactionNoSuchTransaction err')
         Right (Just tx) ->
             pure tx
@@ -2222,10 +2223,6 @@ data ErrListTransactions
 data ErrGetTransaction
     = ErrGetTransactionNoSuchWallet ErrNoSuchWallet
     | ErrGetTransactionNoSuchTransaction ErrNoSuchTransaction
-    deriving (Show, Eq)
-
--- | Indicates that the specified transaction hash is not found.
-newtype ErrNoSuchTransaction = ErrNoSuchTransaction (Hash "Tx")
     deriving (Show, Eq)
 
 -- | Indicates that the specified start time is later than the specified end
