@@ -428,7 +428,7 @@ benchmarksRnd
         , KnownNat p
         )
     => Proxy n
-    -> WalletLayer s k
+    -> WalletLayer IO s k
     -> WalletId
     -> WalletName
     -> Text
@@ -519,7 +519,7 @@ benchmarksSeq
         , KnownNat p
         )
     => Proxy n
-    -> WalletLayer s k
+    -> WalletLayer IO s k
     -> WalletId
     -> WalletName
     -> Text -- ^ Bench name
@@ -592,7 +592,7 @@ bench_restoration
     -> [(WalletId, WalletName, s)]
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
     -> Percentage -- ^ Target sync progress
-    -> (Proxy n -> WalletLayer s k -> WalletId -> WalletName -> Text -> Time -> IO results)
+    -> (Proxy n -> WalletLayer IO s k -> WalletId -> WalletName -> Text -> Time -> IO results)
     -> IO SomeBenchmarkResults
 bench_restoration proxy tr wlTr socket np vData benchname wallets traceToDisk targetSync benchmarks = do
     putStrLn $ "*** " ++ T.unpack benchname
@@ -727,7 +727,7 @@ waitForWalletsSyncTo
     => Percentage
     -> Tracer IO (BenchmarkLog n)
     -> Proxy n
-    -> WalletLayer s k
+    -> WalletLayer IO s k
     -> [WalletId]
     -> GenesisParameters
     -> NodeVersionData

@@ -39,7 +39,7 @@ import Test.QuickCheck
 import qualified Cardano.Wallet.DB.MVar as MVar
 
 spec :: Spec
-spec = before (MVar.newDBLayer @(SeqState 'Mainnet ShelleyKey) ti) $
+spec = before (MVar.newDBLayer @IO @(SeqState 'Mainnet ShelleyKey) ti) $
     describe "MVar" properties
   where
     ti = dummyTimeInterpreter

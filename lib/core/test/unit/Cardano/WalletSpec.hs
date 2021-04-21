@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -22,8 +23,6 @@ import Cardano.Address.Derivation
     ( XPrv, xpubToBytes )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..) )
-import Cardano.BM.Trace
-    ( nullTracer )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet
@@ -31,14 +30,23 @@ import Cardano.Wallet
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
+    , LocalTxSubmissionConfig (..)
     , WalletLayer (..)
+    , runLocalTxSubmissionPool
+    , throttle
     )
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, dummyNetworkParameters, dummyTimeInterpreter, mkTxId )
+    ( block0
+    , dummyNetworkLayer
+    , dummyNetworkParameters
+    , dummySlottingParameters
+    , dummyTimeInterpreter
+    , mkTxId
+    )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSlotNo, genTxMetadata, shrinkTxMetadata )
+    ( genMnemonic, genSlotNo, genTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -71,14 +79,17 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (BlockHeader)
+    ( ActiveSlotCoefficient (..)
+    , Block
+    , BlockHeader (BlockHeader)
     , EpochNo (..)
     , NetworkParameters (..)
     , PoolId (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , SortOrder (..)
     , WalletDelegation (..)
-    , WalletDelegationNext (..)
+    , WalletDelegationNext (WalletDelegationNext)
     , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -96,6 +107,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , LocalTxSubmissionStatus (..)
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -104,6 +116,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata
     , TxOut (..)
     , TxStatus (..)
+    , isPending
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -112,40 +125,58 @@ import Cardano.Wallet.Transaction
     ( ErrMkTx (..), TransactionLayer (..), defaultTransactionCtx )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Control.Arrow
-    ( second )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
     ( forM, forM_, replicateM, void )
-import Control.Monad.IO.Class
-    ( liftIO )
+import Control.Monad.Class.MonadTime
+    ( DiffTime
+    , MonadMonotonicTime (..)
+    , MonadTime (..)
+    , Time (..)
+    , addTime
+    , diffTime
+    )
+import Control.Monad.IO.Unlift
+    ( MonadIO (..), MonadUnliftIO (..), wrappedWithRunInIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, except, runExceptT )
+    ( ExceptT (..), except, runExceptT )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..) )
+import Control.Monad.Trans.Reader
+    ( ReaderT (..), ask )
 import Control.Monad.Trans.State.Strict
-    ( State, evalState, get, put )
+    ( State, StateT (..), evalState, get, put, state )
+import Control.Tracer
+    ( Tracer (..), nullTracer )
 import Crypto.Hash
     ( hash )
+import Data.Bifunctor
+    ( second )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
 import Data.Either
     ( isLeft, isRight )
+import Data.Function
+    ( on )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( set, view, (^.) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing )
+    ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Clock.POSIX
@@ -157,16 +188,19 @@ import Data.Word.Odd
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , InfiniteList (..)
     , NonEmptyList (..)
     , Positive (..)
     , Property
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
+    , arbitrarySizedFractional
+    , checkCoverage
     , checkCoverage
     , choose
     , conjoin
@@ -175,10 +209,16 @@ import Test.QuickCheck
     , elements
     , label
     , liftArbitrary
+    , liftShrink
+    , liftShrink2
+    , listOf1
     , oneof
     , property
     , scale
     , shrinkIntegral
+    , shrinkList
+    , sized
+    , suchThat
     , vector
     , withMaxSuccess
     , (===)
@@ -187,11 +227,22 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( assert, monadicIO, monitor, run )
 import Test.Utils.Time
     ( UniformTime )
+import Test.Utils.Trace
+    ( captureLogging' )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( MVar
+    , modifyMVar
+    , modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , readMVar
+    , takeMVar
+    , threadDelay
+    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
@@ -206,10 +257,11 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 spec :: Spec
 spec = parallel $ do
-    parallel $ describe "Pointless tests to cover 'Show' instances for errors" $ do
+    parallel $ describe "Pointless mockEventSource to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
@@ -250,13 +302,19 @@ spec = parallel $ do
         it "Fee estimates are sound"
             (property prop_estimateFee)
 
+    describe "LocalTxSubmission" $ do
+        it "LocalTxSubmission pool retries pending transactions"
+            (property prop_localTxSubmission)
+        it "LocalTxSubmission updates are limited in frequency"
+            (property prop_throttle)
+
     parallel $ describe "Join/Quit Stake pool properties" $ do
         it "You can quit if you cannot join"
             (property prop_guardJoinQuit)
         it "You can join if you cannot quit"
             (property prop_guardQuitJoin)
 
-    parallel $ describe "Join/Quit Stake pool unit tests" $ do
+    parallel $ describe "Join/Quit Stake pool unit mockEventSource" $ do
         let noRetirementPlanned = Nothing
         it "Cannot join A, when active = A" $ do
             let dlg = WalletDelegation {active = Delegating pidA, next = []}
@@ -311,8 +369,7 @@ spec = parallel $ do
          pidB = PoolId "B"
          pidUnknown = PoolId "unknown"
          knownPools = Set.fromList [pidA, pidB]
-         next epoch dlgStatus =
-             WalletDelegationNext {changesAt = epoch, status = dlgStatus}
+         next = WalletDelegationNext
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -376,63 +433,64 @@ prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards =
 walletCreationProp
     :: (WalletId, WalletName, DummyState)
     -> Property
-walletCreationProp newWallet = monadicIO $ liftIO $ do
-    (WalletLayerFixture DBLayer{..} _wl walletIds _) <- setupFixture newWallet
-    resFromDb <- atomically $ readCheckpoint (PrimaryKey $ L.head walletIds)
-    resFromDb `shouldSatisfy` isJust
+walletCreationProp newWallet = monadicIO $ do
+    WalletLayerFixture DBLayer{..} _wl walletIds _ <- run $ setupFixture newWallet
+    resFromDb <- run $ atomically $ readCheckpoint (PrimaryKey $ L.head walletIds)
+    assert (isJust resFromDb)
 
 walletDoubleCreationProp
     :: (WalletId, WalletName, DummyState)
     -> Property
 walletDoubleCreationProp newWallet@(wid, wname, wstate) =
-    monadicIO $ liftIO $ do
-        (WalletLayerFixture _db wl _walletIds _) <- setupFixture newWallet
-        secondTrial <- runExceptT $ W.createWallet wl wid wname wstate
-        secondTrial `shouldSatisfy` isLeft
+    monadicIO $ do
+        WalletLayerFixture _db wl _walletIds _ <- run $ setupFixture newWallet
+        secondTrial <- run $ runExceptT $ W.createWallet wl wid wname wstate
+        assert (isLeft secondTrial)
 
 walletGetProp
     :: (WalletId, WalletName, DummyState)
     -> Property
-walletGetProp newWallet = monadicIO $ liftIO $ do
-    (WalletLayerFixture _db wl walletIds _) <- liftIO $ setupFixture newWallet
-    resFromGet <- runExceptT $ W.readWallet wl (L.head walletIds)
-    resFromGet `shouldSatisfy` isRight
+walletGetProp newWallet = monadicIO $ do
+    WalletLayerFixture _db wl walletIds _ <- run $ setupFixture newWallet
+    resFromGet <- run $ runExceptT $ W.readWallet wl (L.head walletIds)
+    assert (isRight resFromGet)
 
 walletGetWrongIdProp
     :: ((WalletId, WalletName, DummyState), WalletId)
     -> Property
-walletGetWrongIdProp (newWallet@(wid, _, _), walletId) = monadicIO $ liftIO $ do
-    (WalletLayerFixture _db wl _walletIds _) <- liftIO $ setupFixture newWallet
-    attempt <- runExceptT $ W.readWallet wl walletId
-    attempt `shouldSatisfy` if wid /= walletId then isLeft else isRight
+walletGetWrongIdProp (newWallet@(wid, _, _), walletId) = monadicIO $ do
+    WalletLayerFixture _db wl _walletIds _ <- run $ setupFixture newWallet
+    attempt <- run $ runExceptT $ W.readWallet wl walletId
+    assert ((if wid /= walletId then isLeft else isRight) attempt)
 
 walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
     -> Property
-walletIdDeterministic newWallet = monadicIO $ liftIO $ do
-    (WalletLayerFixture _ _ widsA _) <- liftIO $ setupFixture newWallet
-    (WalletLayerFixture _ _ widsB _) <- liftIO $ setupFixture newWallet
-    widsA `shouldBe` widsB
+walletIdDeterministic newWallet = monadicIO $ do
+    WalletLayerFixture _ _ widsA _ <- run $ setupFixture newWallet
+    WalletLayerFixture _ _ widsB _ <- run $ setupFixture newWallet
+    assert (widsA == widsB)
 
 walletIdInjective
     :: ((WalletId, WalletName, DummyState), (WalletId, WalletName, DummyState))
     -> Property
-walletIdInjective (walletA, walletB) = monadicIO $ liftIO $ do
-    (WalletLayerFixture _ _ widsA _) <- liftIO $ setupFixture walletA
-    (WalletLayerFixture _ _ widsB _) <- liftIO $ setupFixture walletB
-    widsA `shouldNotBe` widsB
+walletIdInjective (walletA, walletB) = monadicIO $ do
+    WalletLayerFixture _ _ widsA _ <- run $ setupFixture walletA
+    WalletLayerFixture _ _ widsB _ <- run $ setupFixture walletB
+    assert (widsA /= widsB)
 
 walletUpdateName
     :: (WalletId, WalletName, DummyState)
     -> [WalletName]
     -> Property
-walletUpdateName wallet@(_, wName0, _) names = monadicIO $ liftIO $ do
-    (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
-    unsafeRunExceptT $ forM_ names $ \wName ->
-        W.updateWallet wl wid (\x -> x { name = wName })
-    wName <- fmap (name . (\(_, b, _) -> b))
-        <$> unsafeRunExceptT $ W.readWallet wl wid
-    wName `shouldBe` last (wName0 : names)
+walletUpdateName wallet@(_, wName0, _) names = monadicIO $ do
+    wName <- run $ do
+        WalletLayerFixture _ wl [wid] _ <- setupFixture wallet
+        unsafeRunExceptT $ forM_ names $ \wName ->
+            W.updateWallet wl wid (\x -> x { name = wName })
+        fmap (name . (\(_, b, _) -> b))
+            <$> unsafeRunExceptT $ W.readWallet wl wid
+    assert (wName == last (wName0 : names))
 
 walletUpdateNameNoSuchWallet
     :: (WalletId, WalletName, DummyState)
@@ -440,31 +498,32 @@ walletUpdateNameNoSuchWallet
     -> WalletName
     -> Property
 walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
-    wid /= wid' ==> monadicIO $ liftIO $ do
-        (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
-        attempt <- runExceptT $ W.updateWallet wl wid (\x -> x { name = wName })
-        attempt `shouldBe` Left (ErrNoSuchWallet wid)
+    wid /= wid' ==> monadicIO $ do
+        WalletLayerFixture _ wl _ _ <- run $ setupFixture wallet
+        attempt <- run $ runExceptT $
+            W.updateWallet wl wid (\x -> x { name = wName })
+        assert (attempt == Left (ErrNoSuchWallet wid))
 
 walletUpdatePassphrase
     :: (WalletId, WalletName, DummyState)
     -> Passphrase "raw"
     -> Maybe (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> Property
-walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
-    (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
+walletUpdatePassphrase wallet new mxprv = monadicIO $ do
+    WalletLayerFixture _ wl [wid] _ <- run $ setupFixture wallet
     case mxprv of
         Nothing -> prop_withoutPrivateKey wl wid
         Just (xprv, pwd) -> prop_withPrivateKey wl wid (xprv, pwd)
   where
     prop_withoutPrivateKey wl wid = do
-        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (new, new)
+        attempt <- run $ runExceptT $ W.updateWalletPassphrase wl wid (new, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
-        attempt `shouldBe` Left err
+        assert (attempt == Left err)
 
     prop_withPrivateKey wl wid (xprv, pwd) = do
-        unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
-        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, new)
-        attempt `shouldBe` Right ()
+        run $ unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
+        attempt <- run $ runExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, new)
+        assert (attempt == Right ())
 
 walletUpdatePassphraseWrong
     :: (WalletId, WalletName, DummyState)
@@ -472,14 +531,15 @@ walletUpdatePassphraseWrong
     -> (Passphrase "raw", Passphrase "raw")
     -> Property
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
-    pwd /= coerce old ==> monadicIO $ liftIO $ do
-        (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
-        unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
-        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (old, new)
+    pwd /= coerce old ==> monadicIO $ do
+        WalletLayerFixture _ wl [wid] _ <- run $ setupFixture wallet
+        attempt <- run $ do
+            unsafeRunExceptT $ W.attachPrivateKeyFromPwd wl wid (xprv, pwd)
+            runExceptT $ W.updateWalletPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey
                 $ ErrWithRootKeyWrongPassphrase wid
                 ErrWrongPassphrase
-        attempt `shouldBe` Left err
+        assert (attempt == Left err)
 
 walletUpdatePassphraseNoSuchWallet
     :: (WalletId, WalletName, DummyState)
@@ -487,11 +547,11 @@ walletUpdatePassphraseNoSuchWallet
     -> (Passphrase "raw", Passphrase "raw")
     -> Property
 walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
-    wid /= wid' ==> monadicIO $ liftIO $ do
-        (WalletLayerFixture _ wl _ _) <- liftIO $ setupFixture wallet
-        attempt <- runExceptT $ W.updateWalletPassphrase wl wid (old, new)
+    wid /= wid' ==> monadicIO $ do
+        WalletLayerFixture _ wl _ _ <- run $ setupFixture wallet
+        attempt <- run $ runExceptT $ W.updateWalletPassphrase wl wid (old, new)
         let err = ErrUpdatePassphraseWithRootKey $ ErrWithRootKeyNoRootKey wid
-        attempt `shouldBe` Left err
+        assert (attempt == Left err)
 
 walletUpdatePassphraseDate
     :: (WalletId, WalletName, DummyState)
@@ -560,7 +620,7 @@ walletListTransactionsSorted
     -> Property
 walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
     monadicIO $ liftIO $ do
-        (WalletLayerFixture DBLayer{..} wl _ slotNoTime) <- liftIO $ setupFixture wallet
+        WalletLayerFixture DBLayer{..} wl _ slotNoTime <- liftIO $ setupFixture wallet
         atomically $ unsafeRunExceptT $ putTxHistory (PrimaryKey wid) history
         txs <- unsafeRunExceptT $
             W.listTransactions @_ @_ @_ wl wid Nothing Nothing Nothing Descending
@@ -569,8 +629,9 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         txs `shouldBe` L.sortOn (Down . slotNo . txInfoMeta) txs
         -- Check transaction time calculation
         let times = Map.fromList [(txInfoId i, txInfoTime i) | i <- txs]
-        let expTimes = Map.fromList $
-                (\(tx, meta) -> (txId tx, slotNoTime (meta ^. #slotNo))) <$> history
+        let expTimes = Map.fromList
+                [ (tx ^. #txId, slotNoTime (meta ^. #slotNo))
+                | (tx, meta) <- history ]
         times `shouldBe` expTimes
 
 {-------------------------------------------------------------------------------
@@ -627,6 +688,335 @@ prop_estimateFee (NonEmpty coins) =
         counterexample (show a <> " & " <> show b <> " are not close enough") $
         property $ abs (a - b) < (1/5)
 
+
+{-------------------------------------------------------------------------------
+                               LocalTxSubmission
+-------------------------------------------------------------------------------}
+
+data TxRetryTest = TxRetryTest
+    { retryTestPool :: [LocalTxSubmissionStatus SealedTx]
+    , retryTestTxHistory :: GenTxHistory
+    , postTxResults :: [(SealedTx, Bool)]
+    , testSlottingParameters :: SlottingParameters
+    , retryTestWallet :: (WalletId, WalletName, DummyState)
+    } deriving (Generic, Show, Eq)
+
+numSlots :: TxRetryTest -> Word64
+numSlots = const 100
+
+newtype GenTxHistory = GenTxHistory { getTxHistory :: [(Tx, TxMeta)] }
+    deriving (Generic, Show, Eq)
+
+instance Arbitrary GenTxHistory where
+    arbitrary = fmap GenTxHistory (gen `suchThat` hasPending)
+      where
+        gen = uniq <$> listOf1 ((,) <$> genTx <*> genTxMeta)
+        uniq = L.nubBy ((==) `on` (view #txId . fst))
+        genTx = mkTx <$> genTid
+        hasPending = any ((== Pending) . view #status . snd)
+        genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
+        mkTx tid = Tx tid Nothing [] [] mempty Nothing
+        genTxMeta = do
+            sl <- genSmallSlot
+            let bh = Quantity $ fromIntegral $ unSlotNo sl
+            st <- elements [Pending, InLedger, Expired]
+            dir <- elements [Incoming, Outgoing]
+            expry <- oneof [fmap (Just . (+ sl)) genSmallSlot, pure Nothing]
+            pure $ TxMeta st dir sl bh (Coin 0) expry
+        genSmallSlot = SlotNo . fromIntegral <$> sized (\n -> choose (0, 4 * n))
+
+    shrink = fmap GenTxHistory
+        . filter (not . null)
+        . shrinkList (liftShrink2 shrinkTx shrinkMeta)
+        . getTxHistory
+      where
+        shrinkTx tx = [set #txId tid' tx | tid' <- shrink (view #txId tx)]
+        shrinkMeta (TxMeta st dir sl bh amt ex) =
+            [ TxMeta st dir sl' bh amt ex'
+            | (sl', ex') <- liftShrink2 shrinkSlotNo (liftShrink shrinkSlotNo)
+                (sl, ex) ]
+
+instance Arbitrary TxRetryTest where
+    arbitrary = do
+        txHistory <- arbitrary
+        let pool = mkLocalTxSubmissionStatus txHistory
+        results <- zip (map (view #submittedTx) pool) . getInfiniteList <$> arbitrary
+        TxRetryTest pool txHistory results <$> arbitrary <*> arbitrary
+
+    shrink (TxRetryTest _ txHistory res sp wal) =
+        [ TxRetryTest (mkLocalTxSubmissionStatus txHistory') txHistory' res sp' wal'
+        | (txHistory', sp', wal') <- shrink (txHistory, sp, wal)
+        ]
+
+mkLocalTxSubmissionStatus
+    :: GenTxHistory
+    -> [LocalTxSubmissionStatus SealedTx]
+mkLocalTxSubmissionStatus = mapMaybe getStatus . getTxHistory
+  where
+    getStatus :: (Tx, TxMeta) -> Maybe (LocalTxSubmissionStatus SealedTx)
+    getStatus (tx, txMeta)
+        | isPending txMeta = Just st
+        | otherwise = Nothing
+      where
+        i = tx ^. #txId
+        sl = txMeta ^. #slotNo
+        st = LocalTxSubmissionStatus i (SealedTx (getHash i)) sl sl
+
+instance Arbitrary SlottingParameters where
+    arbitrary = mk <$> choose (0.5, 1)
+      where
+        mk f = dummySlottingParameters
+            { getActiveSlotCoefficient = ActiveSlotCoefficient f }
+
+-- | 'WalletLayer' context.
+data TxRetryTestCtx = TxRetryTestCtx
+    { ctxDbLayer :: DBLayer TxRetryTestM DummyState ShelleyKey
+    , ctxNetworkLayer :: NetworkLayer TxRetryTestM Block
+    , ctxTracer :: Tracer IO W.WalletLog
+    , ctxWalletId :: WalletId
+    } deriving (Generic)
+
+-- | Context of 'TxRetryTestM'.
+data TxRetryTestState = TxRetryTestState
+    { testCase :: TxRetryTest
+    , timeStep :: DiffTime
+    , timeVar :: MVar Time
+    } deriving (Generic)
+
+-- | Collected info from test execution.
+data TxRetryTestResult a = TxRetryTestResult
+    { resLogs :: [W.WalletLog]
+    , resAction :: a
+    , resSubmittedTxs :: [SealedTx]
+    } deriving (Generic, Show, Eq)
+
+-- | The test runs in this monad so that time can be mocked out.
+newtype TxRetryTestM a = TxRetryTestM
+    { unTxRetryTestM :: ReaderT TxRetryTestState IO a
+    } deriving (Functor, Applicative, Monad, MonadIO, MonadFail)
+
+instance MonadUnliftIO TxRetryTestM where
+    withRunInIO = wrappedWithRunInIO TxRetryTestM unTxRetryTestM
+
+instance MonadMonotonicTime TxRetryTestM where
+    getMonotonicTime = do
+        st <- TxRetryTestM ask
+        modifyMVar (timeVar st) $ \t -> do
+            let t' = addTime (timeStep st) t
+            pure (t', t')
+
+instance MonadTime TxRetryTestM where
+    getCurrentTime = liftIO getCurrentTime
+
+prop_localTxSubmission :: TxRetryTest -> Property
+prop_localTxSubmission tc = monadicIO $ do
+    st <- TxRetryTestState tc 2 <$> newMVar (Time 0)
+    res <- run $ runTest st $ \ctx@(TxRetryTestCtx DBLayer{..} _ _ wid) -> do
+        -- Test setup
+        atomically $ do
+            let txHistory = getTxHistory (retryTestTxHistory tc)
+            unsafeRunExceptT $ putTxHistory (PrimaryKey wid) txHistory
+            forM_ (retryTestPool tc) $ \(LocalTxSubmissionStatus i tx _ sl) ->
+                unsafeRunExceptT $ putLocalTxSubmission (PrimaryKey wid) i tx sl
+
+        -- Run test
+        let cfg = LocalTxSubmissionConfig (timeStep st) 10
+        runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx wid
+
+        -- Gather state
+        atomically $ readLocalTxSubmissionPending (PrimaryKey wid)
+
+    monitor $ counterexample $ unlines $
+        [ "posted txs = " ++ show (resSubmittedTxs res)
+        , "final pool state = " ++ show (resAction res)
+        , "logs:"
+        ] ++ map (T.unpack . toText) (resLogs res)
+
+    -- props:
+    --  1. pending transactions in pool are retried
+    let inPool = (`elem` (submittedTx <$> retryTestPool tc))
+    assert (all inPool (resSubmittedTxs res))
+
+    --  2. non-pending transactions not retried
+    let mkSealed = SealedTx . getHash . view #txId
+    let nonPending = map (mkSealed . fst)
+            . filter ((/= Pending) . view #status . snd)
+            . getTxHistory $ retryTestTxHistory tc
+    assert (all (`notElem` (resSubmittedTxs res)) nonPending)
+
+    --  3. retries can fail and not break the wallet
+    assert (not $ null $ resAction res)
+
+  where
+    runTest
+        :: TxRetryTestState
+        -> (TxRetryTestCtx -> TxRetryTestM a)
+        -> IO (TxRetryTestResult a)
+    runTest st testAction = do
+        submittedVar <- newMVar []
+        (msgs, res) <- captureLogging' $ \tr -> do
+            flip runReaderT st $ unTxRetryTestM $ do
+                WalletLayerFixture db _wl [wid] _slotNoTime <-
+                    setupFixture $ retryTestWallet tc
+                let ctx = TxRetryTestCtx db (mockNetwork submittedVar) tr wid
+
+                testAction ctx
+        TxRetryTestResult msgs res <$> readMVar submittedVar
+
+    mockNetwork :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Block
+    mockNetwork var = dummyNetworkLayer
+        { currentSlottingParameters = pure (testSlottingParameters tc)
+        , postTx = \tx -> ExceptT $ do
+                stash var tx
+                pure $ case lookup tx (postTxResults tc) of
+                    Just True -> Right ()
+                    Just False -> Left (W.ErrPostTxBadRequest "intended")
+                    Nothing -> Left (W.ErrPostTxProtocolFailure "unexpected")
+        , watchNodeTip = mockNodeTip (numSlots tc) 0
+        }
+
+    mockNodeTip end sl cb
+        | sl < end = do
+            let h = Hash ""
+            void $ cb $ BlockHeader (SlotNo sl) (Quantity (fromIntegral sl)) h h
+            mockNodeTip end (sl + 1) cb
+        | otherwise = pure ()
+
+    stash :: MVar [a] -> a -> TxRetryTestM ()
+    stash var x = modifyMVar_ var (\xs -> pure (x:xs))
+
+{-------------------------------------------------------------------------------
+                            'throttle' Util Function
+-------------------------------------------------------------------------------}
+
+data ThrottleTest = ThrottleTest
+    { interval :: DiffTime
+        -- ^ Interval parameter provided to 'throttle'
+    , diffTimes :: [DiffTime]
+        -- ^ Times when throttled function is called.
+    } deriving (Generic, Show, Eq)
+
+instance Arbitrary ThrottleTest where
+    arbitrary = ThrottleTest <$> genInterval <*> listOf1 genDiffTime
+      where
+        genInterval = genDiffTime `suchThat` (> 0)
+        genDiffTime = abs <$> arbitrarySizedFractional
+    shrink (ThrottleTest i dts) =
+        [ ThrottleTest (fromRational i') (map fromRational dts')
+        | (i', dts') <- shrink (toRational i, map toRational dts)
+        , i' > 0, not (null dts') ]
+
+data ThrottleTestState = ThrottleTestState
+    { remainingDiffTimes :: [DiffTime]
+    , now :: Time
+    , actions :: [(Time, Int)]
+    } deriving (Generic, Show, Eq)
+
+newtype ThrottleTestT m a = ThrottleTestT
+    { unThrottleTestT :: MaybeT (StateT ThrottleTestState m) a
+    } deriving (Functor, Applicative, Monad, MonadIO)
+
+runThrottleTest
+    :: MonadIO m
+    => ThrottleTestT m a
+    -> ThrottleTestState
+    -> m (Maybe a, ThrottleTestState)
+runThrottleTest action = fmap r . runStateT (runMaybeT (unThrottleTestT action))
+  where
+    r (res, ThrottleTestState d n a) = (res, ThrottleTestState d n (reverse a))
+
+initState :: ThrottleTest -> ThrottleTestState
+initState (ThrottleTest _ dts) = ThrottleTestState dts (Time 0) []
+
+recordTime :: Monad m => (Time, Int) -> ThrottleTestT m ()
+recordTime x = ThrottleTestT $ lift $ state $
+    \(ThrottleTestState ts now xs) -> ((), ThrottleTestState ts now (x:xs))
+
+instance MonadMonotonicTime m => MonadMonotonicTime (ThrottleTestT m) where
+    getMonotonicTime = ThrottleTestT $ MaybeT $ state mockTime
+      where
+        mockTime (ThrottleTestState later now as) = case later of
+            [] -> (Nothing, ThrottleTestState later now as)
+            (t:ts) ->
+                let now' = addTime t now
+                in  (Just now', ThrottleTestState ts now' as)
+
+instance MonadUnliftIO m => MonadUnliftIO (StateT ThrottleTestState m) where
+  withRunInIO inner = StateT $ \tts -> do
+      -- smuggle the test state in an mvar
+      var <- newEmptyMVar
+      withRunInIO $ \io -> do
+          a <- inner $ \action -> do
+              (a, tts') <- io $ runStateT action tts
+              putMVar var tts'
+              pure a
+          tts' <- takeMVar var
+          pure (a, tts')
+
+instance MonadUnliftIO m => MonadUnliftIO (ThrottleTestT m) where
+    withRunInIO inner = ThrottleTestT $ MaybeT $ fmap Just $
+        withRunInIO $ \io -> inner $ \(ThrottleTestT action) ->
+            io (runMaybeT action) >>= maybe (error "bad test") pure
+
+-- | 'throttle' ensures than the action runs when called to, at most once per
+-- interval.
+prop_throttle :: ThrottleTest -> Property
+prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
+    (res, st) <- run $ runThrottleTest testAction (initState tc)
+    -- check test case
+    monitor coverageTests
+    -- info for debugging failed mockEventSource
+    monitor $ counterexample $ unlines
+        [ ("res      = " ++ show res)
+        , ("st       = " ++ show st)
+        , ("accTimes = " ++ show accTimes)
+        , ("actuals  = " ++ show (actions st))
+        , ("expected = " ++ show expected)
+        ]
+    -- sanity-check test runner
+    assertNamed "consumed test data" (null $ remainingDiffTimes st)
+    assertNamed "expected final time" (now st == finalTime)
+    assertNamed "runner success" (isJust res)
+    -- properties
+    assertNamed "action runs at most once per interval" $
+        all (> interval) (timeDeltas (map fst (actions st)))
+    assertNamed "action runs whenever interval has passed" $
+        length diffTimes <= 1 || actions st == expected
+  where
+    testAction :: ThrottleTestT IO ()
+    testAction = do
+        rateLimited <- throttle interval (curry recordTime)
+        mockEventSource rateLimited 0
+
+    mockEventSource cb n
+         | n < length diffTimes = cb n >> mockEventSource cb (n + 1)
+         | otherwise = pure ()
+
+    finalTime = addTime (sum diffTimes) (Time 0)
+    accTimes = drop 1 $ L.scanl' (flip addTime) (Time 0) diffTimes
+
+    expected = reverse $ snd $ L.foldl' model (Time (negate interval), []) $
+        zip accTimes [0..]
+
+    model (prev, xs) (now, i)
+        | diffTime now prev >= interval = (now, (now, i):xs)
+        | otherwise = (prev, xs)
+
+    timeDeltas xs = zipWith diffTime (drop 1 xs) xs
+
+    assertNamed lbl prop = do
+        monitor $ counterexample $ lbl ++ ": " ++ show prop
+        assert prop
+
+    coverageTests = checkCoverage
+        . cover 1 (interval < 1) "sub-second interval"
+        . cover 25 (interval >= 1) "super-second interval"
+        . cover 25 (length diffTimes >= 10) "long mockEventSource"
+        . cover 25 (testRatio >= 0.5 && testRatio <= 1.5) "reasonable interval"
+      where
+        avgDiffTime = sum diffTimes / fromIntegral (length diffTimes)
+        testRatio = avgDiffTime / interval
+
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
@@ -661,18 +1051,19 @@ instance Arbitrary UTxO where
             <*> vector n
         return $ UTxO $ Map.fromList utxo
 
-data WalletLayerFixture = WalletLayerFixture
-    { _fixtureDBLayer :: DBLayer IO DummyState ShelleyKey
-    , _fixtureWalletLayer :: WalletLayer DummyState ShelleyKey
+data WalletLayerFixture m = WalletLayerFixture
+    { _fixtureDBLayer :: DBLayer m DummyState ShelleyKey
+    , _fixtureWalletLayer :: WalletLayer m DummyState ShelleyKey
     , _fixtureWallet :: [WalletId]
     , _fixtureSlotNoTime :: SlotNo -> UTCTime
     }
 
 setupFixture
-    :: (WalletId, WalletName, DummyState)
-    -> IO WalletLayerFixture
+    :: (MonadUnliftIO m, MonadFail m, MonadTime m)
+    => (WalletId, WalletName, DummyState)
+    -> m (WalletLayerFixture m)
 setupFixture (wid, wname, wstate) = do
-    let nl = dummyNetworkLayer
+    let nl = mockNetworkLayer
     let tl = dummyTransactionLayer
     db <- MVar.newDBLayer timeInterpreter
     let wl = WalletLayer nullTracer (block0, np, st) nl tl db
@@ -698,7 +1089,7 @@ dummyTransactionLayer = TransactionLayer
         wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keystore addr
-            let (Hash sigData) = txId tx
+            let sigData = tx ^. #txId . #getHash
             let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
             return $ xpubToBytes (getKey $ publicKey xprv) <> sig
 
@@ -721,32 +1112,14 @@ dummyTransactionLayer = TransactionLayer
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
 
-dummyNetworkLayer :: Monad m => NetworkLayer m block
-dummyNetworkLayer = NetworkLayer
-    { nextBlocks =
-        error "dummyNetworkLayer: nextBlocks not implemented"
-    , initCursor =
-        error "dummyNetworkLayer: initCursor not implemented"
-    , destroyCursor =
-        error "dummyNetworkLayer: destroyCursor not implemented"
-    , cursorSlotNo =
-        error "dummyNetworkLayer: cursorSlotNo not implemented"
-    , currentNodeTip =
+mockNetworkLayer :: Monad m => NetworkLayer m block
+mockNetworkLayer = dummyNetworkLayer
+    { currentNodeTip =
         pure dummyTip
     , currentNodeEra =
         pure (AnyCardanoEra AllegraEra)
     , currentProtocolParameters =
         pure (protocolParameters dummyNetworkParameters)
-    , currentSlottingParameters =
-        error "dummyNetworkLayer: currentSlottingParameters not implemented"
-    , postTx =
-        error "dummyNetworkLayer: postTx not implemented"
-    , stakeDistribution =
-        error "dummyNetworkLayer: stakeDistribution not implemented"
-    , getAccountBalance =
-        error "dummyNetworkLayer: getAccountBalance not implemented"
-    , watchNodeTip =
-        error "dummyNetworkLayer: watchNodeTip not implemented"
     , timeInterpreter = dummyTimeInterpreter
     }
   where

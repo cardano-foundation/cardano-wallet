@@ -4,18 +4,25 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0
+    ( -- * Dummy values
+      block0
     , dummyNetworkParameters
     , dummyGenesisParameters
+    , dummySlottingParameters
     , dummyTimeInterpreter
     , genesisHash
     , mockHash
     , mkTxId
     , mkTx
+
+      -- * Mocks
+    , dummyNetworkLayer
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Network
+    ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, hoistTimeInterpreter, mkSingleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -144,3 +151,20 @@ mockHash = Hash . blake2b256 . B8.pack . show
      blake2b256 :: ByteString -> ByteString
      blake2b256 =
          BA.convert . hash @_ @Blake2b_256
+
+dummyNetworkLayer :: NetworkLayer m a
+dummyNetworkLayer = NetworkLayer
+    { nextBlocks = error "nextBlocks: not implemented"
+    , initCursor = error "initCursor: not implemented"
+    , destroyCursor = error "destroyCursor: not implemented"
+    , cursorSlotNo = error "cursorSlotNo: not implemented"
+    , currentNodeEra = error "currentNodeEra: not implemented"
+    , currentNodeTip = error "currentNodeTip: not implemented"
+    , watchNodeTip = error "watchNodeTip: not implemented"
+    , currentProtocolParameters = error "currentProtocolParameters: not implemented"
+    , currentSlottingParameters = error "currentSlottingParameters: not implemented"
+    , postTx = error "postTx: not implemented"
+    , stakeDistribution = error "stakeDistribution: not implemented"
+    , getAccountBalance = error "getAccountBalance: not implemented"
+    , timeInterpreter = error "timeInterpreter: not implemented"
+    }

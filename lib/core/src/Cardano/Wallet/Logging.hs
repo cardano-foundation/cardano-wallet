@@ -28,6 +28,7 @@ module Cardano.Wallet.Logging
 
       -- * Logging helpers
     , traceWithExceptT
+    , unliftIOTracer
 
       -- * Logging and timing IO actions
     , BracketLog (..)
@@ -59,7 +60,7 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
-    ( Tracer (..), contramap, nullTracer, traceWith )
+    ( Tracer (..), contramap, natTracer, nullTracer, traceWith )
 import Control.Tracer.Transformers.ObserveOutcome
     ( Outcome (..)
     , OutcomeFidelity (..)
@@ -173,6 +174,10 @@ traceWithExceptT tr (ExceptT action) = ExceptT $ do
     res <- action
     traceWith tr res
     pure res
+
+-- | Convert an IO tracer to a 'm' tracer.
+unliftIOTracer :: MonadIO m => Tracer IO a -> Tracer m a
+unliftIOTracer = natTracer liftIO
 
 {-------------------------------------------------------------------------------
                                 Bracketed logging

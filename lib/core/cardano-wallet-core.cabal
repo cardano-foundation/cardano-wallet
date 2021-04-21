@@ -189,8 +189,8 @@ library
       Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Primitive.Types.UTxOIndex
       Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
-      Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Registry
+      Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
@@ -276,6 +276,7 @@ test-suite unit
     , http-media
     , http-types
     , iohk-monitoring
+    , io-sim-classes
     , lattices
     , lens
     , memory

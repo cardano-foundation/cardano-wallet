@@ -70,6 +70,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
 import Control.DeepSeq
     ( NFData, force )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Functor.Identity
@@ -82,9 +84,13 @@ import UnliftIO.MVar
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.
 newDBLayer
-    :: forall s k. (NFData (k 'RootK XPrv), NFData s)
+    :: forall m s k.
+       ( MonadUnliftIO m
+       , MonadFail m
+       , NFData (k 'RootK XPrv)
+       , NFData s)
     => TimeInterpreter Identity
-    -> IO (DBLayer IO s k)
+    -> m (DBLayer m s k)
 newDBLayer timeInterpreter = do
     lock <- newMVar ()
     db <- newMVar (emptyDatabase :: Database (PrimaryKey WalletId) s (k 'RootK XPrv, Hash "encryption"))
@@ -227,14 +233,14 @@ newDBLayer timeInterpreter = do
 
 -- | Apply an operation to the model database, then update the mutable variable.
 alterDB
-    :: (NFData s, NFData xprv)
+    :: (MonadUnliftIO m, NFData s, NFData xprv)
     => (Err (PrimaryKey WalletId) -> Maybe err)
     -- ^ Error type converter
     -> MVar (Database (PrimaryKey WalletId) s xprv)
     -- ^ The database variable
     -> ModelOp (PrimaryKey WalletId) s xprv a
     -- ^ Operation to run on the database
-    -> IO (Either err a)
+    -> m (Either err a)
 alterDB convertErr db op = modifyMVar db (bubble . op)
   where
     bubble (Left e, db') = case convertErr e of
@@ -245,12 +251,12 @@ alterDB convertErr db op = modifyMVar db (bubble . op)
 -- | Run a query operation on the model database. Any error results are turned
 -- into a runtime exception.
 readDB
-    :: (NFData s, NFData xprv)
+    :: (MonadUnliftIO m, NFData s, NFData xprv)
     => MVar (Database (PrimaryKey WalletId) s xprv)
     -- ^ The database variable
     -> ModelOp (PrimaryKey WalletId) s xprv a
     -- ^ Operation to run on the database
-    -> IO a
+    -> m a
 readDB db op = alterDB Just db op >>= either (throwIO . MVarDBError) pure
 
 errNoSuchWallet :: Err (PrimaryKey WalletId) -> Maybe ErrNoSuchWallet
