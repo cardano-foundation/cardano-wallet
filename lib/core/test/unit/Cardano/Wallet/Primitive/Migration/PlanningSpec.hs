@@ -32,7 +32,6 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     , counterexampleMap
     , genCoinRange
     , genMockInput
-    , genMockInputAdaOnly
     , genMockTxConstraints
     , genTokenBundleMixed
     , shrinkMockInput
@@ -141,7 +140,7 @@ instance Arbitrary (Large ArgsForCreatePlan) where
 
 instance Arbitrary (Giant ArgsForCreatePlan) where
     arbitrary = Giant <$> genArgsForCreatePlan
-        (100_000, 100_000) genMockInputAdaOnly
+        (10_000, 10_000) genMockInput
 
 prop_createPlan_small :: Blind (Small ArgsForCreatePlan) -> Property
 prop_createPlan_small (Blind (Small args)) =
