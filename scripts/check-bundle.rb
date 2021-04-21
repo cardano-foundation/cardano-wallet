@@ -11,7 +11,7 @@ require 'open3'
 
 tests = {
   "cardano-wallet-jormungandr" => [ ],
-  "cardano-wallet" => [ "cardano-node", "cardano-cli", "bech32", "cardano-tx", "cardano-address" ]
+  "cardano-wallet" => [ "cardano-node", "cardano-cli", "bech32", "cardano-address" ]
 }
 
 if ARGV.length < 1 || ARGV.length > 2 || tests[ARGV[0]] == nil

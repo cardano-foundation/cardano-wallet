@@ -11,7 +11,7 @@
     flags = { unexpected_thunks = false; systemd = true; };
     package = {
       specVersion = "2.4";
-      identifier = { name = "cardano-node"; version = "1.25.1"; };
+      identifier = { name = "cardano-node"; version = "1.26.2"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -25,19 +25,18 @@
       };
     components = {
       "library" = {
-        depends = ([
+        depends = (([
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."async" or (errorHandler.buildDepError "async"))
-          (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
-          (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
           (hsPkgs."cardano-config" or (errorHandler.buildDepError "cardano-config"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
-          (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
+          (hsPkgs."cardano-ledger-byron" or (errorHandler.buildDepError "cardano-ledger-byron"))
           (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
@@ -46,9 +45,10 @@
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
           (hsPkgs."dns" or (errorHandler.buildDepError "dns"))
+          (hsPkgs."ekg" or (errorHandler.buildDepError "ekg"))
+          (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."generic-data" or (errorHandler.buildDepError "generic-data"))
-          (hsPkgs."hedgehog-extras" or (errorHandler.buildDepError "hedgehog-extras"))
           (hsPkgs."hostname" or (errorHandler.buildDepError "hostname"))
           (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
           (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
@@ -72,7 +72,6 @@
           (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
           (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
-          (hsPkgs."strict-concurrency" or (errorHandler.buildDepError "strict-concurrency"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."tracer-transformers" or (errorHandler.buildDepError "tracer-transformers"))
@@ -80,12 +79,10 @@
           (hsPkgs."transformers-except" or (errorHandler.buildDepError "transformers-except"))
           (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
           (hsPkgs."yaml" or (errorHandler.buildDepError "yaml"))
-          ] ++ (pkgs.lib).optionals (system.isLinux && flags.systemd) [
+          ] ++ (pkgs.lib).optional (!system.isWindows) (hsPkgs."unix" or (errorHandler.buildDepError "unix"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))) ++ (pkgs.lib).optionals (system.isLinux && flags.systemd) [
           (hsPkgs."lobemo-scribe-systemd" or (errorHandler.buildDepError "lobemo-scribe-systemd"))
           (hsPkgs."systemd" or (errorHandler.buildDepError "systemd"))
-          ]) ++ (if system.isWindows
-          then [ (hsPkgs."Win32" or (errorHandler.buildDepError "Win32")) ]
-          else [ (hsPkgs."unix" or (errorHandler.buildDepError "unix")) ]);
+          ];
         buildable = true;
         };
       exes = {
@@ -97,9 +94,7 @@
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            ] ++ (if system.isWindows
-            then [ (hsPkgs."Win32" or (errorHandler.buildDepError "Win32")) ]
-            else [ (hsPkgs."unix" or (errorHandler.buildDepError "unix")) ]);
+            ];
           buildable = true;
           };
         };
@@ -108,36 +103,15 @@
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-            (hsPkgs."async" or (errorHandler.buildDepError "async"))
-            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
-            (hsPkgs."cardano-config" or (errorHandler.buildDepError "cardano-config"))
-            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-            (hsPkgs."cardano-crypto-test" or (errorHandler.buildDepError "cardano-crypto-test"))
-            (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-node" or (errorHandler.buildDepError "cardano-node"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-            (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
             (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
             (hsPkgs."hedgehog-corpus" or (errorHandler.buildDepError "hedgehog-corpus"))
             (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
-            (hsPkgs."mmorph" or (errorHandler.buildDepError "mmorph"))
-            (hsPkgs."network" or (errorHandler.buildDepError "network"))
-            (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
-            (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
             (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
-            (hsPkgs."process" or (errorHandler.buildDepError "process"))
-            (hsPkgs."random" or (errorHandler.buildDepError "random"))
-            (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
-            (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
-            (hsPkgs."shelley-spec-ledger-test" or (errorHandler.buildDepError "shelley-spec-ledger-test"))
-            (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
             ] ++ (pkgs.lib).optional (!system.isWindows) (hsPkgs."unix" or (errorHandler.buildDepError "unix"));
           buildable = true;
           };
@@ -146,8 +120,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "9a7331cce5e8bc0ea9c6bfa1c28773f4c5a7000f";
-      sha256 = "1scffi7igv4kj93bpjf8yibcaq0sskfikmm00f7r6q031l53y50c";
+      rev = "3531289c9f79eab7ac5d3272ce6e6821504fec4c";
+      sha256 = "17zr2lhnrly6gqb1hxf3cjwfw1iz8s85hhhdiivb5ax7fkrrp8pp";
       });
     postUnpack = "sourceRoot+=/cardano-node; echo source root reset to \$sourceRoot";
     }

@@ -32,7 +32,6 @@ let
         cardano-node
         cardano-cli
         cardano-address
-        cardano-tx
         bech32
       ]) ++ (with pkgs; [
         go-jira

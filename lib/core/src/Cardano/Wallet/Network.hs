@@ -33,7 +33,7 @@ module Cardano.Wallet.Network
 
 import Prelude
 
-import Cardano.Api.Typed
+import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.BM.Data.Severity
     ( Severity (..) )

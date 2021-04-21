@@ -12,7 +12,7 @@ module Cardano.Wallet.Orphans where
 
 import Prelude
 
-import Cardano.Api.Typed
+import Cardano.Api
     ( TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )

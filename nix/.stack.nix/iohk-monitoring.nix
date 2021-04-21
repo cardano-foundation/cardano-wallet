@@ -41,6 +41,7 @@
           (hsPkgs."contravariant" or (errorHandler.buildDepError "contravariant"))
           (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+          (hsPkgs."ekg" or (errorHandler.buildDepError "ekg"))
           (hsPkgs."katip" or (errorHandler.buildDepError "katip"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
@@ -107,8 +108,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "563e79f28c6da5c547463391d4c58a81442e48db";
-      sha256 = "1is18h9kk8j16my89q76nihvapiiff3jl8777vk7c4wl2h4zry2w";
+      rev = "f6ab0631275d04dff1b990283bbf9671093e7505";
+      sha256 = "0hknkpjmfgdlcag9p0z0xspxm7nxl696ajbnafi1b0vzxnkiyhdx";
       });
     postUnpack = "sourceRoot+=/iohk-monitoring; echo source root reset to \$sourceRoot";
     }

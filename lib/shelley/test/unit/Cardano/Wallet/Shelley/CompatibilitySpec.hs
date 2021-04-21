@@ -143,7 +143,7 @@ import Test.QuickCheck
     , (==>)
     )
 
-import qualified Cardano.Api.Typed as Cardano
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley

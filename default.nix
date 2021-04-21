@@ -92,7 +92,6 @@ let
     # adrestia tool belt
     inherit (project.hsPkgs.bech32.components.exes) bech32;
     inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
-    inherit (project.hsPkgs.cardano-transactions.components.exes) cardano-tx;
 
     # The main executable
     cardano-wallet = import ./nix/package-cardano-node.nix {

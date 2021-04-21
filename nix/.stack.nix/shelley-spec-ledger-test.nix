@@ -10,7 +10,7 @@
   {
     flags = { development = false; };
     package = {
-      specVersion = "1.8";
+      specVersion = "2.2";
       identifier = { name = "shelley-spec-ledger-test"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "";
@@ -28,15 +28,14 @@
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
-          (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-crypto-test" or (errorHandler.buildDepError "cardano-crypto-test"))
           (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
           (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
-          (hsPkgs."cardano-ledger-test" or (errorHandler.buildDepError "cardano-ledger-test"))
-          (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
+          (hsPkgs."cardano-ledger-byron" or (errorHandler.buildDepError "cardano-ledger-byron"))
+          (hsPkgs."cardano-ledger-byron-test" or (errorHandler.buildDepError "cardano-ledger-byron-test"))
           (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
@@ -49,7 +48,6 @@
           (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
           (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
           (hsPkgs."process-extras" or (errorHandler.buildDepError "process-extras"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
@@ -67,10 +65,9 @@
       tests = {
         "shelley-spec-ledger-test" = {
           depends = [
-            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
-            (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
             (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
@@ -79,8 +76,8 @@
             (hsPkgs."cardano-crypto-test" or (errorHandler.buildDepError "cardano-crypto-test"))
             (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
-            (hsPkgs."cardano-ledger-test" or (errorHandler.buildDepError "cardano-ledger-test"))
-            (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
+            (hsPkgs."cardano-ledger-byron-test" or (errorHandler.buildDepError "cardano-ledger-byron-test"))
+            (hsPkgs."cardano-ledger-byron" or (errorHandler.buildDepError "cardano-ledger-byron"))
             (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
@@ -88,10 +85,9 @@
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
             (hsPkgs."groups" or (errorHandler.buildDepError "groups"))
-            (hsPkgs."hedgehog-quickcheck" or (errorHandler.buildDepError "hedgehog-quickcheck"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+            (hsPkgs."hedgehog-quickcheck" or (errorHandler.buildDepError "hedgehog-quickcheck"))
             (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
-            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
             (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
@@ -123,7 +119,6 @@
             (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
             (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
             (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-            (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."shelley-spec-ledger-test" or (errorHandler.buildDepError "shelley-spec-ledger-test"))
             (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
@@ -138,8 +133,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "097890495cbb0e8b62106bcd090a5721c3f4b36f";
-      sha256 = "0i3y9n0rsyarvhfqzzzjccqnjgwb9fbmbs6b7vj40afjhimf5hcj";
+      rev = "2e0e7b625492e5e0182464247f4c26d6949ab6f7";
+      sha256 = "14affgsf0yl0y5mf9c5r9d9jvah2crrvcslq5cc2h4wii1agl07z";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/shelley-spec-ledger-test; echo source root reset to \$sourceRoot";
     }

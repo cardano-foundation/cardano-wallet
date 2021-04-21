@@ -38,7 +38,6 @@ library
     , bytestring
     , cardano-addresses
     , cardano-crypto
-    , cardano-transactions
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-launcher

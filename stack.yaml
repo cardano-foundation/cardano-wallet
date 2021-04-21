@@ -3,7 +3,7 @@
 #
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/cd67c3f16b6c17afe76fbd3e5cefe3be0ad51147/snapshots/cardano-1.25.1.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/a28898ff0bed737087c74d349c3c7e6b60edb719/snapshots/cardano-1.26.2.yaml
 
 packages:
 - lib/core
@@ -19,24 +19,17 @@ packages:
 allow-newer: true
 
 extra-deps:
-- Cabal-3.4.0.0
 - OddWord-1.0.2.0
-- async-timer-0.2.0.0
 - command-0.1.1
 - markov-chain-usage-model-0.0.0
-- parsec-3.1.14.0
 - quickcheck-state-machine-0.7.0
 
 # cardano-addresses-3.3.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 6c222284975718e4a4286229bb6462b351299a90
+  commit: 7e062438fae15cf1025ab780adbe6ed26ac3e6e6
   subdirs:
     - command-line
     - core
-
-# cardano-transactions master branch
-- git: https://github.com/input-output-hk/cardano-transactions
-  commit: efc3914f950438b70ebe20919bf6c0ecf93b3bbc
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation

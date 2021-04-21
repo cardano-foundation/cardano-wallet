@@ -502,8 +502,8 @@ localStateQuery queue =
 
     clientStAcquired
         :: LocalStateQueryCmd block m
-        -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
-    clientStAcquired (SomeLSQ cmd respond) = go cmd $ \res -> do
+        -> m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
+    clientStAcquired (SomeLSQ cmd respond) = pure $ go cmd $ \res -> do
         LSQ.SendMsgRelease (respond res >> clientStIdle)
             -- We /could/ read all LocalStateQueryCmds from the TQueue, and run
             -- them against the same tip, if re-acquiring takes a long time. As

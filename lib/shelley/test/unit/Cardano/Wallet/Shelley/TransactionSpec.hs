@@ -136,7 +136,7 @@ import Test.QuickCheck.Gen
 import Test.QuickCheck.Random
     ( mkQCGen )
 
-import qualified Cardano.Api.Typed as Cardano
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA

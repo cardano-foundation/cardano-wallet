@@ -10,7 +10,7 @@
   {
     flags = { development = false; sts_assert = false; };
     package = {
-      specVersion = "1.10";
+      specVersion = "2.2";
       identifier = { name = "small-steps"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "";
@@ -26,6 +26,7 @@
     components = {
       "library" = {
         depends = [
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."ansi-wl-pprint" or (errorHandler.buildDepError "ansi-wl-pprint"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
@@ -50,8 +51,7 @@
         "doctests" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."doctest" or (errorHandler.buildDepError "doctest"))
-            ];
+            ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.10") (hsPkgs."doctest" or (errorHandler.buildDepError "doctest"));
           build-tools = [
             (hsPkgs.buildPackages.doctest-discover.components.exes.doctest-discover or (pkgs.buildPackages.doctest-discover or (errorHandler.buildToolDepError "doctest-discover:doctest-discover")))
             ];
@@ -62,8 +62,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "097890495cbb0e8b62106bcd090a5721c3f4b36f";
-      sha256 = "0i3y9n0rsyarvhfqzzzjccqnjgwb9fbmbs6b7vj40afjhimf5hcj";
+      rev = "2e0e7b625492e5e0182464247f4c26d6949ab6f7";
+      sha256 = "14affgsf0yl0y5mf9c5r9d9jvah2crrvcslq5cc2h4wii1agl07z";
       });
     postUnpack = "sourceRoot+=/semantics/executable-spec; echo source root reset to \$sourceRoot";
     }

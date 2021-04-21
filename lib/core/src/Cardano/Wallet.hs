@@ -177,7 +177,7 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
     ( Cosigner (..) )
-import Cardano.Api.Typed
+import Cardano.Api
     ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
