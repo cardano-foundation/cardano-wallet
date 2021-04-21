@@ -1,11 +1,8 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Primitive.Migration.PlanningSpec
@@ -32,7 +29,6 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     , counterexampleMap
     , genCoinRange
     , genMockInput
-    , genMockTxConstraints
     , genTokenBundleMixed
     , shrinkMockInput
     , unMockTxConstraints
@@ -53,8 +49,6 @@ import Data.Set
     ( Set )
 import Fmt
     ( padLeftF, pretty )
-import GHC.Generics
-    ( Generic )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck
@@ -62,14 +56,14 @@ import Test.Hspec.Core.QuickCheck
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Blind (..)
-    , Gen
+    ( Gen
     , Property
     , checkCoverage
     , choose
     , counterexample
     , cover
+    , forAll
+    , forAllShrink
     , oneof
     , property
     , shrinkList
@@ -118,83 +112,48 @@ spec = describe "Cardano.Wallet.Primitive.Migration.PlanningSpec" $
 -- Creating migration plans
 --------------------------------------------------------------------------------
 
-data ArgsForCreatePlan = ArgsForCreatePlan
-    { mockConstraints :: MockTxConstraints
-    , mockInputs :: [(MockInputId, TokenBundle)]
-    , mockRewardWithdrawal :: Coin
-    }
-    deriving (Eq, Show)
-
-newtype Empty a = Empty { unEmpty :: a }
-    deriving (Eq, Show)
-
-newtype Small a = Small { unSmall :: a }
-    deriving (Eq, Show)
-
-newtype Large a = Large { unLarge :: a }
-    deriving (Eq, Show)
-
-newtype Giant a = Giant { unGiant :: a }
-    deriving (Eq, Show)
-
-instance Arbitrary (Empty ArgsForCreatePlan) where
-    arbitrary = Empty <$> genArgsForCreatePlan
-        (0, 0) genMockInput
-
-instance Arbitrary (Small ArgsForCreatePlan) where
-    arbitrary = Small <$> genArgsForCreatePlan
-        (1, 100) genMockInput
-
-instance Arbitrary (Large ArgsForCreatePlan) where
-    arbitrary = Large <$> genArgsForCreatePlan
-        (1_000, 1_000) genMockInput
-
-instance Arbitrary (Giant ArgsForCreatePlan) where
-    arbitrary = Giant <$> genArgsForCreatePlan
-        (10_000, 10_000) genMockInput
-
-prop_createPlan_empty :: Blind (Empty ArgsForCreatePlan) -> Property
-prop_createPlan_empty (Blind (Empty args)) =
+prop_createPlan_empty :: Pretty MockTxConstraints -> Property
+prop_createPlan_empty (Pretty mockConstraints) =
     withMaxSuccess 1 $
-    prop_createPlan args
+    prop_createPlan (0, 0) mockConstraints
 
-prop_createPlan_small :: Blind (Small ArgsForCreatePlan) -> Property
-prop_createPlan_small (Blind (Small args)) =
+prop_createPlan_small :: Pretty MockTxConstraints -> Property
+prop_createPlan_small (Pretty mockConstraints) =
     withMaxSuccess 100 $
-    prop_createPlan args
+    prop_createPlan (1, 100) mockConstraints
 
-prop_createPlan_large :: Blind (Large ArgsForCreatePlan) -> Property
-prop_createPlan_large (Blind (Large args)) =
+prop_createPlan_large :: Pretty MockTxConstraints -> Property
+prop_createPlan_large (Pretty mockConstraints) =
     withMaxSuccess 10 $
-    prop_createPlan args
+    prop_createPlan (1_000, 1_000) mockConstraints
 
-prop_createPlan_giant :: Blind (Giant ArgsForCreatePlan) -> Property
-prop_createPlan_giant (Blind (Giant args)) =
+prop_createPlan_giant :: Pretty MockTxConstraints -> Property
+prop_createPlan_giant (Pretty mockConstraints) =
     withMaxSuccess 1 $
-    prop_createPlan args
+    prop_createPlan (10_000, 10_000) mockConstraints
 
-genArgsForCreatePlan
-    :: (Int, Int)
-    -- ^ Input count range
-    -> (MockTxConstraints -> Gen (MockInputId, TokenBundle))
-    -- ^ Genenator for inputs
-    -> Gen ArgsForCreatePlan
-genArgsForCreatePlan (inputCountMin, inputCountMax) genInput = do
-    mockConstraints <- genMockTxConstraints
-    mockInputCount <- choose (inputCountMin, inputCountMax)
-    mockInputs <- replicateM mockInputCount (genInput mockConstraints)
-    mockRewardWithdrawal <- oneof
+prop_createPlan :: (Int, Int) -> MockTxConstraints -> Property
+prop_createPlan inputCountRange mockConstraints =
+    forAll genInputs $ \inputs ->
+    forAll genRewardWithdrawal $ \reward ->
+    prop_createPlan_inner mockConstraints inputs reward
+  where
+    genInputs :: Gen [(MockInputId, TokenBundle)]
+    genInputs = do
+        mockInputCount <- choose inputCountRange
+        replicateM mockInputCount (genMockInput mockConstraints)
+    genRewardWithdrawal :: Gen RewardWithdrawal
+    genRewardWithdrawal = RewardWithdrawal <$> oneof
         [ pure (Coin 0)
         , genCoinRange (Coin 1) (Coin 1_000_000)
         ]
-    pure ArgsForCreatePlan
-        { mockConstraints
-        , mockInputs
-        , mockRewardWithdrawal
-        }
 
-prop_createPlan :: ArgsForCreatePlan -> Property
-prop_createPlan mockArgs =
+prop_createPlan_inner
+    :: MockTxConstraints
+    -> [(MockInputId, TokenBundle)]
+    -> RewardWithdrawal
+    -> Property
+prop_createPlan_inner mockConstraints inputs reward =
     tabulate "Number of transactions required"
         [transactionCount] $
     tabulate "Mean number of inputs per transaction"
@@ -280,20 +239,13 @@ prop_createPlan mockArgs =
         entriesNotSelected :: Int
         entriesNotSelected = length $ category $ unselected result
 
-    ArgsForCreatePlan
-        { mockConstraints
-        , mockInputs
-        , mockRewardWithdrawal
-        } = mockArgs
-
     constraints = unMockTxConstraints mockConstraints
-    result = createPlan constraints categorizedUTxO
-        (RewardWithdrawal mockRewardWithdrawal)
+    result = createPlan constraints categorizedUTxO reward
 
-    categorizedUTxO = categorizeUTxOEntries constraints mockInputs
+    categorizedUTxO = categorizeUTxOEntries constraints inputs
 
     inputIdsAll :: Set MockInputId
-    inputIdsAll = Set.fromList (fst <$> mockInputs)
+    inputIdsAll = Set.fromList (fst <$> inputs)
 
     inputIdsSelected :: Set MockInputId
     inputIdsSelected = Set.fromList
@@ -311,12 +263,12 @@ prop_createPlan mockArgs =
     rewardWithdrawalCount =
         length $ filter (> Coin 0) (rewardWithdrawal <$> selections result)
     rewardWithdrawalAmount =
-        F.foldMap rewardWithdrawal (selections result)
+        RewardWithdrawal $ F.foldMap rewardWithdrawal (selections result)
     rewardWithdrawalExpected
         | selectionCount == 0 =
-            Coin 0
+            RewardWithdrawal $ Coin 0
         | otherwise =
-            mockRewardWithdrawal
+            reward
 
     selectionCount = length (selections result)
 
@@ -346,84 +298,48 @@ prop_createPlan mockArgs =
 -- Categorizing multiple UTxO entries
 --------------------------------------------------------------------------------
 
-data ArgsForCategorizeUTxOEntries = ArgsForCategorizeUTxOEntries
-    { mockConstraints :: MockTxConstraints
-    , mockEntries :: [(MockInputId, TokenBundle)]
-    }
-    deriving (Eq, Generic, Show)
-
-instance Arbitrary ArgsForCategorizeUTxOEntries where
-    arbitrary = genArgsForCategorizeUTxOEntries
-    shrink = shrinkArgsForCategorizeUTxOEntries
-
-genArgsForCategorizeUTxOEntries :: Gen ArgsForCategorizeUTxOEntries
-genArgsForCategorizeUTxOEntries = do
-    mockConstraints <- genMockTxConstraints
-    mockEntryCount <- choose (0, 100)
-    mockEntries <- replicateM mockEntryCount (genMockInput mockConstraints)
-    pure ArgsForCategorizeUTxOEntries {mockConstraints, mockEntries}
-
-shrinkArgsForCategorizeUTxOEntries
-    :: ArgsForCategorizeUTxOEntries -> [ArgsForCategorizeUTxOEntries]
-shrinkArgsForCategorizeUTxOEntries args = do
-    mockEntriesShrunk <- shrinkList shrinkMockInput (mockEntries args)
-    pure ArgsForCategorizeUTxOEntries
-        { mockConstraints = view #mockConstraints args
-        , mockEntries = mockEntriesShrunk
-        }
-
-prop_categorizeUTxOEntries :: Pretty ArgsForCategorizeUTxOEntries -> Property
-prop_categorizeUTxOEntries args =
-    Pretty (L.sortOn fst (uncategorizeUTxOEntries categorizedEntries))
-        === Pretty (L.sortOn fst mockEntries)
+prop_categorizeUTxOEntries :: Pretty MockTxConstraints -> Property
+prop_categorizeUTxOEntries (Pretty mockConstraints) =
+    forAllShrink genEntries (shrinkList shrinkMockInput) prop
   where
-    categorizedEntries = categorizeUTxOEntries constraints mockEntries
-    Pretty ArgsForCategorizeUTxOEntries
-        { mockConstraints
-        , mockEntries
-        } = args
-    constraints = unMockTxConstraints mockConstraints
+    prop :: [(MockInputId, TokenBundle)] -> Property
+    prop entries = (===)
+        (Pretty $ L.sortOn fst $ uncategorizeUTxOEntries categorizedEntries)
+        (Pretty $ L.sortOn fst entries)
+      where
+        categorizedEntries = categorizeUTxOEntries constraints entries
+        constraints = unMockTxConstraints mockConstraints
+
+    genEntries :: Gen [(MockInputId, TokenBundle)]
+    genEntries = do
+        mockEntryCount <- choose (1, 100)
+        replicateM mockEntryCount (genMockInput mockConstraints)
 
 --------------------------------------------------------------------------------
 -- Categorizing individual UTxO entries
 --------------------------------------------------------------------------------
 
-data ArgsForCategorizeUTxOEntry = ArgsForCategorizeUTxOEntry
-    { mockConstraints :: MockTxConstraints
-    , mockEntry :: TokenBundle
-    }
-    deriving (Eq, Show)
-
-instance Arbitrary ArgsForCategorizeUTxOEntry where
-    arbitrary = genArgsForCategorizeUTxOEntry
-
-genArgsForCategorizeUTxOEntry :: Gen ArgsForCategorizeUTxOEntry
-genArgsForCategorizeUTxOEntry = do
-    mockConstraints <- genMockTxConstraints
-    mockEntry <- genTokenBundleMixed mockConstraints
-    pure ArgsForCategorizeUTxOEntry {..}
-
-prop_categorizeUTxOEntry :: ArgsForCategorizeUTxOEntry -> Property
-prop_categorizeUTxOEntry mockArgs =
-    checkCoverage $
-    cover 5 (result == Supporter) "Supporter" $
-    cover 5 (result == Freerider) "Freerider" $
-    cover 5 (result == Ignorable) "Ignorable" $
-    property
-        $ selectionCreateExpectation
-        $ Selection.create constraints
-            (RewardWithdrawal $ Coin 0) [((), mockEntry)]
+prop_categorizeUTxOEntry :: MockTxConstraints -> Property
+prop_categorizeUTxOEntry mockConstraints =
+    forAll (genTokenBundleMixed mockConstraints) prop
   where
-    ArgsForCategorizeUTxOEntry
-        { mockConstraints
-        , mockEntry
-        } = mockArgs
-    constraints = unMockTxConstraints mockConstraints
-    result = categorizeUTxOEntry constraints mockEntry
-    selectionCreateExpectation = case result of
-        Supporter -> isRight
-        Freerider -> isLeft
-        Ignorable -> isLeft
+    prop :: TokenBundle -> Property
+    prop entry =
+        checkCoverage $
+        cover 5 (result == Supporter) "Supporter" $
+        cover 5 (result == Freerider) "Freerider" $
+        cover 5 (result == Ignorable) "Ignorable" $
+        property
+            $ selectionCreateExpectation
+            $ Selection.create constraints
+                (RewardWithdrawal $ Coin 0) [((), entry)]
+      where
+        constraints = unMockTxConstraints mockConstraints
+        result = categorizeUTxOEntry constraints entry
+        selectionCreateExpectation = case result of
+            Supporter -> isRight
+            Freerider -> isLeft
+            Ignorable -> isLeft
 
 --------------------------------------------------------------------------------
 -- Miscellaneous types and functions
