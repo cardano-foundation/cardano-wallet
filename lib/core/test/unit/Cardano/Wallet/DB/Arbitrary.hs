@@ -37,8 +37,6 @@ import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
-import Cardano.Wallet.DB
-    ( PrimaryKey (..) )
 import Cardano.Wallet.DB.Model
     ( TxHistory, filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
@@ -315,11 +313,9 @@ instance GenState s => Arbitrary (Wallet s) where
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary (PrimaryKey WalletId) where
+instance Arbitrary WalletId where
     shrink _ = []
-    arbitrary = do
-        bytes <- B8.pack . pure <$> elements ['a'..'k']
-        return $ PrimaryKey $ WalletId $ hash bytes
+    arbitrary = WalletId . hash . B8.pack . pure <$> elements ['a'..'k']
 
 instance Arbitrary WalletMetadata where
     shrink _ = []
@@ -714,9 +710,6 @@ instance Buildable (ShelleyKey depth XPrv, Hash "encryption") where
       where
         xprvF = "XPrv" :: Builder
         hF = build (toText (coerce @_ @(Hash "BlockHeader") h))
-
-instance Buildable (PrimaryKey WalletId) where
-    build (PrimaryKey wid) = build wid
 
 instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain

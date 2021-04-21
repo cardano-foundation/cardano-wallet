@@ -90,7 +90,6 @@ import Cardano.Wallet.DB
     , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
-    , PrimaryKey (..)
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
@@ -1366,7 +1365,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \(PrimaryKey wid) cp meta txs gp -> ExceptT $ do
+        { initializeWallet = \wid cp meta txs gp -> ExceptT $ do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta gp)
             when (isRight res) $ do
@@ -1376,7 +1375,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                 putTxs metas txins txouts txoutTokens ws
             pure res
 
-        , removeWallet = \(PrimaryKey wid) -> ExceptT $ do
+        , removeWallet = \wid -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> Right <$> do
@@ -1384,29 +1383,28 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     deleteLooseTransactions
                     dropCache wid
 
-        , listWallets =
-            map (PrimaryKey . unWalletKey) <$> selectKeysList [] [Asc WalId]
+        , listWallets = map unWalletKey <$> selectKeysList [] [Asc WalId]
 
         {-----------------------------------------------------------------------
                                     Checkpoints
         -----------------------------------------------------------------------}
 
-        , putCheckpoint = \(PrimaryKey wid) cp -> ExceptT $ do
+        , putCheckpoint = \wid cp -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing ->
                     pure $ Left $ ErrNoSuchWallet wid
                 Just _  ->
                     Right <$> insertCheckpointCached wid cp
 
-        , readCheckpoint = \(PrimaryKey wid) -> do
+        , readCheckpoint = \wid -> do
             selectLatestCheckpointCached wid
 
-        , listCheckpoints = \(PrimaryKey wid) -> do
+        , listCheckpoints = \wid -> do
             map (blockHeaderFromEntity . entityVal) <$> selectList
                 [ CheckpointWalletId ==. wid ]
                 [ Asc CheckpointSlot ]
 
-        , rollbackTo = \(PrimaryKey wid) requestedPoint -> ExceptT $ do
+        , rollbackTo = \wid requestedPoint -> ExceptT $ do
             findNearestPoint wid requestedPoint >>= \case
                 Nothing -> selectWallet wid >>= \case
                     Nothing ->
@@ -1437,7 +1435,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     refreshCache wid
                     pure (Right nearestPoint)
 
-        , prune = \(PrimaryKey wid) epochStability -> ExceptT $ do
+        , prune = \wid epochStability -> ExceptT $ do
             selectLatestCheckpointCached wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do
@@ -1450,7 +1448,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                                    Wallet Metadata
         -----------------------------------------------------------------------}
 
-        , putWalletMeta = \(PrimaryKey wid) meta -> ExceptT $ do
+        , putWalletMeta = \wid meta -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> do
@@ -1458,7 +1456,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                         (mkWalletMetadataUpdate meta)
                     pure $ Right ()
 
-        , readWalletMeta = \(PrimaryKey wid) -> do
+        , readWalletMeta = \wid -> do
             selectLatestCheckpointCached wid >>= \case
                 Nothing -> pure Nothing
                 Just cp -> do
@@ -1467,7 +1465,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     readWalletDelegation ti wid currentEpoch
                         >>= readWalletMetadata wid
 
-        , putDelegationCertificate = \(PrimaryKey wid) cert sl -> ExceptT $ do
+        , putDelegationCertificate = \wid cert sl -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> case cert of
@@ -1487,7 +1485,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                             (StakeKeyCertificateKey wid sl)
                             (StakeKeyCertificate wid sl W.StakeKeyRegistration)
 
-        , isStakeKeyRegistered = \(PrimaryKey wid) -> ExceptT $ do
+        , isStakeKeyRegistered = \wid -> ExceptT $ do
               selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just{} -> do
@@ -1503,7 +1501,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                                      Tx History
         -----------------------------------------------------------------------}
 
-        , putTxHistory = \(PrimaryKey wid) txs -> ExceptT $ do
+        , putTxHistory = \wid txs -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> do
@@ -1512,7 +1510,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     putTxs metas txins txouts txoutTokens ws
                     pure $ Right ()
 
-        , readTxHistory = \(PrimaryKey wid) minWithdrawal order range status -> do
+        , readTxHistory = \wid minWithdrawal order range status -> do
             selectLatestCheckpointCached wid >>= \case
                 Nothing -> pure []
                 Just cp -> selectTxHistory cp
@@ -1522,7 +1520,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     , (TxMetaStatus ==.) <$> status
                     ]
 
-        , putLocalTxSubmission = \(PrimaryKey wid) txid tx sl -> ExceptT $ do
+        , putLocalTxSubmission = \wid txid tx sl -> ExceptT $ do
             let errNoSuchWallet = ErrPutLocalTxSubmissionNoSuchWallet $
                     ErrNoSuchWallet wid
             let errNoSuchTx = ErrPutLocalTxSubmissionNoSuchTransaction $
@@ -1537,14 +1535,13 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
         , readLocalTxSubmissionPending =
             fmap (map localTxSubmissionFromEntity)
             . listPendingLocalTxSubmissionQuery
-            . unPrimaryKey
 
-        , updatePendingTxForExpiry = \(PrimaryKey wid) tip -> ExceptT $ do
+        , updatePendingTxForExpiry = \wid tip -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> Right <$> updatePendingTxForExpiryQuery wid tip
 
-        , removePendingOrExpiredTx = \(PrimaryKey wid) tid -> ExceptT $ do
+        , removePendingOrExpiredTx = \wid tid -> ExceptT $ do
             let errNoSuchWallet =
                     Left $ ErrRemoveTxNoSuchWallet $ ErrNoSuchWallet wid
             let errNoMorePending =
@@ -1562,7 +1559,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                             then errNoMorePending
                             else Right ()
 
-        , getTx = \(PrimaryKey wid) tid -> ExceptT $ do
+        , getTx = \wid tid -> ExceptT $ do
             selectLatestCheckpointCached wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> do
@@ -1577,28 +1574,27 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                                        Keystore
         -----------------------------------------------------------------------}
 
-        , putPrivateKey = \(PrimaryKey wid) key -> ExceptT $ do
+        , putPrivateKey = \wid key -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> Right <$> do
                     deleteWhere [PrivateKeyWalletId ==. wid]
                     insert_ (mkPrivateKeyEntity wid key)
 
-        , readPrivateKey = \(PrimaryKey wid) -> selectPrivateKey wid
+        , readPrivateKey = selectPrivateKey
 
         {-----------------------------------------------------------------------
                                  Blockchain Parameters
         -----------------------------------------------------------------------}
 
-        , readGenesisParameters =
-            \(PrimaryKey wid) -> selectGenesisParameters wid
+        , readGenesisParameters = selectGenesisParameters
 
         {-----------------------------------------------------------------------
                                  Delegation Rewards
         -----------------------------------------------------------------------}
 
         , putDelegationRewardBalance =
-            \(PrimaryKey wid) (W.Coin amt) -> ExceptT $ do
+            \wid (W.Coin amt) -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> Right <$> repsert
@@ -1606,7 +1602,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     (DelegationReward wid amt)
 
         , readDelegationRewardBalance =
-            \(PrimaryKey wid) ->
+            \wid ->
                 W.Coin . maybe 0 (rewardAccountBalance . entityVal) <$>
                 selectFirst [RewardWalletId ==. wid] []
 

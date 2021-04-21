@@ -25,7 +25,6 @@ import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
     , ErrWalletAlreadyExists (..)
-    , PrimaryKey (..)
     , SparseCheckpointsConfig (..)
     , cleanDB
     , defaultSparseCheckpointsConfig
@@ -343,7 +342,7 @@ properties = do
 readTxHistoryF
     :: Functor m
     => DBLayer m s ShelleyKey
-    -> PrimaryKey WalletId
+    -> WalletId
     -> m (Identity GenTxHistory)
 readTxHistoryF DBLayer{..} wid =
     (Identity . GenTxHistory . fmap toTxHistory)
@@ -351,7 +350,7 @@ readTxHistoryF DBLayer{..} wid =
 
 putTxHistoryF
     :: DBLayer m s ShelleyKey
-    -> PrimaryKey WalletId
+    -> WalletId
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()
 putTxHistoryF DBLayer{..} wid =
@@ -439,7 +438,7 @@ assertWith lbl condition = do
 -- | Can list created wallets
 prop_createListWallet
     :: DBLayer IO s ShelleyKey
-    -> KeyValPairs (PrimaryKey WalletId) (Wallet s , WalletMetadata)
+    -> KeyValPairs WalletId (Wallet s , WalletMetadata)
     -> Property
 prop_createListWallet db@DBLayer{..} (KeyValPairs pairs) =
     monadicIO (setup >> prop)
@@ -454,68 +453,68 @@ prop_createListWallet db@DBLayer{..} (KeyValPairs pairs) =
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
     :: DBLayer IO s ShelleyKey
-    -> ( PrimaryKey WalletId
+    -> ( WalletId
        , Wallet s
        , WalletMetadata
        )
     -> Property
-prop_createWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
+prop_createWalletTwice db@DBLayer{..} (wid, cp, meta) =
     monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
         let err = ErrWalletAlreadyExists wid
-        atomically (runExceptT $ initializeWallet key cp meta mempty gp)
+        atomically (runExceptT $ initializeWallet wid cp meta mempty gp)
             `shouldReturn` Right ()
-        atomically (runExceptT $ initializeWallet key cp meta mempty gp)
+        atomically (runExceptT $ initializeWallet wid cp meta mempty gp)
             `shouldReturn` Left err
 
 -- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
     :: DBLayer IO s ShelleyKey
-    -> ( PrimaryKey WalletId
+    -> ( WalletId
        , Wallet s
        , WalletMetadata
        )
     -> Property
-prop_removeWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
+prop_removeWalletTwice db@DBLayer{..} (wid, cp, meta) =
     monadicIO (setup >> prop)
   where
     setup = liftIO $ do
         cleanDB db
-        atomically $ unsafeRunExceptT $ initializeWallet key cp meta mempty gp
+        atomically $ unsafeRunExceptT $ initializeWallet wid cp meta mempty gp
     prop = liftIO $ do
         let err = ErrNoSuchWallet wid
-        atomically (runExceptT $ removeWallet key) `shouldReturn` Right ()
-        atomically (runExceptT $ removeWallet key) `shouldReturn` Left err
+        atomically (runExceptT $ removeWallet wid) `shouldReturn` Right ()
+        atomically (runExceptT $ removeWallet wid) `shouldReturn` Left err
 
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
     :: ( Buildable (f a), Eq (f a), Applicative f, GenState s )
     => (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> DBLayer IO s ShelleyKey
-    -> (PrimaryKey WalletId, a)
+    -> (WalletId, a)
         -- ^ Property arguments
     -> Property
-prop_readAfterPut putOp readOp db@DBLayer{..} (key, a) =
+prop_readAfterPut putOp readOp db@DBLayer{..} (wid, a) =
     monadicIO (setup >> prop)
   where
     setup = do
         run $ cleanDB db
         (InitialCheckpoint cp, meta) <- namedPick "Initial Checkpoint" arbitrary
         run $ atomically $ unsafeRunExceptT $
-            initializeWallet key cp meta mempty gp
+            initializeWallet wid cp meta mempty gp
     prop = do
-        run $ unsafeRunExceptT $ putOp db key a
-        res <- run $ readOp db key
+        run $ unsafeRunExceptT $ putOp db wid a
+        res <- run $ readOp db wid
         let fa = pure a
         monitor $ counterexample $ "\nInserted\n" <> pretty fa
         monitor $ counterexample $ "\nRead\n" <> pretty res
@@ -524,7 +523,7 @@ prop_readAfterPut putOp readOp db@DBLayer{..} (key, a) =
 prop_getTxAfterPutValidTxId
     :: GenState s
     => DBLayer IO s ShelleyKey
-    -> PrimaryKey WalletId
+    -> WalletId
     -> GenTxHistory
     -> Property
 prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
@@ -552,7 +551,7 @@ prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
 prop_getTxAfterPutInvalidTxId
     :: GenState s
     => DBLayer IO s ShelleyKey
-    -> PrimaryKey WalletId
+    -> WalletId
     -> GenTxHistory
     -> (Hash "Tx")
     -> Property
@@ -573,55 +572,55 @@ prop_getTxAfterPutInvalidTxId db@DBLayer{..} wid txGen txId' =
 
 prop_getTxAfterPutInvalidWalletId
     :: DBLayer IO s ShelleyKey
-    -> ( PrimaryKey WalletId
+    -> ( WalletId
        , Wallet s
        , WalletMetadata
        )
     -> GenTxHistory
-    -> PrimaryKey WalletId
+    -> WalletId
     -> Property
-prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (key, cp, meta) txGen key'@(PrimaryKey wid') =
-    key /= key' ==> monadicIO (setup >> prop)
+prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (wid, cp, meta) txGen wid' =
+    wid /= wid' ==> monadicIO (setup >> prop)
   where
     setup = liftIO $ do
         cleanDB db
-        atomically $ unsafeRunExceptT $ initializeWallet key cp meta mempty gp
+        atomically $ unsafeRunExceptT $ initializeWallet wid cp meta mempty gp
     prop = liftIO $ do
         let txs = unGenTxHistory txGen
-        atomically (runExceptT $ putTxHistory key txs) `shouldReturn` Right ()
+        atomically (runExceptT $ putTxHistory wid txs) `shouldReturn` Right ()
         forM_ txs $ \((Tx txId _ _ _ _ _), _) -> do
             let err = ErrNoSuchWallet wid'
-            atomically (runExceptT $ getTx key' txId) `shouldReturn` Left err
+            atomically (runExceptT $ getTx wid' txId) `shouldReturn` Left err
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
     :: (Buildable (f a), Eq (f a))
     => (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
     -> DBLayer IO s ShelleyKey
-    -> (PrimaryKey WalletId, a)
+    -> (WalletId, a)
         -- ^ Property arguments
     -> Property
-prop_putBeforeInit putOp readOp empty db (key@(PrimaryKey wid), a) =
+prop_putBeforeInit putOp readOp empty db (wid, a) =
     monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
-        runExceptT (putOp db key a) >>= \case
+        runExceptT (putOp db wid a) >>= \case
             Right _ ->
                 fail "expected put operation to fail but it succeeded!"
             Left err ->
                 err `shouldBe` ErrNoSuchWallet wid
-        (ShowFmt <$> readOp db key) `shouldReturn` (ShowFmt empty)
+        (ShowFmt <$> readOp db wid) `shouldReturn` (ShowFmt empty)
 
 -- | Modifying one resource leaves the other untouched
 prop_isolation
@@ -632,87 +631,87 @@ prop_isolation
        , Show s
        )
     => (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> IO (f b)
        ) -- ^ Read Operation for another resource
     -> (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> IO (g c)
        ) -- ^ Read Operation for another resource
     -> (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> IO (h d)
        ) -- ^ Read Operation for another resource
     -> DBLayer IO s ShelleyKey
-    -> (ShowFmt (PrimaryKey WalletId), ShowFmt a)
+    -> (ShowFmt WalletId, ShowFmt a)
         -- ^ Properties arguments
     -> Property
-prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt key, ShowFmt a) =
+prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt wid, ShowFmt a) =
     monadicIO (setup >>= prop)
   where
     setup = do
         liftIO (cleanDB db)
         (cp, meta, GenTxHistory txs) <- pick arbitrary
         liftIO $ atomically $ do
-            unsafeRunExceptT $ initializeWallet key cp meta mempty gp
-            unsafeRunExceptT $ putTxHistory key txs
+            unsafeRunExceptT $ initializeWallet wid cp meta mempty gp
+            unsafeRunExceptT $ putTxHistory wid txs
         (b, c, d) <- liftIO $ (,,)
-            <$> readB db key
-            <*> readC db key
-            <*> readD db key
+            <$> readB db wid
+            <*> readC db wid
+            <*> readD db wid
         return (b, c, d)
 
     prop (b, c, d) = liftIO $ do
-        unsafeRunExceptT $ putA db key a
-        (ShowFmt <$> readB db key) `shouldReturn` ShowFmt b
-        (ShowFmt <$> readC db key) `shouldReturn` ShowFmt c
-        (ShowFmt <$> readD db key) `shouldReturn` ShowFmt d
+        unsafeRunExceptT $ putA db wid a
+        (ShowFmt <$> readB db wid) `shouldReturn` ShowFmt b
+        (ShowFmt <$> readC db wid) `shouldReturn` ShowFmt c
+        (ShowFmt <$> readD db wid) `shouldReturn` ShowFmt d
 
 -- | Can't read back data after delete
 prop_readAfterDelete
     :: (Buildable (f a), Eq (f a), GenState s)
     => (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
     -> DBLayer IO s ShelleyKey
-    -> ShowFmt (PrimaryKey WalletId)
+    -> ShowFmt WalletId
     -> Property
-prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt key) =
+prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt wid) =
     monadicIO (setup >> prop)
   where
     setup = do
         liftIO (cleanDB db)
         (cp, meta) <- pick arbitrary
         liftIO $ atomically $ unsafeRunExceptT $
-            initializeWallet key cp meta mempty gp
+            initializeWallet wid cp meta mempty gp
     prop = liftIO $ do
-        atomically $ unsafeRunExceptT $ removeWallet key
-        (ShowFmt <$> readOp db key) `shouldReturn` ShowFmt empty
+        atomically $ unsafeRunExceptT $ removeWallet wid
+        (ShowFmt <$> readOp db wid) `shouldReturn` ShowFmt empty
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
     :: (Buildable (f a), Eq (f a), GenState s)
     => (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> [f a])
         -- ^ How do we expect operations to resolve
     -> DBLayer IO s ShelleyKey
-    -> KeyValPairs (ShowFmt (PrimaryKey WalletId)) (ShowFmt a)
+    -> KeyValPairs (ShowFmt WalletId) (ShowFmt a)
         -- ^ Property arguments
     -> Property
 prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
@@ -741,18 +740,18 @@ prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
 prop_parallelPut
     :: (Arbitrary (Wallet s), Show s)
     => (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s ShelleyKey
-       -> PrimaryKey WalletId
+       -> WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> Int)
         -- ^ How many entries to we expect in the end
     -> DBLayer IO s ShelleyKey
-    -> KeyValPairs (PrimaryKey WalletId) a
+    -> KeyValPairs WalletId a
         -- ^ Property arguments
     -> Property
 prop_parallelPut putOp readOp resolve db@DBLayer{..} (KeyValPairs pairs) =

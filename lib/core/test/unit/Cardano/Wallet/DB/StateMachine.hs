@@ -63,7 +63,6 @@ import Cardano.Wallet.DB
     , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
-    , PrimaryKey (..)
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
@@ -277,9 +276,6 @@ type Mock s = Database MWid s MPrivKey
 newtype MWid = MWid String
     deriving (Show, Eq, Ord, Generic)
 
-widPK :: MWid -> PrimaryKey WalletId
-widPK = PrimaryKey . unMockWid
-
 -- | Convert a mock wallet ID to a real one by hashing it, then splicing the
 -- mock ID in front so that both ID types are sorted in the same order.
 unMockWid :: MWid -> WalletId
@@ -477,61 +473,61 @@ runIO db@DBLayer{..} = fmap Resp . go
         CreateWallet wid wal meta txs gp ->
             catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
             mapExceptT atomically $
-            initializeWallet (widPK wid) wal meta txs gp
+            initializeWallet (unMockWid wid) wal meta txs gp
         RemoveWallet wid -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ removeWallet (PrimaryKey wid)
-        ListWallets -> Right . WalletIds . fmap unPrimaryKey <$>
+            mapExceptT atomically $ removeWallet wid
+        ListWallets -> Right . WalletIds <$>
             atomically listWallets
         PutCheckpoint wid wal -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putCheckpoint (PrimaryKey wid) wal
+            mapExceptT atomically $ putCheckpoint wid wal
         ReadCheckpoint wid -> Right . Checkpoint <$>
-            atomically (readCheckpoint $ PrimaryKey wid)
+            atomically (readCheckpoint wid)
         ListCheckpoints wid -> Right . BlockHeaders <$>
-            atomically (listCheckpoints $ PrimaryKey wid)
+            atomically (listCheckpoints wid)
         PutWalletMeta wid meta -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putWalletMeta (PrimaryKey wid) meta
+            mapExceptT atomically $ putWalletMeta wid meta
         ReadWalletMeta wid -> fmap (Right . Metadata) $
-            atomically $ readWalletMeta $ PrimaryKey wid
+            atomically $ readWalletMeta wid
         PutDelegationCertificate wid pool sl -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putDelegationCertificate (PrimaryKey wid) pool sl
+            mapExceptT atomically $ putDelegationCertificate wid pool sl
         IsStakeKeyRegistered wid -> catchNoSuchWallet StakeKeyStatus $
-            mapExceptT atomically $ isStakeKeyRegistered (PrimaryKey wid)
+            mapExceptT atomically $ isStakeKeyRegistered wid
         PutTxHistory wid txs -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ putTxHistory (PrimaryKey wid) txs
+            mapExceptT atomically $ putTxHistory wid txs
         ReadTxHistory wid minWith order range status ->
             fmap (Right . TxHistory) $
             atomically $
-            readTxHistory (PrimaryKey wid) minWith order range status
+            readTxHistory wid minWith order range status
         GetTx wid tid ->
             catchNoSuchWallet (TxHistory . maybe [] pure) $
-            mapExceptT atomically $ getTx (PrimaryKey wid) tid
+            mapExceptT atomically $ getTx wid tid
         PutLocalTxSubmission wid tid sl ->
             catchPutLocalTxSubmission Unit $
             mapExceptT atomically $
-            putLocalTxSubmission (PrimaryKey wid) tid (unMockSealedTx tid) sl
+            putLocalTxSubmission wid tid (unMockSealedTx tid) sl
         ReadLocalTxSubmissionPending wid ->
             Right . LocalTxSubmission . map (fmap mockSealedTx) <$>
-            atomically (readLocalTxSubmissionPending (PrimaryKey wid))
+            atomically (readLocalTxSubmissionPending wid)
         UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ updatePendingTxForExpiry (PrimaryKey wid) sl
+            mapExceptT atomically $ updatePendingTxForExpiry wid sl
         RemovePendingOrExpiredTx wid tid ->
             (catchCannotRemovePendingTx wid) Unit $
             mapExceptT atomically $
-            removePendingOrExpiredTx (PrimaryKey wid) tid
+            removePendingOrExpiredTx wid tid
         PutPrivateKey wid pk -> catchNoSuchWallet Unit $
             mapExceptT atomically $
-            putPrivateKey (PrimaryKey wid) (fromMockPrivKey pk)
+            putPrivateKey wid (fromMockPrivKey pk)
         ReadPrivateKey wid -> Right . PrivateKey . fmap toMockPrivKey <$>
-            atomically (readPrivateKey $ PrimaryKey wid)
+            atomically (readPrivateKey wid)
         ReadGenesisParameters wid -> Right . GenesisParams <$>
-            atomically (readGenesisParameters $ PrimaryKey wid)
+            atomically (readGenesisParameters wid)
         PutDelegationRewardBalance wid amt -> catchNoSuchWallet Unit $
             mapExceptT atomically $
-            putDelegationRewardBalance (PrimaryKey wid) amt
+            putDelegationRewardBalance wid amt
         ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
-            atomically (readDelegationRewardBalance $ PrimaryKey wid)
+            atomically (readDelegationRewardBalance wid)
         RollbackTo wid sl -> catchNoSuchWallet Point $
-            mapExceptT atomically $ rollbackTo (PrimaryKey wid) sl
+            mapExceptT atomically $ rollbackTo wid sl
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT
@@ -564,9 +560,6 @@ runIO db@DBLayer{..} = fmap Resp . go
         errNoSuchWallet e
     errPutLocalTxSubmission (ErrPutLocalTxSubmissionNoSuchTransaction e) =
         errNoSuchTransaction e
-
-    unPrimaryKey :: PrimaryKey key -> key
-    unPrimaryKey (PrimaryKey key) = key
 
 {-------------------------------------------------------------------------------
   Working with references

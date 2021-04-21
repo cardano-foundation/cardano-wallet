@@ -36,7 +36,7 @@ import Cardano.Wallet
     , throttle
     )
 import Cardano.Wallet.DB
-    ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
+    ( DBLayer (..), ErrNoSuchWallet (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
     , dummyNetworkLayer
@@ -435,7 +435,7 @@ walletCreationProp
     -> Property
 walletCreationProp newWallet = monadicIO $ do
     WalletLayerFixture DBLayer{..} _wl walletIds _ <- run $ setupFixture newWallet
-    resFromDb <- run $ atomically $ readCheckpoint (PrimaryKey $ L.head walletIds)
+    resFromDb <- run $ atomically $ readCheckpoint $ L.head walletIds
     assert (isJust resFromDb)
 
 walletDoubleCreationProp
@@ -621,7 +621,7 @@ walletListTransactionsSorted
 walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history =
     monadicIO $ liftIO $ do
         WalletLayerFixture DBLayer{..} wl _ slotNoTime <- liftIO $ setupFixture wallet
-        atomically $ unsafeRunExceptT $ putTxHistory (PrimaryKey wid) history
+        atomically $ unsafeRunExceptT $ putTxHistory wid history
         txs <- unsafeRunExceptT $
             W.listTransactions @_ @_ @_ wl wid Nothing Nothing Nothing Descending
         length txs `shouldBe` L.length history
@@ -815,16 +815,16 @@ prop_localTxSubmission tc = monadicIO $ do
         -- Test setup
         atomically $ do
             let txHistory = getTxHistory (retryTestTxHistory tc)
-            unsafeRunExceptT $ putTxHistory (PrimaryKey wid) txHistory
+            unsafeRunExceptT $ putTxHistory wid txHistory
             forM_ (retryTestPool tc) $ \(LocalTxSubmissionStatus i tx _ sl) ->
-                unsafeRunExceptT $ putLocalTxSubmission (PrimaryKey wid) i tx sl
+                unsafeRunExceptT $ putLocalTxSubmission wid i tx sl
 
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10
         runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx wid
 
         -- Gather state
-        atomically $ readLocalTxSubmissionPending (PrimaryKey wid)
+        atomically $ readLocalTxSubmissionPending wid
 
     monitor $ counterexample $ unlines $
         [ "posted txs = " ++ show (resSubmittedTxs res)
