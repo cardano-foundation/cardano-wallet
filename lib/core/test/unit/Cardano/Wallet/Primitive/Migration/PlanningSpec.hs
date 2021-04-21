@@ -91,6 +91,10 @@ spec = describe "Cardano.Wallet.Primitive.Migration.PlanningSpec" $
 
     parallel $ describe "Creating migration plans" $ do
 
+        describe "Empty migrations" $
+            it "prop_createPlan_empty" $
+                property prop_createPlan_empty
+
         describe "Small migrations" $
             it "prop_createPlan_small" $
                 property prop_createPlan_small
@@ -121,6 +125,9 @@ data ArgsForCreatePlan = ArgsForCreatePlan
     }
     deriving (Eq, Show)
 
+newtype Empty a = Empty { unEmpty :: a }
+    deriving (Eq, Show)
+
 newtype Small a = Small { unSmall :: a }
     deriving (Eq, Show)
 
@@ -130,9 +137,13 @@ newtype Large a = Large { unLarge :: a }
 newtype Giant a = Giant { unGiant :: a }
     deriving (Eq, Show)
 
+instance Arbitrary (Empty ArgsForCreatePlan) where
+    arbitrary = Empty <$> genArgsForCreatePlan
+        (0, 0) genMockInput
+
 instance Arbitrary (Small ArgsForCreatePlan) where
     arbitrary = Small <$> genArgsForCreatePlan
-        (0, 100) genMockInput
+        (1, 100) genMockInput
 
 instance Arbitrary (Large ArgsForCreatePlan) where
     arbitrary = Large <$> genArgsForCreatePlan
@@ -141,6 +152,11 @@ instance Arbitrary (Large ArgsForCreatePlan) where
 instance Arbitrary (Giant ArgsForCreatePlan) where
     arbitrary = Giant <$> genArgsForCreatePlan
         (10_000, 10_000) genMockInput
+
+prop_createPlan_empty :: Blind (Empty ArgsForCreatePlan) -> Property
+prop_createPlan_empty (Blind (Empty args)) =
+    withMaxSuccess 1 $
+    prop_createPlan args
 
 prop_createPlan_small :: Blind (Small ArgsForCreatePlan) -> Property
 prop_createPlan_small (Blind (Small args)) =
