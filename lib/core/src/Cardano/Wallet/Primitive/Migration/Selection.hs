@@ -98,6 +98,12 @@ import qualified Data.Set as Set
 -- Selections
 --------------------------------------------------------------------------------
 
+-- | A selection is the basis for a single transaction.
+--
+-- Use 'create' to create a selection with one or more inputs.
+-- Use 'extend' to extend a selection with an additional input.
+-- Use 'verify' to verify the correctness of a selection.
+--
 data Selection input size = Selection
     { inputIds :: !(NonEmpty input)
       -- ^ The selected inputs.
@@ -124,11 +130,15 @@ newtype RewardWithdrawal = RewardWithdrawal
 -- Selection correctness
 --------------------------------------------------------------------------------
 
+-- | Indicates whether or not a selection is correct.
+--
 data SelectionCorrectness size
     = SelectionCorrect
     | SelectionIncorrect (SelectionCorrectnessError size)
     deriving (Eq, Show)
 
+-- | Indicates that a selection is incorrect.
+--
 data SelectionCorrectnessError size
     = SelectionAssetBalanceIncorrect
       SelectionAssetBalanceIncorrectError
@@ -148,6 +158,8 @@ data SelectionCorrectnessError size
      (SelectionSizeIncorrectError size)
     deriving (Eq, Show)
 
+-- | Verifies a selection for correctness.
+--
 verify
     :: forall input size. TxSize size
     => TxConstraints size
@@ -462,9 +474,15 @@ computeMinimumFee constraints selection = mconcat
 -- Selection errors
 --------------------------------------------------------------------------------
 
+-- | Indicates a failure to create or extend a selection.
+--
 data SelectionError size
     = SelectionAdaInsufficient
+    -- ^ Indicates that the desired selection would not have enough ada to pay
+    -- for the minimum permissible fee.
     | SelectionFull
+    -- ^ Indicates that the desired selection would exceed the maximum
+    -- selection size.
      (SelectionFullError size)
     deriving (Eq, Show)
 
@@ -483,6 +501,12 @@ data SelectionFullError size = SelectionFullError
 -- Guarantees the following property for a returned selection 's':
 --
 -- >>> verify s == SelectionCorrect
+--
+-- Returns 'SelectionAdaInsufficient' if the desired selection would not have
+-- enough ada to pay for the fee.
+--
+-- Returns 'SelectionFull' if the desired selection would exceed the maximum
+-- selection size.
 --
 create
     :: forall input size. TxSize size
@@ -517,6 +541,12 @@ create constraints reward inputs =
 --
 -- >>> verify s == SelectionCorrect
 --
+-- Returns 'SelectionAdaInsufficient' if the desired selection would not have
+-- enough ada to pay for the fee.
+--
+-- Returns 'SelectionFull' if the desired selection would exceed the maximum
+-- selection size.
+--
 extend
     :: forall input size. TxSize size
     => TxConstraints size
@@ -541,6 +571,15 @@ extend constraints selection (inputId, inputBundle) =
 -- Balancing selections
 --------------------------------------------------------------------------------
 
+-- | Balances the fee for a given selection.
+--
+-- The ada quantities of the outputs are maximized in order to minimize the fee
+-- excess.
+--
+-- Guarantees the following property for a returned selection 's':
+--
+-- >>> verify s == SelectionCorrect
+--
 balance
     :: forall input size. TxSize size
     => TxConstraints size
@@ -585,6 +624,24 @@ assignMinimumAdaQuantity constraints m =
 -- Adding value to outputs
 --------------------------------------------------------------------------------
 
+-- | Adds value (obtained from an input) to an existing set of output maps.
+--
+-- This function attempts to merge the given value into one of the existing
+-- output maps. If merging is successful, then the returned output map list
+-- will be identical in length and content to the original output map list,
+-- except for the merged output.
+--
+-- If the given value cannot be merged into one of the existing output maps
+-- (because it would cause an output to exceed the output size limit), then
+-- this function appends the given output map to the given output map list,
+-- effectively creating a new output.
+--
+-- Pre-condition: all output maps in the given list must be within the output
+-- size limit.
+--
+-- Assuming the above pre-condition is met, this function guarantees that all
+-- output maps in the returned list will also be within the output size limit.
+--
 addValueToOutputs
     :: TxSize size
     => TxConstraints size
@@ -661,6 +718,8 @@ addValueToOutputs constraints outputsOriginal outputUnchecked =
 -- Splitting output values
 --------------------------------------------------------------------------------
 
+-- | Splits up an output map into smaller maps if it exceeds any of the limits.
+--
 splitOutputIfLimitsExceeded
     :: TxSize size
     => TxConstraints size
@@ -670,6 +729,8 @@ splitOutputIfLimitsExceeded constraints =
     splitOutputIfTokenQuantityExceedsLimit constraints >=>
     splitOutputIfSizeExceedsLimit constraints
 
+-- | Splits up an output map if it exceeds the serialized size limit.
+--
 splitOutputIfSizeExceedsLimit
     :: TxSize size
     => TxConstraints size
@@ -685,6 +746,8 @@ splitOutputIfSizeExceedsLimit constraints value
   where
     split = flip TokenMap.equipartitionAssets (() :| [()])
 
+-- | Splits up an output map if any individual token quantity exceeds the limit.
+--
 splitOutputIfTokenQuantityExceedsLimit
     :: TxConstraints size
     -> TokenMap
@@ -709,6 +772,80 @@ txOutputHasValidSizeIfAdaMaximized constraints output =
 -- Minimizing fees
 --------------------------------------------------------------------------------
 
+-- | Minimizes the given fee excess by adding ada to the given output bundles.
+--
+-- This function:
+--
+--  - guarantees to leave all non-ada quantities unchanged.
+--
+--  - guarantees to not change the length of the list.
+--
+--  - guarantees that each resulting output bundle will have an ada quantity
+--    that is greater than or equal to its original ada quantity.
+--
+--  - guarantees that the resulting fee excess will be less than or equal to
+--    the original fee excess.
+--
+--  - does not check that the given ada quantities are above the minimum
+--    required for each output, and therefore only guarantees that the
+--    resulting ada quantities will be above the minimum required if the
+--    caller makes this guarantee for the original output bundles.
+--
+-- This function aims to adjust as few output bundles as possible, and in the
+-- ideal case, will increase the ada quantity of just one output bundle.
+--
+-- Increasing the ada quantity of an output may increase the overall cost of
+-- that output, as increasing an ada quantity may increase the length of the
+-- binary representation used to encode that quantity.
+--
+-- By maximizing the ada increase of a single output, and minimizing the ada
+-- increases of the remaining outputs, we can minimize the cost increase of
+-- the overall selection, and therefore maximize the chance of being able to
+-- pay for the selection.
+--
+-- This is a consequence of the following mathematical relationship:
+--
+-- Consider a non-negative integer constant 'a' defined in terms of a summation
+-- of a fixed number 'n' of non-negative integer variables:
+--
+--    >>> a = a1 + a2 + a3 + ... + an
+--
+-- Now consider the total space 's' required to encode all of the variables:
+--
+--    >>> s = length a1 + length a2 + length a3 + ... + length an
+--
+-- For any given number base, we can get close to the minimal value of 's' by
+-- making the following assignments:
+--
+--    >>> a1 := a
+--    >>> a2 := 0
+--    >>> a3 := 0
+--    >>> ...
+--    >>> an := 0
+--
+-- Consider the following example, working in base 10:
+--
+--    >>> a = 999
+--    >>> n = 9
+--
+-- If we were to use a flat distribution, where the constant is partitioned
+-- into 'n' equal quantities (modulo rounding), our space cost 's' would be:
+--
+--    >>> s = length  a1 + length  a2 + length  a3 + ... + length  a9
+--    >>> s = length 111 + length 111 + length 111 + ... + length 111
+--    >>> s =          3 +          3 +          3 + ... +          3
+--    >>> s =          3 × 9
+--    >>> s = 27
+--
+-- But by maximizing 'a1' and minimizing the remaining variables, we can obtain
+-- the following smaller space cost:
+--
+--    >>> s = length  a1 + length  a2 + length  a3 + ... + length  a9
+--    >>> s = length 999 + length   0 + length   0 + ... + length   0
+--    >>> s =          3 +          1 +          1 + ... +          1
+--    >>> s =          3 +          8
+--    >>> s = 11
+--
 minimizeFee
     :: TxConstraints size
     -> (Coin, NonEmpty TokenBundle)
@@ -729,6 +866,24 @@ minimizeFee constraints (currentFeeExcess, outputs) =
         (feeExcessRemaining', output') =
             minimizeFeeStep constraints (feeExcessRemaining, output)
 
+-- | Minimizes the given fee excess by adding ada to the given output.
+--
+-- This function:
+--
+--  - guarantees to leave all non-ada quantities unchanged.
+--
+--  - increases the ada quantity of the given output until it is no longer
+--    economically worthwhile to increase it further (i.e., if the cost of
+--    a further increase would be greater than the increase itself).
+--
+--  - guarantees that the resulting output bundle will have an ada quantity
+--    that is greater than or equal to its original ada quantity.
+--
+--  - guarantees that the resulting fee excess will be less than or equal to
+--    the original fee excess.
+--
+-- Returns the minimized fee excess and the modified output.
+--
 minimizeFeeStep
     :: TxConstraints size
     -> (Coin, TokenBundle)

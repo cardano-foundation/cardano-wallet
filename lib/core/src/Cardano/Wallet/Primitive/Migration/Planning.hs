@@ -69,13 +69,27 @@ import qualified Data.Map.Strict as Map
 -- Migration planning
 --------------------------------------------------------------------------------
 
+-- | Represents a plan for migrating a set of UTxO entries.
+--
+-- Use 'createPlan' to create a migration plan.
+--
 data MigrationPlan input size = MigrationPlan
     { selections :: ![Selection input size]
+      -- ^ A list of generated selections: each selection is the basis for a
+      -- single transaction.
     , unselected :: !(CategorizedUTxO input)
+      -- ^ The portion of the UTxO that was not selected.
     , totalFee :: !Coin
+      -- ^ The total fee payable: equal to the sum of the fees of the
+      -- individual selections.
     }
     deriving (Eq, Generic, Show)
 
+-- | Creates a migration plan for the given categorized UTxO set and reward
+--   withdrawal amount.
+--
+-- See 'MigrationPlan'.
+--
 createPlan
     :: TxSize size
     => TxConstraints size
@@ -95,6 +109,13 @@ createPlan constraints =
                 , totalFee = F.foldMap (view #fee) selections
                 }
 
+-- | Creates an individual selection for inclusion in a migration plan.
+--
+-- A selection is the basis for an individual transaction.
+--
+-- Returns 'Nothing' if it was not possible to create a selection with the UTxO
+-- entries that remain.
+--
 createSelection
     :: TxSize size
     => TxConstraints size
@@ -105,6 +126,11 @@ createSelection constraints utxo rewardWithdrawal =
     initializeSelection constraints utxo rewardWithdrawal
     <&> extendSelection constraints
 
+-- | Initializes a selection with a single entry.
+--
+-- Returns 'Nothing' if it was not possible to initialize a selection with the
+-- UTxO entries that remain.
+--
 initializeSelection
     :: forall input size. TxSize size
     => TxConstraints size
@@ -119,6 +145,16 @@ initializeSelection constraints utxoAtStart reward =
             Right selection -> Just (utxo, selection)
             Left _ -> Nothing
 
+-- | Extends a selection repeatedly, until the selection is full.
+--
+-- This function terminates when the selection cannot be extended further
+-- (because doing so would cause it to exceed the size limit of a transaction),
+-- or when there are no more UTxO entries available for selection.
+--
+-- Priority is given to selecting "freerider" entries: entries that cannot pay
+-- for themselves. A "supporter" entry is only added to the selection if there
+-- is not enough ada to pay for a "freerider" entry.
+--
 extendSelection
     :: TxSize size
     => TxConstraints size
