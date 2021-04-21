@@ -720,9 +720,9 @@ minimizeFee constraints (currentFeeExcess, outputs) =
   where
     run :: Coin -> [TokenBundle] -> [TokenBundle] -> (Coin, [TokenBundle])
     run (Coin 0) remaining processed =
-        (Coin 0, L.reverse processed <> remaining)
+        (Coin 0, processed <> remaining)
     run feeExcessRemaining [] processed =
-        (feeExcessRemaining, L.reverse processed)
+        (feeExcessRemaining, processed)
     run feeExcessRemaining (output : remaining) processed =
         run feeExcessRemaining' remaining (output' : processed)
       where
