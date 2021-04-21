@@ -27,8 +27,8 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     , Pretty (..)
     , conjoinMap
     , counterexampleMap
-    , genCoinRange
     , genMockInput
+    , genRewardWithdrawal
     , genTokenBundleMixed
     , shrinkMockInput
     , unMockTxConstraints
@@ -64,7 +64,6 @@ import Test.QuickCheck
     , cover
     , forAll
     , forAllShrink
-    , oneof
     , property
     , shrinkList
     , tabulate
@@ -142,11 +141,6 @@ prop_createPlan inputCountRange mockConstraints =
     genInputs = do
         mockInputCount <- choose inputCountRange
         replicateM mockInputCount (genMockInput mockConstraints)
-    genRewardWithdrawal :: Gen RewardWithdrawal
-    genRewardWithdrawal = RewardWithdrawal <$> oneof
-        [ pure (Coin 0)
-        , genCoinRange (Coin 1) (Coin 1_000_000)
-        ]
 
 prop_createPlan_inner
     :: MockTxConstraints

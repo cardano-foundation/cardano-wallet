@@ -1,5 +1,4 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 
 module Cardano.Wallet.Primitive.MigrationSpec
@@ -14,14 +13,12 @@ import Cardano.Wallet.Primitive.Migration.Planning
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints
     , Pretty (..)
-    , genCoinRange
+    , genRewardWithdrawal
     , genTokenBundleMixed
     , unMockTxConstraints
     )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddressSmallRange )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -41,7 +38,7 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Gen, Property, choose, conjoin, forAll, oneof, property, (===) )
+    ( Gen, Property, choose, conjoin, forAll, property, (===) )
 
 import qualified Cardano.Wallet.Primitive.Migration.Planning as Planning
 import qualified Data.List.NonEmpty as NE
@@ -94,12 +91,6 @@ prop_createPlan_equivalent (Pretty mockConstraints) =
             genTxOut = TxOut
                 <$> genAddressSmallRange
                 <*> genTokenBundleMixed mockConstraints
-
-    genRewardWithdrawal :: Gen RewardWithdrawal
-    genRewardWithdrawal = RewardWithdrawal <$> oneof
-        [ pure (Coin 0)
-        , genCoinRange (Coin 1) (Coin 1_000_000)
-        ]
 
 prop_createPlan_equivalent_inner
     :: MockTxConstraints

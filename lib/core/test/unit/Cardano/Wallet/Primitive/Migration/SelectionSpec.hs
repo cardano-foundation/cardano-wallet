@@ -172,12 +172,6 @@ prop_create (Pretty mockConstraints) =
             <$> genMockInput mockConstraints
             <*> replicateM (inputCount - 1) (genMockInput mockConstraints)
 
-    genRewardWithdrawal :: Gen RewardWithdrawal
-    genRewardWithdrawal = RewardWithdrawal <$> oneof
-        [ pure (Coin 0)
-        , genCoinRange (Coin 1) (Coin 1_000_000)
-        ]
-
 prop_create_inner
     :: MockTxConstraints
     -> NonEmpty (MockInputId, TokenBundle)
@@ -239,12 +233,6 @@ prop_extend (Pretty mockConstraints) =
             create (unMockTxConstraints mockConstraints)
                 <$> genRewardWithdrawal
                 <*> genInputs
-
-        genRewardWithdrawal :: Gen RewardWithdrawal
-        genRewardWithdrawal = RewardWithdrawal <$> oneof
-            [ pure (Coin 0)
-            , genCoinRange (Coin 1) (Coin 1_000_000)
-            ]
 
         genInputs :: Gen (NonEmpty (MockInputId, TokenBundle))
         genInputs = do
@@ -901,6 +889,16 @@ mockAssetIds =
     [ AssetId i n
     | i <- UnsafeTokenPolicyId . Hash . B8.singleton <$> ['0' .. '3']
     , n <- UnsafeTokenName . B8.singleton <$> ['0' .. '3']
+    ]
+
+--------------------------------------------------------------------------------
+-- Generating reward withdrawals
+--------------------------------------------------------------------------------
+
+genRewardWithdrawal :: Gen RewardWithdrawal
+genRewardWithdrawal = RewardWithdrawal <$> oneof
+    [ pure (Coin 0)
+    , genCoinRange (Coin 1) (Coin 1_000_000)
     ]
 
 --------------------------------------------------------------------------------
