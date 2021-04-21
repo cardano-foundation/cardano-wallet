@@ -69,19 +69,19 @@ import qualified Data.Map.Strict as Map
 -- Migration planning
 --------------------------------------------------------------------------------
 
-data MigrationPlan i s = MigrationPlan
-    { selections :: ![Selection i s]
-    , unselected :: !(CategorizedUTxO i)
+data MigrationPlan input size = MigrationPlan
+    { selections :: ![Selection input size]
+    , unselected :: !(CategorizedUTxO input)
     , totalFee :: !Coin
     }
     deriving (Eq, Generic, Show)
 
 createPlan
-    :: TxSize s
-    => TxConstraints s
-    -> CategorizedUTxO i
+    :: TxSize size
+    => TxConstraints size
+    -> CategorizedUTxO input
     -> RewardWithdrawal
-    -> MigrationPlan i s
+    -> MigrationPlan input size
 createPlan constraints =
     run []
   where
@@ -96,21 +96,21 @@ createPlan constraints =
                 }
 
 createSelection
-    :: TxSize s
-    => TxConstraints s
-    -> CategorizedUTxO i
+    :: TxSize size
+    => TxConstraints size
+    -> CategorizedUTxO input
     -> RewardWithdrawal
-    -> Maybe (CategorizedUTxO i, Selection i s)
+    -> Maybe (CategorizedUTxO input, Selection input size)
 createSelection constraints utxo rewardWithdrawal =
     initializeSelection constraints utxo rewardWithdrawal
     <&> extendSelection constraints
 
 initializeSelection
-    :: forall i s. TxSize s
-    => TxConstraints s
-    -> CategorizedUTxO i
+    :: forall input size. TxSize size
+    => TxConstraints size
+    -> CategorizedUTxO input
     -> RewardWithdrawal
-    -> Maybe (CategorizedUTxO i, Selection i s)
+    -> Maybe (CategorizedUTxO input, Selection input size)
 initializeSelection constraints utxoAtStart reward =
     initializeWith =<< utxoAtStart `select` Supporter
   where
@@ -120,10 +120,10 @@ initializeSelection constraints utxoAtStart reward =
             Left _ -> Nothing
 
 extendSelection
-    :: TxSize s
-    => TxConstraints s
-    -> (CategorizedUTxO i, Selection i s)
-    -> (CategorizedUTxO i, Selection i s)
+    :: TxSize size
+    => TxConstraints size
+    -> (CategorizedUTxO input, Selection input size)
+    -> (CategorizedUTxO input, Selection input size)
 extendSelection constraints = extendWithFreerider
   where
     extendWithFreerider (!utxo, !selection) =
@@ -154,11 +154,11 @@ data ExtendSelectionError
     | ExtendSelectionFull
 
 extendWith
-    :: TxSize s
+    :: TxSize size
     => UTxOEntryCategory
-    -> TxConstraints s
-    -> (CategorizedUTxO i, Selection i s)
-    -> Either ExtendSelectionError (CategorizedUTxO i, Selection i s)
+    -> TxConstraints size
+    -> (CategorizedUTxO input, Selection input size)
+    -> Either ExtendSelectionError (CategorizedUTxO input, Selection input size)
 extendWith category constraints (utxo, selection) =
     case utxo `select` category of
         Just (entry, utxo') ->
@@ -173,9 +173,9 @@ extendWith category constraints (utxo, selection) =
             Left ExtendSelectionEntriesExhausted
 
 select
-    :: CategorizedUTxO i
+    :: CategorizedUTxO input
     -> UTxOEntryCategory
-    -> Maybe ((i, TokenBundle), CategorizedUTxO i)
+    -> Maybe ((input, TokenBundle), CategorizedUTxO input)
 select utxo = \case
     Supporter -> selectSupporter
     Freerider -> selectFreerider
@@ -206,43 +206,43 @@ data UTxOEntryCategory
     -- lower than the marginal fee for an input.
     deriving (Eq, Show)
 
-data CategorizedUTxO i = CategorizedUTxO
-    { supporters :: ![(i, TokenBundle)]
-    , freeriders :: ![(i, TokenBundle)]
-    , ignorables :: ![(i, TokenBundle)]
+data CategorizedUTxO input = CategorizedUTxO
+    { supporters :: ![(input, TokenBundle)]
+    , freeriders :: ![(input, TokenBundle)]
+    , ignorables :: ![(input, TokenBundle)]
     }
     deriving (Eq, Show)
 
 categorizeUTxO
-    :: TxSize s
-    => TxConstraints s
+    :: TxSize size
+    => TxConstraints size
     -> UTxO
     -> CategorizedUTxO (TxIn, TxOut)
 categorizeUTxO constraints (UTxO u) = categorizeUTxOEntries constraints $
     (\(i, o) -> ((i, o), view #tokens o)) <$> Map.toList u
 
 categorizeUTxOEntries
-    :: forall i s. TxSize s
-    => TxConstraints s
-    -> [(i, TokenBundle)]
-    -> CategorizedUTxO i
+    :: forall input size. TxSize size
+    => TxConstraints size
+    -> [(input, TokenBundle)]
+    -> CategorizedUTxO input
 categorizeUTxOEntries constraints uncategorizedEntries = CategorizedUTxO
     { supporters = entriesMatching Supporter
     , freeriders = entriesMatching Freerider
     , ignorables = entriesMatching Ignorable
     }
   where
-    categorizedEntries :: [(i, (TokenBundle, UTxOEntryCategory))]
+    categorizedEntries :: [(input, (TokenBundle, UTxOEntryCategory))]
     categorizedEntries = uncategorizedEntries
         <&> (\(i, b) -> (i, (b, categorizeUTxOEntry constraints b)))
 
-    entriesMatching :: UTxOEntryCategory -> [(i, TokenBundle)]
+    entriesMatching :: UTxOEntryCategory -> [(input, TokenBundle)]
     entriesMatching category =
         fmap fst <$> L.filter ((== category) . snd . snd) categorizedEntries
 
 categorizeUTxOEntry
-    :: TxSize s
-    => TxConstraints s
+    :: TxSize size
+    => TxConstraints size
     -> TokenBundle
     -> UTxOEntryCategory
 categorizeUTxOEntry constraints b
@@ -263,7 +263,7 @@ categorizeUTxOEntry constraints b
 uncategorizeUTxO :: CategorizedUTxO (TxIn, TxOut) -> UTxO
 uncategorizeUTxO = UTxO . Map.fromList . fmap fst . uncategorizeUTxOEntries
 
-uncategorizeUTxOEntries :: CategorizedUTxO i -> [(i, TokenBundle)]
+uncategorizeUTxOEntries :: CategorizedUTxO input -> [(input, TokenBundle)]
 uncategorizeUTxOEntries utxo = mconcat
     [ supporters utxo
     , freeriders utxo

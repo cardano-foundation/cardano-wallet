@@ -44,8 +44,8 @@ import qualified Cardano.Wallet.Primitive.Migration.Planning as Planning
 --
 -- See 'createPlan' to create a migration plan.
 --
-data MigrationPlan s = MigrationPlan
-    { selections :: ![Selection (TxIn, TxOut) s]
+data MigrationPlan size = MigrationPlan
+    { selections :: ![Selection (TxIn, TxOut) size]
       -- ^ A list of generated selections: each selection is the basis for a
       -- single transaction.
     , unselected :: !UTxO
@@ -62,11 +62,11 @@ data MigrationPlan s = MigrationPlan
 -- See 'MigrationPlan'.
 --
 createPlan
-    :: TxSize s
-    => TxConstraints s
+    :: TxSize size
+    => TxConstraints size
     -> UTxO
     -> RewardWithdrawal
-    -> MigrationPlan s
+    -> MigrationPlan size
 createPlan constraints utxo reward = MigrationPlan
     { selections = view #selections plan
     , unselected = Planning.uncategorizeUTxO (view #unselected plan)

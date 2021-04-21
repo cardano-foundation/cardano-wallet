@@ -344,7 +344,7 @@ prop_addValueToOutputs mockArgs =
         (NE.tail mockOutputs)
 
 txOutputHasValidSizeWithMaxAda
-    :: Ord s => TxConstraints s -> TokenMap -> Bool
+    :: TxSize size => TxConstraints size -> TokenMap -> Bool
 txOutputHasValidSizeWithMaxAda constraints b =
     txOutputHasValidSize constraints $ TokenBundle maxBound b
 
