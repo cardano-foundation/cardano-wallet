@@ -12,10 +12,11 @@ import Cardano.Wallet.Primitive.Migration.Planning
     ( categorizeUTxO, uncategorizeUTxO )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints
-    , Pretty (..)
     , genRewardWithdrawal
     , genTokenBundleMixed
+    , testAll
     , unMockTxConstraints
+    , verify
     )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddressSmallRange )
@@ -38,7 +39,7 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Gen, Property, choose, conjoin, forAll, property, (===) )
+    ( Blind (..), Gen, Property, choose, forAllBlind, property )
 
 import qualified Cardano.Wallet.Primitive.Migration.Planning as Planning
 import qualified Data.List.NonEmpty as NE
@@ -70,10 +71,10 @@ spec = describe "Cardano.Wallet.Primitive.MigrationSpec" $
 -- For a more detailed test of 'createPlan' (with abstract types) see
 -- 'PlanningSpec.prop_createPlan'.
 --
-prop_createPlan_equivalent :: Pretty MockTxConstraints -> Property
-prop_createPlan_equivalent (Pretty mockConstraints) =
-    forAll genUTxO $ \utxo ->
-    forAll genRewardWithdrawal $ \reward ->
+prop_createPlan_equivalent :: Blind MockTxConstraints -> Property
+prop_createPlan_equivalent (Blind mockConstraints) =
+    forAllBlind genUTxO $ \utxo ->
+    forAllBlind genRewardWithdrawal $ \reward ->
     prop_createPlan_equivalent_inner mockConstraints utxo reward
   where
     genUTxO :: Gen UTxO
@@ -97,27 +98,35 @@ prop_createPlan_equivalent_inner
     -> UTxO
     -> RewardWithdrawal
     -> Property
-prop_createPlan_equivalent_inner mockConstraints utxo reward =
-    conjoin
-        [ (===)
-            (view #totalFee planWithConcreteTypes)
-            (view #totalFee planWithAbstractTypes)
-        , (===)
-            (view #selections planWithConcreteTypes)
-            (view #selections planWithAbstractTypes)
-        , (===)
-            (view #unselected planWithConcreteTypes)
-            (view #unselected planWithAbstractTypes & uncategorizeUTxO)
-        , (===)
-            (utxoEmpty)
-            (utxoIntersect utxoSelected utxoNotSelected)
-        , (===)
-            (utxo)
-            (utxoUnion utxoSelected utxoNotSelected)
-        ]
+prop_createPlan_equivalent_inner mockConstraints utxo reward = testAll
+    $ verify
+        (totalFeeConcrete == totalFeeAbstract)
+        "totalFeeConcrete == totalFeeAbstract"
+    . verify
+        (selectionsConcrete == selectionsAbstract)
+        "selectionsConcrete == selectionsAbstract"
+    . verify
+        (unselectedConcrete == unselectedAbstract)
+        "unselectedConcrete == unselectedAbstract"
+    . verify
+        (utxoEmpty == utxoIntersect utxoSelected utxoNotSelected)
+        "utxoEmpty == utxoIntersect utxoSelected utxoNotSelected"
+    . verify
+        (utxo == utxoUnion utxoSelected utxoNotSelected)
+        "utxo == utxoUnion utxoSelected utxoNotSelected"
   where
-    planWithConcreteTypes = createPlan constraints utxo reward
-    planWithAbstractTypes = Planning.createPlan
+    totalFeeConcrete = view #totalFee planConcrete
+    totalFeeAbstract = view #totalFee planAbstract
+
+    selectionsConcrete = view #selections planConcrete
+    selectionsAbstract = view #selections planAbstract
+
+    unselectedConcrete = view #unselected planConcrete
+    unselectedAbstract = view #unselected planAbstract
+        & uncategorizeUTxO
+
+    planConcrete = createPlan constraints utxo reward
+    planAbstract = Planning.createPlan
         constraints (categorizeUTxO constraints utxo) reward
 
     constraints = unMockTxConstraints mockConstraints
@@ -132,7 +141,7 @@ prop_createPlan_equivalent_inner mockConstraints utxo reward =
     utxoUnion (UTxO u1) (UTxO u2) = UTxO $ Map.union u1 u2
 
     utxoSelected :: UTxO
-    utxoSelected = planWithConcreteTypes
+    utxoSelected = planConcrete
         & view #selections
         & fmap (NE.toList . view #inputIds)
         & mconcat
@@ -140,5 +149,5 @@ prop_createPlan_equivalent_inner mockConstraints utxo reward =
         & UTxO
 
     utxoNotSelected :: UTxO
-    utxoNotSelected = planWithConcreteTypes
+    utxoNotSelected = planConcrete
         & view #unselected

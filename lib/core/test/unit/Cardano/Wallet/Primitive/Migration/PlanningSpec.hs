@@ -25,13 +25,14 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockInputId
     , MockTxConstraints (..)
     , Pretty (..)
-    , conjoinMap
-    , counterexampleMap
     , genMockInput
     , genRewardWithdrawal
     , genTokenBundleMixed
+    , report
     , shrinkMockInput
+    , testAll
     , unMockTxConstraints
+    , verify
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -56,13 +57,13 @@ import Test.Hspec.Core.QuickCheck
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Gen
+    ( Blind (..)
+    , Gen
     , Property
     , checkCoverage
     , choose
-    , counterexample
     , cover
-    , forAll
+    , forAllBlind
     , forAllShrink
     , property
     , shrinkList
@@ -111,30 +112,30 @@ spec = describe "Cardano.Wallet.Primitive.Migration.PlanningSpec" $
 -- Creating migration plans
 --------------------------------------------------------------------------------
 
-prop_createPlan_empty :: Pretty MockTxConstraints -> Property
-prop_createPlan_empty (Pretty mockConstraints) =
+prop_createPlan_empty :: Blind MockTxConstraints -> Property
+prop_createPlan_empty (Blind mockConstraints) =
     withMaxSuccess 1 $
     prop_createPlan (0, 0) mockConstraints
 
-prop_createPlan_small :: Pretty MockTxConstraints -> Property
-prop_createPlan_small (Pretty mockConstraints) =
+prop_createPlan_small :: Blind MockTxConstraints -> Property
+prop_createPlan_small (Blind mockConstraints) =
     withMaxSuccess 100 $
     prop_createPlan (1, 100) mockConstraints
 
-prop_createPlan_large :: Pretty MockTxConstraints -> Property
-prop_createPlan_large (Pretty mockConstraints) =
+prop_createPlan_large :: Blind MockTxConstraints -> Property
+prop_createPlan_large (Blind mockConstraints) =
     withMaxSuccess 10 $
     prop_createPlan (1_000, 1_000) mockConstraints
 
-prop_createPlan_giant :: Pretty MockTxConstraints -> Property
-prop_createPlan_giant (Pretty mockConstraints) =
+prop_createPlan_giant :: Blind MockTxConstraints -> Property
+prop_createPlan_giant (Blind mockConstraints) =
     withMaxSuccess 1 $
     prop_createPlan (10_000, 10_000) mockConstraints
 
 prop_createPlan :: (Int, Int) -> MockTxConstraints -> Property
 prop_createPlan inputCountRange mockConstraints =
-    forAll genInputs $ \inputs ->
-    forAll genRewardWithdrawal $ \reward ->
+    forAllBlind genInputs $ \inputs ->
+    forAllBlind genRewardWithdrawal $ \reward ->
     prop_createPlan_inner mockConstraints inputs reward
   where
     genInputs :: Gen [(MockInputId, TokenBundle)]
@@ -148,34 +149,60 @@ prop_createPlan_inner
     -> RewardWithdrawal
     -> Property
 prop_createPlan_inner mockConstraints inputs reward =
-    tabulate "Number of transactions required"
-        [transactionCount] $
-    tabulate "Mean number of inputs per transaction"
-        [meanTransactionInputCount] $
-    tabulate "Mean number of outputs per transaction"
-        [meanTransactionOutputCount] $
-    tabulate "Percentage of supporters selected"
-        [percentageSelected supporters] $
-    tabulate "Percentage of freeriders selected"
-        [percentageSelected freeriders] $
-    tabulate "Percentage of ignorables selected"
-        [percentageSelected ignorables] $
-    counterexample counterexampleText $
-    conjoinMap
-        [ ( "inputs are not preserved (union)"
-          , inputIdsAll == Set.union inputIdsSelected inputIdsNotSelected )
-        , ( "inputs are not preserved (intersection)"
-          , Set.empty == Set.intersection inputIdsSelected inputIdsNotSelected )
-        , ( "total fee is incorrect"
-          , totalFee result == totalFeeExpected )
-        , ( "more than one transaction has reward withdrawal"
-          , rewardWithdrawalCount <= 1 )
-        , ( "reward withdrawal amount incorrect"
-          , rewardWithdrawalAmount == rewardWithdrawalExpected )
-        , ( "one or more supporters not selected"
-          , null (supporters (unselected result)) )
-        ]
+    makeReports $ makeStatistics $ testAll makeTests
   where
+    makeTests
+        = verify
+            (inputIdsAll == Set.union inputIdsSelected inputIdsNotSelected)
+            "inputs are preserved (union)"
+        . verify
+            (Set.empty == Set.intersection inputIdsSelected inputIdsNotSelected)
+            "inputs are preserved (intersection)"
+        . verify
+            (totalFee result == totalFeeExpected)
+            "total fee is correct"
+        . verify
+            (rewardWithdrawalCount <= 1)
+            "at most one transaction has reward withdrawal"
+        . verify
+            (rewardWithdrawalAmount == rewardWithdrawalExpected)
+            "reward withdrawal amount correct"
+        . verify
+            (null (supporters (unselected result)))
+            "every supporter is selected"
+
+    makeReports
+        = report mockConstraints
+            "mockConstraints"
+        . report (length $ supporters categorizedUTxO)
+            "count of supporters available"
+        . report (length $ supporters $ unselected result)
+            "count of supporters not selected"
+        . report (length $ freeriders categorizedUTxO)
+            "count of freeriders available"
+        . report (length $ freeriders $ unselected result)
+            "count of freeriders not selected"
+        . report (length $ ignorables categorizedUTxO)
+            "count of ignorables available"
+        . report (length $ ignorables $ unselected result)
+            "count of ignorables not selected"
+        . report rewardWithdrawalCount
+            "count of reward withdrawals"
+
+    makeStatistics
+        = tabulate "Number of transactions required"
+            [transactionCount]
+        . tabulate "Mean number of inputs per transaction"
+            [meanTransactionInputCount]
+        . tabulate "Mean number of outputs per transaction"
+            [meanTransactionOutputCount]
+        . tabulate "Percentage of supporters selected"
+            [percentageSelected supporters]
+        . tabulate "Percentage of freeriders selected"
+            [percentageSelected freeriders]
+        . tabulate "Percentage of ignorables selected"
+            [percentageSelected ignorables]
+
     transactionCount = pretty $ mconcat
         [ "["
         , padLeftF 3 '0' (10 * selectionCountDiv10)
@@ -269,31 +296,12 @@ prop_createPlan_inner mockConstraints inputs reward =
     totalFeeExpected :: Coin
     totalFeeExpected = F.foldMap fee (selections result)
 
-    counterexampleText = counterexampleMap
-        [ ( "mockConstraints"
-          , show mockConstraints )
-        , ( "count of supporters available"
-          , show (length $ supporters categorizedUTxO) )
-        , ( "count of supporters not selected"
-          , show (length $ supporters $ unselected result) )
-        , ( "count of freeriders available"
-          , show (length $ freeriders categorizedUTxO) )
-        , ( "count of freeriders not selected"
-          , show (length $ freeriders $ unselected result) )
-        , ( "count of ignorables available"
-          , show (length $ ignorables categorizedUTxO) )
-        , ( "count of ignorables not selected"
-          , show (length $ ignorables $ unselected result) )
-        , ( "count of reward withdrawals"
-          , show rewardWithdrawalCount )
-        ]
-
 --------------------------------------------------------------------------------
 -- Categorizing multiple UTxO entries
 --------------------------------------------------------------------------------
 
-prop_categorizeUTxOEntries :: Pretty MockTxConstraints -> Property
-prop_categorizeUTxOEntries (Pretty mockConstraints) =
+prop_categorizeUTxOEntries :: Blind MockTxConstraints -> Property
+prop_categorizeUTxOEntries (Blind mockConstraints) =
     forAllShrink genEntries (shrinkList shrinkMockInput) prop
   where
     prop :: [(MockInputId, TokenBundle)] -> Property
@@ -313,9 +321,9 @@ prop_categorizeUTxOEntries (Pretty mockConstraints) =
 -- Categorizing individual UTxO entries
 --------------------------------------------------------------------------------
 
-prop_categorizeUTxOEntry :: MockTxConstraints -> Property
-prop_categorizeUTxOEntry mockConstraints =
-    forAll (genTokenBundleMixed mockConstraints) prop
+prop_categorizeUTxOEntry :: Blind MockTxConstraints -> Property
+prop_categorizeUTxOEntry (Blind mockConstraints) =
+    forAllBlind (genTokenBundleMixed mockConstraints) prop
   where
     prop :: TokenBundle -> Property
     prop entry =
@@ -323,6 +331,7 @@ prop_categorizeUTxOEntry mockConstraints =
         cover 5 (result == Supporter) "Supporter" $
         cover 5 (result == Freerider) "Freerider" $
         cover 5 (result == Ignorable) "Ignorable" $
+        report mockConstraints "mockConstraints" $
         property
             $ selectionCreateExpectation
             $ Selection.create constraints
