@@ -38,6 +38,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
 import Control.Monad
     ( replicateM )
 import Data.Either
@@ -163,6 +165,9 @@ prop_createPlan_inner mockConstraints inputs reward =
             (totalInputAda >= totalOutputAda)
             "ada is consumed and not created"
         . verify
+            (totalInputTokenBalance == totalOutputTokenBalance)
+            "balance of non-ada tokens is preserved"
+        . verify
             (totalFee result == totalFeeExpected)
             "total fee is correct"
         . verify
@@ -200,6 +205,10 @@ prop_createPlan_inner mockConstraints inputs reward =
             "total fee expected"
         . report (totalFee result)
             "total fee actual"
+        . report totalInputTokenBalance
+            "total input token balance"
+        . report totalOutputTokenBalance
+            "total output token balance"
 
     makeStatistics
         = tabulate "Number of transactions required"
@@ -321,6 +330,14 @@ prop_createPlan_inner mockConstraints inputs reward =
     totalOutputAda :: Coin
     totalOutputAda =
         F.foldMap (view #coin . F.fold . view #outputs) (selections result)
+
+    totalInputTokenBalance :: TokenMap
+    totalInputTokenBalance =
+        F.foldMap (view #tokens . view #inputBalance) (selections result)
+
+    totalOutputTokenBalance :: TokenMap
+    totalOutputTokenBalance =
+        F.foldMap (view #tokens . F.fold . view #outputs) (selections result)
 
 --------------------------------------------------------------------------------
 -- Categorizing multiple UTxO entries
