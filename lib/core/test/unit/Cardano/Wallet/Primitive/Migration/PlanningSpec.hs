@@ -73,6 +73,7 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -159,6 +160,9 @@ prop_createPlan_inner mockConstraints inputs reward =
             (Set.empty == Set.intersection inputIdsSelected inputIdsNotSelected)
             "inputs are preserved (intersection)"
         . verify
+            (totalInputAda >= totalOutputAda)
+            "ada is consumed and not created"
+        . verify
             (totalFee result == totalFeeExpected)
             "total fee is correct"
         . verify
@@ -188,6 +192,14 @@ prop_createPlan_inner mockConstraints inputs reward =
             "count of ignorables not selected"
         . report rewardWithdrawalCount
             "count of reward withdrawals"
+        . report totalInputAda
+            "total input ada"
+        . report totalOutputAda
+            "total output ada"
+        . report totalFeeExpected
+            "total fee expected"
+        . report (totalFee result)
+            "total fee actual"
 
     makeStatistics
         = tabulate "Number of transactions required"
@@ -294,7 +306,21 @@ prop_createPlan_inner mockConstraints inputs reward =
     selectionCount = length (selections result)
 
     totalFeeExpected :: Coin
-    totalFeeExpected = F.foldMap fee (selections result)
+    totalFeeExpected
+        | not (null (selections result)) =
+            Coin.distance totalInputAda totalOutputAda
+        | otherwise =
+            Coin 0
+
+    totalInputAda :: Coin
+    totalInputAda = mconcat
+        [ F.foldMap (view #coin . view #inputBalance) (selections result)
+        , unRewardWithdrawal reward
+        ]
+
+    totalOutputAda :: Coin
+    totalOutputAda =
+        F.foldMap (view #coin . F.fold . view #outputs) (selections result)
 
 --------------------------------------------------------------------------------
 -- Categorizing multiple UTxO entries
