@@ -22,7 +22,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToRelTime )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..) )
+    ( SlotNo (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
@@ -120,13 +120,13 @@ syncProgress
         -- ^ A time tolerance inside which we consider ourselves synced
     -> TimeInterpreter m
         -- ^ Converts slots to actual time.
-    -> BlockHeader
-        -- ^ Local tip
+    -> SlotNo
+        -- ^ Slot of local tip
     -> RelativeTime
         -- ^ Current Time
     -> m SyncProgress
 syncProgress (SyncTolerance tolerance) ti tip now = do
-    timeCovered <- interpretQuery ti $ slotToRelTime $ slotNo tip
+    timeCovered <- interpretQuery ti $ slotToRelTime tip
     let progress
             | now == start = 0
             | otherwise = convert timeCovered % convert now

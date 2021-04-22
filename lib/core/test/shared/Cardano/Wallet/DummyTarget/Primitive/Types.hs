@@ -167,4 +167,5 @@ dummyNetworkLayer = NetworkLayer
     , stakeDistribution = error "stakeDistribution: not implemented"
     , getAccountBalance = error "getAccountBalance: not implemented"
     , timeInterpreter = error "timeInterpreter: not implemented"
+    , syncProgress = error "syncProgress: not implemented"
     }

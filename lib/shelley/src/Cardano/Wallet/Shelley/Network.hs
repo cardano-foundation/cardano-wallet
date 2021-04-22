@@ -56,7 +56,13 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network
     ( Cursor, ErrPostTx (..), NetworkLayer (..), mapCursor )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, TimeInterpreterLog, mkTimeInterpreter )
+    ( TimeInterpreter
+    , TimeInterpreterLog
+    , currentRelativeTime
+    , mkTimeInterpreter
+    )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..), SyncTolerance )
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyCardanoEra (..)
     , CardanoEra (..)
@@ -104,6 +110,7 @@ import Control.Monad.Class.MonadSTM
     , readTMVar
     , readTVar
     , takeTMVar
+    , tryReadTMVar
     , writeTVar
     )
 import Control.Monad.Class.MonadThrow
@@ -113,7 +120,7 @@ import Control.Monad.Class.MonadTimer
 import Control.Monad.IO.Unlift
     ( MonadIO, MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE )
+    ( ExceptT (..), runExceptT, throwE )
 import Control.Retry
     ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
@@ -124,6 +131,8 @@ import Data.ByteString.Lazy
     ( ByteString )
 import Data.Function
     ( (&) )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.List
     ( isInfixOf )
 import Data.Map
@@ -245,6 +254,7 @@ import UnliftIO.Exception
     ( Handler (..), IOException )
 
 import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Wallet.Primitive.SyncProgress as SyncProgress
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
@@ -283,12 +293,13 @@ withNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
+    -> SyncTolerance
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer tr np conn ver action = do
+withNetworkLayer tr np conn ver tol action = do
     trTimings <- traceQueryTimings tr
-    withNetworkLayerBase (tr <> trTimings) np conn ver action
+    withNetworkLayerBase (tr <> trTimings) np conn ver tol action
 
 withNetworkLayerBase
     :: HasCallStack
@@ -296,9 +307,10 @@ withNetworkLayerBase
     -> W.NetworkParameters
     -> CardanoNodeConn
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
+    -> SyncTolerance
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
-withNetworkLayerBase tr np conn (versionData, _) action = do
+withNetworkLayerBase tr np conn (versionData, _) tol action = do
     -- NOTE: We keep client connections running for accessing the node tip,
     -- submitting transactions, querying parameters and delegations/rewards.
     --
@@ -347,6 +359,7 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
             _getAccountBalance rewardsObserver
         , timeInterpreter =
             _timeInterpreter (contramap MsgInterpreterLog tr) interpreterVar
+        , syncProgress = _syncProgress interpreterVar
         }
   where
     gp@W.GenesisParameters
@@ -544,6 +557,35 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
     _timeInterpreter tr' var = do
         let readInterpreter = liftIO $ atomically $ readTMVar var
         mkTimeInterpreter tr' getGenesisBlockDate readInterpreter
+
+    _syncProgress
+        :: TMVar IO (CardanoInterpreter sc)
+        -> SlotNo
+        -> IO SyncProgress
+    _syncProgress var slot = do
+        liftIO (atomically $ tryReadTMVar var) >>= \case
+            -- If the wallet has been started, but not yet been able to connect
+            -- to the node, we don't have an interpreter summary, and can't
+            -- calculate the syncProgress using a @SlotNo@.
+            --
+            -- If we want to guarantee the availability of @SyncProgress@, we
+            -- could consider storing @UTCTime@ along with the follower tip in
+            -- question, but that would make chain-following dependent on
+            -- a TimeInterpreter.
+            Nothing -> return NotResponding
+            Just i -> do
+                let ti = mkTimeInterpreter nullTracer getGenesisBlockDate (pure i)
+                time <- currentRelativeTime ti
+                let res = SyncProgress.syncProgress tol ti slot time
+                case runIdentity $ runExceptT res of
+                    -- Getting a past horizon error here should be unlikely, but
+                    -- could happen if we switch from a in-sync node to a
+                    -- not-in-sync node, either by restarting the wallet, or
+                    -- restarting the node using the same socket but different
+                    -- db.
+                    Left _pastHorizon -> return NotResponding
+                    Right p -> return p
+
 
 --------------------------------------------------------------------------------
 --
@@ -1231,8 +1273,9 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgTxSubmission{}                  -> Info
         MsgHandshakeTracer{}               -> Debug
         MsgFindIntersectionTimeout         -> Warning
-        MsgFindIntersection{}              -> Info
-        MsgIntersectionFound{}             -> Info
+        MsgFindIntersection{}              -> Debug
+        -- MsgFindIntersection is duplicated by MsgStartFollowing
+        MsgIntersectionFound{}             -> Debug
         MsgPostTx{}                        -> Debug
         MsgLocalStateQuery{}               -> Debug
         MsgNodeTip{}                       -> Debug

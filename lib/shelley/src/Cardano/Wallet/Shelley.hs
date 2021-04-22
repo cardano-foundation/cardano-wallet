@@ -279,7 +279,7 @@ serveWallet
     poolDatabaseDecorator = fromMaybe Pool.undecoratedDB mPoolDatabaseDecorator
 
     serveApp socket = withIOManager $ \io -> do
-        withNetworkLayer networkTracer np conn vData $ \nl -> do
+        withNetworkLayer networkTracer np conn vData sTolerance $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let net = networkIdVal proxy
                 randomApi <- apiLayer (newTransactionLayer net) nl

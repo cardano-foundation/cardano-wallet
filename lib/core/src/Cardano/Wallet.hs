@@ -210,7 +210,7 @@ import Cardano.Wallet.Network
     ( ErrGetAccountBalance (..)
     , ErrPostTx (..)
     , FollowAction (..)
-    , FollowExit (..)
+    , FollowExceptionRecovery (..)
     , FollowLog (..)
     , NetworkLayer (..)
     , follow
@@ -295,7 +295,7 @@ import Cardano.Wallet.Primitive.Slotting
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncProgress, SyncTolerance (..), syncProgress )
+    ( SyncProgress, SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
@@ -442,8 +442,6 @@ import Fmt
     ( blockListF, pretty, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 import Safe
     ( lastMay )
 import Statistics.Quantile
@@ -707,24 +705,15 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     db = ctx ^. dbLayer @IO @s @k
 
 walletSyncProgress
-    :: forall ctx s.
-        ( HasGenesisData ctx
-        , HasNetworkLayer IO ctx
-        , HasCallStack
-        )
+    :: forall ctx s. HasNetworkLayer IO ctx
     => ctx
     -> Wallet s
     -> IO SyncProgress
 walletSyncProgress ctx w = do
-    let tip = currentTip w
-    syncProgress st ti tip =<< currentRelativeTime ti
+    let tip = view #slotNo $ currentTip w
+    syncProgress nl tip
   where
-    (_, _, st) = ctx ^. genesisData
-
-    ti :: TimeInterpreter IO
-    ti = neverFails
-            "walletSyncProgress only converts times at the tip or before"
-            (timeInterpreter $ ctx ^. networkLayer)
+    nl = ctx ^. networkLayer
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -786,7 +775,6 @@ restoreWallet
         ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
         , HasLogger WalletWorkerLog ctx
-        , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )
@@ -794,18 +782,11 @@ restoreWallet
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
-    cps <- liftIO $ atomically $ listCheckpoints wid
+    let readCps = liftIO $ atomically $ listCheckpoints wid
     let forward bs h innerTr = run $ do
             restoreBlocks @ctx @s @k ctx innerTr wid bs h
-    liftIO (follow nw tr cps forward (view #header)) >>= \(innerTr, act) -> do
-        case act of
-            FollowFailure ->
-                restoreWallet @ctx @s @k ctx wid
-            FollowRollback point -> do
-                rollbackBlocks @ctx @s @k ctx innerTr wid point
-                restoreWallet @ctx @s @k ctx wid
-            FollowDone ->
-                pure ()
+    let backward = runExceptT . rollbackBlocks @ctx @s @k ctx wid
+    liftIO $ follow nw tr readCps forward backward RetryOnExceptions (view #header)
   where
     db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer
@@ -819,14 +800,11 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
 rollbackBlocks
     :: forall ctx s k. (HasDBLayer IO s k ctx)
     => ctx
-    -> Tracer IO WalletFollowLog
     -> WalletId
     -> SlotNo
-    -> ExceptT ErrNoSuchWallet IO ()
-rollbackBlocks ctx tr wid point = db & \DBLayer{..} -> do
-    lift $ traceWith tr $ MsgTryingRollback point
-    point' <- mapExceptT atomically $ rollbackTo wid point
-    lift $ traceWith tr $ MsgRolledBack point'
+    -> ExceptT ErrNoSuchWallet IO SlotNo
+rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
+    mapExceptT atomically $ rollbackTo wid point
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -836,7 +814,6 @@ restoreBlocks
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
-        , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )
@@ -905,11 +882,8 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
     prune wid epochStability
 
     liftIO $ do
-        progress <- walletSyncProgress @ctx @s ctx (NE.last cps)
         traceWith tr $ MsgWalletMetadata meta
-        traceWith tr $ MsgSyncProgress progress
         traceWith tr $ MsgDiscoveredTxs txs
-        traceWith tr $ MsgTip localTip
         traceWith tr $ MsgBlocks blocks
         traceWith tr $ MsgDiscoveredTxsContent txs
   where
@@ -920,7 +894,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
     logCheckpoint cp = traceWith tr $ MsgCheckpoint (currentTip cp)
 
     logDelegation :: (SlotNo, DelegationCertificate) -> IO ()
-    logDelegation (slotNo, cert) = traceWith tr $ MsgDelegation slotNo cert
+    logDelegation = traceWith tr . uncurry MsgDiscoveredDelegationCert
 
     isParentOf :: Wallet s -> Block -> Bool
     isParentOf cp = (== parent) . parentHeaderHash . header
@@ -2497,15 +2471,11 @@ instance HasSeverityAnnotation WalletWorkerLog where
 
 -- | Log messages arising from the restore and follow process.
 data WalletFollowLog
-    = MsgTryingRollback SlotNo
-    | MsgRolledBack SlotNo
-    | MsgDelegation SlotNo DelegationCertificate
+    = MsgDiscoveredDelegationCert SlotNo DelegationCertificate
     | MsgCheckpoint BlockHeader
     | MsgWalletMetadata WalletMetadata
-    | MsgSyncProgress SyncProgress
     | MsgDiscoveredTxs [(Tx, TxMeta)]
     | MsgDiscoveredTxsContent [(Tx, TxMeta)]
-    | MsgTip BlockHeader
     | MsgBlocks (NonEmpty Block)
     deriving (Show, Eq)
 
@@ -2525,11 +2495,7 @@ data WalletLog
 
 instance ToText WalletFollowLog where
     toText = \case
-        MsgTryingRollback point ->
-            "Try rolling back to " <> pretty point
-        MsgRolledBack point ->
-            "Rolled back to " <> pretty point
-        MsgDelegation slotNo cert -> case cert of
+        MsgDiscoveredDelegationCert slotNo cert -> case cert of
             CertDelegateNone{} -> mconcat
                 [ "Discovered end of delegation within slot "
                 , pretty slotNo
@@ -2549,14 +2515,10 @@ instance ToText WalletFollowLog where
             "Creating checkpoint at " <> pretty checkpointTip
         MsgWalletMetadata meta ->
             pretty meta
-        MsgSyncProgress progress ->
-            "syncProgress: " <> pretty progress
         MsgDiscoveredTxs txs ->
             "discovered " <> pretty (length txs) <> " new transaction(s)"
         MsgDiscoveredTxsContent txs ->
             "transactions: " <> pretty (blockListF (snd <$> txs))
-        MsgTip tip ->
-            "local tip: " <> pretty tip
         MsgBlocks blocks ->
             "blocks: " <> pretty (NE.toList blocks)
 
@@ -2596,16 +2558,13 @@ instance ToText WalletLog where
 instance HasPrivacyAnnotation WalletFollowLog
 instance HasSeverityAnnotation WalletFollowLog where
     getSeverityAnnotation = \case
-        MsgTryingRollback _ -> Info
-        MsgRolledBack _ -> Info
-        MsgDelegation _ _ -> Info
-        MsgCheckpoint _ -> Info
-        MsgWalletMetadata _ -> Info
-        MsgSyncProgress _ -> Info
+        MsgDiscoveredDelegationCert _ _ -> Info
+        MsgCheckpoint _ -> Debug
+        MsgWalletMetadata _ -> Debug
+        MsgDiscoveredTxs [] -> Debug
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
-        MsgTip _ -> Info
-        MsgBlocks _ -> Debug
+        MsgBlocks _ -> Debug -- Ideally move to FollowLog or remove
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
