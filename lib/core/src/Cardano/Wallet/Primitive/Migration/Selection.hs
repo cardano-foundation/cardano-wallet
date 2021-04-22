@@ -159,6 +159,10 @@ data SelectionCorrectnessError size
 
 -- | Verifies a selection for correctness.
 --
+-- This function is provided primarily as a convenience for testing. As such,
+-- it's not usually necessary to call this function from ordinary application
+-- code, unless you suspect that a selection value is incorrect in some way.
+--
 verify
     :: forall input size. TxSize size
     => TxConstraints size
