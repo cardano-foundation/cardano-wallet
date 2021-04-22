@@ -66,7 +66,9 @@ import Control.DeepSeq
 import Control.Monad
     ( when )
 import Control.Monad.Class.MonadSTM
-    ( TMVar, atomically, newTMVarIO, putTMVar, takeTMVar )
+    ( atomically )
+import Control.Monad.Class.MonadSTM.Strict
+    ( StrictTMVar, newTMVarIO, putTMVar, takeTMVar )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Retry
@@ -574,7 +576,7 @@ overCurrent f (LogState prev cur) = LogState prev (f cur)
 flush
     :: UTCTime
     -> (SlotNo -> IO SyncProgress)
-    -> TMVar IO (FollowStats LogState)
+    -> StrictTMVar IO (FollowStats LogState)
     -> IO (FollowStats LogState)
 flush t calcSyncProgress var = do
     s <- atomically $ takeTMVar var
@@ -674,7 +676,7 @@ withFollowStatsMonitoring tr calcSyncProgress act = do
     let tr' = flip contramapM tr $ \msg -> do
             atomically $ do
                 s <- takeTMVar var
-                putTMVar var (updateStats msg s)
+                putTMVar var $! updateStats msg s
             pure msg
     race_
         (act tr')

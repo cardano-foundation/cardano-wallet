@@ -101,7 +101,6 @@ library
     , streaming-commons
     , strict-non-empty-containers
     , string-interpolate
-    , stm
     , template-haskell
     , text
     , text-class
