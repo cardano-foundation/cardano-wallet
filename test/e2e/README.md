@@ -72,12 +72,6 @@ One can also start tests against cardano-wallet docker. There is docker-compose-
 One can also run tests against `cardano-wallet` and `cardano-node` which are specified on machine's `$PATH`:
 
 ```bash
-$ rake run_on[testnet,local]
-```
-
-or
-
-```bash
 $ TESTS_E2E_BINDIR="" rake run_on[testnet]
 ```
 
@@ -124,7 +118,7 @@ One can run specific tests using by providing `SPEC` or `SPEC_OPTS` arguments to
  ```
   - run only specific test identified by line of test code against node and wallet from the `$PATH` (skips downloading from Hydra)
  ```ruby
- $ rake run_on[testnet,local] SPEC=spec/shelley_spec.rb:9
+ $ TESTS_E2E_BINDIR="" rake run_on[testnet] SPEC=spec/shelley_spec.rb:9
  ```
 
 ### Skipping / making test pending
@@ -150,4 +144,5 @@ end
 ## Documentation
 
 Cardano-wallet-rb repository: https://github.com/piotr-iohk/cardano-wallet-rb.
+
 Ruby doc: https://rubydoc.info/gems/cardano_wallet.

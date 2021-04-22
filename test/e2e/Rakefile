@@ -105,10 +105,9 @@ end
 
 ##
 # `rake start_node_and_wallet[testnet]' assumes cardano-node and cardano-wallet in $TESTS_E2E_BINDIR
-task :start_node_and_wallet, [:env, :installation] do |task, args|
+task :start_node_and_wallet, [:env] do |task, args|
   puts "\n  >> Setting up cardano-node and cardano-wallet"
 
-  installation = args[:installation] || :bins
   bin_dir = BINS
   config_dir = File.join(CONFIGS, args[:env])
   cd = Dir.pwd
@@ -157,18 +156,17 @@ end
 
 ##
 # Utility task for getting binaries, configs and starting wallet and node
-task :launch_on, [:env, :installation] do |task, args|
+task :launch_on, [:env] do |task, args|
   env = args[:env]
-  installation = args[:installation] || :bins
 
-  if installation == "local"
+  if BINS == ''
     puts "\n  >> Skipping getting latest binaries. Will launch wallet and node from $PATH."
   else
     Rake::Task[:get_latest_bins].invoke
   end
 
   Rake::Task[:get_latest_configs].invoke(env)
-  Rake::Task[:start_node_and_wallet].invoke(env, installation)
+  Rake::Task[:start_node_and_wallet].invoke(env)
 end
 
 task :stop_node_and_wallet do
@@ -248,14 +246,13 @@ task :get_docker_logs do
   cmd "sudo chmod a+rw #{LOGS}/wallet.log"
 end
 
-task :run_on, [:env, :installation, :sync_strategy, :skip_configs] do |task, args|
+task :run_on, [:env, :sync_strategy, :skip_configs] do |task, args|
   puts "\n>> Setting up env and running tests..."
   puts "TESTS_E2E_STATEDIR=#{STATE}"
   env = args[:env]
-  installation = args[:installation] || :bins
   sync_strategy = args[:sync_strategy] || :sync
 
-  if installation == "local"
+  if BINS == ''
     puts "\n  >> Skipping getting latest binaries. Will test wallet and node from $PATH."
   else
     Rake::Task[:get_latest_bins].invoke
@@ -263,7 +260,7 @@ task :run_on, [:env, :installation, :sync_strategy, :skip_configs] do |task, arg
 
   Rake::Task[:fixture_wallets_decode].invoke
   Rake::Task[:get_latest_configs].invoke(env) unless args[:skip_configs]
-  Rake::Task[:start_node_and_wallet].invoke(env, installation)
+  Rake::Task[:start_node_and_wallet].invoke(env)
 
   if sync_strategy == "no-sync"
     puts "\n  >> Skipping waiting for node to be synced..."
