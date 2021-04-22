@@ -272,17 +272,17 @@ data FollowExceptionRecovery
 --
 -- Exits with 'Nothing' in case of error.
 follow
-    :: forall block tr e. (Show e)
+    :: forall block msg e. (Show e)
     => NetworkLayer IO block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
-    -> Tracer IO (FollowLog tr)
+    -> Tracer IO (FollowLog msg)
     -- ^ Logger trace
     -> IO [BlockHeader]
     -- ^ A way to get a list of known tips to start from.
     -- Blocks /after/ the tip will be yielded.
     -> (NE.NonEmpty block
         -> BlockHeader
-        -> Tracer IO tr
+        -> Tracer IO msg
         -> IO (FollowAction e))
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.
@@ -341,17 +341,17 @@ follow nl tr' readCursor forward' backward recovery header =
 -- This is the old one. It was kept for now to minimise changes and potential
 -- mistakes, as it is pretty intricate.
 follow'
-    :: forall block tr e. (Show e)
+    :: forall block msg e. (Show e)
     => NetworkLayer IO block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
-    -> Tracer IO (FollowLog tr)
+    -> Tracer IO (FollowLog msg)
     -- ^ Logger trace
     -> [BlockHeader]
     -- ^ A list of known tips to start from.
     -- Blocks /after/ the tip will be yielded.
     -> (NE.NonEmpty block
         -> BlockHeader
-        -> Tracer IO tr
+        -> Tracer IO msg
         -> IO (FollowAction e))
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.
@@ -438,7 +438,7 @@ follow' nl tr cps yield header =
                                     Logging
 -------------------------------------------------------------------------------}
 
-data FollowLog tr
+data FollowLog msg
     = MsgStartFollowing [BlockHeader]
     | MsgHaltMonitoring
     | MsgFollowAction (FollowAction String)
@@ -446,14 +446,14 @@ data FollowLog tr
     | MsgFollowerTip (Maybe BlockHeader)
     | MsgFollowStats (FollowStats LogState)
     | MsgApplyBlocks BlockHeader (NonEmpty BlockHeader)
-    | MsgFollowLog tr -- Inner tracer
+    | MsgFollowLog msg -- Inner tracer
     | MsgWillRollback SlotNo
     | MsgDidRollback SlotNo SlotNo
     | MsgFailedRollingBack Text -- Reason
     | MsgWillIgnoreRollback SlotNo Text -- Reason
     deriving (Show, Eq)
 
-instance ToText tr => ToText (FollowLog tr) where
+instance ToText msg => ToText (FollowLog msg) where
     toText = \case
         MsgStartFollowing cps -> mconcat
             [ "Chain following starting. Requesting intersection using "
@@ -495,8 +495,8 @@ instance ToText tr => ToText (FollowLog tr) where
             reason
         MsgFollowLog msg -> toText msg
 
-instance HasPrivacyAnnotation (FollowLog tr)
-instance HasSeverityAnnotation tr => HasSeverityAnnotation (FollowLog tr) where
+instance HasPrivacyAnnotation (FollowLog msg)
+instance HasSeverityAnnotation msg => HasSeverityAnnotation (FollowLog msg) where
     getSeverityAnnotation = \case
         MsgStartFollowing _ -> Info
         MsgHaltMonitoring -> Info
@@ -595,7 +595,7 @@ emptyStats t = FollowStats (f 0) (f 0) (f $ SlotNo 0) (f t) (f prog)
 
 
 -- | Update the stats based on a new log message.
-updateStats :: FollowLog tr -> FollowStats LogState -> FollowStats LogState
+updateStats :: FollowLog msg -> FollowStats LogState -> FollowStats LogState
 updateStats msg s = force $ case msg of
     MsgApplyBlocks _tip blocks ->
         s { blocksApplied = overCurrent (+ NE.length blocks) (blocksApplied s) }
@@ -662,11 +662,11 @@ instance HasSeverityAnnotation (FollowStats LogState) where
     getSeverityAnnotation = fst . explainedSeverityAnnotation
 
 -- | Starts a new thread for monitoring health and statistics from
--- the returned @FollowLog tr@.
+-- the returned @FollowLog msg@.
 withFollowStatsMonitoring
-    :: Tracer IO (FollowLog tr)
+    :: Tracer IO (FollowLog msg)
     -> (SlotNo -> IO SyncProgress)
-    -> ((Tracer IO (FollowLog tr)) -> IO ())
+    -> ((Tracer IO (FollowLog msg)) -> IO ())
     -> IO ()
 withFollowStatsMonitoring tr calcSyncProgress act = do
     t0' <- getCurrentTime
