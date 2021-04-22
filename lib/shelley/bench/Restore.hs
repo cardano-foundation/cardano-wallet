@@ -56,7 +56,7 @@ import Cardano.BM.Trace
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
 import Cardano.Wallet
-    ( WalletLayer (..), WalletLog (..) )
+    ( WalletLayer (..), WalletWorkerLog (..) )
 import Cardano.Wallet.Api.Types
     ( toApiUtxoStatistics )
 import Cardano.Wallet.BenchShared
@@ -667,7 +667,7 @@ dummySeedFromName = SomeMnemonic @24
     . blake2b256
     . T.encodeUtf8
 
-traceProgressForPlotting :: Tracer IO Text -> Tracer IO WalletLog
+traceProgressForPlotting :: Tracer IO Text -> Tracer IO WalletWorkerLog
 traceProgressForPlotting tr = Tracer $ \case
     MsgFollow (MsgApplyBlocks _nodeTip bs) -> do
         let tip = pretty . getQuantity . blockHeight . NE.last $ bs

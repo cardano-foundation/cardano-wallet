@@ -128,6 +128,7 @@ spec = describe "NetworkLayer regression test #1708" $ do
                             [ MsgAddedObserver k
                             , MsgWillFetch $ Set.singleton k
                             , MsgDidFetch $ Map.singleton k v
+                            , MsgDidChange $ Map.singleton k v
                             ]
 
             describe "calling startObserving a second time" $ do

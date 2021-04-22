@@ -52,6 +52,8 @@ import Network.HTTP.Types.Method
     ( Method )
 import Network.HTTP.Types.Status
     ( status400, status500 )
+import Network.URI
+    ( URI )
 import Test.Integration.Framework.Context
     ( Context )
 import UnliftIO.Exception
@@ -95,7 +97,7 @@ request
         ( FromJSON a
         , MonadIO m
         , MonadUnliftIO m
-        , HasType (Text, Manager) s
+        , HasType (URI, Manager) s
         )
     => s
     -> (Method, Text)
@@ -106,9 +108,9 @@ request
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
 request ctx (verb, path) reqHeaders body = do
-    let (base, manager) = ctx ^. typed @(Text, Manager)
+    let (base, manager) = ctx ^. typed @(URI, Manager)
     handle handleException $ do
-        req <- fromEither $ parseRequest $ T.unpack $ base <> path
+        req <- fromEither $ parseRequest $ show base <> T.unpack path
         handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
   where
     prepareReq :: HTTP.Request -> HTTP.Request
@@ -153,7 +155,7 @@ rawRequest
     :: forall m s.
         ( MonadIO m
         , MonadUnliftIO m
-        , HasType (Text, Manager) s
+        , HasType (URI, Manager) s
         )
     => s
     -> (Method, Text)
@@ -164,9 +166,9 @@ rawRequest
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException ByteString)
 rawRequest ctx (verb, path) reqHeaders body = do
-    let (base, manager) = ctx ^. typed @(Text, Manager)
+    let (base, manager) = ctx ^. typed @(URI, Manager)
     handle handleException $ do
-        req <- fromEither $ parseRequest $ T.unpack $ base <> path
+        req <- fromEither $ parseRequest $ show base <> T.unpack path
         handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
   where
     prepareReq :: HTTP.Request -> HTTP.Request

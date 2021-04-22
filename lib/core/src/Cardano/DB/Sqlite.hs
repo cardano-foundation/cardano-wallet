@@ -498,6 +498,7 @@ data DBLog
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
     | MsgManualMigrationNeeded DBField Text
+    | MsgExpectedMigration DBLog
     | MsgManualMigrationNotNeeded DBField
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
     | MsgRetryOnBusy Int RetryLog
@@ -517,6 +518,7 @@ instance HasSeverityAnnotation DBLog where
         MsgCloseSingleConnection _ -> Info
         MsgStartConnectionPool _ -> Info
         MsgStopConnectionPool _ -> Info
+        MsgExpectedMigration _ -> Debug
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
@@ -552,6 +554,7 @@ instance ToText DBLog where
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
             "Statement already finalized: " <> msg
+        MsgExpectedMigration msg -> "Expected: " <> toText msg
         MsgManualMigrationNeeded field value -> mconcat
             [ tableName field
             , " table does not contain required field '"

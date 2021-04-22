@@ -7,6 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Network
@@ -38,7 +39,7 @@ import Cardano.Api
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), contramap )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
@@ -202,9 +203,7 @@ data family Cursor
 -- | The result of 'nextBlocks', which is instructions for what the chain
 -- consumer should do next.
 data NextBlocksResult cursor block
-    = AwaitReply
-        -- ^ There are no blocks available from the node, so wait.
-    | RollForward cursor BlockHeader [block]
+    = RollForward cursor BlockHeader [block]
         -- ^ Apply the given contiguous non-empty sequence of blocks. Use the
         -- updated cursor to get the next batch. The given block header is the
         -- current tip of the node.
@@ -214,13 +213,11 @@ data NextBlocksResult cursor block
 
 instance Functor (NextBlocksResult cursor) where
     fmap f = \case
-        AwaitReply -> AwaitReply
         RollForward cur bh bs -> RollForward cur bh (fmap f bs)
         RollBackward cur -> RollBackward cur
 
 mapCursor :: (a -> b) -> NextBlocksResult a block -> NextBlocksResult b block
 mapCursor fn = \case
-    AwaitReply -> AwaitReply
     RollForward cur bh bs -> RollForward (fn cur) bh bs
     RollBackward cur -> RollBackward (fn cur)
 
@@ -254,25 +251,27 @@ data FollowExit
 --
 -- Exits with 'Nothing' in case of error.
 follow
-    :: forall block e. (Show e)
+    :: forall block e tr. (Show e)
     => NetworkLayer IO block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
-    -> Tracer IO FollowLog
+    -> Tracer IO (FollowLog tr)
     -- ^ Logger trace
     -> [BlockHeader]
     -- ^ A list of known tips to start from.
     -- Blocks /after/ the tip will be yielded.
     -> (NE.NonEmpty block
         -> BlockHeader
+        -> Tracer IO tr
         -> IO (FollowAction e))
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.
     -> (block -> BlockHeader)
     -- ^ Getter on the abstract 'block' type
-    -> IO FollowExit
+    -> IO (Tracer IO tr, FollowExit)
 follow nl tr cps yield header =
-    bracket (initCursor nl cps) (destroyCursor nl) (sleep 0 False)
+    (innerTr,) <$> bracket (initCursor nl cps) (destroyCursor nl) (sleep 0 False)
   where
+    innerTr = contramap MsgFollowLog tr
     delay0 :: Int
     delay0 = 500*1000 -- 500ms
 
@@ -293,10 +292,6 @@ follow nl tr cps yield header =
 
     step :: Bool -> Cursor -> IO FollowExit
     step hasRolledForward cursor = nextBlocks nl cursor >>= \case
-        AwaitReply -> do
-            traceWith tr MsgSynced
-            sleep delay0 hasRolledForward cursor
-
         RollForward cursor' _ [] -> do -- FIXME Make RollForward return NE
             traceWith tr MsgSynced
             sleep delay0 hasRolledForward cursor'
@@ -304,7 +299,7 @@ follow nl tr cps yield header =
         RollForward cursor' tip (blockFirst : blocksRest) -> do
             let blocks = blockFirst :| blocksRest
             traceWith tr $ MsgApplyBlocks tip (header <$> blocks)
-            action <- yield blocks tip
+            action <- yield blocks tip innerTr
             traceWith tr $ MsgFollowAction (fmap show action)
             continueWith cursor' True action
 
@@ -353,16 +348,17 @@ follow nl tr cps yield header =
                                     Logging
 -------------------------------------------------------------------------------}
 
-data FollowLog
+data FollowLog tr
     = MsgFollowAction (FollowAction String)
     | MsgUnhandledException Text
     | MsgSynced
     | MsgApplyBlocks BlockHeader (NonEmpty BlockHeader)
+    | MsgFollowLog tr -- Inner tracer
     | MsgWillRollback SlotNo
     | MsgWillIgnoreRollback SlotNo Text -- Reason
     deriving (Show, Eq)
 
-instance ToText FollowLog where
+instance ToText tr => ToText (FollowLog tr) where
     toText = \case
         MsgFollowAction action -> case action of
             ExitWith e -> "Failed to roll forward: " <> T.pack e
@@ -386,14 +382,16 @@ instance ToText FollowLog where
         MsgWillIgnoreRollback sl reason ->
             "Will ignore rollback to " <> pretty sl
                 <> " because of " <> pretty reason
+        MsgFollowLog msg -> toText msg
 
-instance HasPrivacyAnnotation FollowLog
-instance HasSeverityAnnotation FollowLog where
+instance HasPrivacyAnnotation (FollowLog tr)
+instance HasSeverityAnnotation tr => HasSeverityAnnotation (FollowLog tr) where
     getSeverityAnnotation = \case
         MsgFollowAction (ExitWith _) -> Error
         MsgFollowAction _ -> Debug
         MsgUnhandledException _ -> Error
         MsgSynced -> Debug
         MsgApplyBlocks _ _ -> Info
+        MsgFollowLog msg -> getSeverityAnnotation msg
         MsgWillRollback _ -> Debug
         MsgWillIgnoreRollback _ _ -> Debug

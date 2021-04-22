@@ -25,6 +25,7 @@ module Cardano.Wallet.Network.Ports
 
     -- * Helpers
     , waitForPort
+    , portFromURL
     , unsafePortNumber
     , findPort
     , randomUnusedTCPPorts
@@ -40,6 +41,8 @@ import Control.Retry
     ( RetryPolicyM, retrying )
 import Data.List
     ( isInfixOf, sort )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Streaming.Network
     ( bindRandomPortTCP )
 import Data.Word
@@ -58,6 +61,10 @@ import Network.Socket
     , socket
     , tupleToHostAddress
     )
+import Network.URI
+    ( URI (..), URIAuth (..) )
+import Safe
+    ( readMay )
 import System.Random.Shuffle
     ( shuffleM )
 import UnliftIO.Exception
@@ -119,6 +126,13 @@ unsafePortNumber = \case
     SockAddrInet p _ -> p
     SockAddrInet6 p _ _ _ -> p
     SockAddrUnix _ -> error "unsafePortNumber: no port for unix sockets."
+
+-- | Get the port from a URI, which is assumed to be a HTTP or HTTPS URL.
+portFromURL :: URI -> PortNumber
+portFromURL uri = fromMaybe fallback
+    (uriAuthority uri >>= readMay . (dropWhile (== ':')) . uriPort)
+  where
+    fallback = if uriScheme uri == "https:" then 443 else 80
 
 -- | Get a list of random TCPv4 ports that currently do not have any servers
 -- listening on them. It may return less than the requested number of ports.

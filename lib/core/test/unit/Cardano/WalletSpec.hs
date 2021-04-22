@@ -772,7 +772,7 @@ instance Arbitrary SlottingParameters where
 data TxRetryTestCtx = TxRetryTestCtx
     { ctxDbLayer :: DBLayer TxRetryTestM DummyState ShelleyKey
     , ctxNetworkLayer :: NetworkLayer TxRetryTestM Block
-    , ctxTracer :: Tracer IO W.WalletLog
+    , ctxTracer :: Tracer IO W.WalletWorkerLog
     , ctxWalletId :: WalletId
     } deriving (Generic)
 
@@ -785,7 +785,7 @@ data TxRetryTestState = TxRetryTestState
 
 -- | Collected info from test execution.
 data TxRetryTestResult a = TxRetryTestResult
-    { resLogs :: [W.WalletLog]
+    { resLogs :: [W.WalletWorkerLog]
     , resAction :: a
     , resSubmittedTxs :: [SealedTx]
     } deriving (Generic, Show, Eq)

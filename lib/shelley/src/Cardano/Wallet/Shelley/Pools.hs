@@ -61,7 +61,7 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Network
     ( FollowAction (..)
     , FollowExit (..)
-    , FollowLog
+    , FollowLog (MsgFollowLog)
     , NetworkLayer (..)
     , follow
     )
@@ -533,30 +533,30 @@ readPoolDbData DBLayer {..} currentEpoch = atomically $ do
 --
 
 monitorStakePools
-    :: Tracer IO StakePoolLog
+    :: Tracer IO (FollowLog StakePoolLog)
     -> NetworkParameters
     -> NetworkLayer IO (CardanoBlock StandardCrypto)
     -> DBLayer IO
     -> IO ()
-monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
+monitorStakePools followTr (NetworkParameters gp sp _pp) nl DBLayer{..} =
     monitor =<< mkLatestGarbageCollectionEpochRef
   where
     monitor latestGarbageCollectionEpochRef = loop
       where
         loop = do
             cursor <- initCursor
-            traceWith tr $ MsgStartMonitoring cursor
-            let followTrace = contramap MsgFollow tr
+            traceWith followTr $ MsgFollowLog $ MsgStartMonitoring cursor
             let forwardHandler = forward latestGarbageCollectionEpochRef
-            follow nl followTrace cursor forwardHandler getHeader >>= \case
-                FollowFailure ->
-                    traceWith tr MsgCrashMonitoring
-                FollowRollback point -> do
-                    traceWith tr $ MsgRollingBackTo point
-                    liftIO . atomically $ rollbackTo point
-                    loop
-                FollowDone ->
-                    traceWith tr MsgHaltMonitoring
+            follow nl followTr cursor forwardHandler getHeader >>= \(innerTr, act) -> do
+                case act of
+                    FollowFailure ->
+                        traceWith innerTr MsgCrashMonitoring
+                    FollowRollback point -> do
+                        traceWith innerTr $ MsgRollingBackTo point
+                        liftIO . atomically $ rollbackTo point
+                        loop
+                    FollowDone ->
+                        traceWith innerTr MsgHaltMonitoring
 
     GenesisParameters  { getGenesisBlockHash  } = gp
     SlottingParameters { getSecurityParameter } = sp
@@ -584,8 +584,9 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
         :: IORef EpochNo
         -> NonEmpty (CardanoBlock StandardCrypto)
         -> BlockHeader
+        -> Tracer IO StakePoolLog
         -> IO (FollowAction ())
-    forward latestGarbageCollectionEpochRef blocks _ = do
+    forward latestGarbageCollectionEpochRef blocks _ tr = do
         atomically $ forAllAndLastM blocks forAllBlocks forLastBlock
         pure Continue
       where
@@ -613,8 +614,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
             let header = view #header blk
             let slot = view #slotNo header
             handleErr (putPoolProduction header poolId)
-            garbageCollectPools slot latestGarbageCollectionEpochRef
-            putPoolCertificates slot certificates
+            garbageCollectPools slot latestGarbageCollectionEpochRef tr
+            putPoolCertificates slot certificates tr
 
         handleErr action = runExceptT action
             >>= \case
@@ -661,7 +662,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
     -- that occurred two epochs ago that has not subsquently been superseded,
     -- it should be safe to garbage collect that pool.
     --
-    garbageCollectPools currentSlot latestGarbageCollectionEpochRef = do
+    garbageCollectPools currentSlot latestGarbageCollectionEpochRef tr = do
         let ti = timeInterpreter nl
         liftIO (runExceptT (interpretQuery ti (epochOf currentSlot))) >>= \case
             Left _ -> return ()
@@ -691,7 +692,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
     --
     -- Precedence is determined by the 'readPoolLifeCycleStatus' function.
     --
-    putPoolCertificates slot certificates = do
+    putPoolCertificates slot certificates tr = do
         let publicationTimes =
                 CertificatePublicationTime slot <$> [minBound ..]
         forM_ (publicationTimes `zip` certificates) $ \case
@@ -706,11 +707,11 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
 -- | Worker thread that monitors pool metadata and syncs it to the database.
 monitorMetadata
     :: TVar PoolMetadataGCStatus
-    -> Tracer IO StakePoolLog
+    -> Tracer IO (FollowLog StakePoolLog)
     -> SlottingParameters
     -> DBLayer IO
     -> IO ()
-monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
+monitorMetadata gcStatus tr' sp db@(DBLayer{..}) = do
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
 
@@ -754,6 +755,7 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
         | otherwise ->
             traceWith tr MsgSMASHUnreachable
   where
+    tr = contramap MsgFollowLog tr'
     trFetch = contramap MsgFetchPoolMetadata tr
 
     fetchMetadata
@@ -839,8 +841,7 @@ gcDelistedPools gcStatus tr DBLayer{..} fetchDelisted = forever $ do
     pure ()
 
 data StakePoolLog
-    = MsgFollow FollowLog
-    | MsgStartMonitoring [BlockHeader]
+    = MsgStartMonitoring [BlockHeader]
     | MsgHaltMonitoring
     | MsgCrashMonitoring
     | MsgExitMonitoring AfterThreadLog
@@ -870,7 +871,6 @@ data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
 instance HasPrivacyAnnotation StakePoolLog
 instance HasSeverityAnnotation StakePoolLog where
     getSeverityAnnotation = \case
-        MsgFollow e -> getSeverityAnnotation e
         MsgStartMonitoring{} -> Info
         MsgHaltMonitoring{} -> Info
         MsgCrashMonitoring{} -> Error
@@ -888,8 +888,6 @@ instance HasSeverityAnnotation StakePoolLog where
 
 instance ToText StakePoolLog where
     toText = \case
-        MsgFollow e ->
-            toText e
         MsgStartMonitoring cursor -> mconcat
             [ "Monitoring stake pools. Currently at "
             , case cursor of

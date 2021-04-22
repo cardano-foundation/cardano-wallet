@@ -645,7 +645,8 @@ migrateManually tr proxy defaultFieldValues =
             ColumnPresent  -> do
                 value <- either (fail . show) (\x -> pure $ "\"" <> x <> "\"") $
                     fromPersistValueText (toPersistValue W.EncryptWithPBKDF2)
-                traceWith tr $ MsgManualMigrationNeeded passphraseScheme value
+                traceWith tr . MsgExpectedMigration
+                    $ MsgManualMigrationNeeded passphraseScheme value
                 query <- Sqlite.prepare conn $ T.unwords
                     [ "UPDATE", tableName passphraseScheme
                     , "SET", fieldName passphraseScheme, "=", value
@@ -680,7 +681,8 @@ migrateManually tr proxy defaultFieldValues =
             ColumnMissing -> do
                 traceWith tr $ MsgManualMigrationNotNeeded rndAccountIx
             ColumnPresent -> do
-                traceWith tr $ MsgManualMigrationNeeded rndAccountIx hardLowerBound
+                traceWith tr . MsgExpectedMigration
+                    $ MsgManualMigrationNeeded rndAccountIx hardLowerBound
                 stmt <- Sqlite.prepare conn $ T.unwords
                     [ "DELETE FROM", tableName rndAccountIx
                     , "WHERE", fieldName rndAccountIx, "<", hardLowerBound
