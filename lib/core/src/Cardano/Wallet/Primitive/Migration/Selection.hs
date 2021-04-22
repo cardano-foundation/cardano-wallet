@@ -23,24 +23,16 @@ module Cardano.Wallet.Primitive.Migration.Selection
     (
     -- * Types
       Selection (..)
-    , SelectionCorrectness (..)
     , SelectionError (..)
     , SelectionFullError (..)
     , RewardWithdrawal (..)
+    , TxSize (..)
 
     -- * Creating selections
     , create
 
     -- * Extending selections
     , extend
-
-    -- * Verifying selections for correctness
-    , verify
-
-    -- * Computing bulk properties of selections
-    , computeCurrentFee
-    , computeCurrentSize
-    , computeMinimumFee
 
     -- * Adding value to outputs
     , addValueToOutputs
@@ -49,8 +41,14 @@ module Cardano.Wallet.Primitive.Migration.Selection
     , minimizeFee
     , minimizeFeeStep
 
-    -- * Classes
-    , TxSize (..)
+    -- * Computing bulk properties of selections
+    , computeCurrentFee
+    , computeCurrentSize
+    , computeMinimumFee
+
+    -- * Verifying selections for correctness
+    , verify
+    , SelectionCorrectness (..)
 
     ) where
 
@@ -124,354 +122,6 @@ data Selection input size = Selection
 newtype RewardWithdrawal = RewardWithdrawal
     { unRewardWithdrawal :: Coin }
     deriving (Eq, Show)
-
---------------------------------------------------------------------------------
--- Selection correctness
---------------------------------------------------------------------------------
-
--- | Indicates whether or not a selection is correct.
---
-data SelectionCorrectness size
-    = SelectionCorrect
-    | SelectionIncorrect (SelectionCorrectnessError size)
-    deriving (Eq, Show)
-
--- | Indicates that a selection is incorrect.
---
-data SelectionCorrectnessError size
-    = SelectionAssetBalanceIncorrect
-      SelectionAssetBalanceIncorrectError
-    | SelectionFeeIncorrect
-      SelectionFeeIncorrectError
-    | SelectionFeeExcessIncorrect
-      SelectionFeeExcessIncorrectError
-    | SelectionFeeInsufficient
-      SelectionFeeInsufficientError
-    | SelectionOutputBelowMinimumAdaQuantity
-      SelectionOutputBelowMinimumAdaQuantityError
-    | SelectionOutputSizeExceedsLimit
-      SelectionOutputSizeExceedsLimitError
-    | SelectionSizeExceedsLimit
-     (SelectionSizeExceedsLimitError size)
-    | SelectionSizeIncorrect
-     (SelectionSizeIncorrectError size)
-    deriving (Eq, Show)
-
--- | Verifies a selection for correctness.
---
--- This function is provided primarily as a convenience for testing. As such,
--- it's not usually necessary to call this function from ordinary application
--- code, unless you suspect that a selection value is incorrect in some way.
---
-verify
-    :: forall input size. TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> SelectionCorrectness size
-verify constraints selection =
-    either SelectionIncorrect (const SelectionCorrect) verifyAll
-  where
-    verifyAll :: Either (SelectionCorrectnessError size) ()
-    verifyAll = do
-        checkAssetBalance selection
-            `failWith` SelectionAssetBalanceIncorrect
-        checkFee selection
-            `failWith` SelectionFeeIncorrect
-        checkFeeSufficient constraints selection
-            `failWith` SelectionFeeInsufficient
-        checkFeeExcess constraints selection
-            `failWith` SelectionFeeExcessIncorrect
-        checkOutputMinimumAdaQuantities constraints selection
-            `failWith` SelectionOutputBelowMinimumAdaQuantity
-        checkOutputSizes constraints selection
-            `failWith` SelectionOutputSizeExceedsLimit
-        checkSizeWithinLimit constraints selection
-            `failWith` SelectionSizeExceedsLimit
-        checkSizeCorrectness constraints selection
-            `failWith` SelectionSizeIncorrect
-
-    failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
-    onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
-
---------------------------------------------------------------------------------
--- Selection correctness: asset balance correctness
---------------------------------------------------------------------------------
-
-data SelectionAssetBalanceIncorrectError = SelectionAssetBalanceIncorrectError
-    { assetBalanceInputs
-        :: TokenMap
-    , assetBalanceOutputs
-        :: TokenMap
-    }
-    deriving (Eq, Show)
-
-checkAssetBalance
-    :: Selection input size
-    -> Maybe SelectionAssetBalanceIncorrectError
-checkAssetBalance Selection {inputBalance, outputs}
-    | assetBalanceInputs == assetBalanceOutputs =
-        Nothing
-    | otherwise =
-        Just SelectionAssetBalanceIncorrectError
-            { assetBalanceInputs
-            , assetBalanceOutputs
-            }
-  where
-    assetBalanceInputs = view #tokens inputBalance
-    assetBalanceOutputs = F.foldMap (tokens) outputs
-
---------------------------------------------------------------------------------
--- Selection correctness: fee correctness
---------------------------------------------------------------------------------
-
-data SelectionFeeIncorrectError = SelectionFeeIncorrectError
-    { selectionFeeComputed
-        :: Either NegativeCoin Coin
-    , selectionFeeStored
-        :: Coin
-    }
-    deriving (Eq, Show)
-
-checkFee :: Selection input size -> Maybe SelectionFeeIncorrectError
-checkFee selection =
-    case computeCurrentFee selection of
-      Left negativeFee ->
-          pure SelectionFeeIncorrectError
-              { selectionFeeComputed = Left negativeFee
-              , selectionFeeStored = fee selection
-              }
-      Right positiveFee | positiveFee /= fee selection ->
-          pure SelectionFeeIncorrectError
-              { selectionFeeComputed = Right positiveFee
-              , selectionFeeStored = fee selection
-              }
-      Right _ ->
-          Nothing
-
---------------------------------------------------------------------------------
--- Selection correctness: fee excess correctness
---------------------------------------------------------------------------------
-
-data SelectionFeeExcessIncorrectError = SelectionFeeExcessIncorrectError
-    { selectionFeeExcessActual
-        :: Coin
-    , selectionFeeExcessExpected
-        :: Coin
-    }
-    deriving (Eq, Show)
-
-checkFeeExcess
-    :: TxConstraints size
-    -> Selection input size
-    -> Maybe SelectionFeeExcessIncorrectError
-checkFeeExcess constraints selection =
-    checkInner =<< eitherToMaybe (computeCurrentFee selection)
-  where
-    checkInner :: Coin -> Maybe SelectionFeeExcessIncorrectError
-    checkInner currentSelectionFee
-        | selectionFeeExcessExpected == selectionFeeExcessActual =
-            Nothing
-        | otherwise =
-            Just SelectionFeeExcessIncorrectError
-                { selectionFeeExcessActual
-                , selectionFeeExcessExpected
-                }
-      where
-        selectionFeeExcessActual = feeExcess selection
-        selectionFeeExcessExpected = Coin.distance
-            (currentSelectionFee)
-            (computeMinimumFee constraints selection)
-
---------------------------------------------------------------------------------
--- Selection correctness: fee sufficiency
---------------------------------------------------------------------------------
-
-data SelectionFeeInsufficientError = SelectionFeeInsufficientError
-    { selectionFeeActual
-        :: Either NegativeCoin Coin
-    , selectionFeeMinimum
-        :: Coin
-    }
-    deriving (Eq, Show)
-
-checkFeeSufficient
-    :: TxConstraints size
-    -> Selection input size
-    -> Maybe SelectionFeeInsufficientError
-checkFeeSufficient constraints selection =
-    case computeCurrentFee selection of
-        Left nf ->
-            Just SelectionFeeInsufficientError
-                { selectionFeeActual = Left nf
-                , selectionFeeMinimum
-                }
-        Right pf | pf < selectionFeeMinimum ->
-            Just SelectionFeeInsufficientError
-                { selectionFeeActual = Right pf
-                , selectionFeeMinimum
-                }
-        Right _ ->
-            Nothing
-  where
-    selectionFeeMinimum = computeMinimumFee constraints selection
-
---------------------------------------------------------------------------------
--- Selection correctness: minimum ada quantities
---------------------------------------------------------------------------------
-
-data SelectionOutputBelowMinimumAdaQuantityError =
-    SelectionOutputBelowMinimumAdaQuantityError
-        { outputBundle :: TokenBundle
-          -- ^ The output that is below the expected minimum ada quantity.
-        , expectedMinimumAdaQuantity :: Coin
-          -- ^ The expected minimum ada quantity.
-        }
-    deriving (Eq, Show)
-
-checkOutputMinimumAdaQuantities
-    :: TxConstraints size
-    -> Selection input size
-    -> Maybe SelectionOutputBelowMinimumAdaQuantityError
-checkOutputMinimumAdaQuantities constraints selection =
-     maybesToMaybe $ checkOutput <$> outputs selection
-  where
-    checkOutput
-        :: TokenBundle
-        -> Maybe SelectionOutputBelowMinimumAdaQuantityError
-    checkOutput outputBundle
-        | TokenBundle.getCoin outputBundle >= expectedMinimumAdaQuantity =
-            Nothing
-        | otherwise =
-            Just SelectionOutputBelowMinimumAdaQuantityError
-                { outputBundle
-                , expectedMinimumAdaQuantity
-                }
-      where
-        expectedMinimumAdaQuantity =
-            txOutputMinimumAdaQuantity constraints (view #tokens outputBundle)
-
---------------------------------------------------------------------------------
--- Selection correctness: output sizes
---------------------------------------------------------------------------------
-
-newtype SelectionOutputSizeExceedsLimitError =
-    SelectionOutputSizeExceedsLimitError
-        { selectionOutput :: TokenBundle }
-    deriving (Eq, Show)
-
-checkOutputSizes
-    :: TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> Maybe SelectionOutputSizeExceedsLimitError
-checkOutputSizes constraints selection =
-     maybesToMaybe $ checkOutput <$> outputs selection
-  where
-    checkOutput
-        :: TokenBundle
-        -> Maybe SelectionOutputSizeExceedsLimitError
-    checkOutput selectionOutput
-        | txOutputHasValidSize constraints selectionOutput =
-            Nothing
-        | otherwise =
-            Just SelectionOutputSizeExceedsLimitError
-                { selectionOutput }
-
---------------------------------------------------------------------------------
--- Selection correctness: selection size (in comparison to the stored value)
---------------------------------------------------------------------------------
-
-data SelectionSizeIncorrectError size = SelectionSizeIncorrectError
-    { selectionSizeComputed :: size
-    , selectionSizeStored :: size
-    }
-    deriving (Eq, Show)
-
-checkSizeCorrectness
-    :: TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> Maybe (SelectionSizeIncorrectError size)
-checkSizeCorrectness constraints selection
-    | selectionSizeComputed == selectionSizeStored =
-        Nothing
-    | otherwise = pure SelectionSizeIncorrectError
-        { selectionSizeComputed
-        , selectionSizeStored
-        }
-  where
-    selectionSizeComputed = computeCurrentSize constraints selection
-    selectionSizeStored = size selection
-
---------------------------------------------------------------------------------
--- Selection correctness: selection size (in comparison to the limit)
---------------------------------------------------------------------------------
-
-data SelectionSizeExceedsLimitError size = SelectionSizeExceedsLimitError
-    { selectionSizeComputed :: size
-    , selectionSizeMaximum :: size
-    }
-    deriving (Eq, Show)
-
-checkSizeWithinLimit
-    :: TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> Maybe (SelectionSizeExceedsLimitError size)
-checkSizeWithinLimit constraints selection
-    | selectionSizeComputed <= selectionSizeMaximum =
-        Nothing
-    | otherwise = pure SelectionSizeExceedsLimitError
-        { selectionSizeComputed
-        , selectionSizeMaximum
-        }
-  where
-    selectionSizeComputed = computeCurrentSize constraints selection
-    selectionSizeMaximum = txMaximumSize constraints
-
---------------------------------------------------------------------------------
--- Computing bulk properties of selections
---------------------------------------------------------------------------------
-
--- | Calculates the current fee for a selection.
---
-computeCurrentFee :: Selection input size -> Either NegativeCoin Coin
-computeCurrentFee Selection {inputBalance, outputs, rewardWithdrawal}
-    | adaBalanceIn >= adaBalanceOut =
-        Right adaDifference
-    | otherwise =
-        Left (NegativeCoin adaDifference)
-  where
-    adaBalanceIn =
-        rewardWithdrawal <> view #coin inputBalance
-    adaBalanceOut =
-        F.foldMap (TokenBundle.getCoin) outputs
-    adaDifference =
-        Coin.distance adaBalanceIn adaBalanceOut
-
--- | Calculates the current size of a selection.
---
-computeCurrentSize
-    :: TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> size
-computeCurrentSize constraints selection = mconcat
-    [ txBaseSize constraints
-    , F.foldMap (const $ txInputSize constraints) (inputIds selection)
-    , F.foldMap (txOutputSize constraints) (outputs selection)
-    , txRewardWithdrawalSize constraints (rewardWithdrawal selection)
-    ]
-
--- | Calculates the minimum permissible fee for a selection.
---
-computeMinimumFee :: TxConstraints size -> Selection input size -> Coin
-computeMinimumFee constraints selection = mconcat
-    [ txBaseCost constraints
-    , F.foldMap (const $ txInputCost constraints) (inputIds selection)
-    , F.foldMap (txOutputCost constraints) (outputs selection)
-    , txRewardWithdrawalCost constraints (rewardWithdrawal selection)
-    ]
 
 --------------------------------------------------------------------------------
 -- Selection errors
@@ -921,6 +571,354 @@ minimizeFeeStep constraints =
             $ unCoin feeExcess
             - unCoin outputCoinFinalIncrease
             - unCoin outputCoinFinalCostIncrease
+
+--------------------------------------------------------------------------------
+-- Computing bulk properties of selections
+--------------------------------------------------------------------------------
+
+-- | Calculates the current fee for a selection.
+--
+computeCurrentFee :: Selection input size -> Either NegativeCoin Coin
+computeCurrentFee Selection {inputBalance, outputs, rewardWithdrawal}
+    | adaBalanceIn >= adaBalanceOut =
+        Right adaDifference
+    | otherwise =
+        Left (NegativeCoin adaDifference)
+  where
+    adaBalanceIn =
+        rewardWithdrawal <> view #coin inputBalance
+    adaBalanceOut =
+        F.foldMap (TokenBundle.getCoin) outputs
+    adaDifference =
+        Coin.distance adaBalanceIn adaBalanceOut
+
+-- | Calculates the current size of a selection.
+--
+computeCurrentSize
+    :: TxSize size
+    => TxConstraints size
+    -> Selection input size
+    -> size
+computeCurrentSize constraints selection = mconcat
+    [ txBaseSize constraints
+    , F.foldMap (const $ txInputSize constraints) (inputIds selection)
+    , F.foldMap (txOutputSize constraints) (outputs selection)
+    , txRewardWithdrawalSize constraints (rewardWithdrawal selection)
+    ]
+
+-- | Calculates the minimum permissible fee for a selection.
+--
+computeMinimumFee :: TxConstraints size -> Selection input size -> Coin
+computeMinimumFee constraints selection = mconcat
+    [ txBaseCost constraints
+    , F.foldMap (const $ txInputCost constraints) (inputIds selection)
+    , F.foldMap (txOutputCost constraints) (outputs selection)
+    , txRewardWithdrawalCost constraints (rewardWithdrawal selection)
+    ]
+
+--------------------------------------------------------------------------------
+-- Verifying selections for correctness
+--------------------------------------------------------------------------------
+
+-- | Indicates whether or not a selection is correct.
+--
+data SelectionCorrectness size
+    = SelectionCorrect
+    | SelectionIncorrect (SelectionCorrectnessError size)
+    deriving (Eq, Show)
+
+-- | Indicates that a selection is incorrect.
+--
+data SelectionCorrectnessError size
+    = SelectionAssetBalanceIncorrect
+      SelectionAssetBalanceIncorrectError
+    | SelectionFeeIncorrect
+      SelectionFeeIncorrectError
+    | SelectionFeeExcessIncorrect
+      SelectionFeeExcessIncorrectError
+    | SelectionFeeInsufficient
+      SelectionFeeInsufficientError
+    | SelectionOutputBelowMinimumAdaQuantity
+      SelectionOutputBelowMinimumAdaQuantityError
+    | SelectionOutputSizeExceedsLimit
+      SelectionOutputSizeExceedsLimitError
+    | SelectionSizeExceedsLimit
+     (SelectionSizeExceedsLimitError size)
+    | SelectionSizeIncorrect
+     (SelectionSizeIncorrectError size)
+    deriving (Eq, Show)
+
+-- | Verifies a selection for correctness.
+--
+-- This function is provided primarily as a convenience for testing. As such,
+-- it's not usually necessary to call this function from ordinary application
+-- code, unless you suspect that a selection value is incorrect in some way.
+--
+verify
+    :: forall input size. TxSize size
+    => TxConstraints size
+    -> Selection input size
+    -> SelectionCorrectness size
+verify constraints selection =
+    either SelectionIncorrect (const SelectionCorrect) verifyAll
+  where
+    verifyAll :: Either (SelectionCorrectnessError size) ()
+    verifyAll = do
+        checkAssetBalance selection
+            `failWith` SelectionAssetBalanceIncorrect
+        checkFee selection
+            `failWith` SelectionFeeIncorrect
+        checkFeeSufficient constraints selection
+            `failWith` SelectionFeeInsufficient
+        checkFeeExcess constraints selection
+            `failWith` SelectionFeeExcessIncorrect
+        checkOutputMinimumAdaQuantities constraints selection
+            `failWith` SelectionOutputBelowMinimumAdaQuantity
+        checkOutputSizes constraints selection
+            `failWith` SelectionOutputSizeExceedsLimit
+        checkSizeWithinLimit constraints selection
+            `failWith` SelectionSizeExceedsLimit
+        checkSizeCorrectness constraints selection
+            `failWith` SelectionSizeIncorrect
+
+    failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
+    onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
+
+--------------------------------------------------------------------------------
+-- Selection correctness: asset balance correctness
+--------------------------------------------------------------------------------
+
+data SelectionAssetBalanceIncorrectError = SelectionAssetBalanceIncorrectError
+    { assetBalanceInputs
+        :: TokenMap
+    , assetBalanceOutputs
+        :: TokenMap
+    }
+    deriving (Eq, Show)
+
+checkAssetBalance
+    :: Selection input size
+    -> Maybe SelectionAssetBalanceIncorrectError
+checkAssetBalance Selection {inputBalance, outputs}
+    | assetBalanceInputs == assetBalanceOutputs =
+        Nothing
+    | otherwise =
+        Just SelectionAssetBalanceIncorrectError
+            { assetBalanceInputs
+            , assetBalanceOutputs
+            }
+  where
+    assetBalanceInputs = view #tokens inputBalance
+    assetBalanceOutputs = F.foldMap (tokens) outputs
+
+--------------------------------------------------------------------------------
+-- Selection correctness: fee correctness
+--------------------------------------------------------------------------------
+
+data SelectionFeeIncorrectError = SelectionFeeIncorrectError
+    { selectionFeeComputed
+        :: Either NegativeCoin Coin
+    , selectionFeeStored
+        :: Coin
+    }
+    deriving (Eq, Show)
+
+checkFee :: Selection input size -> Maybe SelectionFeeIncorrectError
+checkFee selection =
+    case computeCurrentFee selection of
+      Left negativeFee ->
+          pure SelectionFeeIncorrectError
+              { selectionFeeComputed = Left negativeFee
+              , selectionFeeStored = fee selection
+              }
+      Right positiveFee | positiveFee /= fee selection ->
+          pure SelectionFeeIncorrectError
+              { selectionFeeComputed = Right positiveFee
+              , selectionFeeStored = fee selection
+              }
+      Right _ ->
+          Nothing
+
+--------------------------------------------------------------------------------
+-- Selection correctness: fee excess correctness
+--------------------------------------------------------------------------------
+
+data SelectionFeeExcessIncorrectError = SelectionFeeExcessIncorrectError
+    { selectionFeeExcessActual
+        :: Coin
+    , selectionFeeExcessExpected
+        :: Coin
+    }
+    deriving (Eq, Show)
+
+checkFeeExcess
+    :: TxConstraints size
+    -> Selection input size
+    -> Maybe SelectionFeeExcessIncorrectError
+checkFeeExcess constraints selection =
+    checkInner =<< eitherToMaybe (computeCurrentFee selection)
+  where
+    checkInner :: Coin -> Maybe SelectionFeeExcessIncorrectError
+    checkInner currentSelectionFee
+        | selectionFeeExcessExpected == selectionFeeExcessActual =
+            Nothing
+        | otherwise =
+            Just SelectionFeeExcessIncorrectError
+                { selectionFeeExcessActual
+                , selectionFeeExcessExpected
+                }
+      where
+        selectionFeeExcessActual = feeExcess selection
+        selectionFeeExcessExpected = Coin.distance
+            (currentSelectionFee)
+            (computeMinimumFee constraints selection)
+
+--------------------------------------------------------------------------------
+-- Selection correctness: fee sufficiency
+--------------------------------------------------------------------------------
+
+data SelectionFeeInsufficientError = SelectionFeeInsufficientError
+    { selectionFeeActual
+        :: Either NegativeCoin Coin
+    , selectionFeeMinimum
+        :: Coin
+    }
+    deriving (Eq, Show)
+
+checkFeeSufficient
+    :: TxConstraints size
+    -> Selection input size
+    -> Maybe SelectionFeeInsufficientError
+checkFeeSufficient constraints selection =
+    case computeCurrentFee selection of
+        Left nf ->
+            Just SelectionFeeInsufficientError
+                { selectionFeeActual = Left nf
+                , selectionFeeMinimum
+                }
+        Right pf | pf < selectionFeeMinimum ->
+            Just SelectionFeeInsufficientError
+                { selectionFeeActual = Right pf
+                , selectionFeeMinimum
+                }
+        Right _ ->
+            Nothing
+  where
+    selectionFeeMinimum = computeMinimumFee constraints selection
+
+--------------------------------------------------------------------------------
+-- Selection correctness: minimum ada quantities
+--------------------------------------------------------------------------------
+
+data SelectionOutputBelowMinimumAdaQuantityError =
+    SelectionOutputBelowMinimumAdaQuantityError
+        { outputBundle :: TokenBundle
+          -- ^ The output that is below the expected minimum ada quantity.
+        , expectedMinimumAdaQuantity :: Coin
+          -- ^ The expected minimum ada quantity.
+        }
+    deriving (Eq, Show)
+
+checkOutputMinimumAdaQuantities
+    :: TxConstraints size
+    -> Selection input size
+    -> Maybe SelectionOutputBelowMinimumAdaQuantityError
+checkOutputMinimumAdaQuantities constraints selection =
+     maybesToMaybe $ checkOutput <$> outputs selection
+  where
+    checkOutput
+        :: TokenBundle
+        -> Maybe SelectionOutputBelowMinimumAdaQuantityError
+    checkOutput outputBundle
+        | TokenBundle.getCoin outputBundle >= expectedMinimumAdaQuantity =
+            Nothing
+        | otherwise =
+            Just SelectionOutputBelowMinimumAdaQuantityError
+                { outputBundle
+                , expectedMinimumAdaQuantity
+                }
+      where
+        expectedMinimumAdaQuantity =
+            txOutputMinimumAdaQuantity constraints (view #tokens outputBundle)
+
+--------------------------------------------------------------------------------
+-- Selection correctness: output sizes
+--------------------------------------------------------------------------------
+
+newtype SelectionOutputSizeExceedsLimitError =
+    SelectionOutputSizeExceedsLimitError
+        { selectionOutput :: TokenBundle }
+    deriving (Eq, Show)
+
+checkOutputSizes
+    :: TxSize size
+    => TxConstraints size
+    -> Selection input size
+    -> Maybe SelectionOutputSizeExceedsLimitError
+checkOutputSizes constraints selection =
+     maybesToMaybe $ checkOutput <$> outputs selection
+  where
+    checkOutput
+        :: TokenBundle
+        -> Maybe SelectionOutputSizeExceedsLimitError
+    checkOutput selectionOutput
+        | txOutputHasValidSize constraints selectionOutput =
+            Nothing
+        | otherwise =
+            Just SelectionOutputSizeExceedsLimitError
+                { selectionOutput }
+
+--------------------------------------------------------------------------------
+-- Selection correctness: selection size (in comparison to the stored value)
+--------------------------------------------------------------------------------
+
+data SelectionSizeIncorrectError size = SelectionSizeIncorrectError
+    { selectionSizeComputed :: size
+    , selectionSizeStored :: size
+    }
+    deriving (Eq, Show)
+
+checkSizeCorrectness
+    :: TxSize size
+    => TxConstraints size
+    -> Selection input size
+    -> Maybe (SelectionSizeIncorrectError size)
+checkSizeCorrectness constraints selection
+    | selectionSizeComputed == selectionSizeStored =
+        Nothing
+    | otherwise = pure SelectionSizeIncorrectError
+        { selectionSizeComputed
+        , selectionSizeStored
+        }
+  where
+    selectionSizeComputed = computeCurrentSize constraints selection
+    selectionSizeStored = size selection
+
+--------------------------------------------------------------------------------
+-- Selection correctness: selection size (in comparison to the limit)
+--------------------------------------------------------------------------------
+
+data SelectionSizeExceedsLimitError size = SelectionSizeExceedsLimitError
+    { selectionSizeComputed :: size
+    , selectionSizeMaximum :: size
+    }
+    deriving (Eq, Show)
+
+checkSizeWithinLimit
+    :: TxSize size
+    => TxConstraints size
+    -> Selection input size
+    -> Maybe (SelectionSizeExceedsLimitError size)
+checkSizeWithinLimit constraints selection
+    | selectionSizeComputed <= selectionSizeMaximum =
+        Nothing
+    | otherwise = pure SelectionSizeExceedsLimitError
+        { selectionSizeComputed
+        , selectionSizeMaximum
+        }
+  where
+    selectionSizeComputed = computeCurrentSize constraints selection
+    selectionSizeMaximum = txMaximumSize constraints
 
 --------------------------------------------------------------------------------
 -- Miscellaneous types and functions
