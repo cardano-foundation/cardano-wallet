@@ -18,7 +18,6 @@
 --
 -- Use 'create' to create a selection with one or more inputs.
 -- Use 'extend' to extend a selection with an additional input.
--- Use 'verify' to verify the correctness of a selection.
 --
 module Cardano.Wallet.Primitive.Migration.Selection
     (
