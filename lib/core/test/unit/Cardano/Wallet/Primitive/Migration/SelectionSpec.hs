@@ -102,7 +102,6 @@ import Test.QuickCheck
     , vectorOf
     , withMaxSuccess
     , (.&&.)
-    , (===)
     )
 import Text.Pretty.Simple
     ( pShow )
@@ -181,9 +180,9 @@ prop_create_inner
     -> Property
 prop_create_inner mockConstraints inputs reward =
     checkCoverage $
-    cover 40 (resultIsSelection result)
+    cover 50 (resultIsSelection result)
         "Success" $
-    cover 10 (resultHasZeroFeeExcess result)
+    cover 50 (resultHasZeroFeeExcess result)
         "Success with zero fee excess" $
     cover 1 (resultHasInsufficientAda result)
         "Failure due to insufficient ada" $
@@ -196,8 +195,26 @@ prop_create_inner mockConstraints inputs reward =
             property True
         Left (SelectionFull e) ->
             property (selectionSizeMaximum e < selectionSizeRequired e)
-        Right selection ->
-            Selection.verify constraints selection === SelectionCorrect
+        Right selection -> makeReports $ testAll
+            $ verify
+                (correctness == SelectionCorrect)
+                "correctness == SelectionCorrect"
+            . verify
+                (Selection.balance constraints selection == Right selection)
+                "Rebalancing the selection leaves it unchanged"
+            . verify
+                (feeExcess selection == feeExcessExpected)
+                "feeExcess selection == feeExcessExpected"
+          where
+            makeReports
+                = report correctness
+                    "correctness"
+                . report feeExcessExpected
+                    "feeExcessExpected"
+            correctness =
+                Selection.verify constraints selection
+            (feeExcessExpected, _) =
+                minimizeFee constraints (feeExcess selection, outputs selection)
   where
     constraints = unMockTxConstraints mockConstraints
     result = create constraints reward inputs
@@ -262,7 +279,7 @@ prop_extend_inner
     -> MockSelection
     -> (MockInputId, TokenBundle)
     -> Property
-prop_extend_inner mockConstraints selection input =
+prop_extend_inner mockConstraints selectionOriginal input =
     checkCoverage $
     cover 40 (resultIsSelection result)
         "Success" $
@@ -279,11 +296,29 @@ prop_extend_inner mockConstraints selection input =
             property True
         Left (SelectionFull e) ->
             property (selectionSizeMaximum e < selectionSizeRequired e)
-        Right selectionExtended ->
-            Selection.verify constraints selectionExtended === SelectionCorrect
+        Right selection -> makeReports $ testAll
+            $ verify
+                (correctness == SelectionCorrect)
+                "correctness == SelectionCorrect"
+            . verify
+                (Selection.balance constraints selection == Right selection)
+                "Rebalancing the selection leaves it unchanged"
+            . verify
+                (feeExcess selection == feeExcessExpected)
+                "feeExcess selection == feeExcessExpected"
+          where
+            makeReports
+                = report correctness
+                    "correctness"
+                . report feeExcessExpected
+                    "feeExcessExpected"
+            correctness =
+                Selection.verify constraints selection
+            (feeExcessExpected, _) =
+                minimizeFee constraints (feeExcess selection, outputs selection)
   where
     constraints = unMockTxConstraints mockConstraints
-    result = extend constraints selection input
+    result = extend constraints selectionOriginal input
 
 --------------------------------------------------------------------------------
 -- Adding value to outputs

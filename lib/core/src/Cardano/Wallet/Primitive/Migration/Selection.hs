@@ -34,6 +34,9 @@ module Cardano.Wallet.Primitive.Migration.Selection
     -- * Extending selections
     , extend
 
+    -- * Balancing selections
+    , balance
+
     -- * Adding value to outputs
     , addValueToOutputs
 
