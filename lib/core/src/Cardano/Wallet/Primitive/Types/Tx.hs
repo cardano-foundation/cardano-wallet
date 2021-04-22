@@ -47,6 +47,16 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txOutMinTokenQuantity
     , txOutMaxTokenQuantity
 
+    -- * Constraints
+    , TxConstraints (..)
+    , txOutputCoinCost
+    , txOutputCoinSize
+    , txOutputCoinMinimum
+    , txOutputIsValid
+    , txOutputHasValidAdaQuantity
+    , txOutputHasValidSize
+    , txOutputHasValidTokenQuantities
+
     ) where
 
 import Prelude
@@ -506,3 +516,76 @@ txOutMinTokenQuantity = TokenQuantity 1
 --
 txOutMaxTokenQuantity :: TokenQuantity
 txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
+
+--------------------------------------------------------------------------------
+-- Constraints
+--------------------------------------------------------------------------------
+
+-- | Provides an abstract cost and size model for transactions.
+--
+-- This allows parts of a transaction to be costed (or sized) individually,
+-- without having to compute the cost (or size) of an entire transaction.
+--
+-- Note that the following functions assume one witness is required per input:
+--
+-- - 'txInputCost'
+-- - 'txInputSize'
+--
+-- This will lead to slight overestimation in the case of UTxOs that share the
+-- same payment key.
+--
+data TxConstraints s = TxConstraints
+    { txBaseCost :: Coin
+      -- ^ The constant cost of an empty transaction.
+    , txBaseSize :: s
+      -- ^ The constant size of an empty transaction.
+    , txInputCost :: Coin
+      -- ^ The constant cost of a transaction input, assuming one witness is
+      -- required per input.
+    , txInputSize :: s
+      -- ^ The constant size of a transaction input, assuming one witness is
+      -- required per input.
+    , txOutputCost :: TokenBundle -> Coin
+      -- ^ The variable cost of a transaction output.
+    , txOutputSize :: TokenBundle -> s
+      -- ^ The variable size of a transaction output.
+    , txOutputMaximumSize :: s
+      -- ^ The maximum size of a transaction output.
+    , txOutputMaximumTokenQuantity :: TokenQuantity
+      -- ^ The maximum token quantity that can appear in a transaction output.
+    , txOutputMinimumAdaQuantity :: TokenMap -> Coin
+      -- ^ The variable minimum ada quantity of a transaction output.
+    , txRewardWithdrawalCost :: Coin -> Coin
+      -- ^ The variable cost of a reward withdrawal.
+    , txRewardWithdrawalSize :: Coin -> s
+      -- ^ The variable size of a reward withdrawal.
+    , txMaximumSize :: s
+      -- ^ The maximum size of a transaction.
+    }
+
+txOutputCoinCost :: TxConstraints s -> Coin -> Coin
+txOutputCoinCost constraints = txOutputCost constraints . TokenBundle.fromCoin
+
+txOutputCoinSize :: TxConstraints s -> Coin -> s
+txOutputCoinSize constraints = txOutputSize constraints . TokenBundle.fromCoin
+
+txOutputCoinMinimum :: TxConstraints s -> Coin
+txOutputCoinMinimum constraints = txOutputMinimumAdaQuantity constraints mempty
+
+txOutputIsValid :: Ord s => TxConstraints s -> TokenBundle -> Bool
+txOutputIsValid constraints b =
+    constraints `txOutputHasValidAdaQuantity` b
+    && constraints `txOutputHasValidSize` b
+    && constraints `txOutputHasValidTokenQuantities` (view #tokens b)
+
+txOutputHasValidAdaQuantity :: TxConstraints s -> TokenBundle -> Bool
+txOutputHasValidAdaQuantity constraints (TokenBundle c m) =
+    c >= txOutputMinimumAdaQuantity constraints m
+
+txOutputHasValidSize :: Ord s => TxConstraints s -> TokenBundle -> Bool
+txOutputHasValidSize constraints b =
+    txOutputSize constraints b <= txOutputMaximumSize constraints
+
+txOutputHasValidTokenQuantities :: TxConstraints s -> TokenMap -> Bool
+txOutputHasValidTokenQuantities constraints m =
+    TokenMap.maximumQuantity m <= txOutputMaximumTokenQuantity constraints

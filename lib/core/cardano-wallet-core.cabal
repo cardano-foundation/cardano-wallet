@@ -83,6 +83,7 @@ library
     , persistent
     , persistent-sqlite
     , persistent-template
+    , pretty-simple
     , profunctors
     , quiet
     , random
@@ -175,6 +176,9 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery.SharedState
       Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+      Cardano.Wallet.Primitive.Migration
+      Cardano.Wallet.Primitive.Migration.Planning
+      Cardano.Wallet.Primitive.Migration.Selection
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Primitive.Types.Address
@@ -284,6 +288,7 @@ test-suite unit
     , network
     , network-uri
     , persistent
+    , pretty-simple
     , regex-pcre-builtin
     , OddWord
     , ouroboros-consensus
@@ -357,6 +362,9 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscovery.SharedStateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
+      Cardano.Wallet.Primitive.MigrationSpec
+      Cardano.Wallet.Primitive.Migration.PlanningSpec
+      Cardano.Wallet.Primitive.Migration.SelectionSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.Slotting.Legacy
       Cardano.Wallet.Primitive.SlottingSpec

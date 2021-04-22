@@ -223,7 +223,7 @@ data SelectionResult change = SelectionResult
         -- ^ An optional extra source of ada.
     , outputsCovered
         :: ![TxOut]
-        -- ^ A list of ouputs covered.
+        -- ^ A list of outputs covered.
         -- FIXME: Left as a list to allow to work-around the limitation of
         -- 'performSelection' which cannot run for no output targets (e.g. in
         -- the context of a delegation transaction). This allows callers to
