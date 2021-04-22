@@ -38,10 +38,6 @@ jobs:
         choco install unzip
         choco install nssm
 
-    - name: Set PATH 
-      run: |
-        echo $GITHUB_WORKSPACE/bins >> $GITHUB_PATH
-
     - name: Run all tests
       run: rake run_on[testnet]
 

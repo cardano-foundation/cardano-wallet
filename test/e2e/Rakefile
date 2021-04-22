@@ -20,6 +20,9 @@ FIXTURES_SECRET = absolute_path ENV['TESTS_E2E_FIXTURES']
 
 TOKEN_METADATA = ENV['TESTS_E2E_TOKEN_METADATA']
 
+path_separator = is_win? ? ';' : ':'
+ENV['PATH'] = "#{BINS}#{path_separator}#{ENV['PATH']}"
+
 task :default => :spec
 
 task :fixture_wallets_encode do
@@ -101,13 +104,12 @@ task :wait_until_node_synced do
 end
 
 ##
-# `rake start_node_and_wallet[testnet,local]' assumes cardano-node and cardano-wallet on $PATH
 # `rake start_node_and_wallet[testnet]' assumes cardano-node and cardano-wallet in $TESTS_E2E_BINDIR
 task :start_node_and_wallet, [:env, :installation] do |task, args|
   puts "\n  >> Setting up cardano-node and cardano-wallet"
 
   installation = args[:installation] || :bins
-  bin_dir = installation == "local" ? "" : (BINS.empty? ? "" : BINS + "/")
+  bin_dir = BINS
   config_dir = File.join(CONFIGS, args[:env])
   cd = Dir.pwd
   mk_dir(STATE)

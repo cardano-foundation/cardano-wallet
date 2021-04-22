@@ -12,14 +12,11 @@ module Helpers
     end
 
     def cardano_address_get_acc_xpub(mnemonics, derivation_path)
-      bins = absolute_path ENV['TESTS_E2E_BINDIR']
-      bins = (bins == '' ? bins : "#{bins}/")
-      bins = '' if is_win?
       cmd(%(echo #{mnemonics.join(' ')} \
-         | #{bins}cardano-address key from-recovery-phrase Shelley \
-         | #{bins}cardano-address key child #{derivation_path} \
-         | #{bins}cardano-address key public --with-chain-code \
-         | #{bins}bech32)).gsub("\n", '')
+         | cardano-address key from-recovery-phrase Shelley \
+         | cardano-address key child #{derivation_path} \
+         | cardano-address key public --with-chain-code \
+         | bech32)).gsub("\n", '')
     end
 
     def absolute_path(path)
