@@ -508,10 +508,18 @@ txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
 -- Constraints
 --------------------------------------------------------------------------------
 
--- | Provides an abstract cost model for transactions.
+-- | Provides an abstract cost and size model for transactions.
 --
--- This allows parts of a transaction to be costed individually, without
--- having to compute the cost of an entire transaction.
+-- This allows parts of a transaction to be costed (or sized) individually,
+-- without having to compute the cost (or size) of an entire transaction.
+--
+-- Note that the following functions assume one witness is required per input:
+--
+-- - 'txInputCost'
+-- - 'txInputSize'
+--
+-- This will lead to slight overestimation in the case of UTxOs that share the
+-- same payment key.
 --
 data TxConstraints s = TxConstraints
     { txBaseCost :: Coin
@@ -519,9 +527,11 @@ data TxConstraints s = TxConstraints
     , txBaseSize :: s
       -- ^ The constant size of an empty transaction.
     , txInputCost :: Coin
-      -- ^ The constant cost of a transation input.
+      -- ^ The constant cost of a transaction input, assuming one witness is
+      -- required per input.
     , txInputSize :: s
-      -- ^ The constant size of a transaction input.
+      -- ^ The constant size of a transaction input, assuming one witness is
+      -- required per input.
     , txOutputCost :: TokenBundle -> Coin
       -- ^ The variable cost of a transaction output.
     , txOutputSize :: TokenBundle -> s
