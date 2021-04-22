@@ -124,7 +124,7 @@ createSelection
     -> Maybe (CategorizedUTxO input, Selection input size)
 createSelection constraints utxo rewardWithdrawal =
     initializeSelection constraints utxo rewardWithdrawal
-    <&> extendSelection constraints
+    <&> extendSelectionUntilFull constraints
 
 -- | Initializes a selection with a single entry.
 --
@@ -155,12 +155,12 @@ initializeSelection constraints utxoAtStart reward =
 -- for themselves. A "supporter" entry is only added to the selection if there
 -- is not enough ada to pay for a "freerider" entry.
 --
-extendSelection
+extendSelectionUntilFull
     :: TxSize size
     => TxConstraints size
     -> (CategorizedUTxO input, Selection input size)
     -> (CategorizedUTxO input, Selection input size)
-extendSelection constraints = extendWithFreerider
+extendSelectionUntilFull constraints = extendWithFreerider
   where
     extendWithFreerider (!utxo, !selection) =
         case extendWith Freerider constraints (utxo, selection) of
