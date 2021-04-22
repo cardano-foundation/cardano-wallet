@@ -15,23 +15,22 @@ RSpec.describe CardanoWallet::Shared do
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1852H/1815H/#{acc_ix}")
 
-        script_template = %({ "cosigners":
-                              { "cosigner#0": "#{acc_xpub}" },
-                            "template":
-                                { "all":
+        script_template = { "cosigners" =>
+                              { "cosigner#0" => acc_xpub },
+                            "template" =>
+                                { "all" =>
                                    [ "cosigner#0",
-                                     { "active_from": 120 }
+                                     { "active_from" => 120 }
                                    ]
                                 }
-                            })
-        script = JSON.parse(script_template)
+                            }
 
         payload = { mnemonic_sentence: m24,
                     passphrase: PASS,
                     name: "Shared wallet",
                     account_index: acc_ix,
-                    payment_script_template: script,
-                    delegation_script_template: script,
+                    payment_script_template: script_template,
+                    delegation_script_template: script_template,
                     }
 
         wallet = w.create(payload)
@@ -51,33 +50,31 @@ RSpec.describe CardanoWallet::Shared do
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1852H/1815H/#{acc_ix}")
 
-        payment_script_template = %({ "cosigners":
-                                          { "cosigner#0": "#{acc_xpub}" },
-                                        "template":
-                                            { "all":
+        payment_script_template = { "cosigners" =>
+                                          { "cosigner#0" => acc_xpub },
+                                        "template" =>
+                                            { "all" =>
                                                [ "cosigner#0",
-                                                 { "active_from": 120 }
+                                                 { "active_from" => 120 }
                                                ]
                                             }
-                                        })
+                                    }
 
-        delegation_script_template = %({ "cosigners":
-                                          { "cosigner#0": "#{acc_xpub}" },
-                                        "template":
-                                            { "all":
-                                               [ "cosigner#0",
-                                                 "cosigner#1"
+        delegation_script_template = { 'cosigners' =>
+                                            { 'cosigner#0' => acc_xpub },
+                                        'template' =>
+                                            { 'all' =>
+                                               [ 'cosigner#0',
+                                                 'cosigner#1'
                                                ]
                                             }
-                                        })
-        pscript = JSON.parse(payment_script_template)
-        dscript = JSON.parse(delegation_script_template)
+                                      }
         payload = { account_public_key: acc_xpub,
                     passphrase: PASS,
                     name: "Shared wallet",
                     account_index: acc_ix,
-                    payment_script_template: pscript,
-                    payment_script_template: dscript,
+                    payment_script_template: payment_script_template,
+                    payment_script_template: delegation_script_template,
                     }
 
         wallet = w.create(payload)
@@ -98,32 +95,30 @@ RSpec.describe CardanoWallet::Shared do
         acc_xpub_wrong = cardano_address_get_acc_xpub(mnemonic_sentence(24),
                                                               "1852H/1815H/0H")
 
-        payment_script_template = %({ "cosigners":
-                                          { "cosigner#0": "#{acc_xpub_wrong}" },
-                                        "template":
-                                            { "all":
+        payment_script_template = { "cosigners" =>
+                                          { "cosigner#0" => acc_xpub_wrong },
+                                        "template" =>
+                                            { "all" =>
                                                [ "cosigner#0"
                                                ]
                                             }
-                                        })
+                                    }
 
-        delegation_script_template = %({ "cosigners":
-                                          { "cosigner#0": "#{acc_xpub_wrong}" },
-                                        "template":
-                                            { "all":
+        delegation_script_template = { "cosigners" =>
+                                          { "cosigner#0" => acc_xpub_wrong },
+                                        "template" =>
+                                            { "all" =>
                                                [ "cosigner#0",
                                                  "cosigner#1"
                                                ]
                                             }
-                                        })
-        pscript = JSON.parse(payment_script_template)
-        dscript = JSON.parse(delegation_script_template)
+                                      }
         payload = { mnemonic_sentence: m24,
                     passphrase: PASS,
                     name: "Shared wallet",
                     account_index: acc_ix,
-                    payment_script_template: pscript,
-                    payment_script_template: dscript,
+                    payment_script_template: payment_script_template,
+                    payment_script_template: delegation_script_template,
                     }
 
         wallet = w.create(payload)
@@ -138,32 +133,30 @@ RSpec.describe CardanoWallet::Shared do
         acc_ix = '0H'
         acc_xpub_wrong = cardano_address_get_acc_xpub(m24, "1852H/1815H/255H")
 
-        payment_script_template = %({ "cosigners":
-                                          { "cosigner#0": "#{acc_xpub_wrong}" },
-                                        "template":
-                                            { "all":
+        payment_script_template = { "cosigners" =>
+                                          { "cosigner#0" => acc_xpub_wrong },
+                                        "template" =>
+                                            { "all" =>
                                                [ "cosigner#0"
                                                ]
                                             }
-                                        })
+                                    }
 
-        delegation_script_template = %({ "cosigners":
-                                          { "cosigner#0": "#{acc_xpub_wrong}" },
-                                        "template":
-                                            { "all":
+        delegation_script_template = { "cosigners" =>
+                                          { "cosigner#0" => acc_xpub_wrong },
+                                        "template" =>
+                                            { "all" =>
                                                [ "cosigner#0",
                                                  "cosigner#1"
                                                ]
                                             }
-                                        })
-        pscript = JSON.parse(payment_script_template)
-        dscript = JSON.parse(delegation_script_template)
+                                      }
         payload = { mnemonic_sentence: m24,
                     passphrase: PASS,
                     name: "Shared wallet",
                     account_index: acc_ix,
-                    payment_script_template: pscript,
-                    payment_script_template: dscript,
+                    payment_script_template: payment_script_template,
+                    payment_script_template: delegation_script_template,
                     }
 
         wallet = w.create(payload)
