@@ -5,8 +5,18 @@ require 'fileutils'
 module Helpers
   module Utils
     def cmd(cmd)
-      puts cmd
-      puts `#{cmd}`
+      puts cmd.gsub(/\s+/, ' ')
+      res = `#{cmd}`
+      puts res
+      res
+    end
+
+    def cardano_address_get_acc_xpub(mnemonics, derivation_path)
+      cmd(%(echo #{mnemonics.join(' ')} \
+         | cardano-address key from-recovery-phrase Shelley \
+         | cardano-address key child #{derivation_path} \
+         | cardano-address key public --with-chain-code \
+         | bech32)).gsub("\n", '')
     end
 
     def absolute_path(path)

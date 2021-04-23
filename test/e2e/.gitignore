@@ -18,6 +18,7 @@
 /cardano-wallet-*/
 /binaryDist/
 *binary-dist*
+*.prv
 
 # rake
 /.rakeTasks/
