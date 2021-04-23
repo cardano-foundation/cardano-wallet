@@ -64,6 +64,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
+import NoThunks.Class
+    ( NoThunks (..) )
 
 import qualified Data.Text as T
 
@@ -94,6 +96,9 @@ import qualified Data.Text as T
 newtype Quantity (unit :: Symbol) a = Quantity { getQuantity :: a }
     deriving stock (Generic, Show, Eq, Ord)
     deriving newtype (Bounded, Enum, Hashable)
+
+
+instance NoThunks a => NoThunks (Quantity unit a)
 
 instance Functor (Quantity any) where
     fmap f (Quantity a) = Quantity (f a)
@@ -141,6 +146,8 @@ instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
 newtype Percentage = Percentage
     { getPercentage :: Rational }
     deriving stock (Generic, Show, Eq, Ord)
+
+instance NoThunks Percentage
 
 instance NFData Percentage
 
