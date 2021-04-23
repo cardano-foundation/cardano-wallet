@@ -41,6 +41,8 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import NoThunks.Class
+    ( NoThunks (..) )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), diffRelTime )
 
@@ -49,6 +51,8 @@ data SyncProgress
     | Syncing !(Quantity "percent" Percentage)
     | NotResponding
     deriving (Generic, Eq, Show)
+
+instance NoThunks SyncProgress
 
 instance NFData SyncProgress
 

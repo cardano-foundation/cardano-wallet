@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -31,6 +32,12 @@ module Cardano.Wallet.Network
 
     -- * Logging
     , FollowLog (..)
+
+    -- * Logging (for testing)
+    , FollowStats (..)
+    , LogState (..)
+    , emptyStats
+    , updateStats
 
     -- * Initialization
     , defaultRetryPolicy
@@ -61,8 +68,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx )
-import Control.DeepSeq
-    ( NFData, force )
 import Control.Monad
     ( when )
 import Control.Monad.Class.MonadSTM
@@ -91,6 +96,8 @@ import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
+import NoThunks.Class
+    ( AllowThunksIn (..), NoThunks (..) )
 import Safe
     ( lastMay )
 import UnliftIO.Async
@@ -453,7 +460,7 @@ data FollowLog msg
     | MsgDidRollback SlotNo SlotNo
     | MsgFailedRollingBack Text -- Reason
     | MsgWillIgnoreRollback SlotNo Text -- Reason
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
 
 instance ToText msg => ToText (FollowLog msg) where
     toText = \case
@@ -523,18 +530,23 @@ instance HasSeverityAnnotation msg => HasSeverityAnnotation (FollowLog msg) wher
 -- The @f@ allows us to use @LogState@ to keep track of both current and
 -- previously logged stats, and perform operations over it in a nice way.
 data FollowStats f = FollowStats
-    { blocksApplied :: f Int
-    , rollbacks :: f Int
-    , tip :: f SlotNo
-    , time :: f UTCTime
+    { blocksApplied :: !(f Int)
+    , rollbacks :: !(f Int)
+    , tip :: !(f SlotNo)
+    , time :: !(f UTCTime)
       -- ^ NOTE: Current time is not updated until @flush@ is called.
-    , prog :: f SyncProgress
+    , prog :: !(f SyncProgress)
       -- ^ NOTE: prog is not updated until @flush@ is called.
     } deriving (Generic)
 
+-- It seems UTCTime contains thunks internally. This shouldn't matter as we
+-- 1. Change it seldom - from @flush@, not from @updateStats@
+-- 2. Set to a completely new value when we do change it.
+deriving via (AllowThunksIn '["time"] (FollowStats LogState))
+    instance (NoThunks (FollowStats LogState))
+
 deriving instance Show (FollowStats LogState)
 deriving instance Eq (FollowStats LogState)
-deriving instance NFData (FollowStats LogState)
 
 -- | Change the @f@ wrapping each record field.
 hoistStats
@@ -556,11 +568,9 @@ hoistStats f FollowStats{blocksApplied,rollbacks,tip,time,prog} = FollowStats
 -- 2. Sometimes log the difference between the @current@ state and the most
 -- recently logged one.
 data LogState a = LogState
-    { prev :: a -- ^ Most previously logged state
-    , current :: a -- ^ Not-yet logged state
-    } deriving (Eq, Show, Functor, Generic)
-
-deriving instance NFData a => NFData (LogState a)
+    { prev :: !a -- ^ Most previously logged state
+    , current :: !a -- ^ Not-yet logged state
+    } deriving (Eq, Show, Functor, Generic, NoThunks)
 
 initLogState :: a -> LogState a
 initLogState a = LogState a a
@@ -598,7 +608,7 @@ emptyStats t = FollowStats (f 0) (f 0) (f $ SlotNo 0) (f t) (f prog)
 
 -- | Update the stats based on a new log message.
 updateStats :: FollowLog msg -> FollowStats LogState -> FollowStats LogState
-updateStats msg s = force $ case msg of
+updateStats msg s = case msg of
     MsgApplyBlocks _tip blocks ->
         s { blocksApplied = overCurrent (+ NE.length blocks) (blocksApplied s) }
     MsgDidRollback _ _ ->
