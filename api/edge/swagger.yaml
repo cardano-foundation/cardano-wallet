@@ -5137,7 +5137,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Create
       description: |
-        <p align="right">status: <strong>stable</strong></p>
+        <p align="right">status: <strong>⚠ under development</strong></p>
 
         Create a shared wallet from an account public key, its index and script templates.
       requestBody:
@@ -5153,7 +5153,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Get
       description: |
-        <p align="right">status: <strong>stable</strong></p>
+        <p align="right">status: <strong>⚠ under development</strong></p>
       parameters:
         - *parametersWalletId
       responses: *responsesGetSharedWallet
@@ -5174,7 +5174,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Update Payment
       description: |
-        <p align="right">status: <strong>stable</strong></p>
+        <p align="right">status: <strong>⚠ under development</strong></p>
       parameters:
         - *parametersWalletId
       requestBody:
@@ -5190,7 +5190,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Update Delegation
       description: |
-        <p align="right">status: <strong>stable</strong></p>
+        <p align="right">status: <strong>⚠ under development</strong></p>
       parameters:
         - *parametersWalletId
       requestBody:
