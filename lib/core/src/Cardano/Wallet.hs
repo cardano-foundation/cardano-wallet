@@ -1378,7 +1378,9 @@ calcMinimumCoinValues
     -> IO (f Coin)
 calcMinimumCoinValues ctx outs = do
     pp <- currentProtocolParameters nl
-    pure $ calcMinimumCoinValue tl pp . view (#tokens . #tokens) <$> outs
+    pure
+        $ view #txOutputMinimumAdaQuantity (constraints tl pp)
+        . view (#tokens . #tokens) <$> outs
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
@@ -1407,7 +1409,7 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
         initSelectionCriteria tl pp tx utxo outs
     sel <- performSelection
-        (calcMinimumCoinValue tl pp)
+        (view #txOutputMinimumAdaQuantity $ constraints tl pp)
         (calcMinimumCost tl pp tx)
         (tokenBundleSizeAssessor tl)
         (selectionCriteria)

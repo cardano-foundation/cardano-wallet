@@ -146,6 +146,7 @@ data TransactionLayer k = TransactionLayer
         -> Either ErrDecodeSignedTx (Tx, SealedTx)
         -- ^ Decode an externally-signed transaction to the chain producer
     }
+    deriving Generic
 
 -- | Some additional context about a transaction. This typically contains
 -- details that are known upfront about the transaction and are used to

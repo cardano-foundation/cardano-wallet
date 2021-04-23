@@ -566,6 +566,7 @@ data TxConstraints = TxConstraints
     , txMaximumSize :: TxSize
       -- ^ The maximum size of a transaction.
     }
+    deriving Generic
 
 txOutputCoinCost :: TxConstraints -> Coin -> Coin
 txOutputCoinCost constraints = txOutputCost constraints . TokenBundle.fromCoin
