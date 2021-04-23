@@ -26,7 +26,6 @@ module Cardano.Wallet.Primitive.Migration.Selection
     , SelectionError (..)
     , SelectionFullError (..)
     , RewardWithdrawal (..)
-    , TxSize (..)
 
     -- * Creating selections
     , create
@@ -65,6 +64,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..)
+    , TxSize
     , txOutputCoinCost
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
@@ -104,7 +104,7 @@ import qualified Data.Set as Set
 -- Use 'extend' to extend a selection with an additional input.
 -- Use 'verify' to verify the correctness of a selection.
 --
-data Selection input size = Selection
+data Selection input = Selection
     { inputIds :: !(NonEmpty input)
       -- ^ The selected inputs.
     , inputBalance :: !TokenBundle
@@ -115,7 +115,7 @@ data Selection input size = Selection
       -- ^ The actual fee payable for this selection.
     , feeExcess :: !Coin
       -- ^ The excess over the minimum permissible fee for this selection.
-    , size :: !size
+    , size :: !TxSize
       -- ^ The size of this selection.
     , rewardWithdrawal :: !Coin
       -- ^ The reward withdrawal amount, if any.
@@ -132,19 +132,19 @@ newtype RewardWithdrawal = RewardWithdrawal
 
 -- | Indicates a failure to create or extend a selection.
 --
-data SelectionError size
+data SelectionError
     = SelectionAdaInsufficient
     -- ^ Indicates that the desired selection would not have enough ada to pay
     -- for the minimum permissible fee.
     | SelectionFull
     -- ^ Indicates that the desired selection would exceed the maximum
     -- selection size.
-     (SelectionFullError size)
+      SelectionFullError
     deriving (Eq, Show)
 
-data SelectionFullError size = SelectionFullError
-    { selectionSizeMaximum :: size
-    , selectionSizeRequired :: size
+data SelectionFullError = SelectionFullError
+    { selectionSizeMaximum :: TxSize
+    , selectionSizeRequired :: TxSize
     }
     deriving (Eq, Show)
 
@@ -165,11 +165,10 @@ data SelectionFullError size = SelectionFullError
 -- selection size.
 --
 create
-    :: forall input size. TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> RewardWithdrawal
     -> NonEmpty (input, TokenBundle)
-    -> Either (SelectionError size) (Selection input size)
+    -> Either SelectionError (Selection input)
 create constraints reward inputs =
     balance constraints $ Selection
         { inputBalance = F.foldMap snd inputs
@@ -204,11 +203,10 @@ create constraints reward inputs =
 -- selection size.
 --
 extend
-    :: forall input size. TxSize size
-    => TxConstraints size
-    -> Selection input size
+    :: TxConstraints
+    -> Selection input
     -> (input, TokenBundle)
-    -> Either (SelectionError size) (Selection input size)
+    -> Either SelectionError (Selection input)
 extend constraints selection (inputId, inputBundle) =
     balance constraints $ Selection
         { inputBalance = inputBundle <> inputBalance selection
@@ -237,10 +235,9 @@ extend constraints selection (inputId, inputBundle) =
 -- >>> verify s == SelectionCorrect
 --
 balance
-    :: forall input size. TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> Either (SelectionError size) (Selection input size)
+    :: TxConstraints
+    -> Selection input
+    -> Either SelectionError (Selection input)
 balance constraints unbalancedSelection = do
     let minimizedOutputs = outputs unbalancedSelection
     unbalancedFee <- first (const SelectionAdaInsufficient) $
@@ -270,7 +267,7 @@ balance constraints unbalancedSelection = do
     totalCoinCost :: NonEmpty TokenBundle -> Coin
     totalCoinCost = F.foldMap (txOutputCoinCost constraints . view #coin)
 
-assignMinimumAdaQuantity :: TxConstraints size -> TokenMap -> TokenBundle
+assignMinimumAdaQuantity :: TxConstraints -> TokenMap -> TokenBundle
 assignMinimumAdaQuantity constraints m =
     TokenBundle c m
   where
@@ -299,8 +296,7 @@ assignMinimumAdaQuantity constraints m =
 -- output maps in the returned list will also be within the output size limit.
 --
 addValueToOutputs
-    :: TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> [TokenMap]
     -- ^ Outputs
     -> TokenMap
@@ -377,8 +373,7 @@ addValueToOutputs constraints outputsOriginal outputUnchecked =
 -- | Splits up an output map into smaller maps if it exceeds any of the limits.
 --
 splitOutputIfLimitsExceeded
-    :: TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> TokenMap
     -> NonEmpty TokenMap
 splitOutputIfLimitsExceeded constraints =
@@ -388,8 +383,7 @@ splitOutputIfLimitsExceeded constraints =
 -- | Splits up an output map if it exceeds the serialized size limit.
 --
 splitOutputIfSizeExceedsLimit
-    :: TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> TokenMap
     -> NonEmpty TokenMap
 splitOutputIfSizeExceedsLimit constraints value
@@ -405,7 +399,7 @@ splitOutputIfSizeExceedsLimit constraints value
 -- | Splits up an output map if any individual token quantity exceeds the limit.
 --
 splitOutputIfTokenQuantityExceedsLimit
-    :: TxConstraints size
+    :: TxConstraints
     -> TokenMap
     -> NonEmpty TokenMap
 splitOutputIfTokenQuantityExceedsLimit
@@ -419,8 +413,7 @@ splitOutputIfTokenQuantityExceedsLimit
 -- that it has complete freedom to adjust the ada quantities of those outputs,
 -- without exceeding the output size limit.
 --
-txOutputHasValidSizeIfAdaMaximized
-    :: TxSize size => TxConstraints size -> TokenMap -> Bool
+txOutputHasValidSizeIfAdaMaximized :: TxConstraints -> TokenMap -> Bool
 txOutputHasValidSizeIfAdaMaximized constraints output =
     txOutputHasValidSize constraints (TokenBundle maxBound output)
 
@@ -503,7 +496,7 @@ txOutputHasValidSizeIfAdaMaximized constraints output =
 --    >>> s = 11
 --
 minimizeFee
-    :: TxConstraints size
+    :: TxConstraints
     -> (Coin, NonEmpty TokenBundle)
     -- ^ Fee excess and output bundles.
     -> (Coin, NonEmpty TokenBundle)
@@ -541,7 +534,7 @@ minimizeFee constraints (currentFeeExcess, outputs) =
 -- Returns the minimized fee excess and the modified output.
 --
 minimizeFeeStep
-    :: TxConstraints size
+    :: TxConstraints
     -> (Coin, TokenBundle)
     -- ^ Fee excess and output bundle.
     -> (Coin, TokenBundle)
@@ -581,7 +574,7 @@ minimizeFeeStep constraints =
 
 -- | Calculates the current fee for a selection.
 --
-computeCurrentFee :: Selection input size -> Either NegativeCoin Coin
+computeCurrentFee :: Selection input -> Either NegativeCoin Coin
 computeCurrentFee Selection {inputBalance, outputs, rewardWithdrawal}
     | adaBalanceIn >= adaBalanceOut =
         Right adaDifference
@@ -598,10 +591,9 @@ computeCurrentFee Selection {inputBalance, outputs, rewardWithdrawal}
 -- | Calculates the current size of a selection.
 --
 computeCurrentSize
-    :: TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> size
+    :: TxConstraints
+    -> Selection input
+    -> TxSize
 computeCurrentSize constraints selection = mconcat
     [ txBaseSize constraints
     , F.foldMap (const $ txInputSize constraints) (inputIds selection)
@@ -611,7 +603,7 @@ computeCurrentSize constraints selection = mconcat
 
 -- | Calculates the minimum permissible fee for a selection.
 --
-computeMinimumFee :: TxConstraints size -> Selection input size -> Coin
+computeMinimumFee :: TxConstraints -> Selection input -> Coin
 computeMinimumFee constraints selection = mconcat
     [ txBaseCost constraints
     , F.foldMap (const $ txInputCost constraints) (inputIds selection)
@@ -625,14 +617,14 @@ computeMinimumFee constraints selection = mconcat
 
 -- | Indicates whether or not a selection is correct.
 --
-data SelectionCorrectness size
+data SelectionCorrectness
     = SelectionCorrect
-    | SelectionIncorrect (SelectionCorrectnessError size)
+    | SelectionIncorrect SelectionCorrectnessError
     deriving (Eq, Show)
 
 -- | Indicates that a selection is incorrect.
 --
-data SelectionCorrectnessError size
+data SelectionCorrectnessError
     = SelectionAssetBalanceIncorrect
       SelectionAssetBalanceIncorrectError
     | SelectionFeeIncorrect
@@ -646,9 +638,9 @@ data SelectionCorrectnessError size
     | SelectionOutputSizeExceedsLimit
       SelectionOutputSizeExceedsLimitError
     | SelectionSizeExceedsLimit
-     (SelectionSizeExceedsLimitError size)
+      SelectionSizeExceedsLimitError
     | SelectionSizeIncorrect
-     (SelectionSizeIncorrectError size)
+      SelectionSizeIncorrectError
     deriving (Eq, Show)
 
 -- | Verifies a selection for correctness.
@@ -658,14 +650,13 @@ data SelectionCorrectnessError size
 -- code, unless you suspect that a selection value is incorrect in some way.
 --
 verify
-    :: forall input size. TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> SelectionCorrectness size
+    :: TxConstraints
+    -> Selection input
+    -> SelectionCorrectness
 verify constraints selection =
     either SelectionIncorrect (const SelectionCorrect) verifyAll
   where
-    verifyAll :: Either (SelectionCorrectnessError size) ()
+    verifyAll :: Either SelectionCorrectnessError ()
     verifyAll = do
         checkAssetBalance selection
             `failWith` SelectionAssetBalanceIncorrect
@@ -700,7 +691,7 @@ data SelectionAssetBalanceIncorrectError = SelectionAssetBalanceIncorrectError
     deriving (Eq, Show)
 
 checkAssetBalance
-    :: Selection input size
+    :: Selection input
     -> Maybe SelectionAssetBalanceIncorrectError
 checkAssetBalance Selection {inputBalance, outputs}
     | assetBalanceInputs == assetBalanceOutputs =
@@ -726,7 +717,7 @@ data SelectionFeeIncorrectError = SelectionFeeIncorrectError
     }
     deriving (Eq, Show)
 
-checkFee :: Selection input size -> Maybe SelectionFeeIncorrectError
+checkFee :: Selection input -> Maybe SelectionFeeIncorrectError
 checkFee selection =
     case computeCurrentFee selection of
       Left negativeFee ->
@@ -755,8 +746,8 @@ data SelectionFeeExcessIncorrectError = SelectionFeeExcessIncorrectError
     deriving (Eq, Show)
 
 checkFeeExcess
-    :: TxConstraints size
-    -> Selection input size
+    :: TxConstraints
+    -> Selection input
     -> Maybe SelectionFeeExcessIncorrectError
 checkFeeExcess constraints selection =
     checkInner =<< eitherToMaybe (computeCurrentFee selection)
@@ -789,8 +780,8 @@ data SelectionFeeInsufficientError = SelectionFeeInsufficientError
     deriving (Eq, Show)
 
 checkFeeSufficient
-    :: TxConstraints size
-    -> Selection input size
+    :: TxConstraints
+    -> Selection input
     -> Maybe SelectionFeeInsufficientError
 checkFeeSufficient constraints selection =
     case computeCurrentFee selection of
@@ -823,8 +814,8 @@ data SelectionOutputBelowMinimumAdaQuantityError =
     deriving (Eq, Show)
 
 checkOutputMinimumAdaQuantities
-    :: TxConstraints size
-    -> Selection input size
+    :: TxConstraints
+    -> Selection input
     -> Maybe SelectionOutputBelowMinimumAdaQuantityError
 checkOutputMinimumAdaQuantities constraints selection =
      maybesToMaybe $ checkOutput <$> outputs selection
@@ -854,9 +845,8 @@ newtype SelectionOutputSizeExceedsLimitError =
     deriving (Eq, Show)
 
 checkOutputSizes
-    :: TxSize size
-    => TxConstraints size
-    -> Selection input size
+    :: TxConstraints
+    -> Selection input
     -> Maybe SelectionOutputSizeExceedsLimitError
 checkOutputSizes constraints selection =
      maybesToMaybe $ checkOutput <$> outputs selection
@@ -875,17 +865,16 @@ checkOutputSizes constraints selection =
 -- Selection correctness: selection size (in comparison to the stored value)
 --------------------------------------------------------------------------------
 
-data SelectionSizeIncorrectError size = SelectionSizeIncorrectError
-    { selectionSizeComputed :: size
-    , selectionSizeStored :: size
+data SelectionSizeIncorrectError = SelectionSizeIncorrectError
+    { selectionSizeComputed :: TxSize
+    , selectionSizeStored :: TxSize
     }
     deriving (Eq, Show)
 
 checkSizeCorrectness
-    :: TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> Maybe (SelectionSizeIncorrectError size)
+    :: TxConstraints
+    -> Selection input
+    -> Maybe SelectionSizeIncorrectError
 checkSizeCorrectness constraints selection
     | selectionSizeComputed == selectionSizeStored =
         Nothing
@@ -901,17 +890,16 @@ checkSizeCorrectness constraints selection
 -- Selection correctness: selection size (in comparison to the limit)
 --------------------------------------------------------------------------------
 
-data SelectionSizeExceedsLimitError size = SelectionSizeExceedsLimitError
-    { selectionSizeComputed :: size
-    , selectionSizeMaximum :: size
+data SelectionSizeExceedsLimitError = SelectionSizeExceedsLimitError
+    { selectionSizeComputed :: TxSize
+    , selectionSizeMaximum :: TxSize
     }
     deriving (Eq, Show)
 
 checkSizeWithinLimit
-    :: TxSize size
-    => TxConstraints size
-    -> Selection input size
-    -> Maybe (SelectionSizeExceedsLimitError size)
+    :: TxConstraints
+    -> Selection input
+    -> Maybe SelectionSizeExceedsLimitError
 checkSizeWithinLimit constraints selection
     | selectionSizeComputed <= selectionSizeMaximum =
         Nothing
@@ -932,19 +920,15 @@ newtype NegativeCoin = NegativeCoin
     }
     deriving (Eq, Show)
 
-class (Ord size, Monoid size) => TxSize size where
-    txSizeDistance :: size -> size -> size
-
 findFixedPoint :: Eq a => (a -> a) -> a -> a
 findFixedPoint f = findInner
   where
     findInner a = let fa = f a in if a == fa then a else findInner fa
 
 guardSize
-    :: TxSize size
-    => TxConstraints size
-    -> size
-    -> Either (SelectionError size) size
+    :: TxConstraints
+    -> TxSize
+    -> Either SelectionError TxSize
 guardSize constraints selectionSizeRequired
     | selectionSizeRequired <= selectionSizeMaximum =
         pure selectionSizeRequired

@@ -17,14 +17,13 @@ module Cardano.Wallet.Primitive.Migration
     , MigrationPlan (..)
     , RewardWithdrawal (..)
     , Selection (..)
-    , TxSize (..)
 
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Migration.Selection
-    ( RewardWithdrawal (..), Selection (..), TxSize (..) )
+    ( RewardWithdrawal (..), Selection (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -44,8 +43,8 @@ import qualified Cardano.Wallet.Primitive.Migration.Planning as Planning
 --
 -- See 'createPlan' to create a migration plan.
 --
-data MigrationPlan size = MigrationPlan
-    { selections :: ![Selection (TxIn, TxOut) size]
+data MigrationPlan = MigrationPlan
+    { selections :: ![Selection (TxIn, TxOut)]
       -- ^ A list of generated selections: each selection is the basis for a
       -- single transaction.
     , unselected :: !UTxO
@@ -62,11 +61,10 @@ data MigrationPlan size = MigrationPlan
 -- See 'MigrationPlan'.
 --
 createPlan
-    :: TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> UTxO
     -> RewardWithdrawal
-    -> MigrationPlan size
+    -> MigrationPlan
 createPlan constraints utxo reward = MigrationPlan
     { selections = view #selections plan
     , unselected = Planning.uncategorizeUTxO (view #unselected plan)
