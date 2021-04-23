@@ -40,6 +40,7 @@ module Cardano.Wallet.Shelley.Transaction
     , mkTx
     , mkTxSkeleton
     , mkUnsignedTx
+    , txConstraints
     ) where
 
 import Prelude
@@ -85,22 +86,26 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin, subtractCoin )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
     , Tx (..)
+    , TxConstraints (..)
     , TxMetadata (..)
     , TxOut (..)
     , TxSize (..)
     , txOutCoin
     , txOutMaxTokenQuantity
+    , txSizeDistance
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
@@ -108,6 +113,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromAllegraTx
     , fromMaryTx
     , fromShelleyTx
+    , maxTokenBundleSerializedLengthBytes
     , sealShelleyTx
     , toAllegraTxOut
     , toCardanoLovelace
@@ -139,6 +145,8 @@ import Control.Monad
     ( forM )
 import Data.ByteString
     ( ByteString )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -152,7 +160,7 @@ import Data.Set
 import Data.Type.Equality
     ( type (==) )
 import Data.Word
-    ( Word16 )
+    ( Word16, Word64, Word8 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Stack
@@ -169,6 +177,7 @@ import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Core as SL
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
@@ -342,6 +351,8 @@ newTransactionLayer networkId = TransactionLayer
 
     , tokenBundleSizeAssessor =
         Compatibility.tokenBundleSizeAssessor
+
+    , constraints = \pp -> txConstraints pp (txWitnessTagFor @k)
 
     , decodeSignedTx =
         _decodeSignedTx
@@ -542,6 +553,94 @@ _decodeSignedTx era bytes = do
 
         _ ->
             Left ErrDecodeSignedTxNotSupported
+
+txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
+txConstraints protocolParams witnessTag = TxConstraints
+    { txBaseCost
+    , txBaseSize
+    , txInputCost
+    , txInputSize
+    , txOutputCost
+    , txOutputSize
+    , txOutputMaximumSize
+    , txOutputMaximumTokenQuantity
+    , txOutputMinimumAdaQuantity
+    , txRewardWithdrawalCost
+    , txRewardWithdrawalSize
+    , txMaximumSize
+    }
+  where
+    txBaseCost =
+        estimateTxCost protocolParams empty
+
+    txBaseSize =
+        estimateTxSize empty
+
+    txInputCost =
+        marginalCostOf empty {txInputCount = 1}
+
+    txInputSize =
+        marginalSizeOf empty {txInputCount = 1}
+
+    txOutputCost bundle =
+        marginalCostOf empty {txOutputs = [mkTxOut bundle]}
+
+    txOutputSize bundle =
+        marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
+
+    txOutputMaximumSize = (<>)
+        (TxSize $ fromIntegral maxTokenBundleSerializedLengthBytes)
+        (txOutputSize mempty)
+
+    txOutputMaximumTokenQuantity =
+        TokenQuantity $ fromIntegral $ maxBound @Word64
+
+    txOutputMinimumAdaQuantity =
+        computeMinimumAdaQuantity (minimumUTxOvalue protocolParams)
+
+    txRewardWithdrawalCost c =
+        marginalCostOf empty {txRewardWithdrawal = c}
+
+    txRewardWithdrawalSize c =
+        marginalSizeOf empty {txRewardWithdrawal = c}
+
+    txMaximumSize = protocolParams
+        & view (#txParameters . #getTxMaxSize)
+        & getQuantity
+        & fromIntegral
+        & TxSize
+
+    empty :: TxSkeleton
+    empty = emptyTxSkeleton witnessTag
+
+    -- Computes the size difference between the given skeleton and an empty
+    -- skeleton.
+    marginalCostOf :: TxSkeleton -> Coin
+    marginalCostOf =
+        Coin.distance txBaseCost . estimateTxCost protocolParams
+
+    -- Computes the size difference between the given skeleton and an empty
+    -- skeleton.
+    marginalSizeOf :: TxSkeleton -> TxSize
+    marginalSizeOf =
+        txSizeDistance txBaseSize . estimateTxSize
+
+    -- Constructs a real transaction output from a token bundle.
+    mkTxOut :: TokenBundle -> TxOut
+    mkTxOut = TxOut dummyAddress
+      where
+        dummyAddress :: Address
+        dummyAddress = Address $ BS.replicate dummyAddressLength nullByte
+
+        dummyAddressLength :: Int
+        dummyAddressLength = 65
+        -- Note: This is almost certainly too high. However, we are at liberty
+        -- to overestimate the length of an address (which is safe). Therefore,
+        -- we can choose a length that we know is greater than or equal to all
+        -- address lengths.
+
+        nullByte :: Word8
+        nullByte = 0
 
 data TxSkeleton = TxSkeleton
     { txMetadata :: !(Maybe TxMetadata)

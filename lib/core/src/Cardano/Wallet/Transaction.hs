@@ -58,7 +58,13 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), TokenBundleSizeAssessor, Tx (..), TxMetadata, TxOut )
+    ( SealedTx (..)
+    , TokenBundleSizeAssessor
+    , Tx (..)
+    , TxConstraints
+    , TxMetadata
+    , TxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Data.ByteString
@@ -127,6 +133,12 @@ data TransactionLayer k = TransactionLayer
     , tokenBundleSizeAssessor
         :: TokenBundleSizeAssessor
         -- ^ A function to assess the size of a token bundle.
+
+    , constraints
+        :: ProtocolParameters
+        -- Current protocol parameters.
+        -> TxConstraints
+        -- The set of constraints that apply to all transactions.
 
     , decodeSignedTx
         :: AnyCardanoEra
