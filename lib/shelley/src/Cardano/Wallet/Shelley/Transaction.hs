@@ -346,9 +346,6 @@ newTransactionLayer networkId = TransactionLayer
         estimateTxCost pp $
         mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
 
-    , calcMinimumCoinValue =
-        _calcMinimumCoinValue
-
     , tokenBundleSizeAssessor =
         Compatibility.tokenBundleSizeAssessor
 

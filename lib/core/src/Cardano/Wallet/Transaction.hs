@@ -54,7 +54,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, TokenMap )
+    ( AssetId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -121,14 +121,6 @@ data TransactionLayer k = TransactionLayer
         -> Coin
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
         -- This also includes necessary deposits.
-
-    , calcMinimumCoinValue
-        :: ProtocolParameters
-            -- Current protocol parameters
-        -> TokenMap
-            -- A bundle of native assets
-        -> Coin
-        -- ^ The minimum ada value needed in a UTxO carrying the asset bundle
 
     , tokenBundleSizeAssessor
         :: TokenBundleSizeAssessor
