@@ -28,6 +28,10 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     -- * Generation and derivation
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
+    , unsafeGenerateKeyFromSeedShelley
+    , deriveAccountPrivateKeyShelley
+    , deriveAddressPrivateKeyShelley
+    , deriveAddressPublicKeyShelley
 
     -- * Reward Account
     , toRewardAccountRaw
@@ -165,8 +169,16 @@ unsafeGenerateKeyFromSeed
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> ShelleyKey depth XPrv
-unsafeGenerateKeyFromSeed (root, m2nd) (Passphrase pwd) =
-    ShelleyKey $ generateNew seed' (maybe mempty mnemonicToBytes m2nd) pwd
+unsafeGenerateKeyFromSeed mnemonics pwd =
+    ShelleyKey $ unsafeGenerateKeyFromSeedShelley mnemonics pwd
+
+unsafeGenerateKeyFromSeedShelley
+    :: (SomeMnemonic, Maybe SomeMnemonic)
+        -- ^ The actual seed and its recovery / generation passphrase
+    -> Passphrase "encryption"
+    -> XPrv
+unsafeGenerateKeyFromSeedShelley (root, m2nd) (Passphrase pwd) =
+    generateNew seed' (maybe mempty mnemonicToBytes m2nd) pwd
   where
     mnemonicToBytes (SomeMnemonic mw) = entropyToBytes $ mnemonicToEntropy mw
     seed  = mnemonicToBytes root
@@ -175,48 +187,69 @@ unsafeGenerateKeyFromSeed (root, m2nd) (Passphrase pwd) =
         seed
         (\s -> BA.length s >= minSeedLengthBytes && BA.length s <= 255)
 
+deriveAccountPrivateKeyShelley
+    :: Index 'Hardened 'PurposeK
+    -> Passphrase purpose
+    -> XPrv
+    -> Index 'Hardened 'AccountK
+    -> XPrv
+deriveAccountPrivateKeyShelley purpose (Passphrase pwd) rootXPrv (Index accIx) =
+    let
+        purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
+            deriveXPrv DerivationScheme2 pwd rootXPrv (getIndex purpose)
+        coinTypeXPrv = -- lvl2 derivation; hardened derivation of coin_type'
+            deriveXPrv DerivationScheme2 pwd purposeXPrv (getIndex coinTypeAda)
+     -- lvl3 derivation; hardened derivation of account' index
+    in deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
+
+deriveAddressPrivateKeyShelley
+    :: Enum a
+    => Passphrase purpose
+    -> XPrv
+    -> a
+    -> Index derivationType level
+    -> XPrv
+deriveAddressPrivateKeyShelley (Passphrase pwd) accXPrv role (Index addrIx) =
+    let
+        changeCode =
+            fromIntegral $ fromEnum role
+        changeXPrv = -- lvl4 derivation; soft derivation of change chain
+            deriveXPrv DerivationScheme2 pwd accXPrv changeCode
+       -- lvl5 derivation; soft derivation of address index
+    in deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
+
+deriveAddressPublicKeyShelley
+    :: Enum a
+    => XPub
+    -> a
+    -> Index derivationType level
+    -> XPub
+deriveAddressPublicKeyShelley accXPub role (Index addrIx) =
+    fromMaybe errWrongIndex $ do
+        let changeCode = fromIntegral $ fromEnum role
+        changeXPub <- -- lvl4 derivation in bip44 is derivation of change chain
+            deriveXPub DerivationScheme2 accXPub changeCode
+        -- lvl5 derivation in bip44 is derivation of address chain
+        deriveXPub DerivationScheme2 changeXPub addrIx
+  where
+      errWrongIndex = error $
+          "deriveAddressPublicKey failed: was given an hardened (or too big) \
+          \index for soft path derivation ( " ++ show addrIx ++ "). This is \
+          \either a programmer error, or, we may have reached the maximum \
+          \number of addresses for a given wallet."
+
 instance HardDerivation ShelleyKey where
     type AddressIndexDerivationType ShelleyKey = 'Soft
 
-    deriveAccountPrivateKey
-            (Passphrase pwd) (ShelleyKey rootXPrv) (Index accIx) =
-        let
-            purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
-                deriveXPrv DerivationScheme2 pwd rootXPrv (getIndex purposeCIP1852)
-            coinTypeXPrv = -- lvl2 derivation; hardened derivation of coin_type'
-                deriveXPrv DerivationScheme2 pwd purposeXPrv (getIndex coinTypeAda)
-            acctXPrv = -- lvl3 derivation; hardened derivation of account' index
-                deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
-        in
-            ShelleyKey acctXPrv
+    deriveAccountPrivateKey pwd (ShelleyKey rootXPrv) ix =
+        ShelleyKey $ deriveAccountPrivateKeyShelley purposeCIP1852 pwd rootXPrv ix
 
-    deriveAddressPrivateKey
-            (Passphrase pwd) (ShelleyKey accXPrv) role (Index addrIx) =
-        let
-            changeCode =
-                fromIntegral $ fromEnum role
-            changeXPrv = -- lvl4 derivation; soft derivation of change chain
-                deriveXPrv DerivationScheme2 pwd accXPrv changeCode
-            addrXPrv = -- lvl5 derivation; soft derivation of address index
-                deriveXPrv DerivationScheme2 pwd changeXPrv addrIx
-        in
-            ShelleyKey addrXPrv
+    deriveAddressPrivateKey pwd (ShelleyKey accXPrv) role ix =
+        ShelleyKey $ deriveAddressPrivateKeyShelley pwd accXPrv role ix
 
 instance SoftDerivation ShelleyKey where
-    deriveAddressPublicKey (ShelleyKey accXPub) role (Index addrIx) =
-        fromMaybe errWrongIndex $ do
-            let changeCode = fromIntegral $ fromEnum role
-            changeXPub <- -- lvl4 derivation in bip44 is derivation of change chain
-                deriveXPub DerivationScheme2 accXPub changeCode
-            addrXPub <- -- lvl5 derivation in bip44 is derivation of address chain
-                deriveXPub DerivationScheme2 changeXPub addrIx
-            return $ ShelleyKey addrXPub
-      where
-        errWrongIndex = error $
-            "deriveAddressPublicKey failed: was given an hardened (or too big) \
-            \index for soft path derivation ( " ++ show addrIx ++ "). This is \
-            \either a programmer error, or, we may have reached the maximum \
-            \number of addresses for a given wallet."
+    deriveAddressPublicKey (ShelleyKey accXPub) role ix =
+        ShelleyKey $ deriveAddressPublicKeyShelley accXPub role ix
 
 {-------------------------------------------------------------------------------
                             WalletKey implementation

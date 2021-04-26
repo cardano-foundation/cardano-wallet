@@ -692,7 +692,6 @@ purposeBIP44 = toEnum 0x8000002C
 purposeCIP1852 :: Index 'Hardened 'PurposeK
 purposeCIP1852 = toEnum 0x8000073c
 
-
 -- | Construct a Sequential state for a wallet from root private key and password.
 mkSeqStateFromRootXPrv
     :: forall n k.

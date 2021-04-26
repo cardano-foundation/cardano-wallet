@@ -168,6 +168,7 @@ library
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Byron
       Cardano.Wallet.Primitive.AddressDerivation.Icarus
+      Cardano.Wallet.Primitive.AddressDerivation.Shared
       Cardano.Wallet.Primitive.AddressDerivation.Shelley
       Cardano.Wallet.Primitive.AddressDiscovery
       Cardano.Wallet.Primitive.Slotting
