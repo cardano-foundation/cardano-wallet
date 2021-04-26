@@ -39,6 +39,7 @@ jobs:
       run: |
         rake fixture_wallets_decode
         rake get_latest_configs["testnet"]
+        rake get_latest_bins
 
     - name: Cache node db
       id: cache
