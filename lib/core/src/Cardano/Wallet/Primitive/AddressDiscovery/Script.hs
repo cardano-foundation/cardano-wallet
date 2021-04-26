@@ -43,13 +43,11 @@ import Cardano.Address.Script
     , ScriptTemplate (..)
     , toScriptHash
     )
+import Cardano.Address.Style.Shared
+    ( deriveAddressPublicKey, deriveDelegationPublicKey, hashKey, liftXPub )
 import Cardano.Address.Style.Shelley
     ( Credential (..)
     , delegationAddress
-    , deriveMultisigForDelegationPublicKey
-    , deriveMultisigForPaymentPublicKey
-    , hashKey
-    , liftXPub
     , mkNetworkDiscriminant
     , paymentAddress
     )
@@ -61,6 +59,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , KeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , Role (..)
     , SoftDerivation
     , WalletKey (..)
     , deriveVerificationKey
@@ -89,6 +88,7 @@ import Type.Reflection
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA
+import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Map.Strict as Map
 
@@ -112,17 +112,18 @@ instance FromText CredentialType where
 keyHashFromAccXPubIx
     :: (SoftDerivation k, WalletKey k)
     => k 'AccountK XPub
+    -> Role
     -> Index 'Soft 'ScriptK
     -> KeyHash
-keyHashFromAccXPubIx accXPub ix =
-    hashVerificationKey $ deriveVerificationKey accXPub ix
+keyHashFromAccXPubIx accXPub r ix =
+    hashVerificationKey r $ deriveVerificationKey accXPub r ix
 
 replaceCosignersWithVerKeys
     :: CA.Role
     -> ScriptTemplate
     -> Index 'Soft 'ScriptK
     -> Script KeyHash
-replaceCosignersWithVerKeys role (ScriptTemplate xpubs scriptTemplate) ix =
+replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
     replaceCosigner scriptTemplate
   where
     replaceCosigner :: Script Cosigner -> Script KeyHash
@@ -142,11 +143,15 @@ replaceCosignersWithVerKeys role (ScriptTemplate xpubs scriptTemplate) ix =
                 (liftXPub <$> Map.lookup c xpubs)
                 isJust
             verKey = deriveMultisigPublicKey accXPub (convertIndex ix)
-        in hashKey verKey
-    deriveMultisigPublicKey = case role of
-        CA.MultisigForPayment -> deriveMultisigForPaymentPublicKey
-        CA.MultisigForDelegation -> deriveMultisigForDelegationPublicKey
-        _ ->  error "replaceCosignersWithVerKeys is supported only for role=3 and role=4"
+        in hashKey walletRole verKey
+    walletRole = case role' of
+        CA.UTxOExternal -> CA.Payment
+        CA.Stake -> CA.Delegation
+        _ ->  error "replaceCosignersWithVerKeys is supported only for role=0 and role=2"
+    deriveMultisigPublicKey = case role' of
+        CA.UTxOExternal -> deriveAddressPublicKey
+        CA.Stake -> deriveDelegationPublicKey
+        _ ->  error "replaceCosignersWithVerKeys is supported only for role=0 and role=2"
 
 toNetworkTag
     :: forall (n :: NetworkDiscriminant). Typeable n => CA.NetworkTag
@@ -177,9 +182,9 @@ constructAddressFromIx pTemplate dTemplate ix =
             paymentAddress tag
             (paymentCredential pScript')
         pScript =
-            replaceCosignersWithVerKeys CA.MultisigForPayment pTemplate ix
+            replaceCosignersWithVerKeys CA.UTxOExternal pTemplate ix
         dScript s =
-            replaceCosignersWithVerKeys CA.MultisigForDelegation s ix
+            replaceCosignersWithVerKeys CA.Stake s ix
     in Address $ case dTemplate of
         Just dTemplate' ->
             createBaseAddress pScript (dScript dTemplate')
@@ -209,4 +214,4 @@ liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
   where
     delegationCredential = DelegationFromScript . toScriptHash
     dScript =
-        replaceCosignersWithVerKeys CA.MultisigForDelegation dTemplate ix
+        replaceCosignersWithVerKeys CA.Stake dTemplate ix

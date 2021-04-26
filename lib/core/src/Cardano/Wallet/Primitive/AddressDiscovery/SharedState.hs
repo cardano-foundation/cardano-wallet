@@ -40,7 +40,6 @@ import Prelude
 
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash (..)
     , Script (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
@@ -65,12 +64,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType (..), keyHashFromAccXPubIx )
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
     , ParentContext (..)
-    , context
     , lookupAddress
     , mkAddressPool
     )
@@ -404,20 +402,18 @@ retrieveAllCosigners = foldScript (:) []
 isShared
     :: forall (n :: NetworkDiscriminant) k.
        ( SoftDerivation k
-       , WalletKey k
        , Typeable n
        , MkKeyFingerprint k Address
        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub) )
     => Address
     -> SharedState n k
-    -> (Maybe (Index 'Soft 'ScriptK, KeyHash), SharedState n k)
+    -> (Maybe (Index 'Soft 'ScriptK), SharedState n k)
 isShared addr st = case fields st of
     ReadyFields pool ->
         let (ixM, pool') = lookupAddress @n (const Used) addr pool
-            (ParentContextMultisigScript accXPub _ _) = context pool
         in case ixM of
             Just ix ->
-                (Just (coerce ix, keyHashFromAccXPubIx accXPub (coerce ix))
+                ( Just $ coerce ix
                 , st { fields = ReadyFields pool' })
             Nothing ->
                 (Nothing, st)

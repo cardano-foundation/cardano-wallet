@@ -633,7 +633,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             let paymentPath = Link.getWalletKey w UtxoExternal (DerivationIndex index)
             (_, paymentKey) <- unsafeRequest @ApiVerificationKey ctx paymentPath Empty
 
-            let stakePath = Link.getWalletKey w MutableAccount (DerivationIndex 0)
+            let stakePath = Link.getWalletKey w Stake (DerivationIndex 0)
             (_, stakeKey) <- unsafeRequest @ApiVerificationKey ctx stakePath Empty
 
             let payload = Json [json|{

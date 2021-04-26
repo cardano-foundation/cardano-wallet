@@ -153,6 +153,7 @@ import GHC.TypeLits
 import Safe
     ( readMay, toEnumMay )
 
+import qualified Cardano.Address.Script as CA
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -184,7 +185,7 @@ data Depth
 data Role
     = UtxoExternal
     | UtxoInternal
-    | MutableAccount
+    | Stake
     | MultisigScript
     deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
@@ -197,13 +198,13 @@ instance Enum Role where
     toEnum = \case
         0 -> UtxoExternal
         1 -> UtxoInternal
-        2 -> MutableAccount
+        2 -> Stake
         3 -> MultisigScript
         _ -> error "Role.toEnum: bad argument"
     fromEnum = \case
         UtxoExternal -> 0
         UtxoInternal -> 1
-        MutableAccount -> 2
+        Stake -> 2
         MultisigScript -> 3
 
 instance ToText Role where
@@ -225,7 +226,7 @@ utxoInternal = toEnum $ fromEnum UtxoInternal
 -- | smart-constructor for getting a derivation index that refers to stake
 -- key level (a.k.a mutable account)
 mutableAccount :: Index 'Soft 'RoleK
-mutableAccount = toEnum $ fromEnum MutableAccount
+mutableAccount = toEnum $ fromEnum Stake
 
 zeroAccount :: Index 'Soft 'AddressK
 zeroAccount = minBound
@@ -494,22 +495,29 @@ deriveRewardAccount
     -> k 'AddressK XPrv
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
-    in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
+    in deriveAddressPrivateKey pwd accPrv Stake minBound
 
 deriveVerificationKey
     :: (SoftDerivation k, WalletKey k)
     => k 'AccountK XPub
+    -> Role
     -> Index 'Soft 'ScriptK
     -> k 'ScriptK XPub
-deriveVerificationKey accXPub =
-    liftRawKey . getRawKey . deriveAddressPublicKey accXPub MultisigScript . coerce
+deriveVerificationKey accXPub role' =
+    liftRawKey . getRawKey . deriveAddressPublicKey accXPub role' . coerce
 
 hashVerificationKey
     :: WalletKey k
-    => k 'ScriptK XPub
+    => Role
+    -> k 'ScriptK XPub
     -> KeyHash
-hashVerificationKey =
-    KeyHash . blake2b224 . xpubPublicKey . getRawKey
+hashVerificationKey role' =
+    KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
+  where
+    keyRole = case role' of
+        UtxoExternal -> CA.Payment
+        Stake -> CA.Delegation
+        _ -> error "verification keys make sense only for payment (role=0) and delegation (role=2)"
 
 {-------------------------------------------------------------------------------
                                  Passphrases

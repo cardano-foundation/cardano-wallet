@@ -1706,7 +1706,7 @@ instance Arbitrary ApiVerificationKey where
     arbitrary =
         fmap ApiVerificationKey . (,)
             <$> fmap B8.pack (replicateM 32 arbitrary)
-            <*> elements [UtxoExternal, MutableAccount, MultisigScript]
+            <*> elements [UtxoExternal, Stake]
 
 instance ToSchema ApiVerificationKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKey"

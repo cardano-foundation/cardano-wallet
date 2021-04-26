@@ -1022,7 +1022,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                   , DerivationIndex 100
                   , "addr_vk1wchen6vz4zz7kpfjld3g89zdcpdv2hzvtsufphgvpjxjkl49pqrqaj4j0e"
                   )
-                , ( MutableAccount
+                , ( Stake
                   , DerivationIndex 2147483647
                   , "stake_vk1qy9tp370ze3cfre8f6daz7l85pgk3wpg6s5zqae2yjljwqkx4htqc7kr4p"
                   )
@@ -1082,7 +1082,7 @@ spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_SIGNATURES_01 - can verify signature" $ \ctx -> runResourceT $ do
         w <- constFixtureWalletNoWait ctx
 
-        let (role_, index) = (MutableAccount, DerivationIndex 0)
+        let (role_, index) = (Stake, DerivationIndex 0)
         let payload = [json|
                 { "passphrase": #{fixturePassphrase}
                 , "metadata": {"0": { "string": "please sign this." }}

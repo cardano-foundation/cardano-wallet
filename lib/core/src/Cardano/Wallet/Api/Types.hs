@@ -1451,7 +1451,7 @@ instance ToJSON ApiVerificationKey where
         hrp = case role_ of
             UtxoInternal -> [humanReadablePart|addr_vk|]
             UtxoExternal -> [humanReadablePart|addr_vk|]
-            MutableAccount -> [humanReadablePart|stake_vk|]
+            Stake -> [humanReadablePart|stake_vk|]
             MultisigScript -> [humanReadablePart|script_vk|]
 
 instance FromJSON ApiVerificationKey where
@@ -1475,7 +1475,7 @@ instance FromJSON ApiVerificationKey where
 
         parseRole = \case
             hrp | hrp == [humanReadablePart|addr_vk|] -> pure UtxoExternal
-            hrp | hrp == [humanReadablePart|stake_vk|] -> pure MutableAccount
+            hrp | hrp == [humanReadablePart|stake_vk|] -> pure Stake
             hrp | hrp == [humanReadablePart|script_vk|] -> pure MultisigScript
             _ -> fail errRole
           where
