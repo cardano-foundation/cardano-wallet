@@ -33,6 +33,7 @@ module Cardano.Wallet.Shelley.Transaction
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
     , emptyTxPayload
+    , estimateTxCost
     , estimateTxSize
     , mkByronWitness
     , mkShelleyWitness
@@ -333,16 +334,8 @@ newTransactionLayer networkId = TransactionLayer
     , initSelectionCriteria = _initSelectionCriteria @k
 
     , calcMinimumCost = \pp ctx skeleton ->
-        let
-            LinearFee (Quantity a) (Quantity b) =
-                getFeePolicy $ txParameters pp
-
-            computeFee :: TxSize -> Coin
-            computeFee (TxSize size) =
-                Coin $ ceiling (a + b*fromIntegral size)
-        in
-            computeFee $ estimateTxSize $ mkTxSkeleton
-                (txWitnessTagFor @k) ctx skeleton
+        estimateTxCost pp $
+        mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
 
     , calcMinimumCoinValue =
         _calcMinimumCoinValue
@@ -586,6 +579,16 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txOutputs = view #skeletonOutputs skeleton
     , txChange = view #skeletonChange skeleton
     }
+
+estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
+estimateTxCost pp args =
+    computeFee $ estimateTxSize args
+  where
+    LinearFee (Quantity a) (Quantity b) = getFeePolicy $ txParameters pp
+
+    computeFee :: TxSize -> Coin
+    computeFee (TxSize size) =
+        Coin $ ceiling (a + b * fromIntegral size)
 
 -- Estimate the size of a final transaction by using upper boundaries for cbor
 -- serialized objects according to:
