@@ -108,7 +108,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
-    , ApiVerificationKey (..)
+    , ApiVerificationKeyShelley (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -424,7 +424,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
-            jsonRoundtripAndGolden $ Proxy @ApiVerificationKey
+            jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShelley
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @WalletPostData
@@ -1702,14 +1702,14 @@ instance Arbitrary (Quantity "percent" Double) where
     shrink _ = [Quantity 0.0]
     arbitrary = Quantity <$> choose (0,100)
 
-instance Arbitrary ApiVerificationKey where
+instance Arbitrary ApiVerificationKeyShelley where
     arbitrary =
-        fmap ApiVerificationKey . (,)
+        fmap ApiVerificationKeyShelley . (,)
             <$> fmap B8.pack (replicateM 32 arbitrary)
-            <*> elements [UtxoExternal, Stake]
+            <*> elements [UtxoExternal, MutableAccount]
 
-instance ToSchema ApiVerificationKey where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKey"
+instance ToSchema ApiVerificationKeyShelley where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKeyShelley"
 
 instance Arbitrary Api.MaintenanceAction where
     arbitrary = genericArbitrary

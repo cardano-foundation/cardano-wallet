@@ -124,7 +124,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
-    , ApiVerificationKey (..)
+    , ApiVerificationKeyShelley (..)
     , ApiAccountKey (..)
     , ApiPostAccountKeyData (..)
 
@@ -1051,7 +1051,7 @@ data ApiWalletSignData = ApiWalletSignData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-newtype ApiVerificationKey = ApiVerificationKey
+newtype ApiVerificationKeyShelley = ApiVerificationKeyShelley
     { getApiVerificationKey :: (ByteString, Role)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
@@ -1444,20 +1444,20 @@ instance ToJSON (ApiT DerivationIndex) where
 instance FromJSON (ApiT DerivationIndex) where
     parseJSON = fromTextJSON "DerivationIndex"
 
-instance ToJSON ApiVerificationKey where
-    toJSON (ApiVerificationKey (pub, role_)) =
+instance ToJSON ApiVerificationKeyShelley where
+    toJSON (ApiVerificationKeyShelley (pub, role_)) =
         toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
       where
         hrp = case role_ of
             UtxoInternal -> [humanReadablePart|addr_vk|]
             UtxoExternal -> [humanReadablePart|addr_vk|]
-            Stake -> [humanReadablePart|stake_vk|]
-            MultisigScript -> [humanReadablePart|script_vk|]
+            MutableAccount -> [humanReadablePart|stake_vk|]
+            MultisigScript -> error "only role=0,1,2 is supported for ApiVerificationKeyShelley"
 
-instance FromJSON ApiVerificationKey where
+instance FromJSON ApiVerificationKeyShelley where
     parseJSON value = do
         (hrp, bytes) <- parseJSON value >>= parseBech32
-        fmap ApiVerificationKey . (,)
+        fmap ApiVerificationKeyShelley . (,)
             <$> parsePub bytes
             <*> parseRole hrp
       where
@@ -1475,13 +1475,12 @@ instance FromJSON ApiVerificationKey where
 
         parseRole = \case
             hrp | hrp == [humanReadablePart|addr_vk|] -> pure UtxoExternal
-            hrp | hrp == [humanReadablePart|stake_vk|] -> pure Stake
-            hrp | hrp == [humanReadablePart|script_vk|] -> pure MultisigScript
+            hrp | hrp == [humanReadablePart|stake_vk|] -> pure MutableAccount
             _ -> fail errRole
           where
             errRole =
                 "Unrecognized human-readable part. Expected one of:\
-                \ \"addr_vk\", \"stake_vk\" or \"script_vk\"."
+                \ \"addr_vk\" or \"stake_vk\"."
 
         parsePub bytes
             | BS.length bytes == 32 =

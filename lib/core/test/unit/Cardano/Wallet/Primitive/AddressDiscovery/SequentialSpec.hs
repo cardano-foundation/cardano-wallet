@@ -642,10 +642,10 @@ instance Arbitrary Address where
     arbitrary = frequency
         [ (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) UtxoExternal))
         , (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) UtxoInternal))
-        , (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) Stake))
+        , (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) MutableAccount))
         , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UtxoExternal))
         , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UtxoInternal))
-        , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) Stake))
+        , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) MutableAccount))
         ]
 
 instance

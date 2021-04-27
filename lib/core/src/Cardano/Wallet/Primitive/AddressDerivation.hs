@@ -185,7 +185,7 @@ data Depth
 data Role
     = UtxoExternal
     | UtxoInternal
-    | Stake
+    | MutableAccount
     | MultisigScript
     deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
@@ -198,13 +198,13 @@ instance Enum Role where
     toEnum = \case
         0 -> UtxoExternal
         1 -> UtxoInternal
-        2 -> Stake
+        2 -> MutableAccount
         3 -> MultisigScript
         _ -> error "Role.toEnum: bad argument"
     fromEnum = \case
         UtxoExternal -> 0
         UtxoInternal -> 1
-        Stake -> 2
+        MutableAccount -> 2
         MultisigScript -> 3
 
 instance ToText Role where
@@ -226,7 +226,7 @@ utxoInternal = toEnum $ fromEnum UtxoInternal
 -- | smart-constructor for getting a derivation index that refers to stake
 -- key level (a.k.a mutable account)
 mutableAccount :: Index 'Soft 'RoleK
-mutableAccount = toEnum $ fromEnum Stake
+mutableAccount = toEnum $ fromEnum MutableAccount
 
 zeroAccount :: Index 'Soft 'AddressK
 zeroAccount = minBound
@@ -495,7 +495,7 @@ deriveRewardAccount
     -> k 'AddressK XPrv
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
-    in deriveAddressPrivateKey pwd accPrv Stake minBound
+    in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
 
 deriveVerificationKey
     :: (SoftDerivation k, WalletKey k)
@@ -516,7 +516,7 @@ hashVerificationKey role' =
   where
     keyRole = case role' of
         UtxoExternal -> CA.Payment
-        Stake -> CA.Delegation
+        MutableAccount -> CA.Delegation
         _ -> error "verification keys make sense only for payment (role=0) and delegation (role=2)"
 
 {-------------------------------------------------------------------------------

@@ -20,7 +20,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiT (..)
     , ApiTransaction
-    , ApiVerificationKey
+    , ApiVerificationKeyShelley
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -631,10 +631,10 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let indices = [0..19]
         generatedAddresses <- forM indices $ \index -> do
             let paymentPath = Link.getWalletKey w UtxoExternal (DerivationIndex index)
-            (_, paymentKey) <- unsafeRequest @ApiVerificationKey ctx paymentPath Empty
+            (_, paymentKey) <- unsafeRequest @ApiVerificationKeyShelley ctx paymentPath Empty
 
-            let stakePath = Link.getWalletKey w Stake (DerivationIndex 0)
-            (_, stakeKey) <- unsafeRequest @ApiVerificationKey ctx stakePath Empty
+            let stakePath = Link.getWalletKey w MutableAccount (DerivationIndex 0)
+            (_, stakeKey) <- unsafeRequest @ApiVerificationKeyShelley ctx stakePath Empty
 
             let payload = Json [json|{
                     "payment": #{paymentKey},

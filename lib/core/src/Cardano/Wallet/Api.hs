@@ -169,7 +169,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransactionT
     , ApiTxId
     , ApiUtxoStatistics
-    , ApiVerificationKey
+    , ApiVerificationKeyShelley
     , ApiWallet
     , ApiWalletMigrationPlan
     , ApiWalletMigrationPlanPostDataT
@@ -349,7 +349,7 @@ type GetWalletKey = "wallets"
     :> "keys"
     :> Capture "role" (ApiT Role)
     :> Capture "index" (ApiT DerivationIndex)
-    :> Get '[JSON] ApiVerificationKey
+    :> Get '[JSON] ApiVerificationKeyShelley
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signMetadata
 type SignMetadata = "wallets"

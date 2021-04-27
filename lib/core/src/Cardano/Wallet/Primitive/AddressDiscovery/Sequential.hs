@@ -367,8 +367,8 @@ role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
             Just Refl  -> Just MultisigScript
             Nothing -> Nothing
     tryMutableAccount =
-        case testEquality (typeRep @c) (typeRep @'Stake) of
-            Just Refl  -> Just Stake
+        case testEquality (typeRep @c) (typeRep @'MutableAccount) of
+            Just Refl  -> Just MutableAccount
             Nothing -> Nothing
 
 -- | Get all addresses in the pool, sorted from the first address discovered,
@@ -738,7 +738,7 @@ mkSeqStateFromAccountXPub accXPub purpose g =
         -- This matches the reward address for "normal wallets". The accountXPub
         -- is the first account, minBound being the first Soft index
         rewardXPub =
-            deriveAddressPublicKey accXPub Stake minBound
+            deriveAddressPublicKey accXPub MutableAccount minBound
         extPool =
             mkAddressPool @n (ParentContextUtxoExternal accXPub) g []
         intPool =

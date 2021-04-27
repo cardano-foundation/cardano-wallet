@@ -407,7 +407,7 @@ instance ToRewardAccount ShelleyKey where
       where
         rootK = generateKeyFromSeed (mw, Nothing) mempty
         acctK = deriveAccountPrivateKey mempty rootK minBound
-        stakK = deriveAddressPrivateKey mempty acctK Stake minBound
+        stakK = deriveAddressPrivateKey mempty acctK MutableAccount minBound
 
 toRewardAccountRaw :: XPub -> RewardAccount
 toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey

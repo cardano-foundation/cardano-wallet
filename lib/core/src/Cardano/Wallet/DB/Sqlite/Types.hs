@@ -23,7 +23,7 @@ module Cardano.Wallet.DB.Sqlite.Types where
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner, KeyHash (..), Script, ScriptHash (..) )
+    ( Cosigner, Script, ScriptHash (..) )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -125,7 +125,6 @@ import Web.HttpApiData
 import Web.PathPieces
     ( PathPiece (..) )
 
-import qualified Cardano.Address.Script as CA
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -492,37 +491,6 @@ instance PersistField ScriptHash where
     fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql ScriptHash where
-    sqlType _ = sqlType (Proxy @Text)
-
-----------------------------------------------------------------------------
--- KeyHash
-
-instance ToText KeyHash where
-    toText (KeyHash keyRole sh) =
-        T.append keyRoleTxt $ T.decodeUtf8 $ convertToBase Base16 sh
-      where
-          keyRoleTxt = case keyRole of
-              CA.Payment -> "0"
-              CA.Delegation -> "2"
-
-instance FromText KeyHash where
-    fromText txt = do
-        (keyRole, txt') <- case T.uncons txt of
-            Just (firstChar, rest) ->case firstChar of
-                '0' -> pure (CA.Payment, rest)
-                '2' -> pure (CA.Delegation, rest)
-                _ -> Left $ TextDecodingError "KeyHash should begin with either '0' or '1'."
-            Nothing -> Left $ TextDecodingError "KeyHash should not be empty."
-        bimap textDecodingError (KeyHash keyRole)
-            $ convertFromBase Base16 $ T.encodeUtf8 txt'
-      where
-        textDecodingError = TextDecodingError . show
-
-instance PersistField KeyHash where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql KeyHash where
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------

@@ -1822,10 +1822,10 @@ components:
           <<: *addresses
           description: The imported addresses.
 
-    ApiVerificationKey: &ApiVerificationKey
+    ApiVerificationKeyShelley: &ApiVerificationKeyShelley
       type: string
       format: bech32
-      pattern: "^((addr_vk)|(stake_vk)|(script_vk))1[0-9a-z]*$"
+      pattern: "^((addr_vk)|(stake_vk))1[0-9a-z]*$"
 
     ApiAccountKey: &ApiAccountKey
       type: string
@@ -3900,7 +3900,7 @@ x-responsesGetKey: &responsesGetKey
     description: Ok
     content:
       application/json:
-        schema: *ApiVerificationKey
+        schema: *ApiVerificationKeyShelley
 
 x-responsesPostAccountKey: &responsesPostAccountKey
   <<: *responsesErr400
