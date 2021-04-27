@@ -158,7 +158,8 @@ module Cardano.Wallet
 
     -- ** Root Key
     , withRootKey
-    , derivePublicKey
+    , derivePublicKeyShelley
+    , derivePublicKeyShared
     , readPublicAccountKey
     , signMetadataWith
     , ErrWithRootKey (..)
@@ -263,7 +264,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeBIP44
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( ErrAddCosigner (..), SharedState, addCosignerAccXPub )
+    ( ErrAddCosigner (..), SharedState, accountPublicKey, addCosignerAccXPub )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
@@ -2102,7 +2103,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
 
 -- | Derive public key from a wallet's account key.
-derivePublicKey
+derivePublicKeyShelley
     :: forall ctx s k n.
         ( HasDBLayer IO s k ctx
         , SoftDerivation k
@@ -2113,7 +2114,7 @@ derivePublicKey
     -> Role
     -> DerivationIndex
     -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
-derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
+derivePublicKeyShelley ctx wid role_ ix = db & \DBLayer{..} -> do
     addrIx <- withExceptT ErrDerivePublicKeyInvalidIndex $ guardSoftIndex ix
 
     cp <- mapExceptT atomically
@@ -2125,6 +2126,32 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
     --       account public key.
     let (Seq.ParentContextUtxoExternal acctK) =
             Seq.context $ Seq.externalPool $ getState cp
+    let addrK = deriveAddressPublicKey acctK role_ addrIx
+
+    return addrK
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
+derivePublicKeyShared
+    :: forall ctx s k n.
+        ( HasDBLayer IO s k ctx
+        , SoftDerivation k
+        , s ~ SharedState n k
+        )
+    => ctx
+    -> WalletId
+    -> Role
+    -> DerivationIndex
+    -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
+derivePublicKeyShared ctx wid role_ ix = db & \DBLayer{..} -> do
+    addrIx <- withExceptT ErrDerivePublicKeyInvalidIndex $ guardSoftIndex ix
+
+    cp <- mapExceptT atomically
+        $ withExceptT ErrDerivePublicKeyNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
+
+    let acctK = accountPublicKey $ getState cp
     let addrK = deriveAddressPublicKey acctK role_ addrIx
 
     return addrK

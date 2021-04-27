@@ -122,6 +122,9 @@ module Cardano.Wallet.Api
         , PatchSharedWalletInDelegation
         , DeleteSharedWallet
 
+    , SharedWalletKeys
+        , GetSharedWalletKey
+
     , Proxy_
         , PostExternalTransaction
 
@@ -169,6 +172,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransactionT
     , ApiTxId
     , ApiUtxoStatistics
+    , ApiVerificationKeyShared
     , ApiVerificationKeyShelley
     , ApiWallet
     , ApiWalletMigrationPlan
@@ -278,6 +282,7 @@ type Api n apiPool =
     :<|> Settings
     :<|> SMASH
     :<|> SharedWallets
+    :<|> SharedWalletKeys
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -335,7 +340,7 @@ type GetUTxOsStatistics = "wallets"
 
 {-------------------------------------------------------------------------------
                                   Wallet Keys
-  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/WalletKeys
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Keys
 -------------------------------------------------------------------------------}
 
 type WalletKeys =
@@ -884,6 +889,22 @@ type PatchSharedWalletInDelegation = "shared-wallets"
 type DeleteSharedWallet = "shared-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> DeleteNoContent
+
+{-------------------------------------------------------------------------------
+                                  Shared Wallet Keys
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Keys
+-------------------------------------------------------------------------------}
+
+type SharedWalletKeys =
+    GetSharedWalletKey
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getSharedWalletKey
+type GetSharedWalletKey = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "keys"
+    :> Capture "role" (ApiT Role)
+    :> Capture "index" (ApiT DerivationIndex)
+    :> Get '[JSON] ApiVerificationKeyShared
 
 {-------------------------------------------------------------------------------
                                    Proxy_

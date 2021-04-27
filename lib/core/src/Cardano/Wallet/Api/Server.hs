@@ -42,7 +42,9 @@ module Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
-    , derivePublicKey
+    , derivePublicKeyShelley
+    , derivePublicKeyShared
+    , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
@@ -219,6 +221,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
+    , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
@@ -2137,7 +2140,7 @@ signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
         getSignature <$> W.signMetadataWith @_ @s @k @n
             wrk wid (coerce pwd) (role_, ix) meta
 
-derivePublicKey
+derivePublicKeyShelley
     :: forall ctx s k n.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
@@ -2149,10 +2152,27 @@ derivePublicKey
     -> ApiT Role
     -> ApiT DerivationIndex
     -> Handler ApiVerificationKeyShelley
-derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
+derivePublicKeyShelley ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.derivePublicKey @_ @s @k @n wrk wid role_ ix
+        k <- liftHandler $ W.derivePublicKeyShelley @_ @s @k @n wrk wid role_ ix
         pure $ ApiVerificationKeyShelley (xpubPublicKey $ getRawKey k, role_)
+
+derivePublicKeyShared
+    :: forall ctx s k n.
+        ( s ~ SharedState n k
+        , ctx ~ ApiLayer s k
+        , SoftDerivation k
+        , WalletKey k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiT Role
+    -> ApiT DerivationIndex
+    -> Handler ApiVerificationKeyShared
+derivePublicKeyShared ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        k <- liftHandler $ W.derivePublicKeyShared @_ @s @k @n wrk wid role_ ix
+        pure $ ApiVerificationKeyShared (xpubPublicKey $ getRawKey k, role_)
 
 postAccountPublicKey
     :: forall ctx s k n.

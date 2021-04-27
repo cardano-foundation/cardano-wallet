@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     , isShared
     , retrieveAllCosigners
     , walletCreationInvariant
+    , accountPublicKey
     ) where
 
 import Prelude
@@ -69,6 +70,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
     , ParentContext (..)
+    , context
     , lookupAddress
     , mkAddressPool
     )
@@ -196,6 +198,13 @@ deriving instance
 instance
     ( NFData (k 'AccountK XPub)
     ) => NFData (SharedStatePending k)
+
+accountPublicKey :: SharedState n k -> k 'AccountK XPub
+accountPublicKey (SharedState _ (PendingFields pending)) =
+    pendingSharedStateAccountKey pending
+accountPublicKey (SharedState _ (ReadyFields pool)) =
+    let (ParentContextMultisigScript accXPub _ _) = context pool
+    in accXPub
 
 -- | Purpose for shared wallets is a constant set to 1854' (or 0x8000073E) following the original
 -- CIP-1854 Multi-signature Wallets.

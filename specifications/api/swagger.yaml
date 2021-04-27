@@ -1827,6 +1827,11 @@ components:
       format: bech32
       pattern: "^((addr_vk)|(stake_vk))1[0-9a-z]*$"
 
+    ApiVerificationKeyShared: &ApiVerificationKeyShared
+      type: string
+      format: bech32
+      pattern: "^((addr_shared_vk)|(stake_shared_vk))1[0-9a-z]*$"
+
     ApiAccountKey: &ApiAccountKey
       type: string
       format: bech32
@@ -3892,7 +3897,7 @@ x-responsesListAddresses: &responsesListAddresses
           type: array
           items: *ApiAddress
 
-x-responsesGetKey: &responsesGetKey
+x-responsesGetShelleyKey: &responsesGetShelleyKey
   <<: *responsesErr400
   <<: *responsesErr404
   <<: *responsesErr406
@@ -3901,6 +3906,16 @@ x-responsesGetKey: &responsesGetKey
     content:
       application/json:
         schema: *ApiVerificationKeyShelley
+
+x-responsesGetSharedKey: &responsesGetSharedKey
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiVerificationKeyShared
 
 x-responsesPostAccountKey: &responsesPostAccountKey
   <<: *responsesErr400
@@ -4442,7 +4457,7 @@ paths:
         - *parametersWalletId
         - *parametersRole
         - *parametersDerivationSegment
-      responses: *responsesGetKey
+      responses: *responsesGetShelleyKey
 
   /stake-pools:
     get:
@@ -5304,3 +5319,19 @@ paths:
           application/json:
             schema: *ApiSharedWalletPatchData
       responses: *responsesPatchSharedWallet
+
+  /shared-wallets/{walletId}/keys/{role}/{index}:
+    get:
+      operationId: getSharedWalletKey
+      tags: ["Keys"]
+      summary: Get Public Key
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Return a public key for a given role and derivation index.
+
+        <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
+      parameters:
+        - *parametersWalletId
+        - *parametersRole
+        - *parametersDerivationSegment
+      responses: *responsesGetSharedKey

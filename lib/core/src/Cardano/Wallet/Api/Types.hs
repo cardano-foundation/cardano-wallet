@@ -125,6 +125,7 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
     , ApiVerificationKeyShelley (..)
+    , ApiVerificationKeyShared (..)
     , ApiAccountKey (..)
     , ApiPostAccountKeyData (..)
 
@@ -1056,6 +1057,11 @@ newtype ApiVerificationKeyShelley = ApiVerificationKeyShelley
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+newtype ApiVerificationKeyShared = ApiVerificationKeyShared
+    { getApiVerificationKey :: (ByteString, Role)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiPostAccountKeyData = ApiPostAccountKeyData
     { passphrase :: ApiT (Passphrase "raw")
     , extended :: Bool
@@ -1456,23 +1462,11 @@ instance ToJSON ApiVerificationKeyShelley where
 
 instance FromJSON ApiVerificationKeyShelley where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= parseBech32
+        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed verification key")
         fmap ApiVerificationKeyShelley . (,)
-            <$> parsePub bytes
+            <$> parsePubVer bytes
             <*> parseRole hrp
       where
-        parseBech32 =
-            either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
-          where
-            errBech32 =
-                "Malformed verification key. Expected a bech32-encoded key."
-
-        parseDataPart =
-            maybe (fail errDataPart) pure . traverse dataPartToBytes
-          where
-            errDataPart =
-                "Couldn't decode data-part to valid UTF-8 bytes."
-
         parseRole = \case
             hrp | hrp == [humanReadablePart|addr_vk|] -> pure UtxoExternal
             hrp | hrp == [humanReadablePart|stake_vk|] -> pure MutableAccount
@@ -1482,11 +1476,56 @@ instance FromJSON ApiVerificationKeyShelley where
                 "Unrecognized human-readable part. Expected one of:\
                 \ \"addr_vk\" or \"stake_vk\"."
 
-        parsePub bytes
-            | BS.length bytes == 32 =
-                pure bytes
-            | otherwise =
-                fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
+parseBech32
+    :: Text
+    -> Text
+    -> Aeson.Parser (Bech32.HumanReadablePart, ByteString)
+parseBech32 err =
+    either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
+  where
+      errBech32 =
+          T.unpack err <>". Expected a bech32-encoded key."
+
+parseDataPart
+    :: (Bech32.HumanReadablePart, Bech32.DataPart)
+    -> Aeson.Parser (Bech32.HumanReadablePart, ByteString)
+parseDataPart =
+    maybe (fail errDataPart) pure . traverse dataPartToBytes
+  where
+      errDataPart =
+          "Couldn't decode data-part to valid UTF-8 bytes."
+
+parsePubVer :: MonadFail f => ByteString -> f ByteString
+parsePubVer bytes
+    | BS.length bytes == 32 =
+          pure bytes
+    | otherwise =
+          fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
+
+instance ToJSON ApiVerificationKeyShared where
+    toJSON (ApiVerificationKeyShared (pub, role_)) =
+        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
+      where
+        hrp = case role_ of
+            UtxoExternal -> [humanReadablePart|addr_shared_vk|]
+            MutableAccount -> [humanReadablePart|stake_shared_vk|]
+            _ -> error "only role=0,2 is supported for ApiVerificationKeyShared"
+
+instance FromJSON ApiVerificationKeyShared where
+    parseJSON value = do
+        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed verification key")
+        fmap ApiVerificationKeyShared . (,)
+            <$> parsePubVer bytes
+            <*> parseRole hrp
+      where
+        parseRole = \case
+            hrp | hrp == [humanReadablePart|addr_shared_vk|] -> pure UtxoExternal
+            hrp | hrp == [humanReadablePart|stake_shared_vk|] -> pure MutableAccount
+            _ -> fail errRole
+          where
+            errRole =
+                "Unrecognized human-readable part. Expected one of:\
+                \ \"addr_shared_vk\" or \"stake_shared_vk\"."
 
 instance ToJSON ApiAccountKey where
     toJSON (ApiAccountKey pub extd) =
@@ -1497,16 +1536,10 @@ instance ToJSON ApiAccountKey where
 
 instance FromJSON ApiAccountKey where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= parseBech32
+        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
         extended' <- parseHrp hrp
         flip ApiAccountKey extended' <$> parsePub bytes extended'
       where
-        parseBech32 =
-            either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
-          where
-            errBech32 =
-                "Malformed extended/normal account public key. Expected a bech32-encoded key."
-
         parseHrp = \case
             hrp | hrp == [humanReadablePart|acct_xvk|] -> pure True
             hrp | hrp == [humanReadablePart|acct_vk|] -> pure False
@@ -1515,12 +1548,6 @@ instance FromJSON ApiAccountKey where
               errHrp =
                   "Unrecognized human-readable part. Expected one of:\
                   \ \"acct_xvk\" or \"acct_vk\"."
-
-        parseDataPart =
-            maybe (fail errDataPart) pure . traverse dataPartToBytes
-          where
-            errDataPart =
-                "Couldn't decode data-part to valid UTF-8 bytes."
 
         bytesExpectedLength extd = if extd then 64 else 32
 
