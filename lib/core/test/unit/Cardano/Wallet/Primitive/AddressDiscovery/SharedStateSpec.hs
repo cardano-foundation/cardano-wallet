@@ -37,11 +37,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( constructAddressFromIx
-    , keyHashFromAccXPubIx
-    , liftDelegationAddress
-    , liftPaymentAddress
-    )
+    ( constructAddressFromIx, liftDelegationAddress, liftPaymentAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), addresses, mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
@@ -110,12 +106,11 @@ prop_addressWithScriptFromOurVerKeyIxIn
     -> Property
 prop_addressWithScriptFromOurVerKeyIxIn (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
-    keyIx' === keyIx .&&. keyHash' === keyHash
+    keyIx' === keyIx
   where
     addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
-    keyHash = keyHashFromAccXPubIx accXPub' keyIx
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    ((Just (keyIx', keyHash')), _) = isShared @n addr sharedState
+    (Just keyIx', _) = isShared @n addr sharedState
 
 prop_addressWithScriptFromOurVerKeyIxBeyond
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -142,7 +137,7 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
   where
     addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    ((Just (ix,_)), sharedState') = isShared @n addr sharedState
+    (Just ix, sharedState') = isShared @n addr sharedState
     pair' (a,s,_) = (a,s)
     getPool (SharedState _ (ReadyFields pool)) = pool
     getPool _ = error "expected active state"

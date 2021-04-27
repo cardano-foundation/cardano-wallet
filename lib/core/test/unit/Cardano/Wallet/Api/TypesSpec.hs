@@ -29,6 +29,7 @@ import Prelude hiding
 import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
+    , KeyRole (..)
     , Script (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
@@ -52,6 +53,7 @@ import Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , AnyAddress (..)
     , ApiAccountKey (..)
+    , ApiAccountKeyShared (..)
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
@@ -108,6 +110,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
+    , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
@@ -378,6 +381,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyData
             jsonRoundtripAndGolden $ Proxy @ApiAccountKey
+            jsonRoundtripAndGolden $ Proxy @ApiAccountKeyShared
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
@@ -425,6 +429,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShelley
+            jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShared
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @WalletPostData
@@ -1135,7 +1140,9 @@ instance Arbitrary (Script KeyHash) where
         genScript keyHashes
 
 instance Arbitrary KeyHash where
-    arbitrary = KeyHash . BS.pack <$> vectorOf 28 arbitrary
+    arbitrary = do
+        cred <- oneof [pure Payment, pure Delegation]
+        KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
 
 instance Arbitrary (Script Cosigner) where
     arbitrary = genScriptCosigners
@@ -1706,10 +1713,19 @@ instance Arbitrary ApiVerificationKeyShelley where
     arbitrary =
         fmap ApiVerificationKeyShelley . (,)
             <$> fmap B8.pack (replicateM 32 arbitrary)
-            <*> elements [UtxoExternal, MutableAccount]
+            <*> elements [UtxoExternal, UtxoInternal, MutableAccount]
 
 instance ToSchema ApiVerificationKeyShelley where
     declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKeyShelley"
+
+instance Arbitrary ApiVerificationKeyShared where
+    arbitrary =
+        fmap ApiVerificationKeyShared . (,)
+            <$> fmap B8.pack (replicateM 32 arbitrary)
+            <*> elements [UtxoExternal, MutableAccount]
+
+instance ToSchema ApiVerificationKeyShared where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKeyShared"
 
 instance Arbitrary Api.MaintenanceAction where
     arbitrary = genericArbitrary
@@ -1951,6 +1967,13 @@ instance Arbitrary ApiAccountKey where
         pubKey <- BS.pack <$> replicateM 32 arbitrary
         oneof [ pure $ ApiAccountKey pubKey False
               , pure $ ApiAccountKey xpubKey True ]
+
+instance Arbitrary ApiAccountKeyShared where
+    arbitrary = do
+        xpubKey <- BS.pack <$> replicateM 64 arbitrary
+        pubKey <- BS.pack <$> replicateM 32 arbitrary
+        oneof [ pure $ ApiAccountKeyShared pubKey False
+              , pure $ ApiAccountKeyShared xpubKey True ]
 
 instance Arbitrary Natural where
     shrink = shrinkIntegral
@@ -2239,6 +2262,9 @@ instance ToSchema ApiPostAccountKeyData where
 
 instance ToSchema ApiAccountKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKey"
+
+instance ToSchema ApiAccountKeyShared where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKeyShared"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
