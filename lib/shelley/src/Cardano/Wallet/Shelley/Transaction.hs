@@ -26,15 +26,19 @@ module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
 
     -- * Internals
+    , TxPayload (..)
+    , TxSkeleton (..)
+    , TxWitnessTag (..)
+    , TxWitnessTagFor (..)
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
-    , mkUnsignedTx
-    , mkShelleyWitness
-    , mkByronWitness
-    , mkTx
-    , TxPayload (..)
     , emptyTxPayload
-    , TxWitnessTagFor (..)
+    , estimateTxSize
+    , mkByronWitness
+    , mkShelleyWitness
+    , mkTx
+    , mkTxSkeleton
+    , mkUnsignedTx
     ) where
 
 import Prelude
@@ -91,7 +95,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
     , Tx (..)
+    , TxMetadata (..)
     , TxOut (..)
+    , TxSize (..)
     , txOutCoin
     , txOutMaxTokenQuantity
     )
@@ -140,6 +146,8 @@ import Data.Kind
     ( Type )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Type.Equality
     ( type (==) )
 import Data.Word
@@ -298,12 +306,12 @@ newTransactionLayer
 newTransactionLayer networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore pp ctx selection -> do
         let ttl   = txTimeToLive ctx
-        let wdrl  = withdrawalToCoin $ txWithdrawal ctx
+        let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
-        case txDelegationAction ctx of
+        case view #txDelegationAction ctx of
             Nothing -> do
                 withShelleyBasedEra era $ do
-                    let payload = TxPayload (txMetadata ctx) mempty mempty
+                    let payload = TxPayload (view #txMetadata ctx) mempty mempty
                     let fees = delta
                     mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
 
@@ -314,7 +322,7 @@ newTransactionLayer networkId = TransactionLayer
                     let mkWits unsigned =
                             [ mkShelleyWitness unsigned stakeCreds
                             ]
-                    let payload = TxPayload (txMetadata ctx) certs mkWits
+                    let payload = TxPayload (view #txMetadata ctx) certs mkWits
                     let fees = case action of
                             RegisterKeyAndJoin{} ->
                                 unsafeSubtractCoin selection delta (stakeKeyDeposit pp)
@@ -329,11 +337,12 @@ newTransactionLayer networkId = TransactionLayer
             LinearFee (Quantity a) (Quantity b) =
                 getFeePolicy $ txParameters pp
 
-            computeFee :: Integer -> Coin
-            computeFee size =
+            computeFee :: TxSize -> Coin
+            computeFee (TxSize size) =
                 Coin $ ceiling (a + b*fromIntegral size)
         in
-            computeFee $ estimateTxSize (txWitnessTagFor @k) ctx skeleton
+            computeFee $ estimateTxSize $ mkTxSkeleton
+                (txWitnessTagFor @k) ctx skeleton
 
     , calcMinimumCoinValue =
         _calcMinimumCoinValue
@@ -419,9 +428,10 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
     maxSize  = toInteger (getQuantity txMaxSize)
     maxNInps = 255 -- Arbitrary, but large enough.
 
-    txSizeGivenInputs nInps = size
+    txSizeGivenInputs nInps = fromIntegral size
       where
-        size = estimateTxSize (txWitnessTagFor @k) ctx sel
+        TxSize size = estimateTxSize $ mkTxSkeleton
+            (txWitnessTagFor @k) ctx sel
         sel  = dummySkeleton (fromIntegral nInps) outs
 
 _initSelectionCriteria
@@ -491,8 +501,8 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
         _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
 
     extraCoinSource = Just $ addCoin
-        (withdrawalToCoin $ txWithdrawal ctx)
-        ( case txDelegationAction ctx of
+        (withdrawalToCoin $ view #txWithdrawal ctx)
+        ( case view #txDelegationAction ctx of
             Just Quit -> stakeKeyDeposit pp
             _ -> Coin 0
         )
@@ -540,37 +550,74 @@ _decodeSignedTx era bytes = do
         _ ->
             Left ErrDecodeSignedTxNotSupported
 
+data TxSkeleton = TxSkeleton
+    { txMetadata :: !(Maybe TxMetadata)
+    , txDelegationAction :: !(Maybe DelegationAction)
+    , txRewardWithdrawal :: !Coin
+    , txWitnessTag :: !TxWitnessTag
+    , txInputCount :: !Int
+    , txOutputs :: ![TxOut]
+    , txChange :: ![Set AssetId]
+    }
+    deriving (Eq, Show)
+
+emptyTxSkeleton :: TxWitnessTag -> TxSkeleton
+emptyTxSkeleton txWitnessTag = TxSkeleton
+    { txMetadata = Nothing
+    , txDelegationAction = Nothing
+    , txRewardWithdrawal = Coin 0
+    , txWitnessTag
+    , txInputCount = 0
+    , txOutputs = []
+    , txChange = []
+    }
+
+mkTxSkeleton
+    :: TxWitnessTag
+    -> TransactionCtx
+    -> SelectionSkeleton
+    -> TxSkeleton
+mkTxSkeleton witness context skeleton = TxSkeleton
+    { txMetadata = view #txMetadata context
+    , txDelegationAction = view #txDelegationAction context
+    , txRewardWithdrawal = withdrawalToCoin $ view #txWithdrawal context
+    , txWitnessTag = witness
+    , txInputCount = view #skeletonInputCount skeleton
+    , txOutputs = view #skeletonOutputs skeleton
+    , txChange = view #skeletonChange skeleton
+    }
+
 -- Estimate the size of a final transaction by using upper boundaries for cbor
 -- serialized objects according to:
 --
 -- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
 --
 -- All sizes below are in bytes.
-estimateTxSize
-    :: TxWitnessTag
-    -> TransactionCtx
-    -> SelectionSkeleton
-    -> Integer
-estimateTxSize witnessTag ctx (SelectionSkeleton inputCount outs chgs) =
-    sizeOf_Transaction
+estimateTxSize :: TxSkeleton -> TxSize
+estimateTxSize args =
+    TxSize $ fromIntegral sizeOf_Transaction
   where
-    TransactionCtx
+    TxSkeleton
         { txMetadata
         , txDelegationAction
-        , txWithdrawal
-        } = ctx
+        , txRewardWithdrawal
+        , txWitnessTag
+        , txInputCount
+        , txOutputs
+        , txChange
+        } = args
 
     numberOf_Inputs
-        = fromIntegral inputCount
+        = fromIntegral txInputCount
 
     numberOf_CertificateSignatures
         = maybe 0 (const 1) txDelegationAction
 
     numberOf_Withdrawals
-        = if withdrawalToCoin txWithdrawal > Coin 0 then 1 else 0
+        = if txRewardWithdrawal > Coin 0 then 1 else 0
 
     numberOf_VkeyWitnesses
-        = case witnessTag of
+        = case txWitnessTag of
             TxWitnessByronUTxO{} -> 0
             TxWitnessShelleyUTxO ->
                 numberOf_Inputs
@@ -578,7 +625,7 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inputCount outs chgs) =
                 + numberOf_CertificateSignatures
 
     numberOf_BootstrapWitnesses
-        = case witnessTag of
+        = case txWitnessTag of
             TxWitnessByronUTxO{} -> numberOf_Inputs
             TxWitnessShelleyUTxO -> 0
 
@@ -624,8 +671,8 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inputCount outs chgs) =
         sizeOf_Outputs
             = sizeOf_SmallUInt
             + sizeOf_Array
-            + F.sum (sizeOf_Output <$> outs)
-            + F.sum (sizeOf_ChangeOutput <$> chgs)
+            + F.sum (sizeOf_Output <$> txOutputs)
+            + F.sum (sizeOf_ChangeOutput <$> txChange)
 
         -- 2 => fee
         sizeOf_Fee
@@ -746,7 +793,7 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inputCount outs chgs) =
     -- discriminate based on the network as well since testnet addresses are
     -- larger than mainnet ones. But meh.
     sizeOf_ChangeAddress
-        = case witnessTag of
+        = case txWitnessTag of
             TxWitnessByronUTxO{} -> 85
             TxWitnessShelleyUTxO -> 59
 

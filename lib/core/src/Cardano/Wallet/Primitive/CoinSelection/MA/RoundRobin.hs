@@ -192,7 +192,7 @@ data SelectionSkeleton = SelectionSkeleton
     , skeletonChange
         :: ![Set AssetId]
     }
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 -- | Creates an empty 'SelectionSkeleton' with no inputs, no outputs and no
 -- change.
