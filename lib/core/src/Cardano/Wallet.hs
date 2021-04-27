@@ -2160,11 +2160,10 @@ derivePublicKeyShared ctx wid role_ ix = db & \DBLayer{..} -> do
 
 -- | Retrieve public account key of a wallet.
 readPublicAccountKey
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , HardDerivation k
         , WalletKey k
-        , s ~ SeqState n k
         )
     => ctx
     -> WalletId

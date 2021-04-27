@@ -1837,6 +1837,11 @@ components:
       format: bech32
       pattern: "^((acct_xvk)|(acct_vk))1[0-9a-z]*$"
 
+    ApiAccountKeyShared: &ApiAccountKeyShared
+      type: string
+      format: bech32
+      pattern: "^((acct_shared_xvk)|(acct_shared_vk))1[0-9a-z]*$"
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -3927,6 +3932,16 @@ x-responsesPostAccountKey: &responsesPostAccountKey
       application/json:
         schema: *ApiAccountKey
 
+x-responsesPostAccountKeyShared: &responsesPostAccountKeyShared
+  <<: *responsesErr400
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiAccountKeyShared
+
 x-responsesListStakePools: &responsesListStakePools
   400:
     description: Bad Request
@@ -5327,7 +5342,7 @@ paths:
       summary: Get Public Key
       description: |
         <p align="right">status: <strong>stable</strong></p>
-        Return a public key for a given role and derivation index.
+        Return a public key for a given role and derivation index for a shared wallet.
 
         <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
       parameters:
@@ -5335,3 +5350,23 @@ paths:
         - *parametersRole
         - *parametersDerivationSegment
       responses: *responsesGetSharedKey
+
+  /shared-wallets/{walletId}/keys/{index}:
+    post:
+      operationId: postAccountKeyShared
+      tags: ["Keys"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Retrieve account public key from the shared wallet.
+
+        <b>Note:</b> Only `Hard` indexes are supported by this endpoint.
+      parameters:
+        - *parametersWalletId
+        - *parametersDerivationSegment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostAccountKeyData
+      responses: *responsesPostAccountKeyShared

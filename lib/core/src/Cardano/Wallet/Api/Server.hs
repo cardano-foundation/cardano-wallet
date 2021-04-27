@@ -82,7 +82,8 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
-    , postAccountPublicKey
+    , postAccountPublicKeyShelley
+    , postAccountPublicKeyShared
     , postSharedWallet
     , patchSharedWallet
     , mkSharedWallet
@@ -180,6 +181,7 @@ import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
     , ApiAccountKey (..)
+    , ApiAccountKeyShared (..)
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
@@ -2174,7 +2176,7 @@ derivePublicKeyShared ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
         k <- liftHandler $ W.derivePublicKeyShared @_ @s @k @n wrk wid role_ ix
         pure $ ApiVerificationKeyShared (xpubPublicKey $ getRawKey k, role_)
 
-postAccountPublicKey
+postAccountPublicKeyShelley
     :: forall ctx s k n.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
@@ -2186,11 +2188,29 @@ postAccountPublicKey
     -> ApiT DerivationIndex
     -> ApiPostAccountKeyData
     -> Handler ApiAccountKey
-postAccountPublicKey ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
+postAccountPublicKeyShelley ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.readPublicAccountKey @_ @s @k @n wrk wid pwd ix
+        k <- liftHandler $ W.readPublicAccountKey @_ @s @k wrk wid pwd ix
         let toBytes = if extd then xpubToBytes else xpubPublicKey
         pure $ ApiAccountKey (toBytes $ getRawKey k) extd
+
+postAccountPublicKeyShared
+    :: forall ctx s k n.
+        ( s ~ SharedState n k
+        , ctx ~ ApiLayer s k
+        , HardDerivation k
+        , WalletKey k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiT DerivationIndex
+    -> ApiPostAccountKeyData
+    -> Handler ApiAccountKeyShared
+postAccountPublicKeyShared ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        k <- liftHandler $ W.readPublicAccountKey @_ @s @k wrk wid pwd ix
+        let toBytes = if extd then xpubToBytes else xpubPublicKey
+        pure $ ApiAccountKeyShared (toBytes $ getRawKey k) extd
 
 {-------------------------------------------------------------------------------
                                   Helpers

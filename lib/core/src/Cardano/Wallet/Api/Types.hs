@@ -127,6 +127,7 @@ module Cardano.Wallet.Api.Types
     , ApiVerificationKeyShelley (..)
     , ApiVerificationKeyShared (..)
     , ApiAccountKey (..)
+    , ApiAccountKeyShared (..)
     , ApiPostAccountKeyData (..)
 
     -- * API Types (Byron)
@@ -1074,6 +1075,12 @@ data ApiAccountKey = ApiAccountKey
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data ApiAccountKeyShared = ApiAccountKeyShared
+    { getApiAccountKey :: ByteString
+    , extended :: Bool
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiSharedWalletPostDataFromMnemonics = ApiSharedWalletPostDataFromMnemonics
     { name :: !(ApiT WalletName)
     , mnemonicSentence :: !(ApiMnemonicT (AllowedMnemonics 'Shelley))
@@ -1549,19 +1556,43 @@ instance FromJSON ApiAccountKey where
                   "Unrecognized human-readable part. Expected one of:\
                   \ \"acct_xvk\" or \"acct_vk\"."
 
-        bytesExpectedLength extd = if extd then 64 else 32
+parsePubErr :: IsString p => Bool -> p
+parsePubErr extd =
+    if extd then
+        "Not a valid Ed25519 extended public key. Must be 64 bytes, with chain code"
+    else
+        "Not a valid Ed25519 normal public key. Must be 32 bytes, without chain code"
 
-        parsePubErr extd =
-            if extd then
-                  "Not a valid Ed25519 extended public key. Must be 64 bytes, with chain code"
-            else
-                  "Not a valid Ed25519 normal public key. Must be 32 bytes, without chain code"
+parsePub :: MonadFail f => ByteString -> Bool -> f ByteString
+parsePub bytes extd
+    | BS.length bytes == bytesExpectedLength =
+          pure bytes
+    | otherwise =
+          fail $ parsePubErr extd
+  where
+    bytesExpectedLength = if extd then 64 else 32
 
-        parsePub bytes extd
-            | BS.length bytes == (bytesExpectedLength extd) =
-                pure bytes
-            | otherwise =
-                fail $ parsePubErr extd
+instance ToJSON ApiAccountKeyShared where
+    toJSON (ApiAccountKeyShared pub extd) =
+        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
+      where
+        hrp = if extd then [humanReadablePart|acct_shared_xvk|]
+            else [humanReadablePart|acct_shared_vk|]
+
+instance FromJSON ApiAccountKeyShared where
+    parseJSON value = do
+        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
+        extended' <- parseHrp hrp
+        flip ApiAccountKeyShared extended' <$> parsePub bytes extended'
+      where
+        parseHrp = \case
+            hrp | hrp == [humanReadablePart|acct_shared_xvk|] -> pure True
+            hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure False
+            _ -> fail errHrp
+          where
+              errHrp =
+                  "Unrecognized human-readable part. Expected one of:\
+                  \ \"acct_shared_xvk\" or \"acct_shared_vk\"."
 
 instance FromJSON ApiPostAccountKeyData where
     parseJSON = genericParseJSON defaultRecordTypeOptions

@@ -124,7 +124,7 @@ module Cardano.Wallet.Api
 
     , SharedWalletKeys
         , GetSharedWalletKey
-
+        , PostAccountKeyShared
     , Proxy_
         , PostExternalTransaction
 
@@ -145,6 +145,7 @@ import Cardano.Wallet
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
+    , ApiAccountKeyShared
     , ApiAddressData
     , ApiAddressIdT
     , ApiAddressInspect
@@ -896,7 +897,8 @@ type DeleteSharedWallet = "shared-wallets"
 -------------------------------------------------------------------------------}
 
 type SharedWalletKeys =
-    GetSharedWalletKey
+         GetSharedWalletKey
+    :<|> PostAccountKeyShared
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getSharedWalletKey
 type GetSharedWalletKey = "shared-wallets"
@@ -905,6 +907,14 @@ type GetSharedWalletKey = "shared-wallets"
     :> Capture "role" (ApiT Role)
     :> Capture "index" (ApiT DerivationIndex)
     :> Get '[JSON] ApiVerificationKeyShared
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postAccountKeyShared
+type PostAccountKeyShared = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "keys"
+    :> Capture "index" (ApiT DerivationIndex)
+    :> ReqBody '[JSON] ApiPostAccountKeyData
+    :> PostAccepted '[JSON] ApiAccountKeyShared
 
 {-------------------------------------------------------------------------------
                                    Proxy_
