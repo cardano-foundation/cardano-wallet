@@ -366,60 +366,60 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- | cardano-address address payment --from-script --network-tag mainnet
     it "ANY_ADDRESS_POST_01 - Golden tests for enterprise script address - signature" $ \ctx -> do
         --- $ cat script.txt
-        --- script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a
+        --- addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
         let payload = Json [json|{
-                "payment": "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a"
+                "payment": "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq"
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1w96eswctz5wzrv3ceh3h4y3na2t6d95sjn23dawy0zlzg0q0j39eu" :: Text
+                "addr1w8rqr8fmk4ulc7pgycd96fuqcg40e5ecuway0ypc2tsnteqm5wul2" :: Text
         validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_02 - Golden tests for enterprise script address - any" $ \ctx -> do
         --- $ cat script.txt
-        --- any [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a, script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4]
+        --- any [addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq, addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp]
         let payload = Json [json|{
                 "payment": {
                     "any": [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                        "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp"
                         ]
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1wxt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxyc3vza6h" :: Text
+                "addr1w8jtlgneqelxxlckcsgrkd7rd6ycrgegu5th24x0f058gmqhsnv92" :: Text
         validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_03 - Golden tests for enterprise script address - all" $ \ctx -> do
         --- $ cat script.txt
-        --- all [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a, script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4]
+        --- all [addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq, addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp]
         let payload = Json [json|{
                 "payment": {
                     "all": [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                        "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp"
                         ]
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1w94h4mtdkxr2x68zx4tk0cgmd9hymjgsuhmzaxkg5tkl3scc0g8xj" :: Text
+                "addr1w9q0ghwy73wapjcdwqxm6ytwe66j8eccsmn9jptshrjerasvf2cg0" :: Text
         validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_04 - Golden tests for enterprise script address - some" $ \ctx -> do
         --- $ cat script.txt
-        --- at_least 2 [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a,script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4,script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt]
+        --- at_least 2 [addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq,addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp,addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9]
         let payload = Json [json|{
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 2
                          }
@@ -428,7 +428,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1wy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclc6dnd8e" :: Text
+                "addr1wyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84ag6sm0n8" :: Text
         validateAddr r goldenAddr
 
     -- Generating golden test data for reward account addresses - script credential:
@@ -438,15 +438,15 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let payload = Json [json|{
                 "stake": {
                     "any": [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        "stake_shared_vkh1nqc00hvlc6cq0sfhretk0rmzw8dywmusp8retuqnnxzajtzhjg5",
+                        "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s"
                         ]
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "stake17xt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxycdxzmx9" :: Text
+                "stake17yshpfjkgh98wumvnn9y3yfhevllp4y04u6y84q3flxcv9sduxphm" :: Text
         validateAddr r goldenAddr
 
     -- Generating golden test data for reward account addresses - both script credentials:
@@ -458,25 +458,24 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 2
                          }
                     },
                 "stake": {
                     "any": [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        "stake_shared_vkh1nqc00hvlc6cq0sfhretk0rmzw8dywmusp8retuqnnxzajtzhjg5",
+                        "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s"
                         ]
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1xy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zr\
-                \majh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfs37hjk4" :: Text
+                "addr1xyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84afpwzn9v3w2waeke8x2fzgn0jel7r2glte5g02pzn7dsctqu6mtx3" :: Text
         validateAddr r goldenAddr
 
     -- Generating golden test data for enterprise addresses - key credential:
@@ -580,9 +579,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 2
                          }
@@ -592,8 +591,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1zy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacle5rh7cflza8\
-                \t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7sleajnd" :: Text
+                "addr1zyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84af5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7srr0dle" :: Text
         validateAddr r goldenAddr
 
     -- Generating golden test data for delegating address - payment from pub key, stake from script:
@@ -608,9 +606,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "stake": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 2
                          }
@@ -619,8 +617,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfffxzlhgvlzh\
-                \6drdsm04j43jk2wpsnqw7uketsgelghm3lsch4g8t" :: Text
+                "addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgph8kaew0fj7jd6s3l4ms4wnjp8s3a53qxl76wqmy60t6ssqcamq" :: Text
         validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_12 - Delegating addresses API roundtrip" $ \ctx -> runResourceT $ do
@@ -654,13 +651,13 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let payload = Json [json|{
                 "payment": {
                     "all" : [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
                         { "active_from": 120 }
                         ]
                     },
                 "stake": {
                     "all" : [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s",
                         { "active_from": 120 }
                         ]
                     }
@@ -668,8 +665,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
         let goldenAddr =
-                "addr1xyt94nh6f6dzfhzm4e8qjpmlam220n32rlsndd67vc2r0tgktt805n56y\
-                \nw9htjwpyrhlmk55l8z58lpx6m4ues5x7kscrzdyf" :: Text
+                "addr1xy756z909yycvf5ah8j5pc4cvuedkhvhyylmgfz400t8jdwmwa0hp024gu7dm6h8n252lkgnzemp93mm9kyd48p64mjshqtu3c" :: Text
         validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_14a - at_least 0 is valid when non-validated" $ \ctx -> do
@@ -677,9 +673,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 0
                          }
@@ -693,9 +689,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 0
                          }
@@ -710,9 +706,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 0
                          }
@@ -729,9 +725,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 4
                          }
@@ -745,9 +741,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 4
                          }
@@ -764,9 +760,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 4
                          }
@@ -783,9 +779,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 2
                          }
@@ -799,9 +795,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 2
                          }
@@ -816,9 +812,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "payment": {
                     "some": {
                         "from" : [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                             ],
                          "at_least": 2
                          }
@@ -834,14 +830,14 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let payload = Json [json|{
                 "payment": {
                     "all" : [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
                         { "active_from": 120 },
                         { "active_until": 100 }
                         ]
                     },
                 "stake": {
                     "all" : [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s",
                         { "active_from": 120 }
                         ]
                     }
@@ -853,7 +849,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let payload = Json [json|{
                 "payment": {
                     "all" : [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
                         { "active_from": 120 },
                         { "active_until": 100 }
                         ]
@@ -873,14 +869,14 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let payload = Json [json|{
                 "payment": {
                     "all" : [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s",
                         { "active_from": 120 },
                         { "active_until": 100 }
                         ]
                     },
                 "stake": {
                     "all" : [
-                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s",
                         { "active_from": 120 }
                         ]
                     },
@@ -889,6 +885,24 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
         let msg = "The timelocks used are contradictory when used with 'all' (which is not recommended)."
+        expectErrorMessage msg r
+
+    it "ANY_ADDRESS_POST_17d - script with mixed payment/delegation verification keys is invalid" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                            "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s"
+                            ],
+                         "at_least": 1
+                         }
+                    },
+                "validation": "required"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status400 r
+        let msg = "All keys of a script must have the same role: either payment or delegation."
         expectErrorMessage msg r
 
     it "POST_ACCOUNT_01 - Can retrieve account public keys" $ \ctx -> runResourceT $ do
