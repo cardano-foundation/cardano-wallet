@@ -142,7 +142,7 @@ instance WalletKey SharedKey where
         SharedKey
 
     keyTypeDescriptor _ =
-        "shared"
+        "sha"
 
 {-------------------------------------------------------------------------------
                          Relationship Key / Address

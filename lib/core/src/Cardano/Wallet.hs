@@ -2114,23 +2114,8 @@ derivePublicKeyShelley
     -> Role
     -> DerivationIndex
     -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
-derivePublicKeyShelley ctx wid role_ ix = db & \DBLayer{..} -> do
-    addrIx <- withExceptT ErrDerivePublicKeyInvalidIndex $ guardSoftIndex ix
-
-    cp <- mapExceptT atomically
-        $ withExceptT ErrDerivePublicKeyNoSuchWallet
-        $ withNoSuchWallet wid
-        $ readCheckpoint wid
-
-    -- NOTE: Alternatively, we could use 'internalPool', they share the same
-    --       account public key.
-    let (Seq.ParentContextUtxoExternal acctK) =
-            Seq.context $ Seq.externalPool $ getState cp
-    let addrK = deriveAddressPublicKey acctK role_ addrIx
-
-    return addrK
-  where
-    db = ctx ^. dbLayer @IO @s @k
+derivePublicKeyShelley ctx wid role_ ix =
+    derivePublicKey @ctx @s @k  ctx toAccXPubShelley wid role_ ix
 
 derivePublicKeyShared
     :: forall ctx s k n.
@@ -2143,7 +2128,33 @@ derivePublicKeyShared
     -> Role
     -> DerivationIndex
     -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
-derivePublicKeyShared ctx wid role_ ix = db & \DBLayer{..} -> do
+derivePublicKeyShared ctx wid role_ ix =
+    derivePublicKey @ctx @s @k ctx toAccXPubShared wid role_ ix
+
+toAccXPubShared
+    :: SharedState n k
+    -> k 'AccountK XPub
+toAccXPubShared = accountPublicKey
+
+toAccXPubShelley
+    :: SeqState n k
+    -> k 'AccountK XPub
+toAccXPubShelley s =
+    let (Seq.ParentContextUtxoExternal acctK) = Seq.context $ Seq.externalPool s
+    in acctK
+
+derivePublicKey
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , SoftDerivation k
+        )
+    => ctx
+    -> (s -> k 'AccountK XPub)
+    -> WalletId
+    -> Role
+    -> DerivationIndex
+    -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
+derivePublicKey ctx toAccXPub wid role_ ix = db & \DBLayer{..} -> do
     addrIx <- withExceptT ErrDerivePublicKeyInvalidIndex $ guardSoftIndex ix
 
     cp <- mapExceptT atomically
@@ -2151,7 +2162,7 @@ derivePublicKeyShared ctx wid role_ ix = db & \DBLayer{..} -> do
         $ withNoSuchWallet wid
         $ readCheckpoint wid
 
-    let acctK = accountPublicKey $ getState cp
+    let acctK = toAccXPub $ getState cp
     let addrK = deriveAddressPublicKey acctK role_ addrIx
 
     return addrK
