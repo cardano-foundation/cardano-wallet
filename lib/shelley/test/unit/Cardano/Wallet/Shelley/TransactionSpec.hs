@@ -62,10 +62,12 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..)
+    ( TxConstraints (..)
+    , TxIn (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxOut (..)
+    , TxSize (..)
     , txMetadataIsNull
     , txOutCoin
     )
@@ -74,11 +76,17 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Shelley.Compatibility
     ( fromAllegraTx, fromShelleyTx, sealShelleyTx, toCardanoLovelace )
 import Cardano.Wallet.Shelley.Transaction
-    ( TxWitnessTagFor
+    ( TxSkeleton (..)
+    , TxWitnessTag (..)
+    , TxWitnessTagFor
+    , estimateTxCost
+    , estimateTxSize
     , mkByronWitness
     , mkShelleyWitness
+    , mkTxSkeleton
     , mkUnsignedTx
     , newTransactionLayer
+    , txConstraints
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
     )
@@ -103,6 +111,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Semigroup
+    ( mtimesDefault )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
@@ -121,8 +131,10 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , choose
     , classify
+    , conjoin
     , counterexample
     , elements
+    , oneof
     , property
     , scale
     , vectorOf
@@ -142,6 +154,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -415,6 +428,17 @@ spec = do
                 \fa54297c6a5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80e\
                 \58200000000000000000000000000000000000000000000000000000000000\
                 \00000044a1024100f6"
+
+    describe "Transaction constraints" $ do
+
+        it "cost of empty transaction" $
+            property prop_txConstraints_txBaseCost
+        it "size of empty transaction" $
+            property prop_txConstraints_txBaseSize
+        it "cost of non-empty transaction" $
+            property prop_txConstraints_txCost
+        it "size of non-empty transaction" $
+            property prop_txConstraints_txSize
 
 newtype GivenNumOutputs = GivenNumOutputs Int deriving Num
 newtype ExpectedNumInputs = ExpectedNumInputs Int deriving Num
@@ -704,3 +728,141 @@ dummyProtocolParameters = ProtocolParameters
 -- that it generates always the same values.
 generatePure :: Int -> Gen a -> a
 generatePure seed (MkGen r) = r (mkQCGen seed) 30
+
+--------------------------------------------------------------------------------
+-- Transaction constraints
+--------------------------------------------------------------------------------
+
+emptyTxSkeleton :: TxSkeleton
+emptyTxSkeleton = mkTxSkeleton
+    TxWitnessShelleyUTxO
+    defaultTransactionCtx
+    emptySkeleton
+
+mockProtocolParameters :: ProtocolParameters
+mockProtocolParameters = dummyProtocolParameters
+    { txParameters = TxParameters
+        { getFeePolicy = LinearFee (Quantity 1.0) (Quantity 2.0)
+        , getTxMaxSize = Quantity 16384
+        }
+    }
+
+mockTxConstraints :: TxConstraints
+mockTxConstraints = txConstraints mockProtocolParameters TxWitnessShelleyUTxO
+
+data MockSelection = MockSelection
+    { txInputCount :: Int
+    , txOutputs :: [TxOut]
+    , txRewardWithdrawal :: Coin
+    }
+    deriving (Eq, Show)
+
+genMockSelection :: Gen MockSelection
+genMockSelection = do
+    txInputCount <-
+        oneof [ pure 0, choose (1, 1000) ]
+    txOutputCount <-
+        oneof [ pure 0, choose (1, 1000) ]
+    txOutputs <- replicateM txOutputCount genTxOut
+    txRewardWithdrawal <-
+        Coin <$> oneof [ pure 0, choose (1, 1_000_000) ]
+    pure MockSelection
+        { txInputCount
+        , txOutputs
+        , txRewardWithdrawal
+        }
+  where
+    genTxOut = TxOut (dummyAddress dummyByte) <$> genTokenBundleSmallRange
+      where
+        dummyByte :: Word8
+        dummyByte = fromIntegral $ fromEnum 'A'
+
+shrinkMockSelection :: MockSelection -> [MockSelection]
+shrinkMockSelection mock =
+    [ MockSelection i o r
+    | (i, o, r) <- shrink (txInputCount, txOutputs, txRewardWithdrawal)
+    ]
+  where
+    MockSelection
+        { txInputCount
+        , txOutputs
+        , txRewardWithdrawal
+        } = mock
+
+instance Arbitrary MockSelection where
+    arbitrary = genMockSelection
+    shrink = shrinkMockSelection
+
+-- Tests that using 'txBaseCost' to estimate the cost of an empty selection
+-- produces a result that is consistent with the result of using
+-- 'estimateTxCost'.
+--
+prop_txConstraints_txBaseCost :: Property
+prop_txConstraints_txBaseCost =
+    txBaseCost mockTxConstraints
+        === estimateTxCost mockProtocolParameters emptyTxSkeleton
+
+-- Tests that using 'txBaseSize' to estimate the size of an empty selection
+-- produces a result that is consistent with the result of using
+-- 'estimateTxSize'.
+--
+prop_txConstraints_txBaseSize :: Property
+prop_txConstraints_txBaseSize =
+    txBaseSize mockTxConstraints
+        === estimateTxSize emptyTxSkeleton
+
+-- Tests that using 'txConstraints' to estimate the cost of a non-empty
+-- selection produces a result that is consistent with the result of using
+-- 'estimateTxCost'.
+--
+prop_txConstraints_txCost :: MockSelection -> Property
+prop_txConstraints_txCost mock =
+    counterexample ("result: " <> show result) $
+    counterexample ("lower bound: " <> show lowerBound) $
+    counterexample ("upper bound: " <> show upperBound) $
+    conjoin
+        [ result >= lowerBound
+        , result <= upperBound
+        ]
+  where
+    MockSelection {txInputCount, txOutputs, txRewardWithdrawal} = mock
+    result :: Coin
+    result = mconcat
+        [ txBaseCost mockTxConstraints
+        , txInputCount `mtimesDefault` txInputCost mockTxConstraints
+        , F.foldMap (txOutputCost mockTxConstraints . tokens) txOutputs
+        , txRewardWithdrawalCost mockTxConstraints txRewardWithdrawal
+        ]
+    lowerBound = estimateTxCost mockProtocolParameters emptyTxSkeleton
+        {txInputCount, txOutputs, txRewardWithdrawal}
+    -- We allow a small amount of overestimation due to the slight variation in
+    -- the marginal cost of an input:
+    upperBound = lowerBound <> txInputCount `mtimesDefault` Coin 8
+
+-- Tests that using 'txConstraints' to estimate the size of a non-empty
+-- selection produces a result that is consistent with the result of using
+-- 'estimateTxSize'.
+--
+prop_txConstraints_txSize :: MockSelection -> Property
+prop_txConstraints_txSize mock =
+    counterexample ("result: " <> show result) $
+    counterexample ("lower bound: " <> show lowerBound) $
+    counterexample ("upper bound: " <> show upperBound) $
+    conjoin
+        [ result >= lowerBound
+        , result <= upperBound
+        ]
+  where
+    MockSelection {txInputCount, txOutputs, txRewardWithdrawal} = mock
+    result :: TxSize
+    result = mconcat
+        [ txBaseSize mockTxConstraints
+        , txInputCount `mtimesDefault` txInputSize mockTxConstraints
+        , F.foldMap (txOutputSize mockTxConstraints . tokens) txOutputs
+        , txRewardWithdrawalSize mockTxConstraints txRewardWithdrawal
+        ]
+    lowerBound = estimateTxSize emptyTxSkeleton
+        {txInputCount, txOutputs, txRewardWithdrawal}
+    -- We allow a small amount of overestimation due to the slight variation in
+    -- the marginal size of an input:
+    upperBound = lowerBound <> txInputCount `mtimesDefault` TxSize 4
