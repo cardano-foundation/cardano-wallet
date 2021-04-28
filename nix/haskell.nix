@@ -327,9 +327,9 @@ let
     zshCompDir="$out/share/zsh/vendor-completions"
     fishCompDir="$out/share/fish/vendor_completions.d"
     mkdir -p "$bashCompDir" "$zshCompDir" "$fishCompDir"
-    "$out/bin/$exeName" --bash-completion-script "$out/bin/$exeName" >"$bashCompDir/$exeName"
-    "$out/bin/$exeName" --zsh-completion-script "$out/bin/$exeName" >"$zshCompDir/_$exeName"
-    "$out/bin/$exeName" --fish-completion-script "$out/bin/$exeName" >"$fishCompDir/$exeName.fish"
+    "$out/bin/$exeName" --bash-completion-script "$exeName" >"$bashCompDir/$exeName"
+    "$out/bin/$exeName" --zsh-completion-script "$exeName" >"$zshCompDir/_$exeName"
+    "$out/bin/$exeName" --fish-completion-script "$exeName" >"$fishCompDir/$exeName.fish"
   '';
 
 in
