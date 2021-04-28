@@ -219,12 +219,26 @@ let
   # function to take a list of jobs by name from a jobset.
   selectExes = subjobs: system: map (exe: subjobs.${exe}.${system});
 
-  releaseDistJobs = optionalAttrs buildWindows {
-
-    # Windows release ZIP archive - shelley
-    cardano-wallet-win64 = import ./nix/windows-release.nix {
+  releaseDistJobs = optionalAttrs buildMusl {
+    cardano-wallet-linux64 = import ./nix/release-package.nix {
       inherit pkgs;
-      exes = selectExes jobs.x86_64-w64-mingw32 "x86_64-linux" releaseContents;
+      exes = selectExes jobs.musl64 "x86_64-linux" releaseContents;
+      platform = "linux64";
+      format = "tar.gz";
+    };
+  } // optionalAttrs buildMacOS {
+    cardano-wallet-macos64 = hydraJob' (import ./nix/release-package.nix {
+      inherit ((pkgsFor "x86_64-darwin").private) pkgs;
+      exes = selectExes jobs.native "x86_64-darwin" releaseContents;
+      platform = "macos64";
+      format = "tar.gz";
+    });
+  } // optionalAttrs buildWindows {
+    cardano-wallet-win64 = import ./nix/release-package.nix {
+      inherit pkgs;
+      exes = selectExes jobs.x86_64-w64-mingw32 builtins.currentSystem releaseContents;
+      platform = "win64";
+      format = "zip";
     };
 
     # This is used for testing the build on windows.
@@ -238,16 +252,6 @@ let
       tests = collectTests winJobs.tests;
       benchmarks = collectTests winJobs.benchmarks;
     };
-  } // optionalAttrs buildMusl {
-    cardano-wallet-linux64 = import ./nix/linux-release.nix {
-      inherit pkgs;
-      exes = selectExes jobs.musl64 "x86_64-linux" releaseContents;
-    };
-  } // optionalAttrs buildMacOS {
-    cardano-wallet-macos64 = hydraJob' (import ./nix/macos-release.nix {
-      inherit ((pkgsFor "x86_64-darwin").private) pkgs;
-      exes = selectExes jobs.native "x86_64-darwin" releaseContents;
-    });
   };
 
   ############################################################################
