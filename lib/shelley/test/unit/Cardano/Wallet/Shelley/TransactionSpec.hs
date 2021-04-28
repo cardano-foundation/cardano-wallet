@@ -60,7 +60,10 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genFixedSizeTokenBundle
+    , genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..)
     , TxIn (..)
@@ -74,7 +77,13 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromAllegraTx, fromShelleyTx, sealShelleyTx, toCardanoLovelace )
+    ( computeTokenBundleSerializedLengthBytes
+    , fromAllegraTx
+    , fromShelleyTx
+    , maxTokenBundleSerializedLengthBytes
+    , sealShelleyTx
+    , toCardanoLovelace
+    )
 import Cardano.Wallet.Shelley.Transaction
     ( TxSkeleton (..)
     , TxWitnessTag (..)
@@ -129,10 +138,12 @@ import Test.QuickCheck
     , NonEmptyList (..)
     , Property
     , arbitraryPrintableChar
+    , checkCoverage
     , choose
     , classify
     , conjoin
     , counterexample
+    , cover
     , elements
     , oneof
     , property
@@ -140,6 +151,7 @@ import Test.QuickCheck
     , vectorOf
     , withMaxSuccess
     , within
+    , (=/=)
     , (===)
     , (==>)
     )
@@ -439,6 +451,8 @@ spec = do
             property prop_txConstraints_txCost
         it "size of non-empty transaction" $
             property prop_txConstraints_txSize
+        it "maximum size of output" $
+            property prop_txConstraints_txOutputMaximumSize
 
 newtype GivenNumOutputs = GivenNumOutputs Int deriving Num
 newtype ExpectedNumInputs = ExpectedNumInputs Int deriving Num
@@ -866,3 +880,63 @@ prop_txConstraints_txSize mock =
     -- We allow a small amount of overestimation due to the slight variation in
     -- the marginal size of an input:
     upperBound = lowerBound <> txInputCount `mtimesDefault` TxSize 4
+
+newtype Large a = Large { unLarge :: a }
+    deriving (Eq, Show)
+
+instance Arbitrary (Large TokenBundle) where
+    arbitrary = fmap Large . genFixedSizeTokenBundle =<< choose (1, 128)
+
+-- Tests that if a bundle is oversized (when serialized), then a comparison
+-- between 'txOutputSize' and 'txOutputMaximumSize' should also indicate that
+-- the bundle is oversized.
+--
+prop_txConstraints_txOutputMaximumSize :: Large TokenBundle -> Property
+prop_txConstraints_txOutputMaximumSize (Large bundle) =
+    checkCoverage $
+    cover 10 (authenticComparison == LT)
+        "authentic bundle size is smaller than maximum" $
+    cover 10 (authenticComparison == GT)
+        "authentic bundle size is greater than maximum" $
+    counterexample
+        ("authentic size: " <> show authenticSize) $
+    counterexample
+        ("authentic size maximum: " <> show authenticSizeMax) $
+    counterexample
+        ("authentic comparison: " <> show authenticComparison) $
+    counterexample
+        ("simulated size: " <> show simulatedSize) $
+    counterexample
+        ("simulated size maximum: " <> show simulatedSizeMax) $
+    counterexample
+        ("simulated comparison: " <> show simulatedComparison) $
+    case authenticComparison of
+        LT ->
+            -- We can't really require anything of the simulated comparison
+            -- here, as the size given by 'estimateTxSize' is allowed to be
+            -- an overestimate.
+            property True
+        EQ ->
+            -- It's extremely hard to hit this case exactly. But if this case
+            -- does match, we only need to ensure that the simulated size is
+            -- not an underestimate.
+            simulatedComparison =/= LT
+        GT ->
+            -- This is the case we really care about. If the result of an
+            -- authentic comparison indicates that the bundle is oversized,
+            -- the simulated comparison MUST also indicate that the bundle
+            -- is oversized.
+            simulatedComparison === GT
+  where
+    authenticComparison = compare authenticSize authenticSizeMax
+    simulatedComparison = compare simulatedSize simulatedSizeMax
+
+    authenticSize :: Int
+    authenticSize = computeTokenBundleSerializedLengthBytes bundle
+    authenticSizeMax :: Int
+    authenticSizeMax = maxTokenBundleSerializedLengthBytes
+
+    simulatedSize :: TxSize
+    simulatedSize = txOutputSize mockTxConstraints bundle
+    simulatedSizeMax :: TxSize
+    simulatedSizeMax = txOutputMaximumSize mockTxConstraints
