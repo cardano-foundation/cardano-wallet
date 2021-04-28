@@ -78,6 +78,8 @@ module Test.Integration.Framework.DSL
     , deleteSharedWallet
     , getSharedWallet
     , patchSharedWallet
+    , getSharedWalletKey
+    , postAccountKeyShared
 
     -- * Wallet helpers
     , listFilteredWallets
@@ -213,6 +215,7 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
+    , ApiAccountKeyShared
     , ApiAddress
     , ApiBlockReference (..)
     , ApiByronWallet
@@ -228,6 +231,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (ApiTxId)
     , ApiUtxoStatistics (..)
+    , ApiVerificationKeyShared
     , ApiWallet
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
@@ -1432,6 +1436,41 @@ getSharedWallet ctx (ApiSharedWallet (Left w)) = do
 getSharedWallet ctx (ApiSharedWallet (Right w)) = do
     let link = Link.getSharedWallet w
     request @ApiSharedWallet ctx link Default Empty
+
+getSharedWalletKey
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiSharedWallet
+    -> Role
+    -> DerivationIndex
+    -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
+getSharedWalletKey ctx (ApiSharedWallet (Left w)) role ix = do
+    let link = Link.getSharedWalletKey w role ix
+    request @ApiVerificationKeyShared ctx link Default Empty
+getSharedWalletKey ctx (ApiSharedWallet (Right w)) role ix = do
+    let link = Link.getSharedWalletKey w role ix
+    request @ApiVerificationKeyShared ctx link Default Empty
+
+postAccountKeyShared
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiSharedWallet
+    -> DerivationIndex
+    -> Headers
+    -> Payload
+    -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
+postAccountKeyShared ctx (ApiSharedWallet (Left w)) ix headers payload = do
+    let link = Link.postAccountKeyShared w ix
+    request @ApiAccountKeyShared ctx link headers payload
+postAccountKeyShared ctx (ApiSharedWallet (Right w)) ix headers payload = do
+    let link = Link.postAccountKeyShared w ix
+    request @ApiAccountKeyShared ctx link headers payload
 
 patchEndpointEnding :: CredentialType -> Text
 patchEndpointEnding = \case
