@@ -804,7 +804,9 @@ estimateTxSize args =
 
         -- ?5 => withdrawals
         sizeOf_Withdrawals
-            = (if numberOf_Withdrawals > 0 then sizeOf_SmallUInt + sizeOf_SmallMap else 0)
+            = (if numberOf_Withdrawals > 0
+                then sizeOf_SmallUInt + sizeOf_SmallMap
+                else 0)
             + sizeOf_Withdrawal * numberOf_Withdrawals
 
         -- ?6 => update
@@ -839,7 +841,8 @@ estimateTxSize args =
         + sizeOf_Address address
         + sizeOf_SmallArray
         + sizeOf_Coin (TokenBundle.getCoin tokens)
-        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0 (TokenBundle.getAssets tokens)
+        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0
+            (TokenBundle.getAssets tokens)
 
     -- transaction_output =
     --   [address, amount : value]
@@ -941,7 +944,8 @@ estimateTxSize args =
       where
         -- ?0 => [* vkeywitness ]
         sizeOf_VKeyWitnesses
-            = (if numberOf_VkeyWitnesses > 0 then sizeOf_Array + sizeOf_SmallUInt else 0)
+            = (if numberOf_VkeyWitnesses > 0
+                then sizeOf_Array + sizeOf_SmallUInt else 0)
             + sizeOf_VKeyWitness * numberOf_VkeyWitnesses
 
         -- ?1 => [* multisig_script ]
@@ -950,7 +954,9 @@ estimateTxSize args =
 
         -- ?2 => [* bootstrap_witness ]
         sizeOf_BootstrapWitnesses
-            = (if numberOf_BootstrapWitnesses > 0 then sizeOf_Array + sizeOf_SmallUInt else 0)
+            = (if numberOf_BootstrapWitnesses > 0
+                then sizeOf_Array + sizeOf_SmallUInt
+                else 0)
             + sizeOf_BootstrapWitness * numberOf_BootstrapWitnesses
 
     -- vkeywitness =
