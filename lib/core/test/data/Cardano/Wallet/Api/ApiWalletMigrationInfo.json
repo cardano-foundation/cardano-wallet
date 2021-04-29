@@ -22,7 +22,7 @@
                 },
                 "assets": []
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 31,
                 "unit": "lovelace"
             }
@@ -48,7 +48,7 @@
                 },
                 "assets": []
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 4,
                 "unit": "lovelace"
             }
@@ -74,7 +74,7 @@
                     }
                 ]
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 154,
                 "unit": "lovelace"
             }
@@ -125,7 +125,7 @@
                     }
                 ]
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 139,
                 "unit": "lovelace"
             }
@@ -161,7 +161,7 @@
                     }
                 ]
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 159,
                 "unit": "lovelace"
             }
@@ -181,7 +181,7 @@
                 },
                 "assets": []
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 57,
                 "unit": "lovelace"
             }
@@ -243,7 +243,7 @@
                     }
                 ]
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 200,
                 "unit": "lovelace"
             }
@@ -299,7 +299,7 @@
                 },
                 "assets": []
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 63,
                 "unit": "lovelace"
             }
@@ -319,7 +319,7 @@
                 },
                 "assets": []
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 63,
                 "unit": "lovelace"
             }
@@ -381,7 +381,7 @@
                     }
                 ]
             },
-            "migration_cost": {
+            "total_fee": {
                 "quantity": 17,
                 "unit": "lovelace"
             }

@@ -125,7 +125,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status200
-                , expectField (#migrationCost . #getQuantity)
+                , expectField (#totalFee . #getQuantity)
                     (.> 0)
                 ]
 
@@ -267,10 +267,10 @@ spec = describe "BYRON_MIGRATIONS" $ do
             Empty
         verify rFee
             [ expectResponseCode HTTP.status200
-            , expectField #migrationCost (.> Quantity 0)
+            , expectField #totalFee (.> Quantity 0)
             ]
         let expectedFee =
-                getFromResponse (#migrationCost . #getQuantity) rFee
+                getFromResponse (#totalFee . #getQuantity) rFee
         let balanceLeftover =
                 getFromResponse (#balanceLeftover . #ada . #getQuantity) rFee
 
@@ -430,7 +430,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             r0 <- request @ApiWalletMigrationInfo ctx ep0 Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
-                , expectField #migrationCost (.> Quantity 0)
+                , expectField #totalFee (.> Quantity 0)
                 ]
 
             -- Perform the migration.
@@ -453,7 +453,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             let actualFee = fromIntegral $ sum $ apiTransactionFee
                     <$> getFromResponse id r1
             let predictedFee =
-                    getFromResponse (#migrationCost . #getQuantity) r0
+                    getFromResponse (#totalFee . #getQuantity) r0
             liftIO $ actualFee `shouldBe` predictedFee
 
     it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
@@ -555,10 +555,10 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 (Link.getMigrationInfo @'Byron sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
-                , expectField #migrationCost (.> Quantity 0)
+                , expectField #totalFee (.> Quantity 0)
                 ]
             let expectedFee =
-                    getFromResponse (#migrationCost . #getQuantity) r0
+                    getFromResponse (#totalFee . #getQuantity) r0
             let balanceLeftover =
                     getFromResponse (#balanceLeftover . #ada . #getQuantity) r0
 

@@ -1024,7 +1024,7 @@ data ApiWalletMigrationBalance = ApiWalletMigrationBalance
       deriving anyclass NFData
 
 data ApiWalletMigrationInfo = ApiWalletMigrationInfo
-    { migrationCost :: Quantity "lovelace" Natural
+    { totalFee :: Quantity "lovelace" Natural
     , balanceLeftover :: ApiWalletMigrationBalance
     , balanceSelected :: ApiWalletMigrationBalance
     } deriving (Eq, Generic, Show)

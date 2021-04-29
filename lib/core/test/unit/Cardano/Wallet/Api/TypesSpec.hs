@@ -819,7 +819,7 @@ spec = parallel $ do
         it "ApiWalletMigrationInfo" $ property $ \x ->
             let
                 x' = ApiWalletMigrationInfo
-                    { migrationCost = migrationCost
+                    { totalFee = totalFee
                         (x :: ApiWalletMigrationInfo)
                     , balanceLeftover = balanceLeftover
                         (x :: ApiWalletMigrationInfo)
