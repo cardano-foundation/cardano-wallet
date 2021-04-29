@@ -4573,16 +4573,24 @@ paths:
         <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
 
         <hr/>
+        Migrate the UTxO balance of this wallet to the given set of addresses.
 
-        Submit one or more transactions which transfers all funds from a Shelley
-        wallet to a set of addresses.
+        This operation will attempt to transfer as much of the wallet's balance
+        as possible to the given set of addresses, by creating and submitting
+        as many transactions as may be necessary to migrate the entire balance.
 
-        This operation attempts to preserve the UTxO "shape" of a wallet as far as possible.
-        That is, coins will not be agglomerated. Therefore, if the wallet has
-        a large UTxO set, several transactions may be needed.
+        In order to minimize the total transaction fee required, UTxO entries
+        are coalesced together to the greatest extent possible in the resulting
+        transactions. No attempt is made to preserve the wallet's UTxO
+        distribution.
 
-        A typical usage would be when one wants to move all funds from an old wallet to another
-        by providing addresses coming from the new wallet.
+        This operation is performed on a best-effort basis. If there is
+        insufficient ada available to pay for the entire UTxO set to be
+        migrated, then only a subset of the wallet's UTxO set will be migrated.
+
+        A typical use of this operation would be to move all funds from an old
+        wallet to a new wallet, by providing addresses that belong to the new
+        wallet.
       parameters:
         - <<: *parametersWalletId
           name: walletId
@@ -4955,16 +4963,24 @@ paths:
         <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
 
         <hr/>
+        Migrate the UTxO balance of this wallet to the given set of addresses.
 
-        Submit one or more transactions which transfers all funds from a Byron
-        wallet to a set of addresses.
+        This operation will attempt to transfer as much of the wallet's balance
+        as possible to the given set of addresses, by creating and submitting
+        as many transactions as may be necessary to migrate the entire balance.
 
-        This operation attempts to preserve the UTxO "shape" of a wallet as far as possible.
-        That is, coins will not be agglomerated. Therefore, if the wallet has
-        a large UTxO set, several transactions may be needed.
+        In order to minimize the total transaction fee required, UTxO entries
+        are coalesced together to the greatest extent possible in the resulting
+        transactions. No attempt is made to preserve the wallet's UTxO
+        distribution.
 
-        A typical usage would be when one wants to move all funds from an old wallet to another (Shelley
-        or Byron) by providing addresses coming from the new wallet.
+        This operation is performed on a best-effort basis. If there is
+        insufficient ada available to pay for the entire UTxO set to be
+        migrated, then only a subset of the wallet's UTxO set will be migrated.
+
+        A typical use of this operation would be to move all funds from an old
+        wallet to a new wallet, by providing addresses that belong to the new
+        wallet.
       parameters:
         - <<: *parametersWalletId
           name: walletId
