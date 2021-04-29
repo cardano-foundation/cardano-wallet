@@ -31,6 +31,7 @@ result*
 
 ### Direnv ###
 .envrc-local
+.envrc-override
 
 ### auto-generated faulty JSON golden tests ###
 *.faulty.json

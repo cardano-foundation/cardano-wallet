@@ -126,14 +126,16 @@ let
     ) ds);
 
   # Remove build jobs for which cross compiling does not make sense.
-  filterJobsCross = filterAttrs (n: _: !(elem n [
-    "dockerImage"
-    "shell"
-    "shell-prof"
-    "stackShell"
-    "cabalShell"
-    "stackNixRegenerate"
-  ]));
+  filterJobsCross = js: recursiveUpdate js {
+    dockerImage = [];
+    private = {
+      shell = [];
+      shell-prof = [];
+      cabalShell = [];
+      stackShell = [];
+      stackNixRegenerate = [];
+    };
+  };
 
   # Remove cardano-node integration tests for Windows because
   # ouroboros-network doesn't work under wine.
@@ -160,7 +162,7 @@ let
   filterJobsNative = let
     removeProfiledBuildForPRs = if (pr == null)
       then id
-      else filterAttrs (n: _: n != "shell-prof");
+      else js: recursiveUpdate js { private.shell-prof = null; };
     removeCoverageReport = filterAttrs (n: _: n != "testCoverageReport");
   in
     drvs: removeCoverageReport (removeProfiledBuildForPRs drvs);
@@ -174,12 +176,12 @@ let
       collectTests jobs.native.checks ++
       collectTests jobs.native.benchmarks ++
       optionals buildLinux [
-        jobs.native.shell.x86_64-linux
+        jobs.native.private.shell.x86_64-linux
         # executables for linux
         jobs.native.cardano-wallet.x86_64-linux
       ] ++
       optionals buildMacOS [
-        jobs.native.shell.x86_64-darwin
+        jobs.native.private.shell.x86_64-darwin
         # executables for macOS
         jobs.native.cardano-wallet.x86_64-darwin
 
@@ -206,25 +208,37 @@ let
   # Release distribution jobs - these all have a Hydra download link.
 
   # Which exes should be put in the release archive.
-  releaseContents = {
-    shelley = [
-      "cardano-wallet"
-      "bech32"
-      "cardano-address"
-      "cardano-cli"
-      "cardano-node"
-    ];
-  };
+  releaseContents = [
+    "cardano-wallet"
+    "bech32"
+    "cardano-address"
+    "cardano-cli"
+    "cardano-node"
+  ];
 
   # function to take a list of jobs by name from a jobset.
   selectExes = subjobs: system: map (exe: subjobs.${exe}.${system});
 
-  releaseDistJobs = optionalAttrs buildWindows {
-
-    # Windows release ZIP archive - shelley
-    cardano-wallet-win64 = import ./nix/windows-release.nix {
+  releaseDistJobs = optionalAttrs buildMusl {
+    cardano-wallet-linux64 = import ./nix/release-package.nix {
       inherit pkgs;
-      exes = selectExes jobs.x86_64-w64-mingw32 "x86_64-linux" releaseContents.shelley;
+      exes = selectExes jobs.musl64 "x86_64-linux" releaseContents;
+      platform = "linux64";
+      format = "tar.gz";
+    };
+  } // optionalAttrs buildMacOS {
+    cardano-wallet-macos64 = hydraJob' (import ./nix/release-package.nix {
+      inherit ((pkgsFor "x86_64-darwin").private) pkgs;
+      exes = selectExes jobs.native "x86_64-darwin" releaseContents;
+      platform = "macos64";
+      format = "tar.gz";
+    });
+  } // optionalAttrs buildWindows {
+    cardano-wallet-win64 = import ./nix/release-package.nix {
+      inherit pkgs;
+      exes = selectExes jobs.x86_64-w64-mingw32 builtins.currentSystem releaseContents;
+      platform = "win64";
+      format = "zip";
     };
 
     # This is used for testing the build on windows.
@@ -238,16 +252,6 @@ let
       tests = collectTests winJobs.tests;
       benchmarks = collectTests winJobs.benchmarks;
     };
-  } // optionalAttrs buildMusl {
-    cardano-wallet-linux64 = import ./nix/linux-release.nix {
-      inherit pkgs;
-      exes = selectExes jobs.musl64 "x86_64-linux" releaseContents.shelley;
-    };
-  } // optionalAttrs buildMacOS {
-    cardano-wallet-macos64 = hydraJob' (import ./nix/macos-release.nix {
-      inherit (pkgsFor "x86_64-darwin") pkgs;
-      exes = selectExes jobs.native "x86_64-darwin" releaseContents.shelley;
-    });
   };
 
   ############################################################################
@@ -256,7 +260,7 @@ let
   otherJobs = optionalAttrs buildLinux {
     # Build and cache the build script used on Buildkite
     buildkiteScript = import ./.buildkite/default.nix {
-      walletPackages = project;
+      inherit pkgs;
     };
   };
 

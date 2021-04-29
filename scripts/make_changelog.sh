@@ -27,14 +27,14 @@ fi
 fetch_prs() {
   if [ -z "${GITHUB_API_TOKEN:-}" ]; then
     echo "warning: GITHUB_API_TOKEN is not set. You may get a rate limit error when fetching pull requests." > /dev/stderr
-    auth_header=""
+    auth_header=()
   else
-    auth_header="-H 'Authorization: token $GITHUB_API_TOKEN'"
+    auth_header=("-H" "Authorization: token $GITHUB_API_TOKEN")
   fi
 
   url="https://api.github.com/search/issues?per_page=500&q=repo:$1+is:pr+is:merged+merged:%3E$2"
   echo "Fetching $url" > /dev/stderr
-  curl --silent $auth_header \
+  curl --silent "${auth_header[@]}" \
     -H "Accept: application/vnd.github.v3+json" \
     "$url"
 }
@@ -46,7 +46,7 @@ labels=$(jq 'map(map("\(.label)") | unique) | flatten' <<< "$pull_requests")
 
 labels_max=$(jq 'length - 1' <<< "$labels")
 
-for i in $(seq 0 $labels_max); do
+for i in $(seq 0 "$labels_max"); do
   label=$(jq -r ".[$i]" <<< "$labels")
   case $label in
   "null")
@@ -63,6 +63,6 @@ for i in $(seq 0 $labels_max); do
       ;;
   esac
   echo ""
-  jq -r '.['$i'] | .[] | "- \(.)"' <<< "$items"
+  jq -r '.['"$i"'] | .[] | "- \(.)"' <<< "$items"
   echo ""
 done

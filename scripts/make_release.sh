@@ -1,5 +1,6 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -i bash -p nix coreutils gnugrep gnused jq curl go-jira
+# shellcheck shell=bash
 
 set -euo pipefail
 
@@ -49,8 +50,7 @@ CABAL_VERSION=$(tag_cabal_ver $GIT_TAG)
 
 echo ""
 echo "Replacing $OLD_CABAL_VERSION with $CABAL_VERSION"
-sed -i "s/$OLD_CABAL_VERSION_RE/$CABAL_VERSION/" \
-    $(git ls-files '*.nix'; git ls-files '*.cabal'; git ls-files '*swagger.yaml') docker-compose.yml
+git ls-files '*.nix' '*.cabal' '*swagger.yaml' docker-compose.yml | xargs sed -i "s/$OLD_CABAL_VERSION_RE/$CABAL_VERSION/"
 echo ""
 
 echo "Updating docker-compose.yml with $CARDANO_NODE_TAG cardano-node tag"
@@ -71,7 +71,7 @@ REPO="input-output-hk/cardano-wallet"
 WIKI_COMMIT=$(git ls-remote https://github.com/$REPO.wiki.git HEAD | cut -f1)
 
 echo "Generating changelog into $CHANGELOG..."
-./scripts/make_changelog.sh $OLD_DATE > $CHANGELOG
+./scripts/make_changelog.sh "$OLD_DATE" > $CHANGELOG
 echo ""
 
 echo "Generating unresolved issues list into $KNOWN_ISSUES..."

@@ -1,0 +1,80 @@
+name: release
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    if: ${{ startsWith(github.ref, 'refs/tags/v')  }}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: '❄ Wait for Hydra build'
+        uses: rvl/hydra-build-products-action@master
+        id: hydra
+        with:
+          hydra: 'https://hydra.iohk.io'
+          jobs: 'cardano-wallet-linux64 cardano-wallet-macos64 cardano-wallet-win64'
+
+      - name: '🍒 Fetch release files'
+        run: |
+          wget ${{ steps.hydra.outputs.buildProducts }}
+
+      - name: '🚀 Release'
+        uses: docker://antonyurchenko/git-release:v3.4.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRAFT_RELEASE: "true"
+          PRE_RELEASE: "false"
+          CHANGELOG_FILE: "none"
+          ALLOW_EMPTY_CHANGELOG: "true"
+          ALLOW_TAG_PREFIX: "true"
+        with:
+          args: '*.tar.gz *.zip'
+
+  docs:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: '📥 Checkout repository'
+        uses: actions/checkout@v1
+
+      - name: '📸 Build Documentation'
+        run: |
+          if [[ $GITHUB_REF =~ ^refs/tags/v ]]; then
+            tag="${GITHUB_REF/refs\/tags\//}"
+          else
+            tag=""
+          fi
+          ./scripts/update-docs.sh _build $tag
+
+      - name: '📘 Publish'
+        if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.WILLIAM_KING_TOKEN }}
+          enable_jekyll: false
+          publish_dir: _build
+          keep_files: true
+
+  bump_sh:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-20.04
+    steps:
+      - name: '📥 Checkout repository'
+        uses: actions/checkout@v1
+      - name: 'Set up Ruby'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7
+      - name: 'Install gems'
+        run: 'gem install bump-cli'
+      - name: 'Install dependencies'
+        run: 'sudo snap install yq'
+      - name: 'Update Release in Bump.sh'
+        run: './scripts/update-bump.sh'
+        env:
+          BUMP_SH_DOC_ID: ${{ secrets.BUMP_SH_DOC_ID }}
+          BUMP_SH_TOKEN: ${{ secrets.BUMP_SH_TOKEN }}

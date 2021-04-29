@@ -6,29 +6,29 @@
 # There is a little bit of bash logic to replace the default repo and
 # tag from the nix-build (../nix/docker.nix).
 #
-# 1. The repo (default "inputoutput/cardano-wallet") is changed to match
-#    the logged in Docker user's credentials. So you can test this with
-#    your own Dockerhub account.
+# 1. So you can test this with your own Dockerhub account, the repo
+#    (default "inputoutput/cardano-wallet") is changed to match the
+#    currently logged in Docker user's credentials.
 #
-# 2. The tag (default "VERSION-BACKEND") is changed to reflect the
+# 2. The tag (default "VERSION") is changed to reflect the
 #    branch which is being built under this Buildkite pipeline.
 #
 #    - If this is a git tag build (i.e. release) then the docker tag
 #      is left as-is.
 #    - If this is a master branch build then the docker tag is set to
-#      "dev-master-BACKEND".
+#      "dev-master".
 #    - Anything else is not tagged and not pushed.
 #
 # 3. After pushing the image to the repo, the "latest" tags are updated.
 #
 #    - "inputoutput/cardano-wallet:latest" should point to the most
-#      recent VERSION-shelley tag build.
-#    - "inputoutput/cardano-wallet:shelley" should point to the most
-#      recent VERSION-shelley tag build.
+#      recent VERSION tag build (shelley backend).
 #
 
 { walletPackages ?  import ../default.nix {}
-, pkgs ? walletPackages.pkgs
+, pkgs ? walletPackages.private.pkgs
+# TODO: take the musl build instead because it's smaller
+, dockerImage ? walletPackages.dockerImage
 
 # Build system's Nixpkgs. We use this so that we have the same docker
 # version as the docker daemon.
@@ -42,11 +42,13 @@ with hostPkgs;
 with hostPkgs.lib;
 
 let
-  images = mapAttrsToList (const impureCreated)
-    (filterAttrs (const isDerivation) walletPackages.dockerImage);
+  images = [ (impureCreated dockerImage) ];
 
-  # Override Docker image, setting its creation date to the current time rather than the unix epoch.
-  impureCreated = image: image.overrideAttrs (oldAttrs: { created = "now"; }) // { inherit (image) version backend; };
+  # Override Docker image, setting its creation date to the current
+  # time rather than the unix epoch.
+  impureCreated = image:
+    image.overrideAttrs (oldAttrs: { created = "now"; })
+      // { inherit (image) version backend; };
 
 in
   writeScript "docker-build-push" (''
@@ -75,10 +77,7 @@ in
     tags=()
     if [[ "$git_tag" =~ ^v20 ]]; then
       tags+=( "${image.imageTag}" )
-      tags+=( "${image.backend}" )
-      ${optionalString (image.backend == "shelley") ''
       tags+=( "latest" )
-      ''}
     elif [[ "$git_branch" = master ]]; then
       tags+=( "$(echo ${image.imageTag} | sed -e s/${image.version}/dev-$git_branch/)" )
     else

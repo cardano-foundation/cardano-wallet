@@ -1,6 +1,4 @@
-{ walletPackages ? import ./.. {}
-, pkgs ? walletPackages.pkgs
-}:
+{ pkgs ? import ../nix/default.nix {} }:
 
 with pkgs.lib;
 with pkgs;

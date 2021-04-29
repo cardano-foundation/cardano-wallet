@@ -10,36 +10,38 @@
 set -euo pipefail
 
 # You need to set $GITHUB_API_TOKEN before running this script
-: ${GITHUB_API_TOKEN?"Please provide a Github Api Token for fetching pull requests"}
+: "${GITHUB_API_TOKEN?"Please provide a Github Api Token for fetching pull requests"}"
+
+run_github_query() {
+  jq -aRs '{query: .}' | curl --fail --show-error --silent https://api.github.com/graphql -X POST -H "Authorization: bearer $GITHUB_API_TOKEN" --data-binary @-
+}
 
 # See https://developer.github.com/v4/explorer/
 # to experiment with queries.
 
 # Note: the latest bors comments may not nececarily be in the latest PRs. Fetching more than we need,
 # and later sorting by comment date should work decently though.
-QUERY=$(cat <<-END
+query() {
+cat <<END
 query {
-repository(name: "cardano-wallet", owner: "input-output-hk") {
-	pullRequests(last: 40) { edges { node {
-		comments(first: 100) { edges { node {
-			bodyText,
-      createdAt,
-      url,
-      author {
-          login
-      }
-		}}}
-	}}}
+  repository(name: "cardano-wallet", owner: "input-output-hk") {
+    pullRequests(last: 40) { edges { node {
+      comments(first: 100) { edges { node {
+        bodyText,
+        createdAt,
+        url,
+        author {
+            login
+        }
+      }}}
+    }}}
+  }
 }
+END
 }
-END)
 
-DATA=$(echo $QUERY \
-  | tr -d ' ' \
-  | tr -d '\n' \
-  | tr -d '\t' \
-  | jq -aRs '{query: .}' \
-  | curl -s https://api.github.com/graphql -X POST -H "Authorization: bearer $GITHUB_API_TOKEN" --data-binary @- \
+DATA=$(query \
+  | run_github_query \
   | jq '
       .data.repository.pullRequests.edges
       | map (.node.comments.edges)
@@ -61,27 +63,28 @@ DATA=$(echo $QUERY \
         )
       ')
 
-TITLEQUERY=$(cat <<-END
+titlequery() {
+cat <<END
 query {
-repository(name: "cardano-wallet", owner: "input-output-hk") {
-	issues(labels: ["Test failure"], last: 100) { edges { node {
-    number,
-    url,
-    title
-	}}}
+  repository(name: "cardano-wallet", owner: "input-output-hk") {
+    issues(labels: ["Test failure"], last: 100) { edges { node {
+      number,
+      url,
+      title
+    }}}
+  }
 }
+END
 }
-END)
 
 # Get a map from issue number to title
-TITLEMAP=$(echo $TITLEQUERY \
-  | jq -aRs '{query: .}' \
-  | curl -s https://api.github.com/graphql -X POST -H "Authorization: bearer $GITHUB_API_TOKEN" --data-binary @- \
+TITLEMAP=$(titlequery \
+  | run_github_query \
   | jq '.data.repository.issues.edges | map (.node) | INDEX(.number) | with_entries({key: ("#" + .key), value: .value})')
 
 
 # Show the data in a nice way, and with some added summaries.
-echo $DATA | jq -r \ '
+echo "$DATA" | jq -r \ '
       def colors: # https://stackoverflow.com/a/57298714
        {
        "black": "\u001b[30m",
