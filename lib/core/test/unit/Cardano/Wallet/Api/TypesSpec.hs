@@ -823,6 +823,8 @@ spec = parallel $ do
                         (x :: ApiWalletMigrationInfo)
                     , balanceLeftover = balanceLeftover
                         (x :: ApiWalletMigrationInfo)
+                    , balanceSelected = balanceSelected
+                        (x :: ApiWalletMigrationInfo)
                     }
             in
                 x' === x .&&. show x' === show x

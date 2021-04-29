@@ -2111,6 +2111,7 @@ components:
       required:
         - migration_cost
         - balance_leftover
+        - balance_selected
       properties:
         migration_cost:
           <<: *amount
@@ -2118,6 +2119,9 @@ components:
         balance_leftover:
           <<: *ApiWalletMigrationBalance
           description: Leftovers dust coins which won't be migrated nor spent as fees.
+        balance_selected:
+          <<: *ApiWalletMigrationBalance
+          description:
 
     ApiWalletPassphrase: &ApiWalletPassphrase
       type: object
