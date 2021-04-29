@@ -639,6 +639,15 @@ txConstraints protocolParams witnessTag = TxConstraints
         nullByte :: Word8
         nullByte = 0
 
+-- | Includes just the parts of a transaction necessary to estimate its size.
+--
+-- In particular, this record type includes the minimal set of data needed for
+-- the 'estimateTxCost' and 'estimateTxSize' functions to perform their
+-- calculations, and nothing else.
+--
+-- The data included in 'TxSkeleton' is a subset of the data included in the
+-- union of 'SelectionSkeleton' and 'TransactionCtx'.
+--
 data TxSkeleton = TxSkeleton
     { txMetadata :: !(Maybe TxMetadata)
     , txDelegationAction :: !(Maybe DelegationAction)
@@ -650,6 +659,10 @@ data TxSkeleton = TxSkeleton
     }
     deriving (Eq, Show)
 
+-- | Constructs an empty transaction skeleton.
+--
+-- This may be used to estimate the size and cost of an empty transaction.
+--
 emptyTxSkeleton :: TxWitnessTag -> TxSkeleton
 emptyTxSkeleton txWitnessTag = TxSkeleton
     { txMetadata = Nothing
@@ -661,6 +674,11 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txChange = []
     }
 
+-- | Constructs a transaction skeleton from wallet primitive types.
+--
+-- This function extracts a subset of the data included in 'SelectionSkeleton'
+-- and 'TransactionCtx'.
+--
 mkTxSkeleton
     :: TxWitnessTag
     -> TransactionCtx
@@ -676,6 +694,8 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txChange = view #skeletonChange skeleton
     }
 
+-- | Estimates the final cost of a transaction based on its skeleton.
+--
 estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
 estimateTxCost pp args =
     computeFee $ estimateTxSize args
@@ -686,12 +706,13 @@ estimateTxCost pp args =
     computeFee (TxSize size) =
         Coin $ ceiling (a + b * fromIntegral size)
 
--- Estimate the size of a final transaction by using upper boundaries for cbor
--- serialized objects according to:
+-- | Estimates the final size of a transaction based on its skeleton.
+--
+-- This function uses the upper bounds of CBOR serialized objects as the basis
+-- for many of its calculations. The following document is used as a reference:
 --
 -- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
 --
--- All sizes below are in bytes.
 estimateTxSize :: TxSkeleton -> TxSize
 estimateTxSize args =
     TxSize $ fromIntegral sizeOf_Transaction
