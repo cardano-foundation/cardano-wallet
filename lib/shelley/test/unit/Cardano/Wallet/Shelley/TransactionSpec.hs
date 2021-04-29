@@ -134,6 +134,7 @@ import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Blind (..)
     , InfiniteList (..)
     , NonEmptyList (..)
     , Property
@@ -891,8 +892,8 @@ instance Arbitrary (Large TokenBundle) where
 -- between 'txOutputSize' and 'txOutputMaximumSize' should also indicate that
 -- the bundle is oversized.
 --
-prop_txConstraints_txOutputMaximumSize :: Large TokenBundle -> Property
-prop_txConstraints_txOutputMaximumSize (Large bundle) =
+prop_txConstraints_txOutputMaximumSize :: Blind (Large TokenBundle) -> Property
+prop_txConstraints_txOutputMaximumSize (Blind (Large bundle)) =
     checkCoverage $
     cover 10 (authenticComparison == LT)
         "authentic bundle size is smaller than maximum" $
