@@ -807,30 +807,30 @@ spec = parallel $ do
         it "ApiWalletMigrationInfo" $ property $ \x ->
             let
                 x' = ApiWalletMigrationInfo
-                    { migrationCost =
-                        migrationCost (x :: ApiWalletMigrationInfo)
-                    , leftovers =
-                        leftovers (x :: ApiWalletMigrationInfo)
+                    { migrationCost = migrationCost
+                        (x :: ApiWalletMigrationInfo)
+                    , leftovers = leftovers
+                        (x :: ApiWalletMigrationInfo)
                     }
             in
                 x' === x .&&. show x' === show x
         it "ApiWalletMigrationPostData lenient" $ property $ \x ->
             let
                 x' = ApiWalletMigrationPostData
-                    { passphrase =
-                        passphrase (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
-                    , addresses =
-                        addresses (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
+                    { passphrase = passphrase
+                        (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
+                    , addresses = addresses
+                        (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
                     }
             in
                 x' === x .&&. show x' === show x
         it "ApiWalletMigrationPostData raw" $ property $ \x ->
             let
                 x' = ApiWalletMigrationPostData
-                    { passphrase =
-                        passphrase (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
-                    , addresses =
-                        addresses (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
+                    { passphrase = passphrase
+                        (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
+                    , addresses = addresses
+                        (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
                     }
             in
                 x' === x .&&. show x' === show x
