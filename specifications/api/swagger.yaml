@@ -4610,9 +4610,23 @@ paths:
         <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
 
         <hr/>
+        Generate a plan for migrating the UTxO balance of this wallet to
+        another wallet, without executing the plan.
 
-        Calculate the exact cost of sending all funds from particular Shelley wallet
-        to a set of addresses.
+        This operation generates a plan that transfers as much of the wallet's
+        balance as possible, by creating as many selections as may be necessary
+        to migrate the entire balance.  Each selection created is the basis for
+        a transaction.
+
+        In order to minimize the total transaction fee required, UTxO entries
+        are coalesced together to the greatest extent possible in the resulting
+        selections. No attempt is made to preserve the wallet's UTxO
+        distribution.
+
+        The plan is generated on a best-effort basis. If there is insufficient
+        ada available to pay for the entire UTxO set to be migrated, then only
+        a subset of the wallet's UTxO set will be included in the resultant
+        plan.
       parameters:
         - <<: *parametersWalletId
           name: walletId
@@ -5000,9 +5014,23 @@ paths:
         <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
 
         <hr/>
+        Generate a plan for migrating the UTxO balance of this wallet to
+        another wallet, without executing the plan.
 
-        Calculate the exact cost of sending all funds from particular Byron wallet to
-        a set of addresses.
+        This operation generates a plan that transfers as much of the wallet's
+        balance as possible, by creating as many selections as may be necessary
+        to migrate the entire balance.  Each selection created is the basis for
+        a transaction.
+
+        In order to minimize the total transaction fee required, UTxO entries
+        are coalesced together to the greatest extent possible in the resulting
+        selections. No attempt is made to preserve the wallet's UTxO
+        distribution.
+
+        The plan is generated on a best-effort basis. If there is insufficient
+        ada available to pay for the entire UTxO set to be migrated, then only
+        a subset of the wallet's UTxO set will be included in the resultant
+        plan.
       parameters:
         - <<: *parametersWalletId
           name: walletId
