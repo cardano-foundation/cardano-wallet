@@ -272,7 +272,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         let expectedFee =
                 getFromResponse (#migrationCost . #getQuantity) rFee
         let balanceLeftover =
-                getFromResponse (#balanceLeftover . #getQuantity) rFee
+                getFromResponse (#balanceLeftover . #ada . #getQuantity) rFee
 
         -- Migrate to a new empty wallet
         wNew <- emptyWallet ctx
@@ -560,7 +560,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             let expectedFee =
                     getFromResponse (#migrationCost . #getQuantity) r0
             let balanceLeftover =
-                    getFromResponse (#balanceLeftover . #getQuantity) r0
+                    getFromResponse (#balanceLeftover . #ada . #getQuantity) r0
 
             -- Perform a migration from the source wallet to the target wallet:
             r1 <- request @[ApiTransaction n] ctx

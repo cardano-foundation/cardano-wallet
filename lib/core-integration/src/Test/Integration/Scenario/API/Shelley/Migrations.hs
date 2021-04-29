@@ -207,7 +207,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         let expectedFee =
                 getFromResponse (#migrationCost . #getQuantity) rFee
         let balanceLeftover =
-                getFromResponse (#balanceLeftover . #getQuantity) rFee
+                getFromResponse (#balanceLeftover . #ada . #getQuantity) rFee
 
         -- Migrate to a new empty wallet
         wNew <- emptyWallet ctx

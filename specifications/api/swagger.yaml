@@ -2116,7 +2116,7 @@ components:
           <<: *amount
           description: Total amount which will be paid as fees for the migration.
         balance_leftover:
-          <<: *amount
+          <<: *ApiWalletMigrationBalance
           description: Leftovers dust coins which won't be migrated nor spent as fees.
 
     ApiWalletPassphrase: &ApiWalletPassphrase

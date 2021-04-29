@@ -1,103 +1,203 @@
 {
-    "seed": -8364573522341271453,
+    "seed": -888101381294564153,
     "samples": [
         {
             "balance_leftover": {
-                "quantity": 232,
-                "unit": "lovelace"
+                "ada": {
+                    "quantity": 3,
+                    "unit": "lovelace"
+                },
+                "assets": []
             },
             "migration_cost": {
-                "quantity": 215,
+                "quantity": 79,
                 "unit": "lovelace"
             }
         },
         {
             "balance_leftover": {
-                "quantity": 38,
-                "unit": "lovelace"
+                "ada": {
+                    "quantity": 8,
+                    "unit": "lovelace"
+                },
+                "assets": [
+                    {
+                        "asset_name": "546f6b656e42",
+                        "quantity": 10,
+                        "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                    }
+                ]
             },
             "migration_cost": {
-                "quantity": 174,
+                "quantity": 214,
                 "unit": "lovelace"
             }
         },
         {
             "balance_leftover": {
-                "quantity": 100,
-                "unit": "lovelace"
+                "ada": {
+                    "quantity": 5,
+                    "unit": "lovelace"
+                },
+                "assets": [
+                    {
+                        "asset_name": "546f6b656e43",
+                        "quantity": 4,
+                        "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                    },
+                    {
+                        "asset_name": "546f6b656e43",
+                        "quantity": 15,
+                        "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                    },
+                    {
+                        "asset_name": "546f6b656e43",
+                        "quantity": 9,
+                        "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                    },
+                    {
+                        "asset_name": "546f6b656e44",
+                        "quantity": 8,
+                        "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                    }
+                ]
             },
             "migration_cost": {
-                "quantity": 216,
+                "quantity": 226,
                 "unit": "lovelace"
             }
         },
         {
             "balance_leftover": {
+                "ada": {
+                    "quantity": 6,
+                    "unit": "lovelace"
+                },
+                "assets": [
+                    {
+                        "asset_name": "546f6b656e44",
+                        "quantity": 9,
+                        "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                    }
+                ]
+            },
+            "migration_cost": {
+                "quantity": 105,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "balance_leftover": {
+                "ada": {
+                    "quantity": 6,
+                    "unit": "lovelace"
+                },
+                "assets": []
+            },
+            "migration_cost": {
+                "quantity": 224,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "balance_leftover": {
+                "ada": {
+                    "quantity": 6,
+                    "unit": "lovelace"
+                },
+                "assets": [
+                    {
+                        "asset_name": "546f6b656e43",
+                        "quantity": 9,
+                        "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    }
+                ]
+            },
+            "migration_cost": {
+                "quantity": 132,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "balance_leftover": {
+                "ada": {
+                    "quantity": 0,
+                    "unit": "lovelace"
+                },
+                "assets": []
+            },
+            "migration_cost": {
+                "quantity": 103,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "balance_leftover": {
+                "ada": {
+                    "quantity": 5,
+                    "unit": "lovelace"
+                },
+                "assets": []
+            },
+            "migration_cost": {
+                "quantity": 54,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "balance_leftover": {
+                "ada": {
+                    "quantity": 2,
+                    "unit": "lovelace"
+                },
+                "assets": []
+            },
+            "migration_cost": {
+                "quantity": 0,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "balance_leftover": {
+                "ada": {
+                    "quantity": 3,
+                    "unit": "lovelace"
+                },
+                "assets": [
+                    {
+                        "asset_name": "546f6b656e42",
+                        "quantity": 8,
+                        "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    },
+                    {
+                        "asset_name": "546f6b656e41",
+                        "quantity": 12,
+                        "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                    },
+                    {
+                        "asset_name": "546f6b656e41",
+                        "quantity": 10,
+                        "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                    },
+                    {
+                        "asset_name": "546f6b656e42",
+                        "quantity": 1,
+                        "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                    },
+                    {
+                        "asset_name": "546f6b656e43",
+                        "quantity": 2,
+                        "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                    },
+                    {
+                        "asset_name": "546f6b656e42",
+                        "quantity": 6,
+                        "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                    }
+                ]
+            },
+            "migration_cost": {
                 "quantity": 250,
-                "unit": "lovelace"
-            },
-            "migration_cost": {
-                "quantity": 206,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "balance_leftover": {
-                "quantity": 1,
-                "unit": "lovelace"
-            },
-            "migration_cost": {
-                "quantity": 57,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "balance_leftover": {
-                "quantity": 39,
-                "unit": "lovelace"
-            },
-            "migration_cost": {
-                "quantity": 227,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "balance_leftover": {
-                "quantity": 58,
-                "unit": "lovelace"
-            },
-            "migration_cost": {
-                "quantity": 247,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "balance_leftover": {
-                "quantity": 56,
-                "unit": "lovelace"
-            },
-            "migration_cost": {
-                "quantity": 7,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "balance_leftover": {
-                "quantity": 13,
-                "unit": "lovelace"
-            },
-            "migration_cost": {
-                "quantity": 225,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "balance_leftover": {
-                "quantity": 175,
-                "unit": "lovelace"
-            },
-            "migration_cost": {
-                "quantity": 162,
                 "unit": "lovelace"
             }
         }
