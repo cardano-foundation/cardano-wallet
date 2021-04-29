@@ -743,9 +743,10 @@ getSharedWalletKey
     => w
     -> Role
     -> DerivationIndex
+    -> Maybe Bool
     -> (Method, Text)
-getSharedWalletKey w role_ index =
-    endpoint @Api.GetSharedWalletKey (\mk -> mk wid (ApiT role_) (ApiT index))
+getSharedWalletKey w role_ index hashed =
+    endpoint @Api.GetSharedWalletKey (\mk -> mk wid (ApiT role_) (ApiT index) hashed)
   where
     wid = w ^. typed @(ApiT WalletId)
 

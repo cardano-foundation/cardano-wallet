@@ -592,8 +592,8 @@ spec = describe "SHARED_WALLETS" $ do
             ]
         let wal@(ApiSharedWallet (Right _activeWal)) = getFromResponse id rPost
 
-        (_, Right paymentKey) <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 10)
-        (_, Right stakeKey) <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0)
+        (_, Right paymentKey) <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 10) Nothing
+        (_, Right stakeKey) <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0) Nothing
 
         let (String paymentAddr) = toJSON paymentKey
         T.isPrefixOf "addr_shared_vk" paymentAddr `Expectations.shouldBe` True
@@ -625,11 +625,26 @@ spec = describe "SHARED_WALLETS" $ do
             ]
         let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
 
-        (_, Right paymentKey) <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 10)
-        (_, Right stakeKey) <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0)
+        (_, Right paymentKey) <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 10) Nothing
+        (_, Right stakeKey) <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0) Nothing
 
         let (String paymentAddr) = toJSON paymentKey
         T.isPrefixOf "addr_shared_vk" paymentAddr `Expectations.shouldBe` True
 
         let (String stakeAddr) = toJSON stakeKey
         T.isPrefixOf "stake_shared_vk" stakeAddr `Expectations.shouldBe` True
+
+        (_, Right paymentKey') <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 10) (Just False)
+        (_, Right stakeKey') <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0) (Just False)
+
+        paymentKey' `Expectations.shouldBe` paymentKey
+        stakeKey' `Expectations.shouldBe` stakeKey
+
+        (_, Right paymentKeyH) <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 10) (Just True)
+        (_, Right stakeKeyH) <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0) (Just True)
+
+        let (String paymentAddrH) = toJSON paymentKeyH
+        T.isPrefixOf "addr_shared_vkh" paymentAddrH `Expectations.shouldBe` True
+
+        let (String stakeAddrH) = toJSON stakeKeyH
+        T.isPrefixOf "stake_shared_vkh" stakeAddrH `Expectations.shouldBe` True

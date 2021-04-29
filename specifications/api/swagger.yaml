@@ -1832,7 +1832,7 @@ components:
     ApiVerificationKeyShared: &ApiVerificationKeyShared
       type: string
       format: bech32
-      pattern: "^((addr_shared_vk)|(stake_shared_vk))1[0-9a-z]*$"
+      pattern: "^((addr_shared_vk)|(stake_shared_vk)|(addr_shared_vkh)|(stake_shared_vkh))1[0-9a-z]*$"
 
     ApiAccountKey: &ApiAccountKey
       type: string
@@ -5337,7 +5337,7 @@ paths:
             schema: *ApiSharedWalletPatchData
       responses: *responsesPatchSharedWallet
 
-  /shared-wallets/{walletId}/keys/{role}/{index}:
+  /shared-wallets/{walletId}/keys/{role}/{index}?hash=false:
     get:
       operationId: getSharedWalletKey
       tags: ["Keys"]
@@ -5345,6 +5345,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Return a public key for a given role and derivation index for a shared wallet.
+        For public key hash use query parameter hash=true
 
         <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
       parameters:

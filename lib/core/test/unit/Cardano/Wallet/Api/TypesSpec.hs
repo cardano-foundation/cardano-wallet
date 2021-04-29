@@ -143,6 +143,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionFeeData (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
+    , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -1720,9 +1721,17 @@ instance ToSchema ApiVerificationKeyShelley where
 
 instance Arbitrary ApiVerificationKeyShared where
     arbitrary =
-        fmap ApiVerificationKeyShared . (,)
-            <$> fmap B8.pack (replicateM 32 arbitrary)
-            <*> elements [UtxoExternal, MutableAccount]
+        oneof [noHashedGen, hashedGen]
+      where
+          noHashedGen = do
+              payload' <- fmap B8.pack (replicateM 32 arbitrary)
+              role' <- elements [UtxoExternal, MutableAccount]
+              pure $ ApiVerificationKeyShared (payload', role') WithoutHashing
+
+          hashedGen = do
+              payload' <- fmap B8.pack (replicateM 28 arbitrary)
+              role' <- elements [UtxoExternal, MutableAccount]
+              pure $ ApiVerificationKeyShared (payload', role') HashingApplied
 
 instance ToSchema ApiVerificationKeyShared where
     declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKeyShared"

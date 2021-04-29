@@ -242,6 +242,7 @@ import Servant.API
     , OctetStream
     , QueryFlag
     , QueryParam
+    , QueryParam
     , ReqBody
     )
 import Servant.API.Verbs
@@ -906,6 +907,7 @@ type GetSharedWalletKey = "shared-wallets"
     :> "keys"
     :> Capture "role" (ApiT Role)
     :> Capture "index" (ApiT DerivationIndex)
+    :> QueryParam "hash" Bool
     :> Get '[JSON] ApiVerificationKeyShared
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postAccountKeyShared

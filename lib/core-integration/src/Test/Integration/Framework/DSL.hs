@@ -1446,12 +1446,13 @@ getSharedWalletKey
     -> ApiSharedWallet
     -> Role
     -> DerivationIndex
+    -> Maybe Bool
     -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
-getSharedWalletKey ctx (ApiSharedWallet (Left w)) role ix = do
-    let link = Link.getSharedWalletKey w role ix
+getSharedWalletKey ctx (ApiSharedWallet (Left w)) role ix hashed = do
+    let link = Link.getSharedWalletKey w role ix hashed
     request @ApiVerificationKeyShared ctx link Default Empty
-getSharedWalletKey ctx (ApiSharedWallet (Right w)) role ix = do
-    let link = Link.getSharedWalletKey w role ix
+getSharedWalletKey ctx (ApiSharedWallet (Right w)) role ix hashed = do
+    let link = Link.getSharedWalletKey w role ix hashed
     request @ApiVerificationKeyShared ctx link Default Empty
 
 postAccountKeyShared

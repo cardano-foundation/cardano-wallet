@@ -126,6 +126,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletSignData (..)
     , ApiVerificationKeyShelley (..)
     , ApiVerificationKeyShared (..)
+    , VerificationKeyHashing (..)
     , ApiAccountKey (..)
     , ApiAccountKeyShared (..)
     , ApiPostAccountKeyData (..)
@@ -1058,8 +1059,13 @@ newtype ApiVerificationKeyShelley = ApiVerificationKeyShelley
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-newtype ApiVerificationKeyShared = ApiVerificationKeyShared
+data VerificationKeyHashing = HashingApplied | WithoutHashing
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiVerificationKeyShared = ApiVerificationKeyShared
     { getApiVerificationKey :: (ByteString, Role)
+    , hashed :: VerificationKeyHashing
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -1509,25 +1515,40 @@ parsePubVer bytes
     | otherwise =
           fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
 
+parsePubVerHash :: MonadFail f => ByteString -> f ByteString
+parsePubVerHash bytes
+    | BS.length bytes == 28 =
+          pure bytes
+    | otherwise =
+          fail "Not a valid hash of Ed25519 public key. Must be 28 bytes."
+
 instance ToJSON ApiVerificationKeyShared where
-    toJSON (ApiVerificationKeyShared (pub, role_)) =
+    toJSON (ApiVerificationKeyShared (pub, role_) hashed) =
         toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
       where
         hrp = case role_ of
-            UtxoExternal -> [humanReadablePart|addr_shared_vk|]
-            MutableAccount -> [humanReadablePart|stake_shared_vk|]
+            UtxoExternal -> case hashed of
+                HashingApplied -> [humanReadablePart|addr_shared_vkh|]
+                WithoutHashing -> [humanReadablePart|addr_shared_vk|]
+            MutableAccount -> case hashed of
+                HashingApplied -> [humanReadablePart|stake_shared_vkh|]
+                WithoutHashing -> [humanReadablePart|stake_shared_vk|]
             _ -> error "only role=0,2 is supported for ApiVerificationKeyShared"
 
 instance FromJSON ApiVerificationKeyShared where
     parseJSON value = do
         (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed verification key")
-        fmap ApiVerificationKeyShared . (,)
-            <$> parsePubVer bytes
-            <*> parseRole hrp
+        (role, hashing) <- parseRoleHashing hrp
+        payload <- case hashing of
+            WithoutHashing -> parsePubVer bytes
+            HashingApplied -> parsePubVerHash bytes
+        pure $ ApiVerificationKeyShared (payload,role) hashing
       where
-        parseRole = \case
-            hrp | hrp == [humanReadablePart|addr_shared_vk|] -> pure UtxoExternal
-            hrp | hrp == [humanReadablePart|stake_shared_vk|] -> pure MutableAccount
+        parseRoleHashing = \case
+            hrp | hrp == [humanReadablePart|addr_shared_vk|] -> pure (UtxoExternal, WithoutHashing)
+            hrp | hrp == [humanReadablePart|stake_shared_vk|] -> pure (MutableAccount, WithoutHashing)
+            hrp | hrp == [humanReadablePart|addr_shared_vkh|] -> pure (UtxoExternal, HashingApplied)
+            hrp | hrp == [humanReadablePart|stake_shared_vkh|] -> pure (MutableAccount, HashingApplied)
             _ -> fail errRole
           where
             errRole =

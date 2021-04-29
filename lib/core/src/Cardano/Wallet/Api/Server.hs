@@ -248,6 +248,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
@@ -421,6 +422,8 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..), exceptToMaybeT )
 import Control.Tracer
     ( Tracer, contramap )
+import Crypto.Hash.Utils
+    ( blake2b224 )
 import Data.Aeson
     ( (.=) )
 import Data.ByteString
@@ -2170,11 +2173,19 @@ derivePublicKeyShared
     -> ApiT WalletId
     -> ApiT Role
     -> ApiT DerivationIndex
+    -> Maybe Bool
     -> Handler ApiVerificationKeyShared
-derivePublicKeyShared ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
+derivePublicKeyShared ctx (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.derivePublicKeyShared @_ @s @k @n wrk wid role_ ix
-        pure $ ApiVerificationKeyShared (xpubPublicKey $ getRawKey k, role_)
+        pure $ ApiVerificationKeyShared (computePayload k, role_) hashing
+  where
+    hashing = case hashed of
+        Nothing -> WithoutHashing
+        Just v -> if v then HashingApplied else WithoutHashing
+    computePayload k' = case hashing of
+        WithoutHashing -> xpubPublicKey $ getRawKey k'
+        HashingApplied -> blake2b224 $ xpubPublicKey $ getRawKey k'
 
 postAccountPublicKeyShelley
     :: forall ctx s k n.
