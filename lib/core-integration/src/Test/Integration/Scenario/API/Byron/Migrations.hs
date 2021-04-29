@@ -269,8 +269,10 @@ spec = describe "BYRON_MIGRATIONS" $ do
             [ expectResponseCode HTTP.status200
             , expectField #migrationCost (.> Quantity 0)
             ]
-        let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
-        let leftovers = getFromResponse (#leftovers . #getQuantity) rFee
+        let expectedFee =
+                getFromResponse (#migrationCost . #getQuantity) rFee
+        let balanceLeftover =
+                getFromResponse (#balanceLeftover . #getQuantity) rFee
 
         -- Migrate to a new empty wallet
         wNew <- emptyWallet ctx
@@ -293,7 +295,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
         -- there's a bit of non-determinism in how the migration is really done,
         -- we can expect the final balance with exactitude. Yet, we still expect
         -- it to be not too far away from an ideal value.
-        let expectedMinBalance = originalBalance - 2 * expectedFee - leftovers
+        let expectedMinBalance =
+                originalBalance - 2 * expectedFee - balanceLeftover
         eventually "wallet balance ~ expectedBalance" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley wNew)
@@ -554,8 +557,10 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField #migrationCost (.> Quantity 0)
                 ]
-            let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
-            let leftovers = getFromResponse (#leftovers . #getQuantity) r0
+            let expectedFee =
+                    getFromResponse (#migrationCost . #getQuantity) r0
+            let balanceLeftover =
+                    getFromResponse (#balanceLeftover . #getQuantity) r0
 
             -- Perform a migration from the source wallet to the target wallet:
             r1 <- request @[ApiTransaction n] ctx
@@ -571,7 +576,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 ]
 
             -- Check that funds become available in the target wallet:
-            let expectedBalance = originalBalance - expectedFee - leftovers
+            let expectedBalance =
+                    originalBalance - expectedFee - balanceLeftover
             eventually "Wallet has expectedBalance" $ do
                 r2 <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley targetWallet) Default Empty

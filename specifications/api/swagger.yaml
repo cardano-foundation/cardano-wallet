@@ -2110,12 +2110,12 @@ components:
       type: object
       required:
         - migration_cost
-        - leftovers
+        - balance_leftover
       properties:
         migration_cost:
           <<: *amount
           description: Total amount which will be paid as fees for the migration.
-        leftovers:
+        balance_leftover:
           <<: *amount
           description: Leftovers dust coins which won't be migrated nor spent as fees.
 

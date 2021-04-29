@@ -2,7 +2,7 @@
     "seed": -8364573522341271453,
     "samples": [
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 232,
                 "unit": "lovelace"
             },
@@ -12,7 +12,7 @@
             }
         },
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 38,
                 "unit": "lovelace"
             },
@@ -22,7 +22,7 @@
             }
         },
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 100,
                 "unit": "lovelace"
             },
@@ -32,7 +32,7 @@
             }
         },
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 250,
                 "unit": "lovelace"
             },
@@ -42,7 +42,7 @@
             }
         },
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 1,
                 "unit": "lovelace"
             },
@@ -52,7 +52,7 @@
             }
         },
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 39,
                 "unit": "lovelace"
             },
@@ -62,7 +62,7 @@
             }
         },
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 58,
                 "unit": "lovelace"
             },
@@ -72,7 +72,7 @@
             }
         },
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 56,
                 "unit": "lovelace"
             },
@@ -82,7 +82,7 @@
             }
         },
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 13,
                 "unit": "lovelace"
             },
@@ -92,7 +92,7 @@
             }
         },
         {
-            "leftovers": {
+            "balance_leftover": {
                 "quantity": 175,
                 "unit": "lovelace"
             },

@@ -821,7 +821,7 @@ spec = parallel $ do
                 x' = ApiWalletMigrationInfo
                     { migrationCost = migrationCost
                         (x :: ApiWalletMigrationInfo)
-                    , leftovers = leftovers
+                    , balanceLeftover = balanceLeftover
                         (x :: ApiWalletMigrationInfo)
                     }
             in
