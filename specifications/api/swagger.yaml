@@ -2117,15 +2117,38 @@ components:
         selections:
           type: array
           items: *ApiCoinSelection
+          description: |
+            The complete set of selections required for a migration.
+
+            Each selection is the basis for a single transaction.
+
+            The ordering of selections within the list is not significant.
+            After conversion into transactions, the transactions can be
+            broadcast to the network in any order to perform the migration.
         total_fee:
           <<: *amount
-          description: Total amount which will be paid as fees for the migration.
+          description: |
+            The total amount to be paid in fees for a migration.
+
+            This is the total sum of the fees of the individual selections.
         balance_leftover:
           <<: *ApiWalletMigrationBalance
-          description: Leftovers dust coins which won't be migrated nor spent as fees.
+          description: |
+            The total balance of assets that **cannot** be migrated.
+
+            The **ada** component of this balance is the total sum of all dust
+            ada entries in the UTxO set. An ada entry is considered to be dust
+            if its value is not large enough to pay for the marginal cost of
+            including it in a transaction.
+
+            The **assets** component of this balance is the total sum of all
+            non-ada assets that cannot currently be migrated. Tokens of a
+            non-ada asset cannot be migrated if there is insufficient ada
+            available to pay for their inclusion in a transaction.
         balance_selected:
           <<: *ApiWalletMigrationBalance
-          description:
+          description: |
+            The total balance of assets that **can** be migrated.
 
     ApiWalletPassphrase: &ApiWalletPassphrase
       type: object
