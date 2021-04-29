@@ -413,6 +413,7 @@ import Web.HttpApiData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -834,7 +835,7 @@ accPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
     T.decodeUtf8 $ serializeXPub $ publicKey $
         deriveAccountPrivateKey passphrase rootXPrv (Index $ 2147483648 + ix)
   where
-    rootXPrv = Shelley.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
+    rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
 
 genXPubs :: Int -> IO [(XPub,Text)]
 genXPubs num =

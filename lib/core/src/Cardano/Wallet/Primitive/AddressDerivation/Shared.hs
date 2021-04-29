@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -30,15 +29,21 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shared
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( xpubPublicKey )
 import Cardano.Crypto.Wallet
-    ( XPrv, toXPub, unXPrv, unXPub, xPrvChangePass, xprv, xpub )
+    ( XPrv, XPub, toXPub, unXPrv, unXPub, xPrvChangePass, xprv, xpub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
+    , KeyFingerprint (..)
+    , MkKeyFingerprint (..)
+    , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
@@ -56,6 +61,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( GetPurpose (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( purposeCIP1854 )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.DeepSeq
@@ -64,10 +71,23 @@ import Control.Monad
     ( (<=<) )
 import Crypto.Hash
     ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_224 (..) )
+import Crypto.Hash.IO
+    ( HashAlgorithm (hashDigestSize) )
+import Crypto.Hash.Utils
+    ( blake2b224 )
+import Data.Binary.Put
+    ( putByteString, putWord8, runPut )
 import Data.ByteString
     ( ByteString )
+import Data.Proxy
+    ( Proxy (..) )
 import GHC.Generics
     ( Generic )
+
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
@@ -176,3 +196,53 @@ instance PersistPublicKey (SharedKey depth) where
         either err SharedKey . (xpub <=< fromHex @ByteString)
       where
         err _ = error "unsafeDeserializeXPub: unable to deserialize SharedKey"
+
+instance MkKeyFingerprint SharedKey Address where
+    paymentKeyFingerprint (Address bytes) =
+        Right $ KeyFingerprint $ BS.take hashSize $ BS.drop 1 bytes
+
+instance MkKeyFingerprint SharedKey (Proxy (n :: NetworkDiscriminant), SharedKey 'AddressK XPub) where
+    paymentKeyFingerprint (_, paymentK) =
+        Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
+
+instance PaymentAddress 'Mainnet SharedKey where
+    paymentAddress paymentK = do
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (enterprise + networkId)
+            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
+      where
+        enterprise = 96
+        networkId = 1
+
+    liftPaymentAddress (KeyFingerprint fingerprint) =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (enterprise + networkId)
+            putByteString fingerprint
+      where
+        enterprise = 96
+        networkId = 1
+
+instance PaymentAddress ('Testnet pm) SharedKey where
+    paymentAddress paymentK =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (enterprise + networkId)
+            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
+      where
+        enterprise = 96
+        networkId = 0
+
+    liftPaymentAddress (KeyFingerprint fingerprint) =
+        Address $ BL.toStrict $ runPut $ do
+            putWord8 (enterprise + networkId)
+            putByteString fingerprint
+      where
+        enterprise = 96
+        networkId = 0
+
+{-------------------------------------------------------------------------------
+                                 Internals
+-------------------------------------------------------------------------------}
+
+hashSize :: Int
+hashSize =
+    hashDigestSize Blake2b_224

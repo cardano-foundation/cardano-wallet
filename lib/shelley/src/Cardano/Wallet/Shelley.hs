@@ -92,6 +92,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -203,6 +205,7 @@ data SomeNetworkDiscriminant where
             , PaymentAddress n IcarusKey
             , PaymentAddress n ByronKey
             , PaymentAddress n ShelleyKey
+            , PaymentAddress n SharedKey
             , DelegationAddress n ShelleyKey
             , HasNetworkId n
             , DecodeAddress n
@@ -326,7 +329,7 @@ serveWallet
         -> ApiLayer (RndState n) ByronKey
         -> ApiLayer (SeqState n IcarusKey) IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
-        -> ApiLayer (SharedState n ShelleyKey) ShelleyKey
+        -> ApiLayer (SharedState n SharedKey) SharedKey
         -> StakePoolLayer
         -> NtpClient
         -> IO ()

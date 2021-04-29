@@ -113,6 +113,7 @@ import Cardano.Wallet.Api.Server
     , signMetadata
     , withLegacyLayer
     , withLegacyLayer'
+    , withMultisigLayer
     )
 import Cardano.Wallet.Api.Types
     ( AnyAddress (..)
@@ -142,8 +143,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
@@ -193,6 +196,8 @@ import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
@@ -207,7 +212,7 @@ server
     => ApiLayer (RndState n) ByronKey
     -> ApiLayer (SeqState n IcarusKey) IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
-    -> ApiLayer (SharedState n ShelleyKey) ShelleyKey
+    -> ApiLayer (SharedState n SharedKey) SharedKey
     -> StakePoolLayer
     -> NtpClient
     -> Server (Api n ApiStakePool)
@@ -237,7 +242,7 @@ server byron icarus shelley multisig spl ntp =
     wallets = deleteWallet shelley
         :<|> (fmap fst . getWallet shelley mkShelleyWallet)
         :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
-        :<|> postWallet shelley generateKeyFromSeed ShelleyKey
+        :<|> postWallet shelley Shelley.generateKeyFromSeed ShelleyKey
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
@@ -493,15 +498,28 @@ server byron icarus shelley multisig spl ntp =
 
     sharedWallets :: Server SharedWallets
     sharedWallets =
-             postSharedWallet multisig generateKeyFromSeed ShelleyKey
-        :<|> (fmap fst . getWallet multisig mkSharedWallet)
-        :<|> patchSharedWallet multisig ShelleyKey Payment
-        :<|> patchSharedWallet multisig ShelleyKey Delegation
-        :<|> deleteWallet multisig
+             postSharedWallet @_ @_ @SharedKey multisig Shared.generateKeyFromSeed SharedKey
+        :<|> (\wid -> withMultisigLayer wid
+                (multisig, fst <$> getWallet multisig mkSharedWallet wid)
+             )
+        :<|> (\wid p -> withMultisigLayer wid
+                (multisig, patchSharedWallet @_ @_ @SharedKey multisig SharedKey Payment wid p)
+             )
+        :<|> (\wid p -> withMultisigLayer wid
+                (multisig, patchSharedWallet @_ @_ @SharedKey multisig SharedKey Delegation wid p)
+             )
+        :<|> (\wid -> withMultisigLayer wid
+                (multisig, deleteWallet multisig wid)
+             )
 
     sharedWalletKeys :: Server SharedWalletKeys
-    sharedWalletKeys = derivePublicKeyShared multisig
-        :<|> postAccountPublicKeyShared multisig
+    sharedWalletKeys =
+             (\wid r ix h -> withMultisigLayer wid
+                 (multisig, derivePublicKeyShared multisig wid r ix h)
+             )
+        :<|> (\wid ix acc -> withMultisigLayer wid
+                 (multisig, postAccountPublicKeyShared multisig wid ix acc)
+             )
 
 postAnyAddress
     :: NetworkId

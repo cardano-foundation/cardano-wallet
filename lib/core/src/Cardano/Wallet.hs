@@ -2114,8 +2114,8 @@ derivePublicKeyShelley
     -> Role
     -> DerivationIndex
     -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
-derivePublicKeyShelley ctx wid role_ ix =
-    derivePublicKey @ctx @s @k  ctx toAccXPubShelley wid role_ ix
+derivePublicKeyShelley ctx =
+    derivePublicKey @ctx @s @k  ctx toAccXPubShelley
 
 derivePublicKeyShared
     :: forall ctx s k n.
@@ -2128,8 +2128,8 @@ derivePublicKeyShared
     -> Role
     -> DerivationIndex
     -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
-derivePublicKeyShared ctx wid role_ ix =
-    derivePublicKey @ctx @s @k ctx toAccXPubShared wid role_ ix
+derivePublicKeyShared ctx =
+    derivePublicKey @ctx @s @k ctx toAccXPubShared
 
 toAccXPubShared
     :: SharedState n k

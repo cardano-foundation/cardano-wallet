@@ -31,8 +31,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Passphrase (..), PaymentAddress, Role (..), hex )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -99,7 +99,7 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n ShelleyKey
+    , PaymentAddress n SharedKey
     ) => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
     it "SHARED_WALLETS_CREATE_01 - Create an active shared wallet from root xprv" $ \ctx -> runResourceT $ do
@@ -159,7 +159,7 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField #extended (`shouldBe` True)
             ]
         let (ApiAccountKeyShared bytes _) = getFromResponse id rKey
-        (T.decodeUtf8 $ hex bytes) `Expectations.shouldBe` accXPubDerived
+        T.decodeUtf8 (hex bytes) `Expectations.shouldBe` accXPubDerived
 
     it "SHARED_WALLETS_CREATE_02 - Create a pending shared wallet from root xprv" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15
@@ -212,7 +212,7 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField #extended (`shouldBe` True)
             ]
         let (ApiAccountKeyShared bytes _) = getFromResponse id rKey
-        (T.decodeUtf8 $ hex bytes) `Expectations.shouldBe` accXPubDerived
+        T.decodeUtf8 (hex bytes) `Expectations.shouldBe` accXPubDerived
 
 
     it "SHARED_WALLETS_CREATE_03 - Create an active shared wallet from account xpub" $ \ctx -> runResourceT $ do
