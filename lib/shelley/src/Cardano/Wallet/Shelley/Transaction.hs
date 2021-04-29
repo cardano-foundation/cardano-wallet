@@ -697,8 +697,8 @@ mkTxSkeleton witness context skeleton = TxSkeleton
 -- | Estimates the final cost of a transaction based on its skeleton.
 --
 estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
-estimateTxCost pp args =
-    computeFee $ estimateTxSize args
+estimateTxCost pp skeleton =
+    computeFee $ estimateTxSize skeleton
   where
     LinearFee (Quantity a) (Quantity b) = getFeePolicy $ txParameters pp
 
@@ -714,7 +714,7 @@ estimateTxCost pp args =
 -- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
 --
 estimateTxSize :: TxSkeleton -> TxSize
-estimateTxSize args =
+estimateTxSize skeleton =
     TxSize $ fromIntegral sizeOf_Transaction
   where
     TxSkeleton
@@ -725,7 +725,7 @@ estimateTxSize args =
         , txInputCount
         , txOutputs
         , txChange
-        } = args
+        } = skeleton
 
     numberOf_Inputs
         = fromIntegral txInputCount
