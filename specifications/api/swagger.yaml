@@ -2097,6 +2097,15 @@ components:
         fingerprint: *assetFingerprint
         metadata: *assetMetadata
 
+    ApiWalletMigrationBalance: &ApiWalletMigrationBalance
+      type: object
+      required:
+        - ada
+        - assets
+      properties:
+        ada: *amount
+        assets: *walletAssets
+
     ApiWalletMigrationInfo: &ApiWalletMigrationInfo
       type: object
       required:

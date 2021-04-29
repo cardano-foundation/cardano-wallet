@@ -119,6 +119,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiPoolId (..)
     , ApiWalletMigrationPostData (..)
+    , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationInfo (..)
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
@@ -1013,6 +1014,12 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
 
 newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
     { addresses :: [(ApiT Address, Proxy n)]
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiWalletMigrationBalance = ApiWalletMigrationBalance
+    { ada :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -2398,6 +2405,11 @@ syncProgressOptions = taggedSumTypeOptions defaultSumTypeOptions $
 instance FromJSON ApiByronWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiByronWallet where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiWalletMigrationBalance where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiWalletMigrationBalance where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiWalletMigrationInfo where
