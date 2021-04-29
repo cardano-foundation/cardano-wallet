@@ -19,6 +19,7 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
     ( KeyHash
+    , KeyRole (..)
     , Script (..)
     , ScriptHash (..)
     , keyHashFromBytes
@@ -474,7 +475,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_128 (Blind (FixedSize128 b)) =
 
 toKeyHash :: Text -> Script KeyHash
 toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
-    Right bs -> case keyHashFromBytes bs of
+    Right bs -> case keyHashFromBytes (Payment, bs) of
         Just kh -> RequireSignatureOf kh
         Nothing -> error "Hash key not valid"
     Left _ -> error "Hash key not valid"
