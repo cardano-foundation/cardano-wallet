@@ -2109,10 +2109,14 @@ components:
     ApiWalletMigrationInfo: &ApiWalletMigrationInfo
       type: object
       required:
+        - selections
         - total_fee
         - balance_leftover
         - balance_selected
       properties:
+        selections:
+          type: array
+          items: *ApiCoinSelection
         total_fee:
           <<: *amount
           description: Total amount which will be paid as fees for the migration.

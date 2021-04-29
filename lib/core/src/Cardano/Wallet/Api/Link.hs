@@ -284,8 +284,8 @@ getMigrationInfo
     => w
     -> (Method, Text)
 getMigrationInfo w = discriminate @style
-    (endpoint @Api.GetShelleyWalletMigrationInfo (wid &))
-    (endpoint @Api.GetByronWalletMigrationInfo (wid &))
+    (endpoint @(Api.GetShelleyWalletMigrationInfo Net) (wid &))
+    (endpoint @(Api.GetByronWalletMigrationInfo Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 

@@ -574,6 +574,7 @@ data ApiDelegationAction = Join (ApiT PoolId) | Quit
 newtype ApiRawMetadata =
     ApiRawMetadata { unApiRawMetadata :: ByteString }
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
@@ -584,6 +585,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     , deposits :: ![Quantity "lovelace" Natural]
     , metadata :: !(Maybe ApiRawMetadata)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     { address :: !(ApiT Address, Proxy n)
@@ -1023,8 +1025,9 @@ data ApiWalletMigrationBalance = ApiWalletMigrationBalance
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletMigrationInfo = ApiWalletMigrationInfo
-    { totalFee :: Quantity "lovelace" Natural
+data ApiWalletMigrationInfo (n :: NetworkDiscriminant) = ApiWalletMigrationInfo
+    { selections :: !(NonEmpty (ApiCoinSelection n))
+    , totalFee :: Quantity "lovelace" Natural
     , balanceLeftover :: ApiWalletMigrationBalance
     , balanceSelected :: ApiWalletMigrationBalance
     } deriving (Eq, Generic, Show)
@@ -2413,9 +2416,13 @@ instance FromJSON ApiWalletMigrationBalance where
 instance ToJSON ApiWalletMigrationBalance where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiWalletMigrationInfo where
+instance (DecodeStakeAddress n, DecodeAddress n) =>
+    FromJSON (ApiWalletMigrationInfo n)
+  where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWalletMigrationInfo where
+instance (EncodeStakeAddress n, EncodeAddress n) =>
+    ToJSON (ApiWalletMigrationInfo n)
+  where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiPostRandomAddressData where

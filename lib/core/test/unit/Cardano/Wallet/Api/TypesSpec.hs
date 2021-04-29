@@ -413,7 +413,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPatchData
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
-            jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationInfo
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationInfo ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationBalance
             jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "lenient")
             jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "raw")
@@ -819,12 +819,14 @@ spec = parallel $ do
         it "ApiWalletMigrationInfo" $ property $ \x ->
             let
                 x' = ApiWalletMigrationInfo
-                    { totalFee = totalFee
-                        (x :: ApiWalletMigrationInfo)
+                    { selections = selections
+                        (x :: ApiWalletMigrationInfo ('Testnet 0))
+                    , totalFee = totalFee
+                        (x :: ApiWalletMigrationInfo ('Testnet 0))
                     , balanceLeftover = balanceLeftover
-                        (x :: ApiWalletMigrationInfo)
+                        (x :: ApiWalletMigrationInfo ('Testnet 0))
                     , balanceSelected = balanceSelected
-                        (x :: ApiWalletMigrationInfo)
+                        (x :: ApiWalletMigrationInfo ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1299,8 +1301,12 @@ instance Arbitrary ApiWalletMigrationBalance where
         <*> reasonablySized arbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiWalletMigrationInfo where
-    arbitrary = genericArbitrary
+instance Arbitrary (ApiWalletMigrationInfo n) where
+    arbitrary = ApiWalletMigrationInfo
+        <$> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
     shrink = genericShrink
 
 instance Arbitrary (Passphrase purpose) =>
@@ -2017,7 +2023,7 @@ instance ToSchema ApiWalletMigrationBalance where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationBalance"
 
-instance ToSchema ApiWalletMigrationInfo where
+instance ToSchema (ApiWalletMigrationInfo n) where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationInfo"
 

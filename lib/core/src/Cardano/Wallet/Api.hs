@@ -504,7 +504,7 @@ https://input-output-hk.github.io/cardano-wallet/api/#tag/Migrations
 -------------------------------------------------------------------------------}
 
 type ShelleyMigrations n =
-         GetShelleyWalletMigrationInfo
+         GetShelleyWalletMigrationInfo n
     :<|> MigrateShelleyWallet n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateShelleyWallet
@@ -515,10 +515,10 @@ type MigrateShelleyWallet n = "wallets"
     :> PostAccepted '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getShelleyWalletMigrationInfo
-type GetShelleyWalletMigrationInfo = "wallets"
+type GetShelleyWalletMigrationInfo n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
-    :> Get '[JSON] ApiWalletMigrationInfo
+    :> Get '[JSON] (ApiWalletMigrationInfo n)
 
 {-------------------------------------------------------------------------------
                                   StakePools
@@ -786,7 +786,7 @@ type DeleteByronTransaction = "byron-wallets"
 -------------------------------------------------------------------------------}
 
 type ByronMigrations n =
-         GetByronWalletMigrationInfo
+         GetByronWalletMigrationInfo n
     :<|> MigrateByronWallet n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateByronWallet
@@ -797,10 +797,10 @@ type MigrateByronWallet n = "byron-wallets"
     :> PostAccepted '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo
-type GetByronWalletMigrationInfo = "byron-wallets"
+type GetByronWalletMigrationInfo n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
-    :> Get '[JSON] ApiWalletMigrationInfo
+    :> Get '[JSON] (ApiWalletMigrationInfo n)
 
 {-------------------------------------------------------------------------------
                                   Network

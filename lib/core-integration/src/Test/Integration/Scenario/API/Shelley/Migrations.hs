@@ -120,7 +120,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- fixtureWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+            r <- request @(ApiWalletMigrationInfo n) ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status200
                 , expectField (#totalFee . #getQuantity)
@@ -133,7 +133,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- emptyWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+            r <- request @(ApiWalletMigrationInfo n) ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
@@ -150,7 +150,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     liftIO $ pendingWith "Migration endpoints temporarily disabled."
                     w <- byronWallet ctx
                     let ep = Link.getMigrationInfo @'Shelley w
-                    r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+                    r <- request
+                        @(ApiWalletMigrationInfo n) ctx ep Default Empty
                     expectResponseCode HTTP.status404 r
                     expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -196,7 +197,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 (#balance . #available . #getQuantity) r
 
         -- Calculate the expected migration fee:
-        rFee <- request @ApiWalletMigrationInfo ctx
+        rFee <- request @(ApiWalletMigrationInfo n) ctx
             (Link.getMigrationInfo @'Shelley wOld)
             Default
             Empty
@@ -305,7 +306,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                                  rg
 
             -- Calculate the expected migration fee:
-            r0 <- request @ApiWalletMigrationInfo ctx
+            r0 <- request @(ApiWalletMigrationInfo n) ctx
                 (Link.getMigrationInfo @'Shelley sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
@@ -350,7 +351,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
             -- Request a migration fee prediction.
             let ep0 = (Link.getMigrationInfo @'Shelley sourceWallet)
-            r0 <- request @ApiWalletMigrationInfo ctx ep0 Default Empty
+            r0 <- request @(ApiWalletMigrationInfo n) ctx ep0 Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
                 , expectField #totalFee (.> Quantity 0)
@@ -459,7 +460,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         -> [(ApiT Address, Proxy n)]
         -> IO ()
     migrateWallet ctx src targets = do
-        (st, _) <- request @ApiWalletMigrationInfo ctx endpointInfo Default Empty
+        (st, _) <- request
+            @(ApiWalletMigrationInfo n) ctx endpointInfo Default Empty
         when (st == HTTP.status200) $ do -- returns '403 Nothing to Migrate' when done
             -- 1/ Forget all pending transactions to unlock any locked UTxO
             (_, txs) <- unsafeRequest @[ApiTransaction n] ctx endpointListTxs Empty
@@ -510,7 +512,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     take addrNum addrs
 
             -- Calculate the expected migration fee:
-            r0 <- request @ApiWalletMigrationInfo ctx
+            r0 <- request @(ApiWalletMigrationInfo n) ctx
                 (Link.getMigrationInfo @'Shelley sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
