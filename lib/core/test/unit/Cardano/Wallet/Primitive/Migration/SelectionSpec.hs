@@ -210,6 +210,8 @@ prop_create_inner mockConstraints inputs reward =
             makeReports
                 = report correctness
                     "correctness"
+                . report (feeExcess selection)
+                    "feeExcess"
                 . report feeExcessExpected
                     "feeExcessExpected"
             correctness =
@@ -311,6 +313,8 @@ prop_extend_inner mockConstraints selectionOriginal input =
             makeReports
                 = report correctness
                     "correctness"
+                . report (feeExcess selection)
+                    "feeExcess"
                 . report feeExcessExpected
                     "feeExcessExpected"
             correctness =
