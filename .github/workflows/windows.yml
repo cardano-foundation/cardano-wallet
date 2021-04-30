@@ -117,3 +117,39 @@ jobs:
         if: github.ref == 'ref/heads/master'
         shell: bash
         run: 'bash .buildkite/push-branch.sh windows-tests-pass linux-tests-pass all-tests-pass'
+
+  notify:
+    name: Notify slack channel
+    runs-on: ubuntu-latest
+    if: ${{ always() && (github.ref == 'refs/heads/master' || github.ref == 'refs/tags/v' || github.ref == 'refs/heads/rvl/adp-753/ci-notify') }}
+    needs: finish
+    env:
+      RESULT_FILE: 'previous-result.txt'
+    steps:
+      - name: Get previous result for ref
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.RESULT_FILE }}
+          key: ${{ env.GITHUB_WORKFLOW }}-${{ github.ref }}
+      - name: Check previous result
+        id: previous
+        env:
+          result: ${{ job.status }}
+        run: |
+          prev_result=$(cat $RESULT_FILE || true)
+          echo "result=$result"
+          echo "prev_result=$prev_result"
+          if [ "$result" != "$prev_result" ]; then
+            echo "::set-output name=do_notify::yes"
+          fi
+          echo "$result" > $RESULT_FILE
+      - uses: act10ns/slack@v1
+        with:
+          status: ${{ job.status }}
+          steps: ${{ toJson(steps) }}
+          # channel: '#adrestia-secret-fort'
+          channel: '@rvl'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        # Only notify when state changes between failure/success
+        if: ${{ steps.previous.do_notify }}
