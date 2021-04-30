@@ -32,7 +32,7 @@ in pkgs.runCommand name {
   cd bundle
 
   # Copy in wallet and node EXEs and DLLs.
-  for pkg in ${cardano-wallet} ${cardano-cli}; do
+  for pkg in ${cardano-wallet} ${cardano-node} ${cardano-cli}; do
     cp -vf $pkg/bin/* .
   done
 
