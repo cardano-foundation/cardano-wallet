@@ -23,6 +23,29 @@ custom-commands:
       set -x
       {{jira}} list --template table --query "type = Bug and resolution = Unresolved and project=$JIRA_PROJECT and component = cardano-wallet{{ with args.terms }} and text ~ \"{{ args.terms }}\"{{ end }}{{ with options.query }} and {{ options.query }}{{ end }} ORDER BY priority DESC, updated DESC, rank ASC, created"
 
+  - name: find
+    help: Quickly find a ticket
+    options:
+      - name: query
+        short: q
+      - name: component
+        short: c
+        repeat: true
+        type: string
+        default:
+          - cardano-wallet
+          - cardano-addresses
+      - name: type
+        short: t
+        repeat: true
+        type: string
+    args:
+      - name: terms
+        required: false
+    script: |-
+      set -x
+      {{jira}} list --template table --query "resolution=Unresolved AND project=$JIRA_PROJECT{{ with options.type }} AND ({{ range . }}type={{.}} OR {{end}}type is empty){{ end }}{{with options.component }} AND ({{ range . }}component={{.}} OR {{end}}component is empty){{end}}{{ with args.terms }} and text ~ \"{{ . }}\"{{ end }}{{ with options.query }} and {{ . }}{{ end }} ORDER BY priority DESC, updated DESC, rank ASC, created"
+
   - name: mine
     help: Display unresolved issues assigned to me
     script: |-
