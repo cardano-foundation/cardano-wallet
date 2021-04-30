@@ -230,6 +230,8 @@ extend constraints selection (inputId, inputBundle) =
 -- The ada quantities of the outputs are maximized in order to minimize the fee
 -- excess.
 --
+-- Pre-condition: outputs have minimal ada quantities.
+--
 -- Guarantees the following property for a returned selection 's':
 --
 -- >>> verify s == SelectionCorrect
