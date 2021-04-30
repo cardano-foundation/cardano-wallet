@@ -119,6 +119,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiPoolId (..)
     , ApiWalletMigrationPostData (..)
+    , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationInfo (..)
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
@@ -573,6 +574,7 @@ data ApiDelegationAction = Join (ApiT PoolId) | Quit
 newtype ApiRawMetadata =
     ApiRawMetadata { unApiRawMetadata :: ByteString }
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
@@ -583,6 +585,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     , deposits :: ![Quantity "lovelace" Natural]
     , metadata :: !(Maybe ApiRawMetadata)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     { address :: !(ApiT Address, Proxy n)
@@ -1016,9 +1019,17 @@ newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletMigrationInfo = ApiWalletMigrationInfo
-    { migrationCost :: Quantity "lovelace" Natural
-    , leftovers :: Quantity "lovelace" Natural
+data ApiWalletMigrationBalance = ApiWalletMigrationBalance
+    { ada :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiWalletMigrationInfo (n :: NetworkDiscriminant) = ApiWalletMigrationInfo
+    { selections :: !(NonEmpty (ApiCoinSelection n))
+    , totalFee :: Quantity "lovelace" Natural
+    , balanceLeftover :: ApiWalletMigrationBalance
+    , balanceSelected :: ApiWalletMigrationBalance
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -2400,9 +2411,18 @@ instance FromJSON ApiByronWallet where
 instance ToJSON ApiByronWallet where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiWalletMigrationInfo where
+instance FromJSON ApiWalletMigrationBalance where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWalletMigrationInfo where
+instance ToJSON ApiWalletMigrationBalance where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance (DecodeStakeAddress n, DecodeAddress n) =>
+    FromJSON (ApiWalletMigrationInfo n)
+  where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance (EncodeStakeAddress n, EncodeAddress n) =>
+    ToJSON (ApiWalletMigrationInfo n)
+  where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiPostRandomAddressData where

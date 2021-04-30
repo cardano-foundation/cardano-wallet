@@ -116,6 +116,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletDiscovery (..)
+    , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationInfo (..)
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
@@ -412,7 +413,8 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPatchData
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
-            jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationInfo
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationInfo ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationBalance
             jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "lenient")
             jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "raw")
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
@@ -804,33 +806,47 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiWalletMigrationBalance" $ property $ \x ->
+            let
+                x' = ApiWalletMigrationBalance
+                    { ada = ada
+                        (x :: ApiWalletMigrationBalance)
+                    , assets = assets
+                        (x :: ApiWalletMigrationBalance)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiWalletMigrationInfo" $ property $ \x ->
             let
                 x' = ApiWalletMigrationInfo
-                    { migrationCost =
-                        migrationCost (x :: ApiWalletMigrationInfo)
-                    , leftovers =
-                        leftovers (x :: ApiWalletMigrationInfo)
+                    { selections = selections
+                        (x :: ApiWalletMigrationInfo ('Testnet 0))
+                    , totalFee = totalFee
+                        (x :: ApiWalletMigrationInfo ('Testnet 0))
+                    , balanceLeftover = balanceLeftover
+                        (x :: ApiWalletMigrationInfo ('Testnet 0))
+                    , balanceSelected = balanceSelected
+                        (x :: ApiWalletMigrationInfo ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
         it "ApiWalletMigrationPostData lenient" $ property $ \x ->
             let
                 x' = ApiWalletMigrationPostData
-                    { passphrase =
-                        passphrase (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
-                    , addresses =
-                        addresses (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
+                    { passphrase = passphrase
+                        (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
+                    , addresses = addresses
+                        (x :: ApiWalletMigrationPostData ('Testnet 0) "lenient")
                     }
             in
                 x' === x .&&. show x' === show x
         it "ApiWalletMigrationPostData raw" $ property $ \x ->
             let
                 x' = ApiWalletMigrationPostData
-                    { passphrase =
-                        passphrase (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
-                    , addresses =
-                        addresses (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
+                    { passphrase = passphrase
+                        (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
+                    , addresses = addresses
+                        (x :: ApiWalletMigrationPostData ('Testnet 0) "raw")
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1279,8 +1295,18 @@ instance Arbitrary ApiByronWalletBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiWalletMigrationInfo where
-    arbitrary = genericArbitrary
+instance Arbitrary ApiWalletMigrationBalance where
+    arbitrary = ApiWalletMigrationBalance
+        <$> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+    shrink = genericShrink
+
+instance Arbitrary (ApiWalletMigrationInfo n) where
+    arbitrary = ApiWalletMigrationInfo
+        <$> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
     shrink = genericShrink
 
 instance Arbitrary (Passphrase purpose) =>
@@ -1993,7 +2019,11 @@ instance ToSchema ApiWallet where
 instance ToSchema ApiByronWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWallet"
 
-instance ToSchema ApiWalletMigrationInfo where
+instance ToSchema ApiWalletMigrationBalance where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiWalletMigrationBalance"
+
+instance ToSchema (ApiWalletMigrationInfo n) where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationInfo"
 

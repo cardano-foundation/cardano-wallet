@@ -1991,12 +1991,12 @@ quitStakePool ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 getMigrationInfo
-    :: forall s k. ()
+    :: forall n s k. ()
     => ApiLayer s k
         -- ^ Source wallet context
     -> ApiT WalletId
         -- ^ Source wallet
-    -> Handler ApiWalletMigrationInfo
+    -> Handler (ApiWalletMigrationInfo n)
 getMigrationInfo _ctx _wid = do
     liftHandler $ throwE ErrTemporarilyDisabled
 
