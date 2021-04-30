@@ -431,6 +431,9 @@ prop_minimizeFee_inner mockConstraints feeExcessBefore outputsBefore =
         . verify
             (length outputsAfter == length outputsBefore)
             "length outputsAfter == length outputsBefore"
+        . verify
+            (feeExcessAfter == feeExcessAfterSecondRun)
+            "feeExcessAfter == feeExcessAfterSecondRun (idempotency)"
     makeCoverage
         = cover 50 (feeExcessAfter == Coin 0)
             "feeExcessAfter == 0"
@@ -443,6 +446,8 @@ prop_minimizeFee_inner mockConstraints feeExcessBefore outputsBefore =
             "feeExcessBefore"
         . report feeExcessAfter
             "feeExcessAfter"
+        . report feeExcessAfterSecondRun
+            "feeExcessAfterSecondRun"
         . report feeExcessReduction
             "feeExcessReduction"
         . report feeExcessReductionExpected
@@ -456,6 +461,9 @@ prop_minimizeFee_inner mockConstraints feeExcessBefore outputsBefore =
 
     (feeExcessAfter, outputsAfter) =
         minimizeFee constraints (feeExcessBefore, outputsBefore)
+    (feeExcessAfterSecondRun, _) =
+        minimizeFee constraints (feeExcessAfter, outputsAfter)
+
     feeExcessReduction =
         Coin.distance feeExcessBefore feeExcessAfter
     feeExcessReductionExpected =
