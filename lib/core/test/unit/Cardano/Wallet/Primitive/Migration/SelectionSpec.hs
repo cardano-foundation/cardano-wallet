@@ -201,9 +201,6 @@ prop_create_inner mockConstraints inputs reward =
                 (correctness == SelectionCorrect)
                 "correctness == SelectionCorrect"
             . verify
-                (Selection.balance constraints selection == Right selection)
-                "Rebalancing the selection leaves it unchanged"
-            . verify
                 (feeExcess selection == feeExcessExpected)
                 "feeExcess selection == feeExcessExpected"
           where
@@ -303,9 +300,6 @@ prop_extend_inner mockConstraints selectionOriginal input =
             $ verify
                 (correctness == SelectionCorrect)
                 "correctness == SelectionCorrect"
-            . verify
-                (Selection.balance constraints selection == Right selection)
-                "Rebalancing the selection leaves it unchanged"
             . verify
                 (feeExcess selection == feeExcessExpected)
                 "feeExcess selection == feeExcessExpected"
