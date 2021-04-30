@@ -54,11 +54,17 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, TokenMap )
+    ( AssetId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), TokenBundleSizeAssessor, Tx (..), TxMetadata, TxOut )
+    ( SealedTx (..)
+    , TokenBundleSizeAssessor
+    , Tx (..)
+    , TxConstraints
+    , TxMetadata
+    , TxOut
+    )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Data.ByteString
@@ -116,17 +122,15 @@ data TransactionLayer k = TransactionLayer
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
         -- This also includes necessary deposits.
 
-    , calcMinimumCoinValue
-        :: ProtocolParameters
-            -- Current protocol parameters
-        -> TokenMap
-            -- A bundle of native assets
-        -> Coin
-        -- ^ The minimum ada value needed in a UTxO carrying the asset bundle
-
     , tokenBundleSizeAssessor
         :: TokenBundleSizeAssessor
         -- ^ A function to assess the size of a token bundle.
+
+    , constraints
+        :: ProtocolParameters
+        -- Current protocol parameters.
+        -> TxConstraints
+        -- The set of constraints that apply to all transactions.
 
     , decodeSignedTx
         :: AnyCardanoEra
@@ -134,6 +138,7 @@ data TransactionLayer k = TransactionLayer
         -> Either ErrDecodeSignedTx (Tx, SealedTx)
         -- ^ Decode an externally-signed transaction to the chain producer
     }
+    deriving Generic
 
 -- | Some additional context about a transaction. This typically contains
 -- details that are known upfront about the transaction and are used to
@@ -147,7 +152,7 @@ data TransactionCtx = TransactionCtx
     -- ^ Transaction expiry (TTL) slot.
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
-    } deriving (Show, Eq)
+    } deriving (Show, Generic, Eq)
 
 data Withdrawal
     = WithdrawalSelf !RewardAccount !(NonEmpty DerivationIndex) !Coin

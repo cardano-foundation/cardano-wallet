@@ -185,22 +185,22 @@ data SelectionCriteria = SelectionCriteria
 -- output must not change the estimated cost of a selection.
 --
 data SelectionSkeleton = SelectionSkeleton
-    { inputsSkeleton
-        :: !UTxOIndex
-    , outputsSkeleton
+    { skeletonInputCount
+        :: !Int
+    , skeletonOutputs
         :: ![TxOut]
-    , changeSkeleton
+    , skeletonChange
         :: ![Set AssetId]
     }
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 -- | Creates an empty 'SelectionSkeleton' with no inputs, no outputs and no
 -- change.
 emptySkeleton :: SelectionSkeleton
 emptySkeleton = SelectionSkeleton
-    { inputsSkeleton  = UTxOIndex.empty
-    , outputsSkeleton = mempty
-    , changeSkeleton  = mempty
+    { skeletonInputCount = 0
+    , skeletonOutputs = mempty
+    , skeletonChange = mempty
     }
 
 -- | Specifies a limit to adhere to when performing a selection.
@@ -594,12 +594,12 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         SelectionState {selected, leftover} = s
 
         requiredCost = costFor SelectionSkeleton
-            { inputsSkeleton  = selected
-            , outputsSkeleton = NE.toList outputsToCover
-            , changeSkeleton
+            { skeletonInputCount = UTxOIndex.size selected
+            , skeletonOutputs = NE.toList outputsToCover
+            , skeletonChange
             }
 
-        changeSkeleton = predictChange selected
+        skeletonChange = predictChange selected
         inputsSelected = mkInputsSelected selected
 
     invariantSelectAnyInputs =

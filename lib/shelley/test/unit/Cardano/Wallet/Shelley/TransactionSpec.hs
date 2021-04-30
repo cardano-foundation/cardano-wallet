@@ -60,25 +60,42 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genFixedSizeTokenBundle
+    , genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..)
+    ( TxConstraints (..)
+    , TxIn (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxOut (..)
+    , TxSize (..)
     , txMetadataIsNull
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromAllegraTx, fromShelleyTx, sealShelleyTx, toCardanoLovelace )
+    ( computeTokenBundleSerializedLengthBytes
+    , fromAllegraTx
+    , fromShelleyTx
+    , maxTokenBundleSerializedLengthBytes
+    , sealShelleyTx
+    , toCardanoLovelace
+    )
 import Cardano.Wallet.Shelley.Transaction
-    ( TxWitnessTagFor
+    ( TxSkeleton (..)
+    , TxWitnessTag (..)
+    , TxWitnessTagFor
+    , estimateTxCost
+    , estimateTxSize
     , mkByronWitness
     , mkShelleyWitness
+    , mkTxSkeleton
     , mkUnsignedTx
     , newTransactionLayer
+    , txConstraints
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
     )
@@ -103,6 +120,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Semigroup
+    ( mtimesDefault )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
@@ -115,19 +134,25 @@ import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Blind (..)
     , InfiniteList (..)
     , NonEmptyList (..)
     , Property
     , arbitraryPrintableChar
+    , checkCoverage
     , choose
     , classify
+    , conjoin
     , counterexample
+    , cover
     , elements
+    , oneof
     , property
     , scale
     , vectorOf
     , withMaxSuccess
     , within
+    , (=/=)
     , (===)
     , (==>)
     )
@@ -142,6 +167,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -415,6 +441,19 @@ spec = do
                 \fa54297c6a5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80e\
                 \58200000000000000000000000000000000000000000000000000000000000\
                 \00000044a1024100f6"
+
+    describe "Transaction constraints" $ do
+
+        it "cost of empty transaction" $
+            property prop_txConstraints_txBaseCost
+        it "size of empty transaction" $
+            property prop_txConstraints_txBaseSize
+        it "cost of non-empty transaction" $
+            property prop_txConstraints_txCost
+        it "size of non-empty transaction" $
+            property prop_txConstraints_txSize
+        it "maximum size of output" $
+            property prop_txConstraints_txOutputMaximumSize
 
 newtype GivenNumOutputs = GivenNumOutputs Int deriving Num
 newtype ExpectedNumInputs = ExpectedNumInputs Int deriving Num
@@ -704,3 +743,201 @@ dummyProtocolParameters = ProtocolParameters
 -- that it generates always the same values.
 generatePure :: Int -> Gen a -> a
 generatePure seed (MkGen r) = r (mkQCGen seed) 30
+
+--------------------------------------------------------------------------------
+-- Transaction constraints
+--------------------------------------------------------------------------------
+
+emptyTxSkeleton :: TxSkeleton
+emptyTxSkeleton = mkTxSkeleton
+    TxWitnessShelleyUTxO
+    defaultTransactionCtx
+    emptySkeleton
+
+mockProtocolParameters :: ProtocolParameters
+mockProtocolParameters = dummyProtocolParameters
+    { txParameters = TxParameters
+        { getFeePolicy = LinearFee (Quantity 1.0) (Quantity 2.0)
+        , getTxMaxSize = Quantity 16384
+        }
+    }
+
+mockTxConstraints :: TxConstraints
+mockTxConstraints = txConstraints mockProtocolParameters TxWitnessShelleyUTxO
+
+data MockSelection = MockSelection
+    { txInputCount :: Int
+    , txOutputs :: [TxOut]
+    , txRewardWithdrawal :: Coin
+    }
+    deriving (Eq, Show)
+
+genMockSelection :: Gen MockSelection
+genMockSelection = do
+    txInputCount <-
+        oneof [ pure 0, choose (1, 1000) ]
+    txOutputCount <-
+        oneof [ pure 0, choose (1, 1000) ]
+    txOutputs <- replicateM txOutputCount genTxOut
+    txRewardWithdrawal <-
+        Coin <$> oneof [ pure 0, choose (1, 1_000_000) ]
+    pure MockSelection
+        { txInputCount
+        , txOutputs
+        , txRewardWithdrawal
+        }
+  where
+    genTxOut = TxOut (dummyAddress dummyByte) <$> genTokenBundleSmallRange
+      where
+        dummyByte :: Word8
+        dummyByte = fromIntegral $ fromEnum 'A'
+
+shrinkMockSelection :: MockSelection -> [MockSelection]
+shrinkMockSelection mock =
+    [ MockSelection i o r
+    | (i, o, r) <- shrink (txInputCount, txOutputs, txRewardWithdrawal)
+    ]
+  where
+    MockSelection
+        { txInputCount
+        , txOutputs
+        , txRewardWithdrawal
+        } = mock
+
+instance Arbitrary MockSelection where
+    arbitrary = genMockSelection
+    shrink = shrinkMockSelection
+
+-- Tests that using 'txBaseCost' to estimate the cost of an empty selection
+-- produces a result that is consistent with the result of using
+-- 'estimateTxCost'.
+--
+prop_txConstraints_txBaseCost :: Property
+prop_txConstraints_txBaseCost =
+    txBaseCost mockTxConstraints
+        === estimateTxCost mockProtocolParameters emptyTxSkeleton
+
+-- Tests that using 'txBaseSize' to estimate the size of an empty selection
+-- produces a result that is consistent with the result of using
+-- 'estimateTxSize'.
+--
+prop_txConstraints_txBaseSize :: Property
+prop_txConstraints_txBaseSize =
+    txBaseSize mockTxConstraints
+        === estimateTxSize emptyTxSkeleton
+
+-- Tests that using 'txConstraints' to estimate the cost of a non-empty
+-- selection produces a result that is consistent with the result of using
+-- 'estimateTxCost'.
+--
+prop_txConstraints_txCost :: MockSelection -> Property
+prop_txConstraints_txCost mock =
+    counterexample ("result: " <> show result) $
+    counterexample ("lower bound: " <> show lowerBound) $
+    counterexample ("upper bound: " <> show upperBound) $
+    conjoin
+        [ result >= lowerBound
+        , result <= upperBound
+        ]
+  where
+    MockSelection {txInputCount, txOutputs, txRewardWithdrawal} = mock
+    result :: Coin
+    result = mconcat
+        [ txBaseCost mockTxConstraints
+        , txInputCount `mtimesDefault` txInputCost mockTxConstraints
+        , F.foldMap (txOutputCost mockTxConstraints . tokens) txOutputs
+        , txRewardWithdrawalCost mockTxConstraints txRewardWithdrawal
+        ]
+    lowerBound = estimateTxCost mockProtocolParameters emptyTxSkeleton
+        {txInputCount, txOutputs, txRewardWithdrawal}
+    -- We allow a small amount of overestimation due to the slight variation in
+    -- the marginal cost of an input:
+    upperBound = lowerBound <> txInputCount `mtimesDefault` Coin 8
+
+-- Tests that using 'txConstraints' to estimate the size of a non-empty
+-- selection produces a result that is consistent with the result of using
+-- 'estimateTxSize'.
+--
+prop_txConstraints_txSize :: MockSelection -> Property
+prop_txConstraints_txSize mock =
+    counterexample ("result: " <> show result) $
+    counterexample ("lower bound: " <> show lowerBound) $
+    counterexample ("upper bound: " <> show upperBound) $
+    conjoin
+        [ result >= lowerBound
+        , result <= upperBound
+        ]
+  where
+    MockSelection {txInputCount, txOutputs, txRewardWithdrawal} = mock
+    result :: TxSize
+    result = mconcat
+        [ txBaseSize mockTxConstraints
+        , txInputCount `mtimesDefault` txInputSize mockTxConstraints
+        , F.foldMap (txOutputSize mockTxConstraints . tokens) txOutputs
+        , txRewardWithdrawalSize mockTxConstraints txRewardWithdrawal
+        ]
+    lowerBound = estimateTxSize emptyTxSkeleton
+        {txInputCount, txOutputs, txRewardWithdrawal}
+    -- We allow a small amount of overestimation due to the slight variation in
+    -- the marginal size of an input:
+    upperBound = lowerBound <> txInputCount `mtimesDefault` TxSize 4
+
+newtype Large a = Large { unLarge :: a }
+    deriving (Eq, Show)
+
+instance Arbitrary (Large TokenBundle) where
+    arbitrary = fmap Large . genFixedSizeTokenBundle =<< choose (1, 128)
+
+-- Tests that if a bundle is oversized (when serialized), then a comparison
+-- between 'txOutputSize' and 'txOutputMaximumSize' should also indicate that
+-- the bundle is oversized.
+--
+prop_txConstraints_txOutputMaximumSize :: Blind (Large TokenBundle) -> Property
+prop_txConstraints_txOutputMaximumSize (Blind (Large bundle)) =
+    checkCoverage $
+    cover 10 (authenticComparison == LT)
+        "authentic bundle size is smaller than maximum" $
+    cover 10 (authenticComparison == GT)
+        "authentic bundle size is greater than maximum" $
+    counterexample
+        ("authentic size: " <> show authenticSize) $
+    counterexample
+        ("authentic size maximum: " <> show authenticSizeMax) $
+    counterexample
+        ("authentic comparison: " <> show authenticComparison) $
+    counterexample
+        ("simulated size: " <> show simulatedSize) $
+    counterexample
+        ("simulated size maximum: " <> show simulatedSizeMax) $
+    counterexample
+        ("simulated comparison: " <> show simulatedComparison) $
+    case authenticComparison of
+        LT ->
+            -- We can't really require anything of the simulated comparison
+            -- here, as the size given by 'estimateTxSize' is allowed to be
+            -- an overestimate.
+            property True
+        EQ ->
+            -- It's extremely hard to hit this case exactly. But if this case
+            -- does match, we only need to ensure that the simulated size is
+            -- not an underestimate.
+            simulatedComparison =/= LT
+        GT ->
+            -- This is the case we really care about. If the result of an
+            -- authentic comparison indicates that the bundle is oversized,
+            -- the simulated comparison MUST also indicate that the bundle
+            -- is oversized.
+            simulatedComparison === GT
+  where
+    authenticComparison = compare authenticSize authenticSizeMax
+    simulatedComparison = compare simulatedSize simulatedSizeMax
+
+    authenticSize :: Int
+    authenticSize = computeTokenBundleSerializedLengthBytes bundle
+    authenticSizeMax :: Int
+    authenticSizeMax = maxTokenBundleSerializedLengthBytes
+
+    simulatedSize :: TxSize
+    simulatedSize = txOutputSize mockTxConstraints bundle
+    simulatedSizeMax :: TxSize
+    simulatedSizeMax = txOutputMaximumSize mockTxConstraints

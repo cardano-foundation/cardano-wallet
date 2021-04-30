@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -56,6 +56,8 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txOutputHasValidAdaQuantity
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
+    , TxSize (..)
+    , txSizeDistance
 
     ) where
 
@@ -132,6 +134,8 @@ import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
+import Quiet
+    ( Quiet (..) )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -534,22 +538,22 @@ txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
 -- This will lead to slight overestimation in the case of UTxOs that share the
 -- same payment key.
 --
-data TxConstraints s = TxConstraints
+data TxConstraints = TxConstraints
     { txBaseCost :: Coin
       -- ^ The constant cost of an empty transaction.
-    , txBaseSize :: s
+    , txBaseSize :: TxSize
       -- ^ The constant size of an empty transaction.
     , txInputCost :: Coin
       -- ^ The constant cost of a transaction input, assuming one witness is
       -- required per input.
-    , txInputSize :: s
+    , txInputSize :: TxSize
       -- ^ The constant size of a transaction input, assuming one witness is
       -- required per input.
     , txOutputCost :: TokenBundle -> Coin
       -- ^ The variable cost of a transaction output.
-    , txOutputSize :: TokenBundle -> s
+    , txOutputSize :: TokenBundle -> TxSize
       -- ^ The variable size of a transaction output.
-    , txOutputMaximumSize :: s
+    , txOutputMaximumSize :: TxSize
       -- ^ The maximum size of a transaction output.
     , txOutputMaximumTokenQuantity :: TokenQuantity
       -- ^ The maximum token quantity that can appear in a transaction output.
@@ -557,35 +561,55 @@ data TxConstraints s = TxConstraints
       -- ^ The variable minimum ada quantity of a transaction output.
     , txRewardWithdrawalCost :: Coin -> Coin
       -- ^ The variable cost of a reward withdrawal.
-    , txRewardWithdrawalSize :: Coin -> s
+    , txRewardWithdrawalSize :: Coin -> TxSize
       -- ^ The variable size of a reward withdrawal.
-    , txMaximumSize :: s
+    , txMaximumSize :: TxSize
       -- ^ The maximum size of a transaction.
     }
+    deriving Generic
 
-txOutputCoinCost :: TxConstraints s -> Coin -> Coin
+txOutputCoinCost :: TxConstraints -> Coin -> Coin
 txOutputCoinCost constraints = txOutputCost constraints . TokenBundle.fromCoin
 
-txOutputCoinSize :: TxConstraints s -> Coin -> s
+txOutputCoinSize :: TxConstraints -> Coin -> TxSize
 txOutputCoinSize constraints = txOutputSize constraints . TokenBundle.fromCoin
 
-txOutputCoinMinimum :: TxConstraints s -> Coin
+txOutputCoinMinimum :: TxConstraints -> Coin
 txOutputCoinMinimum constraints = txOutputMinimumAdaQuantity constraints mempty
 
-txOutputIsValid :: Ord s => TxConstraints s -> TokenBundle -> Bool
+txOutputIsValid :: TxConstraints -> TokenBundle -> Bool
 txOutputIsValid constraints b =
     constraints `txOutputHasValidAdaQuantity` b
     && constraints `txOutputHasValidSize` b
     && constraints `txOutputHasValidTokenQuantities` (view #tokens b)
 
-txOutputHasValidAdaQuantity :: TxConstraints s -> TokenBundle -> Bool
+txOutputHasValidAdaQuantity :: TxConstraints -> TokenBundle -> Bool
 txOutputHasValidAdaQuantity constraints (TokenBundle c m) =
     c >= txOutputMinimumAdaQuantity constraints m
 
-txOutputHasValidSize :: Ord s => TxConstraints s -> TokenBundle -> Bool
+txOutputHasValidSize :: TxConstraints -> TokenBundle -> Bool
 txOutputHasValidSize constraints b =
     txOutputSize constraints b <= txOutputMaximumSize constraints
 
-txOutputHasValidTokenQuantities :: TxConstraints s -> TokenMap -> Bool
+txOutputHasValidTokenQuantities :: TxConstraints -> TokenMap -> Bool
 txOutputHasValidTokenQuantities constraints m =
     TokenMap.maximumQuantity m <= txOutputMaximumTokenQuantity constraints
+
+-- | The size of a transaction, or part of a transaction, in bytes.
+--
+newtype TxSize = TxSize { unTxSize :: Natural }
+    deriving stock (Eq, Ord, Generic)
+    deriving Show via (Quiet TxSize)
+
+instance Semigroup TxSize where
+    TxSize a <> TxSize b = TxSize (a + b)
+
+instance Monoid TxSize where
+    mempty = TxSize 0
+
+-- | Computes the absolute distance between two transaction size quantities.
+--
+txSizeDistance :: TxSize -> TxSize -> TxSize
+txSizeDistance (TxSize a) (TxSize b)
+    | a >= b    = TxSize (a - b)
+    | otherwise = TxSize (b - a)

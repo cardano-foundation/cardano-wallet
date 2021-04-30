@@ -20,7 +20,6 @@ import Cardano.Wallet.Primitive.Migration.Selection
     , SelectionCorrectness (..)
     , SelectionError (..)
     , SelectionFullError (..)
-    , TxSize (..)
     , addValueToOutputs
     , create
     , extend
@@ -41,11 +40,13 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..)
+    , TxSize (..)
     , txOutputCoinCost
     , txOutputCoinMinimum
     , txOutputCoinSize
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
+    , txSizeDistance
     )
 import Control.Monad
     ( replicateM )
@@ -156,8 +157,8 @@ spec = describe "Cardano.Wallet.Primitive.Migration.SelectionSpec" $
 -- Creating a selection
 --------------------------------------------------------------------------------
 
-type MockSelection = Selection MockInputId MockSize
-type MockSelectionError = SelectionError MockSize
+type MockSelection = Selection MockInputId
+type MockSelectionError = SelectionError
 type MockSelectionResult = Either MockSelectionError MockSelection
 
 prop_create :: Blind MockTxConstraints -> Property
@@ -386,8 +387,7 @@ prop_addValueToOutputs_inner mockConstraints outputs =
     valueAfter
         = F.fold result
 
-txOutputHasValidSizeWithMaxAda
-    :: TxSize size => TxConstraints size -> TokenMap -> Bool
+txOutputHasValidSizeWithMaxAda :: TxConstraints -> TokenMap -> Bool
 txOutputHasValidSizeWithMaxAda constraints b =
     txOutputHasValidSize constraints $ TokenBundle maxBound b
 
@@ -669,12 +669,12 @@ prop_txOutputSize_inner mockConstraints output =
         . report outputWithLargerCoin
             "outputWithLargerCoin"
 
-    txOutputSizeDifference :: TokenBundle -> TokenBundle -> MockSize
+    txOutputSizeDifference :: TokenBundle -> TokenBundle -> TxSize
     txOutputSizeDifference out1 out2 = txSizeDistance
         (txOutputSize constraints out1)
         (txOutputSize constraints out2)
 
-    txOutputCoinSizeDifference :: TokenBundle -> TokenBundle -> MockSize
+    txOutputCoinSizeDifference :: TokenBundle -> TokenBundle -> TxSize
     txOutputCoinSizeDifference out1 out2 = txSizeDistance
         (txOutputCoinSize constraints (view #coin out1))
         (txOutputCoinSize constraints (view #coin out2))
@@ -727,7 +727,7 @@ genMockTxConstraints = do
         mockTxOutputMaximumSize
     pure MockTxConstraints {..}
 
-unMockTxConstraints :: MockTxConstraints -> TxConstraints MockSize
+unMockTxConstraints :: MockTxConstraints -> TxConstraints
 unMockTxConstraints MockTxConstraints {..} = TxConstraints
     { txBaseCost =
         baseCost mockTxCostFunction
@@ -755,21 +755,21 @@ unMockTxConstraints MockTxConstraints {..} = TxConstraints
         unMockTxMaximumSize mockTxMaximumSize
     }
   where
-    mockOutputSize :: TokenBundle -> MockSize
+    mockOutputSize :: TokenBundle -> TxSize
     mockOutputSize (TokenBundle c m) = (<>)
-        (MockSize $ fromIntegral $ BS.length $ pretty $ Flat m)
+        (TxSize $ fromIntegral $ BS.length $ pretty $ Flat m)
         (mockCoinSize c)
 
-    mockRewardWithdrawalSize :: Coin -> MockSize
+    mockRewardWithdrawalSize :: Coin -> TxSize
     mockRewardWithdrawalSize = \case
-        Coin 0 -> MockSize 0
+        Coin 0 -> TxSize 0
         Coin c -> mockCoinSize (Coin c)
 
-    mockCoinSize :: Coin -> MockSize
-    mockCoinSize = MockSize . fromIntegral . length . show
+    mockCoinSize :: Coin -> TxSize
+    mockCoinSize = TxSize . fromIntegral . length . show
 
-    mockSizeToCost :: MockSize -> Coin
-    mockSizeToCost (MockSize s) =
+    mockSizeToCost :: TxSize -> Coin
+    mockSizeToCost (TxSize s) =
         Coin $ fromIntegral $ fromIntegral a * s
       where
         Coin a = sizeCost mockTxCostFunction
@@ -794,31 +794,31 @@ genMockTxCostFunction = MockTxCostFunction
 --------------------------------------------------------------------------------
 
 newtype MockTxBaseSize = MockTxBaseSize
-    { unMockTxBaseSize :: MockSize }
+    { unMockTxBaseSize :: TxSize }
     deriving stock Eq
     deriving Show via Natural
 
 genMockTxBaseSize :: Gen MockTxBaseSize
-genMockTxBaseSize = MockTxBaseSize <$> genMockSizeRange 0 1000
+genMockTxBaseSize = MockTxBaseSize <$> genTxSizeRange 0 1000
 
 --------------------------------------------------------------------------------
 -- Mock input sizes
 --------------------------------------------------------------------------------
 
 newtype MockTxInputSize = MockTxInputSize
-    { unMockTxInputSize :: MockSize }
+    { unMockTxInputSize :: TxSize }
     deriving stock Eq
     deriving Show via Natural
 
 genMockTxInputSize :: Gen MockTxInputSize
-genMockTxInputSize = MockTxInputSize <$> genMockSizeRange 2 4
+genMockTxInputSize = MockTxInputSize <$> genTxSizeRange 2 4
 
 --------------------------------------------------------------------------------
 -- Mock maximum output sizes
 --------------------------------------------------------------------------------
 
 newtype MockTxOutputMaximumSize = MockTxOutputMaximumSize
-    { unMockTxOutputMaximumSize :: MockSize }
+    { unMockTxOutputMaximumSize :: TxSize }
     deriving stock Eq
     deriving Show via Natural
 
@@ -826,7 +826,7 @@ genMockTxOutputMaximumSize :: Gen MockTxOutputMaximumSize
 genMockTxOutputMaximumSize =
     -- Chosen so that the upper limit is around twice the unconstrained maximum
     -- size of token bundles generated by 'genTokenBundle'.
-    pure $ MockTxOutputMaximumSize $ MockSize 400
+    pure $ MockTxOutputMaximumSize $ TxSize 400
 
 --------------------------------------------------------------------------------
 -- Mock maximum token quantities
@@ -869,7 +869,7 @@ genMockTxOutputMinimumAdaQuantity = MockTxOutputMinimumAdaQuantity
 --------------------------------------------------------------------------------
 
 newtype MockTxMaximumSize = MockTxMaximumSize
-    { unMockTxMaximumSize :: MockSize }
+    { unMockTxMaximumSize :: TxSize }
     deriving stock Eq
     deriving Show via Natural
 
@@ -1032,27 +1032,12 @@ genRewardWithdrawal = RewardWithdrawal <$> oneof
     ]
 
 --------------------------------------------------------------------------------
--- Mock sizes
+-- Generating transaction sizes
 --------------------------------------------------------------------------------
 
-newtype MockSize = MockSize { unMockSize :: Natural }
-    deriving stock (Eq, Ord)
-    deriving Show via Natural
-
-instance Semigroup MockSize where
-    MockSize a <> MockSize b = MockSize (a + b)
-
-instance Monoid MockSize where
-    mempty = MockSize 0
-
-instance TxSize MockSize where
-    MockSize a `txSizeDistance` MockSize b
-        | a >= b    = MockSize (a - b)
-        | otherwise = MockSize (b - a)
-
-genMockSizeRange :: Natural -> Natural -> Gen MockSize
-genMockSizeRange minSize maxSize =
-    MockSize . fromIntegral @Integer @Natural <$>
+genTxSizeRange :: Natural -> Natural -> Gen TxSize
+genTxSizeRange minSize maxSize =
+    TxSize . fromIntegral @Integer @Natural <$>
         choose (fromIntegral minSize, fromIntegral maxSize)
 
 --------------------------------------------------------------------------------

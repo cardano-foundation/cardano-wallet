@@ -1101,10 +1101,10 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: initSelectionCriteria not implemented"
     , calcMinimumCost =
         error "dummyTransactionLayer: calcMinimumCost not implemented"
-    , calcMinimumCoinValue =
-        error "dummyTransactionLayer: calcMinimumCoinValue not implemented"
     , tokenBundleSizeAssessor =
         error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
+    , constraints =
+        error "dummyTransactionLayer: constraints not implemented"
     , decodeSignedTx =
         error "dummyTransactionLayer: decodeSignedTx not implemented"
     }

@@ -26,15 +26,21 @@ module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
 
     -- * Internals
+    , TxPayload (..)
+    , TxSkeleton (..)
+    , TxWitnessTag (..)
+    , TxWitnessTagFor (..)
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
-    , mkUnsignedTx
-    , mkShelleyWitness
-    , mkByronWitness
-    , mkTx
-    , TxPayload (..)
     , emptyTxPayload
-    , TxWitnessTagFor (..)
+    , estimateTxCost
+    , estimateTxSize
+    , mkByronWitness
+    , mkShelleyWitness
+    , mkTx
+    , mkTxSkeleton
+    , mkUnsignedTx
+    , txConstraints
     ) where
 
 import Prelude
@@ -80,23 +86,26 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin, subtractCoin )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
     , Tx (..)
-    , TxIn (..)
+    , TxConstraints (..)
+    , TxMetadata (..)
     , TxOut (..)
+    , TxSize (..)
     , txOutCoin
     , txOutMaxTokenQuantity
+    , txSizeDistance
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
@@ -104,6 +113,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromAllegraTx
     , fromMaryTx
     , fromShelleyTx
+    , maxTokenBundleSerializedLengthBytes
     , sealShelleyTx
     , toAllegraTxOut
     , toCardanoLovelace
@@ -135,6 +145,8 @@ import Control.Monad
     ( forM )
 import Data.ByteString
     ( ByteString )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -143,10 +155,12 @@ import Data.Kind
     ( Type )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Type.Equality
     ( type (==) )
 import Data.Word
-    ( Word16 )
+    ( Word16, Word64, Word8 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Stack
@@ -163,6 +177,7 @@ import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Core as SL
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
@@ -301,12 +316,12 @@ newTransactionLayer
 newTransactionLayer networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore pp ctx selection -> do
         let ttl   = txTimeToLive ctx
-        let wdrl  = withdrawalToCoin $ txWithdrawal ctx
+        let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
-        case txDelegationAction ctx of
+        case view #txDelegationAction ctx of
             Nothing -> do
                 withShelleyBasedEra era $ do
-                    let payload = TxPayload (txMetadata ctx) mempty mempty
+                    let payload = TxPayload (view #txMetadata ctx) mempty mempty
                     let fees = delta
                     mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
 
@@ -317,7 +332,7 @@ newTransactionLayer networkId = TransactionLayer
                     let mkWits unsigned =
                             [ mkShelleyWitness unsigned stakeCreds
                             ]
-                    let payload = TxPayload (txMetadata ctx) certs mkWits
+                    let payload = TxPayload (view #txMetadata ctx) certs mkWits
                     let fees = case action of
                             RegisterKeyAndJoin{} ->
                                 unsafeSubtractCoin selection delta (stakeKeyDeposit pp)
@@ -328,21 +343,13 @@ newTransactionLayer networkId = TransactionLayer
     , initSelectionCriteria = _initSelectionCriteria @k
 
     , calcMinimumCost = \pp ctx skeleton ->
-        let
-            LinearFee (Quantity a) (Quantity b) =
-                getFeePolicy $ txParameters pp
-
-            computeFee :: Integer -> Coin
-            computeFee size =
-                Coin $ ceiling (a + b*fromIntegral size)
-        in
-            computeFee $ estimateTxSize (txWitnessTagFor @k) ctx skeleton
-
-    , calcMinimumCoinValue =
-        _calcMinimumCoinValue
+        estimateTxCost pp $
+        mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
 
     , tokenBundleSizeAssessor =
         Compatibility.tokenBundleSizeAssessor
+
+    , constraints = \pp -> txConstraints pp (txWitnessTagFor @k)
 
     , decodeSignedTx =
         _decodeSignedTx
@@ -422,9 +429,10 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
     maxSize  = toInteger (getQuantity txMaxSize)
     maxNInps = 255 -- Arbitrary, but large enough.
 
-    txSizeGivenInputs nInps = size
+    txSizeGivenInputs nInps = fromIntegral size
       where
-        size = estimateTxSize (txWitnessTagFor @k) ctx sel
+        TxSize size = estimateTxSize $ mkTxSkeleton
+            (txWitnessTagFor @k) ctx sel
         sel  = dummySkeleton (fromIntegral nInps) outs
 
 _initSelectionCriteria
@@ -494,8 +502,8 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
         _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
 
     extraCoinSource = Just $ addCoin
-        (withdrawalToCoin $ txWithdrawal ctx)
-        ( case txDelegationAction ctx of
+        (withdrawalToCoin $ view #txWithdrawal ctx)
+        ( case view #txDelegationAction ctx of
             Just Quit -> stakeKeyDeposit pp
             _ -> Coin 0
         )
@@ -504,17 +512,14 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
         prepareOutputsWith (_calcMinimumCoinValue pp) outputsUnprepared
 
 dummySkeleton :: Int -> [TxOut] -> SelectionSkeleton
-dummySkeleton nInps outs = SelectionSkeleton
-    { inputsSkeleton = UTxOIndex.fromSequence $
-        map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1]
-    , outputsSkeleton =
-        outs
-    , changeSkeleton =
-        TokenBundle.getAssets . view #tokens <$> outs
+dummySkeleton inputCount outputs = SelectionSkeleton
+    { skeletonInputCount =
+        inputCount
+    , skeletonOutputs =
+        outputs
+    , skeletonChange =
+        TokenBundle.getAssets . view #tokens <$> outputs
     }
-  where
-    dummyTxIn  = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
-    dummyTxOut = TxOut (Address "") TokenBundle.empty
 
 _decodeSignedTx
     :: AnyCardanoEra
@@ -546,37 +551,193 @@ _decodeSignedTx era bytes = do
         _ ->
             Left ErrDecodeSignedTxNotSupported
 
--- Estimate the size of a final transaction by using upper boundaries for cbor
--- serialized objects according to:
+txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
+txConstraints protocolParams witnessTag = TxConstraints
+    { txBaseCost
+    , txBaseSize
+    , txInputCost
+    , txInputSize
+    , txOutputCost
+    , txOutputSize
+    , txOutputMaximumSize
+    , txOutputMaximumTokenQuantity
+    , txOutputMinimumAdaQuantity
+    , txRewardWithdrawalCost
+    , txRewardWithdrawalSize
+    , txMaximumSize
+    }
+  where
+    txBaseCost =
+        estimateTxCost protocolParams empty
+
+    txBaseSize =
+        estimateTxSize empty
+
+    txInputCost =
+        marginalCostOf empty {txInputCount = 1}
+
+    txInputSize =
+        marginalSizeOf empty {txInputCount = 1}
+
+    txOutputCost bundle =
+        marginalCostOf empty {txOutputs = [mkTxOut bundle]}
+
+    txOutputSize bundle =
+        marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
+
+    txOutputMaximumSize = (<>)
+        (TxSize $ fromIntegral maxTokenBundleSerializedLengthBytes)
+        (txOutputSize mempty)
+
+    txOutputMaximumTokenQuantity =
+        TokenQuantity $ fromIntegral $ maxBound @Word64
+
+    txOutputMinimumAdaQuantity =
+        computeMinimumAdaQuantity (minimumUTxOvalue protocolParams)
+
+    txRewardWithdrawalCost c =
+        marginalCostOf empty {txRewardWithdrawal = c}
+
+    txRewardWithdrawalSize c =
+        marginalSizeOf empty {txRewardWithdrawal = c}
+
+    txMaximumSize = protocolParams
+        & view (#txParameters . #getTxMaxSize)
+        & getQuantity
+        & fromIntegral
+        & TxSize
+
+    empty :: TxSkeleton
+    empty = emptyTxSkeleton witnessTag
+
+    -- Computes the size difference between the given skeleton and an empty
+    -- skeleton.
+    marginalCostOf :: TxSkeleton -> Coin
+    marginalCostOf =
+        Coin.distance txBaseCost . estimateTxCost protocolParams
+
+    -- Computes the size difference between the given skeleton and an empty
+    -- skeleton.
+    marginalSizeOf :: TxSkeleton -> TxSize
+    marginalSizeOf =
+        txSizeDistance txBaseSize . estimateTxSize
+
+    -- Constructs a real transaction output from a token bundle.
+    mkTxOut :: TokenBundle -> TxOut
+    mkTxOut = TxOut dummyAddress
+      where
+        dummyAddress :: Address
+        dummyAddress = Address $ BS.replicate dummyAddressLength nullByte
+
+        dummyAddressLength :: Int
+        dummyAddressLength = 65
+        -- Note: This is almost certainly too high. However, we are at liberty
+        -- to overestimate the length of an address (which is safe). Therefore,
+        -- we can choose a length that we know is greater than or equal to all
+        -- address lengths.
+
+        nullByte :: Word8
+        nullByte = 0
+
+-- | Includes just the parts of a transaction necessary to estimate its size.
 --
--- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
+-- In particular, this record type includes the minimal set of data needed for
+-- the 'estimateTxCost' and 'estimateTxSize' functions to perform their
+-- calculations, and nothing else.
 --
--- All sizes below are in bytes.
-estimateTxSize
+-- The data included in 'TxSkeleton' is a subset of the data included in the
+-- union of 'SelectionSkeleton' and 'TransactionCtx'.
+--
+data TxSkeleton = TxSkeleton
+    { txMetadata :: !(Maybe TxMetadata)
+    , txDelegationAction :: !(Maybe DelegationAction)
+    , txRewardWithdrawal :: !Coin
+    , txWitnessTag :: !TxWitnessTag
+    , txInputCount :: !Int
+    , txOutputs :: ![TxOut]
+    , txChange :: ![Set AssetId]
+    }
+    deriving (Eq, Show)
+
+-- | Constructs an empty transaction skeleton.
+--
+-- This may be used to estimate the size and cost of an empty transaction.
+--
+emptyTxSkeleton :: TxWitnessTag -> TxSkeleton
+emptyTxSkeleton txWitnessTag = TxSkeleton
+    { txMetadata = Nothing
+    , txDelegationAction = Nothing
+    , txRewardWithdrawal = Coin 0
+    , txWitnessTag
+    , txInputCount = 0
+    , txOutputs = []
+    , txChange = []
+    }
+
+-- | Constructs a transaction skeleton from wallet primitive types.
+--
+-- This function extracts a subset of the data included in 'SelectionSkeleton'
+-- and 'TransactionCtx'.
+--
+mkTxSkeleton
     :: TxWitnessTag
     -> TransactionCtx
     -> SelectionSkeleton
-    -> Integer
-estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
-    sizeOf_Transaction
+    -> TxSkeleton
+mkTxSkeleton witness context skeleton = TxSkeleton
+    { txMetadata = view #txMetadata context
+    , txDelegationAction = view #txDelegationAction context
+    , txRewardWithdrawal = withdrawalToCoin $ view #txWithdrawal context
+    , txWitnessTag = witness
+    , txInputCount = view #skeletonInputCount skeleton
+    , txOutputs = view #skeletonOutputs skeleton
+    , txChange = view #skeletonChange skeleton
+    }
+
+-- | Estimates the final cost of a transaction based on its skeleton.
+--
+estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
+estimateTxCost pp skeleton =
+    computeFee $ estimateTxSize skeleton
   where
-    TransactionCtx
+    LinearFee (Quantity a) (Quantity b) = getFeePolicy $ txParameters pp
+
+    computeFee :: TxSize -> Coin
+    computeFee (TxSize size) =
+        Coin $ ceiling (a + b * fromIntegral size)
+
+-- | Estimates the final size of a transaction based on its skeleton.
+--
+-- This function uses the upper bounds of CBOR serialized objects as the basis
+-- for many of its calculations. The following document is used as a reference:
+--
+-- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
+--
+estimateTxSize :: TxSkeleton -> TxSize
+estimateTxSize skeleton =
+    TxSize $ fromIntegral sizeOf_Transaction
+  where
+    TxSkeleton
         { txMetadata
         , txDelegationAction
-        , txWithdrawal
-        } = ctx
+        , txRewardWithdrawal
+        , txWitnessTag
+        , txInputCount
+        , txOutputs
+        , txChange
+        } = skeleton
 
     numberOf_Inputs
-        = toInteger $ UTxOIndex.size inps
+        = fromIntegral txInputCount
 
     numberOf_CertificateSignatures
         = maybe 0 (const 1) txDelegationAction
 
     numberOf_Withdrawals
-        = if withdrawalToCoin txWithdrawal > Coin 0 then 1 else 0
+        = if txRewardWithdrawal > Coin 0 then 1 else 0
 
     numberOf_VkeyWitnesses
-        = case witnessTag of
+        = case txWitnessTag of
             TxWitnessByronUTxO{} -> 0
             TxWitnessShelleyUTxO ->
                 numberOf_Inputs
@@ -584,7 +745,7 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
                 + numberOf_CertificateSignatures
 
     numberOf_BootstrapWitnesses
-        = case witnessTag of
+        = case txWitnessTag of
             TxWitnessByronUTxO{} -> numberOf_Inputs
             TxWitnessShelleyUTxO -> 0
 
@@ -630,8 +791,8 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
         sizeOf_Outputs
             = sizeOf_SmallUInt
             + sizeOf_Array
-            + F.sum (sizeOf_Output <$> outs)
-            + F.sum (sizeOf_ChangeOutput <$> chgs)
+            + F.sum (sizeOf_Output <$> txOutputs)
+            + F.sum (sizeOf_ChangeOutput <$> txChange)
 
         -- 2 => fee
         sizeOf_Fee
@@ -664,7 +825,9 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
 
         -- ?5 => withdrawals
         sizeOf_Withdrawals
-            = (if numberOf_Withdrawals > 0 then sizeOf_SmallUInt + sizeOf_SmallMap else 0)
+            = (if numberOf_Withdrawals > 0
+                then sizeOf_SmallUInt + sizeOf_SmallMap
+                else 0)
             + sizeOf_Withdrawal * numberOf_Withdrawals
 
         -- ?6 => update
@@ -699,7 +862,8 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
         + sizeOf_Address address
         + sizeOf_SmallArray
         + sizeOf_Coin (TokenBundle.getCoin tokens)
-        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0 (TokenBundle.getAssets tokens)
+        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0
+            (TokenBundle.getAssets tokens)
 
     -- transaction_output =
     --   [address, amount : value]
@@ -752,7 +916,7 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
     -- discriminate based on the network as well since testnet addresses are
     -- larger than mainnet ones. But meh.
     sizeOf_ChangeAddress
-        = case witnessTag of
+        = case txWitnessTag of
             TxWitnessByronUTxO{} -> 85
             TxWitnessShelleyUTxO -> 59
 
@@ -801,7 +965,8 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
       where
         -- ?0 => [* vkeywitness ]
         sizeOf_VKeyWitnesses
-            = (if numberOf_VkeyWitnesses > 0 then sizeOf_Array + sizeOf_SmallUInt else 0)
+            = (if numberOf_VkeyWitnesses > 0
+                then sizeOf_Array + sizeOf_SmallUInt else 0)
             + sizeOf_VKeyWitness * numberOf_VkeyWitnesses
 
         -- ?1 => [* multisig_script ]
@@ -810,7 +975,9 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
 
         -- ?2 => [* bootstrap_witness ]
         sizeOf_BootstrapWitnesses
-            = (if numberOf_BootstrapWitnesses > 0 then sizeOf_Array + sizeOf_SmallUInt else 0)
+            = (if numberOf_BootstrapWitnesses > 0
+                then sizeOf_Array + sizeOf_SmallUInt
+                else 0)
             + sizeOf_BootstrapWitness * numberOf_BootstrapWitnesses
 
     -- vkeywitness =

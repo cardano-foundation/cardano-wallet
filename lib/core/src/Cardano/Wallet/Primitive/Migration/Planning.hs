@@ -39,7 +39,7 @@ module Cardano.Wallet.Primitive.Migration.Planning
 import Prelude
 
 import Cardano.Wallet.Primitive.Migration.Selection
-    ( RewardWithdrawal (..), Selection (..), SelectionError (..), TxSize (..) )
+    ( RewardWithdrawal (..), Selection (..), SelectionError (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -73,8 +73,8 @@ import qualified Data.Map.Strict as Map
 --
 -- Use 'createPlan' to create a migration plan.
 --
-data MigrationPlan input size = MigrationPlan
-    { selections :: ![Selection input size]
+data MigrationPlan input = MigrationPlan
+    { selections :: ![Selection input]
       -- ^ A list of generated selections: each selection is the basis for a
       -- single transaction.
     , unselected :: !(CategorizedUTxO input)
@@ -91,11 +91,10 @@ data MigrationPlan input size = MigrationPlan
 -- See 'MigrationPlan'.
 --
 createPlan
-    :: TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> CategorizedUTxO input
     -> RewardWithdrawal
-    -> MigrationPlan input size
+    -> MigrationPlan input
 createPlan constraints =
     run []
   where
@@ -117,11 +116,10 @@ createPlan constraints =
 -- entries that remain.
 --
 createSelection
-    :: TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> CategorizedUTxO input
     -> RewardWithdrawal
-    -> Maybe (CategorizedUTxO input, Selection input size)
+    -> Maybe (CategorizedUTxO input, Selection input)
 createSelection constraints utxo rewardWithdrawal =
     initializeSelection constraints utxo rewardWithdrawal
     <&> extendSelectionUntilFull constraints
@@ -132,11 +130,10 @@ createSelection constraints utxo rewardWithdrawal =
 -- UTxO entries that remain.
 --
 initializeSelection
-    :: forall input size. TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> CategorizedUTxO input
     -> RewardWithdrawal
-    -> Maybe (CategorizedUTxO input, Selection input size)
+    -> Maybe (CategorizedUTxO input, Selection input)
 initializeSelection constraints utxoAtStart reward =
     initializeWith =<< utxoAtStart `select` Supporter
   where
@@ -156,10 +153,9 @@ initializeSelection constraints utxoAtStart reward =
 -- is not enough ada to pay for a "freerider" entry.
 --
 extendSelectionUntilFull
-    :: TxSize size
-    => TxConstraints size
-    -> (CategorizedUTxO input, Selection input size)
-    -> (CategorizedUTxO input, Selection input size)
+    :: TxConstraints
+    -> (CategorizedUTxO input, Selection input)
+    -> (CategorizedUTxO input, Selection input)
 extendSelectionUntilFull constraints = extendWithFreerider
   where
     extendWithFreerider (!utxo, !selection) =
@@ -190,11 +186,10 @@ data ExtendSelectionError
     | ExtendSelectionFull
 
 extendWith
-    :: TxSize size
-    => UTxOEntryCategory
-    -> TxConstraints size
-    -> (CategorizedUTxO input, Selection input size)
-    -> Either ExtendSelectionError (CategorizedUTxO input, Selection input size)
+    :: UTxOEntryCategory
+    -> TxConstraints
+    -> (CategorizedUTxO input, Selection input)
+    -> Either ExtendSelectionError (CategorizedUTxO input, Selection input)
 extendWith category constraints (utxo, selection) =
     case utxo `select` category of
         Just (entry, utxo') ->
@@ -250,16 +245,14 @@ data CategorizedUTxO input = CategorizedUTxO
     deriving (Eq, Show)
 
 categorizeUTxO
-    :: TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> UTxO
     -> CategorizedUTxO (TxIn, TxOut)
 categorizeUTxO constraints (UTxO u) = categorizeUTxOEntries constraints $
     (\(i, o) -> ((i, o), view #tokens o)) <$> Map.toList u
 
 categorizeUTxOEntries
-    :: forall input size. TxSize size
-    => TxConstraints size
+    :: forall input. TxConstraints
     -> [(input, TokenBundle)]
     -> CategorizedUTxO input
 categorizeUTxOEntries constraints uncategorizedEntries = CategorizedUTxO
@@ -277,8 +270,7 @@ categorizeUTxOEntries constraints uncategorizedEntries = CategorizedUTxO
         fmap fst <$> L.filter ((== category) . snd . snd) categorizedEntries
 
 categorizeUTxOEntry
-    :: TxSize size
-    => TxConstraints size
+    :: TxConstraints
     -> TokenBundle
     -> UTxOEntryCategory
 categorizeUTxOEntry constraints b
