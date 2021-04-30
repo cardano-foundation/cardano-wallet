@@ -16,7 +16,7 @@
 # Executables to include in the image as a base layer: node and utilities
 , base ? []
 # Other things to include in the image.
-, iana-etc, cacert, bashInteractive
+, iana-etc, cacert, bashInteractive, coreutils
 , glibcLocales ? null
 
 # Used to generate the docker image names
@@ -61,8 +61,8 @@ let
   envImage = dockerTools.buildImage {
     name = "${repoName}-env";
     contents = [
-      iana-etc cacert bashInteractive
-      nsswitch-conf
+      iana-etc cacert nsswitch-conf
+      bashInteractive coreutils
     ] ++ lib.optional haveGlibcLocales glibcLocales;
 
     # set up /tmp (override with TMPDIR variable)
