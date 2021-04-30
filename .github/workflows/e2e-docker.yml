@@ -95,5 +95,5 @@ jobs:
       TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       NETWORK: testnet
-      WALLET: dev-master-shelley
-      NODE: 1.25.1
+      WALLET: dev-master
+      NODE: 1.26.2
