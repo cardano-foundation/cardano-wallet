@@ -8,6 +8,7 @@ on:
       - master
       - bors/staging
       - bors/trying
+      - 'release/v*'
   pull_request:
 
 jobs:
@@ -88,7 +89,7 @@ jobs:
   cardano-wallet-test-integration:
     name: 'cardano-wallet:integration'
     needs: setup
-    if: startsWith(github.ref, 'refs/heads/bors/')
+    if: ${{ startsWith(github.ref, 'refs/heads/bors/') || startsWith(github.ref, 'refs/heads/release/v') }}
     runs-on: windows-2016
     steps:
       - uses: actions/download-artifact@v2
