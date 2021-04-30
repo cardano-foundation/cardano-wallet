@@ -84,9 +84,27 @@ in
       echo 'Not pushing docker image because this is not a master branch or v20* tag build.'
     fi
 
+    echo
+    echo "Testing that entrypoint works"
+    set +e
+    docker run --rm "$orig_tag" version
+    docker_status="$?"
+    if [ "$docker_status" -eq 0 ]; then
+      echo "OK"
+    elif [ "$docker_status" -eq 125 ]; then
+      echo "Docker failed to run ... oh well."
+      echo "Continuing..."
+    else
+      echo "Entrypoint command failed with code $docker_status"
+      exit 1
+    fi
+    set -e
+    echo
+
     for tag in ''${tags[@]}; do
       tagged="$fullrepo:$tag"
       if [ "$tagged" != "$orig_tag" ]; then
+        echo "Retagging with $tagged"
         docker tag "$orig_tag" "$tagged"
       fi
       echo "Pushing $tagged"
