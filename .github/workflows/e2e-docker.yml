@@ -8,7 +8,7 @@ on:
       nodeTag:
         description: 'Node tag (docker)'
         required: true
-        default: '1.25.1'
+        default: '1.26.2'
       walletTag:
         description: 'Wallet tag (docker)'
         required: true
@@ -96,4 +96,4 @@ jobs:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       NETWORK: testnet
       WALLET: dev-master-shelley
-      NODE: 1.25.1
+      NODE: 1.26.2
