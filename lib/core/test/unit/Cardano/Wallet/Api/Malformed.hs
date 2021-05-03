@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types
     , ApiSlotReference
     , ApiT (..)
     , ApiTxId
+    , ApiWalletMigrationPlanPostData
     , ApiWalletMigrationPostData
     , ApiWalletPassphrase
     , ApiWalletSignData
@@ -1205,6 +1206,17 @@ instance Malformed (BodyParam (PostTransactionFeeData ('Testnet pm))) where
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
 
+instance Malformed (BodyParam (ApiWalletMigrationPlanPostData ('Testnet pm))) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPlanPostData(ApiWalletMigrationPlanPostData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPlanPostData(ApiWalletMigrationPlanPostData) failed, expected Object, but encountered String")
+            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$> createMigrationPlanDataCases
+
 instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "lenient")) where
     malformed = jsonValid ++ jsonInvalid
      where
@@ -1702,6 +1714,29 @@ migrateDataCases =
         , "addresses": [ #{addrPlaceholder} ]
         }|]
       , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Array"
+      )
+    ]
+
+createMigrationPlanDataCases :: [(Aeson.Value, ExpectedError)]
+createMigrationPlanDataCases =
+    [ ( [aesonQQ|
+        { "addresses": "not_an_array"
+        }|]
+      , "Error in $.addresses: parsing NonEmpty failed, expected Array, but encountered String"
+      )
+    , ( [aesonQQ|
+        { "addresses": []
+        }|]
+      , "Error in $.addresses: parsing NonEmpty failed, unexpected empty list"
+      )
+    , ( [aesonQQ|
+        { "addresses": 1
+        }|]
+      , "Error in $.addresses: parsing NonEmpty failed, expected Array, but encountered Number"
+      )
+    , ( [aesonQQ|
+        {}|]
+      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPlanPostData(ApiWalletMigrationPlanPostData) failed, key 'addresses' not found"
       )
     ]
 

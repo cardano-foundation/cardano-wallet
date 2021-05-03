@@ -118,9 +118,10 @@ module Cardano.Wallet.Api.Types
     , ApiWalletDelegationStatus (..)
     , ApiWalletDelegationNext (..)
     , ApiPoolId (..)
+    , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
     , ApiWalletMigrationBalance (..)
-    , ApiWalletMigrationInfo (..)
+    , ApiWalletMigrationPlan (..)
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
     , ApiVerificationKey (..)
@@ -172,6 +173,7 @@ module Cardano.Wallet.Api.Types
     , ApiTransactionT
     , PostTransactionDataT
     , PostTransactionFeeDataT
+    , ApiWalletMigrationPlanPostDataT
     , ApiWalletMigrationPostDataT
 
     -- * API Type Conversions
@@ -1007,6 +1009,12 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
+    ApiWalletMigrationPlanPostData
+    { addresses :: NonEmpty (ApiT Address, Proxy n)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
@@ -1025,7 +1033,7 @@ data ApiWalletMigrationBalance = ApiWalletMigrationBalance
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletMigrationInfo (n :: NetworkDiscriminant) = ApiWalletMigrationInfo
+data ApiWalletMigrationPlan (n :: NetworkDiscriminant) = ApiWalletMigrationPlan
     { selections :: !(NonEmpty (ApiCoinSelection n))
     , totalFee :: Quantity "lovelace" Natural
     , balanceLeftover :: ApiWalletMigrationBalance
@@ -1562,13 +1570,18 @@ instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
                 ApiSelectForPayment <$> parseJSON (Object o)
             _ ->
                 fail "No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
+
 instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
     toJSON (ApiSelectForPayment v) = toJSON v
     toJSON (ApiSelectForDelegation v) = toJSON v
 
-instance (DecodeStakeAddress n, DecodeAddress n) => FromJSON (ApiCoinSelection n) where
+instance (DecodeStakeAddress n, DecodeAddress n) =>
+    FromJSON (ApiCoinSelection n)
+  where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance (EncodeStakeAddress n, EncodeAddress n) => ToJSON (ApiCoinSelection n) where
+instance (EncodeStakeAddress n, EncodeAddress n) =>
+    ToJSON (ApiCoinSelection n)
+  where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 apiCertificateOptions :: Aeson.Options
@@ -2178,10 +2191,18 @@ instance ToJSON ApiTxMetadata where
         Just (ApiT md) | txMetadataIsNull md -> Aeson.Null
         Just md -> toJSON md
 
-instance (DecodeAddress n , PassphraseMaxLength s , PassphraseMinLength s) => FromJSON (ApiWalletMigrationPostData n s)
+instance DecodeAddress n => FromJSON (ApiWalletMigrationPlanPostData n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiWalletMigrationPlanPostData n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance (DecodeAddress n, PassphraseMaxLength s, PassphraseMinLength s) =>
+    FromJSON (ApiWalletMigrationPostData n s)
   where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiWalletMigrationPostData n s) where
+instance EncodeAddress n =>
+    ToJSON (ApiWalletMigrationPostData n s)
+  where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance (DecodeAddress n) => FromJSON (ApiPutAddressesData n)
@@ -2417,11 +2438,11 @@ instance ToJSON ApiWalletMigrationBalance where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance (DecodeStakeAddress n, DecodeAddress n) =>
-    FromJSON (ApiWalletMigrationInfo n)
+    FromJSON (ApiWalletMigrationPlan n)
   where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance (EncodeStakeAddress n, EncodeAddress n) =>
-    ToJSON (ApiWalletMigrationInfo n)
+    ToJSON (ApiWalletMigrationPlan n)
   where
     toJSON = genericToJSON defaultRecordTypeOptions
 
@@ -2660,6 +2681,7 @@ type family ApiSelectCoinsDataT (n :: k) :: Type
 type family ApiTransactionT (n :: k) :: Type
 type family PostTransactionDataT (n :: k) :: Type
 type family PostTransactionFeeDataT (n :: k) :: Type
+type family ApiWalletMigrationPlanPostDataT (n :: k) :: Type
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
 type family ApiPutAddressesDataT (n :: k) :: Type
 
@@ -2687,9 +2709,11 @@ type instance PostTransactionDataT (n :: NetworkDiscriminant) =
 type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeData n
 
+type instance ApiWalletMigrationPlanPostDataT (n :: NetworkDiscriminant) =
+    ApiWalletMigrationPlanPostData n
+
 type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData n s
-
 
 {-------------------------------------------------------------------------------
                          SMASH interfacing types

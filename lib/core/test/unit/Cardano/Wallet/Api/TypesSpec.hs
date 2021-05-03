@@ -117,7 +117,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationStatus (..)
     , ApiWalletDiscovery (..)
     , ApiWalletMigrationBalance (..)
-    , ApiWalletMigrationInfo (..)
+    , ApiWalletMigrationPlan (..)
+    , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -413,8 +414,9 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPatchData
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
-            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationInfo ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPlan ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationBalance
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPlanPostData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "lenient")
             jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "raw")
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
@@ -816,17 +818,25 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiWalletMigrationInfo" $ property $ \x ->
+        it "ApiWalletMigrationPlan" $ property $ \x ->
             let
-                x' = ApiWalletMigrationInfo
+                x' = ApiWalletMigrationPlan
                     { selections = selections
-                        (x :: ApiWalletMigrationInfo ('Testnet 0))
+                        (x :: ApiWalletMigrationPlan ('Testnet 0))
                     , totalFee = totalFee
-                        (x :: ApiWalletMigrationInfo ('Testnet 0))
+                        (x :: ApiWalletMigrationPlan ('Testnet 0))
                     , balanceLeftover = balanceLeftover
-                        (x :: ApiWalletMigrationInfo ('Testnet 0))
+                        (x :: ApiWalletMigrationPlan ('Testnet 0))
                     , balanceSelected = balanceSelected
-                        (x :: ApiWalletMigrationInfo ('Testnet 0))
+                        (x :: ApiWalletMigrationPlan ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiWalletMigrationPlanPostData" $ property $ \x ->
+            let
+                x' = ApiWalletMigrationPlanPostData
+                    { addresses = addresses
+                        (x :: ApiWalletMigrationPlanPostData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1301,13 +1311,21 @@ instance Arbitrary ApiWalletMigrationBalance where
         <*> reasonablySized arbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiWalletMigrationInfo n) where
-    arbitrary = ApiWalletMigrationInfo
+instance Arbitrary (ApiWalletMigrationPlan n) where
+    arbitrary = ApiWalletMigrationPlan
         <$> reasonablySized arbitrary
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
     shrink = genericShrink
+
+instance Arbitrary (ApiWalletMigrationPlanPostData n) where
+    arbitrary = do
+        addrCount <- choose (1, 255)
+        addrs <- (:|)
+            <$> arbitrary
+            <*> replicateM (addrCount - 1) arbitrary
+        pure $ ApiWalletMigrationPlanPostData ((, Proxy @n) <$> addrs)
 
 instance Arbitrary (Passphrase purpose) =>
          Arbitrary (ApiWalletMigrationPostData n purpose) where
@@ -2023,9 +2041,13 @@ instance ToSchema ApiWalletMigrationBalance where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationBalance"
 
-instance ToSchema (ApiWalletMigrationInfo n) where
+instance ToSchema (ApiWalletMigrationPlan n) where
     declareNamedSchema _ =
-        declareSchemaForDefinition "ApiWalletMigrationInfo"
+        declareSchemaForDefinition "ApiWalletMigrationPlan"
+
+instance ToSchema (ApiWalletMigrationPlanPostData t) where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiWalletMigrationPlanPostData"
 
 instance ToSchema (ApiWalletMigrationPostData t "lenient") where
     declareNamedSchema _ =
