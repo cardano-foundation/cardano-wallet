@@ -518,6 +518,7 @@ type MigrateShelleyWallet n = "wallets"
 type GetShelleyWalletMigrationInfo n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
+    :> "plan"
     :> Get '[JSON] (ApiWalletMigrationInfo n)
 
 {-------------------------------------------------------------------------------
@@ -800,6 +801,7 @@ type MigrateByronWallet n = "byron-wallets"
 type GetByronWalletMigrationInfo n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
+    :> "plan"
     :> Get '[JSON] (ApiWalletMigrationInfo n)
 
 {-------------------------------------------------------------------------------

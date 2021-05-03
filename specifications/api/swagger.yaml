@@ -4601,6 +4601,7 @@ paths:
             schema: *ApiShelleyWalletMigrationPostData
       responses: *responsesMigrateWallet
 
+  /wallets/{walletId}/migrations/plan:
     get:
       operationId: getShelleyWalletMigrationInfo
       tags: ["Migrations"]
@@ -5005,6 +5006,7 @@ paths:
             schema: *ApiByronWalletMigrationPostData
       responses: *responsesMigrateWallet
 
+  /byron-wallets/{walletId}/migrations/plan:
     get:
       operationId: getByronWalletMigrationInfo
       tags: ["Byron Migrations"]
