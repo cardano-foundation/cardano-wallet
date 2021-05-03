@@ -1009,9 +1009,9 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
+newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
     ApiWalletMigrationPlanPostData
-    { addresses :: !(NonEmpty (ApiT Address, Proxy n))
+    { addresses :: NonEmpty (ApiT Address, Proxy n)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
