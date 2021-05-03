@@ -2106,7 +2106,7 @@ components:
         ada: *amount
         assets: *walletAssets
 
-    ApiWalletMigrationInfo: &ApiWalletMigrationInfo
+    ApiWalletMigrationPlan: &ApiWalletMigrationPlan
       type: object
       required:
         - selections
@@ -2158,6 +2158,15 @@ components:
         passphrase:
           <<: *lenientPassphrase
           description: The source Byron wallet's master passphrase.
+
+    ApiWalletMigrationPlanPostData: &ApiWalletMigrationPlanPostData
+      type: object
+      required:
+        - addresses
+      properties:
+        addresses:
+          <<: *addresses
+          description: The recipient addresses.
 
     ApiByronWalletMigrationPostData: &ApiByronWalletMigrationPostData
       type: object
@@ -3612,7 +3621,7 @@ x-responsesPatchSharedWallet: &responsesPatchSharedWallet
       application/json:
         schema: *ApiSharedWallet
 
-x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
+x-responsesCreateWalletMigrationPlan: &responsesCreateWalletMigrationPlan
   403:
     description: Forbidden
     content:
@@ -3624,7 +3633,7 @@ x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
     description: Ok
     content:
       application/json:
-        schema: *ApiWalletMigrationInfo
+        schema: *ApiWalletMigrationPlan
 
 x-responsesMigrateWallet: &responsesMigrateWallet
   403:
@@ -4601,10 +4610,11 @@ paths:
             schema: *ApiShelleyWalletMigrationPostData
       responses: *responsesMigrateWallet
 
-    get:
-      operationId: getShelleyWalletMigrationInfo
+  /wallets/{walletId}/migrations/plan:
+    post:
+      operationId: createShelleyWalletMigrationPlan
       tags: ["Migrations"]
-      summary: Calculate Cost
+      summary: Create a migration plan
       description: |
         <p align="right">status: <strong>disabled</strong></p>
         <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
@@ -4630,7 +4640,12 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
-      responses: *responsesGetWalletMigrationInfo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletMigrationPlanPostData
+      responses: *responsesCreateWalletMigrationPlan
 
   /byron-wallets:
     post:
@@ -5005,10 +5020,11 @@ paths:
             schema: *ApiByronWalletMigrationPostData
       responses: *responsesMigrateWallet
 
-    get:
-      operationId: getByronWalletMigrationInfo
+  /byron-wallets/{walletId}/migrations/plan:
+    post:
+      operationId: createByronWalletMigrationPlan
       tags: ["Byron Migrations"]
-      summary: Calculate Cost
+      summary: Create a migration plan
       description: |
         <p align="right">status: <strong>disabled</strong></p>
         <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
@@ -5034,7 +5050,12 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
-      responses: *responsesGetWalletMigrationInfo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletMigrationPlanPostData
+      responses: *responsesCreateWalletMigrationPlan
 
   /network/information:
     get:
