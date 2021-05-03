@@ -2159,6 +2159,15 @@ components:
           <<: *lenientPassphrase
           description: The source Byron wallet's master passphrase.
 
+    ApiWalletMigrationPlanPostData: &ApiWalletMigrationPlanPostData
+      type: object
+      required:
+        - addresses
+      properties:
+        addresses:
+          <<: *addresses
+          description: The recipient addresses.
+
     ApiByronWalletMigrationPostData: &ApiByronWalletMigrationPostData
       type: object
       required:
@@ -4602,7 +4611,7 @@ paths:
       responses: *responsesMigrateWallet
 
   /wallets/{walletId}/migrations/plan:
-    get:
+    post:
       operationId: createShelleyWalletMigrationPlan
       tags: ["Migrations"]
       summary: Create a migration plan
@@ -4631,6 +4640,11 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletMigrationPlanPostData
       responses: *responsesCreateWalletMigrationPlan
 
   /byron-wallets:
@@ -5007,7 +5021,7 @@ paths:
       responses: *responsesMigrateWallet
 
   /byron-wallets/{walletId}/migrations/plan:
-    get:
+    post:
       operationId: createByronWalletMigrationPlan
       tags: ["Byron Migrations"]
       summary: Create a migration plan
@@ -5036,6 +5050,11 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletMigrationPlanPostData
       responses: *responsesCreateWalletMigrationPlan
 
   /network/information:

@@ -227,6 +227,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletMigrationPlan (..)
+    , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -1996,8 +1997,9 @@ createMigrationPlan
         -- ^ Source wallet context
     -> ApiT WalletId
         -- ^ Source wallet
+    -> ApiWalletMigrationPlanPostData n
     -> Handler (ApiWalletMigrationPlan n)
-createMigrationPlan _ctx _wid = do
+createMigrationPlan _ctx _wid _postData = do
     liftHandler $ throwE ErrTemporarilyDisabled
 
 migrateWallet

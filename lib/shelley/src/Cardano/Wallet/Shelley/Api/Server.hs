@@ -441,9 +441,9 @@ server byron icarus shelley multisig spl ntp =
 
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
-             (\wid -> withLegacyLayer wid
-                (byron , createMigrationPlan @_ @_ byron wid)
-                (icarus, createMigrationPlan @_ @_ icarus wid)
+             (\wid postData -> withLegacyLayer wid
+                (byron , createMigrationPlan @_ @_ byron wid postData)
+                (icarus, createMigrationPlan @_ @_ icarus wid postData)
              )
         :<|> (\wid m -> withLegacyLayer wid
                 (byron , migrateWallet byron wid m)

@@ -172,6 +172,7 @@ import Cardano.Wallet.Api.Types
     , ApiVerificationKey
     , ApiWallet
     , ApiWalletMigrationPlan
+    , ApiWalletMigrationPlanPostDataT
     , ApiWalletMigrationPostDataT
     , ApiWalletPassphrase
     , ApiWalletSignData
@@ -519,7 +520,8 @@ type CreateShelleyWalletMigrationPlan n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
     :> "plan"
-    :> Get '[JSON] (ApiWalletMigrationPlan n)
+    :> ReqBody '[JSON] (ApiWalletMigrationPlanPostDataT n)
+    :> PostAccepted '[JSON] (ApiWalletMigrationPlan n)
 
 {-------------------------------------------------------------------------------
                                   StakePools
@@ -802,7 +804,8 @@ type CreateByronWalletMigrationPlan n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
     :> "plan"
-    :> Get '[JSON] (ApiWalletMigrationPlan n)
+    :> ReqBody '[JSON] (ApiWalletMigrationPlanPostDataT n)
+    :> PostAccepted '[JSON] (ApiWalletMigrationPlan n)
 
 {-------------------------------------------------------------------------------
                                   Network
