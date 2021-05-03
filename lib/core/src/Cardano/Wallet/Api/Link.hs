@@ -45,7 +45,7 @@ module Cardano.Wallet.Api.Link
     , putWallet
     , putWalletPassphrase
     , getUTxOsStatistics
-    , getMigrationInfo
+    , createMigrationPlan
     , migrateWallet
 
      -- * WalletKeys
@@ -276,16 +276,16 @@ migrateWallet w = discriminate @style
   where
     wid = w ^. typed @(ApiT WalletId)
 
-getMigrationInfo
+createMigrationPlan
     :: forall (style :: WalletStyle) w.
         ( Discriminate style
         , HasType (ApiT WalletId) w
         )
     => w
     -> (Method, Text)
-getMigrationInfo w = discriminate @style
-    (endpoint @(Api.GetShelleyWalletMigrationInfo Net) (wid &))
-    (endpoint @(Api.GetByronWalletMigrationInfo Net) (wid &))
+createMigrationPlan w = discriminate @style
+    (endpoint @(Api.CreateShelleyWalletMigrationPlan Net) (wid &))
+    (endpoint @(Api.CreateByronWalletMigrationPlan Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 

@@ -120,7 +120,7 @@ module Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiWalletMigrationPostData (..)
     , ApiWalletMigrationBalance (..)
-    , ApiWalletMigrationInfo (..)
+    , ApiWalletMigrationPlan (..)
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
     , ApiVerificationKey (..)
@@ -1025,7 +1025,7 @@ data ApiWalletMigrationBalance = ApiWalletMigrationBalance
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletMigrationInfo (n :: NetworkDiscriminant) = ApiWalletMigrationInfo
+data ApiWalletMigrationPlan (n :: NetworkDiscriminant) = ApiWalletMigrationPlan
     { selections :: !(NonEmpty (ApiCoinSelection n))
     , totalFee :: Quantity "lovelace" Natural
     , balanceLeftover :: ApiWalletMigrationBalance
@@ -2425,11 +2425,11 @@ instance ToJSON ApiWalletMigrationBalance where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance (DecodeStakeAddress n, DecodeAddress n) =>
-    FromJSON (ApiWalletMigrationInfo n)
+    FromJSON (ApiWalletMigrationPlan n)
   where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance (EncodeStakeAddress n, EncodeAddress n) =>
-    ToJSON (ApiWalletMigrationInfo n)
+    ToJSON (ApiWalletMigrationPlan n)
   where
     toJSON = genericToJSON defaultRecordTypeOptions
 

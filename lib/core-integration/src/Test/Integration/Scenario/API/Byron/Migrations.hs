@@ -24,7 +24,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
-    , ApiWalletMigrationInfo (..)
+    , ApiWalletMigrationPlan (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -121,8 +121,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
         $ \fixtureByronWallet -> runResourceT $ do
             liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- fixtureByronWallet ctx
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @(ApiWalletMigrationInfo n) ctx ep Default Empty
+            let ep = Link.createMigrationPlan @'Byron w
+            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status200
                 , expectField (#totalFee . #getQuantity)
@@ -135,8 +135,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
         $ \emptyByronWallet -> runResourceT $ do
             liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- emptyByronWallet ctx
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @(ApiWalletMigrationInfo n) ctx ep Default Empty
+            let ep = Link.createMigrationPlan @'Byron w
+            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
@@ -159,8 +159,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     "style": "random"
                     } |]
             w <- unsafeResponse <$> postByronWallet ctx payloadRestore
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @(ApiWalletMigrationInfo n) ctx ep Default Empty
+            let ep = Link.createMigrationPlan @'Byron w
+            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
@@ -171,8 +171,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
         $ \ctx -> runResourceT $ do
             liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- emptyWallet ctx
-            let ep = Link.getMigrationInfo @'Byron w
-            r <- request @(ApiWalletMigrationInfo n) ctx ep Default Empty
+            let ep = Link.createMigrationPlan @'Byron w
+            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
             expectResponseCode HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -261,8 +261,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
             return $ getFromResponse (#balance . #available . #getQuantity) r
 
         --Calculate the expected migration fee:
-        rFee <- request @(ApiWalletMigrationInfo n) ctx
-            (Link.getMigrationInfo @'Byron wOld)
+        rFee <- request @(ApiWalletMigrationPlan n) ctx
+            (Link.createMigrationPlan @'Byron wOld)
             Default
             Empty
         verify rFee
@@ -426,8 +426,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
             sourceWallet <- fixtureByronWallet ctx
 
             -- Request a migration fee prediction.
-            let ep0 = (Link.getMigrationInfo @'Byron sourceWallet)
-            r0 <- request @(ApiWalletMigrationInfo n) ctx ep0 Default Empty
+            let ep0 = (Link.createMigrationPlan @'Byron sourceWallet)
+            r0 <- request @(ApiWalletMigrationPlan n) ctx ep0 Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
                 , expectField #totalFee (.> Quantity 0)
@@ -502,7 +502,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         -> IO ()
     migrateWallet ctx src targets = do
         (st, _) <- request
-            @(ApiWalletMigrationInfo n) ctx endpointInfo Default Empty
+            @(ApiWalletMigrationPlan n) ctx endpointInfo Default Empty
         when (st == HTTP.status200) $ do -- returns '403 Nothing to Migrate' when done
             -- 1/ Forget all pending transactions to unlock any locked UTxO
             (_, txs) <- unsafeRequest @[ApiTransaction n] ctx endpointListTxs Empty
@@ -518,7 +518,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             migrateWallet ctx src targets
       where
         endpointInfo =
-            Link.getMigrationInfo @'Byron src
+            Link.createMigrationPlan @'Byron src
         endpointMigration =
             Link.migrateWallet @'Byron src
         endpointListTxs =
@@ -552,8 +552,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     take addrNum addrs
 
             -- Calculate the expected migration fee:
-            r0 <- request @(ApiWalletMigrationInfo n) ctx
-                (Link.getMigrationInfo @'Byron sourceWallet) Default Empty
+            r0 <- request @(ApiWalletMigrationPlan n) ctx
+                (Link.createMigrationPlan @'Byron sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
                 , expectField #totalFee (.> Quantity 0)

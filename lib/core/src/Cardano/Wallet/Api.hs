@@ -64,7 +64,7 @@ module Cardano.Wallet.Api
 
     , ShelleyMigrations
         , MigrateShelleyWallet
-        , GetShelleyWalletMigrationInfo
+        , CreateShelleyWalletMigrationPlan
 
     -- * Settings
     , Settings
@@ -104,7 +104,7 @@ module Cardano.Wallet.Api
 
     , ByronMigrations
         , MigrateByronWallet
-        , GetByronWalletMigrationInfo
+        , CreateByronWalletMigrationPlan
 
     -- * Miscellaneous
     , Network
@@ -171,7 +171,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiVerificationKey
     , ApiWallet
-    , ApiWalletMigrationInfo
+    , ApiWalletMigrationPlan
     , ApiWalletMigrationPostDataT
     , ApiWalletPassphrase
     , ApiWalletSignData
@@ -504,7 +504,7 @@ https://input-output-hk.github.io/cardano-wallet/api/#tag/Migrations
 -------------------------------------------------------------------------------}
 
 type ShelleyMigrations n =
-         GetShelleyWalletMigrationInfo n
+         CreateShelleyWalletMigrationPlan n
     :<|> MigrateShelleyWallet n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateShelleyWallet
@@ -514,12 +514,12 @@ type MigrateShelleyWallet n = "wallets"
     :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "raw")
     :> PostAccepted '[JSON] [ApiTransactionT n]
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getShelleyWalletMigrationInfo
-type GetShelleyWalletMigrationInfo n = "wallets"
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/createShelleyWalletMigrationPlan
+type CreateShelleyWalletMigrationPlan n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
     :> "plan"
-    :> Get '[JSON] (ApiWalletMigrationInfo n)
+    :> Get '[JSON] (ApiWalletMigrationPlan n)
 
 {-------------------------------------------------------------------------------
                                   StakePools
@@ -787,7 +787,7 @@ type DeleteByronTransaction = "byron-wallets"
 -------------------------------------------------------------------------------}
 
 type ByronMigrations n =
-         GetByronWalletMigrationInfo n
+         CreateByronWalletMigrationPlan n
     :<|> MigrateByronWallet n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateByronWallet
@@ -797,12 +797,12 @@ type MigrateByronWallet n = "byron-wallets"
     :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "lenient")
     :> PostAccepted '[JSON] [ApiTransactionT n]
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo
-type GetByronWalletMigrationInfo n = "byron-wallets"
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/createByronWalletMigrationPlan
+type CreateByronWalletMigrationPlan n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
     :> "plan"
-    :> Get '[JSON] (ApiWalletMigrationInfo n)
+    :> Get '[JSON] (ApiWalletMigrationPlan n)
 
 {-------------------------------------------------------------------------------
                                   Network

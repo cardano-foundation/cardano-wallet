@@ -2106,7 +2106,7 @@ components:
         ada: *amount
         assets: *walletAssets
 
-    ApiWalletMigrationInfo: &ApiWalletMigrationInfo
+    ApiWalletMigrationPlan: &ApiWalletMigrationPlan
       type: object
       required:
         - selections
@@ -3612,7 +3612,7 @@ x-responsesPatchSharedWallet: &responsesPatchSharedWallet
       application/json:
         schema: *ApiSharedWallet
 
-x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
+x-responsesCreateWalletMigrationPlan: &responsesCreateWalletMigrationPlan
   403:
     description: Forbidden
     content:
@@ -3624,7 +3624,7 @@ x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
     description: Ok
     content:
       application/json:
-        schema: *ApiWalletMigrationInfo
+        schema: *ApiWalletMigrationPlan
 
 x-responsesMigrateWallet: &responsesMigrateWallet
   403:
@@ -4603,9 +4603,9 @@ paths:
 
   /wallets/{walletId}/migrations/plan:
     get:
-      operationId: getShelleyWalletMigrationInfo
+      operationId: createShelleyWalletMigrationPlan
       tags: ["Migrations"]
-      summary: Calculate Cost
+      summary: Create a migration plan
       description: |
         <p align="right">status: <strong>disabled</strong></p>
         <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
@@ -4631,7 +4631,7 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
-      responses: *responsesGetWalletMigrationInfo
+      responses: *responsesCreateWalletMigrationPlan
 
   /byron-wallets:
     post:
@@ -5008,9 +5008,9 @@ paths:
 
   /byron-wallets/{walletId}/migrations/plan:
     get:
-      operationId: getByronWalletMigrationInfo
+      operationId: createByronWalletMigrationPlan
       tags: ["Byron Migrations"]
-      summary: Calculate Cost
+      summary: Create a migration plan
       description: |
         <p align="right">status: <strong>disabled</strong></p>
         <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
@@ -5036,7 +5036,7 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
-      responses: *responsesGetWalletMigrationInfo
+      responses: *responsesCreateWalletMigrationPlan
 
   /network/information:
     get:

@@ -58,6 +58,7 @@ import Cardano.Wallet.Api
     )
 import Cardano.Wallet.Api.Server
     ( apiError
+    , createMigrationPlan
     , delegationFee
     , deleteTransaction
     , deleteWallet
@@ -65,7 +66,6 @@ import Cardano.Wallet.Api.Server
     , getAsset
     , getAssetDefault
     , getCurrentEpoch
-    , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
@@ -288,7 +288,7 @@ server byron icarus shelley multisig spl ntp =
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
-             getMigrationInfo @_ @_ shelley
+             createMigrationPlan @_ @_ shelley
         :<|> migrateWallet shelley
 
     stakePools :: Server (StakePools n ApiStakePool)
@@ -442,8 +442,8 @@ server byron icarus shelley multisig spl ntp =
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo @_ @_ byron wid)
-                (icarus, getMigrationInfo @_ @_ icarus wid)
+                (byron , createMigrationPlan @_ @_ byron wid)
+                (icarus, createMigrationPlan @_ @_ icarus wid)
              )
         :<|> (\wid m -> withLegacyLayer wid
                 (byron , migrateWallet byron wid m)

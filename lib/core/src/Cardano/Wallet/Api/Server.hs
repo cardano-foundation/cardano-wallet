@@ -43,7 +43,6 @@ module Cardano.Wallet.Api.Server
     , deleteTransaction
     , deleteWallet
     , derivePublicKey
-    , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
@@ -57,6 +56,7 @@ module Cardano.Wallet.Api.Server
     , listTransactions
     , getTransaction
     , listWallets
+    , createMigrationPlan
     , migrateWallet
     , postExternalTransaction
     , postIcarusWallet
@@ -226,7 +226,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
-    , ApiWalletMigrationInfo (..)
+    , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -1990,14 +1990,14 @@ quitStakePool ctx (ApiT wid) body = do
                                 Migrations
 -------------------------------------------------------------------------------}
 
-getMigrationInfo
+createMigrationPlan
     :: forall n s k. ()
     => ApiLayer s k
         -- ^ Source wallet context
     -> ApiT WalletId
         -- ^ Source wallet
-    -> Handler (ApiWalletMigrationInfo n)
-getMigrationInfo _ctx _wid = do
+    -> Handler (ApiWalletMigrationPlan n)
+createMigrationPlan _ctx _wid = do
     liftHandler $ throwE ErrTemporarilyDisabled
 
 migrateWallet
