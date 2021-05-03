@@ -118,6 +118,7 @@ module Cardano.Wallet
     , ErrWithdrawalNotWorth (..)
 
     -- ** Migration
+    , migrationPlanToUnsignedTxs
 
     -- ** Delegation
     , PoolRetirementEpochInfo (..)
@@ -276,6 +277,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , emptySkeleton
     , performSelection
     )
+import Cardano.Wallet.Primitive.Migration
+    ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlocks
@@ -439,6 +442,8 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -459,6 +464,7 @@ import UnliftIO.MVar
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -1784,6 +1790,72 @@ getTransaction ctx wid tid = db & \DBLayer{..} -> do
             pure tx
   where
     db = ctx ^. dbLayer @IO @s @k
+
+{-------------------------------------------------------------------------------
+                                  Migration
+-------------------------------------------------------------------------------}
+
+migrationPlanToUnsignedTxs
+    :: forall s input inputUnqualified output noChange withdrawal unsignedTx.
+        ( IsOurs s Address
+        , input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
+        , inputUnqualified ~ (TxIn, TxOut)
+        , output ~ TxOut
+        , noChange ~ Void
+        , withdrawal ~ (RewardAccount, Coin, NonEmpty DerivationIndex)
+        , unsignedTx ~ UnsignedTx input output noChange withdrawal
+        )
+    => s
+    -> MigrationPlan
+    -> Withdrawal
+    -> NonEmpty Address
+    -> [unsignedTx]
+migrationPlanToUnsignedTxs s plan rewardWithdrawal outputAddressesToCycle =
+    fst $ L.foldr
+        (accumulate)
+        ([], NE.toList $ NE.cycle outputAddressesToCycle)
+        (view #selections plan)
+  where
+    accumulate
+        :: Migration.Selection inputUnqualified
+        -> ([unsignedTx], [Address])
+        -> ([unsignedTx], [Address])
+    accumulate selection (unsignedTxs, outputAddresses) =
+        (unsignedTx : unsignedTxs, outputAddressesRemaining)
+      where
+        unsignedTx = s
+            -- Here we take a shortcut by reusing the functionality provided
+            -- for turning an ordinary coin selection into an unsigned tx:
+            & selectionToUnsignedTx selectionRewardWithdrawal ordinarySelection
+            -- Assert that the unsigned transaction does not have any change:
+            & voidChange
+          where
+            ordinarySelection = SelectionResult
+                { inputsSelected = view #inputIds selection
+                , outputsCovered = unsignedOutputs
+                , utxoRemaining = UTxOIndex.empty
+                , extraCoinSource = Nothing
+                , changeGenerated = []
+                }
+
+            voidChange
+                :: UnsignedTx input output anyChange withdrawal
+                -> UnsignedTx input output  noChange withdrawal
+            voidChange tx = tx {unsignedChange = []}
+
+            selectionRewardWithdrawal =
+                if (view #rewardWithdrawal selection) > Coin 0
+                then rewardWithdrawal
+                else NoWithdrawal
+
+            unsignedOutputs :: [TxOut]
+            unsignedOutputs = zipWith TxOut
+                (outputAddresses)
+                (NE.toList $ view #outputs selection)
+
+        outputAddressesRemaining :: [Address]
+        outputAddressesRemaining =
+            drop (length $ view #outputs selection) outputAddresses
 
 {-------------------------------------------------------------------------------
                                   Delegation
