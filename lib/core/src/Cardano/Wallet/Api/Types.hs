@@ -1562,13 +1562,18 @@ instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
                 ApiSelectForPayment <$> parseJSON (Object o)
             _ ->
                 fail "No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
+
 instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
     toJSON (ApiSelectForPayment v) = toJSON v
     toJSON (ApiSelectForDelegation v) = toJSON v
 
-instance (DecodeStakeAddress n, DecodeAddress n) => FromJSON (ApiCoinSelection n) where
+instance (DecodeStakeAddress n, DecodeAddress n) =>
+    FromJSON (ApiCoinSelection n)
+  where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance (EncodeStakeAddress n, EncodeAddress n) => ToJSON (ApiCoinSelection n) where
+instance (EncodeStakeAddress n, EncodeAddress n) =>
+    ToJSON (ApiCoinSelection n)
+  where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 apiCertificateOptions :: Aeson.Options
@@ -2178,10 +2183,13 @@ instance ToJSON ApiTxMetadata where
         Just (ApiT md) | txMetadataIsNull md -> Aeson.Null
         Just md -> toJSON md
 
-instance (DecodeAddress n , PassphraseMaxLength s , PassphraseMinLength s) => FromJSON (ApiWalletMigrationPostData n s)
+instance (DecodeAddress n, PassphraseMaxLength s, PassphraseMinLength s) =>
+    FromJSON (ApiWalletMigrationPostData n s)
   where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiWalletMigrationPostData n s) where
+instance EncodeAddress n =>
+    ToJSON (ApiWalletMigrationPostData n s)
+  where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance (DecodeAddress n) => FromJSON (ApiPutAddressesData n)
