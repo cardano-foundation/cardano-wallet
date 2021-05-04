@@ -9,7 +9,7 @@ on:
 
 jobs:
   release:
-    if: ${{ startsWith(github.ref, 'refs/tags/v')  }}
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v') }}
     runs-on: ubuntu-20.04
     steps:
       - name: '❄ Wait for Hydra build'
@@ -31,6 +31,8 @@ jobs:
           files: |
             *.tar.gz
             *.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docs:
     runs-on: ubuntu-20.04
@@ -55,6 +57,8 @@ jobs:
           enable_jekyll: false
           publish_dir: _build
           keep_files: true
+          user_name: 'William King Noel Bot'
+          user_email: 'adrestia@iohk.io'
 
   bump_sh:
     if: startsWith(github.ref, 'refs/tags/v')
