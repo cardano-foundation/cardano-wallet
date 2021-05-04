@@ -266,10 +266,22 @@ RSpec.describe CardanoWallet::Byron do
       teardown
     end
 
-    it "I could calculate migration cost" do
+    it "I could create migration plan - icarus" do
       id = create_byron_wallet "icarus"
-      cost = BYRON.migrations.cost(id)
-      expect(cost).to be_correct_and_respond 501
+      target_id = create_shelley_wallet
+      addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
+
+      plan = BYRON.migrations.plan(id, addrs)
+      expect(plan).to be_correct_and_respond 501
+    end
+
+    it "I could create migration plan - random" do
+      id = create_byron_wallet "random"
+      target_id = create_shelley_wallet
+      addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
+      
+      plan = BYRON.migrations.plan(id, addrs)
+      expect(plan).to be_correct_and_respond 501
     end
 
     it "I could migrate all my funds" do
