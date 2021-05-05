@@ -4141,6 +4141,7 @@ x-tagGroups:
   - name: Shelley (Shared Wallets)
     tags:
     - Shared Wallets
+    - Shared Keys
 
   - name: Miscellaneous
     tags:
@@ -5340,7 +5341,7 @@ paths:
   /shared-wallets/{walletId}/keys/{role}/{index}?hash=false:
     get:
       operationId: getSharedWalletKey
-      tags: ["Keys"]
+      tags: ["Shared Keys"]
       summary: Get Public Key
       description: |
         <p align="right">status: <strong>stable</strong></p>
@@ -5357,7 +5358,7 @@ paths:
   /shared-wallets/{walletId}/keys/{index}:
     post:
       operationId: postAccountKeyShared
-      tags: ["Keys"]
+      tags: ["Shared Keys"]
       summary: Create
       description: |
         <p align="right">status: <strong>stable</strong></p>
