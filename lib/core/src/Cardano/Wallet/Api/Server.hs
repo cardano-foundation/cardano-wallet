@@ -44,7 +44,6 @@ module Cardano.Wallet.Api.Server
     , deleteWallet
     , derivePublicKeyShelley
     , derivePublicKeyShared
-    , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters

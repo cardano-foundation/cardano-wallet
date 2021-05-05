@@ -85,6 +85,11 @@ module Test.Integration.Framework.TestData
     , errMsg403NoSuchCosigner
     , errMsg403CannotUpdateThisCosigner
     , errMsg403CreateIllegal
+    , errMsg400ScriptWrongCoeffcient
+    , errMsg400ScriptIllFormed
+    , errMsg400ScriptDuplicateKeys
+    , errMsg400ScriptTimelocksContradictory
+    , errMsg400ScriptNotUniformRoles
     ) where
 
 import Prelude
@@ -542,3 +547,23 @@ errMsg403CreateIllegal = mconcat
     , "with a missing account key in the script template(s). This cannot be done "
     , "as the wallet's account key must be always present for each script template."
     ]
+
+errMsg400ScriptWrongCoeffcient :: String
+errMsg400ScriptWrongCoeffcient =
+    "At least's coefficient is 0 (which is not recommended)."
+
+errMsg400ScriptIllFormed :: String
+errMsg400ScriptIllFormed =
+    "The script is ill-formed and is not going to be accepted by the ledger."
+
+errMsg400ScriptDuplicateKeys :: String
+errMsg400ScriptDuplicateKeys =
+    "The list inside a script has duplicate keys (which is not recommended)."
+
+errMsg400ScriptTimelocksContradictory :: String
+errMsg400ScriptTimelocksContradictory =
+    "The timelocks used are contradictory when used with 'all' (which is not recommended)."
+
+errMsg400ScriptNotUniformRoles :: String
+errMsg400ScriptNotUniformRoles =
+    "All keys of a script must have the same role: either payment or delegation."

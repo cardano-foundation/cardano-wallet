@@ -79,7 +79,14 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403WrongIndex, errMsg404NoWallet )
+    ( errMsg400ScriptDuplicateKeys
+    , errMsg400ScriptIllFormed
+    , errMsg400ScriptNotUniformRoles
+    , errMsg400ScriptTimelocksContradictory
+    , errMsg400ScriptWrongCoeffcient
+    , errMsg403WrongIndex
+    , errMsg404NoWallet
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
@@ -717,8 +724,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
-        let msg = "At least's coefficient is 0 (which is not recommended)."
-        expectErrorMessage msg r
+        expectErrorMessage errMsg400ScriptWrongCoeffcient r
 
     it "ANY_ADDRESS_POST_15a - at_least 4 is valid when non-validated" $ \ctx -> do
         let payload = Json [json|{
@@ -752,8 +758,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
-        let msg = "The script is ill-formed and is not going to be accepted by the ledger."
-        expectErrorMessage msg r
+        expectErrorMessage errMsg400ScriptIllFormed r
 
     it "ANY_ADDRESS_POST_15c - at_least 4 is not valid when validation is recommended" $ \ctx -> do
         let payload = Json [json|{
@@ -771,8 +776,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
-        let msg = "The script is ill-formed and is not going to be accepted by the ledger."
-        expectErrorMessage msg r
+        expectErrorMessage errMsg400ScriptIllFormed r
 
     it "ANY_ADDRESS_POST_16a - script with duplicated verification keys is valid when non-validated" $ \ctx -> do
         let payload = Json [json|{
@@ -823,8 +827,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
-        let msg = "The list inside a script has duplicate keys (which is not recommended)."
-        expectErrorMessage msg r
+        expectErrorMessage errMsg400ScriptDuplicateKeys r
 
     it "ANY_ADDRESS_POST_17a - Script with contradictory timelocks is valid when validation not used" $ \ctx -> do
         let payload = Json [json|{
@@ -884,8 +887,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
-        let msg = "The timelocks used are contradictory when used with 'all' (which is not recommended)."
-        expectErrorMessage msg r
+        expectErrorMessage errMsg400ScriptTimelocksContradictory r
 
     it "ANY_ADDRESS_POST_17d - script with mixed payment/delegation verification keys is invalid" $ \ctx -> do
         let payload = Json [json|{
@@ -902,8 +904,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
-        let msg = "All keys of a script must have the same role: either payment or delegation."
-        expectErrorMessage msg r
+        expectErrorMessage errMsg400ScriptNotUniformRoles r
 
     it "POST_ACCOUNT_01 - Can retrieve account public keys" $ \ctx -> runResourceT $ do
         let initPoolGap = 10
