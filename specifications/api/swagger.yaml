@@ -294,6 +294,16 @@ x-cosigners: &cosigners
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
     - "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
+
+x-cosignersEntry: &cosignersEntry
+  description: Map of cosigners and their account public keys. Use key as in &cosigner, eg. "cosigner#"
+  type: object
+  additionalProperties: *walletAccountPubkey
+  # Note: propertyNames pattern not supported in current OpenAPI version.
+  # propertyNames:
+  #   pattern: '^(cosigner#)[0-9]+$'
+  example:
+    - "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
     - "cosigner#0": "self"
 
 x-walletId: &walletId
@@ -523,6 +533,15 @@ x-scriptTemplate: &scriptTemplate
     - template
   properties:
     cosigners: *cosigners
+    template: *ScriptTemplateValue
+
+x-scriptTemplateEntry: &scriptTemplateEntry
+  type: object
+  required:
+    - cosigners
+    - template
+  properties:
+    cosigners: *cosignersEntry
     template: *ScriptTemplateValue
 
 x-CredentialValue: &CredentialValue
@@ -2069,8 +2088,8 @@ components:
         mnemonic_second_factor: *walletSecondFactor
         passphrase: *walletPassphrase
         account_index: *derivationSegment
-        payment_script_template: *scriptTemplate
-        delegation_script_template: *scriptTemplate
+        payment_script_template: *scriptTemplateEntry
+        delegation_script_template: *scriptTemplateEntry
 
     ApiSharedWalletPostDataFromAccountPubX: &ApiSharedWalletPostDataFromAccountPubX
       type: object
@@ -2083,8 +2102,8 @@ components:
         name: *walletName
         account_public_key: *walletAccountPubkey
         account_index: *derivationSegment
-        payment_script_template: *scriptTemplate
-        delegation_script_template: *scriptTemplate
+        payment_script_template: *scriptTemplateEntry
+        delegation_script_template: *scriptTemplateEntry
 
     ApiSharedWalletPostData: &ApiSharedWalletPostData
       type: object
