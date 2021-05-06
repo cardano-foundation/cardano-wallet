@@ -62,6 +62,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspectData (..)
     , ApiAddressT
     , ApiByronWallet
+    , ApiBytesT (..)
     , ApiCoinSelectionT
     , ApiConstructTransactionDataT
     , ApiConstructTransactionT
@@ -73,6 +74,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
+    , ApiSignedTransaction (..)
     , ApiStakeKeysT
     , ApiT (..)
     , ApiTransactionT
@@ -81,11 +83,12 @@ import Cardano.Wallet.Api.Types
     , ApiWallet (..)
     , ApiWalletPassphrase
     , ApiWalletUtxoSnapshot (..)
+    , Base (Base64)
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
-    , PostExternalTransactionData (..)
-    , PostTransactionDataT
-    , PostTransactionFeeDataT
+    , PostSignTransactionData
+    , PostTransactionFeeOldDataT
+    , PostTransactionOldDataT
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     )
@@ -95,6 +98,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( SerialisedTx )
 import Control.Monad
     ( void )
 import Data.Coerce
@@ -157,16 +162,20 @@ data TransactionClient = TransactionClient
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
         -> ClientM [ApiTransactionT Aeson.Value]
+    , postSignTransaction
+        :: ApiT WalletId
+        -> PostSignTransactionData
+        -> ClientM ApiSignedTransaction
     , postTransaction
         :: ApiT WalletId
-        -> PostTransactionDataT Aeson.Value
+        -> PostTransactionOldDataT Aeson.Value
         -> ClientM (ApiTransactionT Aeson.Value)
     , postTransactionFee
         :: ApiT WalletId
-        -> PostTransactionFeeDataT Aeson.Value
+        -> PostTransactionFeeOldDataT Aeson.Value
         -> ClientM ApiFee
     , postExternalTransaction
-        :: PostExternalTransactionData
+        :: ApiBytesT 'Base64 SerialisedTx
         -> ClientM ApiTxId
     , deleteTransaction
         :: ApiT WalletId
@@ -274,10 +283,10 @@ byronWalletClient =
             , listWallets = _listWallets
             , postWallet = _postWallet
             , putWallet = _putWallet
-            , putWalletPassphrase = \wid body ->
+            , putWalletPassphrase = \wid req ->
                 _putWalletPassphrase wid $ ByronWalletPutPassphraseData
-                    { oldPassphrase = Just $ coerce <$> body ^. #oldPassphrase
-                    , newPassphrase = body ^. #newPassphrase
+                    { oldPassphrase = Just $ coerce <$> req ^. #oldPassphrase
+                    , newPassphrase = req ^. #newPassphrase
                     }
             , getWalletUtxoSnapshot = _getWalletUtxoSnapshot
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
@@ -288,7 +297,8 @@ transactionClient
     :: TransactionClient
 transactionClient =
     let
-        _postTransaction
+        _postSignTransaction
+            :<|> _postTransaction
             :<|> _listTransactions
             :<|> _postTransactionFee
             :<|> _deleteTransaction
@@ -301,6 +311,7 @@ transactionClient =
     in
         TransactionClient
             { listTransactions = (`_listTransactions` Nothing)
+            , postSignTransaction = _postSignTransaction
             , postTransaction = _postTransaction
             , postTransactionFee = _postTransactionFee
             , postExternalTransaction = _postExternalTransaction
@@ -314,7 +325,8 @@ byronTransactionClient
     :: TransactionClient
 byronTransactionClient =
     let
-        _postTransaction
+        _postSignTransaction
+            :<|> _postTransaction
             :<|> _listTransactions
             :<|> _postTransactionFee
             :<|> _deleteTransaction
@@ -326,6 +338,7 @@ byronTransactionClient =
 
     in TransactionClient
         { listTransactions = _listTransactions
+        , postSignTransaction = _postSignTransaction
         , postTransaction = _postTransaction
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction
@@ -428,7 +441,7 @@ type instance ApiCoinSelectionT Aeson.Value = Aeson.Value
 type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
 type instance ApiTransactionT Aeson.Value = Aeson.Value
 type instance ApiConstructTransactionT Aeson.Value = Aeson.Value
-type instance PostTransactionDataT Aeson.Value = Aeson.Value
 type instance ApiConstructTransactionDataT Aeson.Value = Aeson.Value
-type instance PostTransactionFeeDataT Aeson.Value = Aeson.Value
+type instance PostTransactionOldDataT Aeson.Value = Aeson.Value
+type instance PostTransactionFeeOldDataT Aeson.Value = Aeson.Value
 type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value

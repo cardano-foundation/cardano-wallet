@@ -62,6 +62,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
     , ApiAsset (..)
+    , ApiBase64
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
@@ -100,17 +101,18 @@ import Cardano.Wallet.Api.Types
     , ApiPostAccountKeyDataWithPurpose
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
-    , ApiRawMetadata (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
     , ApiSerialisedTransaction (..)
+    , ApiSerialisedTransactionParts (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPostDataFromAccountPubX (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
+    , ApiSignedTransaction (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakeKeyIndex (..)
@@ -144,6 +146,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshotEntry (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
+    , Base (Base64)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
@@ -155,9 +158,9 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
-    , PostExternalTransactionData (..)
-    , PostTransactionData (..)
-    , PostTransactionFeeData (..)
+    , PostSignTransactionData (..)
+    , PostTransactionFeeOldData (..)
+    , PostTransactionOldData (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
     , VerificationKeyHashing (..)
@@ -251,6 +254,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SerialisedTx (..)
+    , SerialisedTxParts (..)
     , TxIn (..)
     , TxMetadata (..)
     , TxOut (..)
@@ -279,8 +283,8 @@ import Data.Aeson
     ( FromJSON (..), Result (..), fromJSON, withObject, (.:?), (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
-import Data.ByteArray.Encoding
-    ( Base (Base64), convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Char
     ( toLower )
 import Data.Data
@@ -362,6 +366,9 @@ import Test.QuickCheck
     , counterexample
     , elements
     , frequency
+    , liftShrink
+    , liftShrink2
+    , listOf
     , oneof
     , property
     , scale
@@ -427,7 +434,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionOutput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionWithdrawal ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiRawMetadata
+            jsonRoundtripAndGolden $ Proxy @ApiBase64
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiSlotReference
             jsonRoundtripAndGolden $ Proxy @ApiDelegationAction
@@ -471,11 +478,13 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShelley
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShared
             jsonRoundtripAndGolden $ Proxy @(ApiPaymentDestination ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(PostTransactionData ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiConstructTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiConstructTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiMultiDelegationAction
+            jsonRoundtripAndGolden $ Proxy @PostSignTransactionData
+            jsonRoundtripAndGolden $ Proxy @ApiSignedTransaction
+            jsonRoundtripAndGolden $ Proxy @(PostTransactionOldData ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeOldData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @WalletPostData
             jsonRoundtripAndGolden $ Proxy @AccountPostData
             jsonRoundtripAndGolden $ Proxy @WalletOrAccountPostData
@@ -979,31 +988,48 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "PostTransactionData" $ property $ \x ->
+        it "PostSignTransactionData" $ property $ \x ->
             let
-                x' = PostTransactionData
-                    { payments = payments (x :: PostTransactionData ('Testnet 0))
-                    , passphrase = passphrase (x :: PostTransactionData ('Testnet 0))
-                    , withdrawal = withdrawal (x :: PostTransactionData ('Testnet 0))
-                    , metadata = metadata (x :: PostTransactionData ('Testnet 0))
-                    , timeToLive = timeToLive (x :: PostTransactionData ('Testnet 0))
+                x' = PostSignTransactionData
+                    { transaction = transaction (x :: PostSignTransactionData)
+                    , passphrase = passphrase (x :: PostSignTransactionData)
                     }
             in
                 x' === x .&&. show x' === show x
-        it "PostTransactionFeeData" $ property $ \x ->
+        it "PostTransactionOldData" $ property $ \x ->
             let
-                x' = PostTransactionFeeData
-                    { payments = payments (x :: PostTransactionFeeData ('Testnet 0))
-                    , withdrawal = withdrawal (x :: PostTransactionFeeData ('Testnet 0))
-                    , metadata = metadata (x :: PostTransactionFeeData ('Testnet 0))
-                    , timeToLive = timeToLive (x :: PostTransactionFeeData ('Testnet 0))
+                x' = PostTransactionOldData
+                    { payments = payments (x :: PostTransactionOldData ('Testnet 0))
+                    , passphrase = passphrase (x :: PostTransactionOldData ('Testnet 0))
+                    , withdrawal = withdrawal (x :: PostTransactionOldData ('Testnet 0))
+                    , metadata = metadata (x :: PostTransactionOldData ('Testnet 0))
+                    , timeToLive = timeToLive (x :: PostTransactionOldData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
-        it "PostExternalTransactionData" $ property $ \x ->
+        it "PostTransactionFeeOldData" $ property $ \x ->
             let
-                x' = PostExternalTransactionData
-                    { payload = payload (x :: PostExternalTransactionData)
+                x' = PostTransactionFeeOldData
+                    { payments = payments (x :: PostTransactionFeeOldData ('Testnet 0))
+                    , withdrawal = withdrawal (x :: PostTransactionFeeOldData ('Testnet 0))
+                    , metadata = metadata (x :: PostTransactionFeeOldData ('Testnet 0))
+                    , timeToLive = timeToLive (x :: PostTransactionFeeOldData ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiSerialisedTransaction" $ property $ \x ->
+            let
+                x' = case x of
+                    ApiSerialisedTransaction t -> ApiSerialisedTransaction t
+                    ApiSerialisedTransactionParts t -> ApiSerialisedTransactionParts t
+             in
+                x' === x .&&. show x' === show x
+
+        it "ApiSerialisedTransactionParts" $ property $ \x ->
+            let
+                x' = ApiSerialisedTransactionParts'
+                    { body = body (x :: ApiSerialisedTransactionParts)
+                    , witnesses = witnesses (x :: ApiSerialisedTransactionParts)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1254,17 +1280,15 @@ instance Arbitrary Cosigner where
     arbitrary = Cosigner <$> choose (0,10)
 
 instance Arbitrary ApiPendingSharedWallet where
-    arbitrary = genericArbitrary
+    arbitrary = genericArbitrary -- fixme: seems to be slow
 
 instance Arbitrary ApiActiveSharedWallet where
-    arbitrary = genericArbitrary
+    arbitrary = genericArbitrary -- fixme: seems to be slow
 
 instance Arbitrary ApiSharedWallet where
-    arbitrary = do
-        let activeWallet = arbitrary :: Gen ApiActiveSharedWallet
-        let pendingWallet = arbitrary :: Gen ApiPendingSharedWallet
-        oneof [ ApiSharedWallet . Right <$> activeWallet
-              , ApiSharedWallet . Left <$> pendingWallet ]
+    arbitrary = oneof
+        [ ApiSharedWallet . Right <$> arbitrary
+        , ApiSharedWallet . Left <$> arbitrary ]
 
 instance Arbitrary ApiScriptTemplateEntry where
     arbitrary = genScriptTemplateEntry
@@ -1343,9 +1367,6 @@ instance Arbitrary (ApiCoinSelectionWithdrawal n) where
         <$> fmap (, Proxy @n) arbitrary
         <*> reasonablySized arbitrary
         <*> arbitrary
-
-instance Arbitrary ApiRawMetadata where
-    arbitrary = ApiRawMetadata . BS.pack <$> (choose(1, 10) >>= vector)
 
 instance Arbitrary AddressState where
     arbitrary = genericArbitrary
@@ -1884,19 +1905,16 @@ instance Arbitrary a => Arbitrary (AddressAmount a) where
     arbitrary = applyArbitrary3 AddressAmount
     shrink _ = []
 
-instance Arbitrary (PostTransactionData t) where
-    arbitrary = PostTransactionData
+instance Arbitrary PostSignTransactionData where
+    arbitrary = PostSignTransactionData <$> arbitrary <*> arbitrary
+
+instance Arbitrary (PostTransactionOldData t) where
+    arbitrary = PostTransactionOldData
         <$> arbitrary
         <*> arbitrary
         <*> elements [Just SelfWithdrawal, Nothing]
         <*> arbitrary
         <*> arbitrary
-
-instance Arbitrary ApiSerialisedTransaction where
-    arbitrary = do
-        num <- choose (25, 150)
-        bytes <- BS.pack <$> replicateM num arbitrary
-        pure $ ApiSerialisedTransaction (ApiBytesT $ SerialisedTx $ convertToBase Base64 bytes)
 
 instance Arbitrary (ApiConstructTransactionData t) where
     arbitrary = ApiConstructTransactionData
@@ -1931,20 +1949,55 @@ instance Arbitrary (ApiPutAddressesData t) where
         addrs <- vector n
         pure $ ApiPutAddressesData ((, Proxy @t) <$> addrs)
 
-instance Arbitrary (PostTransactionFeeData t) where
-    arbitrary = PostTransactionFeeData
+instance Arbitrary (PostTransactionFeeOldData t) where
+    arbitrary = PostTransactionFeeOldData
         <$> arbitrary
         <*> elements [Just SelfWithdrawal, Nothing]
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary PostExternalTransactionData where
-    arbitrary = do
-        count <- choose (0, 32)
-        bytes <- BS.pack <$> replicateM count arbitrary
-        return $ PostExternalTransactionData bytes
-    shrink (PostExternalTransactionData bytes) =
-        PostExternalTransactionData . BS.pack <$> shrink (BS.unpack bytes)
+genSmallBlob :: Gen ByteString
+genSmallBlob = BS.pack <$> Test.QuickCheck.scale (min 32) (listOf arbitrary)
+
+shrinkBlob :: ByteString -> [ByteString]
+shrinkBlob bytes = BS.pack <$> shrink (BS.unpack bytes)
+
+instance Arbitrary (ApiBytesT base ByteString) where
+    arbitrary = ApiBytesT <$> genSmallBlob
+    shrink (ApiBytesT bs) = ApiBytesT <$> shrinkBlob bs
+
+instance Arbitrary (ApiBytesT base SerialisedTx) where
+    arbitrary = ApiBytesT <$> arbitrary
+    shrink (ApiBytesT a) = ApiBytesT <$> shrink a
+
+instance Arbitrary ApiSignedTransaction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiSerialisedTransaction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiSerialisedTransactionParts where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary SerialisedTx where
+    arbitrary = SerialisedTx <$> genSmallBlob
+    shrink (SerialisedTx bs) = SerialisedTx <$> shrinkBlob bs
+
+instance Arbitrary SerialisedTxParts where
+    arbitrary = SerialisedTxParts
+        <$> genSmallBlob
+        <*> genSmallBlob
+        <*> listOf genSmallBlob
+    shrink (SerialisedTxParts tx bs ws) =
+        [ SerialisedTxParts tx' bs' ws'
+        | ((tx', bs'), ws') <- liftShrink2
+            (liftShrink2 shrinkBlob shrinkBlob)
+            (liftShrink shrinkBlob)
+            ((tx, bs), ws)
+        ]
 
 instance Arbitrary TxMetadata where
     arbitrary = genTxMetadata
@@ -2334,12 +2387,25 @@ instance ToSchema ByronWalletPutPassphraseData where
 instance ToSchema ApiTxMetadata where
     declareNamedSchema _ = declareSchemaForDefinition "TransactionMetadataValue"
 
-instance ToSchema (PostTransactionData t) where
+instance ToSchema PostSignTransactionData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostSignTransactionData"
+
+instance ToSchema ApiSignedTransaction where
+    -- fixme: tests don't seem to like allOf
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSignedTransaction"
+
+instance ToSchema ApiSerialisedTransaction where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTransaction"
+
+instance ToSchema (ApiBytesT 'Base64 SerialisedTx) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTx"
+
+instance ToSchema (PostTransactionOldData t) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionData"
 
-instance ToSchema (PostTransactionFeeData t) where
+instance ToSchema (PostTransactionFeeOldData t) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionFeeData"

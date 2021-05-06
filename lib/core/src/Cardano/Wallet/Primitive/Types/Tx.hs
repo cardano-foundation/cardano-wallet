@@ -27,6 +27,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , SealedTx (..)
     , SerialisedTx (..)
+    , SerialisedTxParts (..)
     , UnsignedTx (..)
     , TransactionInfo (..)
     , Direction (..)
@@ -399,21 +400,30 @@ instance Buildable a => Buildable (WithDirection a) where
         <> (case d of; Incoming -> "+"; Outgoing -> "-")
         <> build a
 
--- | @SealedTx@ is a serialised transaction that is ready to be submitted
--- to the node.
+-- | @SealedTx@ is a signed and serialised transaction that is ready to be
+-- submitted to the node.
 newtype SealedTx = SealedTx { getSealedTx :: ByteString }
     deriving stock (Show, Eq, Generic)
     deriving newtype (ByteArrayAccess, NFData)
-
--- | True if the given metadata refers to a pending transaction
-isPending :: TxMeta -> Bool
-isPending = (== Pending) . (status :: TxMeta -> TxStatus)
 
 -- | A serialised transaction that may be only partially signed, or even
 -- invalid.
 newtype SerialisedTx = SerialisedTx { payload :: ByteString }
     deriving stock (Show, Eq, Generic, Ord)
     deriving newtype (Semigroup, Monoid, ByteArray, ByteArrayAccess, NFData)
+
+-- | @SerialisedTxParts@ is a serialised transaction body, and a possibly
+-- incomplete set of serialised witnesses, along with an encoding of the
+-- combined transaction.
+data SerialisedTxParts = SerialisedTxParts
+    { serialisedTx :: ByteString
+    , serialisedTxBody :: ByteString
+    , serialisedTxWitnesses :: [ByteString]
+    } deriving stock (Show, Eq, Generic)
+
+-- | True if the given metadata refers to a pending transaction
+isPending :: TxMeta -> Bool
+isPending = (== Pending) . (status :: TxMeta -> TxStatus)
 
 -- | Full expanded and resolved information about a transaction, suitable for
 -- presentation to the user.
