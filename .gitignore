@@ -18,7 +18,7 @@ cabal.sandbox.config
 *.hp
 *.eventlog
 .stack-work/
-*.project.local
+*.project.local*
 .HTF/
 .ghc.environment.*
 .ghci
@@ -38,3 +38,6 @@ result*
 
 ### Release scripts output
 /GENERATED_*.md
+
+### Docs build
+/_build/
