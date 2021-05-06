@@ -249,6 +249,7 @@ import UnliftIO.MVar
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Script as Shared
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.SharedState as Shared
 import qualified Cardano.Wallet.Primitive.Model as W
@@ -2506,8 +2507,8 @@ selectSeqStatePendingIxs wid =
 
 instance
     ( PersistPublicKey (k 'AccountK)
+    , MkKeyFingerprint k W.Address
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , PaymentAddress n k
     , SoftDerivation k
     , WalletKey k
     , Typeable n
@@ -2528,7 +2529,7 @@ instance
                 insertCosigner (cosigners pTemplate) Payment
                 when (isJust dTemplateM) $
                     insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
-                insertAddressPool @n wid sl pool
+                insertAddressSharedPool @n wid sl pool
       where
          insertSharedState accXPub g pTemplate dTemplateM prefix = do
              deleteWhere [SharedStateWalletId ==. wid]
@@ -2569,6 +2570,18 @@ instance
                 let ctx = Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM
                 pool <- lift $ selectAddressPool @n wid sl g ctx
                 pure $ Shared.SharedState prefix (Shared.ReadyFields pool)
+
+insertAddressSharedPool
+    :: forall (n :: NetworkDiscriminant) k. (Seq.GetPurpose k, Typeable n)
+    => W.WalletId
+    -> W.SlotNo
+    -> Seq.AddressPool 'MultisigScript k
+    -> SqlPersistT IO ()
+insertAddressSharedPool wid sl pool =
+    void $ dbChunked insertMany_
+    [ SeqStateAddress wid sl addr ix MultisigScript state
+    | (ix, (addr, state, _)) <- zip [0..] (Seq.addresses (Shared.liftPaymentAddress @n) pool)
+    ]
 
 selectCosigners
     :: forall k. PersistPublicKey (k 'AccountK)

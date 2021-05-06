@@ -43,7 +43,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
@@ -77,8 +76,6 @@ import Crypto.Hash.IO
     ( HashAlgorithm (hashDigestSize) )
 import Crypto.Hash.Utils
     ( blake2b224 )
-import Data.Binary.Put
-    ( putByteString, putWord8, runPut )
 import Data.ByteString
     ( ByteString )
 import Data.Proxy
@@ -87,7 +84,6 @@ import GHC.Generics
     ( Generic )
 
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
@@ -204,40 +200,6 @@ instance MkKeyFingerprint SharedKey Address where
 instance MkKeyFingerprint SharedKey (Proxy (n :: NetworkDiscriminant), SharedKey 'AddressK XPub) where
     paymentKeyFingerprint (_, paymentK) =
         Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
-
-instance PaymentAddress 'Mainnet SharedKey where
-    paymentAddress paymentK = do
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-      where
-        enterprise = 96
-        networkId = 1
-
-    liftPaymentAddress (KeyFingerprint fingerprint) =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString fingerprint
-      where
-        enterprise = 96
-        networkId = 1
-
-instance PaymentAddress ('Testnet pm) SharedKey where
-    paymentAddress paymentK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-      where
-        enterprise = 96
-        networkId = 0
-
-    liftPaymentAddress (KeyFingerprint fingerprint) =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString fingerprint
-      where
-        enterprise = 96
-        networkId = 0
 
 {-------------------------------------------------------------------------------
                                  Internals

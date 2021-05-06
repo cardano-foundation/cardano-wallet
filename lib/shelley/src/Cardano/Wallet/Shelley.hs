@@ -205,7 +205,6 @@ data SomeNetworkDiscriminant where
             , PaymentAddress n IcarusKey
             , PaymentAddress n ByronKey
             , PaymentAddress n ShelleyKey
-            , PaymentAddress n SharedKey
             , DelegationAddress n ShelleyKey
             , HasNetworkId n
             , DecodeAddress n
@@ -291,7 +290,7 @@ serveWallet
                     Server.idleWorker
                 shelleyApi <- apiLayer (newTransactionLayer net) nl
                     (Server.manageRewardBalance proxy)
-                multisigApi <- apiLayer (newTransactionLayer net) nl
+                multisigApi <- apiLayer undefined nl
                     Server.idleWorker
 
                 withPoolsMonitoring databaseDir np nl $ \spl -> do

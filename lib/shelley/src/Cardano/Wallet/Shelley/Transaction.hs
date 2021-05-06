@@ -70,8 +70,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
-    ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
@@ -248,9 +246,6 @@ instance TxWitnessTagFor IcarusKey where
 
 instance TxWitnessTagFor ByronKey where
     txWitnessTagFor = TxWitnessByronUTxO Byron
-
-instance TxWitnessTagFor SharedKey where
-    txWitnessTagFor = TxWitnessShelleyUTxO
 
 mkTx
     :: forall k era.
