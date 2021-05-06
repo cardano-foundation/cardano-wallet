@@ -42,6 +42,7 @@ let
         python3Packages.openapi-spec-validator
         ruby
         sqlite-interactive
+        jq
         yq
       ] ++ lib.filter
         (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
