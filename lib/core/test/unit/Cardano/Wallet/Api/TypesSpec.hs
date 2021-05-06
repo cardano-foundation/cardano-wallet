@@ -91,6 +91,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
+    , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
@@ -157,6 +158,7 @@ import Cardano.Wallet.Gen
     , genScript
     , genScriptCosigners
     , genScriptTemplate
+    , genScriptTemplateEntry
     , genTxMetadata
     , shrinkPercentage
     , shrinkTxMetadata
@@ -411,6 +413,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiPutAddressesData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostData
+            jsonRoundtripAndGolden $ Proxy @ApiScriptTemplateEntry
             jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostDataFromMnemonics
             jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostDataFromAccountPubX
             jsonRoundtripAndGolden $ Proxy @ApiSharedWallet
@@ -1202,6 +1205,9 @@ instance Arbitrary ApiSharedWallet where
         let pendingWallet = arbitrary :: Gen ApiPendingSharedWallet
         oneof [ ApiSharedWallet . Right <$> activeWallet
               , ApiSharedWallet . Left <$> pendingWallet ]
+
+instance Arbitrary ApiScriptTemplateEntry where
+    arbitrary = genScriptTemplateEntry
 
 instance Arbitrary ApiSharedWalletPostDataFromMnemonics where
     arbitrary = genericArbitrary

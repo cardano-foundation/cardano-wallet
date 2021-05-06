@@ -293,18 +293,31 @@ x-cosigners: &cosigners
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    - "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
+    - {"cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"}
+
+x-self: &self
+  type: string
+  enum:
+    - self
+
+x-accountPubkeyOrSelf: &accountPubkeyOrSelf
+  nullable: false
+  oneOf:
+    - <<: *walletAccountPubkey
+      title: public key
+    - <<: *self
+      title: self
 
 x-cosignersEntry: &cosignersEntry
-  description: Map of cosigners and their account public keys. Use key as in &cosigner, eg. "cosigner#"
+  description: Map of cosigners and their account public keys. Use key as in &cosigner, eg. "cosigner#"or 'self'
   type: object
-  additionalProperties: *walletAccountPubkey
+  additionalProperties: *accountPubkeyOrSelf
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    - "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
-    - "cosigner#0": "self"
+    - {"cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"}
+    - {"cosigner#0": "self"}
 
 x-walletId: &walletId
   description: A unique identifier for the wallet
