@@ -2112,15 +2112,54 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan
         }
 
 migrateWallet
-    :: forall s k n p. ()
-    => ApiLayer s k
-        -- ^ Source wallet context
+    :: forall ctx s k n p.
+        ( ctx ~ ApiLayer s k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , HardDerivation k
+        , HasNetworkLayer IO ctx
+        , IsOwned s k
+        , Typeable n
+        , Typeable s
+        , WalletKey k
+        )
+    => ctx
     -> ApiT WalletId
-        -- ^ Source wallet
     -> ApiWalletMigrationPostData n p
     -> Handler [ApiTransaction n]
-migrateWallet _ctx _wid _migrateData = do
-    liftHandler $ throwE ErrTemporarilyDisabled
+migrateWallet ctx (ApiT wid) postData = do
+    (rewardWithdrawal, mkRewardAccount) <-
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
+        txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
+        let selectionWithdrawals = W.migrationPlanToSelectionWithdrawals
+                plan rewardWithdrawal addresses
+        forM selectionWithdrawals $ \(selection, txWithdrawal) -> do
+            let txContext = defaultTransactionCtx
+                    { txWithdrawal
+                    , txTimeToLive
+                    , txDelegationAction = Nothing
+                    }
+            (tx, txMeta, txTime, sealedTx) <- liftHandler $
+                W.signTransaction @_ @s @k wrk wid mkRewardAccount pwd txContext
+                    (selection {changeGenerated = []})
+            liftHandler $
+                W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+            liftIO $ mkApiTransaction
+                (timeInterpreter (ctx ^. networkLayer))
+                (txId tx)
+                (tx ^. #fee)
+                (NE.toList $ second Just <$> selection ^. #inputsSelected)
+                (tx ^. #outputs)
+                (tx ^. #withdrawals)
+                (txMeta, txTime)
+                (Nothing)
+                (#pendingSince)
+  where
+    addresses = getApiT . fst <$> view #addresses postData
+    pwd = coerce $ getApiT $ postData ^. #passphrase
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
 
 {-------------------------------------------------------------------------------
                                     Network
