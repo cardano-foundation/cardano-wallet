@@ -125,6 +125,7 @@ import Cardano.Wallet
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrConstructSharedWallet (..)
+    , ErrCreateMigrationPlan (..)
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
     , ErrDerivePublicKey (..)
@@ -228,6 +229,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
@@ -331,6 +333,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , balanceMissing
     , selectionDelta
     )
+import Cardano.Wallet.Primitive.Migration
+    ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
@@ -412,6 +416,8 @@ import Control.Arrow
     ( second )
 import Control.DeepSeq
     ( NFData )
+import Control.Error.Util
+    ( failWith )
 import Control.Monad
     ( forM, forever, join, unless, void, when, (>=>) )
 import Control.Monad.IO.Class
@@ -533,6 +539,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -2015,15 +2022,81 @@ quitStakePool ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 createMigrationPlan
-    :: forall n s k. ()
-    => ApiLayer s k
-        -- ^ Source wallet context
+    :: forall ctx n s k.
+        ( ctx ~ ApiLayer s k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , HardDerivation k
+        , IsOwned s k
+        , Typeable n
+        , Typeable s
+        , WalletKey k
+        )
+    => ctx
     -> ApiT WalletId
         -- ^ Source wallet
     -> ApiWalletMigrationPlanPostData n
+        -- ^ Target addresses
     -> Handler (ApiWalletMigrationPlan n)
-createMigrationPlan _ctx _wid _postData = do
-    liftHandler $ throwE ErrTemporarilyDisabled
+createMigrationPlan ctx (ApiT wid) postData = do
+    (rewardWithdrawal, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        (wallet, _, _) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
+            W.readWallet wrk wid
+        plan <- W.createMigrationPlan wrk wid rewardWithdrawal
+        failWith ErrCreateMigrationPlanEmpty $ mkApiWalletMigrationPlan
+            (getState wallet)
+            (view #addresses postData)
+            (rewardWithdrawal)
+            (plan)
+
+mkApiWalletMigrationPlan
+    :: forall n s. IsOurs s Address
+    => s
+    -> NonEmpty (ApiT Address, Proxy n)
+    -> Withdrawal
+    -> MigrationPlan
+    -> Maybe (ApiWalletMigrationPlan n)
+mkApiWalletMigrationPlan s addresses rewardWithdrawal plan
+    | Just selections <- maybeSelections =
+        Just ApiWalletMigrationPlan
+            { selections
+            , totalFee
+            , balanceLeftover
+            , balanceSelected
+            }
+    | otherwise =
+        Nothing
+  where
+    maybeSelections :: Maybe (NonEmpty (ApiCoinSelection n))
+    maybeSelections = NE.nonEmpty $
+        mkApiCoinSelectionForMigration <$> unsignedTxs
+
+    totalFee :: Quantity "lovelace" Natural
+    totalFee = coinToQuantity $ view #totalFee plan
+
+    balanceLeftover :: ApiWalletMigrationBalance
+    balanceLeftover = plan
+        & view #unselected
+        & UTxO.balance
+        & mkApiWalletMigrationBalance
+
+    balanceSelected :: ApiWalletMigrationBalance
+    balanceSelected = plan
+        & view #selections
+        & F.foldMap (view #inputBalance)
+        & mkApiWalletMigrationBalance
+
+    unsignedTxs = W.migrationPlanToUnsignedTxs s plan rewardWithdrawal $
+        getApiT . fst <$> addresses
+
+    mkApiCoinSelectionForMigration unsignedTx =
+        mkApiCoinSelection [] Nothing Nothing (unsignedTx {unsignedChange = []})
+
+    mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
+    mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
+        { ada = coinToQuantity $ view #coin b
+        , assets = ApiT $ view #tokens b
+        }
 
 migrateWallet
     :: forall s k n p. ()
@@ -3206,6 +3279,13 @@ instance IsServerError ErrOutputTokenQuantityExceedsLimit where
         , pretty (view #quantityMaxBound e)
         , "."
         ]
+
+instance IsServerError ErrCreateMigrationPlan where
+    toServerError = \case
+        ErrCreateMigrationPlanEmpty ->
+            -- TODO: Provide a more useful error message:
+            apiError err403 NothingToMigrate "Nothing to migrate"
+        ErrCreateMigrationPlanNoSuchWallet e -> toServerError e
 
 instance IsServerError ErrSelectAssets where
     toServerError = \case
