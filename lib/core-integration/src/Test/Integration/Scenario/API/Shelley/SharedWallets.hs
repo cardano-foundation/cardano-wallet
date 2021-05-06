@@ -211,7 +211,6 @@ spec = describe "SHARED_WALLETS" $ do
         let (ApiAccountKeyShared bytes _) = getFromResponse id rKey
         T.decodeUtf8 (hex bytes) `Expectations.shouldBe` accXPubDerived
 
-
     it "SHARED_WALLETS_CREATE_03 - Create an active shared wallet from account xpub" $ \ctx -> runResourceT $ do
         (_, accXPubTxt):_ <- liftIO $ genXPubs 1
         let payload = Json [json| {
@@ -275,6 +274,118 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField #delegationScriptTemplate (`shouldBe` Nothing)
             , expectField (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483658)
             ]
+
+    it "SHARED_WALLETS_CREATE_05 - Create an active shared wallet from root xprv with self" $ \ctx -> runResourceT $ do
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let index = 30
+        let accXPubDerived = accPubKeyFromMnemonics m15 (Just m12) index passphrase
+        let payloadPost = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubDerived} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadPost
+        verify rPost
+            [ expectResponseCode HTTP.status201
+            ]
+
+        let wal = getFromResponse id rPost
+
+        rDel <- deleteSharedWallet ctx wal
+        expectResponseCode HTTP.status204 rDel
+
+        let payloadPostWithSelf = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPostWithSelf <- postSharedWallet ctx Default payloadPostWithSelf
+        verify rPostWithSelf
+            [ expectResponseCode HTTP.status201
+            ]
+
+        let walWithSelf = getFromResponse id rPostWithSelf
+
+        getWalletIdFromSharedWallet walWithSelf `Expectations.shouldBe` getWalletIdFromSharedWallet wal
+
+    it "SHARED_WALLETS_CREATE_06 - Create an active shared wallet from account xpub with self" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        verify rPost
+            [ expectResponseCode HTTP.status201
+            ]
+
+        let wal = getFromResponse id rPost
+
+        rDel <- deleteSharedWallet ctx wal
+        expectResponseCode HTTP.status204 rDel
+
+        let payloadWithSelf = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPostWithSelf <- postSharedWallet ctx Default payloadWithSelf
+        verify rPostWithSelf
+            [ expectResponseCode HTTP.status201
+            ]
+
+        let walWithSelf = getFromResponse id rPostWithSelf
+
+        getWalletIdFromSharedWallet walWithSelf `Expectations.shouldBe` getWalletIdFromSharedWallet wal
 
     it "SHARED_WALLETS_DELETE_01 - Delete of a shared wallet" $ \ctx -> runResourceT $ do
         (_, accXPubTxt):_ <- liftIO $ genXPubs 1
@@ -645,3 +756,7 @@ spec = describe "SHARED_WALLETS" $ do
 
         let (String stakeAddrH) = toJSON stakeKeyH
         T.isPrefixOf "stake_shared_vkh" stakeAddrH `Expectations.shouldBe` True
+
+  where
+      getWalletIdFromSharedWallet (ApiSharedWallet (Right res)) = res ^. #id
+      getWalletIdFromSharedWallet (ApiSharedWallet (Left res)) = res ^. #id
