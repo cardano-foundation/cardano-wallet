@@ -118,7 +118,9 @@ module Cardano.Wallet
     , ErrWithdrawalNotWorth (..)
 
     -- ** Migration
+    , createMigrationPlan
     , migrationPlanToUnsignedTxs
+    , ErrCreateMigrationPlan (..)
 
     -- ** Delegation
     , PoolRetirementEpochInfo (..)
@@ -1795,6 +1797,30 @@ getTransaction ctx wid tid = db & \DBLayer{..} -> do
                                   Migration
 -------------------------------------------------------------------------------}
 
+createMigrationPlan
+    :: forall ctx k s.
+        ( HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
+        , HasTransactionLayer k ctx
+        )
+    => ctx
+    -> WalletId
+    -> Withdrawal
+    -> ExceptT ErrCreateMigrationPlan IO MigrationPlan
+createMigrationPlan ctx wid rewardWithdrawal = do
+    (wallet, _, pending) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
+        readWallet @ctx @s @k ctx wid
+    pp <- liftIO $ currentProtocolParameters nl
+    let txConstraints = view #constraints tl pp
+    let utxo = availableUTxO @s pending wallet
+    pure
+        $ Migration.createPlan txConstraints utxo
+        $ Migration.RewardWithdrawal
+        $ withdrawalToCoin rewardWithdrawal
+  where
+    nl = ctx ^. networkLayer
+    tl = ctx ^. transactionLayer @k
+
 migrationPlanToUnsignedTxs
     :: forall s input inputUnqualified output noChange withdrawal unsignedTx.
         ( IsOurs s Address
@@ -2382,6 +2408,11 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     { errStartTime :: UTCTime
     , errEndTime :: UTCTime
     } deriving (Show, Eq)
+
+data ErrCreateMigrationPlan
+    = ErrCreateMigrationPlanEmpty
+    | ErrCreateMigrationPlanNoSuchWallet ErrNoSuchWallet
+    deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
     = ErrSelectAssetsCriteriaError ErrSelectionCriteria
