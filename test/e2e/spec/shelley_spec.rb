@@ -332,11 +332,14 @@ RSpec.describe CardanoWallet::Shelley do
       teardown
     end
 
-    it "I could calculate migration cost" do
+    it "I could create migration plan" do
       id = create_shelley_wallet
-      cost = SHELLEY.migrations.cost(id)
-      expect(cost).to be_correct_and_respond 501
-      expect(cost.to_s).to include "not_implemented"
+      target_id = create_shelley_wallet
+      addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
+
+      plan = SHELLEY.migrations.plan(id, addrs)
+      expect(plan).to be_correct_and_respond 501
+      expect(plan.to_s).to include "not_implemented"
     end
 
     it "I could migrate all my funds" do
