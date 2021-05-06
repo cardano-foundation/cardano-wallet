@@ -112,7 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - name: "Advance windows-tests-pass and all-tests-pass branches"
         if: github.ref == 'ref/heads/master'
         shell: bash

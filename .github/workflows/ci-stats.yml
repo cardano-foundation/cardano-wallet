@@ -1,0 +1,52 @@
+name: Stats
+
+on:
+  status:
+  push:
+    branches:
+      - master
+      - rvl/adp-921/optimize-hydra-eval
+
+jobs:
+  stats:
+    env:
+      branch: ci-stats
+    if: ${{ (github.ref == 'refs/heads/master' && (github.event.state == 'success' || github.event.state == 'failure') && github.event.context == 'ci/hydra-build:required') || github.ref == 'refs/heads/rvl/adp-921/optimize-hydra-eval' }}
+    runs-on: ubuntu-20.04
+    steps:
+      - name: '❄ Wait for Hydra build'
+        uses: rvl/hydra-build-products-action@master
+        id: hydra
+        with:
+          hydra: https://hydra.iohk.io
+          statusName: ci/hydra-eval
+          jobs: required
+          requiredJob: required
+          project: Cardano
+          jobset: cardano-wallet
+          badge: "${{ github.event_name == 'status' && 'yes' || 'no' }}"
+
+      - name: '📥 Checkout Code'
+        uses: actions/checkout@v2
+
+      - name: '📥 Checkout Stats'
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ env.branch }}
+          fetch-depth: 1
+          path: _build
+
+      - name: '📘 Publish Stats'
+        if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/rvl/adp-921/optimize-hydra-eval' }}
+        working-directory: _build
+        run: |
+          echo '${{ steps.hydra.outputs.evaluation }}' > eval.json
+          echo '${{ steps.hydra.outputs.builds }}' > builds.json
+          echo '${{ steps.hydra.outputs.timings }}' > timings.json
+          ../scripts/gh/update-stats.sh '${{ env.branch}}' eval.json builds.json timings.json
+
+      - name: '📛 Update Badge'
+        if: ${{ github.event_name == 'status' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/rvl/adp-921/optimize-hydra-eval') }}
+        working-directory: _build
+        run: |
+          ../scripts/gh/update-badge.sh '${{ env.branch}}' <(echo '${{ steps.hydra.outputs.badge }}')
