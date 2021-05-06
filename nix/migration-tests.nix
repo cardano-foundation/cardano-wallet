@@ -38,8 +38,6 @@ let
   # One can get sha256 for release via nix-prefetch-url, e.g. for v2021.4.8:
   # nix-prefetch-url --unpack https://github.com/input-output-hk/cardano-wallet/archive/v2021-02-15.zip
   releases = [
-    { rev = "v2020-11-03";
-      sha256 = "1v2l46g0f8bkas7mhm624l3kmxz3g80095f4vqicz736bv7vsijc"; }
     { rev = "v2020-11-17";
       sha256 = "1y4sfykqkdijv2rx4758nc1b2f262cn89qfsv48xrv4irwi7x5mr"; }
     { rev = "v2020-11-26";
@@ -58,6 +56,8 @@ let
       sha256 = "07awzp8ifgkh966qirlmr8igbx8hx5nlaw3zgflnic3lqc8672sc"; }
     { rev = "v2021-04-08";
       sha256 = "06agcxjp3wzb76iiy79yap4qjn37mka0c2ccybnqswm3wr4ngkz2"; }
+    { rev = "v2021-04-28";
+      sha256 = "1ng0y6jmcgb3agpqwais1mfx0yh9bqxza3xxkggdzgic89pg6pg1"; }
   ];
 
   # Download the sources for a release.
