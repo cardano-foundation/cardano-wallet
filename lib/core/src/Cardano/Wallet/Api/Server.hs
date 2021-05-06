@@ -115,7 +115,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..) )
+    ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
 import Cardano.BM.Tracing
@@ -209,6 +209,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
+    , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsPayments
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
@@ -253,6 +254,7 @@ import Cardano.Wallet.Api.Types
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , XPubOrSelf (..)
     , coinFromQuantity
     , coinToQuantity
     , getApiMnemonicT
@@ -901,8 +903,8 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     g = defaultAddressPoolGap
     accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
     wid = WalletId $ digest $ publicKey rootXPrv
-    pTemplate = body ^. #paymentScriptTemplate
-    dTemplateM = body ^. #delegationScriptTemplate
+    pTemplate = scriptTemplateFromSelf (getRawKey accXPub) $ body ^. #paymentScriptTemplate
+    dTemplateM = scriptTemplateFromSelf (getRawKey accXPub) <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     accXPub = publicKey $ deriveAccountPrivateKey pwd rootXPrv accIx
 
@@ -933,12 +935,20 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
   where
     g = defaultAddressPoolGap
     accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
-    pTemplate = body ^. #paymentScriptTemplate
-    dTemplateM = body ^. #delegationScriptTemplate
+    pTemplate = scriptTemplateFromSelf accXPub $ body ^. #paymentScriptTemplate
+    dTemplateM = scriptTemplateFromSelf accXPub <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
     wid = WalletId $ digest (liftKey accXPub)
+
+scriptTemplateFromSelf :: XPub -> ApiScriptTemplateEntry -> ScriptTemplate
+scriptTemplateFromSelf xpub (ApiScriptTemplateEntry cosigners' template') =
+    ScriptTemplate cosignersWithoutSelf template'
+  where
+    unSelf (OtherCosigner xpub') = xpub'
+    unSelf Self = xpub
+    cosignersWithoutSelf = Map.map unSelf cosigners'
 
 mkSharedWallet
     :: forall ctx s k n.

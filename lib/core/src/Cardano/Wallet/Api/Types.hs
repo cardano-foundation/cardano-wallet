@@ -126,6 +126,8 @@ module Cardano.Wallet.Api.Types
     , ApiWalletSignData (..)
     , ApiVerificationKeyShelley (..)
     , ApiVerificationKeyShared (..)
+    , ApiScriptTemplateEntry (..)
+    , XPubOrSelf (..)
     , VerificationKeyHashing (..)
     , ApiAccountKey (..)
     , ApiAccountKeyShared (..)
@@ -269,7 +271,7 @@ import Codec.Binary.Bech32
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import "cardano-addresses" Codec.Binary.Encoding
-    ( AbstractEncoding (..), detectEncoding, encode )
+    ( AbstractEncoding (..), detectEncoding, encode, fromBase16 )
 import Control.Applicative
     ( optional, (<|>) )
 import Control.Arrow
@@ -348,6 +350,8 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
+import Data.Traversable
+    ( for )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -1087,22 +1091,32 @@ data ApiAccountKeyShared = ApiAccountKeyShared
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data XPubOrSelf = OtherCosigner XPub | Self
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiScriptTemplateEntry = ApiScriptTemplateEntry
+    { cosigners :: Map Cosigner XPubOrSelf
+    , template :: Script Cosigner
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiSharedWalletPostDataFromMnemonics = ApiSharedWalletPostDataFromMnemonics
     { name :: !(ApiT WalletName)
     , mnemonicSentence :: !(ApiMnemonicT (AllowedMnemonics 'Shelley))
     , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
     , passphrase :: !(ApiT (Passphrase "raw"))
     , accountIndex :: !(ApiT DerivationIndex)
-    , paymentScriptTemplate :: !ScriptTemplate
-    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , paymentScriptTemplate :: !ApiScriptTemplateEntry
+    , delegationScriptTemplate :: !(Maybe ApiScriptTemplateEntry)
     } deriving (Eq, Generic, Show)
 
 data ApiSharedWalletPostDataFromAccountPubX = ApiSharedWalletPostDataFromAccountPubX
     { name :: !(ApiT WalletName)
     , accountPublicKey :: !ApiAccountPublicKey
     , accountIndex :: !(ApiT DerivationIndex)
-    , paymentScriptTemplate :: !ScriptTemplate
-    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , paymentScriptTemplate :: !ApiScriptTemplateEntry
+    , delegationScriptTemplate :: !(Maybe ApiScriptTemplateEntry)
     } deriving (Eq, Generic, Show)
 
 newtype ApiSharedWalletPostData = ApiSharedWalletPostData
@@ -2409,6 +2423,50 @@ instance {-# OVERLAPS #-} EncodeStakeAddress n
     => ToJSON (ApiT W.RewardAccount, Proxy n)
   where
     toJSON (acct, _) = toJSON . encodeStakeAddress @n . getApiT $ acct
+
+instance ToJSON XPubOrSelf where
+    toJSON (OtherCosigner xpub) =
+        String $ T.decodeUtf8 $ encode EBase16 $ xpubToBytes xpub
+    toJSON Self = "self"
+
+instance FromJSON XPubOrSelf where
+    parseJSON t = parseXPub t <|> parseSelf t
+      where
+        parseXPub = withText "XPub" $ \txt ->
+            case fromBase16 (T.encodeUtf8 txt) of
+                Left err -> fail err
+                Right hex' -> case xpubFromBytes hex' of
+                    Nothing -> fail "Extended public key cannot be retrieved from a given hex bytestring"
+                    Just validXPub -> pure $ OtherCosigner validXPub
+        parseSelf = withText "Self" $ \txt ->
+            if txt == "self" then
+                pure Self
+            else
+                fail "'self' is expected."
+
+instance FromJSON ApiScriptTemplateEntry where
+    parseJSON = withObject "ApiScriptTemplateEntry" $ \o -> do
+        template' <- parseJSON <$> o .: "template"
+        cosigners' <- parseCosignerPairs <$> o .: "cosigners"
+        ApiScriptTemplateEntry <$> (Map.fromList <$> cosigners') <*> template'
+      where
+        parseCosignerPairs = withObject "Cosigner pairs" $ \o ->
+            case HM.toList o of
+                [] -> fail "Cosigners object array should not be empty"
+                cs -> for (reverse cs) $ \(numTxt, str) -> do
+                    cosigner' <- parseJSON @Cosigner (String numTxt)
+                    xpubOrSelf <- parseJSON str
+                    pure (cosigner', xpubOrSelf)
+
+instance ToJSON ApiScriptTemplateEntry where
+    toJSON (ApiScriptTemplateEntry cosigners' template') =
+        object [ "cosigners" .= object (fmap toPair (Map.toList cosigners'))
+               , "template" .= toJSON template']
+      where
+        cosignerToText (Cosigner ix) = "cosigner#"<> T.pack (show ix)
+        toPair (cosigner', xpubOrSelf) =
+            ( cosignerToText cosigner'
+            , toJSON xpubOrSelf  )
 
 instance FromJSON ApiSharedWalletPostDataFromAccountPubX where
     parseJSON = genericParseJSON defaultRecordTypeOptions
