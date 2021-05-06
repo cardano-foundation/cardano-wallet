@@ -1026,7 +1026,7 @@ newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
-    , addresses :: ![(ApiT Address, Proxy n)]
+    , addresses :: !(NonEmpty (ApiT Address, Proxy n))
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 

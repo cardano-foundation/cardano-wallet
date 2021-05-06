@@ -1345,10 +1345,12 @@ instance Arbitrary (ApiWalletMigrationPlanPostData n) where
 instance Arbitrary (Passphrase purpose) =>
          Arbitrary (ApiWalletMigrationPostData n purpose) where
     arbitrary = do
-        n <- choose (1,255)
         pwd <- arbitrary
-        addr <- vector n
-        pure $ ApiWalletMigrationPostData pwd ((, Proxy @n) <$> addr)
+        addrCount <- choose (1, 255)
+        addrs <- (:|)
+            <$> arbitrary
+            <*> replicateM (addrCount - 1) arbitrary
+        pure $ ApiWalletMigrationPostData pwd ((, Proxy @n) <$> addrs)
 
 instance Arbitrary ApiWalletPassphrase where
     arbitrary = genericArbitrary
