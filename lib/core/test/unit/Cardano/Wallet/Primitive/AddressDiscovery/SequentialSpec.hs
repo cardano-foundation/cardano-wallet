@@ -176,10 +176,6 @@ spec = do
                     (property (prop_poolAtLeastGapAddresses @_ @ShelleyKey proxyS))
                 it "Our addresses are eventually discovered"
                     (property (prop_poolEventuallyDiscoverOurs @_ @ShelleyKey proxyS))
-                it "Known addresses are still in a shrunk pool"
-                    (property (prop_shrinkPreserveKnown @_ @ShelleyKey proxyS))
-                it "Last address from a shrunk is the last known"
-                    (property (prop_shrinkMaxIndex @_ @ShelleyKey proxyS))
 
     parallel $ describe "AddressPool (Shelley)" $ do
         forM_ styles $ \s@(Style proxyS) -> do
@@ -192,10 +188,6 @@ spec = do
                     (property (prop_poolAtLeastGapAddresses @_ @IcarusKey proxyS))
                 it "Our addresses are eventually discovered"
                     (property (prop_poolEventuallyDiscoverOurs @_ @IcarusKey proxyS))
-                it "Known addresses are still in a shrunk pool"
-                    (property (prop_shrinkPreserveKnown @_ @IcarusKey proxyS))
-                it "Last address from a shrunk is the last known"
-                    (property (prop_shrinkMaxIndex @_ @IcarusKey proxyS))
 
     parallel $ describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
@@ -558,57 +550,6 @@ prop_oursAreUsed s =
         (status' == Used .&&. addr === addr')
         & label (show status)
         & counterexample (show (ShowFmt addr') <> ": " <> show status')
-
-{-------------------------------------------------------------------------------
-                        Properties for shrinkPool
--------------------------------------------------------------------------------}
-
--- Make sure that, for any cut we take from an existing pool, the addresses
--- from the cut are all necessarily in the pool.
-prop_shrinkPreserveKnown
-    :: forall (chain :: Role) k.
-        ( Typeable chain
-        , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
-        , MkKeyFingerprint k Address
-        , SoftDerivation k
-        , AddressPoolTest k
-        , GetPurpose k
-        )
-    => Proxy chain
-    -> Positive Int
-    -> AddressPool chain k
-    -> Property
-prop_shrinkPreserveKnown _proxy (Positive size) pool =
-    property
-        $ classify (length addrs' < length addrs) "pool is smaller"
-        $ all (`elem` addrs') cut
-  where
-    pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
-    addrs  = fst' <$> addresses liftAddress pool
-    addrs' = fst' <$> addresses liftAddress pool'
-    cut    = take size addrs
-
--- There's no address after the address from the cut with the highest index
-prop_shrinkMaxIndex
-    :: forall (chain :: Role) k.
-        ( Typeable chain
-        , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
-        , MkKeyFingerprint k Address
-        , SoftDerivation k
-        , AddressPoolTest k
-        , GetPurpose k
-        )
-    => Proxy chain
-    -> Positive Int
-    -> AddressPool chain k
-    -> Property
-prop_shrinkMaxIndex _proxy (Positive size) pool =
-    fromIntegral size > getAddressPoolGap minBound ==> last cut === last addrs'
-  where
-    pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
-    addrs  = fst' <$> addresses liftAddress pool
-    addrs' = fst' <$> addresses liftAddress pool'
-    cut    = take size addrs
 
 {-------------------------------------------------------------------------------
                                  Helpers
