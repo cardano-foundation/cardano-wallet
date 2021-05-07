@@ -328,7 +328,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
-    , SelectionInsufficientError (..)
+    , SelectionResult (..)
     , UnableToConstructChangeError (..)
     , balanceMissing
     , selectionDelta
@@ -472,6 +472,8 @@ import Data.Time
     ( UTCTime )
 import Data.Type.Equality
     ( (:~:) (..), type (==), testEquality )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -2086,11 +2088,16 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan
         & F.foldMap (view #inputBalance)
         & mkApiWalletMigrationBalance
 
-    unsignedTxs = W.migrationPlanToUnsignedTxs s plan rewardWithdrawal $
-        getApiT . fst <$> addresses
+    selectionWithdrawals :: [(SelectionResult Void, Withdrawal)]
+    selectionWithdrawals
+        = W.migrationPlanToSelectionWithdrawals plan rewardWithdrawal
+        $ getApiT . fst <$> addresses
+
+    unsignedTxs = selectionWithdrawals <&> \(selection, withdrawal) ->
+        W.selectionToUnsignedTx withdrawal (selection {changeGenerated = []}) s
 
     mkApiCoinSelectionForMigration unsignedTx =
-        mkApiCoinSelection [] Nothing Nothing (unsignedTx {unsignedChange = []})
+        mkApiCoinSelection [] Nothing Nothing unsignedTx
 
     mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
     mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
@@ -3314,7 +3321,7 @@ instance IsServerError ErrSelectAssets where
                         , "because I need to select additional inputs and "
                         , "doing so will make the transaction too big. Try "
                         , "sending a smaller amount. I had already selected "
-                        , showT (length $ inputsSelected e), " inputs."
+                        , showT (length $ view #inputsSelected e), " inputs."
                         ]
                 InsufficientMinCoinValues xs ->
                     apiError err403 UtxoTooSmall $ mconcat

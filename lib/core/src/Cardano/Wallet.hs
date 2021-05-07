@@ -17,6 +17,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -119,7 +120,7 @@ module Cardano.Wallet
 
     -- ** Migration
     , createMigrationPlan
-    , migrationPlanToUnsignedTxs
+    , migrationPlanToSelectionWithdrawals
     , ErrCreateMigrationPlan (..)
 
     -- ** Delegation
@@ -1821,67 +1822,49 @@ createMigrationPlan ctx wid rewardWithdrawal = do
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
 
-migrationPlanToUnsignedTxs
-    :: forall s input inputUnqualified output noChange withdrawal unsignedTx.
-        ( IsOurs s Address
-        , input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
-        , inputUnqualified ~ (TxIn, TxOut)
-        , output ~ TxOut
-        , noChange ~ Void
-        , withdrawal ~ (RewardAccount, Coin, NonEmpty DerivationIndex)
-        , unsignedTx ~ UnsignedTx input output noChange withdrawal
-        )
-    => s
-    -> MigrationPlan
+migrationPlanToSelectionWithdrawals
+    :: forall noChange. noChange ~ Void
+    => MigrationPlan
     -> Withdrawal
     -> NonEmpty Address
-    -> [unsignedTx]
-migrationPlanToUnsignedTxs s plan rewardWithdrawal outputAddressesToCycle =
-    fst $ L.foldr
+    -> [(SelectionResult noChange, Withdrawal)]
+migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
+    = fst
+    $ L.foldr
         (accumulate)
         ([], NE.toList $ NE.cycle outputAddressesToCycle)
         (view #selections plan)
   where
     accumulate
-        :: Migration.Selection inputUnqualified
-        -> ([unsignedTx], [Address])
-        -> ([unsignedTx], [Address])
-    accumulate selection (unsignedTxs, outputAddresses) =
-        (unsignedTx : unsignedTxs, outputAddressesRemaining)
+        :: Migration.Selection (TxIn, TxOut)
+        -> ([(SelectionResult noChange, Withdrawal)], [Address])
+        -> ([(SelectionResult noChange, Withdrawal)], [Address])
+    accumulate migrationSelection (selectionWithdrawals, outputAddresses) =
+        ( (selection, withdrawal) : selectionWithdrawals
+        , outputAddressesRemaining
+        )
       where
-        unsignedTx = s
-            -- Here we take a shortcut by reusing the functionality provided
-            -- for turning an ordinary coin selection into an unsigned tx:
-            & selectionToUnsignedTx selectionRewardWithdrawal ordinarySelection
-            -- Assert that the unsigned transaction does not have any change:
-            & voidChange
-          where
-            ordinarySelection = SelectionResult
-                { inputsSelected = view #inputIds selection
-                , outputsCovered = unsignedOutputs
-                , utxoRemaining = UTxOIndex.empty
-                , extraCoinSource = Nothing
-                , changeGenerated = []
-                }
+        selection = SelectionResult
+            { inputsSelected = view #inputIds migrationSelection
+            , outputsCovered
+            , utxoRemaining = UTxOIndex.empty
+            , extraCoinSource = Nothing
+            , changeGenerated = []
+            }
 
-            voidChange
-                :: UnsignedTx input output anyChange withdrawal
-                -> UnsignedTx input output  noChange withdrawal
-            voidChange tx = tx {unsignedChange = []}
+        withdrawal =
+            if (view #rewardWithdrawal migrationSelection) > Coin 0
+            then rewardWithdrawal
+            else NoWithdrawal
 
-            selectionRewardWithdrawal =
-                if (view #rewardWithdrawal selection) > Coin 0
-                then rewardWithdrawal
-                else NoWithdrawal
-
-            unsignedOutputs :: [TxOut]
-            unsignedOutputs = zipWith TxOut
-                (outputAddresses)
-                (NE.toList $ view #outputs selection)
+        outputsCovered :: [TxOut]
+        outputsCovered = zipWith TxOut
+            (outputAddresses)
+            (NE.toList $ view #outputs migrationSelection)
 
         outputAddressesRemaining :: [Address]
         outputAddressesRemaining =
-            drop (length $ view #outputs selection) outputAddresses
+            drop (length $ view #outputs migrationSelection) outputAddresses
 
 {-------------------------------------------------------------------------------
                                   Delegation
