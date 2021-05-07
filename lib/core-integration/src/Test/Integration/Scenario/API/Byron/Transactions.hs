@@ -476,16 +476,23 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 , expectListSize 0
                 ]
 
-    it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet"
-        $ \ctx -> runResourceT @IO $ forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> do
-            w <- fixtureByronWallet ctx
-            let link = Link.listTransactions @'Byron w
-            r <- request @([ApiTransaction n]) ctx link Default Empty
-            verify r
-                [ expectResponseCode HTTP.status200
-                , expectListSize 10
-                ]
+    it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet" $ \ctx -> runResourceT @IO $ do
+        w <- fixtureRandomWallet ctx
+        let link = Link.listTransactions @'Byron w
+        r <- request @([ApiTransaction n]) ctx link Default Empty
+        verify r
+            [ expectResponseCode HTTP.status200
+            , expectListSize 10
+            ]
+
+    it "BYRON_TX_LIST_01 - Can list transactions on Icarus Wallet" $ \ctx -> runResourceT @IO $ do
+        w <- fixtureIcarusWallet ctx
+        let link = Link.listTransactions @'Byron w
+        r <- request @([ApiTransaction n]) ctx link Default Empty
+        verify r
+            [ expectResponseCode HTTP.status200
+            , expectListSize 1 -- Now funded through a tx in the cluster setup
+            ]
 
     describe "BYRON_TX_LIST_01 - Faulty start, end, order values" $ do
         let orderErr = "Please specify one of the following values:\
