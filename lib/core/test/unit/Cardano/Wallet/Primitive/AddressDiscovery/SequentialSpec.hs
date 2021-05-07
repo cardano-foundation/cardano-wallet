@@ -165,22 +165,37 @@ spec = do
             , Style (Proxy @'UtxoInternal)
             ]
 
-    let keys =
-            [ Key (Proxy @ShelleyKey)
-            , Key (Proxy @IcarusKey)
-            ]
+    parallel $ describe "AddressPool (Shelley)" $ do
+        forM_ styles $ \s@(Style proxyS) -> do
+            parallel $ describe ("ShelleyKey " <> show s) $ do
+                it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
+                    (checkCoverage (prop_poolGrowWithinGap @_ @ShelleyKey proxyS))
+                it "'addresses' preserves the address order"
+                    (checkCoverage (prop_roundtripMkAddressPool @_ @ShelleyKey proxyS))
+                it "An AddressPool always contains at least 'gap pool' addresses"
+                    (property (prop_poolAtLeastGapAddresses @_ @ShelleyKey proxyS))
+                it "Our addresses are eventually discovered"
+                    (property (prop_poolEventuallyDiscoverOurs @_ @ShelleyKey proxyS))
+                it "Known addresses are still in a shrunk pool"
+                    (property (prop_shrinkPreserveKnown @_ @ShelleyKey proxyS))
+                it "Last address from a shrunk is the last known"
+                    (property (prop_shrinkMaxIndex @_ @ShelleyKey proxyS))
 
     parallel $ describe "AddressPool (Shelley)" $ do
-        forM_ styles $ \s@(Style proxyS) -> forM_ keys $ \k@(Key proxyK) -> do
-            parallel $ describe (show k <> " " <> show s) $ do
+        forM_ styles $ \s@(Style proxyS) -> do
+            parallel $ describe ("IcarusKey " <> show s) $ do
                 it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-                    (checkCoverage (prop_poolGrowWithinGap (proxyS, proxyK)))
+                    (checkCoverage (prop_poolGrowWithinGap @_ @IcarusKey proxyS))
                 it "'addresses' preserves the address order"
-                    (checkCoverage (prop_roundtripMkAddressPool (proxyS, proxyK)))
+                    (checkCoverage (prop_roundtripMkAddressPool @_ @IcarusKey proxyS))
                 it "An AddressPool always contains at least 'gap pool' addresses"
-                    (property (prop_poolAtLeastGapAddresses (proxyS, proxyK)))
+                    (property (prop_poolAtLeastGapAddresses @_ @IcarusKey proxyS))
                 it "Our addresses are eventually discovered"
-                    (property (prop_poolEventuallyDiscoverOurs (proxyS, proxyK)))
+                    (property (prop_poolEventuallyDiscoverOurs @_ @IcarusKey proxyS))
+                it "Known addresses are still in a shrunk pool"
+                    (property (prop_shrinkPreserveKnown @_ @IcarusKey proxyS))
+                it "Last address from a shrunk is the last known"
+                    (property (prop_shrinkMaxIndex @_ @IcarusKey proxyS))
 
     parallel $ describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
@@ -289,7 +304,7 @@ prop_poolGrowWithinGap
         , AddressPoolTest k
         , GetPurpose k
         )
-    => (Proxy chain, Proxy k)
+    => Proxy chain
     -> (AddressPool chain k, Address)
     -> Property
 prop_poolGrowWithinGap _proxy (pool, addr) =
@@ -317,7 +332,7 @@ prop_roundtripMkAddressPool
         , AddressPoolTest k
         , GetPurpose k
         )
-    => (Proxy chain, Proxy k)
+    => Proxy chain
     -> AddressPool chain k
     -> Property
 prop_roundtripMkAddressPool _proxy pool =
@@ -346,7 +361,7 @@ prop_poolAtLeastGapAddresses
         , Typeable chain
         , GetPurpose k
         )
-    => (Proxy chain, Proxy k)
+    => Proxy chain
     -> AddressPool chain k
     -> Property
 prop_poolAtLeastGapAddresses _proxy pool =
@@ -365,7 +380,7 @@ prop_poolEventuallyDiscoverOurs
         , GetCtx chain
         , (k == SharedKey) ~ 'False
         )
-    => (Proxy chain, Proxy k)
+    => Proxy chain
     -> (AddressPoolGap, Address)
     -> Property
 prop_poolEventuallyDiscoverOurs _proxy (g, addr) =
@@ -543,6 +558,57 @@ prop_oursAreUsed s =
         (status' == Used .&&. addr === addr')
         & label (show status)
         & counterexample (show (ShowFmt addr') <> ": " <> show status')
+
+{-------------------------------------------------------------------------------
+                        Properties for shrinkPool
+-------------------------------------------------------------------------------}
+
+-- Make sure that, for any cut we take from an existing pool, the addresses
+-- from the cut are all necessarily in the pool.
+prop_shrinkPreserveKnown
+    :: forall (chain :: Role) k.
+        ( Typeable chain
+        , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , SoftDerivation k
+        , AddressPoolTest k
+        , GetPurpose k
+        )
+    => Proxy chain
+    -> Positive Int
+    -> AddressPool chain k
+    -> Property
+prop_shrinkPreserveKnown _proxy (Positive size) pool =
+    property
+        $ classify (length addrs' < length addrs) "pool is smaller"
+        $ all (`elem` addrs') cut
+  where
+    pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
+    addrs  = fst' <$> addresses liftAddress pool
+    addrs' = fst' <$> addresses liftAddress pool'
+    cut    = take size addrs
+
+-- There's no address after the address from the cut with the highest index
+prop_shrinkMaxIndex
+    :: forall (chain :: Role) k.
+        ( Typeable chain
+        , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , SoftDerivation k
+        , AddressPoolTest k
+        , GetPurpose k
+        )
+    => Proxy chain
+    -> Positive Int
+    -> AddressPool chain k
+    -> Property
+prop_shrinkMaxIndex _proxy (Positive size) pool =
+    fromIntegral size > getAddressPoolGap minBound ==> last cut === last addrs'
+  where
+    pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
+    addrs  = fst' <$> addresses liftAddress pool
+    addrs' = fst' <$> addresses liftAddress pool'
+    cut    = take size addrs
 
 {-------------------------------------------------------------------------------
                                  Helpers

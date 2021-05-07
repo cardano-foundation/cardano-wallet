@@ -209,7 +209,7 @@ instance Malformed (PathParam (ApiT Role)) where
         msgMalformed =
             "Unable to decode the given text value. Please specify \
             \one of the following values: utxo_external, utxo_internal, \
-            \mutable_account, multisig_script."
+            \mutable_account."
 
 instance Wellformed (PathParam (ApiT DerivationIndex)) where
     wellformed = PathParam <$>
@@ -1114,16 +1114,16 @@ instance Malformed (BodyParam ApiPostAccountKeyData) where
               , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyData(ApiPostAccountKeyData) failed, key 'extended' not found"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "extended": 123 }|]
-              , "Error in $.extended: expected Bool, but encountered Number"
+              , "Error in $.extended: parsing KeyFormat failed, expected Boolean, but encountered Number"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "extended": [] }|]
-              , "Error in $.extended: expected Bool, but encountered Array"
+              , "Error in $.extended: parsing KeyFormat failed, expected Boolean, but encountered Array"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "extended": 1.5 }|]
-              , "Error in $.extended: expected Bool, but encountered Number"
+              , "Error in $.extended: parsing KeyFormat failed, expected Boolean, but encountered Number"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase", "extended": "ok" }|]
-              , "Error in $.extended: expected Bool, but encountered String"
+              , "Error in $.extended: parsing KeyFormat failed, expected Boolean, but encountered String"
               )
             ]
 

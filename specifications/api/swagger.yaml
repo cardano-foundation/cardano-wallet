@@ -2691,7 +2691,6 @@ x-parametersRole: &parametersRole
     - utxo_external
     - utxo_internal
     - mutable_account
-    - multisig_script
 
 x-parametersDerivationSegment: &parametersDerivationSegment
   in: path

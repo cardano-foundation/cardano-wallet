@@ -359,7 +359,7 @@ RSpec.describe CardanoWallet::Shelley do
 
     it "Get signed metadata" do
       wid = create_shelley_wallet
-      ["utxo_internal", "utxo_external", "mutable_account", "multisig_script"].each do |role|
+      ["utxo_internal", "utxo_external", "mutable_account"].each do |role|
         id = [*0..100000].sample
         res = SHELLEY.keys.sign_metadata(wid,
                                         role,
@@ -373,7 +373,7 @@ RSpec.describe CardanoWallet::Shelley do
 
     it "Get public key" do
       wid = create_shelley_wallet
-      ["utxo_internal", "utxo_external", "mutable_account", "multisig_script"].each do |role|
+      ["utxo_internal", "utxo_external", "mutable_account"].each do |role|
         id = [*0..100000].sample
         res = SHELLEY.keys.get_public_key(wid, role, id)
         puts "#{wid}/#{role}/#{id}"

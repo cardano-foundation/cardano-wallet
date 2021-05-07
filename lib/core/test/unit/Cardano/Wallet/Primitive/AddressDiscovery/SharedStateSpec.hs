@@ -34,8 +34,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , WalletKey (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( constructAddressFromIx, liftDelegationAddress, liftPaymentAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -144,10 +146,10 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
     ourAddrs = case dTemplate' of
         Nothing ->
             map pair' $
-            addresses (liftPaymentAddress @n @ShelleyKey) $ getPool sharedState'
+            addresses (liftPaymentAddress @n @SharedKey) $ getPool sharedState'
         Just dT ->
             map pair' $
-            addresses (liftDelegationAddress @n @ShelleyKey ix dT) $ getPool sharedState'
+            addresses (liftDelegationAddress @n @SharedKey ix dT) $ getPool sharedState'
 
 prop_addressDoubleDiscovery
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -168,7 +170,7 @@ prop_addressDiscoveryImpossibleFromOtherAccXPub
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
     -> Index 'Soft 'ScriptK
-    -> ShelleyKey 'AccountK XPub
+    -> SharedKey 'AccountK XPub
     -> Property
 prop_addressDiscoveryImpossibleFromOtherAccXPub (CatalystSharedState _ accIx' pTemplate' dTemplate' g) keyIx accXPub' =
     preconditions keyIx g dTemplate' ==>
@@ -184,7 +186,7 @@ prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
     -> Index 'Soft 'ScriptK
-    -> (ShelleyKey 'RootK XPrv, Index 'Hardened 'AccountK, Index 'Hardened 'AccountK)
+    -> (SharedKey 'RootK XPrv, Index 'Hardened 'AccountK, Index 'Hardened 'AccountK)
     -> Property
 prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv (CatalystSharedState _ _ pTemplate' dTemplate' g) keyIx (rootXPrv, accIx', accIx'') =
     preconditions keyIx g dTemplate' ==>
@@ -232,7 +234,7 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
     mapOfConsecutiveUnused =
         L.tail $
         L.dropWhile (\(_addr, state,_path) -> state /= Used) $
-        addresses (liftPaymentAddress @n @ShelleyKey) $ getPool sharedState'
+        addresses (liftPaymentAddress @n @SharedKey) $ getPool sharedState'
 
 preconditions
     :: Index 'Soft 'ScriptK
@@ -252,7 +254,7 @@ threshold g =
     getAddressPoolGap g
 
 data CatalystSharedState = CatalystSharedState
-    { accXPub :: ShelleyKey 'AccountK XPub
+    { accXPub :: SharedKey 'AccountK XPub
     , accIx :: Index 'Hardened 'AccountK
     , pTemplate :: ScriptTemplate
     , dTemplate :: Maybe ScriptTemplate
@@ -281,7 +283,7 @@ instance Arbitrary CatalystSharedState where
         dTemplate' <- elements [Nothing, Just pTemplate']
         CatalystSharedState accXPub' accIx' pTemplate' dTemplate'  <$> arbitrary
 
-instance Arbitrary (ShelleyKey 'AccountK XPub) where
+instance Arbitrary (SharedKey 'AccountK XPub) where
     arbitrary = do
         accIx' <- arbitrary
         snd <$> genKeys accIx'
@@ -292,7 +294,7 @@ newtype OneCosignerScript = OneCosignerScript
 instance Arbitrary OneCosignerScript where
     arbitrary = OneCosignerScript <$> genScript [Cosigner 0]
 
-instance Arbitrary (ShelleyKey 'RootK XPrv) where
+instance Arbitrary (SharedKey 'RootK XPrv) where
     arbitrary = do
         accIx' <- arbitrary
         fst <$> genKeys accIx'
@@ -302,7 +304,7 @@ instance Show XPrv where
 
 genKeys
     :: Index 'Hardened 'AccountK
-    -> Gen (ShelleyKey 'RootK XPrv, ShelleyKey 'AccountK XPub)
+    -> Gen (SharedKey 'RootK XPrv, SharedKey 'AccountK XPub)
 genKeys accIx' = do
     let mw = someDummyMnemonic (Proxy @12)
     let rootXPrv = unsafeGenerateKeyFromSeed (mw, Nothing) mempty
