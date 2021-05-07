@@ -28,6 +28,7 @@ import Cardano.Wallet.Api.Types
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
+    , KeyFormat (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Passphrase (..), Role (..), hex )
@@ -153,7 +154,7 @@ spec = describe "SHARED_WALLETS" $ do
 
         verify rKey
             [ expectResponseCode HTTP.status202
-            , expectField #extended (`shouldBe` True)
+            , expectField #extended (`shouldBe` Extended)
             ]
         let (ApiAccountKeyShared bytes _) = getFromResponse id rKey
         T.decodeUtf8 (hex bytes) `Expectations.shouldBe` accXPubDerived
@@ -206,7 +207,7 @@ spec = describe "SHARED_WALLETS" $ do
 
         verify rKey
             [ expectResponseCode HTTP.status202
-            , expectField #extended (`shouldBe` True)
+            , expectField #extended (`shouldBe` Extended)
             ]
         let (ApiAccountKeyShared bytes _) = getFromResponse id rKey
         T.decodeUtf8 (hex bytes) `Expectations.shouldBe` accXPubDerived

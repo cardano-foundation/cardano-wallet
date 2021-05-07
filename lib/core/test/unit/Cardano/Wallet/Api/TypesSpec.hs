@@ -1737,7 +1737,7 @@ instance Arbitrary ApiVerificationKeyShared where
           hashedGen = do
               payload' <- fmap B8.pack (replicateM 28 arbitrary)
               role' <- elements [UtxoExternal, MutableAccount]
-              pure $ ApiVerificationKeyShared (payload', role') HashingApplied
+              pure $ ApiVerificationKeyShared (payload', role') WithHashing
 
 instance ToSchema ApiVerificationKeyShared where
     declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKeyShared"

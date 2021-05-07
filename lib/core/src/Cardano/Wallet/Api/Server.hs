@@ -244,6 +244,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
+    , KeyFormat (..)
     , KnownDiscovery (..)
     , MinWithdrawal (..)
     , PostExternalTransactionData (..)
@@ -2223,10 +2224,10 @@ derivePublicKeyShared ctx (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
   where
     hashing = case hashed of
         Nothing -> WithoutHashing
-        Just v -> if v then HashingApplied else WithoutHashing
+        Just v -> if v then WithHashing else WithoutHashing
     computePayload k' = case hashing of
         WithoutHashing -> xpubPublicKey $ getRawKey k'
-        HashingApplied -> blake2b224 $ xpubPublicKey $ getRawKey k'
+        WithHashing -> blake2b224 $ xpubPublicKey $ getRawKey k'
 
 postAccountPublicKeyShelley
     :: forall ctx s k n.
@@ -2243,8 +2244,12 @@ postAccountPublicKeyShelley
 postAccountPublicKeyShelley ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.readPublicAccountKey @_ @s @k wrk wid pwd ix
-        let toBytes = if extd then xpubToBytes else xpubPublicKey
-        pure $ ApiAccountKey (toBytes $ getRawKey k) extd
+        pure $ ApiAccountKey (xPubtoBytes extd $ getRawKey k) extd
+
+xPubtoBytes :: KeyFormat -> XPub -> ByteString
+xPubtoBytes = \case
+    Extended -> xpubToBytes
+    NonExtended -> xpubPublicKey
 
 postAccountPublicKeyShared
     :: forall ctx s k n.
@@ -2261,8 +2266,7 @@ postAccountPublicKeyShared
 postAccountPublicKeyShared ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.readPublicAccountKey @_ @s @k wrk wid pwd ix
-        let toBytes = if extd then xpubToBytes else xpubPublicKey
-        pure $ ApiAccountKeyShared (toBytes $ getRawKey k) extd
+        pure $ ApiAccountKeyShared (xPubtoBytes extd $ getRawKey k) extd
 
 {-------------------------------------------------------------------------------
                                   Helpers

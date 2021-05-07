@@ -131,6 +131,7 @@ module Cardano.Wallet.Api.Types
     , VerificationKeyHashing (..)
     , ApiAccountKey (..)
     , ApiAccountKeyShared (..)
+    , KeyFormat (..)
     , ApiPostAccountKeyData (..)
 
     -- * API Types (Byron)
@@ -295,6 +296,7 @@ import Data.Aeson.Types
     , prependFailure
     , sumEncoding
     , tagSingleConstructors
+    , withBool
     , withObject
     , withText
     , (.!=)
@@ -1063,7 +1065,7 @@ newtype ApiVerificationKeyShelley = ApiVerificationKeyShelley
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data VerificationKeyHashing = HashingApplied | WithoutHashing
+data VerificationKeyHashing = WithHashing | WithoutHashing
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -1073,21 +1075,25 @@ data ApiVerificationKeyShared = ApiVerificationKeyShared
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data KeyFormat = Extended | NonExtended
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data ApiPostAccountKeyData = ApiPostAccountKeyData
     { passphrase :: ApiT (Passphrase "raw")
-    , extended :: Bool
+    , extended :: KeyFormat
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
 data ApiAccountKey = ApiAccountKey
     { getApiAccountKey :: ByteString
-    , extended :: Bool
+    , extended :: KeyFormat
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
 data ApiAccountKeyShared = ApiAccountKeyShared
     { getApiAccountKey :: ByteString
-    , extended :: Bool
+    , extended :: KeyFormat
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -1542,10 +1548,10 @@ instance ToJSON ApiVerificationKeyShared where
       where
         hrp = case role_ of
             UtxoExternal -> case hashed of
-                HashingApplied -> [humanReadablePart|addr_shared_vkh|]
+                WithHashing -> [humanReadablePart|addr_shared_vkh|]
                 WithoutHashing -> [humanReadablePart|addr_shared_vk|]
             MutableAccount -> case hashed of
-                HashingApplied -> [humanReadablePart|stake_shared_vkh|]
+                WithHashing -> [humanReadablePart|stake_shared_vkh|]
                 WithoutHashing -> [humanReadablePart|stake_shared_vk|]
             _ -> error "only role=0,2 is supported for ApiVerificationKeyShared"
 
@@ -1555,26 +1561,27 @@ instance FromJSON ApiVerificationKeyShared where
         (role, hashing) <- parseRoleHashing hrp
         payload <- case hashing of
             WithoutHashing -> parsePubVer bytes
-            HashingApplied -> parsePubVerHash bytes
+            WithHashing -> parsePubVerHash bytes
         pure $ ApiVerificationKeyShared (payload,role) hashing
       where
         parseRoleHashing = \case
             hrp | hrp == [humanReadablePart|addr_shared_vk|] -> pure (UtxoExternal, WithoutHashing)
             hrp | hrp == [humanReadablePart|stake_shared_vk|] -> pure (MutableAccount, WithoutHashing)
-            hrp | hrp == [humanReadablePart|addr_shared_vkh|] -> pure (UtxoExternal, HashingApplied)
-            hrp | hrp == [humanReadablePart|stake_shared_vkh|] -> pure (MutableAccount, HashingApplied)
+            hrp | hrp == [humanReadablePart|addr_shared_vkh|] -> pure (UtxoExternal, WithHashing)
+            hrp | hrp == [humanReadablePart|stake_shared_vkh|] -> pure (MutableAccount, WithHashing)
             _ -> fail errRole
           where
             errRole =
                 "Unrecognized human-readable part. Expected one of:\
-                \ \"addr_shared_vk\" or \"stake_shared_vk\"."
+                \ \"addr_shared_vkh\", \"stake_shared_vkh\",\"addr_shared_vk\" or \"stake_shared_vk\"."
 
 instance ToJSON ApiAccountKey where
     toJSON (ApiAccountKey pub extd) =
         toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
       where
-        hrp = if extd then [humanReadablePart|acct_xvk|]
-            else [humanReadablePart|acct_vk|]
+        hrp = case extd of
+            Extended -> [humanReadablePart|acct_xvk|]
+            NonExtended -> [humanReadablePart|acct_vk|]
 
 instance FromJSON ApiAccountKey where
     parseJSON value = do
@@ -1583,36 +1590,39 @@ instance FromJSON ApiAccountKey where
         flip ApiAccountKey extended' <$> parsePub bytes extended'
       where
         parseHrp = \case
-            hrp | hrp == [humanReadablePart|acct_xvk|] -> pure True
-            hrp | hrp == [humanReadablePart|acct_vk|] -> pure False
+            hrp | hrp == [humanReadablePart|acct_xvk|] -> pure Extended
+            hrp | hrp == [humanReadablePart|acct_vk|] -> pure NonExtended
             _ -> fail errHrp
           where
               errHrp =
                   "Unrecognized human-readable part. Expected one of:\
                   \ \"acct_xvk\" or \"acct_vk\"."
 
-parsePubErr :: IsString p => Bool -> p
-parsePubErr extd =
-    if extd then
+parsePubErr :: IsString p => KeyFormat -> p
+parsePubErr = \case
+    Extended ->
         "Not a valid Ed25519 extended public key. Must be 64 bytes, with chain code"
-    else
+    NonExtended ->
         "Not a valid Ed25519 normal public key. Must be 32 bytes, without chain code"
 
-parsePub :: MonadFail f => ByteString -> Bool -> f ByteString
+parsePub :: MonadFail f => ByteString -> KeyFormat -> f ByteString
 parsePub bytes extd
     | BS.length bytes == bytesExpectedLength =
           pure bytes
     | otherwise =
           fail $ parsePubErr extd
   where
-    bytesExpectedLength = if extd then 64 else 32
+    bytesExpectedLength = case extd of
+        Extended -> 64
+        NonExtended -> 32
 
 instance ToJSON ApiAccountKeyShared where
     toJSON (ApiAccountKeyShared pub extd) =
         toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
       where
-        hrp = if extd then [humanReadablePart|acct_shared_xvk|]
-            else [humanReadablePart|acct_shared_vk|]
+        hrp = case extd of
+            Extended -> [humanReadablePart|acct_shared_xvk|]
+            NonExtended -> [humanReadablePart|acct_shared_vk|]
 
 instance FromJSON ApiAccountKeyShared where
     parseJSON value = do
@@ -1621,13 +1631,21 @@ instance FromJSON ApiAccountKeyShared where
         flip ApiAccountKeyShared extended' <$> parsePub bytes extended'
       where
         parseHrp = \case
-            hrp | hrp == [humanReadablePart|acct_shared_xvk|] -> pure True
-            hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure False
+            hrp | hrp == [humanReadablePart|acct_shared_xvk|] -> pure Extended
+            hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure NonExtended
             _ -> fail errHrp
           where
               errHrp =
                   "Unrecognized human-readable part. Expected one of:\
                   \ \"acct_shared_xvk\" or \"acct_shared_vk\"."
+
+instance FromJSON KeyFormat where
+    parseJSON = withBool "KeyFormat" $ \case
+        True -> pure Extended
+        False -> pure NonExtended
+instance ToJSON KeyFormat where
+    toJSON Extended = toJSON True
+    toJSON NonExtended = toJSON False
 
 instance FromJSON ApiPostAccountKeyData where
     parseJSON = genericParseJSON defaultRecordTypeOptions

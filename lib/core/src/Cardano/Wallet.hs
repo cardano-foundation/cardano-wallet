@@ -2140,6 +2140,8 @@ toAccXPubShelley
     :: SeqState n k
     -> k 'AccountK XPub
 toAccXPubShelley s =
+    -- NOTE: Alternatively, we could use 'internalPool', they share the same
+    --       account public key.
     let (Seq.ParentContextUtxoExternal acctK) = Seq.context $ Seq.externalPool s
     in acctK
 
