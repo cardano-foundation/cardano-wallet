@@ -113,7 +113,6 @@ import Cardano.Wallet.Api.Server
     , signMetadata
     , withLegacyLayer
     , withLegacyLayer'
-    , withMultisigLayer
     )
 import Cardano.Wallet.Api.Types
     ( AnyAddress (..)
@@ -235,8 +234,8 @@ server byron icarus shelley multisig spl ntp =
     :<|> proxy
     :<|> settingS
     :<|> smash
-    :<|> sharedWallets
-    :<|> sharedWalletKeys
+    :<|> sharedWallets multisig
+    :<|> sharedWalletKeys multisig
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -496,30 +495,22 @@ server byron icarus shelley multisig spl ntp =
                 FetchSMASH smashServer -> getHealth smashServer
                 _ -> pure (ApiHealthCheck NoSmashConfigured)
 
-    sharedWallets :: Server SharedWallets
-    sharedWallets =
-             postSharedWallet @_ @_ @SharedKey multisig Shared.generateKeyFromSeed SharedKey
-        :<|> (\wid -> withMultisigLayer wid
-                (multisig, fst <$> getWallet multisig mkSharedWallet wid)
-             )
-        :<|> (\wid p -> withMultisigLayer wid
-                (multisig, patchSharedWallet @_ @_ @SharedKey multisig SharedKey Payment wid p)
-             )
-        :<|> (\wid p -> withMultisigLayer wid
-                (multisig, patchSharedWallet @_ @_ @SharedKey multisig SharedKey Delegation wid p)
-             )
-        :<|> (\wid -> withMultisigLayer wid
-                (multisig, deleteWallet multisig wid)
-             )
+    sharedWallets
+        :: ApiLayer (SharedState n SharedKey) SharedKey
+        -> Server SharedWallets
+    sharedWallets apilayer =
+             (postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey)
+        :<|> (fmap fst . getWallet apilayer mkSharedWallet)
+        :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment)
+        :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation)
+        :<|> (deleteWallet apilayer)
 
-    sharedWalletKeys :: Server SharedWalletKeys
-    sharedWalletKeys =
-             (\wid r ix h -> withMultisigLayer wid
-                 (multisig, derivePublicKeyShared multisig wid r ix h)
-             )
-        :<|> (\wid ix acc -> withMultisigLayer wid
-                 (multisig, postAccountPublicKeyShared multisig wid ix acc)
-             )
+    sharedWalletKeys
+        :: ApiLayer (SharedState n SharedKey) SharedKey
+        -> Server SharedWalletKeys
+    sharedWalletKeys apilayer =
+             (derivePublicKeyShared apilayer)
+        :<|> (postAccountPublicKeyShared apilayer)
 
 postAnyAddress
     :: NetworkId

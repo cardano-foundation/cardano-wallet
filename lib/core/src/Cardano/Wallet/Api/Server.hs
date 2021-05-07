@@ -97,7 +97,6 @@ module Cardano.Wallet.Api.Server
     , mkLegacyWallet
     , withLegacyLayer
     , withLegacyLayer'
-    , withMultisigLayer
     , rndStateChange
     , withWorkerCtx
     , getCurrentEpoch
@@ -294,8 +293,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
-    ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -1288,35 +1285,6 @@ withLegacyLayer' (ApiT wid)
         onMissing
         onNotResponding
         (const withByron)
-
-withMultisigLayer
-    :: forall shared n a.
-        ( shared ~ ApiLayer (SharedState n SharedKey) SharedKey
-        )
-    => ApiT WalletId
-    -> (shared, Handler a)
-    -> Handler a
-withMultisigLayer (ApiT wid) (shared, withShared) =
-    withMultisigLayer' (ApiT wid) (shared, withShared, liftE)
-
-withMultisigLayer'
-    :: forall shared n a.
-        ( shared ~ ApiLayer (SharedState n SharedKey) SharedKey
-        )
-    => ApiT WalletId
-    -> (shared, Handler a, ErrWalletNotResponding -> Handler a)
-    -> Handler a
-withMultisigLayer' (ApiT wid) (shared, withShared, deadShared) =
-    tryShared liftE deadShared
-  where
-    tryShared onMissing onNotResponding = withWorkerCtx @_
-        @(SharedState n SharedKey)
-        @SharedKey
-        shared
-        wid
-        onMissing
-        onNotResponding
-        (const withShared)
 
 {-------------------------------------------------------------------------------
                                    Wallets
