@@ -242,7 +242,6 @@ import Servant.API
     , OctetStream
     , QueryFlag
     , QueryParam
-    , QueryParam
     , ReqBody
     )
 import Servant.API.Verbs

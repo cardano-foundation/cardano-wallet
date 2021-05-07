@@ -1416,10 +1416,9 @@ deleteSharedWallet
     => Context
     -> ApiSharedWallet
     -> m (HTTP.Status, Either RequestException Value)
-deleteSharedWallet ctx wal =
-    case wal of
-        ApiSharedWallet (Left wal') -> r wal'
-        ApiSharedWallet (Right wal') -> r wal'
+deleteSharedWallet ctx = \case
+      ApiSharedWallet (Left wal') -> r wal'
+      ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException Value)
       r w = request @Aeson.Value ctx (Link.deleteSharedWallet w) Default Empty
@@ -1432,10 +1431,9 @@ getSharedWallet
     => Context
     -> ApiSharedWallet
     -> m (HTTP.Status, Either RequestException ApiSharedWallet)
-getSharedWallet ctx wal =
-    case wal of
-        ApiSharedWallet (Left wal') -> r wal'
-        ApiSharedWallet (Right wal') -> r wal'
+getSharedWallet ctx = \case
+    ApiSharedWallet (Left wal') -> r wal'
+    ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiSharedWallet)
       r w = request @ApiSharedWallet ctx (Link.getSharedWallet w) Default Empty
