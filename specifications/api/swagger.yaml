@@ -1117,8 +1117,10 @@ x-transactionMint: &transactionMint
 x-derivationSegment: &derivationSegment
   description: |
     An individual segment within a derivation path.
-    Indexes without `H` suffix are called `Soft`.
-    Indexes with `H` suffix are called `Hardened`.
+
+    The `H` suffix indicates a _Hardened_ child private key, which
+    means that children of this key cannot be derived from the public
+    key. Indices without a `H` suffix are called _Soft_.
   type: string
   example: 1852H
 
@@ -4491,7 +4493,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
         Retrieve account public key from the wallet.
 
-        <b>Note:</b> Only `Hard` indexes are supported by this endpoint.
+        <b>Note:</b> Only _Hardened_ indexes are supported by this endpoint.
       parameters:
         - *parametersWalletId
         - *parametersDerivationSegment
@@ -5318,7 +5320,10 @@ paths:
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
 
-        Create a shared wallet from an account public key, its index and script templates.
+        Create a shared wallet from an account public key and script
+        template index.
+
+        **TODO:** ADP-866 is it also restored? If not, when?
       requestBody:
         required: true
         content:
@@ -5333,6 +5338,8 @@ paths:
       summary: Get
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+
+        **TODO:** ADP-866 document this endpoint.
       parameters:
         - *parametersWalletId
       responses: *responsesGetSharedWallet
@@ -5354,6 +5361,7 @@ paths:
       summary: Update Payment
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+        **TODO:** ADP-866 document and retitle this endpoint.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -5370,6 +5378,8 @@ paths:
       summary: Update Delegation
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+
+        **TODO:** ADP-866 document and retitle this endpoint.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -5409,7 +5419,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
         Retrieve account public key from the shared wallet.
 
-        <b>Note:</b> Only `Hard` indexes are supported by this endpoint.
+        <b>Note:</b> Only _Hardened_ indexes are supported by this endpoint.
       parameters:
         - *parametersWalletId
         - *parametersDerivationSegment
