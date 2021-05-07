@@ -293,6 +293,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -467,7 +469,7 @@ import Data.Text.Class
 import Data.Time
     ( UTCTime )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( (:~:) (..), type (==), testEquality )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -678,6 +680,7 @@ postWallet
         , IsOurs s RewardAccount
         , Typeable s
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -705,6 +708,7 @@ postShelleyWallet
         , IsOurs s RewardAccount
         , Typeable s
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -738,6 +742,7 @@ postAccountWallet
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => ctx
     -> MkApiWallet ctx s w
@@ -854,6 +859,7 @@ postSharedWallet
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , Typeable n
+        , k ~ SharedKey
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -878,6 +884,7 @@ postSharedWalletFromRootXPrv
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , Typeable n
+        , k ~ SharedKey
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -917,6 +924,7 @@ postSharedWalletFromAccountXPub
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , Typeable n
+        , k ~ SharedKey
         )
     => ctx
     -> (XPub -> k 'AccountK XPub)
@@ -979,7 +987,7 @@ mkSharedWallet ctx wid cp meta pending progress = case getState cp of
             cp
         let available = availableBalance pending cp
         let total = totalBalance pending reward cp
-        let (ParentContextMultisigScript _ pTemplate dTemplateM) = context pool
+        let (ParentContextShared _ pTemplate dTemplateM) = context pool
         pure $ ApiSharedWallet $ Right $ ApiActiveSharedWallet
             { id = ApiT wid
             , name = ApiT $ meta ^. #name
@@ -1013,6 +1021,7 @@ patchSharedWallet
         , WalletKey k
         , HasDBFactory s k ctx
         , Typeable n
+        , k ~ SharedKey
         )
     => ctx
     -> (XPub -> k 'AccountK XPub)

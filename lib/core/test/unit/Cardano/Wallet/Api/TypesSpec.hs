@@ -138,6 +138,7 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress (..)
     , HealthCheckSMASH (..)
     , Iso8601Time (..)
+    , KeyFormat (..)
     , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
@@ -1976,19 +1977,23 @@ instance Arbitrary TokenFingerprint where
         pure $ mkTokenFingerprint policy aName
     shrink _ = []
 
+instance Arbitrary KeyFormat where
+    arbitrary =
+        oneof [pure NonExtended, pure Extended]
+
 instance Arbitrary ApiAccountKey where
     arbitrary = do
         xpubKey <- BS.pack <$> replicateM 64 arbitrary
         pubKey <- BS.pack <$> replicateM 32 arbitrary
-        oneof [ pure $ ApiAccountKey pubKey False
-              , pure $ ApiAccountKey xpubKey True ]
+        oneof [ pure $ ApiAccountKey pubKey NonExtended
+              , pure $ ApiAccountKey xpubKey Extended ]
 
 instance Arbitrary ApiAccountKeyShared where
     arbitrary = do
         xpubKey <- BS.pack <$> replicateM 64 arbitrary
         pubKey <- BS.pack <$> replicateM 32 arbitrary
-        oneof [ pure $ ApiAccountKeyShared pubKey False
-              , pure $ ApiAccountKeyShared xpubKey True ]
+        oneof [ pure $ ApiAccountKeyShared pubKey NonExtended
+              , pure $ ApiAccountKeyShared xpubKey Extended ]
 
 instance Arbitrary Natural where
     shrink = shrinkIntegral

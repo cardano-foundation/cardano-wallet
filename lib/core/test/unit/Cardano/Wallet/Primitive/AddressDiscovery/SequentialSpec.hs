@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -39,11 +40,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
+    , GetPurpose
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -53,7 +57,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap (..)
     , DerivationPrefix (..)
-    , GetPurpose
     , MkAddressPoolGapError (..)
     , ParentContext (..)
     , SeqState (..)
@@ -88,6 +91,8 @@ import Control.Monad.Trans.State.Strict
     ( execState, state )
 import Data.Function
     ( (&) )
+import Data.Kind
+    ( Type )
 import Data.List
     ( elemIndex, (\\) )
 import Data.List.NonEmpty
@@ -98,6 +103,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
+import Data.Type.Equality
+    ( type (==) )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
@@ -321,16 +328,16 @@ prop_roundtripMkAddressPool _proxy pool =
     ) === pool
 
 class GetCtx (chain :: Role) where
-    getCtxFromAccXPub :: k 'AccountK XPub -> ParentContext chain k
+    getCtxFromAccXPub
+        :: (k == SharedKey) ~ 'False
+        => k 'AccountK XPub
+        -> ParentContext chain k
 
 instance GetCtx 'UtxoExternal where
-    getCtxFromAccXPub accXPub = ParentContextUtxoExternal accXPub
+    getCtxFromAccXPub accXPub = ParentContextUtxo accXPub
 
 instance GetCtx 'UtxoInternal where
-    getCtxFromAccXPub accXPub = ParentContextUtxoInternal accXPub
-
-instance GetCtx 'MultisigScript where
-    getCtxFromAccXPub _ = error "no support for MultisigScript"
+    getCtxFromAccXPub accXPub = ParentContextUtxo accXPub
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
@@ -349,13 +356,14 @@ prop_poolAtLeastGapAddresses _proxy pool =
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
-    :: forall (chain :: Role) k.
+    :: forall (chain :: Role) (k :: Depth -> Type -> Type).
         ( Typeable chain
         , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
         , GetCtx chain
+        , (k == SharedKey) ~ 'False
         )
     => (Proxy chain, Proxy k)
     -> (AddressPoolGap, Address)
@@ -656,6 +664,7 @@ instance
     , AddressPoolTest k
     , GetCtx chain
     , GetPurpose k
+    , (k == SharedKey) ~ 'False
     ) => Arbitrary (AddressPool chain k) where
     shrink pool =
         let

@@ -14,6 +14,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeInType #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -104,7 +105,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
-    , GetPurpose
+    , GetPurpose (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -151,7 +152,7 @@ import Data.Text.Class
 import Data.Text.Read
     ( decimal )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( (:~:) (..), type (==), testEquality )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -246,12 +247,12 @@ defaultAddressPoolGap =
 
 data ParentContext (chain :: Role) (key :: Depth -> Type -> Type) where
     ParentContextUtxo
-        :: forall chain key. ((key ~ 'SharedKey) ~ 'False)
+        :: ((key == SharedKey) ~ 'False)
         => key 'AccountK XPub
         -> ParentContext chain key
 
     ParentContextShared
-        :: forall chain key. (key ~ 'SharedKey)
+        :: (key ~ SharedKey)
         => key 'AccountK XPub
         -> ScriptTemplate
         -> Maybe ScriptTemplate
@@ -260,7 +261,7 @@ data ParentContext (chain :: Role) (key :: Depth -> Type -> Type) where
 deriving instance Eq   (key 'AccountK XPub) => Eq   (ParentContext chain key)
 deriving instance Show (key 'AccountK XPub) => Show (ParentContext chain key)
 
-instance (WalletKey key) => Buildable (ParentContext chain key) where
+instance (WalletKey key, Typeable chain) => Buildable (ParentContext chain key) where
     build (ParentContextUtxo acct) =
         mempty <> "(ParentContext for "<> ccF <> " " <> build (accXPubTxt (getRawKey acct)) <>")"
         where
@@ -691,6 +692,7 @@ mkSeqStateFromRootXPrv
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'PurposeK
@@ -703,9 +705,9 @@ mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g =
         rewardXPub =
             publicKey $ deriveRewardAccount pwd rootXPrv
         extPool =
-            mkAddressPool @n (ParentContextUtxoExternal $ publicKey accXPrv) g []
+            mkAddressPool @n (ParentContextUtxo $ publicKey accXPrv) g []
         intPool =
-            mkAddressPool @n (ParentContextUtxoInternal $ publicKey accXPrv) g []
+            mkAddressPool @n (ParentContextUtxo $ publicKey accXPrv) g []
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
@@ -718,6 +720,7 @@ mkSeqStateFromAccountXPub
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => k 'AccountK XPub
     -> Index 'Hardened 'PurposeK
@@ -730,9 +733,9 @@ mkSeqStateFromAccountXPub accXPub purpose g =
         rewardXPub =
             deriveAddressPublicKey accXPub MutableAccount minBound
         extPool =
-            mkAddressPool @n (ParentContextUtxoExternal accXPub) g []
+            mkAddressPool @n (ParentContextUtxo accXPub) g []
         intPool =
-            mkAddressPool @n (ParentContextUtxoInternal accXPub) g []
+            mkAddressPool @n (ParentContextUtxo accXPub) g []
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
@@ -925,6 +928,7 @@ mkSeqAnyState
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'PurposeK

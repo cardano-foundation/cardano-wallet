@@ -82,10 +82,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , mutableAccount
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
+    ( GetPurpose (..), IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
-    , GetPurpose (..)
     , SeqState (..)
     , coinTypeAda
     , purposeBIP44

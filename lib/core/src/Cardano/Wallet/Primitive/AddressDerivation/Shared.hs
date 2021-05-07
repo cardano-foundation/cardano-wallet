@@ -11,6 +11,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- |
 -- Copyright: © 2018-2021 IOHK
 -- License: Apache-2.0
@@ -39,7 +41,6 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
-    , GetPurpose (..)
     , HardDerivation (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
@@ -60,12 +61,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     , deriveAddressPublicKeyShelley
     , unsafeGenerateKeyFromSeedShelley
     )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( GetPurpose (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Control.DeepSeq
-    ( NFData (..) )
 import Control.Monad
     ( (<=<) )
 import Crypto.Hash
@@ -80,8 +81,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Proxy
     ( Proxy (..) )
-import GHC.Generics
-    ( Generic )
 
 import qualified Data.ByteString as BS
 

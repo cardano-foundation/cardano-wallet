@@ -243,6 +243,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -2142,7 +2144,7 @@ toAccXPubShelley
 toAccXPubShelley s =
     -- NOTE: Alternatively, we could use 'internalPool', they share the same
     --       account public key.
-    let (Seq.ParentContextUtxoExternal acctK) = Seq.context $ Seq.externalPool s
+    let (Seq.ParentContextUtxo acctK) = Seq.context $ Seq.externalPool s
     in acctK
 
 derivePublicKey
@@ -2225,6 +2227,7 @@ updateCosigner
         , Typeable n
         , WalletKey k
         , HasDBLayer IO s k ctx
+        , k ~ SharedKey
         )
     => ctx
     -> WalletId

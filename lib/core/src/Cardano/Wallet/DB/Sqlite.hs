@@ -12,6 +12,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -138,8 +139,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( GetPurpose )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -195,6 +200,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..), fromText )
+import Data.Type.Equality
+    ( type (==) )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -2413,14 +2420,15 @@ instance
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , PaymentAddress n k
     , SoftDerivation k
-    , Seq.GetPurpose k
+    , GetPurpose k
     , Typeable n
+    , (k == SharedKey) ~ 'False
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
         let (intPool, extPool) =
                 (Seq.internalPool st, Seq.externalPool st)
-        let (Seq.ParentContextUtxoInternal accXPubInternal) = Seq.context intPool
-        let (Seq.ParentContextUtxoExternal accXPubExternal) = Seq.context extPool
+        let (Seq.ParentContextUtxo accXPubInternal) = Seq.context intPool
+        let (Seq.ParentContextUtxo accXPubExternal) = Seq.context extPool
         let (accountXPub, _) = W.invariant
                 "Internal & External pool use different account public keys!"
                 ( accXPubExternal, accXPubInternal )
@@ -2447,13 +2455,13 @@ instance
         let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
-        intPool <- lift $ selectAddressPool @n wid sl iGap (Seq.ParentContextUtxoInternal accountXPub)
-        extPool <- lift $ selectAddressPool @n wid sl eGap (Seq.ParentContextUtxoExternal accountXPub)
+        intPool <- lift $ selectAddressPool @n wid sl iGap (Seq.ParentContextUtxo accountXPub)
+        extPool <- lift $ selectAddressPool @n wid sl eGap (Seq.ParentContextUtxo accountXPub)
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
 
 insertAddressPool
-    :: forall n k c. (PaymentAddress n k, Typeable c, Seq.GetPurpose k)
+    :: forall n k c. (PaymentAddress n k, Typeable c, GetPurpose k)
     => W.WalletId
     -> W.SlotNo
     -> Seq.AddressPool c k
@@ -2512,7 +2520,8 @@ instance
     , SoftDerivation k
     , WalletKey k
     , Typeable n
-    , Seq.GetPurpose k
+    , GetPurpose k
+    , k ~ SharedKey
     ) => PersistState (Shared.SharedState n k) where
     insertState (wid, sl) st = do
         case st of
@@ -2523,7 +2532,7 @@ instance
                     insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
 
             Shared.SharedState prefix (Shared.ReadyFields pool) -> do
-                let (Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM) =
+                let (Seq.ParentContextShared accXPub pTemplate dTemplateM) =
                         Seq.context pool
                 insertSharedState accXPub (Seq.gap pool) pTemplate dTemplateM prefix
                 insertCosigner (cosigners pTemplate) Payment
@@ -2567,19 +2576,19 @@ instance
                 , Shared.pendingSharedStateAddressPoolGap = g
                 }
             False -> do
-                let ctx = Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM
+                let ctx = Seq.ParentContextShared accXPub pTemplate dTemplateM
                 pool <- lift $ selectAddressPool @n wid sl g ctx
                 pure $ Shared.SharedState prefix (Shared.ReadyFields pool)
 
 insertAddressSharedPool
-    :: forall (n :: NetworkDiscriminant) k. (Seq.GetPurpose k, Typeable n)
+    :: forall (n :: NetworkDiscriminant) k. (GetPurpose k, Typeable n)
     => W.WalletId
     -> W.SlotNo
-    -> Seq.AddressPool 'MultisigScript k
+    -> Seq.AddressPool 'UtxoExternal k
     -> SqlPersistT IO ()
 insertAddressSharedPool wid sl pool =
     void $ dbChunked insertMany_
-    [ SeqStateAddress wid sl addr ix MultisigScript state
+    [ SeqStateAddress wid sl addr ix UtxoExternal state
     | (ix, (addr, state, _)) <- zip [0..] (Seq.addresses (Shared.liftPaymentAddress @n) pool)
     ]
 
@@ -2605,7 +2614,7 @@ multisigPoolAbsent wid sl = do
     entries <- selectList
         [ SeqStateAddressWalletId ==. wid
         , SeqStateAddressSlot ==. sl
-        , SeqStateAddressRole ==. Seq.role @'MultisigScript
+        , SeqStateAddressRole ==. Seq.role @'UtxoExternal
         ] []
     pure $ null entries
 

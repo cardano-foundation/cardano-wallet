@@ -103,6 +103,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), NetworkDiscriminant (..), PersistPrivateKey (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ()
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -306,6 +310,10 @@ zeroes :: ByteString
 zeroes = B8.replicate 256 '0'
 
 instance MockPrivKey (ShelleyKey 'RootK) where
+    fromMockPrivKey s = (k, Hash (B8.pack s))
+      where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
+
+instance MockPrivKey (SharedKey 'RootK) where
     fromMockPrivKey s = (k, Hash (B8.pack s))
       where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
 
@@ -937,7 +945,7 @@ instance (Show (key 'AccountK CC.XPub)) =>
     ) where
     toExpr = defaultExprViaShow
 
-instance ToExpr (SharedState 'Mainnet ShelleyKey) where
+instance ToExpr (SharedState 'Mainnet SharedKey) where
     toExpr = defaultExprViaShow
 
 instance (ToExpr s, ToExpr xprv) => ToExpr (WalletDatabase s xprv) where

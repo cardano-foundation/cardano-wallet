@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -88,15 +89,18 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ()
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( KnownAddresses (..) )
+    ( GetPurpose, KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
-    , GetPurpose
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
@@ -291,7 +295,11 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
 stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey)
 stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet)
-stateMachineSpecShared = stateMachineSpec @ShelleyKey @(SharedState 'Mainnet ShelleyKey)
+stateMachineSpecShared = stateMachineSpec @SharedKey @(SharedState 'Mainnet SharedKey)
+
+instance PaymentAddress 'Mainnet SharedKey where
+    paymentAddress _ = error "does not make sense for SharedKey but want to use stateMachineSpec"
+    liftPaymentAddress _ = error "does not make sense for SharedKey but want to use stateMachineSpec"
 
 showState :: forall s. Typeable s => String
 showState = show (typeOf @s undefined)

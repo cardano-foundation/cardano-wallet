@@ -1491,7 +1491,6 @@ instance ToJSON ApiVerificationKeyShelley where
             UtxoInternal -> [humanReadablePart|addr_vk|]
             UtxoExternal -> [humanReadablePart|addr_vk|]
             MutableAccount -> [humanReadablePart|stake_vk|]
-            MultisigScript -> error "only role=0,1,2 is supported for ApiVerificationKeyShelley"
 
 instance FromJSON ApiVerificationKeyShelley where
     parseJSON value = do

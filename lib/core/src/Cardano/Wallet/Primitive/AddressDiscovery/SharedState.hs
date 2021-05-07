@@ -61,12 +61,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation
     , WalletKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..), purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( CredentialType (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
@@ -147,7 +147,7 @@ import qualified Data.Map.Strict as Map
 data SharedState (n :: NetworkDiscriminant) k = SharedState
     { derivationPrefix :: !DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the account key
-    , fields :: !(SharedStateFields (SharedStatePending k) (AddressPool 'MultisigScript k))
+    , fields :: !(SharedStateFields (SharedStatePending k) (AddressPool 'UtxoExternal k))
         -- ^ Address pool tracking the shared addresses. Co-owning is based on
         -- payment credential only. Moreover, the parent context information is
         -- stored ie., validated script template for payment credential,
@@ -204,12 +204,12 @@ accountPublicKey :: SharedState n k -> k 'AccountK XPub
 accountPublicKey (SharedState _ (PendingFields pending)) =
     pendingSharedStateAccountKey pending
 accountPublicKey (SharedState _ (ReadyFields pool)) =
-    let (ParentContextMultisigScript accXPub _ _) = context pool
+    let (ParentContextShared accXPub _ _) = context pool
     in accXPub
 
 -- | Create a new SharedState from public account key.
 mkSharedStateFromAccountXPub
-    :: (SupportsSharedState n k, WalletKey k)
+    :: (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => k 'AccountK XPub
     -> Index 'Hardened 'AccountK
     -> AddressPoolGap
@@ -221,7 +221,7 @@ mkSharedStateFromAccountXPub accXPub accIx gap pTemplate dTemplateM =
     SharedStatePending accXPub pTemplate dTemplateM gap
 
 mkSharedState
-    :: (SupportsSharedState n k, WalletKey k)
+    :: (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => Index 'Hardened 'AccountK
     -> SharedStatePending k
     -> SharedState n k
@@ -241,7 +241,7 @@ type SupportsSharedState (n :: NetworkDiscriminant) k =
 
 -- | Create a new SharedState from root private key and password.
 mkSharedStateFromRootXPrv
-    :: (SupportsSharedState n k, WalletKey k)
+    :: (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'AccountK
     -> AddressPoolGap
@@ -256,7 +256,7 @@ mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx gap pTemplate dTemplateM =
 
 -- | Turn a "pending" into an "active" state or identity if already "active".
 updateSharedState
-    :: forall n k. (SupportsSharedState n k, WalletKey k)
+    :: forall n k. (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => SharedState n k
     -> (SharedStatePending k -> SharedStatePending k)
     -> SharedState n k
@@ -267,12 +267,12 @@ updateSharedState st f = case fields st of
         Nothing -> st { fields = PendingFields (f pending) }
 
 sharedStateFromPending
-    :: forall n k. (SupportsSharedState n k, WalletKey k)
+    :: forall n k. (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => SharedStatePending k
-    -> Maybe (AddressPool 'MultisigScript k)
+    -> Maybe (AddressPool 'UtxoExternal k)
 sharedStateFromPending (SharedStatePending accXPub pT dT g)
     | templatesComplete accXPub pT dT = Just $
-        mkAddressPool @n (ParentContextMultisigScript accXPub pT dT) g []
+        mkAddressPool @n (ParentContextShared accXPub pT dT) g []
     | otherwise = Nothing
 
 accountXPubCondition
@@ -340,7 +340,7 @@ data ErrAddCosigner
 -- Updating the key for delegation script can be successful only if delegation script is
 -- present. Otherwise, `NoDelegationTemplate` error is triggered.
 addCosignerAccXPub
-    :: (SupportsSharedState n k, WalletKey k)
+    :: (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => k 'AccountK XPub
     -> Cosigner
     -> CredentialType

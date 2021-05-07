@@ -154,5 +154,5 @@ coinTypeAda :: Index 'Hardened 'CoinTypeK
 coinTypeAda = toEnum 0x80000717
 
 -- It is used for geting purpose for a given key.
-class GetPurpose key where
+class GetPurpose (key :: Depth -> Type -> Type)  where
     getPurpose :: Index 'Hardened 'PurposeK
