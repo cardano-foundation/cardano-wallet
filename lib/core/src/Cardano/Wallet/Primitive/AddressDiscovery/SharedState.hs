@@ -30,7 +30,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
     , addCosignerAccXPub
-    , purposeCIP1854
     , isShared
     , retrieveAllCosigners
     , walletCreationInvariant
@@ -66,6 +65,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( CredentialType (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
@@ -205,16 +206,6 @@ accountPublicKey (SharedState _ (PendingFields pending)) =
 accountPublicKey (SharedState _ (ReadyFields pool)) =
     let (ParentContextMultisigScript accXPub _ _) = context pool
     in accXPub
-
--- | Purpose for shared wallets is a constant set to 1854' (or 0x8000073E) following the original
--- CIP-1854 Multi-signature Wallets.
---
--- It indicates that the subtree of this node is used according to this
--- specification.
---
--- Hardened derivation is used at this level.
-purposeCIP1854 :: Index 'Hardened 'PurposeK
-purposeCIP1854 = toEnum 0x8000073E
 
 -- | Create a new SharedState from public account key.
 mkSharedStateFromAccountXPub

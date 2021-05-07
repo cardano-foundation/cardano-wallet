@@ -186,7 +186,6 @@ data Role
     = UtxoExternal
     | UtxoInternal
     | MutableAccount
-    | MultisigScript
     deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
 instance NFData Role
@@ -199,13 +198,11 @@ instance Enum Role where
         0 -> UtxoExternal
         1 -> UtxoInternal
         2 -> MutableAccount
-        3 -> MultisigScript
         _ -> error "Role.toEnum: bad argument"
     fromEnum = \case
         UtxoExternal -> 0
         UtxoInternal -> 1
         MutableAccount -> 2
-        MultisigScript -> 3
 
 instance ToText Role where
     toText = toTextFromBoundedEnum SnakeLowerCase

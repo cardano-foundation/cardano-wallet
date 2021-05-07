@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shared
     , generateKeyFromSeed
     , unsafeGenerateKeyFromSeed
 
+    , purposeCIP1854
     ) where
 
 import Prelude
@@ -38,6 +39,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
+    , GetPurpose (..)
     , HardDerivation (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
@@ -50,16 +52,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromHex
     , hex
     )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..), purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( deriveAccountPrivateKeyShelley
     , deriveAddressPrivateKeyShelley
     , deriveAddressPublicKeyShelley
     , unsafeGenerateKeyFromSeedShelley
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( GetPurpose (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -88,20 +88,6 @@ import qualified Data.ByteString as BS
 {-------------------------------------------------------------------------------
                             Sequential Derivation
 -------------------------------------------------------------------------------}
-
--- | A cryptographic key for Shared address derivation, with phantom-types to
--- disambiguate derivation paths
---
--- @
--- let rootPrivateKey = SharedKey 'RootK XPrv
--- let accountPubKey = SharedKey 'AccountK XPub
--- let addressPubKey = SharedKey 'AddressK XPub
--- @
-newtype SharedKey (depth :: Depth) key =
-    SharedKey { getKey :: key }
-    deriving stock (Generic, Show, Eq)
-
-instance (NFData key) => NFData (SharedKey depth key)
 
 -- | Generate a root key from a corresponding seed.
 -- The seed should be at least 16 bytes.

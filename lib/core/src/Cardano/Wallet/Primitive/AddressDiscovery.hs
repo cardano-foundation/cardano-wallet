@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , GenChange(..)
     , CompareDiscovery(..)
     , KnownAddresses(..)
+    , GetPurpose (..)
     , coinTypeAda
     ) where
 
@@ -151,3 +152,7 @@ class KnownAddresses s where
 -- Hardened derivation is used at this level.
 coinTypeAda :: Index 'Hardened 'CoinTypeK
 coinTypeAda = toEnum 0x80000717
+
+-- It is used for geting purpose for a given key.
+class GetPurpose key where
+    getPurpose :: Index 'Hardened 'PurposeK
