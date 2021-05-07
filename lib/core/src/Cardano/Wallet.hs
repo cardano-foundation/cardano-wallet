@@ -111,6 +111,7 @@ module Cardano.Wallet
     , readWalletUTxOIndex
     , selectAssetsNoOutputs
     , assignChangeAddresses
+    , assignChangeAddressesAndUpdateDb
     , selectionToUnsignedTx
     , signTransaction
     , ErrSelectAssets(..)
@@ -1201,7 +1202,7 @@ normalizeDelegationAddress s addr = do
 -- to change outputs to which new addresses have been assigned. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
 assignChangeAddresses
-    :: forall s.  (GenChange s)
+    :: forall s. GenChange s
     => ArgGenChange s
     -> SelectionResult TokenBundle
     -> s
@@ -1211,6 +1212,28 @@ assignChangeAddresses argGenChange sel = runState $ do
         addr <- state (genChange argGenChange)
         pure $ TxOut addr bundle
     pure $ sel { changeGenerated = changeOuts }
+
+assignChangeAddressesAndUpdateDb
+    :: forall ctx s k.
+        ( GenChange s
+        , HasDBLayer IO s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> SelectionResult TokenBundle
+    -> ExceptT ErrSignPayment IO (SelectionResult TxOut)
+assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
+    db & \DBLayer{..} -> mapExceptT atomically $ do
+        cp <- withExceptT ErrSignPaymentNoSuchWallet $
+            withNoSuchWallet wid $ readCheckpoint wid
+        let (selectionUpdated, stateUpdated) =
+                assignChangeAddresses generateChange selection (getState cp)
+        withExceptT ErrSignPaymentNoSuchWallet $
+            putCheckpoint wid (updateState stateUpdated cp)
+        pure selectionUpdated
+  where
+    db = ctx ^. dbLayer @IO @s @k
 
 selectionToUnsignedTx
     :: forall s input output change withdrawal.
@@ -1441,46 +1464,45 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
         hasWithdrawal :: Tx -> Bool
         hasWithdrawal = not . null . withdrawals
 
--- | Produce witnesses and construct a transaction from a given
--- selection. Requires the encryption passphrase in order to decrypt
--- the root private key. Note that this doesn't broadcast the
--- transaction to the network. In order to do so, use 'submitTx'.
+-- | Produce witnesses and construct a transaction from a given selection.
+--
+-- Requires the encryption passphrase in order to decrypt the root private key.
+-- Note that this doesn't broadcast the transaction to the network. In order to
+-- do so, use 'submitTx'.
+--
 signTransaction
     :: forall ctx s k.
         ( HasTransactionLayer k ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , IsOwned s k
-        , GenChange s
         )
     => ctx
     -> WalletId
-    -> ArgGenChange s
-    -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
+    -> ( (k 'RootK XPrv, Passphrase "encryption") ->
+         (         XPrv, Passphrase "encryption")
+       )
        -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
     -> TransactionCtx
-    -> SelectionResult TokenBundle
+    -> SelectionResult TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTransaction ctx wid argChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
+signTransaction ctx wid mkRwdAcct pwd txCtx sel =
+    db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
-            cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
-                readCheckpoint wid
+            cp <- withExceptT ErrSignPaymentNoSuchWallet
+                $ withNoSuchWallet wid
+                $ readCheckpoint wid
             pp <- liftIO $ currentProtocolParameters nl
-            let (sel', s') = assignChangeAddresses argChange sel (getState cp)
-            withExceptT ErrSignPaymentNoSuchWallet $
-                putCheckpoint wid (updateState s' cp)
-
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = mkRwdAcct (xprv, pwdP)
-
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkTransaction tl era rewardAcnt keyFrom pp txCtx sel'
-
-            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' txCtx sel'
+                mkTransaction tl era rewardAcnt keyFrom pp txCtx sel
+            (time, meta) <- liftIO $
+                mkTxMeta ti (currentTip cp) (getState cp) txCtx sel
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @IO @s @k
