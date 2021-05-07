@@ -513,8 +513,8 @@ hashVerificationKey role' =
   where
     keyRole = case role' of
         UtxoExternal -> CA.Payment
+        UtxoInternal -> CA.Payment
         MutableAccount -> CA.Delegation
-        _ -> error "verification keys make sense only for payment (role=0) and delegation (role=2)"
 
 {-------------------------------------------------------------------------------
                                  Passphrases

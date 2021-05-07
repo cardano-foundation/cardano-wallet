@@ -58,9 +58,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shared
     ()
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( purposeCIP1854 )
+    ( SharedKey, purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
