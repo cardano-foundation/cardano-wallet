@@ -444,30 +444,6 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg404NoWallet wid)
             ]
 
-    it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> runResourceT $ do
-        -- NOTE
-        -- Special Icarus mnemonic where address indexes are all after the index
-        -- 500. Because we don't have the whole history, restoring sequential
-        -- wallets like Icarus ones is tricky from just a snapshot and we need
-        -- to use arbitrarily big address pool gaps.
-        let mnemonics =
-                [ "erosion", "ahead", "vibrant", "air", "day"
-                , "timber", "thunder", "general", "dice", "into"
-                , "chest", "enrich", "social", "neck", "shine"
-                ] :: [T.Text]
-        let payload = Json [json| {
-                    "name": "High Index Wallet",
-                    "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase},
-                    "style": "icarus"
-                    } |]
-
-        r <- postByronWallet ctx payload
-        verify r
-            [ expectResponseCode HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
-            ]
-
     it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> runResourceT $ do
         -- NOTE
         -- Special legacy wallets where addresses have been generated from a
@@ -500,16 +476,23 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 , expectListSize 0
                 ]
 
-    it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet"
-        $ \ctx -> runResourceT @IO $ forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> do
-            w <- fixtureByronWallet ctx
-            let link = Link.listTransactions @'Byron w
-            r <- request @([ApiTransaction n]) ctx link Default Empty
-            verify r
-                [ expectResponseCode HTTP.status200
-                , expectListSize 10
-                ]
+    it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet" $ \ctx -> runResourceT @IO $ do
+        w <- fixtureRandomWallet ctx
+        let link = Link.listTransactions @'Byron w
+        r <- request @([ApiTransaction n]) ctx link Default Empty
+        verify r
+            [ expectResponseCode HTTP.status200
+            , expectListSize 10
+            ]
+
+    it "BYRON_TX_LIST_01 - Can list transactions on Icarus Wallet" $ \ctx -> runResourceT @IO $ do
+        w <- fixtureIcarusWallet ctx
+        let link = Link.listTransactions @'Byron w
+        r <- request @([ApiTransaction n]) ctx link Default Empty
+        verify r
+            [ expectResponseCode HTTP.status200
+            , expectListSize 1 -- Now funded through a tx in the cluster setup
+            ]
 
     describe "BYRON_TX_LIST_01 - Faulty start, end, order values" $ do
         let orderErr = "Please specify one of the following values:\

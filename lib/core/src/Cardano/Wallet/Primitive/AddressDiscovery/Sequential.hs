@@ -49,7 +49,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , context
     , mkAddressPool
     , lookupAddress
-    , shrinkPool
     , unsafePaymentKeyFingerprint
 
     -- * Pending Change Indexes
@@ -168,7 +167,6 @@ import Type.Reflection
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -435,59 +433,6 @@ mkAddressPool ctx g addrs = AddressPool
             minBound
         ]
     }
-
--- When discovering sequential wallets from a snapshot, we have to use
--- arbitrarily big pools for scanning the genesis block. However, keeping such
--- big pools with huge gaps makes for poor storage, memory and time performances.
--- So, once the genesis block has been scanned, we try to shrink the pool back
--- to something sensible.
-shrinkPool
-    :: forall (n :: NetworkDiscriminant) c key.
-        ( Typeable c
-        , MkKeyFingerprint key Address
-        , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
-        , SoftDerivation key
-        , Typeable n
-        )
-    => (KeyFingerprint "payment" key -> Address)
-        -- ^ A way to lift fingerprint back into an 'Address'
-    -> [Address]
-        -- ^ A set of known addresses. Will shrink the pool down to the latest
-        -- known address from this list, while respecting the new gap.
-    -> AddressPoolGap
-        -- ^ A new address pool gap for this pool
-    -> AddressPool c key
-        -- ^ Original pool
-    -> AddressPool c key
-shrinkPool mkAddress knownAddrs newGap pool =
-    let
-        keys  = indexedKeys pool
-        maxV  = maximumValue
-            (unsafePaymentKeyFingerprint <$> knownAddrs)
-            (Map.map fst keys)
-        addrs = map (withAddressState . fst)
-            . L.sortOn (fst . snd)
-            . Map.toList
-            . Map.filter (\(v, _) -> Just v <= maxV)
-            $ keys
-    in
-        mkAddressPool @n (context pool) newGap addrs
-  where
-    withAddressState :: KeyFingerprint "payment" key -> (Address, AddressState)
-    withAddressState fingerprint =
-        (addr, if addr `elem` knownAddrs then Used else Unused)
-      where
-        addr = mkAddress fingerprint
-
-    maximumValue
-        :: (Ord k, Ord v)
-        => [k]
-        -> Map k v
-        -> Maybe v
-    maximumValue ks =
-        Map.foldl' keepHighest Nothing . (`Map.restrictKeys` (Set.fromList ks))
-      where
-        keepHighest highest v = if Just v > highest then Just v else highest
 
 -- | Lookup an address in the pool. When we find an address in a pool, the pool
 -- may be amended if the address was discovered near the edge. It is also
