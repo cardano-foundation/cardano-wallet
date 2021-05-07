@@ -2697,6 +2697,15 @@ x-parametersDerivationSegment: &parametersDerivationSegment
   required: true
   schema: *derivationSegment
 
+x-parametersDerivationHash: &parametersDerivationHash
+  in: query
+  name: hash
+  schema:
+    type: boolean
+    default: false
+  description: |
+    Whether to return the key hash instead of the key.
+
 x-parametersStartDate: &parametersStartDate
   in: query
   name: start
@@ -5377,15 +5386,18 @@ paths:
       summary: Get Public Key
       description: |
         <p align="right">status: <strong>stable</strong></p>
-        Return a public key for a given role and derivation index for a shared wallet.
-        To get public key hash use query parameter hash=true
-        To get public key use query parameter hash=false or omit query parameter
+        Return a public key for a given role and derivation index for
+        a shared wallet.
+
+        To get a hash of the public key, instead of the public key,
+        use query parameter `hash=true`.
 
         <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
       parameters:
         - *parametersWalletId
         - *parametersRole
         - *parametersDerivationSegment
+        - *parametersDerivationHash
       responses: *responsesGetSharedKey
 
   /shared-wallets/{walletId}/keys/{index}:
