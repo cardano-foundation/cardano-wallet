@@ -17,7 +17,7 @@ module Test.Integration.Scenario.API.Shelley.Migrations
 import Prelude
 
 import Cardano.Mnemonic
-    ( entropyToMnemonic, genEntropy )
+    ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( ApiT (..)
     , ApiTransaction
@@ -67,6 +67,8 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
+import Test.Integration.Faucet
+    ( onlyDustWallet )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -184,6 +186,31 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         (errMsg404NoWallet $ sourceWallet ^. walletId)
                     ]
 
+    it "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
+        \Cannot create a plan for a wallet that only contains dust."
+        $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith
+                "Disabled until a real dust wallet is available."
+            let payloadRestore = Json [json| {
+                    "name": "Dust Shelley Wallet",
+                    "mnemonic_sentence": #{mnemonicToText onlyDustWallet},
+                    "passphrase": #{fixturePassphrase},
+                    "style": "random"
+                    } |]
+            sourceWallet <- unsafeResponse <$> postWallet ctx payloadRestore
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.createMigrationPlan @'Shelley sourceWallet
+            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify response
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage
+                    (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
+                ]
+
     describe "SHELLEY_MIGRATE_01 - \
         \after a migration operation successfully completes, the correct \
         \amount eventually becomes available in the target wallet for arbitrary \
@@ -193,7 +220,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
               testAddressCycling 3
               testAddressCycling 10
 
-    Hspec.it "SHELLEY_MIGRATE_01_big_wallet - \
+    it "SHELLEY_MIGRATE_01_big_wallet - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> runResourceT @IO $ do
         liftIO $ pendingWith "Migration endpoints temporarily disabled."
 

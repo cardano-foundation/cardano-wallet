@@ -177,28 +177,35 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (errMsg404NoWallet $ sourceWallet ^. walletId)
                 ]
 
-    it "BYRON_CALCULATE_02 - \
-        \Cannot calculate fee for wallet with dust, that cannot be migrated."
+    it "BYRON_CREATE_MIGRATION_PLAN_04 - \
+        \Cannot create a plan for a wallet that only contains dust."
         $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            -- NOTE
-            -- Special mnemonic for which wallet with dust
-            -- (5 utxo with 60 lovelace)
-            let mnemonics =
-                    ["suffer", "decorate", "head", "opera", "yellow", "debate"
-                    , "visa", "fire", "salute", "hybrid", "stone", "smart"] :: [Text]
+            -- NOTE:
+            -- Special mnemonic for wallet that has dust
+            -- (5 UTxOs with 60 lovelace each)
+            let mnemonicSentence =
+                    [ "suffer", "decorate", "head", "opera", "yellow", "debate"
+                    , "visa", "fire", "salute", "hybrid", "stone", "smart"
+                    ] :: [Text]
             let payloadRestore = Json [json| {
                     "name": "Dust Byron Wallet",
-                    "mnemonic_sentence": #{mnemonics},
+                    "mnemonic_sentence": #{mnemonicSentence},
                     "passphrase": #{fixturePassphrase},
                     "style": "random"
                     } |]
-            w <- unsafeResponse <$> postByronWallet ctx payloadRestore
-            let ep = Link.createMigrationPlan @'Byron w
-            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
-            verify r
+            sourceWallet <- unsafeResponse <$>
+                postByronWallet ctx payloadRestore
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.createMigrationPlan @'Byron sourceWallet
+            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify response
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
+                , expectErrorMessage
+                    (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
     describe "BYRON_MIGRATE_05 - I could migrate to any valid address" $ do

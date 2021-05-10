@@ -20,6 +20,10 @@ module Test.Integration.Faucet
     , mirMnemonics
     , maMnemonics
 
+    -- * Dust wallets
+    , bigDustWallet
+    , onlyDustWallet
+
     -- * Sea horses
     , seaHorseTokenName
     , seaHorsePolicyId
