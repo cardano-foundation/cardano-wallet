@@ -208,6 +208,30 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
+    it "BYRON_CREATE_MIGRATION_PLAN_05 - \
+        \Creating a plan is deterministic."
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> runResourceT $ do
+            sourceWallet <- fixtureByronWallet ctx
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.createMigrationPlan @'Byron sourceWallet
+            response1 <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            response2 <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            expectResponseCode HTTP.status202 response1
+            expectResponseCode HTTP.status202 response2
+            expectField (#selections) ((.> 0) . length) response1
+            expectField (#selections) ((.> 0) . length) response2
+            case (snd response1, snd response2) of
+                (Right plan1, Right plan2) ->
+                    liftIO $ plan1 `shouldBe` plan2
+                _ ->
+                    error "Unable to compare plans."
+
     describe "BYRON_MIGRATE_05 - I could migrate to any valid address" $ do
         forM_ [ ("Byron", emptyRandomWallet)
               , ("Icarus", emptyIcarusWallet)
