@@ -3686,8 +3686,8 @@ x-responsesCreateWalletMigrationPlan: &responsesCreateWalletMigrationPlan
         schema: *errNothingToMigrate
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  200:
-    description: Ok
+  202:
+    description: Accepted
     content:
       application/json:
         schema: *ApiWalletMigrationPlan
@@ -3705,8 +3705,8 @@ x-responsesMigrateWallet: &responsesMigrateWallet
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
-  200:
-    description: Ok
+  202:
+    description: Accepted
     content:
       application/json:
         schema:
