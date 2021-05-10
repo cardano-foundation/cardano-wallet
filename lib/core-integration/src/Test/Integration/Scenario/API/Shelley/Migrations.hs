@@ -47,6 +47,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
@@ -114,17 +116,28 @@ spec :: forall n.
     , PaymentAddress n ByronKey
     ) => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
-    it "SHELLEY_CALCULATE_01 - \
-        \for non-empty wallet calculated fee is > zero."
+
+    it "SHELLEY_CREATE_MIGRATION_PLAN_01 - \
+        \Can create a migration plan."
         $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            w <- fixtureWallet ctx
-            let ep = Link.createMigrationPlan @'Shelley w
-            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
-            verify r
-                [ expectResponseCode HTTP.status200
+            sourceWallet <- fixtureWallet ctx
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.createMigrationPlan @'Shelley sourceWallet
+            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify response
+                [ expectResponseCode HTTP.status202
                 , expectField (#totalFee . #getQuantity)
-                    (.> 0)
+                    (`shouldBe` 255_200)
+                , expectField (#selections)
+                    ((`shouldBe` 1) . length)
+                , expectField (#balanceSelected . #ada . #getQuantity)
+                    (`shouldBe` 1_000_000_000_000)
+                , expectField (#balanceLeftover . #ada . #getQuantity)
+                    (`shouldBe` 0)
                 ]
 
     it "SHELLEY_CALCULATE_02 - \

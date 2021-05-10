@@ -48,6 +48,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
@@ -115,18 +117,29 @@ spec :: forall n.
     , PaymentAddress n ByronKey
     ) => SpecWith Context
 spec = describe "BYRON_MIGRATIONS" $ do
-    it "BYRON_CALCULATE_01 - \
-        \for non-empty wallet calculated fee is > zero."
+
+    it "BYRON_CREATE_MIGRATION_PLAN_01 - \
+        \Can create a migration plan."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            w <- fixtureByronWallet ctx
-            let ep = Link.createMigrationPlan @'Byron w
-            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
-            verify r
-                [ expectResponseCode HTTP.status200
+            sourceWallet <- fixtureByronWallet ctx
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.createMigrationPlan @'Byron sourceWallet
+            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify response
+                [ expectResponseCode HTTP.status202
                 , expectField (#totalFee . #getQuantity)
-                    (.> 0)
+                    (`shouldBe` 334_200)
+                , expectField (#selections)
+                    ((`shouldBe` 1) . length)
+                , expectField (#balanceSelected . #ada . #getQuantity)
+                    (`shouldBe` 1_000_000_000_000)
+                , expectField (#balanceLeftover . #ada . #getQuantity)
+                    (`shouldBe` 0)
                 ]
 
     it "BYRON_CALCULATE_02 - \
