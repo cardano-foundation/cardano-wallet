@@ -160,6 +160,23 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
+    it "BYRON_CREATE_MIGRATION_PLAN_03 - \
+        \Cannot create plan for Shelley wallet using Byron endpoint."
+        $ \ctx -> runResourceT $ do
+            sourceWallet <- emptyWallet ctx
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.createMigrationPlan @'Byron sourceWallet
+            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify response
+                [ expectResponseCode HTTP.status404
+                , expectErrorMessage
+                    (errMsg404NoWallet $ sourceWallet ^. walletId)
+                ]
+
     it "BYRON_CALCULATE_02 - \
         \Cannot calculate fee for wallet with dust, that cannot be migrated."
         $ \ctx -> runResourceT $ do
@@ -183,16 +200,6 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
                 ]
-
-    it "BYRON_CALCULATE_03 - \
-        \Cannot estimate migration for Shelley wallet using Byron endpoint"
-        $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            w <- emptyWallet ctx
-            let ep = Link.createMigrationPlan @'Byron w
-            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
-            expectResponseCode HTTP.status404 r
-            expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     describe "BYRON_MIGRATE_05 - I could migrate to any valid address" $ do
         forM_ [ ("Byron", emptyRandomWallet)

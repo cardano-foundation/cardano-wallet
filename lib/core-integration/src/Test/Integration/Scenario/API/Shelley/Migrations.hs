@@ -157,21 +157,32 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
-    describe "SHELLEY_CALCULATE_03 - \
-        \Cannot estimate migration for Byron wallet using Shelley endpoint" $ do
-          forM_ [ ("Byron", emptyRandomWallet)
-                , ("Icarus", emptyIcarusWallet)
-                ] $ \(walType, byronWallet) -> do
-
-                it ("Cannot calculate Shelley migration using wallet: " ++ walType)
-                    $ \ctx -> runResourceT $ do
-                    liftIO $ pendingWith "Migration endpoints temporarily disabled."
-                    w <- byronWallet ctx
-                    let ep = Link.createMigrationPlan @'Shelley w
-                    r <- request
-                        @(ApiWalletMigrationPlan n) ctx ep Default Empty
-                    expectResponseCode HTTP.status404 r
-                    expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+    describe "SHELLEY_CREATE_MIGRATION_PLAN_03 - \
+        \Cannot create plan for Byron wallet using Shelley endpoint." $ do
+        let sourceWallets =
+              [ ("Random", emptyRandomWallet)
+              , ("Icarus", emptyIcarusWallet)
+              ]
+        forM_ sourceWallets $ \(walletType, byronWallet) -> do
+            let title = mconcat
+                    [ "Cannot calculate Shelley migration using wallet: "
+                    , walletType
+                    ]
+            it title $ \ctx -> runResourceT $ do
+                sourceWallet <- byronWallet ctx
+                targetWallet <- emptyWallet ctx
+                targetAddresses <- listAddresses @n ctx targetWallet
+                let targetAddressIds = targetAddresses <&>
+                        (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+                let ep = Link.createMigrationPlan @'Shelley sourceWallet
+                result <- request
+                    @(ApiWalletMigrationPlan n) ctx ep Default
+                    (Json [json|{addresses: #{targetAddressIds}}|])
+                verify result
+                    [ expectResponseCode HTTP.status404
+                    , expectErrorMessage
+                        (errMsg404NoWallet $ sourceWallet ^. walletId)
+                    ]
 
     describe "SHELLEY_MIGRATE_01 - \
         \after a migration operation successfully completes, the correct \
