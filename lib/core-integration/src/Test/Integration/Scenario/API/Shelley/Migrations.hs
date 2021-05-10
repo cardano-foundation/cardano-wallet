@@ -140,16 +140,21 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (`shouldBe` 0)
                 ]
 
-    it "SHELLEY_CALCULATE_02 - \
-        \Cannot calculate fee for empty wallet."
+    it "SHELLEY_CREATE_MIGRATION_PLAN_02 - \
+        \Cannot create plan for empty wallet."
         $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            w <- emptyWallet ctx
-            let ep = Link.createMigrationPlan @'Shelley w
-            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
-            verify r
+            sourceWallet <- emptyWallet ctx
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.createMigrationPlan @'Shelley sourceWallet
+            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify response
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
+                , expectErrorMessage
+                    (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
     describe "SHELLEY_CALCULATE_03 - \

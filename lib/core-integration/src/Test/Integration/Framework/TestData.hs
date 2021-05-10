@@ -353,10 +353,8 @@ errMsg400MinWithdrawalWrong = "The minimum withdrawal value must be at least \
     \1 Lovelace."
 
 errMsg403NothingToMigrate :: Text -> String
-errMsg403NothingToMigrate wid =
-    "I can't migrate the wallet with the given id: " ++ unpack wid ++
-    ", because it's either empty or full of small coins which wouldn't be \
-    \worth migrating."
+errMsg403NothingToMigrate _wid =
+    "Nothing to migrate"
 
 errMsg404NoAsset :: String
 errMsg404NoAsset = "The requested asset is not associated with this wallet."

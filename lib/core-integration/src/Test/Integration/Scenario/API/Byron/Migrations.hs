@@ -142,17 +142,22 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (`shouldBe` 0)
                 ]
 
-    it "BYRON_CALCULATE_02 - \
-        \Cannot calculate fee for empty wallet."
+    it "BYRON_CREATE_MIGRATION_PLAN_02 - \
+        \Cannot create plan for empty wallet."
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
         $ \emptyByronWallet -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            w <- emptyByronWallet ctx
-            let ep = Link.createMigrationPlan @'Byron w
-            r <- request @(ApiWalletMigrationPlan n) ctx ep Default Empty
-            verify r
+            sourceWallet <- emptyByronWallet ctx
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.createMigrationPlan @'Byron sourceWallet
+            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify response
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
+                , expectErrorMessage
+                    (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
     it "BYRON_CALCULATE_02 - \
