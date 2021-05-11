@@ -105,6 +105,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
+    , GetAccount (..)
     , GetPurpose (..)
     , IsOurs (..)
     , IsOwned (..)
@@ -1002,3 +1003,10 @@ instance
     ) => KnownAddresses (SeqAnyState n k p)
   where
     knownAddresses (SeqAnyState s) = knownAddresses s
+
+instance GetAccount (SeqState n k) k where
+    getAccount s =
+        -- NOTE: Alternatively, we could use 'internalPool', they share the same
+        --       account public key.
+        let (ParentContextUtxo acctK) = context $ externalPool s
+        in acctK

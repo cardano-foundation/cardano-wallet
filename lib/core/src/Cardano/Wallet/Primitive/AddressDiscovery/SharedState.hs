@@ -33,7 +33,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     , isShared
     , retrieveAllCosigners
     , walletCreationInvariant
-    , accountPublicKey
     ) where
 
 import Prelude
@@ -64,7 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..), purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..), coinTypeAda )
+    ( GetAccount (..), IsOurs (..), coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -199,13 +198,6 @@ deriving instance
 instance
     ( NFData (k 'AccountK XPub)
     ) => NFData (SharedStatePending k)
-
-accountPublicKey :: SharedState n k -> k 'AccountK XPub
-accountPublicKey (SharedState _ (PendingFields pending)) =
-    pendingSharedStateAccountKey pending
-accountPublicKey (SharedState _ (ReadyFields pool)) =
-    let (ParentContextShared accXPub _ _) = context pool
-    in accXPub
 
 -- | Create a new SharedState from public account key.
 mkSharedStateFromAccountXPub
@@ -425,3 +417,10 @@ instance IsOurs (SharedState n k) Address where
 
 instance IsOurs (SharedState n k) RewardAccount where
     isOurs _account state = (Nothing, state)
+
+instance GetAccount (SharedState n k) k where
+    getAccount (SharedState _ (PendingFields pending)) =
+        pendingSharedStateAccountKey pending
+    getAccount (SharedState _ (ReadyFields pool)) =
+        let (ParentContextShared accXPub _ _) = context pool
+        in accXPub

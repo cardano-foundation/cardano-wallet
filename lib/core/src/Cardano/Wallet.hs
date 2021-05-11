@@ -158,8 +158,7 @@ module Cardano.Wallet
 
     -- ** Root Key
     , withRootKey
-    , derivePublicKeyShelley
-    , derivePublicKeyShared
+    , derivePublicKey
     , readPublicAccountKey
     , signMetadataWith
     , ErrWithRootKey (..)
@@ -250,6 +249,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
+    , GetAccount (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -266,7 +266,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeBIP44
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( ErrAddCosigner (..), SharedState, accountPublicKey, addCosignerAccXPub )
+    ( ErrAddCosigner (..), SharedState, addCosignerAccXPub )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
@@ -2104,61 +2104,18 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
 
--- | Derive public key from a wallet's account key.
-derivePublicKeyShelley
-    :: forall ctx s k n.
-        ( HasDBLayer IO s k ctx
-        , SoftDerivation k
-        , s ~ SeqState n k
-        )
-    => ctx
-    -> WalletId
-    -> Role
-    -> DerivationIndex
-    -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
-derivePublicKeyShelley ctx =
-    derivePublicKey @ctx @s @k  ctx toAccXPubShelley
-
-derivePublicKeyShared
-    :: forall ctx s k n.
-        ( HasDBLayer IO s k ctx
-        , SoftDerivation k
-        , s ~ SharedState n k
-        )
-    => ctx
-    -> WalletId
-    -> Role
-    -> DerivationIndex
-    -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
-derivePublicKeyShared ctx =
-    derivePublicKey @ctx @s @k ctx toAccXPubShared
-
-toAccXPubShared
-    :: SharedState n k
-    -> k 'AccountK XPub
-toAccXPubShared = accountPublicKey
-
-toAccXPubShelley
-    :: SeqState n k
-    -> k 'AccountK XPub
-toAccXPubShelley s =
-    -- NOTE: Alternatively, we could use 'internalPool', they share the same
-    --       account public key.
-    let (Seq.ParentContextUtxo acctK) = Seq.context $ Seq.externalPool s
-    in acctK
-
 derivePublicKey
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , SoftDerivation k
+        , GetAccount s k
         )
     => ctx
-    -> (s -> k 'AccountK XPub)
     -> WalletId
     -> Role
     -> DerivationIndex
     -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
-derivePublicKey ctx toAccXPub wid role_ ix = db & \DBLayer{..} -> do
+derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
     addrIx <- withExceptT ErrDerivePublicKeyInvalidIndex $ guardSoftIndex ix
 
     cp <- mapExceptT atomically
@@ -2166,7 +2123,7 @@ derivePublicKey ctx toAccXPub wid role_ ix = db & \DBLayer{..} -> do
         $ withNoSuchWallet wid
         $ readCheckpoint wid
 
-    let acctK = toAccXPub $ getState cp
+    let acctK = getAccount $ getState cp
     let addrK = deriveAddressPublicKey acctK role_ addrIx
 
     return addrK

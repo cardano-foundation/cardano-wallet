@@ -2178,7 +2178,7 @@ derivePublicKeyShelley
     -> Handler ApiVerificationKeyShelley
 derivePublicKeyShelley ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.derivePublicKeyShelley @_ @s @k @n wrk wid role_ ix
+        k <- liftHandler $ W.derivePublicKey @_ @s @k wrk wid role_ ix
         pure $ ApiVerificationKeyShelley (xpubPublicKey $ getRawKey k, role_)
 
 derivePublicKeyShared
@@ -2196,7 +2196,7 @@ derivePublicKeyShared
     -> Handler ApiVerificationKeyShared
 derivePublicKeyShared ctx (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.derivePublicKeyShared @_ @s @k @n wrk wid role_ ix
+        k <- liftHandler $ W.derivePublicKey @_ @s @k wrk wid role_ ix
         pure $ ApiVerificationKeyShared (computePayload k, role_) hashing
   where
     hashing = case hashed of
