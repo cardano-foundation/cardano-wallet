@@ -147,14 +147,14 @@ spec = describe "SHARED_WALLETS" $ do
 
         let payloadKey = Json [json|{
                 "passphrase": #{fixturePassphrase},
-                "extended": true
+                "format": "extended"
             }|]
         rKey <-
             postAccountKeyShared ctx wal (DerivationIndex $ 2147483648 + index) Default payloadKey
 
         verify rKey
             [ expectResponseCode HTTP.status202
-            , expectField #extended (`shouldBe` Extended)
+            , expectField #format (`shouldBe` Extended)
             ]
         let (ApiAccountKeyShared bytes _) = getFromResponse id rKey
         T.decodeUtf8 (hex bytes) `Expectations.shouldBe` accXPubDerived
@@ -200,14 +200,14 @@ spec = describe "SHARED_WALLETS" $ do
 
         let payloadKey = Json [json|{
                 "passphrase": #{fixturePassphrase},
-                "extended": true
+                "format": "extended"
             }|]
         rKey <-
             postAccountKeyShared ctx wal (DerivationIndex $ 2147483648 + index) Default payloadKey
 
         verify rKey
             [ expectResponseCode HTTP.status202
-            , expectField #extended (`shouldBe` Extended)
+            , expectField #format (`shouldBe` Extended)
             ]
         let (ApiAccountKeyShared bytes _) = getFromResponse id rKey
         T.decodeUtf8 (hex bytes) `Expectations.shouldBe` accXPubDerived

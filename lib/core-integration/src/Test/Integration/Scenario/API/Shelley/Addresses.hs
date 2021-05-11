@@ -913,7 +913,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let endpoint = Link.postAccountKey w (DerivationIndex 0)
         let payload = Json [json|{
                 "passphrase": #{fixturePassphrase},
-                "extended": true
+                "format": "extended"
             }|]
         resp <- request @ApiAccountKey ctx endpoint Default payload
         expectErrorMessage errMsg403WrongIndex resp
@@ -924,11 +924,11 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             let accountPath = Link.postAccountKey w (DerivationIndex $ 2147483648 + index)
             let payload1 = Json [json|{
                     "passphrase": #{fixturePassphrase},
-                    "extended": true
+                    "format": "extended"
                 }|]
             let payload2 = Json [json|{
                     "passphrase": #{fixturePassphrase},
-                    "extended": false
+                    "format": "non_extended"
                 }|]
             (_, accXPub) <- unsafeRequest @ApiAccountKey ctx accountPath payload1
             (_, accPub) <- unsafeRequest @ApiAccountKey ctx accountPath payload2

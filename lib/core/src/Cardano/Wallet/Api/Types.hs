@@ -296,7 +296,6 @@ import Data.Aeson.Types
     , prependFailure
     , sumEncoding
     , tagSingleConstructors
-    , withBool
     , withObject
     , withText
     , (.!=)
@@ -1081,19 +1080,19 @@ data KeyFormat = Extended | NonExtended
 
 data ApiPostAccountKeyData = ApiPostAccountKeyData
     { passphrase :: ApiT (Passphrase "raw")
-    , extended :: KeyFormat
+    , format :: KeyFormat
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
 data ApiAccountKey = ApiAccountKey
     { getApiAccountKey :: ByteString
-    , extended :: KeyFormat
+    , format :: KeyFormat
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
 data ApiAccountKeyShared = ApiAccountKeyShared
     { getApiAccountKey :: ByteString
-    , extended :: KeyFormat
+    , format :: KeyFormat
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -1638,13 +1637,11 @@ instance FromJSON ApiAccountKeyShared where
                   "Unrecognized human-readable part. Expected one of:\
                   \ \"acct_shared_xvk\" or \"acct_shared_vk\"."
 
+
 instance FromJSON KeyFormat where
-    parseJSON = withBool "KeyFormat" $ \case
-        True -> pure Extended
-        False -> pure NonExtended
+    parseJSON = genericParseJSON defaultSumTypeOptions
 instance ToJSON KeyFormat where
-    toJSON Extended = toJSON True
-    toJSON NonExtended = toJSON False
+    toJSON = genericToJSON defaultSumTypeOptions
 
 instance FromJSON ApiPostAccountKeyData where
     parseJSON = genericParseJSON defaultRecordTypeOptions

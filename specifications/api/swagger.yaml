@@ -769,7 +769,10 @@ x-walletPassphrase: &walletPassphrase
 
 x-keyExtended: &keyExtended
   description: Determines whether extended (with chain code) or normal (without chain code) key is requested
-  type: boolean
+  type: string
+  enum:
+    - extended
+    - non_extended
 
 x-lenientPassphrase: &lenientPassphrase
   description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
@@ -2412,10 +2415,10 @@ components:
       type: object
       required:
         - passphrase
-        - extended
+        - format
       properties:
         passphrase: *walletPassphrase
-        extended: *keyExtended
+        format: *keyExtended
 
     ApiSettingsPutData: &ApiSettingsPutData
       type: object

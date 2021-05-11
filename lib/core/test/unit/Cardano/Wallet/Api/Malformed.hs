@@ -1095,35 +1095,35 @@ instance Malformed (BodyParam ApiPostAccountKeyData) where
             , ("{\"name : \"random\"}", msgJsonInvalid)
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
-            [ ( [aesonQQ| { "passphrase": #{nameTooLong}, "extended": true }|]
+            [ ( [aesonQQ| { "passphrase": #{nameTooLong}, "format": "extended" }|]
               , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
               )
-            , ( [aesonQQ| { "passphrase": 123, "extended": true }|]
+            , ( [aesonQQ| { "passphrase": 123, "format": "extended" }|]
               , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
               )
-            , ( [aesonQQ| { "passphrase": [], "extended": true }|]
+            , ( [aesonQQ| { "passphrase": [], "format": "extended" }|]
               , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Array"
               )
-            , ( [aesonQQ| { "passphrase": 1.5, "extended": true }|]
+            , ( [aesonQQ| { "passphrase": 1.5, "format": "extended" }|]
               , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
               )
-            , ( [aesonQQ| { "extended": true }|]
+            , ( [aesonQQ| { "format": "extended" }|]
               , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyData(ApiPostAccountKeyData) failed, key 'passphrase' not found"
               )
             , ( [aesonQQ| { "passphrase": "The proper passphrase" }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyData(ApiPostAccountKeyData) failed, key 'extended' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyData(ApiPostAccountKeyData) failed, key 'format' not found"
               )
-            , ( [aesonQQ| { "passphrase": "The proper passphrase", "extended": 123 }|]
-              , "Error in $.extended: parsing KeyFormat failed, expected Boolean, but encountered Number"
+            , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": 123 }|]
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected String, but encountered Number"
               )
-            , ( [aesonQQ| { "passphrase": "The proper passphrase", "extended": [] }|]
-              , "Error in $.extended: parsing KeyFormat failed, expected Boolean, but encountered Array"
+            , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": [] }|]
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected String, but encountered Array"
               )
-            , ( [aesonQQ| { "passphrase": "The proper passphrase", "extended": 1.5 }|]
-              , "Error in $.extended: parsing KeyFormat failed, expected Boolean, but encountered Number"
+            , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": 1.5 }|]
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected String, but encountered Number"
               )
-            , ( [aesonQQ| { "passphrase": "The proper passphrase", "extended": "ok" }|]
-              , "Error in $.extended: parsing KeyFormat failed, expected Boolean, but encountered String"
+            , ( [aesonQQ| { "passphrase": "The proper passphrase", "format": "ok" }|]
+              , "Error in $.format: parsing Cardano.Wallet.Api.Types.KeyFormat failed, expected one of the tags ['extended','non_extended'], but found tag 'ok'"
               )
             ]
 
