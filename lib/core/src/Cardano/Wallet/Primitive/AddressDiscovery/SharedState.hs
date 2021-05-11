@@ -1,10 +1,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -33,18 +35,28 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     , isShared
     , retrieveAllCosigners
     , walletCreationInvariant
+
+    , CredentialType (..)
+    , liftPaymentAddress
+    , liftDelegationAddress
+    , keyHashFromAccXPubIx
     ) where
 
 import Prelude
 
 import Cardano.Address.Script
     ( Cosigner (..)
+    , KeyHash (..)
     , Script (..)
+    , ScriptHash (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
+    , toScriptHash
     , validateScriptTemplate
     )
+import Cardano.Address.Style.Shelley
+    ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -53,19 +65,24 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
+    , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase
     , Role (..)
     , SoftDerivation
     , WalletKey (..)
+    , deriveVerificationKey
+    , hashVerificationKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..), purposeCIP1854 )
+    ( SharedKey (..)
+    , purposeCIP1854
+    , replaceCosignersWithVerKeys
+    , toNetworkTag
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GetAccount (..), IsOurs (..), coinTypeAda )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
@@ -84,13 +101,19 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
+import Data.Kind
+    ( Type )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import GHC.Generics
     ( Generic )
 import Type.Reflection
     ( Typeable )
 
+import qualified Cardano.Address as CA
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 
@@ -424,3 +447,54 @@ instance GetAccount (SharedState n k) k where
     getAccount (SharedState _ (ReadyFields pool)) =
         let (ParentContextShared accXPub _ _) = context pool
         in accXPub
+
+data CredentialType = Payment | Delegation
+    deriving (Eq, Show, Generic)
+    deriving anyclass NFData
+
+instance ToText CredentialType where
+    toText Payment = "payment"
+    toText Delegation = "delegation"
+
+instance FromText CredentialType where
+    fromText = \case
+        "payment" -> Right Payment
+        "delegation" -> Right Delegation
+        _ -> Left $ TextDecodingError $ unwords
+            [ "Invalid credential type: expecting only following values:"
+            , "'payment', 'delegation'."
+            ]
+
+keyHashFromAccXPubIx
+    :: (SoftDerivation k, WalletKey k)
+    => k 'AccountK XPub
+    -> Role
+    -> Index 'Soft 'ScriptK
+    -> KeyHash
+keyHashFromAccXPubIx accXPub r ix =
+    hashVerificationKey r $ deriveVerificationKey accXPub r ix
+
+liftPaymentAddress
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type). Typeable n
+    => KeyFingerprint "payment" k
+  -> Address
+liftPaymentAddress (KeyFingerprint fingerprint) =
+    Address $ CA.unAddress $
+    paymentAddress (toNetworkTag @n)
+    (PaymentFromScript (ScriptHash fingerprint))
+
+liftDelegationAddress
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type). Typeable n
+    => Index 'Soft 'ScriptK
+    -> ScriptTemplate
+    -> KeyFingerprint "payment" k
+    -> Address
+liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
+    Address $ CA.unAddress $
+    delegationAddress (toNetworkTag @n)
+    (PaymentFromScript (ScriptHash fingerprint))
+    (delegationCredential dScript)
+  where
+    delegationCredential = DelegationFromScript . toScriptHash
+    dScript =
+        replaceCosignersWithVerKeys CA.Stake dTemplate ix

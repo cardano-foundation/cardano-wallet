@@ -174,7 +174,6 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery
       Cardano.Wallet.Primitive.Slotting
       Cardano.Wallet.Primitive.AddressDiscovery.Random
-      Cardano.Wallet.Primitive.AddressDiscovery.Script
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.AddressDiscovery.SharedState
       Cardano.Wallet.Primitive.SyncProgress

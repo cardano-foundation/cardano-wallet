@@ -101,7 +101,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , utxoInternal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..) )
+    ( SharedKey (..), constructAddressFromIx )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -112,8 +112,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     , coinTypeAda
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( constructAddressFromIx )
 import Cardano.Wallet.Primitive.Types
     ( invariant )
 import Cardano.Wallet.Primitive.Types.Address

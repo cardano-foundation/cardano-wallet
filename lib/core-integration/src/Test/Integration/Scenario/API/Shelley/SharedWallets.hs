@@ -32,7 +32,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Passphrase (..), Role (..), hex )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )

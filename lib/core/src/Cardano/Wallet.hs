@@ -256,8 +256,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState
     , defaultAddressPoolGap
@@ -266,7 +264,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeBIP44
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( ErrAddCosigner (..), SharedState, addCosignerAccXPub )
+    ( CredentialType (..)
+    , ErrAddCosigner (..)
+    , SharedState
+    , addCosignerAccXPub
+    )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)

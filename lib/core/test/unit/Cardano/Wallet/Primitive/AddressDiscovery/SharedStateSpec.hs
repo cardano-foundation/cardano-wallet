@@ -37,11 +37,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shared
     ( unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( constructAddressFromIx, liftDelegationAddress, liftPaymentAddress )
+    ( SharedKey (..), constructAddressFromIx )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), addresses, mkUnboundedAddressPoolGap )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( liftDelegationAddress, liftPaymentAddress )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( SharedState (..)
     , SharedStateFields (..)

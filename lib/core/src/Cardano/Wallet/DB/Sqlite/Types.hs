@@ -34,14 +34,14 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), PassphraseScheme (..), Role (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
     , getAddressPoolGap
     , mkAddressPoolGap
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( CredentialType )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , FeePolicy
