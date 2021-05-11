@@ -41,11 +41,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), addresses, mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( liftDelegationAddress, liftPaymentAddress )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( SharedState (..)
     , SharedStateFields (..)
     , isShared
+    , liftDelegationAddress
+    , liftPaymentAddress
     , mkSharedStateFromAccountXPub
     )
 import Cardano.Wallet.Primitive.Types.Address
