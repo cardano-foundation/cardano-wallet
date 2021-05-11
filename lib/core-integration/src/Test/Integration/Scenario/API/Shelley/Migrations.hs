@@ -235,15 +235,16 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     error "Unable to compare plans."
 
     describe "SHELLEY_MIGRATE_01 - \
-        \after a migration operation successfully completes, the correct \
-        \amount eventually becomes available in the target wallet for arbitrary \
-        \ number of specified addresses. Balance of source wallet = 0."
+        \After a migration operation successfully completes, the correct \
+        \amounts eventually become available in the target wallet for an \
+        \arbitrary number of specified addresses, and the balance of the \
+        \source wallet is completely depleted."
         $ do
-              testAddressCycling 1
-              testAddressCycling 3
-              testAddressCycling 10
+            testAddressCycling  1
+            testAddressCycling  3
+            testAddressCycling 10
 
-    it "SHELLEY_MIGRATE_01_big_wallet - \
+    it "SHELLEY_MIGRATE_XX_big_wallet - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> runResourceT @IO $ do
         liftIO $ pendingWith "Migration endpoints temporarily disabled."
 
@@ -573,67 +574,71 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             | otherwise =
                 pure ()
 
-    testAddressCycling addrNum =
-        it ("Migration from Shelley wallet to " ++ show addrNum ++ " addresses")
-            $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
+    testAddressCycling targetAddressCount = do
+        let title = mconcat
+                [ "Migration from Shelley wallet to target address count: "
+                , show targetAddressCount
+                , "."
+                ]
+        it title $ \ctx -> runResourceT $ do
+
             -- Restore a Shelley wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
-            let originalBalance =
-                        view (#balance. #available . #getQuantity)
-                             sourceWallet
+            let sourceBalance =
+                    view (#balance. #available . #getQuantity) sourceWallet
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
-            addrs <- listAddresses @n ctx targetWallet
-            let addrIds =
-                    map (\(ApiTypes.ApiAddress theid _ _) -> theid) $
-                    take addrNum addrs
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = take targetAddressCount targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
 
-            -- Calculate the expected migration fee:
-            r0 <- request @(ApiWalletMigrationPlan n) ctx
-                (Link.createMigrationPlan @'Shelley sourceWallet) Default Empty
-            verify r0
-                [ expectResponseCode HTTP.status200
+            -- Create a migration plan:
+            response0 <- request @(ApiWalletMigrationPlan n) ctx
+                (Link.createMigrationPlan @'Shelley sourceWallet) Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify response0
+                [ expectResponseCode HTTP.status202
                 , expectField #totalFee (.> Quantity 0)
                 ]
-            let expectedFee = getFromResponse (#totalFee . #getQuantity) r0
+            let expectedFee =
+                    getFromResponse (#totalFee . #getQuantity) response0
 
             -- Perform a migration from the source wallet to the target wallet:
-            r1 <- request @[ApiTransaction n] ctx
+            response1 <- request @[ApiTransaction n] ctx
                 (Link.migrateWallet @'Shelley sourceWallet)
                 Default
                 (Json [json|
                     { passphrase: #{fixturePassphrase}
-                    , addresses: #{addrIds}
+                    , addresses: #{targetAddressIds}
                     }|])
-            verify r1
+            verify response1
                 [ expectResponseCode HTTP.status202
                 , expectField id (`shouldSatisfy` (not . null))
                 ]
 
-            -- Check that funds become available in the target wallet:
-            let expectedBalance = originalBalance - expectedFee
-            eventually "Wallet has expectedBalance" $ do
-                r2 <- request @ApiWallet ctx
+            -- Check that funds have become available in the target wallet:
+            let expectedTargetBalance = sourceBalance - expectedFee
+            eventually "Target wallet has expected balance." $ do
+                response2 <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley targetWallet) Default Empty
-                verify r2
+                verify response2
                     [ expectField
-                            (#balance . #available)
-                            (`shouldBe` Quantity expectedBalance)
+                        (#balance . #available)
+                        (`shouldBe` Quantity expectedTargetBalance)
                     , expectField
-                            (#balance . #total)
-                            (`shouldBe` Quantity expectedBalance)
+                        (#balance . #total)
+                        (`shouldBe` Quantity expectedTargetBalance)
                     ]
 
-            -- Verify sourceWallet has balance 0
-            r3 <- request @ApiWallet ctx
+            -- Check that the source wallet has a balance of zero:
+            response3 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
-            verify r3
+            verify response3
                 [ expectField
-                        (#balance . #available)
-                        (`shouldBe` Quantity 0)
+                    (#balance . #available)
+                    (`shouldBe` Quantity 0)
                 , expectField
-                        (#balance . #total)
-                        (`shouldBe` Quantity 0)
+                    (#balance . #total)
+                    (`shouldBe` Quantity 0)
                 ]
