@@ -245,6 +245,111 @@ spec = describe "BYRON_MIGRATIONS" $ do
             testAddressCycling "Icarus" fixtureIcarusWallet  3
             testAddressCycling "Icarus" fixtureIcarusWallet 10
 
+    it "BYRON_MIGRATE_02 - \
+        \Can migrate a large wallet requiring more than one transaction."
+        $ \ctx -> runResourceT @IO $ do
+
+        -- NOTE:
+        --
+        -- Special mnemonic to which 200 legacy coins are attached in the
+        -- genesis file.
+        --
+        -- Out of these 200 coins:
+        --
+        --  - 100 coins are each worth 1 lovelace, and are expected to be
+        --    treated as dust.
+        --  - 100 coins are each worth 10,000,000,000 lovelace.
+        --
+        let sourceWalletMnemonic =
+                ["collect", "fold", "file", "clown"
+                , "injury", "sun", "brass", "diet"
+                , "exist", "spike", "behave", "clip"
+                ] :: [Text]
+        sourceWallet <- unsafeResponse <$> postByronWallet ctx
+            (Json [json|{
+                "name": "Big Byron Wallet",
+                "mnemonic_sentence": #{sourceWalletMnemonic},
+                "passphrase": #{fixturePassphrase},
+                "style": "random"
+            }|])
+        sourceBalance <- eventually "Source wallet balance is correct." $ do
+            response <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron sourceWallet) Default Empty
+            verify response
+                [ expectField (#balance . #available . #getQuantity)
+                    (`shouldBe` 1_000_000_000_100)
+                ]
+            return $ getFromResponse
+                (#balance . #available . #getQuantity) response
+
+        -- Create an empty target wallet:
+        targetWallet <- emptyWallet ctx
+        targetAddresses <- listAddresses @n ctx targetWallet
+        let targetAddressIds = targetAddresses <&>
+                (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+        -- Compute the expected migration plan:
+        responsePlan <- request @(ApiWalletMigrationPlan n) ctx
+            (Link.createMigrationPlan @'Byron sourceWallet) Default
+            (Json [json|{addresses: #{targetAddressIds}}|])
+        verify responsePlan
+            [ expectResponseCode HTTP.status202
+            , expectField
+                (#totalFee . #getQuantity)
+                (`shouldBe` 2_460_400)
+            , expectField
+                (#selections)
+                ((`shouldBe` 2) . length)
+            , expectField
+                (#balanceLeftover . #ada . #getQuantity)
+                (`shouldBe` 100)
+            , expectField
+                (#balanceSelected . #ada . #getQuantity)
+                (`shouldBe` 1_000_000_000_000)
+            ]
+        let expectedFee = getFromResponse
+                (#totalFee . #getQuantity) responsePlan
+        let balanceLeftover =getFromResponse
+                (#balanceLeftover . #ada . #getQuantity) responsePlan
+
+        -- Perform a migration from the source wallet to the target wallet.
+        --
+        -- This migration will involve more than one transaction, where each
+        -- transaction is sent one by one. It may happen that one of these
+        -- transactions is rolled back or simply discarded entirely. The wallet
+        -- doesn't currently have any retry mechanism, which means that
+        -- transactions must be manually retried by clients.
+        --
+        -- The 'migrateWallet' function tries do exactly that: to make sure
+        -- that rolled-back transactions are cancelled and retried until the
+        -- migration is complete.
+        --
+        liftIO $ migrateWallet ctx sourceWallet targetAddressIds
+
+        -- Check that funds become available in the target wallet.
+        let expectedTargetBalance =
+                sourceBalance - balanceLeftover - expectedFee
+        eventually "Target wallet balance reaches expected balance" $ do
+            response <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley targetWallet) Default Empty
+            verify response
+                [ expectField
+                    (#balance . #available . #getQuantity)
+                    (`shouldBe` expectedTargetBalance)
+                , expectField
+                    (#balance . #total . #getQuantity)
+                    (`shouldBe` expectedTargetBalance)
+                ]
+
+        -- Analyse the target wallet's UTxO distribution:
+        responseStats <- request @ApiUtxoStatistics ctx
+            (Link.getUTxOsStatistics @'Shelley targetWallet) Default Empty
+        verify responseStats
+            [ expectField
+                (#distribution)
+                ((`shouldBe` (Just 2)) . Map.lookup 1_000_000_000_000)
+            ]
+
     describe "BYRON_MIGRATE_05 - I could migrate to any valid address" $ do
         forM_ [ ("Byron", emptyRandomWallet)
               , ("Icarus", emptyIcarusWallet)
@@ -288,97 +393,6 @@ spec = describe "BYRON_MIGRATIONS" $ do
         expectResponseCode HTTP.status400 r
         expectErrorMessage errMsg400ParseError r
 
-    Hspec.it "BYRON_MIGRATE_XX_big_wallet - \
-        \ migrate a big wallet requiring more than one tx" $ \ctx -> runResourceT @IO $ do
-        liftIO $ pendingWith "Migration endpoints temporarily disabled."
-        -- NOTE
-        -- Special mnemonic for which 200 legacy funds are attached to in the
-        -- genesis file.
-        --
-        -- Out of these 200 coins, 100 of them are of 1 Lovelace and are
-        -- expected to be treated as dust. The rest are all worth:
-        -- 10,000,000,000 lovelace.
-        let mnemonics =
-                ["collect", "fold", "file", "clown"
-                , "injury", "sun", "brass", "diet"
-                , "exist", "spike", "behave", "clip"
-                ] :: [Text]
-        let payloadRestore = Json [json| {
-                "name": "Big Byron Wallet",
-                "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase},
-                "style": "random"
-                } |]
-        wOld <- unsafeResponse <$> postByronWallet ctx payloadRestore
-        originalBalance <- eventually "wallet balance greater than 0" $ do
-            r <- request @ApiByronWallet ctx
-                (Link.getWallet @'Byron wOld)
-                Default
-                Empty
-            verify r
-                [ expectField (#balance . #available) (.> Quantity 0)
-                ]
-            return $ getFromResponse (#balance . #available . #getQuantity) r
-
-        --Calculate the expected migration fee:
-        rFee <- request @(ApiWalletMigrationPlan n) ctx
-            (Link.createMigrationPlan @'Byron wOld)
-            Default
-            Empty
-        verify rFee
-            [ expectResponseCode HTTP.status200
-            , expectField #totalFee (.> Quantity 0)
-            ]
-        let expectedFee =
-                getFromResponse (#totalFee . #getQuantity) rFee
-        let balanceLeftover =
-                getFromResponse (#balanceLeftover . #ada . #getQuantity) rFee
-
-        -- Migrate to a new empty wallet
-        wNew <- emptyWallet ctx
-        addrs <- listAddresses @n ctx wNew
-        let addr1 = (addrs !! 1) ^. #id
-
-        -- NOTE
-        -- The migration typically involves many transactions being sent one by
-        -- one. It may happen that one of these transaction is rolled back and
-        -- simply discarded entirely from mem pools. There's no retry mechanism
-        -- from the wallet _yet_, which means that such transactions must be
-        -- manually retried by clients.
-        --
-        -- This 'migrateWallet' function does exactly this, and will try to make
-        -- sure that rolledback functions are canceled and retried up until the
-        -- full migration is done.
-        liftIO $ migrateWallet ctx wOld [addr1]
-
-        -- Check that funds become available in the target wallet: Because
-        -- there's a bit of non-determinism in how the migration is really done,
-        -- we can expect the final balance with exactitude. Yet, we still expect
-        -- it to be not too far away from an ideal value.
-        let expectedMinBalance =
-                originalBalance - 2 * expectedFee - balanceLeftover
-        eventually "wallet balance ~ expectedBalance" $ do
-            request @ApiWallet ctx
-                (Link.getWallet @'Shelley wNew)
-                Default
-                Empty >>= flip verify
-                [ expectField
-                        (#balance . #available)
-                        (.> (Quantity expectedMinBalance))
-                , expectField
-                        (#balance . #total)
-                        (.> (Quantity expectedMinBalance))
-                ]
-
-        -- Analyze the target wallet UTxO distribution
-        request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wNew)
-            Default
-            Empty >>= flip verify
-            [ expectField
-                #distribution
-                ((`shouldBe` (Just 100)) . Map.lookup 10_000_000_000)
-            ]
-
     it "BYRON_MIGRATE_XX - \
         \a migration operation removes all funds from the source wallet."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
@@ -412,7 +426,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectField (#balance . #available) (`shouldBe` Quantity 0)
                 ]
 
-    it "BYRON_MIGRATE_02 - \
+    it "BYRON_MIGRATE_XX - \
         \migrating an empty wallet should fail."
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
         $ \emptyByronWallet -> runResourceT $ do
@@ -434,7 +448,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate srcId)
                 ]
 
-    Hspec.it "BYRON_MIGRATE_02 - \
+    Hspec.it "BYRON_MIGRATE_XX - \
         \migrating wallet with dust should fail."
         $ \ctx -> runResourceT @IO $ do
             liftIO $ pendingWith "Migration endpoints temporarily disabled."
@@ -561,33 +575,41 @@ spec = describe "BYRON_MIGRATIONS" $ do
         -> [(ApiT Address, Proxy n)]
         -> IO ()
     migrateWallet ctx src targets = do
-        (st, _) <- request
-            @(ApiWalletMigrationPlan n) ctx endpointInfo Default Empty
-        when (st == HTTP.status200) $ do -- returns '403 Nothing to Migrate' when done
-            -- 1/ Forget all pending transactions to unlock any locked UTxO
-            (_, txs) <- unsafeRequest @[ApiTransaction n] ctx endpointListTxs Empty
+        (status, _) <- request @(ApiWalletMigrationPlan n) ctx
+            endpointCreateMigrationPlan Default payloadCreateMigrationPlan
+        when (status == HTTP.status202) $ do
+            -- The above request returns '403 Nothing to Migrate' when done.
+
+            -- 1. Forget all pending transactions to unlock any locked UTxO:
+            (_, txs) <- unsafeRequest
+                @[ApiTransaction n] ctx endpointListTxs Empty
             forM_ txs $ forgetTxIf ((== ApiT Pending) . view #status)
 
-            -- 2/ Attempt to migrate
-            _ <- request @[ApiTransaction n] ctx endpointMigration Default payload
+            -- 2. Attempt to migrate:
+            _ <- request @[ApiTransaction n] ctx endpointMigrateWallet Default
+                payloadMigrateWallet
 
-            -- 3/ Wait "long-enough" for transactions to have been inserted.
+            -- 3. Wait long enough for transactions to have been inserted:
             waitForTxImmutability ctx
 
-            -- 4/ Recurse, until the server tells us there's nothing left to migrate
+            -- 4. Recurse until the server tells us there's nothing left to
+            -- migrate:
             migrateWallet ctx src targets
       where
-        endpointInfo =
+        endpointCreateMigrationPlan =
             Link.createMigrationPlan @'Byron src
-        endpointMigration =
+        endpointMigrateWallet =
             Link.migrateWallet @'Byron src
         endpointListTxs =
             Link.listTransactions @'Byron src
         endpointForget =
             Link.deleteTransaction @'Byron src
 
-        payload = Json
-            [json|{"passphrase": #{fixturePassphrase}, "addresses": #{targets}}|]
+        payloadCreateMigrationPlan = Json [json|{"addresses": #{targets}}|]
+        payloadMigrateWallet = Json [json|
+            { "passphrase": #{fixturePassphrase}
+            , "addresses": #{targets}
+            }|]
 
         forgetTxIf predicate tx
             | predicate tx =
