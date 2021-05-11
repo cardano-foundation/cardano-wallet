@@ -15,6 +15,12 @@ packages:
 
 source-repository-package
     type: git
+    location: https://github.com/input-output-hk/offchain-metadata-tools
+    tag: 65f2d445d51819bce6537b85e964081b146fd1e3
+    subdir: metadata-lib
+
+source-repository-package
+    type: git
     location: https://github.com/input-output-hk/Win32-network
     tag: 94153b676617f8f33abe8d8182c37377d2784bd1
 
@@ -137,6 +143,7 @@ allow-newer:
   , hjsonpointer:*
   , cardano-sl-x509:ip
   , cardano-addresses:aeson
+  , github:base16-bytestring
 
 constraints:
     hedgehog >= 1.0.2
