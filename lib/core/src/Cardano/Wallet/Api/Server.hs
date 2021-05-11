@@ -952,7 +952,7 @@ scriptTemplateFromSelf :: XPub -> ApiScriptTemplateEntry -> ScriptTemplate
 scriptTemplateFromSelf xpub (ApiScriptTemplateEntry cosigners' template') =
     ScriptTemplate cosignersWithoutSelf template'
   where
-    unSelf (OtherCosigner xpub') = xpub'
+    unSelf (SomeAccountKey xpub') = xpub'
     unSelf Self = xpub
     cosignersWithoutSelf = Map.map unSelf cosigners'
 

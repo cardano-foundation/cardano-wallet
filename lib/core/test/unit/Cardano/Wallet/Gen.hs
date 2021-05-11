@@ -355,7 +355,7 @@ genXPub = do
 
 genXPubOrSelf :: Gen XPubOrSelf
 genXPubOrSelf =
-    oneof [OtherCosigner <$> genXPub, pure Self]
+    oneof [SomeAccountKey <$> genXPub, pure Self]
 
 genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
 genPassphrase range = do

@@ -1096,7 +1096,7 @@ data ApiAccountKeyShared = ApiAccountKeyShared
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data XPubOrSelf = OtherCosigner XPub | Self
+data XPubOrSelf = SomeAccountKey XPub | Self
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -2439,7 +2439,7 @@ instance {-# OVERLAPS #-} EncodeStakeAddress n
     toJSON (acct, _) = toJSON . encodeStakeAddress @n . getApiT $ acct
 
 instance ToJSON XPubOrSelf where
-    toJSON (OtherCosigner xpub) =
+    toJSON (SomeAccountKey xpub) =
         String $ T.decodeUtf8 $ encode EBase16 $ xpubToBytes xpub
     toJSON Self = "self"
 
@@ -2451,7 +2451,7 @@ instance FromJSON XPubOrSelf where
                 Left err -> fail err
                 Right hex' -> case xpubFromBytes hex' of
                     Nothing -> fail "Extended public key cannot be retrieved from a given hex bytestring"
-                    Just validXPub -> pure $ OtherCosigner validXPub
+                    Just validXPub -> pure $ SomeAccountKey validXPub
         parseSelf = withText "Self" $ \txt ->
             if txt == "self" then
                 pure Self

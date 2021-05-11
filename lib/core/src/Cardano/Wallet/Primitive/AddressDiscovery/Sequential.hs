@@ -257,7 +257,7 @@ data ParentContext (chain :: Role) (key :: Depth -> Type -> Type) where
         => key 'AccountK XPub
         -> ScriptTemplate
         -> Maybe ScriptTemplate
-        -> ParentContext chain key
+        -> ParentContext 'UtxoExternal key
 
 deriving instance Eq   (key 'AccountK XPub) => Eq   (ParentContext chain key)
 deriving instance Show (key 'AccountK XPub) => Show (ParentContext chain key)
