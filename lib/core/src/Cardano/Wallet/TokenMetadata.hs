@@ -86,18 +86,18 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetLogo (..)
+    ( AssetDecimals (..)
+    , AssetLogo (..)
     , AssetMetadata (..)
     , AssetURL (..)
-    , AssetUnit (..)
     , TokenName (..)
     , TokenPolicyId (..)
+    , validateMetadataDecimals
     , validateMetadataDescription
     , validateMetadataLogo
     , validateMetadataName
     , validateMetadataTicker
     , validateMetadataURL
-    , validateMetadataUnit
     )
 import Control.Applicative
     ( (<|>) )
@@ -230,7 +230,7 @@ data SubjectProperties = SubjectProperties
         , Maybe (Property "ticker")
         , Maybe (Property "url")
         , Maybe (Property "logo")
-        , Maybe (Property "unit")
+        , Maybe (Property "decimals")
         )
     } deriving (Generic, Show, Eq)
 
@@ -266,8 +266,8 @@ type instance PropertyValue "name" = Text
 type instance PropertyValue "description" = Text
 type instance PropertyValue "ticker" = Text
 type instance PropertyValue "url" = AssetURL
-type instance PropertyValue "unit" = AssetUnit
 type instance PropertyValue "logo" = AssetLogo
+type instance PropertyValue "decimals" = AssetDecimals
 
 class HasValidator (name :: Symbol) where
     -- TODO: requires AllowAmbiguousTypes extension
@@ -284,8 +284,8 @@ instance HasValidator "url" where
     validatePropertyValue = Right
 instance HasValidator "logo" where
     validatePropertyValue = validateMetadataLogo
-instance HasValidator "unit" where
-    validatePropertyValue = validateMetadataUnit
+instance HasValidator "decimals" where
+    validatePropertyValue = validateMetadataDecimals
 
 -- | Will be used in future for checking integrity and authenticity of metadata.
 data Signature = Signature
@@ -477,7 +477,7 @@ getTokenMetadata (TokenMetadataClient client) as =
         { subjects
         , properties = PropertyName <$>
              [ "name", "description", "ticker"
-             , "url", "logo", "unit" ]
+             , "url", "logo", "decimals" ]
         }
     subjectAsset = HM.fromList $ zip subjects as
     fromResponse :: BatchResponse -> [(AssetId, AssetMetadata)]
@@ -502,9 +502,9 @@ metadataFromProperties (SubjectProperties _ _ properties) =
         <*> pure (getValue ticker)
         <*> pure (getValue url)
         <*> pure (getValue logo)
-        <*> pure (getValue unit)
+        <*> pure (getValue decimals)
   where
-    ( name, description, ticker, url, logo, unit ) = properties
+    ( name, description, ticker, url, logo, decimals ) = properties
     getValue :: Maybe (Property a) -> Maybe (PropertyValue a)
     getValue = (>>= (either (const Nothing) Just . value))
 
@@ -542,7 +542,7 @@ instance FromJSON SubjectProperties where
             <*> prop @"ticker" o
             <*> prop @"url" o
             <*> prop @"logo" o
-            <*> prop @"unit" o
+            <*> prop @"decimals" o
 
         prop
             :: forall name. (KnownSymbol name, FromJSON (Property name))
@@ -582,10 +582,8 @@ instance FromJSON AssetURL where
 instance FromJSON AssetLogo where
     parseJSON = fmap (AssetLogo . raw @'Base64) . parseJSON
 
-instance FromJSON AssetUnit where
-    parseJSON = withObject "AssetUnit" $ \o -> AssetUnit
-        <$> o .: "name"
-        <*> o .: "decimals"
+instance FromJSON AssetDecimals where
+    parseJSON = fmap AssetDecimals . parseJSON 
 
 --
 -- Helpers

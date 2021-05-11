@@ -74,9 +74,9 @@
         "name": { "value": "Token2" },
         "description": { "value": "description2" },
         "ticker": { "value": "acr2" },
-        "unit": { "value": { "decimals": 14, "name": "unit2" } },
         "url": { "value": "https://iohk.io" },
-        "logo": { "value": "QWxtb3N0IGEgbG9nbw==" }
+        "logo": { "value": "QWxtb3N0IGEgbG9nbw==" },
+        "decimals": { "value": 1 }
     }
   ]
 }

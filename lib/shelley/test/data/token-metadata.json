@@ -32,8 +32,8 @@
             "value": "STV",
             "signatures": []
         },
-        "unit": {
-            "value": { "decimals": 6, "name": "MegaSteve" },
+        "decimals": {
+            "value": 6,
             "signatures": []
         },
         "url": {
