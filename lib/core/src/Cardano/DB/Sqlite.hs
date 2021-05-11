@@ -236,11 +236,13 @@ destroySqliteBackend
     -> IO ()
 destroySqliteBackend tr sqlBackend dbFile = do
     traceWith tr (MsgCloseSingleConnection dbFile)
-    retryOnBusy tr (close' sqlBackend)
+    (close' sqlBackend)
         & handleIf isAlreadyClosed
             (traceWith tr . MsgIsAlreadyClosed . showT)
         & handleIf statementAlreadyFinalized
             (traceWith tr . MsgStatementAlreadyFinalized . showT)
+        & handleIf isBusy
+            (traceWith tr . MsgFailedToCloseSingleConnection dbFile . showT)
   where
     isAlreadyClosed = \case
         -- Thrown when an attempt is made to close a connection that is already
@@ -252,6 +254,10 @@ destroySqliteBackend tr sqlBackend dbFile = do
         -- Thrown
         Persist.StatementAlreadyFinalized{} -> True
         Persist.Couldn'tGetSQLConnection{}  -> False
+
+    isBusy = \case
+        SqliteException Sqlite.ErrorBusy _ _ -> True
+        SqliteException {}  -> False
 
     showT :: Show a => a -> Text
     showT = T.pack . show
@@ -492,6 +498,7 @@ data DBLog
     | MsgQuery Text Severity
     | MsgRun BracketLog
     | MsgCloseSingleConnection FilePath
+    | MsgFailedToCloseSingleConnection FilePath Text
     | MsgStartConnectionPool FilePath
     | MsgStopConnectionPool FilePath
     | MsgDatabaseReset
@@ -516,6 +523,7 @@ instance HasSeverityAnnotation DBLog where
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
         MsgCloseSingleConnection _ -> Info
+        MsgFailedToCloseSingleConnection{} -> Warning
         MsgStartConnectionPool _ -> Info
         MsgStopConnectionPool _ -> Info
         MsgExpectedMigration _ -> Debug
@@ -550,6 +558,9 @@ instance ToText DBLog where
             \and re-creating it from scratch. Ignore the previous error."
         MsgCloseSingleConnection fp ->
             "Closing single database connection ("+|fp|+")"
+        MsgFailedToCloseSingleConnection fp err ->
+            "Failed to close single database connection ("+|fp|+") because of "
+                +||err||+""
         MsgIsAlreadyClosed msg ->
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
