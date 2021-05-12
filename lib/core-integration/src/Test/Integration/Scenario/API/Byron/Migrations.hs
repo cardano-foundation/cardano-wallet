@@ -417,7 +417,34 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     . fmap apiTransactionFee
                 ]
 
-    describe "BYRON_MIGRATE_05 - I could migrate to any valid address" $ do
+    it "BYRON_MIGRATE_05 - \
+        \Migration fails if the wrong passphrase is supplied."
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> runResourceT $ do
+
+            -- Restore a Byron wallet with funds, to act as a source wallet:
+            sourceWallet <- fixtureByronWallet ctx
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+            -- Attempt to perform a migration:
+            response <- request @[ApiTransaction n] ctx
+                (Link.migrateWallet @'Byron sourceWallet)
+                Default
+                (Json [json|
+                    { passphrase: "not-the-right-passphrase"
+                    , addresses: #{targetAddressIds}
+                    }|])
+            verify response
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage errMsg403WrongPass
+                ]
+
+    describe "BYRON_MIGRATE_XX - I could migrate to any valid address" $ do
         forM_ [ ("Byron", emptyRandomWallet)
               , ("Icarus", emptyIcarusWallet)
               ] $ \(walType, destWallet) -> do
@@ -535,30 +562,6 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate srcId)
                 ]
-
-    it "BYRON_MIGRATE_XX - migration fails with a wrong passphrase"
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> runResourceT $ do
-        liftIO $ pendingWith "Migration endpoints temporarily disabled."
-        -- Restore a Byron wallet with funds, to act as a source wallet:
-        sourceWallet <- fixtureByronWallet ctx
-
-        -- Perform a migration from the source wallet to a target wallet:
-        targetWallet <- emptyWallet ctx
-        addrs <- listAddresses @n ctx targetWallet
-        let addr1 = (addrs !! 1) ^. #id
-        r0 <- request @[ApiTransaction n] ctx
-            (Link.migrateWallet @'Byron sourceWallet)
-            Default
-            (Json [json|
-                { passphrase: "not-the-right-passphrase"
-                , addresses: [#{addr1}]
-                }|])
-        verify r0
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403WrongPass
-            ]
-
   where
     -- Compute the fee associated with an API transaction.
     apiTransactionFee :: ApiTransaction n -> Word64

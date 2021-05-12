@@ -399,6 +399,32 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     . fmap apiTransactionFee
                 ]
 
+    it "SHELLEY_MIGRATE_05 - \
+        \Migration fails if the wrong passphrase is supplied."
+        $ \ctx -> runResourceT $ do
+
+            -- Restore a Shelley wallet with funds, to act as a source wallet:
+            sourceWallet <- fixtureWallet ctx
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+            -- Attempt to perform a migration:
+            response <- request @[ApiTransaction n] ctx
+                (Link.migrateWallet @'Shelley sourceWallet)
+                Default
+                (Json [json|
+                    { passphrase: "not-the-right-passphrase"
+                    , addresses: #{targetAddressIds}
+                    }|])
+            verify response
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage errMsg403WrongPass
+                ]
+
     Hspec.it "SHELLEY_MIGRATE_XX - \
         \migrating wallet with 'dust' (that complies with minUTxOValue) should pass."
         $ \ctx -> runResourceT @IO $ do
@@ -464,29 +490,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             ( `shouldBe` Quantity expectedBalance)
                     ]
 
-    it "SHELLEY_MIGRATE_XX - migration fails with a wrong passphrase" $ \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Migration endpoints temporarily disabled."
-        -- Restore a Shelley wallet with funds, to act as a source wallet:
-        sourceWallet <- fixtureWallet ctx
-
-        -- Perform a migration from the source wallet to a target wallet:
-        targetWallet <- emptyWallet ctx
-        addrs <- listAddresses @n ctx targetWallet
-        let addr1 = (addrs !! 1) ^. #id
-        r0 <- request @[ApiTransaction n] ctx
-            (Link.migrateWallet @'Shelley sourceWallet)
-            Default
-            (Json [json|
-                { passphrase: "not-the-right-passphrase"
-                , addresses: [#{addr1}]
-                }|])
-        verify r0
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403WrongPass
-            ]
-
-
-    it "SHELLEY_MIGRATE_05 - I could migrate to any valid address" $ \ctx -> runResourceT $ do
+    it "SHELLEY_MIGRATE_XX - I could migrate to any valid address" $ \ctx -> runResourceT $ do
       liftIO $ pendingWith "Migration endpoints temporarily disabled."
       --shelley address
       wShelley <- emptyWallet ctx
