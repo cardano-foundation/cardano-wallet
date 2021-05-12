@@ -1849,9 +1849,10 @@ migrationPlanToSelectionWithdrawals
     => MigrationPlan
     -> Withdrawal
     -> NonEmpty Address
-    -> [(SelectionResult noChange, Withdrawal)]
+    -> Maybe (NonEmpty (SelectionResult noChange, Withdrawal))
 migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
-    = fst
+    = NE.nonEmpty
+    $ fst
     $ L.foldr
         (accumulate)
         ([], NE.toList $ NE.cycle outputAddressesToCycle)

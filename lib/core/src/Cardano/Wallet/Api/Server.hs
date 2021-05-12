@@ -2076,8 +2076,18 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan
         Nothing
   where
     maybeSelections :: Maybe (NonEmpty (ApiCoinSelection n))
-    maybeSelections = NE.nonEmpty $
-        mkApiCoinSelectionForMigration <$> unsignedTxs
+    maybeSelections = fmap mkApiCoinSelectionForMigration <$> maybeUnsignedTxs
+
+    maybeSelectionWithdrawals
+        :: Maybe (NonEmpty (SelectionResult Void, Withdrawal))
+    maybeSelectionWithdrawals
+        = W.migrationPlanToSelectionWithdrawals plan rewardWithdrawal
+        $ getApiT . fst <$> addresses
+
+    maybeUnsignedTxs = fmap mkUnsignedTx <$> maybeSelectionWithdrawals
+      where
+        mkUnsignedTx (selection, withdrawal) = W.selectionToUnsignedTx
+            withdrawal (selection {changeGenerated = []}) s
 
     totalFee :: Quantity "lovelace" Natural
     totalFee = coinToQuantity $ view #totalFee plan
@@ -2093,14 +2103,6 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan
         & view #selections
         & F.foldMap (view #inputBalance)
         & mkApiWalletMigrationBalance
-
-    selectionWithdrawals :: [(SelectionResult Void, Withdrawal)]
-    selectionWithdrawals
-        = W.migrationPlanToSelectionWithdrawals plan rewardWithdrawal
-        $ getApiT . fst <$> addresses
-
-    unsignedTxs = selectionWithdrawals <&> \(selection, withdrawal) ->
-        W.selectionToUnsignedTx withdrawal (selection {changeGenerated = []}) s
 
     mkApiCoinSelectionForMigration unsignedTx =
         mkApiCoinSelection [] Nothing Nothing unsignedTx
@@ -2125,14 +2127,16 @@ migrateWallet
     => ctx
     -> ApiT WalletId
     -> ApiWalletMigrationPostData n p
-    -> Handler [ApiTransaction n]
+    -> Handler (NonEmpty (ApiTransaction n))
 migrateWallet ctx (ApiT wid) postData = do
     (rewardWithdrawal, mkRewardAccount) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
         txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
-        let selectionWithdrawals = W.migrationPlanToSelectionWithdrawals
+        selectionWithdrawals <- liftHandler
+            $ failWith ErrCreateMigrationPlanEmpty
+            $ W.migrationPlanToSelectionWithdrawals
                 plan rewardWithdrawal addresses
         forM selectionWithdrawals $ \(selection, txWithdrawal) -> do
             let txContext = defaultTransactionCtx

@@ -3712,6 +3712,7 @@ x-responsesMigrateWallet: &responsesMigrateWallet
         schema:
           type: array
           items: *ApiTransaction
+          minItems: 1
 
 x-responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr400
