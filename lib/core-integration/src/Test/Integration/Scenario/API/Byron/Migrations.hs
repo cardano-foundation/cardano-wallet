@@ -371,6 +371,52 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
                 ]
 
+    it "BYRON_MIGRATE_04 - \
+        \Actual fee for migration is identical to predicted fee."
+        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \fixtureByronWallet -> runResourceT $ do
+
+            let feeExpected = 334_200
+
+            -- Restore a source wallet with funds.
+            sourceWallet <- fixtureByronWallet ctx
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+            -- Create a migration plan:
+            let endpointPlan = (Link.createMigrationPlan @'Byron sourceWallet)
+            responsePlan <- request @(ApiWalletMigrationPlan n)
+                ctx endpointPlan Default $
+                Json [json|{addresses: #{targetAddressIds}}|]
+            verify responsePlan
+                [ expectResponseCode HTTP.status202
+                , expectField #totalFee (`shouldBe` Quantity feeExpected)
+                , expectField #selections ((`shouldBe` 1) . length)
+                ]
+
+            -- Perform a migration:
+            let endpointMigrate = Link.migrateWallet @'Byron sourceWallet
+            responseMigrate <-
+                request @[ApiTransaction n] ctx endpointMigrate Default $
+                Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{targetAddressIds}
+                    }|]
+            -- Verify the fee is as expected:
+            verify responseMigrate
+                [ expectResponseCode HTTP.status202
+                , expectField id ((`shouldBe` 1) . length)
+                , expectField id
+                    $ (`shouldBe` feeExpected)
+                    . fromIntegral
+                    . sum
+                    . fmap apiTransactionFee
+                ]
+
     describe "BYRON_MIGRATE_05 - I could migrate to any valid address" $ do
         forM_ [ ("Byron", emptyRandomWallet)
               , ("Icarus", emptyIcarusWallet)
@@ -490,46 +536,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate srcId)
                 ]
 
-    it "BYRON_MIGRATE_XX - \
-        \actual fee for migration is the same as the predicted fee."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            -- Restore a Byron wallet with funds.
-            sourceWallet <- fixtureByronWallet ctx
-
-            -- Request a migration fee prediction.
-            let ep0 = (Link.createMigrationPlan @'Byron sourceWallet)
-            r0 <- request @(ApiWalletMigrationPlan n) ctx ep0 Default Empty
-            verify r0
-                [ expectResponseCode HTTP.status200
-                , expectField #totalFee (.> Quantity 0)
-                ]
-
-            -- Perform the migration.
-            targetWallet <- emptyWallet ctx
-            addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
-            let payload =
-                    Json [json|
-                        { passphrase: #{fixturePassphrase}
-                        , addresses: [#{addr1}]
-                        }|]
-            let ep1 = Link.migrateWallet @'Byron sourceWallet
-            r1 <- request @[ApiTransaction n] ctx ep1 Default payload
-            verify r1
-                [ expectResponseCode HTTP.status202
-                , expectField id (`shouldSatisfy` (not . null))
-                ]
-
-            -- Verify that the fee prediction was correct.
-            let actualFee = fromIntegral $ sum $ apiTransactionFee
-                    <$> getFromResponse id r1
-            let predictedFee =
-                    getFromResponse (#totalFee . #getQuantity) r0
-            liftIO $ actualFee `shouldBe` predictedFee
-
-    it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
+    it "BYRON_MIGRATE_XX - migration fails with a wrong passphrase"
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT $ do
         liftIO $ pendingWith "Migration endpoints temporarily disabled."

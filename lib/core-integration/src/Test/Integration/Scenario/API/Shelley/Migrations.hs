@@ -353,6 +353,52 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
                 ]
 
+    it "SHELLEY_MIGRATE_04 - \
+        \Actual fee for migration is identical to predicted fee."
+        $ \ctx -> runResourceT $ do
+
+            let feeExpected = 255_200
+
+            -- Restore a source wallet with funds:
+            sourceWallet <- fixtureWallet ctx
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+            -- Create a migration plan:
+            let endpointPlan = (Link.createMigrationPlan @'Shelley sourceWallet)
+            responsePlan <- request @(ApiWalletMigrationPlan n)
+                ctx endpointPlan Default $
+                Json [json|{addresses: #{targetAddressIds}}|]
+            -- Verify the fee is as expected:
+            verify responsePlan
+                [ expectResponseCode HTTP.status202
+                , expectField #totalFee (`shouldBe` Quantity feeExpected)
+                , expectField #selections ((`shouldBe` 1) . length)
+                ]
+
+            -- Perform a migration:
+            let endpointMigrate = Link.migrateWallet @'Shelley sourceWallet
+            responseMigrate <-
+                request @[ApiTransaction n] ctx endpointMigrate Default $
+                Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{targetAddressIds}
+                    }|]
+            -- Verify the fee is as expected:
+            verify responseMigrate
+                [ expectResponseCode HTTP.status202
+                , expectField id ((`shouldBe` 1) . length)
+                , expectField id
+                    $ (`shouldBe` feeExpected)
+                    . fromIntegral
+                    . sum
+                    . fmap apiTransactionFee
+                ]
+
     Hspec.it "SHELLEY_MIGRATE_XX - \
         \migrating wallet with 'dust' (that complies with minUTxOValue) should pass."
         $ \ctx -> runResourceT @IO $ do
@@ -418,45 +464,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             ( `shouldBe` Quantity expectedBalance)
                     ]
 
-    it "SHELLEY_MIGRATE_xx - \
-        \actual fee for migration is the same as the predicted fee."
-        $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            -- Restore a Shelley wallet with funds.
-            sourceWallet <- fixtureWallet ctx
-
-            -- Request a migration fee prediction.
-            let ep0 = (Link.createMigrationPlan @'Shelley sourceWallet)
-            r0 <- request @(ApiWalletMigrationPlan n) ctx ep0 Default Empty
-            verify r0
-                [ expectResponseCode HTTP.status200
-                , expectField #totalFee (.> Quantity 0)
-                ]
-
-            -- Perform the migration.
-            targetWallet <- emptyWallet ctx
-            addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
-            let payload =
-                    Json [json|
-                        { passphrase: #{fixturePassphrase}
-                        , addresses: [#{addr1}]
-                        }|]
-            let ep1 = Link.migrateWallet @'Shelley sourceWallet
-            r1 <- request @[ApiTransaction n] ctx ep1 Default payload
-            verify r1
-                [ expectResponseCode HTTP.status202
-                , expectField id (`shouldSatisfy` (not . null))
-                ]
-
-            -- Verify that the fee prediction was correct.
-            let actualFee = fromIntegral $ sum $ apiTransactionFee
-                    <$> getFromResponse id r1
-            let predictedFee =
-                    getFromResponse (#totalFee . #getQuantity) r0
-            liftIO $ actualFee `shouldBe` predictedFee
-
-    it "SHELLEY_MIGRATE_04 - migration fails with a wrong passphrase" $ \ctx -> runResourceT $ do
+    it "SHELLEY_MIGRATE_XX - migration fails with a wrong passphrase" $ \ctx -> runResourceT $ do
         liftIO $ pendingWith "Migration endpoints temporarily disabled."
         -- Restore a Shelley wallet with funds, to act as a source wallet:
         sourceWallet <- fixtureWallet ctx
