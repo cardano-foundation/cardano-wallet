@@ -293,8 +293,31 @@ x-cosigners: &cosigners
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
-    , "cosigner#3": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2" }
+    - {"cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"}
+
+x-self: &self
+  type: string
+  enum:
+    - self
+
+x-accountPubkeyOrSelf: &accountPubkeyOrSelf
+  nullable: false
+  oneOf:
+    - <<: *walletAccountPubkey
+      title: public key
+    - <<: *self
+      title: self
+
+x-cosignersEntry: &cosignersEntry
+  description: Map of cosigners and their account public keys. Use key as in &cosigner, eg. "cosigner#"or 'self'
+  type: object
+  additionalProperties: *accountPubkeyOrSelf
+  # Note: propertyNames pattern not supported in current OpenAPI version.
+  # propertyNames:
+  #   pattern: '^(cosigner#)[0-9]+$'
+  example:
+    - {"cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"}
+    - {"cosigner#0": "self"}
 
 x-walletId: &walletId
   description: A unique identifier for the wallet
@@ -372,7 +395,7 @@ x-ScriptValue: &ScriptValue
       description: Leaf value for a script designating a required verification key hash.
       type: string
       format: bech32
-      pattern: "^(script_vkh)1[0-9a-z]*$"
+      pattern: "^((addr_shared_vkh)|(stake_shared_vkh))1[0-9a-z]*$"
 
     - title: All
       type: object
@@ -525,6 +548,15 @@ x-scriptTemplate: &scriptTemplate
     cosigners: *cosigners
     template: *ScriptTemplateValue
 
+x-scriptTemplateEntry: &scriptTemplateEntry
+  type: object
+  required:
+    - cosigners
+    - template
+  properties:
+    cosigners: *cosignersEntry
+    template: *ScriptTemplateValue
+
 x-CredentialValue: &CredentialValue
   nullable: false
   oneOf:
@@ -534,23 +566,25 @@ x-CredentialValue: &CredentialValue
       title: script
   example:
     any:
-    - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
+    - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+
+    - stake_shared_vkh1nqc00hvlc6cq0sfhretk0rmzw8dywmusp8retuqnnxzajtzhjg5
 
     - all:
-      - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
-      - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms
+      - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+      - addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp
 
     - any:
-      - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
+      - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
       - all:
-        - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
-        - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms
+        - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+        - addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp
 
     - some:
         at_least: 2
         from:
-        - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms
-        - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms
+        - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+        - addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp
 
 x-settings: &settings
   description: Settings
@@ -735,7 +769,10 @@ x-walletPassphrase: &walletPassphrase
 
 x-keyExtended: &keyExtended
   description: Determines whether extended (with chain code) or normal (without chain code) key is requested
-  type: boolean
+  type: string
+  enum:
+    - extended
+    - non_extended
 
 x-lenientPassphrase: &lenientPassphrase
   description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
@@ -1083,8 +1120,10 @@ x-transactionMint: &transactionMint
 x-derivationSegment: &derivationSegment
   description: |
     An individual segment within a derivation path.
-    Indexes without `H` suffix are called `Soft`.
-    Indexes with `H` suffix are called `Hardened`.
+
+    The `H` suffix indicates a _Hardened_ child private key, which
+    means that children of this key cannot be derived from the public
+    key. Indices without a `H` suffix are called _Soft_.
   type: string
   example: 1852H
 
@@ -1822,15 +1861,25 @@ components:
           <<: *addresses
           description: The imported addresses.
 
-    ApiVerificationKey: &ApiVerificationKey
+    ApiVerificationKeyShelley: &ApiVerificationKeyShelley
       type: string
       format: bech32
-      pattern: "^((addr_vk)|(stake_vk)|(script_vk))1[0-9a-z]*$"
+      pattern: "^((addr_vk)|(stake_vk))1[0-9a-z]*$"
+
+    ApiVerificationKeyShared: &ApiVerificationKeyShared
+      type: string
+      format: bech32
+      pattern: "^((addr_shared_vk)|(stake_shared_vk)|(addr_shared_vkh)|(stake_shared_vkh))1[0-9a-z]*$"
 
     ApiAccountKey: &ApiAccountKey
       type: string
       format: bech32
       pattern: "^((acct_xvk)|(acct_vk))1[0-9a-z]*$"
+
+    ApiAccountKeyShared: &ApiAccountKeyShared
+      type: string
+      format: bech32
+      pattern: "^((acct_shared_xvk)|(acct_shared_vk))1[0-9a-z]*$"
 
     ApiTxId: &ApiTxId
       type: object
@@ -2057,8 +2106,8 @@ components:
         mnemonic_second_factor: *walletSecondFactor
         passphrase: *walletPassphrase
         account_index: *derivationSegment
-        payment_script_template: *scriptTemplate
-        delegation_script_template: *scriptTemplate
+        payment_script_template: *scriptTemplateEntry
+        delegation_script_template: *scriptTemplateEntry
 
     ApiSharedWalletPostDataFromAccountPubX: &ApiSharedWalletPostDataFromAccountPubX
       type: object
@@ -2071,8 +2120,8 @@ components:
         name: *walletName
         account_public_key: *walletAccountPubkey
         account_index: *derivationSegment
-        payment_script_template: *scriptTemplate
-        delegation_script_template: *scriptTemplate
+        payment_script_template: *scriptTemplateEntry
+        delegation_script_template: *scriptTemplateEntry
 
     ApiSharedWalletPostData: &ApiSharedWalletPostData
       type: object
@@ -2366,10 +2415,10 @@ components:
       type: object
       required:
         - passphrase
-        - extended
+        - format
       properties:
         passphrase: *walletPassphrase
-        extended: *keyExtended
+        format: *keyExtended
 
     ApiSettingsPutData: &ApiSettingsPutData
       type: object
@@ -2645,13 +2694,21 @@ x-parametersRole: &parametersRole
     - utxo_external
     - utxo_internal
     - mutable_account
-    - multisig_script
 
 x-parametersDerivationSegment: &parametersDerivationSegment
   in: path
   name: index
   required: true
   schema: *derivationSegment
+
+x-parametersDerivationHash: &parametersDerivationHash
+  in: query
+  name: hash
+  schema:
+    type: boolean
+    default: false
+  description: |
+    Whether to return the key hash instead of the key.
 
 x-parametersStartDate: &parametersStartDate
   in: query
@@ -3892,7 +3949,7 @@ x-responsesListAddresses: &responsesListAddresses
           type: array
           items: *ApiAddress
 
-x-responsesGetKey: &responsesGetKey
+x-responsesGetShelleyKey: &responsesGetShelleyKey
   <<: *responsesErr400
   <<: *responsesErr404
   <<: *responsesErr406
@@ -3900,7 +3957,17 @@ x-responsesGetKey: &responsesGetKey
     description: Ok
     content:
       application/json:
-        schema: *ApiVerificationKey
+        schema: *ApiVerificationKeyShelley
+
+x-responsesGetSharedKey: &responsesGetSharedKey
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiVerificationKeyShared
 
 x-responsesPostAccountKey: &responsesPostAccountKey
   <<: *responsesErr400
@@ -3911,6 +3978,16 @@ x-responsesPostAccountKey: &responsesPostAccountKey
     content:
       application/json:
         schema: *ApiAccountKey
+
+x-responsesPostAccountKeyShared: &responsesPostAccountKeyShared
+  <<: *responsesErr400
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiAccountKeyShared
 
 x-responsesListStakePools: &responsesListStakePools
   400:
@@ -4097,6 +4174,11 @@ x-tagGroups:
     - Stake Pools
     - Keys
 
+  - name: Shelley (Shared Wallets)
+    tags:
+    - Shared Wallets
+    - Shared Keys
+
   - name: Byron (Random)
     tags:
     - Byron Wallets
@@ -4105,10 +4187,6 @@ x-tagGroups:
     - Byron Coin Selections
     - Byron Transactions
     - Byron Migrations
-
-  - name: Shelley (Shared Wallets)
-    tags:
-    - Shared Wallets
 
   - name: Miscellaneous
     tags:
@@ -4417,7 +4495,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
         Retrieve account public key from the wallet.
 
-        <b>Note:</b> Only `Hard` indexes are supported by this endpoint.
+        <b>Note:</b> Only _Hardened_ indexes are supported by this endpoint.
       parameters:
         - *parametersWalletId
         - *parametersDerivationSegment
@@ -4442,7 +4520,7 @@ paths:
         - *parametersWalletId
         - *parametersRole
         - *parametersDerivationSegment
-      responses: *responsesGetKey
+      responses: *responsesGetShelleyKey
 
   /stake-pools:
     get:
@@ -5243,8 +5321,10 @@ paths:
       summary: Create
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+        Create a shared wallet from either an account public key and script
+        templates or mnemonic and script templates.
+        ADP-686 will enable restoration.
 
-        Create a shared wallet from an account public key, its index and script templates.
       requestBody:
         required: true
         content:
@@ -5259,6 +5339,8 @@ paths:
       summary: Get
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+        Get a shared wallet for a given wallet id.
+
       parameters:
         - *parametersWalletId
       responses: *responsesGetSharedWallet
@@ -5280,6 +5362,12 @@ paths:
       summary: Update Payment
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+        Update payment script template for a given shared wallet by
+        updating/adding account public key for cosigner. Updating the
+        shared wallet account key results in an error. Also updating is
+        enabled only for pending shared wallet, ie., the wallet that has
+        a missing account public key for any cosigner.
+
       parameters:
         - *parametersWalletId
       requestBody:
@@ -5296,6 +5384,12 @@ paths:
       summary: Update Delegation
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+        Update delegation script template for a given shared wallet by
+        updating/adding account public key for cosigner. Updating the
+        shared wallet account key results in an error. Also updating is
+        enabled only for pending shared wallet, ie., the wallet that has
+        a missing account public key for any cosigner.
+
       parameters:
         - *parametersWalletId
       requestBody:
@@ -5304,3 +5398,44 @@ paths:
           application/json:
             schema: *ApiSharedWalletPatchData
       responses: *responsesPatchSharedWallet
+
+  /shared-wallets/{walletId}/keys/{role}/{index}:
+    get:
+      operationId: getSharedWalletKey
+      tags: ["Shared Keys"]
+      summary: Get Public Key
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Return a public key for a given role and derivation index for
+        a shared wallet.
+
+        To get a hash of the public key, instead of the public key,
+        use query parameter `hash=true`.
+
+        <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
+      parameters:
+        - *parametersWalletId
+        - *parametersRole
+        - *parametersDerivationSegment
+        - *parametersDerivationHash
+      responses: *responsesGetSharedKey
+
+  /shared-wallets/{walletId}/keys/{index}:
+    post:
+      operationId: postAccountKeyShared
+      tags: ["Shared Keys"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Retrieve account public key from the shared wallet.
+
+        <b>Note:</b> Only _Hardened_ indexes are supported by this endpoint.
+      parameters:
+        - *parametersWalletId
+        - *parametersDerivationSegment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostAccountKeyData
+      responses: *responsesPostAccountKeyShared
