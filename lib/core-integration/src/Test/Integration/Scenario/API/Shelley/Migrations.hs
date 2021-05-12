@@ -333,6 +333,17 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 ((`shouldBe` (Just 2)) . Map.lookup 10_000_000_000_000)
             ]
 
+        -- Check that the source wallet has the expected leftover balance:
+        responseFinalSourceBalance <- request @ApiWallet ctx
+            (Link.getWallet @'Shelley sourceWallet) Default Empty
+        verify responseFinalSourceBalance
+            [ expectResponseCode HTTP.status200
+            , expectField (#balance . #available)
+                (`shouldBe` Quantity 0)
+            , expectField (#balance . #total)
+                (`shouldBe` Quantity 0)
+            ]
+
     it "SHELLEY_MIGRATE_03 - \
         \Migrating an empty wallet should fail."
         $ \ctx -> runResourceT $ do
@@ -656,9 +667,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     ]
 
             -- Check that the source wallet has a balance of zero:
-            response3 <- request @ApiWallet ctx
+            responseFinalSourceBalance <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
-            verify response3
+            verify responseFinalSourceBalance
                 [ expectField
                     (#balance . #available)
                     (`shouldBe` Quantity 0)

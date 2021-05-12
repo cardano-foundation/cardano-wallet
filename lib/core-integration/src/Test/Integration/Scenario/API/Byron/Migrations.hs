@@ -350,6 +350,17 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 ((`shouldBe` (Just 2)) . Map.lookup 1_000_000_000_000)
             ]
 
+        -- Check that the source wallet has the expected leftover balance:
+        responseFinalSourceBalance <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron sourceWallet) Default Empty
+        verify responseFinalSourceBalance
+            [ expectResponseCode HTTP.status200
+            , expectField (#balance . #available)
+                (`shouldBe` Quantity 100)
+            , expectField (#balance . #total)
+                (`shouldBe` Quantity 100)
+            ]
+
     it "BYRON_MIGRATE_03 - \
         \Migrating an empty wallet should fail."
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
@@ -500,39 +511,6 @@ spec = describe "BYRON_MIGRATIONS" $ do
             verify response
                 [ expectResponseCode HTTP.status400
                 , expectErrorMessage errMsg400ParseError
-                ]
-
-    it "BYRON_MIGRATE_XX - \
-        \a migration operation removes all funds from the source wallet."
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            -- Restore a Byron wallet with funds, to act as a source wallet:
-            sourceWallet <- fixtureByronWallet ctx
-
-            -- Perform a migration from the source wallet to a target wallet:
-            targetWallet <- emptyWallet ctx
-            addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
-
-            r0 <- request @[ApiTransaction n] ctx
-                (Link.migrateWallet @'Byron sourceWallet)
-                Default
-                (Json [json|
-                    { passphrase: #{fixturePassphrase}
-                    , addresses: [#{addr1}]
-                    }|])
-            verify r0
-                [ expectResponseCode HTTP.status202
-                , expectField id (`shouldSatisfy` (not . null))
-                ]
-
-            -- Verify that the source wallet has no funds available:
-            r1 <- request @ApiByronWallet ctx
-                (Link.getWallet @'Byron sourceWallet) Default Empty
-            verify r1
-                [ expectResponseCode HTTP.status200
-                , expectField (#balance . #available) (`shouldBe` Quantity 0)
                 ]
 
     Hspec.it "BYRON_MIGRATE_XX - \
@@ -702,3 +680,15 @@ spec = describe "BYRON_MIGRATIONS" $ do
                         (#balance . #total)
                         (`shouldBe` Quantity expectedTargetBalance)
                     ]
+
+            -- Check that the source wallet has a balance of zero:
+            responseFinalSourceBalance <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron sourceWallet) Default Empty
+            verify responseFinalSourceBalance
+                [ expectField
+                    (#balance . #available)
+                    (`shouldBe` Quantity 0)
+                , expectField
+                    (#balance . #total)
+                    (`shouldBe` Quantity 0)
+                ]
