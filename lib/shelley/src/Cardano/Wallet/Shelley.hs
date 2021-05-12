@@ -290,7 +290,9 @@ serveWallet
                     Server.idleWorker
                 shelleyApi <- apiLayer (newTransactionLayer net) nl
                     (Server.manageRewardBalance proxy)
-                multisigApi <- apiLayer undefined nl
+
+                let txLayerUdefined = error "TO-DO in ADP-686"
+                multisigApi <- apiLayer txLayerUdefined nl
                     Server.idleWorker
 
                 withPoolsMonitoring databaseDir np nl $ \spl -> do

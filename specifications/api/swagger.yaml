@@ -4174,6 +4174,11 @@ x-tagGroups:
     - Stake Pools
     - Keys
 
+  - name: Shelley (Shared Wallets)
+    tags:
+    - Shared Wallets
+    - Shared Keys
+
   - name: Byron (Random)
     tags:
     - Byron Wallets
@@ -4182,11 +4187,6 @@ x-tagGroups:
     - Byron Coin Selections
     - Byron Transactions
     - Byron Migrations
-
-  - name: Shelley (Shared Wallets)
-    tags:
-    - Shared Wallets
-    - Shared Keys
 
   - name: Miscellaneous
     tags:
@@ -5321,11 +5321,10 @@ paths:
       summary: Create
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+        Create a shared wallet from either an account public key and script
+        templates or mnemonic and script templates.
+        ADP-686 will enable restoration.
 
-        Create a shared wallet from an account public key and script
-        template index.
-
-        **TODO:** ADP-866 is it also restored? If not, when?
       requestBody:
         required: true
         content:
@@ -5340,8 +5339,8 @@ paths:
       summary: Get
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+        Get a shared wallet for a given wallet id.
 
-        **TODO:** ADP-866 document this endpoint.
       parameters:
         - *parametersWalletId
       responses: *responsesGetSharedWallet
@@ -5363,7 +5362,12 @@ paths:
       summary: Update Payment
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
-        **TODO:** ADP-866 document and retitle this endpoint.
+        Update payment script template for a given shared wallet by
+        updating/adding account public key for cosigner. Updating the
+        shared wallet account key results in an error. Also updating is
+        enabled only for pending shared wallet, ie., the wallet that has
+        a missing account public key for any cosigner.
+
       parameters:
         - *parametersWalletId
       requestBody:
@@ -5380,8 +5384,12 @@ paths:
       summary: Update Delegation
       description: |
         <p align="right">status: <strong>⚠ under development</strong></p>
+        Update delegation script template for a given shared wallet by
+        updating/adding account public key for cosigner. Updating the
+        shared wallet account key results in an error. Also updating is
+        enabled only for pending shared wallet, ie., the wallet that has
+        a missing account public key for any cosigner.
 
-        **TODO:** ADP-866 document and retitle this endpoint.
       parameters:
         - *parametersWalletId
       requestBody:

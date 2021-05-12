@@ -86,8 +86,7 @@ import Cardano.Wallet.Api.Server
     , mkSharedWallet
     , mkShelleyWallet
     , patchSharedWallet
-    , postAccountPublicKeyShared
-    , postAccountPublicKeyShelley
+    , postAccountPublicKey
     , postAccountWallet
     , postExternalTransaction
     , postIcarusWallet
@@ -117,6 +116,8 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( AnyAddress (..)
     , AnyAddressType (..)
+    , ApiAccountKey (..)
+    , ApiAccountKeyShared (..)
     , ApiAddressData (..)
     , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
@@ -247,7 +248,7 @@ server byron icarus shelley multisig spl ntp =
     walletKeys :: Server WalletKeys
     walletKeys = derivePublicKeyShelley shelley
         :<|> signMetadata shelley
-        :<|> postAccountPublicKeyShelley shelley
+        :<|> postAccountPublicKey shelley ApiAccountKey
 
     assets :: Server Assets
     assets = listAssets shelley :<|> getAsset shelley :<|> getAssetDefault shelley
@@ -508,7 +509,7 @@ server byron icarus shelley multisig spl ntp =
         -> Server SharedWalletKeys
     sharedWalletKeys apilayer =
              (derivePublicKeyShared apilayer)
-        :<|> (postAccountPublicKeyShared apilayer)
+        :<|> (postAccountPublicKey apilayer ApiAccountKeyShared)
 
 postAnyAddress
     :: NetworkId

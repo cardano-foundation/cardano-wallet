@@ -81,8 +81,7 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
-    , postAccountPublicKeyShelley
-    , postAccountPublicKeyShared
+    , postAccountPublicKey
     , postSharedWallet
     , patchSharedWallet
     , mkSharedWallet
@@ -179,8 +178,6 @@ import Cardano.Wallet.Api.Server.Tls
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
-    , ApiAccountKey (..)
-    , ApiAccountKeyShared (..)
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
@@ -2205,44 +2202,27 @@ derivePublicKeyShared ctx (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
         WithoutHashing -> xpubPublicKey $ getRawKey k'
         WithHashing -> blake2b224 $ xpubPublicKey $ getRawKey k'
 
-postAccountPublicKeyShelley
-    :: forall ctx s k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k
+postAccountPublicKey
+    :: forall ctx s k account.
+        ( ctx ~ ApiLayer s k
         , HardDerivation k
         , WalletKey k
         )
     => ctx
+    -> (ByteString -> KeyFormat -> account)
     -> ApiT WalletId
     -> ApiT DerivationIndex
     -> ApiPostAccountKeyData
-    -> Handler ApiAccountKey
-postAccountPublicKeyShelley ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
+    -> Handler account
+postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.readPublicAccountKey @_ @s @k wrk wid pwd ix
-        pure $ ApiAccountKey (xPubtoBytes extd $ getRawKey k) extd
-
-xPubtoBytes :: KeyFormat -> XPub -> ByteString
-xPubtoBytes = \case
-    Extended -> xpubToBytes
-    NonExtended -> xpubPublicKey
-
-postAccountPublicKeyShared
-    :: forall ctx s k n.
-        ( s ~ SharedState n k
-        , ctx ~ ApiLayer s k
-        , HardDerivation k
-        , WalletKey k
-        )
-    => ctx
-    -> ApiT WalletId
-    -> ApiT DerivationIndex
-    -> ApiPostAccountKeyData
-    -> Handler ApiAccountKeyShared
-postAccountPublicKeyShared ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
-    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.readPublicAccountKey @_ @s @k wrk wid pwd ix
-        pure $ ApiAccountKeyShared (xPubtoBytes extd $ getRawKey k) extd
+        pure $ mkAccount (xPubtoBytes extd $ getRawKey k) extd
+  where
+      xPubtoBytes :: KeyFormat -> XPub -> ByteString
+      xPubtoBytes = \case
+          Extended -> xpubToBytes
+          NonExtended -> xpubPublicKey
 
 {-------------------------------------------------------------------------------
                                   Helpers
