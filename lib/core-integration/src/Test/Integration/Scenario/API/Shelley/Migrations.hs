@@ -333,25 +333,24 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 ((`shouldBe` (Just 2)) . Map.lookup 10_000_000_000_000)
             ]
 
-    it "SHELLEY_MIGRATE_XX - \
-        \migrating an empty wallet should fail."
+    it "SHELLEY_MIGRATE_03 - \
+        \Migrating an empty wallet should fail."
         $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             sourceWallet <- emptyWallet ctx
+            let sourceWalletId = sourceWallet ^. walletId
             targetWallet <- emptyWallet ctx
-            addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
-            let payload =
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.migrateWallet @'Shelley sourceWallet
+            response <- request @[ApiTransaction n] ctx ep Default $
                     Json [json|
                         { passphrase: #{fixturePassphrase}
-                        , addresses: [#{addr1}]
+                        , addresses: #{targetAddressIds}
                         }|]
-            let ep = Link.migrateWallet @'Shelley sourceWallet
-            r <- request @[ApiTransaction n] ctx ep Default payload
-            let srcId = sourceWallet ^. walletId
-            verify r
+            verify response
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate srcId)
+                , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
                 ]
 
     Hspec.it "SHELLEY_MIGRATE_XX - \
@@ -419,7 +418,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             ( `shouldBe` Quantity expectedBalance)
                     ]
 
-    it "SHELLEY_MIGRATE_03 - \
+    it "SHELLEY_MIGRATE_xx - \
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> runResourceT $ do
             liftIO $ pendingWith "Migration endpoints temporarily disabled."

@@ -350,6 +350,27 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 ((`shouldBe` (Just 2)) . Map.lookup 1_000_000_000_000)
             ]
 
+    it "BYRON_MIGRATE_03 - \
+        \Migrating an empty wallet should fail."
+        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
+        $ \emptyByronWallet -> runResourceT $ do
+            sourceWallet <- emptyByronWallet ctx
+            let sourceWalletId = sourceWallet ^. walletId
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.migrateWallet @'Byron sourceWallet
+            response <- request @[ApiTransaction n] ctx ep Default $
+                Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{targetAddressIds}
+                    }|]
+            verify response
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
+                ]
+
     describe "BYRON_MIGRATE_05 - I could migrate to any valid address" $ do
         forM_ [ ("Byron", emptyRandomWallet)
               , ("Icarus", emptyIcarusWallet)
@@ -426,28 +447,6 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectField (#balance . #available) (`shouldBe` Quantity 0)
                 ]
 
-    it "BYRON_MIGRATE_XX - \
-        \migrating an empty wallet should fail."
-        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
-        $ \emptyByronWallet -> runResourceT $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            sourceWallet <- emptyByronWallet ctx
-            targetWallet <- emptyWallet ctx
-            addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
-            let payload =
-                    Json [json|
-                        { passphrase: #{fixturePassphrase}
-                        , addresses: [#{addr1}]
-                        }|]
-            let ep = Link.migrateWallet @'Byron sourceWallet
-            r <- request @[ApiTransaction n] ctx ep Default payload
-            let srcId = sourceWallet ^. walletId
-            verify r
-                [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate srcId)
-                ]
-
     Hspec.it "BYRON_MIGRATE_XX - \
         \migrating wallet with dust should fail."
         $ \ctx -> runResourceT @IO $ do
@@ -491,7 +490,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate srcId)
                 ]
 
-    it "BYRON_MIGRATE_03 - \
+    it "BYRON_MIGRATE_XX - \
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT $ do
