@@ -458,6 +458,18 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (errMsg403NothingToMigrate (sourceWallet ^. walletId))
                 ]
 
+    it "SHELLEY_MIGRATE_07 - \
+        \Including an invalidly-formatted passphrase results in a parser error."
+        $ \ctx -> runResourceT $ do
+            sourceWallet <- emptyWallet ctx
+            response <- request @[ApiTransaction n] ctx
+                (Link.migrateWallet @'Shelley sourceWallet) Default
+                (NonJson "{passphrase:,}")
+            verify response
+                [ expectResponseCode HTTP.status400
+                , expectErrorMessage errMsg400ParseError
+                ]
+
     Hspec.it "SHELLEY_MIGRATE_XX - \
         \migrating wallet with 'dust' (that complies with minUTxOValue) should pass."
         $ \ctx -> runResourceT @IO $ do
@@ -522,16 +534,6 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             (#balance . #total)
                             ( `shouldBe` Quantity expectedBalance)
                     ]
-
-    it "SHELLEY_MIGRATE_07 - invalid payload, parser error" $ \ctx -> runResourceT $ do
-      liftIO $ pendingWith "Migration endpoints temporarily disabled."
-      sourceWallet <- emptyWallet ctx
-      r <- request @[ApiTransaction n] ctx
-          (Link.migrateWallet @'Shelley sourceWallet)
-          Default
-          (NonJson "{passphrase:,}")
-      expectResponseCode HTTP.status400 r
-      expectErrorMessage errMsg400ParseError r
   where
     -- Compute the fee associated with an API transaction.
     apiTransactionFee :: ApiTransaction n -> Word64

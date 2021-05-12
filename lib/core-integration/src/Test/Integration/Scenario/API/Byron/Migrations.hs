@@ -490,16 +490,17 @@ spec = describe "BYRON_MIGRATIONS" $ do
                         (errMsg403NothingToMigrate (sourceWallet ^. walletId))
                     ]
 
-    it "BYRON_MIGRATE_07 - invalid payload, parser error" $ \ctx -> runResourceT $ do
-        liftIO $ pendingWith "Migration endpoints temporarily disabled."
-        sourceWallet <- emptyRandomWallet ctx
-
-        r <- request @[ApiTransaction n] ctx
-            (Link.migrateWallet @'Byron sourceWallet)
-            Default
-            (NonJson "{passphrase:,}")
-        expectResponseCode HTTP.status400 r
-        expectErrorMessage errMsg400ParseError r
+    it "BYRON_MIGRATE_07 - \
+        \Including an invalidly-formatted passphrase results in a parser error."
+        $ \ctx -> runResourceT $ do
+            sourceWallet <- emptyRandomWallet ctx
+            response <- request @[ApiTransaction n] ctx
+                (Link.migrateWallet @'Byron sourceWallet) Default
+                (NonJson "{passphrase:,}")
+            verify response
+                [ expectResponseCode HTTP.status400
+                , expectErrorMessage errMsg400ParseError
+                ]
 
     it "BYRON_MIGRATE_XX - \
         \a migration operation removes all funds from the source wallet."
