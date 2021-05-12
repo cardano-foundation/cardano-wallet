@@ -55,8 +55,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ()
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey, purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -72,7 +76,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState (..), SharedStateFields (..), purposeCIP1854 )
+    ( SharedState (..), SharedStateFields (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
@@ -191,6 +195,7 @@ import Test.Utils.Time
     ( genUniformTime )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Data.ByteArray as BA
@@ -496,11 +501,11 @@ instance Arbitrary (Seq.PendingIxs) where
 
 instance Arbitrary (AddressPool 'UtxoExternal ShelleyKey) where
     arbitrary = pure $ mkAddressPool @'Mainnet
-        (ParentContextUtxoExternal arbitrarySeqAccount) minBound mempty
+        (ParentContextUtxo arbitrarySeqAccount) minBound mempty
 
 instance Arbitrary (AddressPool 'UtxoInternal ShelleyKey) where
     arbitrary = pure $ mkAddressPool @'Mainnet
-        (ParentContextUtxoInternal arbitrarySeqAccount) minBound mempty
+        (ParentContextUtxo arbitrarySeqAccount) minBound mempty
 
 -- Properties are quite heavy on the generation of values, although for
 -- private keys, it isn't particularly useful / relevant to generate many of
@@ -523,14 +528,14 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
 arbitrarySeqAccount
     :: ShelleyKey 'AccountK XPub
 arbitrarySeqAccount =
-    publicKey $ unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    publicKey $ Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
 
 arbitraryRewardAccount
     :: ShelleyKey 'AddressK XPub
 arbitraryRewardAccount =
-    publicKey $ unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    publicKey $ Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
 
@@ -579,7 +584,7 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 -- In order to proceed like for sequential/random wallet we will work with active state
 -- and make
 
-instance Arbitrary (SharedState 'Mainnet ShelleyKey) where
+instance Arbitrary (SharedState 'Mainnet SharedKey) where
     shrink (SharedState prefix (ReadyFields pool)) =
         SharedState prefix <$> (ReadyFields <$> shrink pool)
     shrink _ = []
@@ -598,18 +603,25 @@ instance Arbitrary (Script Cosigner) where
     arbitrary = pure $
         RequireAllOf [RequireSignatureOf (Cosigner 0), RequireAnyOf [ActiveFromSlot 200, ActiveUntilSlot 100]]
 
-instance Arbitrary Seq.AddressPoolGap where
-    arbitrary = pure defaultAddressPoolGap
-
 genScriptTemplateHardCoded :: Gen ScriptTemplate
 genScriptTemplateHardCoded =
     ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey arbitrarySeqAccount)] ) <$> arbitrary
 
-instance Arbitrary (AddressPool 'MultisigScript ShelleyKey) where
+instance Arbitrary (AddressPool 'UtxoExternal SharedKey) where
     arbitrary = do
-        ctx <- ParentContextMultisigScript arbitrarySeqAccount
+        ctx <- ParentContextShared arbitrarySharedAccount
             <$> genScriptTemplateHardCoded <*> pure Nothing
         pure $ mkAddressPool @'Mainnet ctx minBound mempty
+
+instance Arbitrary Seq.AddressPoolGap where
+    arbitrary = pure defaultAddressPoolGap
+
+arbitrarySharedAccount
+    :: SharedKey 'AccountK XPub
+arbitrarySharedAccount =
+    publicKey $ Shared.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+  where
+    mw = someDummyMnemonic (Proxy @15)
 
 {-------------------------------------------------------------------------------
                              Protocol Parameters
@@ -714,7 +726,7 @@ instance Buildable (ShelleyKey depth XPrv, Hash "encryption") where
 instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain
 
-instance Buildable (SharedState 'Mainnet ShelleyKey) where
+instance Buildable (SharedState 'Mainnet SharedKey) where
     build (SharedState _ (PendingFields _)) = "not supported here"
     build (SharedState prefix (ReadyFields pool)) =
         build (printStateActive <> printIndex prefix) <> printPool

@@ -23,7 +23,7 @@ module Cardano.Wallet.DB.Sqlite.Types where
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner, KeyHash (..), Script, ScriptHash (..) )
+    ( Cosigner, Script, ScriptHash (..) )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -34,14 +34,14 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), PassphraseScheme (..), Role (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
     , getAddressPoolGap
     , mkAddressPoolGap
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( CredentialType )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , FeePolicy
@@ -491,27 +491,6 @@ instance PersistField ScriptHash where
     fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql ScriptHash where
-    sqlType _ = sqlType (Proxy @Text)
-
-----------------------------------------------------------------------------
--- KeyHash
-
-instance ToText KeyHash where
-    toText (KeyHash sh) =
-        T.decodeUtf8 $ convertToBase Base16 sh
-
-instance FromText KeyHash where
-    fromText = bimap textDecodingError KeyHash
-        . convertFromBase Base16
-        . T.encodeUtf8
-      where
-        textDecodingError = TextDecodingError . show
-
-instance PersistField KeyHash where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql KeyHash where
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------

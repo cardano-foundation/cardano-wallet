@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -39,11 +40,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
+    , GetPurpose
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -53,7 +57,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap (..)
     , DerivationPrefix (..)
-    , GetPurpose
     , MkAddressPoolGapError (..)
     , ParentContext (..)
     , SeqState (..)
@@ -88,6 +91,8 @@ import Control.Monad.Trans.State.Strict
     ( execState, state )
 import Data.Function
     ( (&) )
+import Data.Kind
+    ( Type )
 import Data.List
     ( elemIndex, (\\) )
 import Data.List.NonEmpty
@@ -98,6 +103,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..), fromText )
+import Data.Type.Equality
+    ( type (==) )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
@@ -158,22 +165,29 @@ spec = do
             , Style (Proxy @'UtxoInternal)
             ]
 
-    let keys =
-            [ Key (Proxy @ShelleyKey)
-            , Key (Proxy @IcarusKey)
-            ]
+    parallel $ describe "AddressPool (Shelley)" $ do
+        forM_ styles $ \s@(Style proxyS) -> do
+            parallel $ describe ("ShelleyKey " <> show s) $ do
+                it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
+                    (checkCoverage (prop_poolGrowWithinGap @_ @ShelleyKey proxyS))
+                it "'addresses' preserves the address order"
+                    (checkCoverage (prop_roundtripMkAddressPool @_ @ShelleyKey proxyS))
+                it "An AddressPool always contains at least 'gap pool' addresses"
+                    (property (prop_poolAtLeastGapAddresses @_ @ShelleyKey proxyS))
+                it "Our addresses are eventually discovered"
+                    (property (prop_poolEventuallyDiscoverOurs @_ @ShelleyKey proxyS))
 
     parallel $ describe "AddressPool (Shelley)" $ do
-        forM_ styles $ \s@(Style proxyS) -> forM_ keys $ \k@(Key proxyK) -> do
-            parallel $ describe (show k <> " " <> show s) $ do
+        forM_ styles $ \s@(Style proxyS) -> do
+            parallel $ describe ("IcarusKey " <> show s) $ do
                 it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
-                    (checkCoverage (prop_poolGrowWithinGap (proxyS, proxyK)))
+                    (checkCoverage (prop_poolGrowWithinGap @_ @IcarusKey proxyS))
                 it "'addresses' preserves the address order"
-                    (checkCoverage (prop_roundtripMkAddressPool (proxyS, proxyK)))
+                    (checkCoverage (prop_roundtripMkAddressPool @_ @IcarusKey proxyS))
                 it "An AddressPool always contains at least 'gap pool' addresses"
-                    (property (prop_poolAtLeastGapAddresses (proxyS, proxyK)))
+                    (property (prop_poolAtLeastGapAddresses @_ @IcarusKey proxyS))
                 it "Our addresses are eventually discovered"
-                    (property (prop_poolEventuallyDiscoverOurs (proxyS, proxyK)))
+                    (property (prop_poolEventuallyDiscoverOurs @_ @IcarusKey proxyS))
 
     parallel $ describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
@@ -282,7 +296,7 @@ prop_poolGrowWithinGap
         , AddressPoolTest k
         , GetPurpose k
         )
-    => (Proxy chain, Proxy k)
+    => Proxy chain
     -> (AddressPool chain k, Address)
     -> Property
 prop_poolGrowWithinGap _proxy (pool, addr) =
@@ -310,7 +324,7 @@ prop_roundtripMkAddressPool
         , AddressPoolTest k
         , GetPurpose k
         )
-    => (Proxy chain, Proxy k)
+    => Proxy chain
     -> AddressPool chain k
     -> Property
 prop_roundtripMkAddressPool _proxy pool =
@@ -321,16 +335,16 @@ prop_roundtripMkAddressPool _proxy pool =
     ) === pool
 
 class GetCtx (chain :: Role) where
-    getCtxFromAccXPub :: k 'AccountK XPub -> ParentContext chain k
+    getCtxFromAccXPub
+        :: (k == SharedKey) ~ 'False
+        => k 'AccountK XPub
+        -> ParentContext chain k
 
 instance GetCtx 'UtxoExternal where
-    getCtxFromAccXPub accXPub = ParentContextUtxoExternal accXPub
+    getCtxFromAccXPub accXPub = ParentContextUtxo accXPub
 
 instance GetCtx 'UtxoInternal where
-    getCtxFromAccXPub accXPub = ParentContextUtxoInternal accXPub
-
-instance GetCtx 'MultisigScript where
-    getCtxFromAccXPub _ = error "no support for MultisigScript"
+    getCtxFromAccXPub accXPub = ParentContextUtxo accXPub
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
@@ -339,7 +353,7 @@ prop_poolAtLeastGapAddresses
         , Typeable chain
         , GetPurpose k
         )
-    => (Proxy chain, Proxy k)
+    => Proxy chain
     -> AddressPool chain k
     -> Property
 prop_poolAtLeastGapAddresses _proxy pool =
@@ -349,15 +363,16 @@ prop_poolAtLeastGapAddresses _proxy pool =
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
-    :: forall (chain :: Role) k.
+    :: forall (chain :: Role) (k :: Depth -> Type -> Type).
         ( Typeable chain
         , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
         , GetCtx chain
+        , (k == SharedKey) ~ 'False
         )
-    => (Proxy chain, Proxy k)
+    => Proxy chain
     -> (AddressPoolGap, Address)
     -> Property
 prop_poolEventuallyDiscoverOurs _proxy (g, addr) =
@@ -656,6 +671,7 @@ instance
     , AddressPoolTest k
     , GetCtx chain
     , GetPurpose k
+    , (k == SharedKey) ~ 'False
     ) => Arbitrary (AddressPool chain k) where
     shrink pool =
         let

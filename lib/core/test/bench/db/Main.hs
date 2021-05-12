@@ -368,13 +368,13 @@ benchPutSeqState DBLayer{..} cps = do
 
 mkExtPool :: Int -> Int -> AddressPool  'UtxoExternal ShelleyKey
 mkExtPool numAddrs i =
-    mkAddressPool @'Mainnet (ParentContextUtxoExternal ourAccount) defaultAddressPoolGap addrs
+    mkAddressPool @'Mainnet (ParentContextUtxo ourAccount) defaultAddressPoolGap addrs
   where
     addrs = [ force (mkAddress i j, Unused) | j <- [1..numAddrs] ]
 
 mkIntPool :: Int -> Int -> AddressPool 'UtxoInternal ShelleyKey
 mkIntPool numAddrs i =
-    mkAddressPool @'Mainnet (ParentContextUtxoInternal ourAccount) defaultAddressPoolGap addrs
+    mkAddressPool @'Mainnet (ParentContextUtxo ourAccount) defaultAddressPoolGap addrs
   where
     addrs = [ force (mkAddress i j, Unused) | j <- [1..numAddrs] ]
 

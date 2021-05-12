@@ -529,7 +529,7 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  STYLE                    Byron | Icarus | Shelley"
+            , "  STYLE                    Byron | Icarus | Shelley | Shared"
             , ""
             , "The recovery phrase is read from stdin."
             , ""

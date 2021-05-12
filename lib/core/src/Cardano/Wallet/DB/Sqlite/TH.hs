@@ -33,7 +33,7 @@ import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId, HDPassphrase, TxId, sqlSettings' )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( CredentialType )
 import Data.Quantity
     ( Percentage (..) )

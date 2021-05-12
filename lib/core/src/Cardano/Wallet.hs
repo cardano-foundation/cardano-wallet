@@ -242,19 +242,20 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
+    , GetAccount (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState
     , defaultAddressPoolGap
@@ -263,7 +264,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeBIP44
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( ErrAddCosigner (..), SharedState, addCosignerAccXPub )
+    ( CredentialType (..)
+    , ErrAddCosigner (..)
+    , SharedState
+    , addCosignerAccXPub
+    )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
@@ -2101,12 +2106,11 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
 
--- | Derive public key from a wallet's account key.
 derivePublicKey
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , SoftDerivation k
-        , s ~ SeqState n k
+        , GetAccount s k
         )
     => ctx
     -> WalletId
@@ -2121,10 +2125,7 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
         $ withNoSuchWallet wid
         $ readCheckpoint wid
 
-    -- NOTE: Alternatively, we could use 'internalPool', they share the same
-    --       account public key.
-    let (Seq.ParentContextUtxoExternal acctK) =
-            Seq.context $ Seq.externalPool $ getState cp
+    let acctK = getAccount $ getState cp
     let addrK = deriveAddressPublicKey acctK role_ addrIx
 
     return addrK
@@ -2133,11 +2134,10 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
 
 -- | Retrieve public account key of a wallet.
 readPublicAccountKey
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , HardDerivation k
         , WalletKey k
-        , s ~ SeqState n k
         )
     => ctx
     -> WalletId
@@ -2186,6 +2186,7 @@ updateCosigner
         , Typeable n
         , WalletKey k
         , HasDBLayer IO s k ctx
+        , k ~ SharedKey
         )
     => ctx
     -> WalletId

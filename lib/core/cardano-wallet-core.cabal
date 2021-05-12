@@ -168,11 +168,12 @@ library
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Byron
       Cardano.Wallet.Primitive.AddressDerivation.Icarus
+      Cardano.Wallet.Primitive.AddressDerivation.Shared
+      Cardano.Wallet.Primitive.AddressDerivation.SharedKey
       Cardano.Wallet.Primitive.AddressDerivation.Shelley
       Cardano.Wallet.Primitive.AddressDiscovery
       Cardano.Wallet.Primitive.Slotting
       Cardano.Wallet.Primitive.AddressDiscovery.Random
-      Cardano.Wallet.Primitive.AddressDiscovery.Script
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.AddressDiscovery.SharedState
       Cardano.Wallet.Primitive.SyncProgress

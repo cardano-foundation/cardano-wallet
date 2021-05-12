@@ -25,6 +25,7 @@ module Cardano.Wallet.Gen
     , genScriptCosigners
     , genScriptTemplate
     , genScriptTemplateComplete
+    , genScriptTemplateEntry
     , genXPub
     , genNatural
     ) where
@@ -48,6 +49,8 @@ import Cardano.Mnemonic
     , SomeMnemonic (..)
     , entropyToMnemonic
     )
+import Cardano.Wallet.Api.Types
+    ( ApiScriptTemplateEntry (..), XPubOrSelf (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -323,6 +326,14 @@ genScriptTemplate = do
     xpubs <- vectorOf (length cosignersSubset) genXPub
     pure $ ScriptTemplate (Map.fromList $ zip cosignersSubset xpubs) script
 
+genScriptTemplateEntry :: Gen ApiScriptTemplateEntry
+genScriptTemplateEntry = do
+    script <- genScriptCosigners `suchThat` (not . null . retrieveAllCosigners)
+    let scriptCosigners = retrieveAllCosigners script
+    cosignersSubset <- sublistOf scriptCosigners `suchThat` (not . null)
+    xpubsOrSelf <- vectorOf (length cosignersSubset) genXPubOrSelf
+    pure $ ApiScriptTemplateEntry (Map.fromList $ zip cosignersSubset xpubsOrSelf) script
+
 genScriptTemplateComplete :: Gen ScriptTemplate
 genScriptTemplateComplete = do
     script <- genScriptCosigners `suchThat` (not . null . retrieveAllCosigners)
@@ -341,6 +352,10 @@ genRootKeySeqWithPass encryptionPass = do
 genXPub :: Gen XPub
 genXPub = do
     getRawKey . publicKey <$> (genRootKeySeqWithPass =<< genPassphrase (0, 16))
+
+genXPubOrSelf :: Gen XPubOrSelf
+genXPubOrSelf =
+    oneof [SomeAccountKey <$> genXPub, pure Self]
 
 genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
 genPassphrase range = do

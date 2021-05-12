@@ -49,6 +49,7 @@ import Cardano.Wallet.Api
     , Proxy_
     , SMASH
     , Settings
+    , SharedWalletKeys
     , SharedWallets
     , ShelleyMigrations
     , StakePools
@@ -62,7 +63,8 @@ import Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
-    , derivePublicKey
+    , derivePublicKeyShared
+    , derivePublicKeyShelley
     , getAsset
     , getAssetDefault
     , getCurrentEpoch
@@ -114,6 +116,8 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( AnyAddress (..)
     , AnyAddressType (..)
+    , ApiAccountKey (..)
+    , ApiAccountKeyShared (..)
     , ApiAddressData (..)
     , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
@@ -139,16 +143,16 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState )
+    ( CredentialType (..), SharedState )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Shelley.Compatibility
@@ -190,6 +194,8 @@ import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
@@ -204,7 +210,7 @@ server
     => ApiLayer (RndState n) ByronKey
     -> ApiLayer (SeqState n IcarusKey) IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
-    -> ApiLayer (SharedState n ShelleyKey) ShelleyKey
+    -> ApiLayer (SharedState n SharedKey) SharedKey
     -> StakePoolLayer
     -> NtpClient
     -> Server (Api n ApiStakePool)
@@ -227,21 +233,22 @@ server byron icarus shelley multisig spl ntp =
     :<|> proxy
     :<|> settingS
     :<|> smash
-    :<|> sharedWallets
+    :<|> sharedWallets multisig
+    :<|> sharedWalletKeys multisig
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
         :<|> (fmap fst . getWallet shelley mkShelleyWallet)
         :<|> (fmap fst <$> listWallets shelley mkShelleyWallet)
-        :<|> postWallet shelley generateKeyFromSeed ShelleyKey
+        :<|> postWallet shelley Shelley.generateKeyFromSeed ShelleyKey
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
 
     walletKeys :: Server WalletKeys
-    walletKeys = derivePublicKey shelley
+    walletKeys = derivePublicKeyShelley shelley
         :<|> signMetadata shelley
-        :<|> postAccountPublicKey shelley
+        :<|> postAccountPublicKey shelley ApiAccountKey
 
     assets :: Server Assets
     assets = listAssets shelley :<|> getAsset shelley :<|> getAssetDefault shelley
@@ -487,13 +494,22 @@ server byron icarus shelley multisig spl ntp =
                 FetchSMASH smashServer -> getHealth smashServer
                 _ -> pure (ApiHealthCheck NoSmashConfigured)
 
-    sharedWallets :: Server SharedWallets
-    sharedWallets =
-             postSharedWallet multisig generateKeyFromSeed ShelleyKey
-        :<|> (fmap fst . getWallet multisig mkSharedWallet)
-        :<|> patchSharedWallet multisig ShelleyKey Payment
-        :<|> patchSharedWallet multisig ShelleyKey Delegation
-        :<|> deleteWallet multisig
+    sharedWallets
+        :: ApiLayer (SharedState n SharedKey) SharedKey
+        -> Server SharedWallets
+    sharedWallets apilayer =
+             (postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey)
+        :<|> (fmap fst . getWallet apilayer mkSharedWallet)
+        :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment)
+        :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation)
+        :<|> (deleteWallet apilayer)
+
+    sharedWalletKeys
+        :: ApiLayer (SharedState n SharedKey) SharedKey
+        -> Server SharedWalletKeys
+    sharedWalletKeys apilayer =
+             (derivePublicKeyShared apilayer)
+        :<|> (postAccountPublicKey apilayer ApiAccountKeyShared)
 
 postAnyAddress
     :: NetworkId

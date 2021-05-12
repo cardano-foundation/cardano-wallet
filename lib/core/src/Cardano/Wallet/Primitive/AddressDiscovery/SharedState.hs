@@ -1,10 +1,12 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -30,10 +32,14 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
     , addCosignerAccXPub
-    , purposeCIP1854
     , isShared
     , retrieveAllCosigners
     , walletCreationInvariant
+
+    , CredentialType (..)
+    , liftPaymentAddress
+    , liftDelegationAddress
+    , keyHashFromAccXPubIx
     ) where
 
 import Prelude
@@ -42,11 +48,15 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
     , Script (..)
+    , ScriptHash (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
+    , toScriptHash
     , validateScriptTemplate
     )
+import Cardano.Address.Style.Shelley
+    ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -55,17 +65,24 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
+    , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase
     , Role (..)
     , SoftDerivation
     , WalletKey (..)
+    , deriveVerificationKey
+    , hashVerificationKey
+    )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..)
+    , purposeCIP1854
+    , replaceCosignersWithVerKeys
+    , toNetworkTag
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..), coinTypeAda )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType (..), keyHashFromAccXPubIx )
+    ( GetAccount (..), IsOurs (..), coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
@@ -84,13 +101,19 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
+import Data.Kind
+    ( Type )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import GHC.Generics
     ( Generic )
 import Type.Reflection
     ( Typeable )
 
+import qualified Cardano.Address as CA
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 
@@ -146,7 +169,7 @@ import qualified Data.Map.Strict as Map
 data SharedState (n :: NetworkDiscriminant) k = SharedState
     { derivationPrefix :: !DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the account key
-    , fields :: !(SharedStateFields (SharedStatePending k) (AddressPool 'MultisigScript k))
+    , fields :: !(SharedStateFields (SharedStatePending k) (AddressPool 'UtxoExternal k))
         -- ^ Address pool tracking the shared addresses. Co-owning is based on
         -- payment credential only. Moreover, the parent context information is
         -- stored ie., validated script template for payment credential,
@@ -199,19 +222,9 @@ instance
     ( NFData (k 'AccountK XPub)
     ) => NFData (SharedStatePending k)
 
--- | Purpose for shared wallets is a constant set to 1854' (or 0x8000073E) following the original
--- CIP-1854 Multi-signature Wallets.
---
--- It indicates that the subtree of this node is used according to this
--- specification.
---
--- Hardened derivation is used at this level.
-purposeCIP1854 :: Index 'Hardened 'PurposeK
-purposeCIP1854 = toEnum 0x8000073E
-
 -- | Create a new SharedState from public account key.
 mkSharedStateFromAccountXPub
-    :: (SupportsSharedState n k, WalletKey k)
+    :: (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => k 'AccountK XPub
     -> Index 'Hardened 'AccountK
     -> AddressPoolGap
@@ -223,7 +236,7 @@ mkSharedStateFromAccountXPub accXPub accIx gap pTemplate dTemplateM =
     SharedStatePending accXPub pTemplate dTemplateM gap
 
 mkSharedState
-    :: (SupportsSharedState n k, WalletKey k)
+    :: (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => Index 'Hardened 'AccountK
     -> SharedStatePending k
     -> SharedState n k
@@ -243,7 +256,7 @@ type SupportsSharedState (n :: NetworkDiscriminant) k =
 
 -- | Create a new SharedState from root private key and password.
 mkSharedStateFromRootXPrv
-    :: (SupportsSharedState n k, WalletKey k)
+    :: (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'AccountK
     -> AddressPoolGap
@@ -258,7 +271,7 @@ mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx gap pTemplate dTemplateM =
 
 -- | Turn a "pending" into an "active" state or identity if already "active".
 updateSharedState
-    :: forall n k. (SupportsSharedState n k, WalletKey k)
+    :: forall n k. (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => SharedState n k
     -> (SharedStatePending k -> SharedStatePending k)
     -> SharedState n k
@@ -269,12 +282,12 @@ updateSharedState st f = case fields st of
         Nothing -> st { fields = PendingFields (f pending) }
 
 sharedStateFromPending
-    :: forall n k. (SupportsSharedState n k, WalletKey k)
+    :: forall n k. (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => SharedStatePending k
-    -> Maybe (AddressPool 'MultisigScript k)
+    -> Maybe (AddressPool 'UtxoExternal k)
 sharedStateFromPending (SharedStatePending accXPub pT dT g)
     | templatesComplete accXPub pT dT = Just $
-        mkAddressPool @n (ParentContextMultisigScript accXPub pT dT) g []
+        mkAddressPool @n (ParentContextShared accXPub pT dT) g []
     | otherwise = Nothing
 
 accountXPubCondition
@@ -342,7 +355,7 @@ data ErrAddCosigner
 -- Updating the key for delegation script can be successful only if delegation script is
 -- present. Otherwise, `NoDelegationTemplate` error is triggered.
 addCosignerAccXPub
-    :: (SupportsSharedState n k, WalletKey k)
+    :: (SupportsSharedState n k, WalletKey k, k ~ SharedKey)
     => k 'AccountK XPub
     -> Cosigner
     -> CredentialType
@@ -404,20 +417,18 @@ retrieveAllCosigners = foldScript (:) []
 isShared
     :: forall (n :: NetworkDiscriminant) k.
        ( SoftDerivation k
-       , WalletKey k
        , Typeable n
        , MkKeyFingerprint k Address
        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub) )
     => Address
     -> SharedState n k
-    -> (Maybe (Index 'Soft 'ScriptK, KeyHash), SharedState n k)
+    -> (Maybe (Index 'Soft 'ScriptK), SharedState n k)
 isShared addr st = case fields st of
     ReadyFields pool ->
         let (ixM, pool') = lookupAddress @n (const Used) addr pool
-            (ParentContextMultisigScript accXPub _ _) = context pool
         in case ixM of
             Just ix ->
-                (Just (coerce ix, keyHashFromAccXPubIx accXPub (coerce ix))
+                ( Just $ coerce ix
                 , st { fields = ReadyFields pool' })
             Nothing ->
                 (Nothing, st)
@@ -429,3 +440,61 @@ instance IsOurs (SharedState n k) Address where
 
 instance IsOurs (SharedState n k) RewardAccount where
     isOurs _account state = (Nothing, state)
+
+instance GetAccount (SharedState n k) k where
+    getAccount (SharedState _ (PendingFields pending)) =
+        pendingSharedStateAccountKey pending
+    getAccount (SharedState _ (ReadyFields pool)) =
+        let (ParentContextShared accXPub _ _) = context pool
+        in accXPub
+
+data CredentialType = Payment | Delegation
+    deriving (Eq, Show, Generic)
+    deriving anyclass NFData
+
+instance ToText CredentialType where
+    toText Payment = "payment"
+    toText Delegation = "delegation"
+
+instance FromText CredentialType where
+    fromText = \case
+        "payment" -> Right Payment
+        "delegation" -> Right Delegation
+        _ -> Left $ TextDecodingError $ unwords
+            [ "Invalid credential type: expecting only following values:"
+            , "'payment', 'delegation'."
+            ]
+
+keyHashFromAccXPubIx
+    :: (SoftDerivation k, WalletKey k)
+    => k 'AccountK XPub
+    -> Role
+    -> Index 'Soft 'ScriptK
+    -> KeyHash
+keyHashFromAccXPubIx accXPub r ix =
+    hashVerificationKey r $ deriveVerificationKey accXPub r ix
+
+liftPaymentAddress
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type). Typeable n
+    => KeyFingerprint "payment" k
+  -> Address
+liftPaymentAddress (KeyFingerprint fingerprint) =
+    Address $ CA.unAddress $
+    paymentAddress (toNetworkTag @n)
+    (PaymentFromScript (ScriptHash fingerprint))
+
+liftDelegationAddress
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type). Typeable n
+    => Index 'Soft 'ScriptK
+    -> ScriptTemplate
+    -> KeyFingerprint "payment" k
+    -> Address
+liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
+    Address $ CA.unAddress $
+    delegationAddress (toNetworkTag @n)
+    (PaymentFromScript (ScriptHash fingerprint))
+    (delegationCredential dScript)
+  where
+    delegationCredential = DelegationFromScript . toScriptHash
+    dScript =
+        replaceCosignersWithVerKeys CA.Stake dTemplate ix

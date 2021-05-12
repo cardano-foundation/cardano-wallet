@@ -14,6 +14,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeInType #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -69,8 +70,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     -- ** Benchmarking
     , SeqAnyState (..)
     , mkSeqAnyState
-
-    , GetPurpose (..)
     ) where
 
 import Prelude
@@ -101,16 +100,18 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , utxoExternal
     , utxoInternal
     )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..), constructAddressFromIx )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
+    , GetAccount (..)
+    , GetPurpose (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
     , coinTypeAda
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( constructAddressFromIx )
 import Cardano.Wallet.Primitive.Types
     ( invariant )
 import Cardano.Wallet.Primitive.Types.Address
@@ -150,7 +151,7 @@ import Data.Text.Class
 import Data.Text.Read
     ( decimal )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( (:~:) (..), type (==), testEquality )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -244,37 +245,36 @@ defaultAddressPoolGap =
 -------------------------------------------------------------------------------}
 
 data ParentContext (chain :: Role) (key :: Depth -> Type -> Type) where
-    ParentContextUtxoExternal
-        :: key 'AccountK XPub
-        -> ParentContext 'UtxoExternal key
+    ParentContextUtxo
+        :: ((key == SharedKey) ~ 'False)
+        => key 'AccountK XPub
+        -> ParentContext chain key
 
-    ParentContextUtxoInternal
-        :: key 'AccountK XPub
-        -> ParentContext 'UtxoInternal key
-
-    ParentContextMultisigScript
-        :: key 'AccountK XPub
+    ParentContextShared
+        :: (key ~ SharedKey)
+        => key 'AccountK XPub
         -> ScriptTemplate
         -> Maybe ScriptTemplate
-        -> ParentContext 'MultisigScript key
+        -> ParentContext 'UtxoExternal key
 
 deriving instance Eq   (key 'AccountK XPub) => Eq   (ParentContext chain key)
 deriving instance Show (key 'AccountK XPub) => Show (ParentContext chain key)
 
-instance (WalletKey key) => Buildable (ParentContext chain key) where
-    build (ParentContextUtxoExternal acct) =
-        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
-    build (ParentContextUtxoInternal acct) =
-        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
-    build (ParentContextMultisigScript acct p dM) =
-        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct))
+instance (WalletKey key, Typeable chain) => Buildable (ParentContext chain key) where
+    build (ParentContextUtxo acct) =
+        mempty <> "(ParentContext for "<> ccF <> " " <> build (accXPubTxt (getRawKey acct)) <>")"
+        where
+            ccF = build $ toText $ role @chain
+    build (ParentContextShared acct p dM) =
+        mempty <> "(ParentContext for "<> ccF <> " " <> build (accXPubTxt (getRawKey acct))
         <> ", " <> build (p, dM) <> ")"
+        where
+            ccF = build $ toText $ role @chain
 
 instance NFData (key 'AccountK XPub) => NFData (ParentContext chain key) where
     rnf = \case
-        ParentContextUtxoExternal acct  -> rnf acct
-        ParentContextUtxoInternal acct  -> rnf acct
-        ParentContextMultisigScript acct p d -> rnf (acct, p, d)
+        ParentContextUtxo acct  -> rnf acct
+        ParentContextShared acct p d -> rnf (acct, p, d)
 
 -- | An 'AddressPool' which keeps track of sequential addresses within a given
 -- Account and change chain. See 'mkAddressPool' to create a new or existing
@@ -352,7 +352,7 @@ instance (Typeable chain, WalletKey key) => Buildable (AddressPool chain key) wh
 -- ...
 role :: forall (c :: Role). Typeable c => Role
 role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
-       (tryUtxoExternal <|> tryUtxoInternal <|> tryMultisigScript <|> tryMutableAccount)
+       (tryUtxoExternal <|> tryUtxoInternal <|> tryMutableAccount)
   where
     tryUtxoExternal =
         case testEquality (typeRep @c) (typeRep @'UtxoExternal) of
@@ -361,10 +361,6 @@ role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
     tryUtxoInternal =
         case testEquality (typeRep @c) (typeRep @'UtxoInternal) of
             Just Refl  -> Just UtxoInternal
-            Nothing -> Nothing
-    tryMultisigScript =
-        case testEquality (typeRep @c) (typeRep @'MultisigScript) of
-            Just Refl  -> Just MultisigScript
             Nothing -> Nothing
     tryMutableAccount =
         case testEquality (typeRep @c) (typeRep @'MutableAccount) of
@@ -395,10 +391,6 @@ addresses mkAddress =
         , fromIntegral $ fromEnum $ role @c
         , getIndex ix
         ]
-
--- It is used for geting purpose for a given key.
-class GetPurpose key where
-    getPurpose :: Index 'Hardened 'PurposeK
 
 -- | Create a new Address pool from a list of addresses. Note that, the list is
 -- expected to be ordered in sequence (first indexes, first in the list).
@@ -517,11 +509,9 @@ nextAddresses !ctx (AddressPoolGap !g) !fromIx =
         (>= fromIx)
 
     mkPaymentKey ix = \case
-        ParentContextUtxoExternal acct ->
+        ParentContextUtxo acct ->
             mkPaymentKeyFromAccXPub acct
-        ParentContextUtxoInternal acct ->
-            mkPaymentKeyFromAccXPub acct
-        ParentContextMultisigScript _ payment delegation ->
+        ParentContextShared _ payment delegation ->
             mkPaymentKeyFromTemplates payment delegation
       where
         mkPaymentKeyFromAccXPub acct =
@@ -692,7 +682,6 @@ purposeBIP44 = toEnum 0x8000002C
 purposeCIP1852 :: Index 'Hardened 'PurposeK
 purposeCIP1852 = toEnum 0x8000073c
 
-
 -- | Construct a Sequential state for a wallet from root private key and password.
 mkSeqStateFromRootXPrv
     :: forall n k.
@@ -702,6 +691,7 @@ mkSeqStateFromRootXPrv
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'PurposeK
@@ -714,9 +704,9 @@ mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g =
         rewardXPub =
             publicKey $ deriveRewardAccount pwd rootXPrv
         extPool =
-            mkAddressPool @n (ParentContextUtxoExternal $ publicKey accXPrv) g []
+            mkAddressPool @n (ParentContextUtxo $ publicKey accXPrv) g []
         intPool =
-            mkAddressPool @n (ParentContextUtxoInternal $ publicKey accXPrv) g []
+            mkAddressPool @n (ParentContextUtxo $ publicKey accXPrv) g []
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
@@ -729,6 +719,7 @@ mkSeqStateFromAccountXPub
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => k 'AccountK XPub
     -> Index 'Hardened 'PurposeK
@@ -741,9 +732,9 @@ mkSeqStateFromAccountXPub accXPub purpose g =
         rewardXPub =
             deriveAddressPublicKey accXPub MutableAccount minBound
         extPool =
-            mkAddressPool @n (ParentContextUtxoExternal accXPub) g []
+            mkAddressPool @n (ParentContextUtxo accXPub) g []
         intPool =
-            mkAddressPool @n (ParentContextUtxoInternal accXPub) g []
+            mkAddressPool @n (ParentContextUtxo accXPub) g []
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
@@ -807,7 +798,7 @@ instance
     genChange mkAddress (SeqState intPool extPool pending rpk path) =
         let
             (ix, pending') = nextChangeIndex intPool pending
-            ParentContextUtxoInternal accountXPub' = context intPool
+            ParentContextUtxo accountXPub' = context intPool
             addressXPub = deriveAddressPublicKey accountXPub' UtxoInternal ix
             addr = mkAddress addressXPub rpk
         in
@@ -936,6 +927,7 @@ mkSeqAnyState
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'PurposeK
@@ -1009,3 +1001,10 @@ instance
     ) => KnownAddresses (SeqAnyState n k p)
   where
     knownAddresses (SeqAnyState s) = knownAddresses s
+
+instance GetAccount (SeqState n k) k where
+    getAccount s =
+        -- NOTE: Alternatively, we could use 'internalPool', they share the same
+        --       account public key.
+        let (ParentContextUtxo acctK) = context $ externalPool s
+        in acctK

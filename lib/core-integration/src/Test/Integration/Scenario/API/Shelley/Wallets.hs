@@ -24,7 +24,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiTransaction
     , ApiUtxoStatistics
-    , ApiVerificationKey (..)
+    , ApiVerificationKeyShelley (..)
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -1026,10 +1026,6 @@ spec = describe "SHELLEY_WALLETS" $ do
                   , DerivationIndex 2147483647
                   , "stake_vk1qy9tp370ze3cfre8f6daz7l85pgk3wpg6s5zqae2yjljwqkx4htqc7kr4p"
                   )
-                , ( MultisigScript
-                  , DerivationIndex 42
-                  , "script_vk1mjr5lrrlxuvelx94hu2cttmg5pp6cwy5h0sa37qvpcd07pv9g23skqaly0"
-                  )
                 ]
 
         let explicitMnemonics =
@@ -1049,7 +1045,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         forM_ matrix $ \(role_, index, expected) ->
             counterexample (show role_ <> "/" <> show index) $ do
                 let link = Link.getWalletKey (apiWal ^. id) role_ index
-                rGet <- request @ApiVerificationKey ctx link Default Empty
+                rGet <- request @ApiVerificationKeyShelley ctx link Default Empty
                 verify rGet
                     [ expectResponseCode HTTP.status200
                     , expectField id (\k -> toJSON k `shouldBe` toJSON expected)
@@ -1059,7 +1055,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         w <- emptyWallet ctx
 
         let link = Link.getWalletKey w UtxoExternal (DerivationIndex 2147483648)
-        r <- request @ApiVerificationKey ctx link Default Empty
+        r <- request @ApiVerificationKeyShelley ctx link Default Empty
 
         verify r
             [ expectResponseCode HTTP.status403
@@ -1072,7 +1068,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
 
         let link = Link.getWalletKey w UtxoExternal (DerivationIndex 0)
-        r <- request @ApiVerificationKey ctx link Default Empty
+        r <- request @ApiVerificationKeyShelley ctx link Default Empty
 
         verify r
             [ expectResponseCode HTTP.status404
@@ -1096,7 +1092,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status200 rSig
 
         -- get corresponding public key
-        rKey <- request @ApiVerificationKey ctx
+        rKey <- request @ApiVerificationKeyShelley ctx
             (Link.getWalletKey w role_ index)
             Default
             Empty

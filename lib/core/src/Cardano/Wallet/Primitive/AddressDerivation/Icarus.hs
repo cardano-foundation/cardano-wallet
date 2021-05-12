@@ -67,9 +67,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , hex
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( IsOurs (..) )
+    ( GetPurpose (..), IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( GetPurpose (..), SeqState, coinTypeAda, purposeBIP44 )
+    ( SeqState, coinTypeAda, purposeBIP44 )
 import Cardano.Wallet.Primitive.Types
     ( invariant, testnetMagic )
 import Cardano.Wallet.Primitive.Types.Address

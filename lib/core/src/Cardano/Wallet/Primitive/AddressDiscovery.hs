@@ -3,7 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -25,13 +25,15 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , GenChange(..)
     , CompareDiscovery(..)
     , KnownAddresses(..)
+    , GetPurpose (..)
+    , GetAccount (..)
     , coinTypeAda
     ) where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -151,3 +153,11 @@ class KnownAddresses s where
 -- Hardened derivation is used at this level.
 coinTypeAda :: Index 'Hardened 'CoinTypeK
 coinTypeAda = toEnum 0x80000717
+
+-- It is used for geting purpose for a given key.
+class GetPurpose (key :: Depth -> Type -> Type)  where
+    getPurpose :: Index 'Hardened 'PurposeK
+
+-- It is used for geting account public key for a given state.
+class GetAccount s (key :: Depth -> Type -> Type) | s -> key  where
+    getAccount :: s -> key 'AccountK XPub

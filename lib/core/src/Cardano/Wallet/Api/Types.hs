@@ -124,8 +124,14 @@ module Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
-    , ApiVerificationKey (..)
+    , ApiVerificationKeyShelley (..)
+    , ApiVerificationKeyShared (..)
+    , ApiScriptTemplateEntry (..)
+    , XPubOrSelf (..)
+    , VerificationKeyHashing (..)
     , ApiAccountKey (..)
+    , ApiAccountKeyShared (..)
+    , KeyFormat (..)
     , ApiPostAccountKeyData (..)
 
     -- * API Types (Byron)
@@ -266,7 +272,7 @@ import Codec.Binary.Bech32
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import "cardano-addresses" Codec.Binary.Encoding
-    ( AbstractEncoding (..), detectEncoding, encode )
+    ( AbstractEncoding (..), detectEncoding, encode, fromBase16 )
 import Control.Applicative
     ( optional, (<|>) )
 import Control.Arrow
@@ -345,6 +351,8 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
+import Data.Traversable
+    ( for )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -1051,20 +1059,50 @@ data ApiWalletSignData = ApiWalletSignData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-newtype ApiVerificationKey = ApiVerificationKey
+newtype ApiVerificationKeyShelley = ApiVerificationKeyShelley
     { getApiVerificationKey :: (ByteString, Role)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data VerificationKeyHashing = WithHashing | WithoutHashing
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiVerificationKeyShared = ApiVerificationKeyShared
+    { getApiVerificationKey :: (ByteString, Role)
+    , hashed :: VerificationKeyHashing
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data KeyFormat = Extended | NonExtended
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data ApiPostAccountKeyData = ApiPostAccountKeyData
     { passphrase :: ApiT (Passphrase "raw")
-    , extended :: Bool
+    , format :: KeyFormat
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
 data ApiAccountKey = ApiAccountKey
     { getApiAccountKey :: ByteString
-    , extended :: Bool
+    , format :: KeyFormat
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiAccountKeyShared = ApiAccountKeyShared
+    { getApiAccountKey :: ByteString
+    , format :: KeyFormat
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data XPubOrSelf = SomeAccountKey XPub | Self
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiScriptTemplateEntry = ApiScriptTemplateEntry
+    { cosigners :: Map Cosigner XPubOrSelf
+    , template :: Script Cosigner
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -1074,16 +1112,16 @@ data ApiSharedWalletPostDataFromMnemonics = ApiSharedWalletPostDataFromMnemonics
     , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
     , passphrase :: !(ApiT (Passphrase "raw"))
     , accountIndex :: !(ApiT DerivationIndex)
-    , paymentScriptTemplate :: !ScriptTemplate
-    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , paymentScriptTemplate :: !ApiScriptTemplateEntry
+    , delegationScriptTemplate :: !(Maybe ApiScriptTemplateEntry)
     } deriving (Eq, Generic, Show)
 
 data ApiSharedWalletPostDataFromAccountPubX = ApiSharedWalletPostDataFromAccountPubX
     { name :: !(ApiT WalletName)
     , accountPublicKey :: !ApiAccountPublicKey
     , accountIndex :: !(ApiT DerivationIndex)
-    , paymentScriptTemplate :: !ScriptTemplate
-    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , paymentScriptTemplate :: !ApiScriptTemplateEntry
+    , delegationScriptTemplate :: !(Maybe ApiScriptTemplateEntry)
     } deriving (Eq, Generic, Show)
 
 newtype ApiSharedWalletPostData = ApiSharedWalletPostData
@@ -1444,98 +1482,166 @@ instance ToJSON (ApiT DerivationIndex) where
 instance FromJSON (ApiT DerivationIndex) where
     parseJSON = fromTextJSON "DerivationIndex"
 
-instance ToJSON ApiVerificationKey where
-    toJSON (ApiVerificationKey (pub, role_)) =
+instance ToJSON ApiVerificationKeyShelley where
+    toJSON (ApiVerificationKeyShelley (pub, role_)) =
         toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
       where
         hrp = case role_ of
             UtxoInternal -> [humanReadablePart|addr_vk|]
             UtxoExternal -> [humanReadablePart|addr_vk|]
             MutableAccount -> [humanReadablePart|stake_vk|]
-            MultisigScript -> [humanReadablePart|script_vk|]
 
-instance FromJSON ApiVerificationKey where
+instance FromJSON ApiVerificationKeyShelley where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= parseBech32
-        fmap ApiVerificationKey . (,)
-            <$> parsePub bytes
+        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed verification key")
+        fmap ApiVerificationKeyShelley . (,)
+            <$> parsePubVer bytes
             <*> parseRole hrp
       where
-        parseBech32 =
-            either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
-          where
-            errBech32 =
-                "Malformed verification key. Expected a bech32-encoded key."
-
-        parseDataPart =
-            maybe (fail errDataPart) pure . traverse dataPartToBytes
-          where
-            errDataPart =
-                "Couldn't decode data-part to valid UTF-8 bytes."
-
         parseRole = \case
             hrp | hrp == [humanReadablePart|addr_vk|] -> pure UtxoExternal
             hrp | hrp == [humanReadablePart|stake_vk|] -> pure MutableAccount
-            hrp | hrp == [humanReadablePart|script_vk|] -> pure MultisigScript
             _ -> fail errRole
           where
             errRole =
                 "Unrecognized human-readable part. Expected one of:\
-                \ \"addr_vk\", \"stake_vk\" or \"script_vk\"."
+                \ \"addr_vk\" or \"stake_vk\"."
 
-        parsePub bytes
-            | BS.length bytes == 32 =
-                pure bytes
-            | otherwise =
-                fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
+parseBech32
+    :: Text
+    -> Text
+    -> Aeson.Parser (Bech32.HumanReadablePart, ByteString)
+parseBech32 err =
+    either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
+  where
+      errBech32 =
+          T.unpack err <>". Expected a bech32-encoded key."
+
+parseDataPart
+    :: (Bech32.HumanReadablePart, Bech32.DataPart)
+    -> Aeson.Parser (Bech32.HumanReadablePart, ByteString)
+parseDataPart =
+    maybe (fail errDataPart) pure . traverse dataPartToBytes
+  where
+      errDataPart =
+          "Couldn't decode data-part to valid UTF-8 bytes."
+
+parsePubVer :: MonadFail f => ByteString -> f ByteString
+parsePubVer bytes
+    | BS.length bytes == 32 =
+          pure bytes
+    | otherwise =
+          fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
+
+parsePubVerHash :: MonadFail f => ByteString -> f ByteString
+parsePubVerHash bytes
+    | BS.length bytes == 28 =
+          pure bytes
+    | otherwise =
+          fail "Not a valid hash of Ed25519 public key. Must be 28 bytes."
+
+instance ToJSON ApiVerificationKeyShared where
+    toJSON (ApiVerificationKeyShared (pub, role_) hashed) =
+        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
+      where
+        hrp = case role_ of
+            UtxoExternal -> case hashed of
+                WithHashing -> [humanReadablePart|addr_shared_vkh|]
+                WithoutHashing -> [humanReadablePart|addr_shared_vk|]
+            MutableAccount -> case hashed of
+                WithHashing -> [humanReadablePart|stake_shared_vkh|]
+                WithoutHashing -> [humanReadablePart|stake_shared_vk|]
+            _ -> error "only role=0,2 is supported for ApiVerificationKeyShared"
+
+instance FromJSON ApiVerificationKeyShared where
+    parseJSON value = do
+        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed verification key")
+        (role, hashing) <- parseRoleHashing hrp
+        payload <- case hashing of
+            WithoutHashing -> parsePubVer bytes
+            WithHashing -> parsePubVerHash bytes
+        pure $ ApiVerificationKeyShared (payload,role) hashing
+      where
+        parseRoleHashing = \case
+            hrp | hrp == [humanReadablePart|addr_shared_vk|] -> pure (UtxoExternal, WithoutHashing)
+            hrp | hrp == [humanReadablePart|stake_shared_vk|] -> pure (MutableAccount, WithoutHashing)
+            hrp | hrp == [humanReadablePart|addr_shared_vkh|] -> pure (UtxoExternal, WithHashing)
+            hrp | hrp == [humanReadablePart|stake_shared_vkh|] -> pure (MutableAccount, WithHashing)
+            _ -> fail errRole
+          where
+            errRole =
+                "Unrecognized human-readable part. Expected one of:\
+                \ \"addr_shared_vkh\", \"stake_shared_vkh\",\"addr_shared_vk\" or \"stake_shared_vk\"."
 
 instance ToJSON ApiAccountKey where
     toJSON (ApiAccountKey pub extd) =
         toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
       where
-        hrp = if extd then [humanReadablePart|acct_xvk|]
-            else [humanReadablePart|acct_vk|]
+        hrp = case extd of
+            Extended -> [humanReadablePart|acct_xvk|]
+            NonExtended -> [humanReadablePart|acct_vk|]
 
 instance FromJSON ApiAccountKey where
     parseJSON value = do
-        (hrp, bytes) <- parseJSON value >>= parseBech32
+        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
         extended' <- parseHrp hrp
         flip ApiAccountKey extended' <$> parsePub bytes extended'
       where
-        parseBech32 =
-            either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
-          where
-            errBech32 =
-                "Malformed extended/normal account public key. Expected a bech32-encoded key."
-
         parseHrp = \case
-            hrp | hrp == [humanReadablePart|acct_xvk|] -> pure True
-            hrp | hrp == [humanReadablePart|acct_vk|] -> pure False
+            hrp | hrp == [humanReadablePart|acct_xvk|] -> pure Extended
+            hrp | hrp == [humanReadablePart|acct_vk|] -> pure NonExtended
             _ -> fail errHrp
           where
               errHrp =
                   "Unrecognized human-readable part. Expected one of:\
                   \ \"acct_xvk\" or \"acct_vk\"."
 
-        parseDataPart =
-            maybe (fail errDataPart) pure . traverse dataPartToBytes
+parsePubErr :: IsString p => KeyFormat -> p
+parsePubErr = \case
+    Extended ->
+        "Not a valid Ed25519 extended public key. Must be 64 bytes, with chain code"
+    NonExtended ->
+        "Not a valid Ed25519 normal public key. Must be 32 bytes, without chain code"
+
+parsePub :: MonadFail f => ByteString -> KeyFormat -> f ByteString
+parsePub bytes extd
+    | BS.length bytes == bytesExpectedLength =
+          pure bytes
+    | otherwise =
+          fail $ parsePubErr extd
+  where
+    bytesExpectedLength = case extd of
+        Extended -> 64
+        NonExtended -> 32
+
+instance ToJSON ApiAccountKeyShared where
+    toJSON (ApiAccountKeyShared pub extd) =
+        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
+      where
+        hrp = case extd of
+            Extended -> [humanReadablePart|acct_shared_xvk|]
+            NonExtended -> [humanReadablePart|acct_shared_vk|]
+
+instance FromJSON ApiAccountKeyShared where
+    parseJSON value = do
+        (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
+        extended' <- parseHrp hrp
+        flip ApiAccountKeyShared extended' <$> parsePub bytes extended'
+      where
+        parseHrp = \case
+            hrp | hrp == [humanReadablePart|acct_shared_xvk|] -> pure Extended
+            hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure NonExtended
+            _ -> fail errHrp
           where
-            errDataPart =
-                "Couldn't decode data-part to valid UTF-8 bytes."
+              errHrp =
+                  "Unrecognized human-readable part. Expected one of:\
+                  \ \"acct_shared_xvk\" or \"acct_shared_vk\"."
 
-        bytesExpectedLength extd = if extd then 64 else 32
 
-        parsePubErr extd =
-            if extd then
-                  "Not a valid Ed25519 extended public key. Must be 64 bytes, with chain code"
-            else
-                  "Not a valid Ed25519 normal public key. Must be 32 bytes, without chain code"
-
-        parsePub bytes extd
-            | BS.length bytes == (bytesExpectedLength extd) =
-                pure bytes
-            | otherwise =
-                fail $ parsePubErr extd
+instance FromJSON KeyFormat where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+instance ToJSON KeyFormat where
+    toJSON = genericToJSON defaultSumTypeOptions
 
 instance FromJSON ApiPostAccountKeyData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -1903,9 +2009,10 @@ instance FromJSON ApiAddressData where
       where
          msgError =
              "Address must have at least one valid credential. When script is\
-             \ used as a credential it must have only bech32 encoded verification keys \
-             \with possible prefixes: 'script_vkh', 'script_vk' or 'script_xvk' and proper \
-             \payload size. 'at_least'cannot exceed 255. When public key is used as a credential \
+             \ used as a credential it must have only bech32 encoded verification keys\
+             \ with possible prefixes: 'stake_shared_vkh', 'stake_shared_vk', 'stake_shared_xvk', \
+             \'addr_shared_vkh', 'addr_shared_vk' or 'addr_shared_xvk' and proper \
+             \payload size. 'at_least' cannot exceed 255. When public key is used as a credential \
              \then bech32 encoded public keys are expected to be used with possible prefixes:\
              \ 'stake_vk' or 'addr_vk', always with proper payload size."
          parseBaseAddr = withObject "AddrBase" $ \o -> do
@@ -2330,6 +2437,50 @@ instance {-# OVERLAPS #-} EncodeStakeAddress n
     => ToJSON (ApiT W.RewardAccount, Proxy n)
   where
     toJSON (acct, _) = toJSON . encodeStakeAddress @n . getApiT $ acct
+
+instance ToJSON XPubOrSelf where
+    toJSON (SomeAccountKey xpub) =
+        String $ T.decodeUtf8 $ encode EBase16 $ xpubToBytes xpub
+    toJSON Self = "self"
+
+instance FromJSON XPubOrSelf where
+    parseJSON t = parseXPub t <|> parseSelf t
+      where
+        parseXPub = withText "XPub" $ \txt ->
+            case fromBase16 (T.encodeUtf8 txt) of
+                Left err -> fail err
+                Right hex' -> case xpubFromBytes hex' of
+                    Nothing -> fail "Extended public key cannot be retrieved from a given hex bytestring"
+                    Just validXPub -> pure $ SomeAccountKey validXPub
+        parseSelf = withText "Self" $ \txt ->
+            if txt == "self" then
+                pure Self
+            else
+                fail "'self' is expected."
+
+instance FromJSON ApiScriptTemplateEntry where
+    parseJSON = withObject "ApiScriptTemplateEntry" $ \o -> do
+        template' <- parseJSON <$> o .: "template"
+        cosigners' <- parseCosignerPairs <$> o .: "cosigners"
+        ApiScriptTemplateEntry <$> (Map.fromList <$> cosigners') <*> template'
+      where
+        parseCosignerPairs = withObject "Cosigner pairs" $ \o ->
+            case HM.toList o of
+                [] -> fail "Cosigners object array should not be empty"
+                cs -> for (reverse cs) $ \(numTxt, str) -> do
+                    cosigner' <- parseJSON @Cosigner (String numTxt)
+                    xpubOrSelf <- parseJSON str
+                    pure (cosigner', xpubOrSelf)
+
+instance ToJSON ApiScriptTemplateEntry where
+    toJSON (ApiScriptTemplateEntry cosigners' template') =
+        object [ "cosigners" .= object (fmap toPair (Map.toList cosigners'))
+               , "template" .= toJSON template']
+      where
+        cosignerToText (Cosigner ix) = "cosigner#"<> T.pack (show ix)
+        toPair (cosigner', xpubOrSelf) =
+            ( cosignerToText cosigner'
+            , toJSON xpubOrSelf  )
 
 instance FromJSON ApiSharedWalletPostDataFromAccountPubX where
     parseJSON = genericParseJSON defaultRecordTypeOptions

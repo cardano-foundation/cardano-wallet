@@ -92,6 +92,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shared
+    ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -288,7 +290,9 @@ serveWallet
                     Server.idleWorker
                 shelleyApi <- apiLayer (newTransactionLayer net) nl
                     (Server.manageRewardBalance proxy)
-                multisigApi <- apiLayer (newTransactionLayer net) nl
+
+                let txLayerUdefined = error "TO-DO in ADP-686"
+                multisigApi <- apiLayer txLayerUdefined nl
                     Server.idleWorker
 
                 withPoolsMonitoring databaseDir np nl $ \spl -> do
@@ -326,7 +330,7 @@ serveWallet
         -> ApiLayer (RndState n) ByronKey
         -> ApiLayer (SeqState n IcarusKey) IcarusKey
         -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
-        -> ApiLayer (SharedState n ShelleyKey) ShelleyKey
+        -> ApiLayer (SharedState n SharedKey) SharedKey
         -> StakePoolLayer
         -> NtpClient
         -> IO ()

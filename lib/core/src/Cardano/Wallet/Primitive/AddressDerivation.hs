@@ -153,6 +153,7 @@ import GHC.TypeLits
 import Safe
     ( readMay, toEnumMay )
 
+import qualified Cardano.Address.Script as CA
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -185,7 +186,6 @@ data Role
     = UtxoExternal
     | UtxoInternal
     | MutableAccount
-    | MultisigScript
     deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
 instance NFData Role
@@ -198,13 +198,11 @@ instance Enum Role where
         0 -> UtxoExternal
         1 -> UtxoInternal
         2 -> MutableAccount
-        3 -> MultisigScript
         _ -> error "Role.toEnum: bad argument"
     fromEnum = \case
         UtxoExternal -> 0
         UtxoInternal -> 1
         MutableAccount -> 2
-        MultisigScript -> 3
 
 instance ToText Role where
     toText = toTextFromBoundedEnum SnakeLowerCase
@@ -499,17 +497,24 @@ deriveRewardAccount pwd rootPrv =
 deriveVerificationKey
     :: (SoftDerivation k, WalletKey k)
     => k 'AccountK XPub
+    -> Role
     -> Index 'Soft 'ScriptK
     -> k 'ScriptK XPub
-deriveVerificationKey accXPub =
-    liftRawKey . getRawKey . deriveAddressPublicKey accXPub MultisigScript . coerce
+deriveVerificationKey accXPub role' =
+    liftRawKey . getRawKey . deriveAddressPublicKey accXPub role' . coerce
 
 hashVerificationKey
     :: WalletKey k
-    => k 'ScriptK XPub
+    => Role
+    -> k 'ScriptK XPub
     -> KeyHash
-hashVerificationKey =
-    KeyHash . blake2b224 . xpubPublicKey . getRawKey
+hashVerificationKey role' =
+    KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
+  where
+    keyRole = case role' of
+        UtxoExternal -> CA.Payment
+        UtxoInternal -> CA.Payment
+        MutableAccount -> CA.Delegation
 
 {-------------------------------------------------------------------------------
                                  Passphrases

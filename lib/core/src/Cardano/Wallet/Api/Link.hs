@@ -110,6 +110,10 @@ module Cardano.Wallet.Api.Link
     , getSharedWallet
     , patchSharedWallet
 
+     -- * SharedWalletKeys
+    , getSharedWalletKey
+    , postAccountKeyShared
+
     , PostWallet
     , Discriminate
     ) where
@@ -127,7 +131,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, NetworkDiscriminant (..), Role )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, SmashServer, SortOrder, WalletId (..) )
@@ -728,6 +732,36 @@ patchSharedWallet w cred =
             endpoint @Api.PatchSharedWalletInDelegation (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
+
+--
+-- SharedWalletKeys
+--
+getSharedWalletKey
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> Role
+    -> DerivationIndex
+    -> Maybe Bool
+    -> (Method, Text)
+getSharedWalletKey w role_ index hashed =
+    endpoint @Api.GetSharedWalletKey (\mk -> mk wid (ApiT role_) (ApiT index) hashed)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+postAccountKeyShared
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> DerivationIndex
+    -> (Method, Text)
+postAccountKeyShared w index =
+    endpoint @Api.PostAccountKeyShared (\mk -> mk wid (ApiT index))
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
 
 --
 -- Internals

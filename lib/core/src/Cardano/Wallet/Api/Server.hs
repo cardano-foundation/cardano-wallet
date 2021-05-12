@@ -42,7 +42,8 @@ module Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
-    , derivePublicKey
+    , derivePublicKeyShelley
+    , derivePublicKeyShared
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
@@ -112,7 +113,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..) )
+    ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
 import Cardano.BM.Tracing
@@ -177,7 +178,6 @@ import Cardano.Wallet.Api.Server.Tls
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
-    , ApiAccountKey (..)
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
@@ -205,6 +205,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
+    , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsPayments
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
@@ -219,7 +220,8 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
-    , ApiVerificationKey (..)
+    , ApiVerificationKeyShared (..)
+    , ApiVerificationKeyShelley (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -238,15 +240,18 @@ import Cardano.Wallet.Api.Types
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
+    , KeyFormat (..)
     , KnownDiscovery (..)
     , MinWithdrawal (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , XPubOrSelf (..)
     , coinFromQuantity
     , coinToQuantity
     , getApiMnemonicT
@@ -285,6 +290,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, mkByronKeyFromMasterKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -296,8 +303,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , ParentContext (..)
@@ -310,7 +315,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( ErrAddCosigner (..)
+    ( CredentialType (..)
+    , ErrAddCosigner (..)
     , SharedState (..)
     , SharedStateFields (..)
     , SharedStatePending (..)
@@ -416,6 +422,8 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..), exceptToMaybeT )
 import Control.Tracer
     ( Tracer, contramap )
+import Crypto.Hash.Utils
+    ( blake2b224 )
 import Data.Aeson
     ( (.=) )
 import Data.ByteString
@@ -457,7 +465,7 @@ import Data.Text.Class
 import Data.Time
     ( UTCTime )
 import Data.Type.Equality
-    ( (:~:) (..), testEquality )
+    ( (:~:) (..), type (==), testEquality )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -668,6 +676,7 @@ postWallet
         , IsOurs s RewardAccount
         , Typeable s
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -695,6 +704,7 @@ postShelleyWallet
         , IsOurs s RewardAccount
         , Typeable s
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -728,6 +738,7 @@ postAccountWallet
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
         , Typeable n
+        , (k == SharedKey) ~ 'False
         )
     => ctx
     -> MkApiWallet ctx s w
@@ -844,6 +855,7 @@ postSharedWallet
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , Typeable n
+        , k ~ SharedKey
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -868,6 +880,7 @@ postSharedWalletFromRootXPrv
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , Typeable n
+        , k ~ SharedKey
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
@@ -891,8 +904,8 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     g = defaultAddressPoolGap
     accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
     wid = WalletId $ digest $ publicKey rootXPrv
-    pTemplate = body ^. #paymentScriptTemplate
-    dTemplateM = body ^. #delegationScriptTemplate
+    pTemplate = scriptTemplateFromSelf (getRawKey accXPub) $ body ^. #paymentScriptTemplate
+    dTemplateM = scriptTemplateFromSelf (getRawKey accXPub) <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     accXPub = publicKey $ deriveAccountPrivateKey pwd rootXPrv accIx
 
@@ -907,6 +920,7 @@ postSharedWalletFromAccountXPub
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , Typeable n
+        , k ~ SharedKey
         )
     => ctx
     -> (XPub -> k 'AccountK XPub)
@@ -923,12 +937,20 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
   where
     g = defaultAddressPoolGap
     accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
-    pTemplate = body ^. #paymentScriptTemplate
-    dTemplateM = body ^. #delegationScriptTemplate
+    pTemplate = scriptTemplateFromSelf accXPub $ body ^. #paymentScriptTemplate
+    dTemplateM = scriptTemplateFromSelf accXPub <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
     wid = WalletId $ digest (liftKey accXPub)
+
+scriptTemplateFromSelf :: XPub -> ApiScriptTemplateEntry -> ScriptTemplate
+scriptTemplateFromSelf xpub (ApiScriptTemplateEntry cosigners' template') =
+    ScriptTemplate cosignersWithoutSelf template'
+  where
+    unSelf (SomeAccountKey xpub') = xpub'
+    unSelf Self = xpub
+    cosignersWithoutSelf = Map.map unSelf cosigners'
 
 mkSharedWallet
     :: forall ctx s k n.
@@ -961,7 +983,7 @@ mkSharedWallet ctx wid cp meta pending progress = case getState cp of
             cp
         let available = availableBalance pending cp
         let total = totalBalance pending reward cp
-        let (ParentContextMultisigScript _ pTemplate dTemplateM) = context pool
+        let (ParentContextShared _ pTemplate dTemplateM) = context pool
         pure $ ApiSharedWallet $ Right $ ApiActiveSharedWallet
             { id = ApiT wid
             , name = ApiT $ meta ^. #name
@@ -995,6 +1017,7 @@ patchSharedWallet
         , WalletKey k
         , HasDBFactory s k ctx
         , Typeable n
+        , k ~ SharedKey
         )
     => ctx
     -> (XPub -> k 'AccountK XPub)
@@ -2137,7 +2160,7 @@ signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
         getSignature <$> W.signMetadataWith @_ @s @k @n
             wrk wid (coerce pwd) (role_, ix) meta
 
-derivePublicKey
+derivePublicKeyShelley
     :: forall ctx s k n.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
@@ -2148,29 +2171,58 @@ derivePublicKey
     -> ApiT WalletId
     -> ApiT Role
     -> ApiT DerivationIndex
-    -> Handler ApiVerificationKey
-derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
+    -> Handler ApiVerificationKeyShelley
+derivePublicKeyShelley ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.derivePublicKey @_ @s @k @n wrk wid role_ ix
-        pure $ ApiVerificationKey (xpubPublicKey $ getRawKey k, role_)
+        k <- liftHandler $ W.derivePublicKey @_ @s @k wrk wid role_ ix
+        pure $ ApiVerificationKeyShelley (xpubPublicKey $ getRawKey k, role_)
 
-postAccountPublicKey
+derivePublicKeyShared
     :: forall ctx s k n.
-        ( s ~ SeqState n k
+        ( s ~ SharedState n k
         , ctx ~ ApiLayer s k
-        , HardDerivation k
+        , SoftDerivation k
         , WalletKey k
         )
     => ctx
     -> ApiT WalletId
+    -> ApiT Role
+    -> ApiT DerivationIndex
+    -> Maybe Bool
+    -> Handler ApiVerificationKeyShared
+derivePublicKeyShared ctx (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        k <- liftHandler $ W.derivePublicKey @_ @s @k wrk wid role_ ix
+        pure $ ApiVerificationKeyShared (computePayload k, role_) hashing
+  where
+    hashing = case hashed of
+        Nothing -> WithoutHashing
+        Just v -> if v then WithHashing else WithoutHashing
+    computePayload k' = case hashing of
+        WithoutHashing -> xpubPublicKey $ getRawKey k'
+        WithHashing -> blake2b224 $ xpubPublicKey $ getRawKey k'
+
+postAccountPublicKey
+    :: forall ctx s k account.
+        ( ctx ~ ApiLayer s k
+        , HardDerivation k
+        , WalletKey k
+        )
+    => ctx
+    -> (ByteString -> KeyFormat -> account)
+    -> ApiT WalletId
     -> ApiT DerivationIndex
     -> ApiPostAccountKeyData
-    -> Handler ApiAccountKey
-postAccountPublicKey ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
+    -> Handler account
+postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.readPublicAccountKey @_ @s @k @n wrk wid pwd ix
-        let toBytes = if extd then xpubToBytes else xpubPublicKey
-        pure $ ApiAccountKey (toBytes $ getRawKey k) extd
+        k <- liftHandler $ W.readPublicAccountKey @_ @s @k wrk wid pwd ix
+        pure $ mkAccount (xPubtoBytes extd $ getRawKey k) extd
+  where
+      xPubtoBytes :: KeyFormat -> XPub -> ByteString
+      xPubtoBytes = \case
+          Extended -> xpubToBytes
+          NonExtended -> xpubPublicKey
 
 {-------------------------------------------------------------------------------
                                   Helpers

@@ -122,6 +122,9 @@ module Cardano.Wallet.Api
         , PatchSharedWalletInDelegation
         , DeleteSharedWallet
 
+    , SharedWalletKeys
+        , GetSharedWalletKey
+        , PostAccountKeyShared
     , Proxy_
         , PostExternalTransaction
 
@@ -142,6 +145,7 @@ import Cardano.Wallet
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
+    , ApiAccountKeyShared
     , ApiAddressData
     , ApiAddressIdT
     , ApiAddressInspect
@@ -169,7 +173,8 @@ import Cardano.Wallet.Api.Types
     , ApiTransactionT
     , ApiTxId
     , ApiUtxoStatistics
-    , ApiVerificationKey
+    , ApiVerificationKeyShared
+    , ApiVerificationKeyShelley
     , ApiWallet
     , ApiWalletMigrationPlan
     , ApiWalletMigrationPlanPostDataT
@@ -278,6 +283,7 @@ type Api n apiPool =
     :<|> Settings
     :<|> SMASH
     :<|> SharedWallets
+    :<|> SharedWalletKeys
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -335,7 +341,7 @@ type GetUTxOsStatistics = "wallets"
 
 {-------------------------------------------------------------------------------
                                   Wallet Keys
-  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/WalletKeys
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Keys
 -------------------------------------------------------------------------------}
 
 type WalletKeys =
@@ -349,7 +355,7 @@ type GetWalletKey = "wallets"
     :> "keys"
     :> Capture "role" (ApiT Role)
     :> Capture "index" (ApiT DerivationIndex)
-    :> Get '[JSON] ApiVerificationKey
+    :> Get '[JSON] ApiVerificationKeyShelley
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signMetadata
 type SignMetadata = "wallets"
@@ -884,6 +890,32 @@ type PatchSharedWalletInDelegation = "shared-wallets"
 type DeleteSharedWallet = "shared-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> DeleteNoContent
+
+{-------------------------------------------------------------------------------
+                                  Shared Wallet Keys
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Keys
+-------------------------------------------------------------------------------}
+
+type SharedWalletKeys =
+         GetSharedWalletKey
+    :<|> PostAccountKeyShared
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getSharedWalletKey
+type GetSharedWalletKey = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "keys"
+    :> Capture "role" (ApiT Role)
+    :> Capture "index" (ApiT DerivationIndex)
+    :> QueryParam "hash" Bool
+    :> Get '[JSON] ApiVerificationKeyShared
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postAccountKeyShared
+type PostAccountKeyShared = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "keys"
+    :> Capture "index" (ApiT DerivationIndex)
+    :> ReqBody '[JSON] ApiPostAccountKeyData
+    :> PostAccepted '[JSON] ApiAccountKeyShared
 
 {-------------------------------------------------------------------------------
                                    Proxy_
