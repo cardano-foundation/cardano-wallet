@@ -444,36 +444,50 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage errMsg403WrongPass
                 ]
 
-    describe "BYRON_MIGRATE_XX - I could migrate to any valid address" $ do
-        forM_ [ ("Byron", emptyRandomWallet)
+    describe "BYRON_MIGRATE_06 - \
+        \It's possible to migrate to any valid address."
+        $ forM_
+              [ ("Random", emptyRandomWallet)
               , ("Icarus", emptyIcarusWallet)
-              ] $ \(walType, destWallet) -> do
+              ] $ \(walType, destWallet) ->
 
             it ("From wallet type: " ++ walType) $ \ctx -> runResourceT $ do
-                liftIO $ pendingWith "Migration endpoints temporarily disabled."
-                --shelley address
+
+                -- Create a Shelley address:
                 wShelley <- emptyWallet ctx
                 addrs <- listAddresses @n ctx wShelley
                 let addrShelley = (addrs !! 1) ^. #id
-                --icarus address
-                addrIcarus <- liftIO $ encodeAddress @n . head . icarusAddresses @n
+
+                -- Create an Icarus address:
+                addrIcarus <- liftIO $ encodeAddress @n
+                    . head
+                    . icarusAddresses @n
                     . entropyToMnemonic @15 <$> genEntropy
-                --byron address
-                addrByron <- liftIO $ encodeAddress @n . head . randomAddresses @n
+
+                -- Create a Byron address:
+                addrByron <- liftIO $ encodeAddress @n
+                    . head
+                    . randomAddresses @n
                     . entropyToMnemonic @12 <$> genEntropy
 
-                sWallet <- destWallet ctx
-                r <- request @[ApiTransaction n] ctx
-                    (Link.migrateWallet @'Byron sWallet)
-                    Default
+                -- Create a source wallet:
+                sourceWallet <- destWallet ctx
+
+                -- Initiate a migration to all address types:
+                response <- request @[ApiTransaction n] ctx
+                    (Link.migrateWallet @'Byron sourceWallet) Default
                     (Json [json|
                         { passphrase: #{fixturePassphrase}
-                        , addresses: [#{addrShelley}, #{addrIcarus}, #{addrByron}]
+                        , addresses:
+                            [ #{addrShelley}
+                            , #{addrIcarus}
+                            , #{addrByron}
+                            ]
                         }|])
-                verify r
+                verify response
                     [ expectResponseCode HTTP.status403
                     , expectErrorMessage
-                        (errMsg403NothingToMigrate (sWallet ^. walletId))
+                        (errMsg403NothingToMigrate (sourceWallet ^. walletId))
                     ]
 
     it "BYRON_MIGRATE_07 - invalid payload, parser error" $ \ctx -> runResourceT $ do

@@ -425,6 +425,39 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectErrorMessage errMsg403WrongPass
                 ]
 
+    it "SHELLEY_MIGRATE_06 - \
+        \It's possible to migrate to any valid address."
+        $ \ctx -> runResourceT $ do
+
+            -- Create a Shelley address:
+            wShelley <- emptyWallet ctx
+            addrs <- listAddresses @n ctx wShelley
+            let addrShelley = (addrs !! 1) ^. #id
+
+            -- Create an Icarus address:
+            addrIcarus <- liftIO $ encodeAddress @n . head . icarusAddresses @n
+                . entropyToMnemonic @15 <$> genEntropy
+
+            -- Create a Byron address:
+            addrByron <- liftIO $ encodeAddress @n . head . randomAddresses @n
+                . entropyToMnemonic @12 <$> genEntropy
+
+            -- Create a source wallet:
+            sourceWallet <- emptyWallet ctx
+
+            -- Initiate a migration to all address types:
+            response <- request @[ApiTransaction n] ctx
+                (Link.migrateWallet @'Shelley sourceWallet) Default
+                (Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: [#{addrShelley}, #{addrIcarus}, #{addrByron}]
+                    }|])
+            verify response
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage
+                    (errMsg403NothingToMigrate (sourceWallet ^. walletId))
+                ]
+
     Hspec.it "SHELLEY_MIGRATE_XX - \
         \migrating wallet with 'dust' (that complies with minUTxOValue) should pass."
         $ \ctx -> runResourceT @IO $ do
@@ -489,33 +522,6 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             (#balance . #total)
                             ( `shouldBe` Quantity expectedBalance)
                     ]
-
-    it "SHELLEY_MIGRATE_XX - I could migrate to any valid address" $ \ctx -> runResourceT $ do
-      liftIO $ pendingWith "Migration endpoints temporarily disabled."
-      --shelley address
-      wShelley <- emptyWallet ctx
-      addrs <- listAddresses @n ctx wShelley
-      let addrShelley = (addrs !! 1) ^. #id
-      --icarus address
-      addrIcarus <- liftIO $ encodeAddress @n . head . icarusAddresses @n
-          . entropyToMnemonic @15 <$> genEntropy
-      --byron address
-      addrByron <- liftIO $ encodeAddress @n . head . randomAddresses @n
-          . entropyToMnemonic @12 <$> genEntropy
-
-      sWallet <- emptyWallet ctx
-      r <- request @[ApiTransaction n] ctx
-          (Link.migrateWallet @'Shelley sWallet)
-          Default
-          (Json [json|
-              { passphrase: #{fixturePassphrase}
-              , addresses: [#{addrShelley}, #{addrIcarus}, #{addrByron}]
-              }|])
-      verify r
-          [ expectResponseCode HTTP.status403
-          , expectErrorMessage
-              (errMsg403NothingToMigrate (sWallet ^. walletId))
-          ]
 
     it "SHELLEY_MIGRATE_07 - invalid payload, parser error" $ \ctx -> runResourceT $ do
       liftIO $ pendingWith "Migration endpoints temporarily disabled."
