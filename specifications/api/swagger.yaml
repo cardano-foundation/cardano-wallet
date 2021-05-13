@@ -3543,6 +3543,16 @@ x-responsesListWallets: &responsesListWallets
           type: array
           items: *ApiWallet
 
+x-responsesListSharedWallets: &responsesListSharedWallets
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema:
+          type: array
+          items: *ApiSharedWallet
+
 x-responsesErr404AssetNotPresent: &responsesErr404AssetNotPresent
   404:
     description: Not Found
@@ -5324,6 +5334,16 @@ paths:
           application/json:
             schema: *ApiSharedWalletPostData
       responses: *responsesPostSharedWallet
+
+    get:
+      operationId: listSharedWallets
+      tags: ["Shared Wallets"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>⚠ under development</strong></p>
+
+        Return a list of known shared wallets, ordered from oldest to newest.
+      responses: *responsesListSharedWallets
 
   /shared-wallets/{walletId}:
     get:
