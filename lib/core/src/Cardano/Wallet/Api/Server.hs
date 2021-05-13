@@ -2064,17 +2064,17 @@ mkApiWalletMigrationPlan
     -> Withdrawal
     -> MigrationPlan
     -> Maybe (ApiWalletMigrationPlan n)
-mkApiWalletMigrationPlan s addresses rewardWithdrawal plan
-    | Just selections <- maybeSelections =
-        Just ApiWalletMigrationPlan
-            { selections
-            , totalFee
-            , balanceLeftover
-            , balanceSelected
-            }
-    | otherwise =
-        Nothing
+mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
+    mkApiPlan <$> maybeSelections
   where
+    mkApiPlan :: NonEmpty (ApiCoinSelection n) -> ApiWalletMigrationPlan n
+    mkApiPlan selections = ApiWalletMigrationPlan
+        { selections
+        , totalFee
+        , balanceLeftover
+        , balanceSelected
+        }
+
     maybeSelections :: Maybe (NonEmpty (ApiCoinSelection n))
     maybeSelections = fmap mkApiCoinSelectionForMigration <$> maybeUnsignedTxs
 
