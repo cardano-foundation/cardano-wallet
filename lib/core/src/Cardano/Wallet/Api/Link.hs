@@ -107,7 +107,6 @@ module Cardano.Wallet.Api.Link
      -- * Shared Wallets
     , postSharedWallet
     , deleteSharedWallet
-    , getSharedWallet
     , patchSharedWallet
 
      -- * SharedWalletKeys
@@ -217,7 +216,7 @@ getWallet
 getWallet w = discriminate @style
     (endpoint @Api.GetWallet (wid &))
     (endpoint @Api.GetByronWallet (wid &))
-    notSupported
+    (endpoint @Api.GetSharedWallet (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -718,17 +717,6 @@ deleteSharedWallet
     -> (Method, Text)
 deleteSharedWallet w =
     endpoint @Api.DeleteSharedWallet (wid &)
-  where
-    wid = w ^. typed @(ApiT WalletId)
-
-getSharedWallet
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-getSharedWallet w =
-    endpoint @Api.GetSharedWallet (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 

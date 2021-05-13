@@ -1438,7 +1438,7 @@ getSharedWallet ctx = \case
     ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiSharedWallet)
-      r w = request @ApiSharedWallet ctx (Link.getSharedWallet w) Default Empty
+      r w = request @ApiSharedWallet ctx (Link.getWallet @'Shared w) Default Empty
 
 getSharedWalletKey
     :: forall m.
