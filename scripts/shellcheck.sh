@@ -8,10 +8,16 @@
 #   sos scripts '.*\.sh$' -e '\#' -c ./scripts/shellcheck.sh
 #
 
-cd "$(dirname "$0")" || exit
+scripts_dir="${0%/*}"
 
-if shellcheck ./*.sh; then
-  echo "Basic linting of shell scripts passed. 👍"
+if [ -z "${1:-}" ]; then
+  mapfile -t files < <(find "$scripts_dir" -type f -name '*.sh')
+else
+  files=( "$@" )
+fi
+
+if shellcheck -e SC1090 --external-sources --source-path="$scripts_dir" --source-path="$scripts_dir/gh" "${files[@]}"; then
+  echo "Basic linting of ${#files[@]} shell scripts passed. 👍"
   echo "awesome!" | figlet | lolcat
 else
   # Begin patronising advice

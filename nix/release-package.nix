@@ -56,8 +56,10 @@ pkgs.stdenv.mkDerivation {
   exeName = lib.getName exe.name;
   buildPhase = ''
     mkdir -p $out/nix-support $name
-    cp -nR ${lib.concatMapStringsSep " " (exe: "${exe}/bin/*") exes} $name
-    chmod -R 755 $name
+    cp --no-preserve=timestamps --no-clobber --recursive \
+      ${lib.concatMapStringsSep " " (exe: "${exe}/bin/*") exes} \
+      $name
+    chmod -R +w $name
 
   '' + lib.optionalString isMacOS ''
     # Rewrite library paths to standard non-nix locations
@@ -79,18 +81,18 @@ pkgs.stdenv.mkDerivation {
 
     # make a separate configuration package if needed
     if [ -d ${exe}/configuration ]; then
-      cp --no-preserve=mode -R ${exe}/configuration .
+      cp --no-preserve=mode,timestamps -R ${exe}/configuration .
 
-      ( cd configuration; zip -r $out/${exe.name}-configuration.zip . )
-      echo "file binary-dist $out/${exe.name}-configuration.zip" >> $out/nix-support/hydra-build-products
+      ( cd configuration; zip -r $out/$name-configuration.zip . )
+      echo "file binary-dist $out/$name-configuration.zip" >> $out/nix-support/hydra-build-products
     fi
 
     # make a separate deployments configuration package if needed
     if [ -d ${exe}/deployments ]; then
-      cp --no-preserve=mode -R ${exe}/deployments .
+      cp --no-preserve=mode,timestamps -R ${exe}/deployments .
 
-      ( cd deployments; zip -r $out/${exe.name}-deployments.zip . )
-      echo "file binary-dist $out/${exe.name}-deployments.zip" >> $out/nix-support/hydra-build-products
+      ( cd deployments; zip -r $out/$name-deployments.zip . )
+      echo "file binary-dist $out/$name-deployments.zip" >> $out/nix-support/hydra-build-products
     fi
   '';
 

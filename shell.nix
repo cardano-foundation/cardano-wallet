@@ -33,6 +33,7 @@ let
         cardano-cli
         cardano-address
         bech32
+        project.hsPkgs.pretty-simple.components.exes.pretty-simple
       ]) ++ (with pkgs.buildPackages.buildPackages; [
         go-jira
         haskellPackages.ghcid
@@ -41,10 +42,11 @@ let
         python3Packages.openapi-spec-validator
         ruby
         sqlite-interactive
+        jq
         yq
-      ]) ++ lib.filter
+      ] ++ lib.filter
         (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
-        (lib.attrValues pkgs.buildPackages.buildPackages.haskell-build-tools);
+        (lib.attrValues haskell-build-tools));
 
     # fixme: this is needed to prevent Haskell.nix double-evaluating hoogle
     tools.hoogle = {

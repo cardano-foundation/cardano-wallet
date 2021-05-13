@@ -9,6 +9,7 @@
 out=hie-direct.yaml
 ghci=custom.ghci
 builddir=dist-newstyle
+cabal_opts=("--project-file=cabal-nix.project" "--builddir=$builddir")
 
 set -euo pipefail
 
@@ -46,7 +47,7 @@ relpath() {
 }
 
 setup_cabal_plan() {
-  test -f $plan_json || cabal --project-file=cabal-nix.project "--builddir=$builddir" configure
+  test -f $plan_json || ( cabal "${cabal_opts[@]}" update ; cabal "${cabal_opts[@]}" configure )
 }
 
 ######################################################################
@@ -106,6 +107,9 @@ make_ghci() {
 :set -XOverloadedStrings
 :set -XNoImplicitPrelude
 :set -XTypeApplications -XDataKinds
+
+:set -package pretty-simple
+:set -interactive-print=Text.Pretty.Simple.pPrint
 
 import Prelude
 import System.Environment (setEnv, getEnv)

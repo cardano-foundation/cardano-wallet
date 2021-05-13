@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: '📥 Checkout repository'
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
 
       - name: '📸 Build Documentation'
         run: |
@@ -47,7 +47,7 @@ jobs:
           else
             tag=""
           fi
-          ./scripts/update-docs.sh _build $tag
+          ./scripts/gh/update-docs.sh _build $tag
 
       - name: '📘 Publish'
         if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}
@@ -59,13 +59,14 @@ jobs:
           keep_files: true
           user_name: 'William King Noel Bot'
           user_email: 'adrestia@iohk.io'
+          commit_message: 'docs: ${{ github.event.head_commit.message }}'
 
   bump_sh:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-20.04
     steps:
       - name: '📥 Checkout repository'
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
       - name: 'Set up Ruby'
         uses: ruby/setup-ruby@v1
         with:
@@ -75,7 +76,7 @@ jobs:
       - name: 'Install dependencies'
         run: 'sudo snap install yq'
       - name: 'Update Release in Bump.sh'
-        run: './scripts/update-bump.sh'
+        run: './scripts/gh/update-bump.sh'
         env:
           BUMP_SH_DOC_ID: ${{ secrets.BUMP_SH_DOC_ID }}
           BUMP_SH_TOKEN: ${{ secrets.BUMP_SH_TOKEN }}

@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-root=$(cd "$(dirname "$0")"/..; pwd)
+source "${BASH_SOURCE%/*}/common.sh"
+
+src=$(cd "${BASH_SOURCE%/*}/../.."; pwd)
 out="${1:-}"
 tag="${2:-}"
 
@@ -20,5 +22,5 @@ else
 fi
 
 echo '*** Building documentation for' "$what"
-mkdir -p "$dest"
-cp -Rv "$root"/specifications/api/* "$dest"
+mkdir -pv "$dest"
+cp -Rv "$src"/specifications/api/* "$dest"
