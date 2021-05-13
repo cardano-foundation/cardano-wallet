@@ -398,6 +398,7 @@ import qualified Data.Text.Read as T
 data WalletStyle
     = Shelley
     | Byron
+    | Shared
 
 data ByronWalletStyle
     = Random

@@ -501,7 +501,7 @@ server byron icarus shelley multisig spl ntp =
     sharedWallets apilayer =
              (postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey)
         :<|> (fmap fst . getWallet apilayer mkSharedWallet)
-        :<|> undefined
+        :<|> (fmap fst <$> listWallets apilayer mkSharedWallet)
         :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment)
         :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation)
         :<|> (deleteWallet apilayer)
