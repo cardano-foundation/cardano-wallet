@@ -13,7 +13,7 @@ module Helpers
 
     def cardano_address_get_acc_xpub(mnemonics, derivation_path)
       cmd(%(echo #{mnemonics.join(' ')} \
-         | cardano-address key from-recovery-phrase Shelley \
+         | cardano-address key from-recovery-phrase Shared \
          | cardano-address key child #{derivation_path} \
          | cardano-address key public --with-chain-code \
          | bech32)).gsub("\n", '')
