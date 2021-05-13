@@ -4657,10 +4657,6 @@ paths:
       tags: ["Migrations"]
       summary: Migrate
       description: |
-        <p align="right">status: <strong>disabled</strong></p>
-        <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
-
-        <hr/>
         Migrate the UTxO balance of this wallet to the given set of addresses.
 
         This operation will attempt to transfer as much of the wallet's balance
@@ -4695,10 +4691,6 @@ paths:
       tags: ["Migrations"]
       summary: Create a migration plan
       description: |
-        <p align="right">status: <strong>disabled</strong></p>
-        <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
-
-        <hr/>
         Generate a plan for migrating the UTxO balance of this wallet to
         another wallet, without executing the plan.
 
