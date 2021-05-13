@@ -37,6 +37,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
+import Control.Monad
+    ( forM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
@@ -49,6 +51,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Test.Hspec
@@ -396,22 +400,8 @@ spec = describe "SHARED_WALLETS" $ do
         getWalletIdFromSharedWallet walWithSelf `Expectations.shouldBe` getWalletIdFromSharedWallet wal
 
     it "SHARED_WALLETS_DELETE_01 - Delete of a shared wallet" $ \ctx -> runResourceT $ do
-        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
-        let payload = Json [json| {
-                "name": "Shared Wallet",
-                "account_public_key": #{accXPubTxt},
-                "account_index": "30H",
-                "payment_script_template":
-                    { "cosigners":
-                        { "cosigner#0": #{accXPubTxt} },
-                      "template":
-                          { "all":
-                             [ "cosigner#0",
-                               { "active_from": 120 }
-                             ]
-                          }
-                    }
-                } |]
+        let walName = "Shared Wallet" :: Text
+        (_, payload) <- getAccountWallet walName
         rInit <- postSharedWallet ctx Default payload
         verify rInit
             [ expectResponseCode HTTP.status201 ]
@@ -686,29 +676,15 @@ spec = describe "SHARED_WALLETS" $ do
         expectErrorMessage errMsg403CannotUpdateThisCosigner rPatch
 
     it "SHARED_WALLET_KEYS_01 - Getting verification keys works for active shared wallet" $ \ctx -> runResourceT $ do
-        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
-        let payload = Json [json| {
-                "name": "Shared Wallet",
-                "account_public_key": #{accXPubTxt},
-                "account_index": "10H",
-                "payment_script_template":
-                    { "cosigners":
-                        { "cosigner#0": #{accXPubTxt} },
-                      "template":
-                          { "all":
-                             [ "cosigner#0",
-                               { "active_from": 120 }
-                             ]
-                          }
-                    }
-                } |]
+        let walName = "Shared Wallet" :: Text
+        (_, payload) <- getAccountWallet walName
         rPost <- postSharedWallet ctx Default payload
         verify rPost
             [ expectResponseCode HTTP.status201
             ]
         let wal@(ApiSharedWallet (Right _activeWal)) = getFromResponse id rPost
 
-        (_, Right paymentKey) <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 10) Nothing
+        (_, Right paymentKey) <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 30) Nothing
         (_, Right stakeKey) <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0) Nothing
 
         let (String paymentAddr) = toJSON paymentKey
@@ -766,22 +742,8 @@ spec = describe "SHARED_WALLETS" $ do
         T.isPrefixOf "stake_shared_vkh" stakeAddrH `Expectations.shouldBe` True
 
     it "SHARED_WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> runResourceT $ do
-        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
-        let payload = Json [json| {
-                "name": "Shared Wallet",
-                "account_public_key": #{accXPubTxt},
-                "account_index": "30H",
-                "payment_script_template":
-                    { "cosigners":
-                        { "cosigner#0": #{accXPubTxt} },
-                      "template":
-                          { "all":
-                             [ "cosigner#0",
-                               { "active_from": 120 }
-                             ]
-                          }
-                    }
-                } |]
+        let walName = "Shared Wallet" :: Text
+        (_, payload) <- getAccountWallet walName
         rPost <- postSharedWallet ctx Default payload
         verify rPost
             [ expectResponseCode HTTP.status201
@@ -797,7 +759,7 @@ spec = describe "SHARED_WALLETS" $ do
             [ expectResponseCode HTTP.status200
             , expectListSize 1
             , expectListField 0
-                  (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
+                  (#name . #getApiT . #getWalletName) (`shouldBe` walName)
             , expectListField 0
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
             , expectListField 0 (#balance . #available) (`shouldBe` Quantity 0)
@@ -809,3 +771,49 @@ spec = describe "SHARED_WALLETS" $ do
             , expectListField 0 #delegationScriptTemplate (`shouldBe` Nothing)
             , expectListField 0 (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483678)
             ]
+
+    it "SHARED_WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> runResourceT $ do
+        let walNames = ["1", "2", "3"] :: [Text]
+        wids <- forM walNames $ \walName -> do
+            (_, payload) <- getAccountWallet walName
+            rPost <- postSharedWallet ctx Default payload
+            verify rPost
+                [ expectResponseCode HTTP.status201
+                ]
+            let wal = getFromResponse id rPost
+            pure (getWalletIdFromSharedWallet wal ^. walletId)
+
+        let unwrap = \case
+                ApiSharedWallet (Right res) -> res
+                _ -> error "expecting active shared wallet"
+
+        rl <- listFilteredSharedWallets (Set.fromList wids) ctx
+        verify (second (\(Right wals) -> Right $ unwrap <$> wals) rl)
+            [ expectResponseCode HTTP.status200
+            , expectListSize 3
+            , expectListField 0
+                (#name . #getApiT . #getWalletName) (`shouldBe` "1")
+            , expectListField 1
+                (#name . #getApiT . #getWalletName) (`shouldBe` "2")
+            , expectListField 2
+                (#name . #getApiT . #getWalletName) (`shouldBe` "3")
+            ]
+  where
+     getAccountWallet name = do
+          (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+          let payload = Json [json| {
+                  "name": #{name},
+                  "account_public_key": #{accXPubTxt},
+                  "account_index": "30H",
+                  "payment_script_template":
+                      { "cosigners":
+                          { "cosigner#0": #{accXPubTxt} },
+                        "template":
+                            { "all":
+                               [ "cosigner#0",
+                                 { "active_from": 120 }
+                               ]
+                            }
+                      }
+                  } |]
+          return (accXPubTxt, payload)
