@@ -242,7 +242,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             testAddressCycling  3
             testAddressCycling 10
 
-    it "SHELLEY_MIGRATE_02 - \
+    Hspec.it "SHELLEY_MIGRATE_02 - \
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do
 
@@ -362,9 +362,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
                 ]
 
-    it "SHELLEY_MIGRATE_04 - \
+    Hspec.it "SHELLEY_MIGRATE_04 - \
         \Actual fee for migration is identical to predicted fee."
-        $ \ctx -> runResourceT $ do
+        $ \ctx -> runResourceT @IO $ do
 
             let feeExpected = 255_200
 

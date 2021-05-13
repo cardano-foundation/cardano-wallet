@@ -245,7 +245,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             testAddressCycling "Icarus" fixtureIcarusWallet  3
             testAddressCycling "Icarus" fixtureIcarusWallet 10
 
-    it "BYRON_MIGRATE_02 - \
+    Hspec.it "BYRON_MIGRATE_02 - \
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do
 
@@ -382,10 +382,10 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
                 ]
 
-    it "BYRON_MIGRATE_04 - \
+    Hspec.it "BYRON_MIGRATE_04 - \
         \Actual fee for migration is identical to predicted fee."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
-        $ \fixtureByronWallet -> runResourceT $ do
+        $ \fixtureByronWallet -> runResourceT @IO $ do
 
             let feeExpected = 334_200
 
