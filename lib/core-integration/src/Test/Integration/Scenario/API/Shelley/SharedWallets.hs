@@ -798,6 +798,24 @@ spec = describe "SHARED_WALLETS" $ do
             , expectListField 2
                 (#name . #getApiT . #getWalletName) (`shouldBe` "3")
             ]
+
+    it "WALLETS_LIST_02 - Deleted wallet not listed" $ \ctx -> runResourceT $ do
+        let walName = "Shared Wallet" :: Text
+        (_, payload) <- getAccountWallet walName
+        rPost <- postSharedWallet ctx Default payload
+        verify rPost
+            [ expectResponseCode HTTP.status201
+            ]
+        let wal = getFromResponse id rPost
+
+        rDel <- deleteSharedWallet ctx wal
+        expectResponseCode HTTP.status204 rDel
+
+        rl <- listFilteredSharedWallets (Set.singleton $ getWalletIdFromSharedWallet wal ^. walletId) ctx
+        verify rl
+            [ expectResponseCode HTTP.status200
+            , expectListSize 0
+            ]
   where
      getAccountWallet name = do
           (_, accXPubTxt):_ <- liftIO $ genXPubs 1
