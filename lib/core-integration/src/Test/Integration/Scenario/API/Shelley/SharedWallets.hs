@@ -675,7 +675,7 @@ spec = describe "SHARED_WALLETS" $ do
         expectResponseCode HTTP.status403 rPatch
         expectErrorMessage errMsg403CannotUpdateThisCosigner rPatch
 
-    it "SHARED_WALLET_KEYS_01 - Getting verification keys works for active shared wallet" $ \ctx -> runResourceT $ do
+    it "SHARED_WALLETS_KEYS_01 - Getting verification keys works for active shared wallet" $ \ctx -> runResourceT $ do
         let walName = "Shared Wallet" :: Text
         (_, payload) <- getAccountWallet walName
         rPost <- postSharedWallet ctx Default payload
@@ -693,7 +693,7 @@ spec = describe "SHARED_WALLETS" $ do
         let (String stakeAddr) = toJSON stakeKey
         T.isPrefixOf "stake_shared_vk" stakeAddr `Expectations.shouldBe` True
 
-    it "SHARED_WALLET_KEYS_02 - Getting verification keys works for pending shared wallet" $ \ctx -> runResourceT $ do
+    it "SHARED_WALLETS_KEYS_02 - Getting verification keys works for pending shared wallet" $ \ctx -> runResourceT $ do
         (_, accXPubTxt):_ <- liftIO $ genXPubs 1
         let payload = Json [json| {
                 "name": "Shared Wallet",
@@ -799,7 +799,7 @@ spec = describe "SHARED_WALLETS" $ do
                 (#name . #getApiT . #getWalletName) (`shouldBe` "3")
             ]
 
-    it "WALLETS_LIST_02 - Deleted wallet not listed" $ \ctx -> runResourceT $ do
+    it "SHARED_WALLETS_LIST_02 - Deleted wallet not listed" $ \ctx -> runResourceT $ do
         let walName = "Shared Wallet" :: Text
         (_, payload) <- getAccountWallet walName
         rPost <- postSharedWallet ctx Default payload

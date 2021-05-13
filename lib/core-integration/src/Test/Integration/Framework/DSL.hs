@@ -1402,7 +1402,7 @@ postSharedWallet
 postSharedWallet ctx headers payload = snd <$> allocate create (free . snd)
   where
     create =
-        request @ApiSharedWallet ctx Link.postSharedWallet headers payload
+        request @ApiSharedWallet ctx (Link.postWallet @'Shared) headers payload
 
     free (Right (ApiSharedWallet (Left w))) = void $ request @Aeson.Value ctx
         (Link.deleteWallet @'Shared w) Default Empty

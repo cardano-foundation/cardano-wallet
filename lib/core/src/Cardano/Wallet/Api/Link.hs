@@ -105,7 +105,6 @@ module Cardano.Wallet.Api.Link
     , getCurrentSMASHHealth
 
      -- * Shared Wallets
-    , postSharedWallet
     , patchSharedWallet
 
      -- * SharedWalletKeys
@@ -190,6 +189,9 @@ instance PostWallet 'Shelley where
 
 instance PostWallet 'Byron where
     postWallet = endpoint @Api.PostByronWallet id
+
+instance PostWallet 'Shared where
+    postWallet = endpoint @Api.PostSharedWallet id
 
 deleteWallet
     :: forall (style :: WalletStyle) w.
@@ -703,11 +705,6 @@ getCurrentSMASHHealth' smash =
 --
 -- Shared Wallets
 --
-postSharedWallet
-    :: (Method, Text)
-postSharedWallet =
-    endpoint @Api.PostSharedWallet id
-
 patchSharedWallet
     :: forall w.
         ( HasType (ApiT WalletId) w
