@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -64,6 +65,8 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectField
+    , expectListField
+    , expectListSize
     , expectResponseCode
     , fixturePassphrase
     , genMnemonics
@@ -71,12 +74,15 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , getSharedWallet
     , getSharedWalletKey
+    , getWalletIdFromSharedWallet
     , json
+    , listFilteredSharedWallets
     , notDelegating
     , patchSharedWallet
     , postAccountKeyShared
     , postSharedWallet
     , verify
+    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg403CannotUpdateThisCosigner
@@ -89,6 +95,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.ByteArray as BA
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
@@ -758,6 +765,47 @@ spec = describe "SHARED_WALLETS" $ do
         let (String stakeAddrH) = toJSON stakeKeyH
         T.isPrefixOf "stake_shared_vkh" stakeAddrH `Expectations.shouldBe` True
 
-  where
-      getWalletIdFromSharedWallet (ApiSharedWallet (Right res)) = res ^. #id
-      getWalletIdFromSharedWallet (ApiSharedWallet (Left res)) = res ^. #id
+    it "SHARED_WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        verify rPost
+            [ expectResponseCode HTTP.status201
+            ]
+        let wal = getFromResponse id rPost
+
+        let unwrap = \case
+                ApiSharedWallet (Right res) -> res
+                _ -> error "expecting active shared wallet"
+
+        rl <- listFilteredSharedWallets (Set.singleton (getWalletIdFromSharedWallet wal ^. walletId) ) ctx
+        verify (second (\(Right wals) -> Right $ unwrap <$> wals) rl)
+            [ expectResponseCode HTTP.status200
+            , expectListSize 1
+            , expectListField 0
+                  (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
+            , expectListField 0
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
+            , expectListField 0 (#balance . #available) (`shouldBe` Quantity 0)
+            , expectListField 0 (#balance . #total) (`shouldBe` Quantity 0)
+            , expectListField 0 (#balance . #reward) (`shouldBe` Quantity 0)
+            , expectListField 0 (#assets . #total) (`shouldBe` mempty)
+            , expectListField 0 (#assets . #available) (`shouldBe` mempty)
+            , expectListField 0 #delegation (`shouldBe` notDelegating [])
+            , expectListField 0 #delegationScriptTemplate (`shouldBe` Nothing)
+            , expectListField 0 (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483678)
+            ]

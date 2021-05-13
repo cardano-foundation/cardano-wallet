@@ -84,6 +84,8 @@ module Test.Integration.Framework.DSL
     -- * Wallet helpers
     , listFilteredWallets
     , listFilteredByronWallets
+    , listFilteredSharedWallets
+    , getWalletIdFromSharedWallet
 
     -- * Helpers
     , (</>)
@@ -2204,6 +2206,20 @@ listFilteredByronWallets include ctx = do
     (s, mwallets) <- request @[ApiByronWallet] ctx
         (Link.listWallets @'Byron) Default Empty
     return (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
+
+listFilteredSharedWallets
+    :: (MonadIO m, MonadUnliftIO m)
+    => Set Text -- ^ Set of walletIds to include
+    -> Context
+    -> m (HTTP.Status, Either RequestException [ApiSharedWallet])
+listFilteredSharedWallets include ctx = do
+    (s, mwallets) <- request @[ApiSharedWallet] ctx
+        (Link.listWallets @'Shared) Default Empty
+    return (s, filter (\w -> (getWalletIdFromSharedWallet w ^. walletId) `Set.member` include) <$> mwallets)
+
+getWalletIdFromSharedWallet :: ApiSharedWallet -> ApiT WalletId
+getWalletIdFromSharedWallet (ApiSharedWallet (Right res)) = res ^. #id
+getWalletIdFromSharedWallet (ApiSharedWallet (Left res)) = res ^. #id
 
 -- | Wait for a booting wallet server to start. Wait up to 30s or fail.
 waitForServer
