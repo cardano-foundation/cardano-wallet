@@ -63,7 +63,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -513,47 +513,63 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage errMsg400ParseError
                 ]
 
-    Hspec.it "BYRON_MIGRATE_XX - \
-        \migrating wallet with dust should fail."
+    Hspec.it "BYRON_MIGRATE_08 - \
+        \It's not possible to migrate a wallet whose total balance is less \
+        \than the minimum ada quantity for an output."
         $ \ctx -> runResourceT @IO $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            -- NOTE
-            -- Special mnemonic for which wallet with dust
-            -- (5 utxos with 60 lovelace in total)
-            let mnemonics =
+
+            -- Create a source wallet with a small number of small quantities:
+            let mnemonicSentence =
                     [ "suffer", "decorate", "head", "opera"
                     , "yellow", "debate", "visa", "fire"
                     , "salute", "hybrid", "stone", "smart"
                     ] :: [Text]
-            let payloadRestore = Json [json| {
+            sourceWallet <- unsafeResponse <$> postByronWallet ctx
+                (Json [json|{
                     "name": "Dust Byron Wallet",
-                    "mnemonic_sentence": #{mnemonics},
+                    "mnemonic_sentence": #{mnemonicSentence},
                     "passphrase": #{fixturePassphrase},
                     "style": "random"
-                    } |]
-            sourceWallet <- unsafeResponse <$> postByronWallet ctx payloadRestore
-            eventually "wallet balance greater than 0" $ do
+                }|])
+            eventually "Source wallet balance is correct." $ do
                 request @ApiByronWallet ctx
                     (Link.getWallet @'Byron sourceWallet)
                     Default
                     Empty >>= flip verify
-                    [ expectField (#balance . #available) (.> Quantity 0)
+                    [ expectField (#balance . #available)
+                        (`shouldBe` Quantity 15)
                     ]
+            let sourceWalletId = sourceWallet ^. walletId
 
+            -- Analyse the source wallet's UTxO distribution:
+            let expectedSourceDistribution = [(10, 5)]
+            responseSourceDistribution <- request @ApiUtxoStatistics ctx
+                (Link.getUTxOsStatistics @'Byron sourceWallet) Default Empty
+            verify responseSourceDistribution
+                [ expectField #distribution
+                    ((`shouldBe` expectedSourceDistribution)
+                    . Map.toList
+                    . Map.filter (> 0)
+                    )
+                ]
+
+            -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
-            addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
-            let payload =
-                    Json [json|
-                        { passphrase: #{fixturePassphrase}
-                        , addresses: [#{addr1}]
-                        }|]
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+
+            -- Attempt a migration:
             let ep = Link.migrateWallet @'Byron sourceWallet
-            r <- request @[ApiTransaction n] ctx ep Default payload
-            let srcId = sourceWallet ^. walletId
-            verify r
+            responseMigrate <- request @[ApiTransaction n] ctx ep Default $
+                Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{targetAddressIds}
+                    }|]
+            verify responseMigrate
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403NothingToMigrate srcId)
+                , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
                 ]
   where
     -- Compute the fee associated with an API transaction.

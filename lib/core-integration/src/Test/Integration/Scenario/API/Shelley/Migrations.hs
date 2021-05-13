@@ -57,8 +57,6 @@ import Data.Proxy
     ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Word
     ( Word64 )
 import Test.Hspec
@@ -481,70 +479,109 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectErrorMessage errMsg400ParseError
                 ]
 
-    Hspec.it "SHELLEY_MIGRATE_XX - \
-        \migrating wallet with 'dust' (that complies with minUTxOValue) should pass."
+    Hspec.it "SHELLEY_MIGRATE_08 - \
+        \It's possible to migrate a wallet with many small ada quantities, \
+        \provided that the total balance is significantly greater than the \
+        \minimum ada quantity for an output."
         $ \ctx -> runResourceT @IO $ do
-            liftIO $ pendingWith "Migration endpoints temporarily disabled."
-            -- NOTE
-            -- Special mnemonic for which wallet has dust
-            -- (10 utxo with 43 ADA)
-            let mnemonics =
-                    ["either", "flip", "maple", "shift", "dismiss", "bridge"
-                    , "sweet", "reveal", "green", "tornado", "need", "patient"
-                    , "wall", "stamp", "pass"] :: [Text]
-            let payloadRestore = Json [json| {
-                    "name": "Dust Shelley Wallet",
-                    "mnemonic_sentence": #{mnemonics},
+
+            -- Create a source wallet with many small ada quantities:
+            sourceWallet <- unsafeResponse <$> postWallet ctx
+                (Json [json|{
+                    "name": "Shelley Wallet",
+                    "mnemonic_sentence": #{mnemonicToText onlyDustWallet},
                     "passphrase": #{fixturePassphrase}
-                    } |]
-            sourceWallet <- unsafeResponse <$> postWallet ctx payloadRestore
-            originalBalance <- eventually "wallet balance greater than 0" $ do
-                rg <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley sourceWallet)
-                    Default
-                    Empty
-                verify rg
-                    [ expectField (#balance . #available) (.> Quantity 0)
+                }|])
+            sourceBalance <- eventually "Source wallet balance is correct." $ do
+                response <- request @ApiWallet ctx
+                    (Link.getWallet @'Shelley sourceWallet) Default Empty
+                verify response
+                    [ expectField (#balance . #available . #getQuantity)
+                        (`shouldBe` 43_000_000)
+                    , expectField (#balance . #total . #getQuantity)
+                        (`shouldBe` 43_000_000)
                     ]
                 pure $ getFromResponse (#balance. #available . #getQuantity)
-                                 rg
+                    response
 
-            -- Calculate the expected migration fee:
-            r0 <- request @(ApiWalletMigrationPlan n) ctx
-                (Link.createMigrationPlan @'Shelley sourceWallet) Default Empty
-            verify r0
-                [ expectResponseCode HTTP.status200
-                , expectField #totalFee (.> Quantity 0)
+            -- Analyse the source wallet's UTxO distribution:
+            let expectedSourceDistribution =
+                    [ (  1_000_000, 3)
+                    , ( 10_000_000, 6)
+                    , (100_000_000, 1)
+                    ]
+            responseSourceDistribution <- request @ApiUtxoStatistics ctx
+                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
+            verify responseSourceDistribution
+                [ expectField #distribution
+                    ((`shouldBe` expectedSourceDistribution)
+                    . Map.toList
+                    . Map.filter (> 0)
+                    )
                 ]
-            let expectedFee = getFromResponse (#totalFee . #getQuantity) r0
 
+            -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
-            addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
-            let payload =
-                    Json [json|
-                        { passphrase: #{fixturePassphrase}
-                        , addresses: [#{addr1}]
-                        }|]
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+            -- Compute the expected migration plan:
+            let feeExpected = 254_800
+            responsePlan <- request @(ApiWalletMigrationPlan n) ctx
+                (Link.createMigrationPlan @'Shelley sourceWallet) Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify responsePlan
+                [ expectResponseCode HTTP.status202
+                , expectField #totalFee (`shouldBe` Quantity feeExpected)
+                , expectField #selections ((`shouldBe` 1) . length)
+                ]
+
+            -- Perform the migration:
             let ep = Link.migrateWallet @'Shelley sourceWallet
-            r <- request @[ApiTransaction n] ctx ep Default payload
-            verify r
-                [ expectResponseCode HTTP.status202 ]
+            responseMigrate <- request @[ApiTransaction n] ctx ep Default $
+                Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{targetAddressIds}
+                    }|]
+
+            -- Verify the fee is as expected:
+            verify responseMigrate
+                [ expectResponseCode HTTP.status202
+                , expectField id ((`shouldBe` 1) . length)
+                , expectField id
+                    $ (`shouldBe` feeExpected)
+                    . fromIntegral
+                    . sum
+                    . fmap apiTransactionFee
+                ]
 
             -- Check that funds become available in the target wallet:
-            let expectedBalance = originalBalance - expectedFee
-            eventually "targetWallet balance = expectedBalance" $ do
+            let expectedBalance = sourceBalance - feeExpected
+            eventually "Target wallet balance reaches the expected amount." $ do
                 request @ApiWallet ctx
                     (Link.getWallet @'Shelley targetWallet)
                     Default
                     Empty >>= flip verify
                     [ expectField
-                            (#balance . #available)
-                            ( `shouldBe` Quantity expectedBalance)
+                        (#balance . #available)
+                        ( `shouldBe` Quantity expectedBalance)
                     , expectField
-                            (#balance . #total)
-                            ( `shouldBe` Quantity expectedBalance)
+                        (#balance . #total)
+                        ( `shouldBe` Quantity expectedBalance)
                     ]
+
+            -- Analyse the target wallet's UTxO distribution:
+            let expectedTargetDistribution = [(100_000_000, 1)]
+            responseTargetDistribution <- request @ApiUtxoStatistics ctx
+                (Link.getUTxOsStatistics @'Shelley targetWallet) Default Empty
+            verify responseTargetDistribution
+                [ expectField #distribution
+                    ((`shouldBe` expectedTargetDistribution)
+                    . Map.toList
+                    . Map.filter (> 0)
+                    )
+                ]
   where
     -- Compute the fee associated with an API transaction.
     apiTransactionFee :: ApiTransaction n -> Word64
