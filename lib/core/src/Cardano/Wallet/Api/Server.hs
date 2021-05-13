@@ -3339,8 +3339,13 @@ instance IsServerError ErrOutputTokenQuantityExceedsLimit where
 instance IsServerError ErrCreateMigrationPlan where
     toServerError = \case
         ErrCreateMigrationPlanEmpty ->
-            -- TODO: Provide a more useful error message:
-            apiError err403 NothingToMigrate "Nothing to migrate"
+            apiError err403 NothingToMigrate $ mconcat
+                [ "I wasn't able to construct a migration plan. This could be "
+                , "because your wallet is empty, or it could be because the "
+                , "amount of ada in your wallet is insufficient to pay for "
+                , "any of the funds to be migrated. Try adding some ada to "
+                , "your wallet before trying again."
+                ]
         ErrCreateMigrationPlanNoSuchWallet e -> toServerError e
 
 instance IsServerError ErrSelectAssets where
