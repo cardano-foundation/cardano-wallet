@@ -1405,9 +1405,9 @@ postSharedWallet ctx headers payload = snd <$> allocate create (free . snd)
         request @ApiSharedWallet ctx Link.postSharedWallet headers payload
 
     free (Right (ApiSharedWallet (Left w))) = void $ request @Aeson.Value ctx
-        (Link.deleteSharedWallet w) Default Empty
+        (Link.deleteWallet @'Shared w) Default Empty
     free (Right (ApiSharedWallet (Right w))) = void $ request @Aeson.Value ctx
-        (Link.deleteSharedWallet w) Default Empty
+        (Link.deleteWallet @'Shared w) Default Empty
     free (Left _) = return ()
 
 deleteSharedWallet
@@ -1423,7 +1423,7 @@ deleteSharedWallet ctx = \case
       ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException Value)
-      r w = request @Aeson.Value ctx (Link.deleteSharedWallet w) Default Empty
+      r w = request @Aeson.Value ctx (Link.deleteWallet @'Shared w) Default Empty
 
 getSharedWallet
     :: forall m.
