@@ -73,7 +73,7 @@ RSpec.describe CardanoWallet::Shared do
                     name: "Shared wallet",
                     account_index: acc_ix,
                     payment_script_template: payment_script_template,
-                    payment_script_template: delegation_script_template,
+                    delegation_script_template: delegation_script_template
                     }
 
         wallet = w.create(payload)
@@ -248,9 +248,81 @@ RSpec.describe CardanoWallet::Shared do
 
         expect(SHARED.wallets.delete(pending_wid)).to be_correct_and_respond 204
       end
+
+      it "I can create/get/delete wallet using cosigner: 'self' - from mnemonics" do
+        w = SHARED.wallets
+
+        m24 = mnemonic_sentence(24)
+        acc_ix = '0H'
+        script_template = { "cosigners" =>
+                              { "cosigner#0" => "self" },
+                            "template" =>
+                                { "all" =>
+                                   [ "cosigner#0"
+                                   ]
+                                }
+                            }
+
+        payload = { mnemonic_sentence: m24,
+                    passphrase: PASS,
+                    name: "Shared wallet",
+                    account_index: acc_ix,
+                    payment_script_template: script_template,
+                    delegation_script_template: script_template
+                    }
+
+        wallet = w.create(payload)
+        expect(wallet).to be_correct_and_respond 201
+
+        wid = wallet['id']
+        g = w.get(wid)
+        expect(g).to be_correct_and_respond 200
+
+        expect(w.delete(wid)).to be_correct_and_respond 204
+      end
+
+      it "I can create/get/delete wallet using cosigner: 'self' - from pub key" do
+        w = SHARED.wallets
+        m24 = mnemonic_sentence(24)
+        acc_ix = '0H'
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
+        payment_script_template = { "cosigners" =>
+                                          { "cosigner#0" => "self" },
+                                        "template" =>
+                                            { "all" =>
+                                               [ "cosigner#0",
+                                                 { "active_from" => 120 }
+                                               ]
+                                            }
+                                    }
+
+        delegation_script_template = { 'cosigners' =>
+                                            { 'cosigner#0' => "self" },
+                                        'template' =>
+                                            { 'all' =>
+                                               [ 'cosigner#0',
+                                                 'cosigner#1'
+                                               ]
+                                            }
+                                      }
+        payload = { account_public_key: acc_xpub,
+                    passphrase: PASS,
+                    name: "Shared wallet",
+                    account_index: acc_ix,
+                    payment_script_template: payment_script_template,
+                    delegation_script_template: delegation_script_template,
+                    }
+
+        wallet = w.create(payload)
+        expect(wallet).to be_correct_and_respond 201
+
+        wid = wallet['id']
+        g = w.get(wid)
+        expect(g).to be_correct_and_respond 200
+
+        expect(w.delete(wid)).to be_correct_and_respond 204
+      end
     end
-
-
   end
 
 end

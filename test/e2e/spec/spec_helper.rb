@@ -88,14 +88,55 @@ def create_pending_shared_wallet(m, acc_ix, acc_xpub)
                       }
   pscript = script_template
   dscript = script_template
+  if (m.kind_of? Array)
+    payload = { mnemonic_sentence: m,
+                passphrase: PASS,
+                name: "Shared wallet",
+                account_index: acc_ix,
+                payment_script_template: pscript,
+                delegation_script_template: dscript,
+                }
+   else
+     payload = { account_public_key: m,
+                 passphrase: PASS,
+                 name: "Shared wallet",
+                 account_index: acc_ix,
+                 payment_script_template: pscript,
+                 delegation_script_template: dscript
+                 }
+   end
 
-  payload = { mnemonic_sentence: m,
-              passphrase: PASS,
-              name: "Shared wallet",
-              account_index: acc_ix,
-              payment_script_template: pscript,
-              delegation_script_template: dscript,
-              }
+  SHARED.wallets.create(payload)['id']
+end
+
+def create_active_shared_wallet(m, acc_ix, acc_xpub)
+  script_template = { 'cosigners' =>
+                        { 'cosigner#0' => acc_xpub },
+                      'template' =>
+                          { 'all' =>
+                             [ 'cosigner#0'
+                             ]
+                          }
+                      }
+  pscript = script_template
+  dscript = script_template
+  if (m.kind_of? Array)
+    payload = { mnemonic_sentence: m,
+                passphrase: PASS,
+                name: "Shared wallet",
+                account_index: acc_ix,
+                payment_script_template: pscript,
+                delegation_script_template: dscript,
+                }
+   else
+     payload = { account_public_key: m,
+                 passphrase: PASS,
+                 name: "Shared wallet",
+                 account_index: acc_ix,
+                 payment_script_template: pscript,
+                 delegation_script_template: dscript
+                 }
+   end
 
   SHARED.wallets.create(payload)['id']
 end
