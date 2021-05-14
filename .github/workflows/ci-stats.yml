@@ -1,17 +1,14 @@
 name: Stats
 
 on:
-  status:
   push:
     branches:
       - master
-      - rvl/adp-921/optimize-hydra-eval
 
 jobs:
   stats:
     env:
       branch: ci-stats
-    if: ${{ (github.ref == 'refs/heads/master' && (github.event.state == 'success' || github.event.state == 'failure') && github.event.context == 'ci/hydra-build:required') || github.ref == 'refs/heads/rvl/adp-921/optimize-hydra-eval' }}
     runs-on: ubuntu-20.04
     steps:
       - name: '❄ Wait for Hydra build'
@@ -37,7 +34,6 @@ jobs:
           path: _build
 
       - name: '📘 Publish Stats'
-        if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/rvl/adp-921/optimize-hydra-eval' }}
         working-directory: _build
         run: |
           echo '${{ steps.hydra.outputs.evaluation }}' > eval.json
@@ -46,7 +42,7 @@ jobs:
           ../scripts/gh/update-stats.sh '${{ env.branch}}' eval.json builds.json timings.json
 
       - name: '📛 Update Badge'
-        if: ${{ github.event_name == 'status' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/rvl/adp-921/optimize-hydra-eval') }}
+        if: ${{ steps.hydra.outputs.badge }}
         working-directory: _build
         run: |
-          ../scripts/gh/update-badge.sh '${{ env.branch}}' <(echo '${{ steps.hydra.outputs.badge }}')
+          ../scripts/gh/update-badge.sh '${{ env.branch}}' '${{ steps.hydra.outputs.badge }}'
