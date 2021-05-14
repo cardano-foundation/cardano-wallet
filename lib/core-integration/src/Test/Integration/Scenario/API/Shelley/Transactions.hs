@@ -45,6 +45,8 @@ import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -711,7 +713,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 wSrc <- fixtureWallet ctx
                 srcAddrs <-
                     map (getApiT . fst . view #id) <$> listAddresses @n ctx wSrc
-                liftIO $ _mintSeaHorseAssets ctx nAssetsPerAddr (take 2 srcAddrs)
+                liftIO $ _mintSeaHorseAssets ctx
+                    nAssetsPerAddr (Coin 1000_000_000) (take 2 srcAddrs)
                 return (wSrc, nAssetsPerAddr)
             wDest <- emptyWallet ctx
             destAddr <- head . map (view #id) <$> listAddresses @n ctx wDest
