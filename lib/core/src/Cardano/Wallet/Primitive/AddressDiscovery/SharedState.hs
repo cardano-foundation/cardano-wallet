@@ -82,11 +82,18 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     , toNetworkTag
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( CompareDiscovery (..), GetAccount (..), IsOurs (..), coinTypeAda )
+    ( CompareDiscovery (..)
+    , GetAccount (..)
+    , GetPurpose
+    , IsOurs (..)
+    , KnownAddresses (..)
+    , coinTypeAda
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
     , ParentContext (..)
+    , addresses
     , context
     , lookupAddress
     , mkAddressPool
@@ -465,6 +472,18 @@ instance
       where
         ix :: Address -> AddressPool 'UtxoExternal k -> Maybe (Index 'Soft 'AddressK)
         ix a = fst . lookupAddress @n id a
+
+instance
+    ( Typeable n
+    , GetPurpose k
+    ) => KnownAddresses (SharedState n k) where
+    knownAddresses (SharedState _ s) = nonChangeAddresses
+      where
+          -- TO_DO - After enabling txs for shared wallets we will need to expand this
+          nonChangeAddresses = case s of
+              PendingFields _ -> []
+              ReadyFields externalPool ->
+                  addresses (liftPaymentAddress @n @k) externalPool
 
 data CredentialType = Payment | Delegation
     deriving (Eq, Show, Generic)
