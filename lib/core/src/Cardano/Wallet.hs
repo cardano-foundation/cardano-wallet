@@ -93,6 +93,7 @@ module Cardano.Wallet
     , updateCosigner
     , ErrAddCosignerKey (..)
     , ErrConstructSharedWallet (..)
+    , normalizeSharedAddress
 
     -- ** Address
     , createChangeAddress
@@ -262,17 +263,19 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState
+    ( ParentContext (..)
+    , SeqState
     , defaultAddressPoolGap
-    , derivationPrefix
     , mkSeqStateFromRootXPrv
     , purposeBIP44
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( CredentialType (..)
     , ErrAddCosigner (..)
-    , SharedState
+    , SharedState (..)
+    , SharedStateFields (..)
     , addCosignerAccXPub
+    , isShared
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
@@ -433,7 +436,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromJust, fromMaybe, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -468,6 +471,7 @@ import UnliftIO.MVar
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.SharedState as Shared
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -2221,7 +2225,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
     withRootKey @ctx @s @k ctx wid pwd ErrSignMetadataWithRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            let DerivationPrefix (_, _, acctIx) = derivationPrefix (getState cp)
+            let DerivationPrefix (_, _, acctIx) = Seq.derivationPrefix (getState cp)
             let acctK = deriveAccountPrivateKey encPwd rootK acctIx
             let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
             pure $
@@ -2330,6 +2334,34 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
                 putCheckpoint wid (updateState st' cp)
   where
     db = ctx ^. dbLayer @_ @s @k
+
+-- NOTE
+-- Addresses coming from the transaction history might be base (having payment credential) or
+-- base addresses (containing both payment and delegation credentials).
+-- So we normalize them all to be base addresses to make sure that we compare them correctly.
+normalizeSharedAddress
+    :: forall s k n.
+        ( MkKeyFingerprint k Address
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , s ~ SharedState n k
+        , k ~ SharedKey
+        , SoftDerivation k
+        , Typeable n
+        )
+    => s
+    -> Address
+    -> Maybe Address
+normalizeSharedAddress s@(SharedState _ state') addr = case state' of
+    PendingFields _ -> Nothing
+    ReadyFields pool -> do
+        let (ParentContextShared _ _ dTM) = Seq.context pool
+        fingerprint <- eitherToMaybe (paymentKeyFingerprint @k addr)
+        let (ixM, _) = isShared addr s
+        case dTM of
+            Just dT ->
+                pure $ Shared.liftDelegationAddress @n (fromJust ixM) dT fingerprint
+            Nothing ->
+                pure $ Shared.liftPaymentAddress @n fingerprint
 
 {-------------------------------------------------------------------------------
                                    Errors

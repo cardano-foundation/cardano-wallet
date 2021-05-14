@@ -4189,6 +4189,7 @@ x-tagGroups:
     tags:
     - Shared Wallets
     - Shared Keys
+    - Shared Addresses
 
   - name: Byron (Random)
     tags:
@@ -5452,3 +5453,17 @@ paths:
           application/json:
             schema: *ApiPostAccountKeyData
       responses: *responsesPostAccountKeyShared
+
+  /shared-wallets/{walletId}/addresses:
+    get:
+      operationId: listSharedAddresses
+      tags: ["Shared Addresses"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return a list of known addresses, ordered from newest to oldest
+      parameters:
+        - *parametersWalletId
+        - *parametersAddressState
+      responses: *responsesListAddresses

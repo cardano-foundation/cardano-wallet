@@ -32,6 +32,7 @@ import Cardano.Wallet
     , genesisData
     , networkLayer
     , normalizeDelegationAddress
+    , normalizeSharedAddress
     )
 import Cardano.Wallet.Api
     ( Addresses
@@ -49,6 +50,7 @@ import Cardano.Wallet.Api
     , Proxy_
     , SMASH
     , Settings
+    , SharedAddresses
     , SharedWalletKeys
     , SharedWallets
     , ShelleyMigrations
@@ -236,6 +238,7 @@ server byron icarus shelley multisig spl ntp =
     :<|> smash
     :<|> sharedWallets multisig
     :<|> sharedWalletKeys multisig
+    :<|> sharedAddresses multisig
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -512,6 +515,12 @@ server byron icarus shelley multisig spl ntp =
     sharedWalletKeys apilayer =
              (derivePublicKeyShared apilayer)
         :<|> (postAccountPublicKey apilayer ApiAccountKeyShared)
+
+    sharedAddresses
+        :: ApiLayer (SharedState n SharedKey) SharedKey
+        -> Server (SharedAddresses n)
+    sharedAddresses apilayer =
+             (listAddresses apilayer (normalizeSharedAddress @_ @SharedKey @n))
 
 postAnyAddress
     :: NetworkId
