@@ -323,6 +323,109 @@ RSpec.describe CardanoWallet::Shared do
         expect(w.delete(wid)).to be_correct_and_respond 204
       end
     end
+
+    describe "Public Keys" do
+      matrix = {
+        "utxo_internal" => "addr_shared_vk",
+        "utxo_external" => "addr_shared_vk",
+        "mutable_account" => "stake_shared_vk"
+      }
+      matrix_h = {
+        "utxo_internal" => "addr_shared_vkh",
+        "utxo_external" => "addr_shared_vkh",
+        "mutable_account" => "stake_shared_vkh"
+      }
+
+      it "Get public key - pending wallet from mnemonics" do
+        pending "utxo_internal returns empty response"
+        m24 = mnemonic_sentence(24)
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
+        pending_wid = create_pending_shared_wallet(m24, '0H', acc_xpub)
+
+        matrix.each do |role, addr_prefix|
+          id = [*0..100000].sample
+          res = SHARED.keys.get_public_key(pending_wid, role, id)
+          expect(res).to be_correct_and_respond 200
+          expect(res.to_s).to include addr_prefix
+        end
+
+        matrix_h.each do |role, addr_prefix|
+          id = [*0..100000].sample
+          res = SHARED.keys.get_public_key(pending_wid, role, id, {hash: true})
+          expect(res).to be_correct_and_respond 200
+          expect(res.to_s).to include addr_prefix
+        end
+      end
+
+      it "Get public key - pending wallet from acc pub key" do
+        pending "utxo_internal returns empty response"
+        m24 = mnemonic_sentence(24)
+        acc_ix = '0H'
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
+        pending_wid = create_pending_shared_wallet(acc_xpub, acc_ix, acc_xpub)
+
+        matrix.each do |role, addr_prefix|
+          id = [*0..100000].sample
+          res = SHARED.keys.get_public_key(pending_wid, role, id)
+          expect(res).to be_correct_and_respond 200
+          expect(res.to_s).to include addr_prefix
+        end
+
+        matrix_h.each do |role, addr_prefix|
+          id = [*0..100000].sample
+          res = SHARED.keys.get_public_key(pending_wid, role, id, {hash: true})
+          expect(res).to be_correct_and_respond 200
+          expect(res.to_s).to include addr_prefix
+        end
+      end
+
+      it "Get public key - active wallet from mnemonics" do
+        pending "utxo_internal returns empty response"
+        m24 = mnemonic_sentence(24)
+        pending_wid = create_pending_shared_wallet(m24, '11H', 'self')
+
+        matrix.each do |role, addr_prefix|
+          id = [*0..100000].sample
+          res = SHARED.keys.get_public_key(pending_wid, role, id)
+          expect(res).to be_correct_and_respond 200
+          expect(res.to_s).to include addr_prefix
+        end
+
+        matrix_h.each do |role, addr_prefix|
+          id = [*0..100000].sample
+          res = SHARED.keys.get_public_key(pending_wid, role, id, {hash: true})
+          expect(res).to be_correct_and_respond 200
+          expect(res.to_s).to include addr_prefix
+        end
+      end
+
+      it "Get public key - active wallet from acc pub key" do
+        pending "utxo_internal returns empty response"
+        m24 = mnemonic_sentence(24)
+        acc_ix = '0H'
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
+        pending_wid = create_active_shared_wallet(acc_xpub, acc_ix, "self")
+
+        matrix.each do |role, addr_prefix|
+          id = [*0..100000].sample
+          res = SHARED.keys.get_public_key(pending_wid, role, id)
+          expect(res).to be_correct_and_respond 200
+          expect(res.to_s).to include addr_prefix
+        end
+
+        matrix_h.each do |role, addr_prefix|
+          id = [*0..100000].sample
+          res = SHARED.keys.get_public_key(pending_wid, role, id, {hash: true})
+          expect(res).to be_correct_and_respond 200
+          expect(res.to_s).to include addr_prefix
+        end
+      end
+
+    end
+
+    describe "Account Public Keys" do
+    end
+
   end
 
 end
