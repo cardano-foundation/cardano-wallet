@@ -390,7 +390,7 @@ listAddresses'
 listAddresses' w mstate = discriminate @style
     (endpoint @(Api.ListAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
     (endpoint @(Api.ListByronAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
-    notSupported
+    (endpoint @(Api.ListSharedAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
   where
     wid = w ^. typed @(ApiT WalletId)
 
