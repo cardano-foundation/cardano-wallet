@@ -17,7 +17,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -1844,12 +1843,13 @@ createMigrationPlan ctx wid rewardWithdrawal = do
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
 
+type SelectionResultWithoutChange = SelectionResult Void
+
 migrationPlanToSelectionWithdrawals
-    :: forall noChange. noChange ~ Void
-    => MigrationPlan
+    :: MigrationPlan
     -> Withdrawal
     -> NonEmpty Address
-    -> Maybe (NonEmpty (SelectionResult noChange, Withdrawal))
+    -> Maybe (NonEmpty (SelectionResultWithoutChange, Withdrawal))
 migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
     = NE.nonEmpty
     $ fst
@@ -1860,8 +1860,8 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
   where
     accumulate
         :: Migration.Selection (TxIn, TxOut)
-        -> ([(SelectionResult noChange, Withdrawal)], [Address])
-        -> ([(SelectionResult noChange, Withdrawal)], [Address])
+        -> ([(SelectionResultWithoutChange, Withdrawal)], [Address])
+        -> ([(SelectionResultWithoutChange, Withdrawal)], [Address])
     accumulate migrationSelection (selectionWithdrawals, outputAddresses) =
         ( (selection, withdrawal) : selectionWithdrawals
         , outputAddressesRemaining
