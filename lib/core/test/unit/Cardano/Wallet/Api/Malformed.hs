@@ -1686,13 +1686,13 @@ migrateDataCases =
         { "passphrase": #{wPassphrase}
         , "addresses": "not_a_array"
         }|]
-      , "Error in $.addresses: parsing [] failed, expected Array, but encountered String"
+      , "Error in $.addresses: parsing NonEmpty failed, expected Array, but encountered String"
       )
     , ( [aesonQQ|
         { "passphrase": #{wPassphrase}
         , "addresses": 1
         }|]
-      , "Error in $.addresses: parsing [] failed, expected Array, but encountered Number"
+      , "Error in $.addresses: parsing NonEmpty failed, expected Array, but encountered Number"
       )
     , ( [aesonQQ|
         { "passphrase": #{wPassphrase}

@@ -125,6 +125,7 @@ import Cardano.Wallet
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrConstructSharedWallet (..)
+    , ErrCreateMigrationPlan (..)
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
     , ErrDerivePublicKey (..)
@@ -228,6 +229,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
@@ -326,11 +328,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
-    , SelectionInsufficientError (..)
+    , SelectionResult (..)
     , UnableToConstructChangeError (..)
     , balanceMissing
     , selectionDelta
     )
+import Cardano.Wallet.Primitive.Migration
+    ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
@@ -412,6 +416,8 @@ import Control.Arrow
     ( second )
 import Control.DeepSeq
     ( NFData )
+import Control.Error.Util
+    ( failWith )
 import Control.Monad
     ( forM, forever, join, unless, void, when, (>=>) )
 import Control.Monad.IO.Class
@@ -466,6 +472,8 @@ import Data.Time
     ( UTCTime )
 import Data.Type.Equality
     ( (:~:) (..), type (==), testEquality )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -533,6 +541,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -1746,8 +1755,10 @@ postTransaction ctx genChange (ApiT wid) body = do
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         sel <- liftHandler
             $ W.selectAssets @_ @s @k wrk w txCtx outs (const Prelude.id)
+        sel' <- liftHandler
+            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signTransaction @_ @s @k wrk wid genChange mkRwdAcct pwd txCtx sel
+            $ W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
         pure (sel, tx, txMeta, txTime)
@@ -1904,8 +1915,10 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         sel <- liftHandler
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx
             $ const Prelude.id
+        sel' <- liftHandler
+            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signTransaction @_ @s @k wrk wid genChange mkRwdAcct pwd txCtx sel
+            $ W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -1987,8 +2000,10 @@ quitStakePool ctx (ApiT wid) body = do
         sel <- liftHandler
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx
             $ const Prelude.id
+        sel' <- liftHandler
+            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signTransaction @_ @s @k wrk wid genChange mkRwdAcct pwd txCtx sel
+            $ W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -2015,26 +2030,140 @@ quitStakePool ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 createMigrationPlan
-    :: forall n s k. ()
-    => ApiLayer s k
-        -- ^ Source wallet context
+    :: forall ctx n s k.
+        ( ctx ~ ApiLayer s k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , HardDerivation k
+        , IsOwned s k
+        , Typeable n
+        , Typeable s
+        , WalletKey k
+        )
+    => ctx
     -> ApiT WalletId
         -- ^ Source wallet
     -> ApiWalletMigrationPlanPostData n
+        -- ^ Target addresses
     -> Handler (ApiWalletMigrationPlan n)
-createMigrationPlan _ctx _wid _postData = do
-    liftHandler $ throwE ErrTemporarilyDisabled
+createMigrationPlan ctx (ApiT wid) postData = do
+    (rewardWithdrawal, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        (wallet, _, _) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
+            W.readWallet wrk wid
+        plan <- W.createMigrationPlan wrk wid rewardWithdrawal
+        failWith ErrCreateMigrationPlanEmpty $ mkApiWalletMigrationPlan
+            (getState wallet)
+            (view #addresses postData)
+            (rewardWithdrawal)
+            (plan)
+
+mkApiWalletMigrationPlan
+    :: forall n s. IsOurs s Address
+    => s
+    -> NonEmpty (ApiT Address, Proxy n)
+    -> Withdrawal
+    -> MigrationPlan
+    -> Maybe (ApiWalletMigrationPlan n)
+mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
+    mkApiPlan <$> maybeSelections
+  where
+    mkApiPlan :: NonEmpty (ApiCoinSelection n) -> ApiWalletMigrationPlan n
+    mkApiPlan selections = ApiWalletMigrationPlan
+        { selections
+        , totalFee
+        , balanceLeftover
+        , balanceSelected
+        }
+
+    maybeSelections :: Maybe (NonEmpty (ApiCoinSelection n))
+    maybeSelections = fmap mkApiCoinSelectionForMigration <$> maybeUnsignedTxs
+
+    maybeSelectionWithdrawals
+        :: Maybe (NonEmpty (SelectionResult Void, Withdrawal))
+    maybeSelectionWithdrawals
+        = W.migrationPlanToSelectionWithdrawals plan rewardWithdrawal
+        $ getApiT . fst <$> addresses
+
+    maybeUnsignedTxs = fmap mkUnsignedTx <$> maybeSelectionWithdrawals
+      where
+        mkUnsignedTx (selection, withdrawal) = W.selectionToUnsignedTx
+            withdrawal (selection {changeGenerated = []}) s
+
+    totalFee :: Quantity "lovelace" Natural
+    totalFee = coinToQuantity $ view #totalFee plan
+
+    balanceLeftover :: ApiWalletMigrationBalance
+    balanceLeftover = plan
+        & view #unselected
+        & UTxO.balance
+        & mkApiWalletMigrationBalance
+
+    balanceSelected :: ApiWalletMigrationBalance
+    balanceSelected = plan
+        & view #selections
+        & F.foldMap (view #inputBalance)
+        & mkApiWalletMigrationBalance
+
+    mkApiCoinSelectionForMigration unsignedTx =
+        mkApiCoinSelection [] Nothing Nothing unsignedTx
+
+    mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
+    mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
+        { ada = coinToQuantity $ view #coin b
+        , assets = ApiT $ view #tokens b
+        }
 
 migrateWallet
-    :: forall s k n p. ()
-    => ApiLayer s k
-        -- ^ Source wallet context
+    :: forall ctx s k n p.
+        ( ctx ~ ApiLayer s k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , HardDerivation k
+        , HasNetworkLayer IO ctx
+        , IsOwned s k
+        , Typeable n
+        , Typeable s
+        , WalletKey k
+        )
+    => ctx
     -> ApiT WalletId
-        -- ^ Source wallet
     -> ApiWalletMigrationPostData n p
-    -> Handler [ApiTransaction n]
-migrateWallet _ctx _wid _migrateData = do
-    liftHandler $ throwE ErrTemporarilyDisabled
+    -> Handler (NonEmpty (ApiTransaction n))
+migrateWallet ctx (ApiT wid) postData = do
+    (rewardWithdrawal, mkRewardAccount) <-
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
+        txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
+        selectionWithdrawals <- liftHandler
+            $ failWith ErrCreateMigrationPlanEmpty
+            $ W.migrationPlanToSelectionWithdrawals
+                plan rewardWithdrawal addresses
+        forM selectionWithdrawals $ \(selection, txWithdrawal) -> do
+            let txContext = defaultTransactionCtx
+                    { txWithdrawal
+                    , txTimeToLive
+                    , txDelegationAction = Nothing
+                    }
+            (tx, txMeta, txTime, sealedTx) <- liftHandler $
+                W.signTransaction @_ @s @k wrk wid mkRewardAccount pwd txContext
+                    (selection {changeGenerated = []})
+            liftHandler $
+                W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+            liftIO $ mkApiTransaction
+                (timeInterpreter (ctx ^. networkLayer))
+                (txId tx)
+                (tx ^. #fee)
+                (NE.toList $ second Just <$> selection ^. #inputsSelected)
+                (tx ^. #outputs)
+                (tx ^. #withdrawals)
+                (txMeta, txTime)
+                (Nothing)
+                (#pendingSince)
+  where
+    addresses = getApiT . fst <$> view #addresses postData
+    pwd = coerce $ getApiT $ postData ^. #passphrase
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -3207,6 +3336,18 @@ instance IsServerError ErrOutputTokenQuantityExceedsLimit where
         , "."
         ]
 
+instance IsServerError ErrCreateMigrationPlan where
+    toServerError = \case
+        ErrCreateMigrationPlanEmpty ->
+            apiError err403 NothingToMigrate $ mconcat
+                [ "I wasn't able to construct a migration plan. This could be "
+                , "because your wallet is empty, or it could be because the "
+                , "amount of ada in your wallet is insufficient to pay for "
+                , "any of the funds to be migrated. Try adding some ada to "
+                , "your wallet before trying again."
+                ]
+        ErrCreateMigrationPlanNoSuchWallet e -> toServerError e
+
 instance IsServerError ErrSelectAssets where
     toServerError = \case
         ErrSelectAssetsCriteriaError e -> toServerError e
@@ -3234,7 +3375,7 @@ instance IsServerError ErrSelectAssets where
                         , "because I need to select additional inputs and "
                         , "doing so will make the transaction too big. Try "
                         , "sending a smaller amount. I had already selected "
-                        , showT (length $ inputsSelected e), " inputs."
+                        , showT (length $ view #inputsSelected e), " inputs."
                         ]
                 InsufficientMinCoinValues xs ->
                     apiError err403 UtxoTooSmall $ mconcat

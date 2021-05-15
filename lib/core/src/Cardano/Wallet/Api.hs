@@ -232,6 +232,8 @@ import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.Kind
     ( Type )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import GHC.Generics
     ( Generic )
 import Servant.API
@@ -519,7 +521,7 @@ type MigrateShelleyWallet n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
     :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "raw")
-    :> PostAccepted '[JSON] [ApiTransactionT n]
+    :> PostAccepted '[JSON] (NonEmpty (ApiTransactionT n))
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/createShelleyWalletMigrationPlan
 type CreateShelleyWalletMigrationPlan n = "wallets"
@@ -803,7 +805,7 @@ type MigrateByronWallet n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
     :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "lenient")
-    :> PostAccepted '[JSON] [ApiTransactionT n]
+    :> PostAccepted '[JSON] (NonEmpty (ApiTransactionT n))
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/createByronWalletMigrationPlan
 type CreateByronWalletMigrationPlan n = "byron-wallets"

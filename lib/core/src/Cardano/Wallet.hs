@@ -110,6 +110,7 @@ module Cardano.Wallet
     , readWalletUTxOIndex
     , selectAssetsNoOutputs
     , assignChangeAddresses
+    , assignChangeAddressesAndUpdateDb
     , selectionToUnsignedTx
     , signTransaction
     , ErrSelectAssets(..)
@@ -118,6 +119,9 @@ module Cardano.Wallet
     , ErrWithdrawalNotWorth (..)
 
     -- ** Migration
+    , createMigrationPlan
+    , migrationPlanToSelectionWithdrawals
+    , ErrCreateMigrationPlan (..)
 
     -- ** Delegation
     , PoolRetirementEpochInfo (..)
@@ -276,6 +280,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , emptySkeleton
     , performSelection
     )
+import Cardano.Wallet.Primitive.Migration
+    ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlocks
@@ -439,6 +445,8 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -459,6 +467,7 @@ import UnliftIO.MVar
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -1192,7 +1201,7 @@ normalizeDelegationAddress s addr = do
 -- to change outputs to which new addresses have been assigned. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
 assignChangeAddresses
-    :: forall s.  (GenChange s)
+    :: forall s. GenChange s
     => ArgGenChange s
     -> SelectionResult TokenBundle
     -> s
@@ -1202,6 +1211,28 @@ assignChangeAddresses argGenChange sel = runState $ do
         addr <- state (genChange argGenChange)
         pure $ TxOut addr bundle
     pure $ sel { changeGenerated = changeOuts }
+
+assignChangeAddressesAndUpdateDb
+    :: forall ctx s k.
+        ( GenChange s
+        , HasDBLayer IO s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> SelectionResult TokenBundle
+    -> ExceptT ErrSignPayment IO (SelectionResult TxOut)
+assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
+    db & \DBLayer{..} -> mapExceptT atomically $ do
+        cp <- withExceptT ErrSignPaymentNoSuchWallet $
+            withNoSuchWallet wid $ readCheckpoint wid
+        let (selectionUpdated, stateUpdated) =
+                assignChangeAddresses generateChange selection (getState cp)
+        withExceptT ErrSignPaymentNoSuchWallet $
+            putCheckpoint wid (updateState stateUpdated cp)
+        pure selectionUpdated
+  where
+    db = ctx ^. dbLayer @IO @s @k
 
 selectionToUnsignedTx
     :: forall s input output change withdrawal.
@@ -1432,46 +1463,45 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
         hasWithdrawal :: Tx -> Bool
         hasWithdrawal = not . null . withdrawals
 
--- | Produce witnesses and construct a transaction from a given
--- selection. Requires the encryption passphrase in order to decrypt
--- the root private key. Note that this doesn't broadcast the
--- transaction to the network. In order to do so, use 'submitTx'.
+-- | Produce witnesses and construct a transaction from a given selection.
+--
+-- Requires the encryption passphrase in order to decrypt the root private key.
+-- Note that this doesn't broadcast the transaction to the network. In order to
+-- do so, use 'submitTx'.
+--
 signTransaction
     :: forall ctx s k.
         ( HasTransactionLayer k ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , IsOwned s k
-        , GenChange s
         )
     => ctx
     -> WalletId
-    -> ArgGenChange s
-    -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
+    -> ( (k 'RootK XPrv, Passphrase "encryption") ->
+         (         XPrv, Passphrase "encryption")
+       )
        -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
     -> TransactionCtx
-    -> SelectionResult TokenBundle
+    -> SelectionResult TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTransaction ctx wid argChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
+signTransaction ctx wid mkRwdAcct pwd txCtx sel =
+    db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
-            cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
-                readCheckpoint wid
+            cp <- withExceptT ErrSignPaymentNoSuchWallet
+                $ withNoSuchWallet wid
+                $ readCheckpoint wid
             pp <- liftIO $ currentProtocolParameters nl
-            let (sel', s') = assignChangeAddresses argChange sel (getState cp)
-            withExceptT ErrSignPaymentNoSuchWallet $
-                putCheckpoint wid (updateState s' cp)
-
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = mkRwdAcct (xprv, pwdP)
-
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkTransaction tl era rewardAcnt keyFrom pp txCtx sel'
-
-            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' txCtx sel'
+                mkTransaction tl era rewardAcnt keyFrom pp txCtx sel
+            (time, meta) <- liftIO $
+                mkTxMeta ti (currentTip cp) (getState cp) txCtx sel
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -1784,6 +1814,80 @@ getTransaction ctx wid tid = db & \DBLayer{..} -> do
             pure tx
   where
     db = ctx ^. dbLayer @IO @s @k
+
+{-------------------------------------------------------------------------------
+                                  Migration
+-------------------------------------------------------------------------------}
+
+createMigrationPlan
+    :: forall ctx k s.
+        ( HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
+        , HasTransactionLayer k ctx
+        )
+    => ctx
+    -> WalletId
+    -> Withdrawal
+    -> ExceptT ErrCreateMigrationPlan IO MigrationPlan
+createMigrationPlan ctx wid rewardWithdrawal = do
+    (wallet, _, pending) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
+        readWallet @ctx @s @k ctx wid
+    pp <- liftIO $ currentProtocolParameters nl
+    let txConstraints = view #constraints tl pp
+    let utxo = availableUTxO @s pending wallet
+    pure
+        $ Migration.createPlan txConstraints utxo
+        $ Migration.RewardWithdrawal
+        $ withdrawalToCoin rewardWithdrawal
+  where
+    nl = ctx ^. networkLayer
+    tl = ctx ^. transactionLayer @k
+
+type SelectionResultWithoutChange = SelectionResult Void
+
+migrationPlanToSelectionWithdrawals
+    :: MigrationPlan
+    -> Withdrawal
+    -> NonEmpty Address
+    -> Maybe (NonEmpty (SelectionResultWithoutChange, Withdrawal))
+migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
+    = NE.nonEmpty
+    $ fst
+    $ L.foldr
+        (accumulate)
+        ([], NE.toList $ NE.cycle outputAddressesToCycle)
+        (view #selections plan)
+  where
+    accumulate
+        :: Migration.Selection (TxIn, TxOut)
+        -> ([(SelectionResultWithoutChange, Withdrawal)], [Address])
+        -> ([(SelectionResultWithoutChange, Withdrawal)], [Address])
+    accumulate migrationSelection (selectionWithdrawals, outputAddresses) =
+        ( (selection, withdrawal) : selectionWithdrawals
+        , outputAddressesRemaining
+        )
+      where
+        selection = SelectionResult
+            { inputsSelected = view #inputIds migrationSelection
+            , outputsCovered
+            , utxoRemaining = UTxOIndex.empty
+            , extraCoinSource = Nothing
+            , changeGenerated = []
+            }
+
+        withdrawal =
+            if (view #rewardWithdrawal migrationSelection) > Coin 0
+            then rewardWithdrawal
+            else NoWithdrawal
+
+        outputsCovered :: [TxOut]
+        outputsCovered = zipWith TxOut
+            (outputAddresses)
+            (NE.toList $ view #outputs migrationSelection)
+
+        outputAddressesRemaining :: [Address]
+        outputAddressesRemaining =
+            drop (length $ view #outputs migrationSelection) outputAddresses
 
 {-------------------------------------------------------------------------------
                                   Delegation
@@ -2310,6 +2414,11 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     { errStartTime :: UTCTime
     , errEndTime :: UTCTime
     } deriving (Show, Eq)
+
+data ErrCreateMigrationPlan
+    = ErrCreateMigrationPlanEmpty
+    | ErrCreateMigrationPlanNoSuchWallet ErrNoSuchWallet
+    deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
     = ErrSelectAssetsCriteriaError ErrSelectionCriteria
