@@ -1062,7 +1062,7 @@ genMigrationTargetAddresses = do
         (mkAddress <$> take (addressCount - 1) ['B' ..])
   where
     mkAddress :: Char -> Address
-    mkAddress c = Address $ "" `B8.snoc` c
+    mkAddress c = Address $ B8.singleton c
 
 genMigrationUTxO :: MockTxConstraints -> Gen UTxO
 genMigrationUTxO mockTxConstraints = do
