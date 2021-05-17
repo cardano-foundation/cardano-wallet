@@ -364,12 +364,12 @@ spec = parallel $ do
             let dlg = WalletDelegation
                     {active = NotDelegating, next = [next1]}
             W.guardQuit dlg (Coin 0) `shouldBe` Right ()
-     where
-         pidA = PoolId "A"
-         pidB = PoolId "B"
-         pidUnknown = PoolId "unknown"
-         knownPools = Set.fromList [pidA, pidB]
-         next = WalletDelegationNext
+  where
+    pidA = PoolId "A"
+    pidB = PoolId "B"
+    pidUnknown = PoolId "unknown"
+    knownPools = Set.fromList [pidA, pidB]
+    next = WalletDelegationNext
 
 {-------------------------------------------------------------------------------
                                     Properties
