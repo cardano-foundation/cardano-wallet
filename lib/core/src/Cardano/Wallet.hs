@@ -121,6 +121,7 @@ module Cardano.Wallet
     -- ** Migration
     , createMigrationPlan
     , migrationPlanToSelectionWithdrawals
+    , SelectionResultWithoutChange
     , ErrCreateMigrationPlan (..)
 
     -- ** Delegation

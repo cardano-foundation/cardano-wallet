@@ -31,7 +31,9 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , LocalTxSubmissionConfig (..)
+    , SelectionResultWithoutChange
     , WalletLayer (..)
+    , migrationPlanToSelectionWithdrawals
     , runLocalTxSubmissionPool
     , throttle
     )
@@ -76,6 +78,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionError (..)
     , SelectionResult (..)
     )
+import Cardano.Wallet.Primitive.Migration.SelectionSpec
+    ( MockTxConstraints (..), genTokenBundleMixed, report, unMockTxConstraints )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -97,6 +101,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Address.Gen
+    ( genAddressSmallRange )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -119,10 +125,16 @@ import Cardano.Wallet.Primitive.Types.Tx
     , isPending
     , txOutCoin
     )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxInLargeRange )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction
-    ( ErrMkTx (..), TransactionLayer (..), defaultTransactionCtx )
+    ( ErrMkTx (..)
+    , TransactionLayer (..)
+    , Withdrawal (..)
+    , defaultTransactionCtx
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.DeepSeq
@@ -193,6 +205,8 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Blind (..)
+    , Gen
     , InfiniteList (..)
     , NonEmptyList (..)
     , Positive (..)
@@ -207,6 +221,7 @@ import Test.QuickCheck
     , counterexample
     , cover
     , elements
+    , forAllBlind
     , label
     , liftArbitrary
     , liftShrink
@@ -248,11 +263,13 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -364,6 +381,12 @@ spec = parallel $ do
             let dlg = WalletDelegation
                     {active = NotDelegating, next = [next1]}
             W.guardQuit dlg (Coin 0) `shouldBe` Right ()
+
+    parallel $ describe "Migration" $ do
+        describe "migrationPlanToSelectionWithdrawals" $ do
+            it "Target addresses are cycled correctly." $
+                property prop_migrationPlanToSelectionWithdrawals_addresses
+
   where
     pidA = PoolId "A"
     pidB = PoolId "B"
@@ -1018,6 +1041,102 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
       where
         avgDiffTime = sum diffTimes / fromIntegral (length diffTimes)
         testRatio = avgDiffTime / interval
+
+{-------------------------------------------------------------------------------
+                                Migration
+-------------------------------------------------------------------------------}
+
+genMigrationTargetAddresses :: Gen (NonEmpty Address)
+genMigrationTargetAddresses = do
+    addressCount <- choose (1, 4)
+    pure $ (:|)
+        (mkAddress 'A')
+        (mkAddress <$> take (addressCount - 1) ['B' ..])
+  where
+    mkAddress :: Char -> Address
+    mkAddress c = Address $ "" `B8.snoc` c
+
+genMigrationUTxO :: MockTxConstraints -> Gen UTxO
+genMigrationUTxO mockTxConstraints = do
+    entryCount <- choose (1, 128)
+    UTxO . Map.fromList <$> replicateM entryCount genUTxOEntry
+  where
+    genUTxOEntry :: Gen (TxIn, TxOut)
+    genUTxOEntry = (,) <$> genTxIn <*> genTxOut
+      where
+        genTxIn :: Gen TxIn
+        genTxIn = genTxInLargeRange
+
+        genTxOut :: Gen TxOut
+        genTxOut = TxOut
+            <$> genAddressSmallRange
+            <*> genTokenBundleMixed mockTxConstraints
+
+-- Tests that user-specified target addresses are assigned to generated outputs
+-- in the correct cyclical order.
+--
+prop_migrationPlanToSelectionWithdrawals_addresses
+    :: Blind MockTxConstraints
+    -> Property
+prop_migrationPlanToSelectionWithdrawals_addresses (Blind mockTxConstraints) =
+    forAllBlind genMigrationTargetAddresses $ \targetAddresses ->
+    forAllBlind (genMigrationUTxO mockTxConstraints) $ \utxo ->
+    prop_migrationPlanToSelectionWithdrawals_addresses_inner
+        mockTxConstraints utxo targetAddresses
+
+prop_migrationPlanToSelectionWithdrawals_addresses_inner
+    :: MockTxConstraints
+    -> UTxO
+    -> NonEmpty Address
+    -> Property
+prop_migrationPlanToSelectionWithdrawals_addresses_inner
+    mockTxConstraints utxo targetAddresses =
+        case maybeSelectionWithdrawals of
+            Nothing ->
+                -- If this case matches, it means the plan is empty:
+                length (view #selections plan) === 0
+            Just selectionWithdrawals ->
+                test (fst <$> selectionWithdrawals)
+  where
+    test :: NonEmpty SelectionResultWithoutChange -> Property
+    test selections = makeCoverage $ makeReports $
+        cycledTargetAddressesActual ==
+        cycledTargetAddressesExpected
+      where
+        cycledTargetAddressesActual = view #address <$>
+            (mconcat $ view #outputsCovered <$> NE.toList selections)
+        cycledTargetAddressesExpected = NE.take
+            (length cycledTargetAddressesActual)
+            (NE.cycle targetAddresses)
+        totalOutputCount = F.sum (length . view #outputsCovered <$> selections)
+        makeCoverage
+            = cover 4 (totalOutputCount > length targetAddresses)
+                "total output count > target address count"
+            . cover 4 (totalOutputCount < length targetAddresses)
+                "total output count < target address count"
+            . cover 1 (totalOutputCount == length targetAddresses)
+                "total output count = target address count"
+            . cover 4 (length selections == 1)
+                "number of selections = 1"
+            . cover 4 (length selections == 2)
+                "number of selections = 2"
+            . cover 4 (length selections > 2)
+                "number of selections > 2"
+        makeReports
+            = report mockTxConstraints
+                "mockTxConstraints"
+            . report (NE.toList targetAddresses)
+                "targetAddresses"
+            . report cycledTargetAddressesExpected
+                "cycledTargetAddressesExpected"
+            . report cycledTargetAddressesActual
+                "cycledTargetAddressesActual"
+
+    constraints = unMockTxConstraints mockTxConstraints
+    maybeSelectionWithdrawals =
+        migrationPlanToSelectionWithdrawals plan NoWithdrawal targetAddresses
+    plan = Migration.createPlan constraints utxo reward
+    reward = Migration.RewardWithdrawal (Coin 0)
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
