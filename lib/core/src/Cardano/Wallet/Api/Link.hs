@@ -128,7 +128,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, NetworkDiscriminant (..), Role )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, SmashServer, SortOrder, WalletId (..) )

@@ -75,7 +75,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPool
     , purposeCIP1852
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( SharedState (..), SharedStateFields (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )

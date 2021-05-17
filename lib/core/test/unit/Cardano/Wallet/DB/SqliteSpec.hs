@@ -108,7 +108,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeBIP44
     , purposeCIP1852
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( SharedState )
 import Cardano.Wallet.Primitive.Model
     ( FilteredBlock (..)

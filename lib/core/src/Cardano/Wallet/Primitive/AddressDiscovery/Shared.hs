@@ -21,7 +21,7 @@
 -- An implementation of shared script state using
 -- scheme specified in CIP-1854 Multi-signature Wallets.
 
-module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     (
     -- ** State
       SharedState (..)

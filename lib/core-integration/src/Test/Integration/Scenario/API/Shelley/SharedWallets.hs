@@ -39,7 +39,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )

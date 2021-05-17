@@ -55,7 +55,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)

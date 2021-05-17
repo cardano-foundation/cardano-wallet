@@ -145,7 +145,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GetPurpose )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
@@ -257,7 +257,7 @@ import UnliftIO.MVar
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.SharedState as Shared
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W

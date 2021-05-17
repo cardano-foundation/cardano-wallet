@@ -113,7 +113,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool (..), SeqState (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )

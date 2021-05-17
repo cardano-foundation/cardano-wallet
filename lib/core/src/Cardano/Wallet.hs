@@ -269,7 +269,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromRootXPrv
     , purposeBIP44
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..)
     , ErrAddCosigner (..)
     , SharedState (..)
@@ -471,7 +471,7 @@ import UnliftIO.MVar
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.SharedState as Shared
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
