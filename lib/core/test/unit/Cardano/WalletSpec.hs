@@ -115,6 +115,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
@@ -390,6 +392,8 @@ spec = parallel $ do
         describe "migrationPlanToSelectionWithdrawals" $ do
             it "Target addresses are cycled correctly." $
                 property prop_migrationPlanToSelectionWithdrawals_addresses
+            it "Inputs and outputs are preserved in the correct order." $
+                property prop_migrationPlanToSelectionWithdrawals_io
 
   where
     pidA = PoolId "A"
@@ -1135,6 +1139,74 @@ prop_migrationPlanToSelectionWithdrawals_addresses_inner
                 "cycledTargetAddressesExpected"
             . report cycledTargetAddressesActual
                 "cycledTargetAddressesActual"
+
+    constraints = unMockTxConstraints mockTxConstraints
+    maybeSelectionWithdrawals =
+        migrationPlanToSelectionWithdrawals plan NoWithdrawal targetAddresses
+    plan = Migration.createPlan constraints utxo reward
+    reward = Migration.RewardWithdrawal (Coin 0)
+
+-- Tests that inputs and outputs are preserved in the correct order.
+--
+prop_migrationPlanToSelectionWithdrawals_io
+    :: Blind MockTxConstraints
+    -> Property
+prop_migrationPlanToSelectionWithdrawals_io (Blind mockTxConstraints) =
+    forAllBlind genMigrationTargetAddresses $ \targetAddresses ->
+    forAllBlind (genMigrationUTxO mockTxConstraints) $ \utxo ->
+    prop_migrationPlanToSelectionWithdrawals_io_inner
+        mockTxConstraints utxo targetAddresses
+
+prop_migrationPlanToSelectionWithdrawals_io_inner
+    :: MockTxConstraints
+    -> UTxO
+    -> NonEmpty Address
+    -> Property
+prop_migrationPlanToSelectionWithdrawals_io_inner
+    mockTxConstraints utxo targetAddresses =
+        case maybeSelectionWithdrawals of
+            Nothing ->
+                -- If this case matches, it means the plan is empty:
+                length (view #selections plan) === 0
+            Just selectionWithdrawals ->
+                test (fst <$> selectionWithdrawals)
+  where
+    test :: NonEmpty SelectionResultWithoutChange -> Property
+    test selections = makeCoverage $ makeReports $ conjoin
+        [ inputsActual == inputsExpected
+        , outputsActual == outputsExpected
+        ]
+      where
+        inputsActual :: [[(TxIn, TxOut)]]
+        inputsActual =
+            NE.toList (NE.toList . view #inputsSelected <$> selections)
+        inputsExpected :: [[(TxIn, TxOut)]]
+        inputsExpected =
+            NE.toList . view #inputIds <$> view #selections plan
+
+        outputsActual :: [[TokenBundle]]
+        outputsActual = NE.toList
+            (fmap (view #tokens) . view #outputsCovered <$> selections)
+        outputsExpected :: [[TokenBundle]]
+        outputsExpected =
+            NE.toList . view #outputs <$> view #selections plan
+
+        makeCoverage
+            = cover 4 (length selections == 1)
+                "number of selections = 1"
+            . cover 4 (length selections == 2)
+                "number of selections = 2"
+            . cover 4 (length selections > 2)
+                "number of selections > 2"
+        makeReports
+            = report inputsActual
+                "inputsActual"
+            . report inputsExpected
+                "inputsExpected"
+            . report outputsActual
+                "outputsActual"
+            . report outputsExpected
+                "outputsExpected"
 
     constraints = unMockTxConstraints mockTxConstraints
     maybeSelectionWithdrawals =
