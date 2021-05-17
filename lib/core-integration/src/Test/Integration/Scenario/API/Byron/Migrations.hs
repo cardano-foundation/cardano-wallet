@@ -195,6 +195,14 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     } |]
             sourceWallet <- unsafeResponse <$>
                 postByronWallet ctx payloadRestore
+            eventually "sourceWallet contains dust" $
+                request @ApiByronWallet ctx
+                    (Link.getWallet @'Byron sourceWallet) Default Empty
+                    >>= flip verify
+                    [ expectField (#balance . #available . #getQuantity)
+                        (.> 0)
+                    ]
+
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>

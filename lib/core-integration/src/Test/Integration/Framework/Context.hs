@@ -17,6 +17,8 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo, NetworkParameters, PoolRetirementCertificate )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Transaction
     ( DelegationAction )
 import Data.IORef
@@ -64,7 +66,7 @@ data Context = Context
     , _smashUrl :: Text
         -- ^ Base URL of the mock smash server.
 
-    , _mintSeaHorseAssets :: Int -> [Address] -> IO ()
+    , _mintSeaHorseAssets :: Int -> Coin -> [Address] -> IO ()
         -- ^ TODO: Remove once we can unify cardano-wallet-core-integration and
         -- cardano-wallet:integration, or when the wallet supports minting.
         --

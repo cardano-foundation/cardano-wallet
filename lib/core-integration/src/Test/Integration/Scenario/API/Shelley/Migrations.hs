@@ -68,7 +68,7 @@ import Data.Word
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith )
+    ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
@@ -196,18 +196,36 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         (errMsg404NoWallet $ sourceWallet ^. walletId)
                     ]
 
+
     it "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
-        \Cannot create a plan for a wallet that only contains dust."
+        \Cannot create a plan for a wallet that only contains freeriders."
         $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith
-                "Disabled until a real dust wallet is available."
-            let payloadRestore = Json [json| {
-                    "name": "Dust Shelley Wallet",
-                    "mnemonic_sentence": #{mnemonicToText onlyDustWallet},
-                    "passphrase": #{fixturePassphrase},
-                    "style": "random"
-                    } |]
-            sourceWallet <- unsafeResponse <$> postWallet ctx payloadRestore
+            sourceWallet <- emptyWallet ctx
+            srcAddrs <- map (getApiT . fst . view #id)
+                <$> listAddresses @n ctx sourceWallet
+
+            -- `_mintSeaHorseAssets` doesn't know how to compute the minimum ada
+            -- amount for a `TokenBundle`. So we provide a custom value here
+            -- that is above the limit, but also as small as possible.
+            --
+            -- I.e. big enough to make the minting succeed, but small enough to
+            -- make the subsequent migration fail.
+            let adaPerBundle = Coin 3_300_000
+
+            liftIO $ _mintSeaHorseAssets ctx 10 adaPerBundle srcAddrs
+            waitForTxImmutability ctx
+
+            -- Check that the minting indeed worked, and that the wallet isn't
+            -- empty:
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField (#balance . #available . #getQuantity)
+                    (.> 0)
+                , expectField (#assets . #available . #getApiT)
+                    ((.> 0) . Set.size . TokenMap.getAssets)
+                ]
+
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
@@ -274,6 +292,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 ]
             return $ getFromResponse
                 (#balance . #available . #getQuantity) response
+
 
         -- Create an empty target wallet:
         targetWallet <- emptyWallet ctx
