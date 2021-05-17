@@ -121,6 +121,7 @@ module Cardano.Wallet
     -- ** Migration
     , createMigrationPlan
     , migrationPlanToSelectionWithdrawals
+    , SelectionResultWithoutChange
     , ErrCreateMigrationPlan (..)
 
     -- ** Delegation
@@ -1852,9 +1853,10 @@ migrationPlanToSelectionWithdrawals
     -> Maybe (NonEmpty (SelectionResultWithoutChange, Withdrawal))
 migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
     = NE.nonEmpty
+    $ L.reverse
     $ fst
-    $ L.foldr
-        (accumulate)
+    $ L.foldl'
+        (flip accumulate)
         ([], NE.toList $ NE.cycle outputAddressesToCycle)
         (view #selections plan)
   where
@@ -1887,7 +1889,7 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
 
         outputAddressesRemaining :: [Address]
         outputAddressesRemaining =
-            drop (length $ view #outputs migrationSelection) outputAddresses
+            drop (length outputsCovered) outputAddresses
 
 {-------------------------------------------------------------------------------
                                   Delegation

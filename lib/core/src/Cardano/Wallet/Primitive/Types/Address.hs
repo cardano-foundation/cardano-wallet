@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -37,6 +37,8 @@ import Fmt
     ( Buildable (..), prefixF, suffixF )
 import GHC.Generics
     ( Generic )
+import Quiet
+    ( Quiet (..) )
 
 import qualified Data.Text.Encoding as T
 
@@ -88,8 +90,10 @@ import qualified Data.Text.Encoding as T
 --
 newtype Address = Address
     { unAddress :: ByteString
-    } deriving (Read, Show, Generic, Eq, Ord)
-      deriving anyclass (NFData, Hashable)
+    }
+    deriving (Generic, Eq, Ord)
+    deriving anyclass (NFData, Hashable)
+    deriving (Read, Show) via (Quiet Address)
 
 instance Buildable Address where
     build addr = mempty
