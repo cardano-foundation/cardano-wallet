@@ -79,7 +79,11 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionResult (..)
     )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
-    ( MockTxConstraints (..), genTokenBundleMixed, report, unMockTxConstraints )
+    ( MockTxConstraints (..)
+    , genTokenBundleMixed
+    , report
+    , unMockTxConstraints
+    )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -1048,7 +1052,7 @@ prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
 
 genMigrationTargetAddresses :: Gen (NonEmpty Address)
 genMigrationTargetAddresses = do
-    addressCount <- choose (1, 4)
+    addressCount <- choose (1, 8)
     pure $ (:|)
         (mkAddress 'A')
         (mkAddress <$> take (addressCount - 1) ['B' ..])
@@ -1104,7 +1108,7 @@ prop_migrationPlanToSelectionWithdrawals_addresses_inner
         cycledTargetAddressesExpected
       where
         cycledTargetAddressesActual = view #address <$>
-            (mconcat $ view #outputsCovered <$> NE.toList selections)
+            (view #outputsCovered =<< NE.toList selections)
         cycledTargetAddressesExpected = NE.take
             (length cycledTargetAddressesActual)
             (NE.cycle targetAddresses)
