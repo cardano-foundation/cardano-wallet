@@ -279,9 +279,10 @@ RSpec.describe CardanoWallet::Byron do
       id = create_byron_wallet "random"
       target_id = create_shelley_wallet
       addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
-      
+
       plan = BYRON.migrations.plan(id, addrs)
-      expect(plan).to be_correct_and_respond 501
+      expect(plan).to be_correct_and_respond 403
+      expect(plan.to_s).to include "nothing_to_migrate"
     end
 
     it "I could migrate all my funds" do
@@ -289,7 +290,8 @@ RSpec.describe CardanoWallet::Byron do
       target_wal_id = create_byron_wallet "icarus"
       addresses = BYRON.addresses.list(target_wal_id).map { |a| a['id'] }
       migr = BYRON.migrations.migrate(id, PASS, addresses)
-      expect(migr).to be_correct_and_respond 501
+      expect(migr).to be_correct_and_respond 403
+      expect(migr.to_s).to include "nothing_to_migrate"
     end
   end
 end

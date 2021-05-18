@@ -338,8 +338,8 @@ RSpec.describe CardanoWallet::Shelley do
       addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
 
       plan = SHELLEY.migrations.plan(id, addrs)
-      expect(plan).to be_correct_and_respond 501
-      expect(plan.to_s).to include "not_implemented"
+      expect(plan).to be_correct_and_respond 403
+      expect(plan.to_s).to include "nothing_to_migrate"
     end
 
     it "I could migrate all my funds" do
@@ -347,8 +347,8 @@ RSpec.describe CardanoWallet::Shelley do
       target_id = create_shelley_wallet
       addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
       migr = SHELLEY.migrations.migrate(id, PASS, addrs)
-      expect(migr).to be_correct_and_respond 501
-      expect(migr.to_s).to include "not_implemented"
+      expect(migr).to be_correct_and_respond 403
+      expect(migr.to_s).to include "nothing_to_migrate"
     end
   end
 
