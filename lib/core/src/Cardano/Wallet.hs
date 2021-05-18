@@ -1877,6 +1877,21 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
             , changeGenerated = []
             }
 
+        -- NOTE:
+        --
+        -- Due to a quirk of history, we need to populate the 'extraCoinSource'
+        -- field with the reward withdrawal amount, since the transaction layer
+        -- uses the 'selectionDelta' function to calculate the final fee, and
+        -- that particular function doesn't know about reward withdrawals.
+        --
+        -- This is non-ideal, because we're returning the reward withdrawal
+        -- amount in two places in the output of this function.
+        --
+        -- In future, it would be better to return a single record whose fields
+        -- more closely resemble exactly what is needed to build a transaction,
+        -- and have the transaction layer calculate the actual fee based only
+        -- on the contents of that record.
+        --
         extraCoinSource =
             if (view #rewardWithdrawal migrationSelection) > Coin 0
             then Just (view #rewardWithdrawal migrationSelection)
