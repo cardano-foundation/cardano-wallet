@@ -654,6 +654,81 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     )
                 ]
 
+    Hspec.it "SHELLEY_MIGRATE_09 - \
+        \Can migrate a wallet that has rewards."
+        $ \ctx -> runResourceT @IO $ do
+
+            -- Create a source wallet with rewards:
+            (sourceWallet, _sourceWalletMnemonic) <- rewardWallet ctx
+
+            -- Check that the source wallet has the expected balance:
+            let expectedAdaBalanceAvailable =   100_000_000_000
+            let expectedAdaBalanceReward    = 1_000_000_000_000
+            let expectedAdaBalanceTotal     = 1_100_000_000_000
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField (#balance . #available . #getQuantity)
+                    (`shouldBe` expectedAdaBalanceAvailable)
+                , expectField (#balance . #reward . #getQuantity)
+                    (`shouldBe` expectedAdaBalanceReward)
+                , expectField (#balance . #total . #getQuantity)
+                    (`shouldBe` expectedAdaBalanceTotal)
+                ]
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+            -- Perform a migration:
+            let ep = Link.migrateWallet @'Shelley sourceWallet
+            responseMigrate <- request @[ApiTransaction n] ctx ep Default $
+                Json [json|
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{targetAddressIds}
+                    }|]
+
+            -- Verify the fee is as expected:
+            let expectedFee = 139_300
+            verify responseMigrate
+                [ expectResponseCode HTTP.status202
+                , expectField id ((`shouldBe` 1) . length)
+                , expectField id
+                    $ (`shouldBe` expectedFee)
+                    . sum
+                    . fmap apiTransactionFee
+                ]
+
+            -- Check that funds become available in the target wallet:
+            let expectedTargetBalance = expectedAdaBalanceTotal - expectedFee
+            eventually "Target wallet balance reaches the expected amount." $ do
+                request @ApiWallet ctx
+                    (Link.getWallet @'Shelley targetWallet) Default Empty
+                    >>= flip verify
+                    [ expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity expectedTargetBalance)
+                    , expectField
+                        (#balance . #total)
+                        (`shouldBe` Quantity expectedTargetBalance)
+                    ]
+
+            -- Check that the source wallet has been depleted:
+            eventually "Source wallet balance is depleted." $ do
+                request @ApiWallet ctx
+                    (Link.getWallet @'Shelley sourceWallet) Default Empty
+                    >>= flip verify
+                    [ expectResponseCode HTTP.status200
+                    , expectField
+                        (#balance . #available)
+                        (`shouldBe` Quantity 0)
+                    , expectField
+                        (#balance . #total)
+                        (`shouldBe` Quantity 0)
+                    ]
+
     Hspec.it "SHELLEY_MIGRATE_MULTI_ASSET_01 - \
         \Can migrate a multi-asset wallet."
         $ \ctx -> runResourceT @IO $ do
