@@ -2040,13 +2040,16 @@ createMigrationPlan
         , WalletKey k
         )
     => ctx
+    -> Maybe ApiWithdrawalPostData
+        -- ^ What type of reward withdrawal to attempt
     -> ApiT WalletId
         -- ^ Source wallet
     -> ApiWalletMigrationPlanPostData n
         -- ^ Target addresses
     -> Handler (ApiWalletMigrationPlan n)
-createMigrationPlan ctx (ApiT wid) postData = do
-    (rewardWithdrawal, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+createMigrationPlan ctx withdrawalType (ApiT wid) postData = do
+    (rewardWithdrawal, _) <-
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         (wallet, _, _) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
             W.readWallet wrk wid
