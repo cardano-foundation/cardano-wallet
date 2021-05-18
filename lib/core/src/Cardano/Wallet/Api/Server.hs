@@ -2102,10 +2102,15 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
         & mkApiWalletMigrationBalance
 
     balanceSelected :: ApiWalletMigrationBalance
-    balanceSelected = plan
-        & view #selections
-        & F.foldMap (view #inputBalance)
-        & mkApiWalletMigrationBalance
+    balanceSelected = mkApiWalletMigrationBalance $
+        TokenBundle.fromCoin balanceRewardWithdrawal <> balanceUTxO
+      where
+        balanceUTxO = plan
+            & view #selections
+            & F.foldMap (view #inputBalance)
+        balanceRewardWithdrawal = plan
+            & view #selections
+            & F.foldMap (view #rewardWithdrawal)
 
     mkApiCoinSelectionForMigration unsignedTx =
         mkApiCoinSelection [] Nothing Nothing unsignedTx
