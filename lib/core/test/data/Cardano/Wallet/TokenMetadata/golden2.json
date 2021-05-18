@@ -83,18 +83,6 @@
         "description": { "value": "description2" },
         "ticker": { "value": "ticker2" },
         "custom": { "value": "meta" }
-      },
-      {
-        "subject": "unit with ticker",
-        "name": { "value": "Token3" },
-        "description": { "value": "description3" },
-        "unit": {
-          "value": {
-            "name": "BigToken3",
-            "decimals": 3,
-            "ticker": "tck3"
-          }
-        }
       }
     ]
 }

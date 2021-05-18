@@ -13,33 +13,6 @@
       }
     },
     {
-      "subject": "malformed unit - wrong type",
-      "name": {
-        "value": "Token9"
-      },
-      "description": {
-        "value": "description9"
-      },
-      "unit": {
-        "value": "unit9"
-      }
-    },
-    {
-      "subject": "malformed unit - name too long",
-      "name": {
-        "value": "Token10"
-      },
-      "description": {
-        "value": "description10"
-      },
-      "unit": {
-        "value": {
-          "decimals": 14,
-          "name": "unit10unit10unit10unit10unit10unit10unit10unit10unit10unit10"
-        }
-      }
-    },
-    {
       "subject": "malformed url - wrong scheme",
       "name": {
         "value": "Token11"
@@ -73,6 +46,30 @@
       },
       "ticker": {
         "value": "ticker13"
+      }
+    },
+    {
+      "subject": "malformed decimal - too small",
+      "name": {
+        "value": "Token14"
+      },
+      "description": {
+        "value": "description14"
+      },
+      "decimals": {
+        "value": -1
+      }
+    },
+    {
+      "subject": "malformed decimal - too large",
+      "name": {
+        "value": "Token15"
+      },
+      "description": {
+        "value": "description15"
+      },
+      "decimals": {
+        "value": 256
       }
     }
   ]

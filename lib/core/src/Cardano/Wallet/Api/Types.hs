@@ -488,7 +488,7 @@ data ApiAssetMetadata = ApiAssetMetadata
     , ticker :: Maybe Text
     , url :: Maybe (ApiT W.AssetURL)
     , logo :: Maybe (ApiT W.AssetLogo)
-    , unit :: Maybe (ApiT W.AssetUnit)
+    , decimals :: Maybe (ApiT W.AssetDecimals)
     } deriving (Eq, Generic, Ord, Show)
       deriving anyclass NFData
 
@@ -501,9 +501,9 @@ toApiAsset metadata_ (W.AssetId policyId_ assetName_) = ApiAsset
     }
 
 toApiAssetMetadata :: W.AssetMetadata -> ApiAssetMetadata
-toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,unit} =
+toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,decimals} =
     ApiAssetMetadata name description ticker
-        (ApiT <$> url) (ApiT <$> logo) (ApiT <$> unit)
+        (ApiT <$> url) (ApiT <$> logo) (ApiT <$> decimals)
 
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
@@ -1465,17 +1465,17 @@ instance FromJSON (ApiT W.AssetURL) where
 instance ToJSON (ApiT W.AssetURL) where
     toJSON = toJSON . show . W.unAssetURL . getApiT
 
-instance FromJSON (ApiT W.AssetUnit) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT W.AssetUnit) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
-
 -- TODO: clean up duplication with TokenMetadata
 instance FromJSON (ApiT W.AssetLogo) where
     parseJSON = withText "base64 bytestring" $
         either fail (pure . ApiT . W.AssetLogo) . convertFromBase Base64 . T.encodeUtf8
 instance ToJSON (ApiT W.AssetLogo) where
     toJSON = toJSON . B8.unpack . convertToBase Base64 . W.unAssetLogo . getApiT
+
+instance FromJSON (ApiT W.AssetDecimals) where
+    parseJSON = parseJSON >=> (pure . ApiT . W.AssetDecimals)
+instance ToJSON (ApiT W.AssetDecimals) where
+    toJSON = toJSON . W.unAssetDecimals . getApiT
 
 instance ToJSON (ApiT DerivationIndex) where
     toJSON = toTextJSON

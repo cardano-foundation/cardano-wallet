@@ -2,7 +2,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
@@ -36,9 +35,9 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetLogo (..)
+    ( AssetDecimals (..)
+    , AssetLogo (..)
     , AssetURL (..)
-    , AssetUnit (..)
     , TokenName (..)
     , TokenPolicyId (..)
     )
@@ -171,8 +170,8 @@ queryServerStatic golden = do
         -> [SubjectProperties]
     filterResponse subs props = map filterProps . filter inSubs
       where
-        filterProps (SubjectProperties subject owner (a, b, c, d, e, f)) =
-            SubjectProperties subject owner
+        filterProps (SubjectProperties subj own (a, b, c, d, e, f)) =
+            SubjectProperties subj own
             (inProps a, inProps b, inProps c, inProps d, inProps e, inProps f)
 
         inSubs sp = (view #subject sp) `Set.member` subs
@@ -202,7 +201,7 @@ assetIdFromSubject =
 instance FromJSON BatchRequest where
 
 instance ToJSON SubjectProperties where
-   toJSON (SubjectProperties s o (n,d,a,u,l,t)) = object $
+   toJSON (SubjectProperties s o (n,d,a,u,l,dec)) = object $
        [ "subject" .= s
        , "owner" .= o
        ] ++ optionals
@@ -211,7 +210,7 @@ instance ToJSON SubjectProperties where
        , "ticker" .= a
        , "url" .= u
        , "logo" .= l
-       , "unit" .= t
+       , "decimals" .= dec
        ]
      where
        optionals = filter ((/= Null) . snd)
@@ -239,11 +238,8 @@ instance ToJSON BatchResponse where
 instance ToJSON AssetLogo where
     toJSON = toJSON . B8.unpack . convertToBase Base64 . unAssetLogo
 
-instance ToJSON AssetUnit where
-    toJSON AssetUnit{name,decimals} = object
-        [ "name" .= name
-        , "decimals" .= decimals
-        ]
-
 instance ToJSON AssetURL where
     toJSON = toJSON . show . unAssetURL
+
+instance ToJSON AssetDecimals where
+  toJSON = toJSON . unAssetDecimals
