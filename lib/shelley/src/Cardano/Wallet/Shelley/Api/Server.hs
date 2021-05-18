@@ -132,6 +132,7 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsData (..)
     , ApiStakePool
     , ApiT (..)
+    , ApiWithdrawalPostData (..)
     , HealthCheckSMASH (..)
     , MaintenanceAction (..)
     , SettingsPutData (..)
@@ -295,8 +296,8 @@ server byron icarus shelley multisig spl ntp =
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
-             createMigrationPlan @_ @_ shelley
-        :<|> migrateWallet shelley
+             createMigrationPlan @_ @_ shelley (Just SelfWithdrawal)
+        :<|> migrateWallet shelley (Just SelfWithdrawal)
 
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
@@ -449,12 +450,12 @@ server byron icarus shelley multisig spl ntp =
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid postData -> withLegacyLayer wid
-                (byron , createMigrationPlan @_ @_ byron wid postData)
-                (icarus, createMigrationPlan @_ @_ icarus wid postData)
+                (byron , createMigrationPlan @_ @_ byron Nothing wid postData)
+                (icarus, createMigrationPlan @_ @_ icarus Nothing wid postData)
              )
         :<|> (\wid m -> withLegacyLayer wid
-                (byron , migrateWallet byron wid m)
-                (icarus, migrateWallet icarus wid m)
+                (byron , migrateWallet byron Nothing wid m)
+                (icarus, migrateWallet icarus Nothing wid m)
              )
 
     network' :: Server Network

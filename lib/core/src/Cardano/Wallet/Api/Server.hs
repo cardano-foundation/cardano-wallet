@@ -472,8 +472,6 @@ import Data.Time
     ( UTCTime )
 import Data.Type.Equality
     ( (:~:) (..), type (==), testEquality )
-import Data.Void
-    ( Void )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -2040,13 +2038,16 @@ createMigrationPlan
         , WalletKey k
         )
     => ctx
+    -> Maybe ApiWithdrawalPostData
+        -- ^ What type of reward withdrawal to attempt
     -> ApiT WalletId
         -- ^ Source wallet
     -> ApiWalletMigrationPlanPostData n
         -- ^ Target addresses
     -> Handler (ApiWalletMigrationPlan n)
-createMigrationPlan ctx (ApiT wid) postData = do
-    (rewardWithdrawal, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+createMigrationPlan ctx withdrawalType (ApiT wid) postData = do
+    (rewardWithdrawal, _) <-
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         (wallet, _, _) <- withExceptT ErrCreateMigrationPlanNoSuchWallet $
             W.readWallet wrk wid
@@ -2079,7 +2080,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
     maybeSelections = fmap mkApiCoinSelectionForMigration <$> maybeUnsignedTxs
 
     maybeSelectionWithdrawals
-        :: Maybe (NonEmpty (SelectionResult Void, Withdrawal))
+        :: Maybe (NonEmpty (W.SelectionResultWithoutChange, Withdrawal))
     maybeSelectionWithdrawals
         = W.migrationPlanToSelectionWithdrawals plan rewardWithdrawal
         $ getApiT . fst <$> addresses
@@ -2099,10 +2100,15 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
         & mkApiWalletMigrationBalance
 
     balanceSelected :: ApiWalletMigrationBalance
-    balanceSelected = plan
-        & view #selections
-        & F.foldMap (view #inputBalance)
-        & mkApiWalletMigrationBalance
+    balanceSelected = mkApiWalletMigrationBalance $
+        TokenBundle.fromCoin balanceRewardWithdrawal <> balanceUTxO
+      where
+        balanceUTxO = plan
+            & view #selections
+            & F.foldMap (view #inputBalance)
+        balanceRewardWithdrawal = plan
+            & view #selections
+            & F.foldMap (view #rewardWithdrawal)
 
     mkApiCoinSelectionForMigration unsignedTx =
         mkApiCoinSelection [] Nothing Nothing unsignedTx
@@ -2125,12 +2131,14 @@ migrateWallet
         , WalletKey k
         )
     => ctx
+    -> Maybe ApiWithdrawalPostData
+        -- ^ What type of reward withdrawal to attempt
     -> ApiT WalletId
     -> ApiWalletMigrationPostData n p
     -> Handler (NonEmpty (ApiTransaction n))
-migrateWallet ctx (ApiT wid) postData = do
+migrateWallet ctx withdrawalType (ApiT wid) postData = do
     (rewardWithdrawal, mkRewardAccount) <-
-        mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
         txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
