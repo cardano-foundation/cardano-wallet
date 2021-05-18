@@ -297,7 +297,7 @@ server byron icarus shelley multisig spl ntp =
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
              createMigrationPlan @_ @_ shelley (Just SelfWithdrawal)
-        :<|> migrateWallet shelley
+        :<|> migrateWallet shelley (Just SelfWithdrawal)
 
     stakePools :: Server (StakePools n ApiStakePool)
     stakePools =
@@ -454,8 +454,8 @@ server byron icarus shelley multisig spl ntp =
                 (icarus, createMigrationPlan @_ @_ icarus Nothing wid postData)
              )
         :<|> (\wid m -> withLegacyLayer wid
-                (byron , migrateWallet byron wid m)
-                (icarus, migrateWallet icarus wid m)
+                (byron , migrateWallet byron Nothing wid m)
+                (icarus, migrateWallet icarus Nothing wid m)
              )
 
     network' :: Server Network

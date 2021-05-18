@@ -2133,12 +2133,14 @@ migrateWallet
         , WalletKey k
         )
     => ctx
+    -> Maybe ApiWithdrawalPostData
+        -- ^ What type of reward withdrawal to attempt
     -> ApiT WalletId
     -> ApiWalletMigrationPostData n p
     -> Handler (NonEmpty (ApiTransaction n))
-migrateWallet ctx (ApiT wid) postData = do
+migrateWallet ctx withdrawalType (ApiT wid) postData = do
     (rewardWithdrawal, mkRewardAccount) <-
-        mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid withdrawalType
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         plan <- liftHandler $ W.createMigrationPlan wrk wid rewardWithdrawal
         txTimeToLive <- liftIO $ W.getTxExpiry ti Nothing
