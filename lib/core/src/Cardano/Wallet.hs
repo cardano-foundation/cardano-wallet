@@ -1873,9 +1873,14 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
             { inputsSelected = view #inputIds migrationSelection
             , outputsCovered
             , utxoRemaining = UTxOIndex.empty
-            , extraCoinSource = Nothing
+            , extraCoinSource
             , changeGenerated = []
             }
+
+        extraCoinSource =
+            if (view #rewardWithdrawal migrationSelection) > Coin 0
+            then Just (view #rewardWithdrawal migrationSelection)
+            else Nothing
 
         withdrawal =
             if (view #rewardWithdrawal migrationSelection) > Coin 0
