@@ -96,6 +96,7 @@ import Test.Integration.Framework.DSL
     , postWallet
     , randomAddresses
     , request
+    , rewardWallet
     , unsafeRequest
     , unsafeResponse
     , verify
@@ -114,6 +115,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Network.HTTP.Types.Status as HTTP
@@ -260,6 +262,49 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     plan1 `shouldBe` plan2
                 _ ->
                     error "Unable to compare plans."
+
+    it "SHELLEY_CREATE_MIGRATION_PLAN_06 - \
+        \Can create a migration plan for a wallet that has rewards."
+        $ \ctx -> runResourceT $ do
+            (sourceWallet, _sourceWalletMnemonic) <- rewardWallet ctx
+            -- Check that the source wallet has the expected balance.
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField (#balance . #reward . #getQuantity)
+                    (`shouldBe` 1_000_000_000_000)
+                , expectField (#balance . #available . #getQuantity)
+                    (`shouldBe`   100_000_000_000)
+                , expectField (#balance . #total . #getQuantity)
+                    (`shouldBe` 1_100_000_000_000)
+                ]
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+            let ep = Link.createMigrationPlan @'Shelley sourceWallet
+            response <- request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+            verify response
+                [ expectResponseCode HTTP.status202
+                , expectField (#totalFee . #getQuantity)
+                    (`shouldBe` 139_300)
+                , expectField (#selections)
+                    ((`shouldBe` 1) . length)
+                , expectField (#selections)
+                    ((`shouldBe` 1) . length . view #withdrawals . NE.head)
+                , expectField (#selections)
+                    ((`shouldBe` 1_000_000_000_000)
+                        . view #getQuantity
+                        . view #amount
+                        . head
+                        . view #withdrawals
+                        . NE.head)
+                , expectField (#balanceSelected . #ada . #getQuantity)
+                    (`shouldBe` 1_100_000_000_000)
+                , expectField (#balanceLeftover . #ada . #getQuantity)
+                    (`shouldBe` 0)
+                ]
 
     describe "SHELLEY_MIGRATE_01 - \
         \After a migration operation successfully completes, the correct \
