@@ -196,7 +196,6 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         (errMsg404NoWallet $ sourceWallet ^. walletId)
                     ]
 
-
     it "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
         \Cannot create a plan for a wallet that only contains freeriders."
         $ \ctx -> runResourceT $ do
