@@ -57,14 +57,10 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.Maybe
-    ( mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Word
-    ( Word64 )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -782,19 +778,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 ]
   where
     -- Compute the fee associated with an API transaction.
-    apiTransactionFee :: ApiTransaction n -> Word64
-    apiTransactionFee t =
-        inputBalance t - outputBalance t
-      where
-        inputBalance = fromIntegral
-            . sum
-            . fmap (view (#amount . #getQuantity))
-            . mapMaybe ApiTypes.source
-            . view #inputs
-        outputBalance = fromIntegral
-            . sum
-            . fmap (view (#amount . #getQuantity))
-            . view #outputs
+    apiTransactionFee :: ApiTransaction n -> Natural
+    apiTransactionFee = view (#fee . #getQuantity)
 
     migrateWallet
         :: Context
