@@ -105,9 +105,6 @@ module Cardano.Wallet.Api.Link
     , getCurrentSMASHHealth
 
      -- * Shared Wallets
-    , postSharedWallet
-    , deleteSharedWallet
-    , getSharedWallet
     , patchSharedWallet
 
      -- * SharedWalletKeys
@@ -131,7 +128,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, NetworkDiscriminant (..), Role )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, SmashServer, SortOrder, WalletId (..) )
@@ -193,6 +190,9 @@ instance PostWallet 'Shelley where
 instance PostWallet 'Byron where
     postWallet = endpoint @Api.PostByronWallet id
 
+instance PostWallet 'Shared where
+    postWallet = endpoint @Api.PostSharedWallet id
+
 deleteWallet
     :: forall (style :: WalletStyle) w.
         ( Discriminate style
@@ -203,6 +203,7 @@ deleteWallet
 deleteWallet w = discriminate @style
     (endpoint @Api.DeleteWallet (wid &))
     (endpoint @Api.DeleteByronWallet (wid &))
+    (endpoint @Api.DeleteSharedWallet (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -216,6 +217,7 @@ getWallet
 getWallet w = discriminate @style
     (endpoint @Api.GetWallet (wid &))
     (endpoint @Api.GetByronWallet (wid &))
+    (endpoint @Api.GetSharedWallet (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -229,6 +231,7 @@ getUTxOsStatistics
 getUTxOsStatistics w = discriminate @style
     (endpoint @Api.GetUTxOsStatistics (wid &))
     (endpoint @Api.GetByronUTxOsStatistics (wid &))
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -240,6 +243,7 @@ listWallets
 listWallets = discriminate @style
     (endpoint @Api.ListWallets id)
     (endpoint @Api.ListByronWallets id)
+    (endpoint @Api.ListSharedWallets id)
 
 putWallet
     :: forall (style :: WalletStyle) w.
@@ -251,6 +255,7 @@ putWallet
 putWallet w = discriminate @style
     (endpoint @Api.PutWallet (wid &))
     (endpoint @Api.PutByronWallet (wid &))
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -264,6 +269,7 @@ putWalletPassphrase
 putWalletPassphrase w = discriminate @style
     (endpoint @Api.PutWalletPassphrase (wid &))
     (endpoint @Api.PutByronWalletPassphrase (wid &))
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -277,6 +283,7 @@ migrateWallet
 migrateWallet w = discriminate @style
     (endpoint @(Api.MigrateShelleyWallet Net) (wid &))
     (endpoint @(Api.MigrateByronWallet Net) (wid &))
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -290,6 +297,7 @@ createMigrationPlan
 createMigrationPlan w = discriminate @style
     (endpoint @(Api.CreateShelleyWalletMigrationPlan Net) (wid &))
     (endpoint @(Api.CreateByronWalletMigrationPlan Net) (wid &))
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -382,6 +390,7 @@ listAddresses'
 listAddresses' w mstate = discriminate @style
     (endpoint @(Api.ListAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
     (endpoint @(Api.ListByronAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
+    (endpoint @(Api.ListSharedAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -410,6 +419,7 @@ selectCoins
 selectCoins w = discriminate @style
     (endpoint @(Api.SelectCoins Net) (wid &))
     (endpoint @(Api.ByronSelectCoins Net) (wid &))
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -485,6 +495,7 @@ createTransaction
 createTransaction w = discriminate @style
     (endpoint @(Api.CreateTransaction Net) (wid &))
     (endpoint @(Api.CreateByronTransaction Net) (wid &))
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -514,6 +525,7 @@ listTransactions' w minWithdrawal inf sup order = discriminate @style
         (\mk -> mk wid (MinWithdrawal <$> minWithdrawal) inf sup (ApiT <$> order)))
     (endpoint @(Api.ListByronTransactions Net)
         (\mk -> mk wid inf sup (ApiT <$> order)))
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -527,6 +539,7 @@ getTransactionFee
 getTransactionFee w = discriminate @style
     (endpoint @(Api.PostTransactionFee Net) (wid &))
     (endpoint @(Api.PostByronTransactionFee Net) (wid &))
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
 
@@ -542,6 +555,7 @@ deleteTransaction
 deleteTransaction w t = discriminate @style
     (endpoint @Api.DeleteTransaction mkURL)
     (endpoint @Api.DeleteByronTransaction mkURL)
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))
@@ -559,6 +573,7 @@ getTransaction
 getTransaction w t = discriminate @style
     (endpoint @(Api.GetTransaction Net) mkURL)
     (endpoint @(Api.GetByronTransaction Net) mkURL)
+    notSupported
   where
     wid = w ^. typed @(ApiT WalletId)
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))
@@ -690,33 +705,6 @@ getCurrentSMASHHealth' smash =
 --
 -- Shared Wallets
 --
-postSharedWallet
-    :: (Method, Text)
-postSharedWallet =
-    endpoint @Api.PostSharedWallet id
-
-deleteSharedWallet
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-deleteSharedWallet w =
-    endpoint @Api.DeleteSharedWallet (wid &)
-  where
-    wid = w ^. typed @(ApiT WalletId)
-
-getSharedWallet
-    :: forall w.
-        ( HasType (ApiT WalletId) w
-        )
-    => w
-    -> (Method, Text)
-getSharedWallet w =
-    endpoint @Api.GetSharedWallet (wid &)
-  where
-    wid = w ^. typed @(ApiT WalletId)
-
 patchSharedWallet
     :: forall w.
         ( HasType (ApiT WalletId) w
@@ -811,13 +799,19 @@ endpoint mk =
 
 -- Returns first argument for Shelley style wallet, second argument otherwise.
 class Discriminate (style :: WalletStyle) where
-    discriminate :: a -> a -> a
+    discriminate :: a -> a -> a -> a
 
 instance Discriminate 'Shelley where
-    discriminate a _ = a
+    discriminate a _ _ = a
 
 instance Discriminate 'Byron where
-    discriminate _ a = a
+    discriminate _ a _ = a
+
+instance Discriminate 'Shared where
+    discriminate _ _ a = a
+
+notSupported :: a
+notSupported = error "Endpoint not supported for Shared style"
 
 -- | Some endpoints are parameterized via a network discriminant in order to
 -- correctly encode their end type (for example, 'CreateTransaction n'). Yet, in

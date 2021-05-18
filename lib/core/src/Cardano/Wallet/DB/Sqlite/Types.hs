@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , getAddressPoolGap
     , mkAddressPoolGap
     )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)

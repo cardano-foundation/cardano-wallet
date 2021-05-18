@@ -398,6 +398,7 @@ import qualified Data.Text.Read as T
 data WalletStyle
     = Shelley
     | Byron
+    | Shared
 
 data ByronWalletStyle
     = Random
@@ -1548,10 +1549,12 @@ instance ToJSON ApiVerificationKeyShared where
             UtxoExternal -> case hashed of
                 WithHashing -> [humanReadablePart|addr_shared_vkh|]
                 WithoutHashing -> [humanReadablePart|addr_shared_vk|]
+            UtxoInternal -> case hashed of
+                WithHashing -> [humanReadablePart|addr_shared_vkh|]
+                WithoutHashing -> [humanReadablePart|addr_shared_vk|]
             MutableAccount -> case hashed of
                 WithHashing -> [humanReadablePart|stake_shared_vkh|]
                 WithoutHashing -> [humanReadablePart|stake_shared_vk|]
-            _ -> error "only role=0,2 is supported for ApiVerificationKeyShared"
 
 instance FromJSON ApiVerificationKeyShared where
     parseJSON value = do

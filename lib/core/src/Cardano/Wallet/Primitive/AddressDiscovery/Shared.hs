@@ -21,7 +21,7 @@
 -- An implementation of shared script state using
 -- scheme specified in CIP-1854 Multi-signature Wallets.
 
-module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     (
     -- ** State
       SharedState (..)
@@ -82,11 +82,18 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     , toNetworkTag
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GetAccount (..), IsOurs (..), coinTypeAda )
+    ( CompareDiscovery (..)
+    , GetAccount (..)
+    , GetPurpose
+    , IsOurs (..)
+    , KnownAddresses (..)
+    , coinTypeAda
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
     , ParentContext (..)
+    , addresses
     , context
     , lookupAddress
     , mkAddressPool
@@ -447,6 +454,36 @@ instance GetAccount (SharedState n k) k where
     getAccount (SharedState _ (ReadyFields pool)) =
         let (ParentContextShared accXPub _ _) = context pool
         in accXPub
+
+instance
+    ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , MkKeyFingerprint k Address
+    , SoftDerivation k
+    , Typeable n
+    ) => CompareDiscovery (SharedState n k) where
+    compareDiscovery (SharedState _ state) a1 a2 = case state of
+        PendingFields _ -> error "comparing addresses in pending shared state does not make sense"
+        ReadyFields pool ->
+            case (ix a1 pool, ix a2 pool) of
+                (Nothing, Nothing) -> EQ
+                (Nothing, Just _)  -> GT
+                (Just _, Nothing)  -> LT
+                (Just i1, Just i2) -> compare i1 i2
+      where
+        ix :: Address -> AddressPool 'UtxoExternal k -> Maybe (Index 'Soft 'AddressK)
+        ix a = fst . lookupAddress @n id a
+
+instance
+    ( Typeable n
+    , GetPurpose k
+    ) => KnownAddresses (SharedState n k) where
+    knownAddresses (SharedState _ s) = nonChangeAddresses
+      where
+          -- TODO - After enabling txs for shared wallets we will need to expand this
+          nonChangeAddresses = case s of
+              PendingFields _ -> []
+              ReadyFields externalPool ->
+                  addresses (liftPaymentAddress @n @k) externalPool
 
 data CredentialType = Payment | Delegation
     deriving (Eq, Show, Generic)

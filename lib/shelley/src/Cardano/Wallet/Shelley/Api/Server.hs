@@ -32,6 +32,7 @@ import Cardano.Wallet
     , genesisData
     , networkLayer
     , normalizeDelegationAddress
+    , normalizeSharedAddress
     )
 import Cardano.Wallet.Api
     ( Addresses
@@ -49,6 +50,7 @@ import Cardano.Wallet.Api
     , Proxy_
     , SMASH
     , Settings
+    , SharedAddresses
     , SharedWalletKeys
     , SharedWallets
     , ShelleyMigrations
@@ -152,7 +154,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..), SharedState )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
@@ -236,6 +238,7 @@ server byron icarus shelley multisig spl ntp =
     :<|> smash
     :<|> sharedWallets multisig
     :<|> sharedWalletKeys multisig
+    :<|> sharedAddresses multisig
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -501,6 +504,7 @@ server byron icarus shelley multisig spl ntp =
     sharedWallets apilayer =
              (postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey)
         :<|> (fmap fst . getWallet apilayer mkSharedWallet)
+        :<|> (fmap fst <$> listWallets apilayer mkSharedWallet)
         :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment)
         :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation)
         :<|> (deleteWallet apilayer)
@@ -511,6 +515,12 @@ server byron icarus shelley multisig spl ntp =
     sharedWalletKeys apilayer =
              (derivePublicKeyShared apilayer)
         :<|> (postAccountPublicKey apilayer ApiAccountKeyShared)
+
+    sharedAddresses
+        :: ApiLayer (SharedState n SharedKey) SharedKey
+        -> Server (SharedAddresses n)
+    sharedAddresses apilayer =
+             (listAddresses apilayer (normalizeSharedAddress @_ @SharedKey @n))
 
 postAnyAddress
     :: NetworkId

@@ -9,7 +9,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDiscovery.SharedStateSpec
+module Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
     ( spec
     ) where
 
@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..), constructAddressFromIx )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), addresses, mkUnboundedAddressPoolGap )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( SharedState (..)
     , SharedStateFields (..)
     , isShared

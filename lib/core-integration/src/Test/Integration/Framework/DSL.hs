@@ -84,6 +84,8 @@ module Test.Integration.Framework.DSL
     -- * Wallet helpers
     , listFilteredWallets
     , listFilteredByronWallets
+    , listFilteredSharedWallets
+    , getWalletIdFromSharedWallet
 
     -- * Helpers
     , (</>)
@@ -270,7 +272,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( coinTypeAda )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
@@ -1400,12 +1402,12 @@ postSharedWallet
 postSharedWallet ctx headers payload = snd <$> allocate create (free . snd)
   where
     create =
-        request @ApiSharedWallet ctx Link.postSharedWallet headers payload
+        request @ApiSharedWallet ctx (Link.postWallet @'Shared) headers payload
 
     free (Right (ApiSharedWallet (Left w))) = void $ request @Aeson.Value ctx
-        (Link.deleteSharedWallet w) Default Empty
+        (Link.deleteWallet @'Shared w) Default Empty
     free (Right (ApiSharedWallet (Right w))) = void $ request @Aeson.Value ctx
-        (Link.deleteSharedWallet w) Default Empty
+        (Link.deleteWallet @'Shared w) Default Empty
     free (Left _) = return ()
 
 deleteSharedWallet
@@ -1421,7 +1423,7 @@ deleteSharedWallet ctx = \case
       ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException Value)
-      r w = request @Aeson.Value ctx (Link.deleteSharedWallet w) Default Empty
+      r w = request @Aeson.Value ctx (Link.deleteWallet @'Shared w) Default Empty
 
 getSharedWallet
     :: forall m.
@@ -1436,7 +1438,7 @@ getSharedWallet ctx = \case
     ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiSharedWallet)
-      r w = request @ApiSharedWallet ctx (Link.getSharedWallet w) Default Empty
+      r w = request @ApiSharedWallet ctx (Link.getWallet @'Shared w) Default Empty
 
 getSharedWalletKey
     :: forall m.
@@ -2204,6 +2206,20 @@ listFilteredByronWallets include ctx = do
     (s, mwallets) <- request @[ApiByronWallet] ctx
         (Link.listWallets @'Byron) Default Empty
     return (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
+
+listFilteredSharedWallets
+    :: (MonadIO m, MonadUnliftIO m)
+    => Set Text -- ^ Set of walletIds to include
+    -> Context
+    -> m (HTTP.Status, Either RequestException [ApiSharedWallet])
+listFilteredSharedWallets include ctx = do
+    (s, mwallets) <- request @[ApiSharedWallet] ctx
+        (Link.listWallets @'Shared) Default Empty
+    return (s, filter (\w -> (getWalletIdFromSharedWallet w ^. walletId) `Set.member` include) <$> mwallets)
+
+getWalletIdFromSharedWallet :: ApiSharedWallet -> ApiT WalletId
+getWalletIdFromSharedWallet (ApiSharedWallet (Right res)) = res ^. #id
+getWalletIdFromSharedWallet (ApiSharedWallet (Left res)) = res ^. #id
 
 -- | Wait for a booting wallet server to start. Wait up to 30s or fail.
 waitForServer
