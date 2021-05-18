@@ -479,7 +479,7 @@ instance
     ) => KnownAddresses (SharedState n k) where
     knownAddresses (SharedState _ s) = nonChangeAddresses
       where
-          -- TO_DO - After enabling txs for shared wallets we will need to expand this
+          -- TODO - After enabling txs for shared wallets we will need to expand this
           nonChangeAddresses = case s of
               PendingFields _ -> []
               ReadyFields externalPool ->

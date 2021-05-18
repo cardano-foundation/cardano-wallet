@@ -846,6 +846,35 @@ spec = describe "SHARED_WALLETS" $ do
             expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
             expectListField addrNum #derivationPath
                 (`shouldSatisfy` (isValidDerivationPath purposeCIP1854)) r
+
+    it "SHARED_ADDRESSES_LIST_02 - Can list known addresses on a pending wallet" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        verify rPost
+            [ expectResponseCode HTTP.status201
+            ]
+        let (ApiSharedWallet (Left wal)) = getFromResponse id rPost
+
+        r <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared wal) Default Empty
+        expectResponseCode HTTP.status200 r
+        expectListSize 0 r
   where
      getAccountWallet name = do
           (_, accXPubTxt):_ <- liftIO $ genXPubs 1

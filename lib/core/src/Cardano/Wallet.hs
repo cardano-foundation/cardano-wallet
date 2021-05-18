@@ -436,7 +436,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromJust, fromMaybe, mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -2357,10 +2357,10 @@ normalizeSharedAddress s@(SharedState _ state') addr = case state' of
         let (ParentContextShared _ _ dTM) = Seq.context pool
         fingerprint <- eitherToMaybe (paymentKeyFingerprint @k addr)
         let (ixM, _) = isShared addr s
-        case dTM of
-            Just dT ->
-                pure $ Shared.liftDelegationAddress @n (fromJust ixM) dT fingerprint
-            Nothing ->
+        case (dTM, ixM) of
+            (Just dT, Just ix) ->
+                pure $ Shared.liftDelegationAddress @n ix dT fingerprint
+            _ ->
                 pure $ Shared.liftPaymentAddress @n fingerprint
 
 {-------------------------------------------------------------------------------
