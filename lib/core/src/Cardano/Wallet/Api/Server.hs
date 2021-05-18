@@ -472,8 +472,6 @@ import Data.Time
     ( UTCTime )
 import Data.Type.Equality
     ( (:~:) (..), type (==), testEquality )
-import Data.Void
-    ( Void )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -2082,7 +2080,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
     maybeSelections = fmap mkApiCoinSelectionForMigration <$> maybeUnsignedTxs
 
     maybeSelectionWithdrawals
-        :: Maybe (NonEmpty (SelectionResult Void, Withdrawal))
+        :: Maybe (NonEmpty (W.SelectionResultWithoutChange, Withdrawal))
     maybeSelectionWithdrawals
         = W.migrationPlanToSelectionWithdrawals plan rewardWithdrawal
         $ getApiT . fst <$> addresses
