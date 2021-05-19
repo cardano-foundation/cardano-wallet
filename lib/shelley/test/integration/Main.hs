@@ -137,7 +137,7 @@ import UnliftIO.Async
 import UnliftIO.Exception
     ( SomeException, isAsyncException, throwIO, withException )
 import UnliftIO.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
+    ( newEmptyMVar, newMVar, putMVar, takeMVar, withMVar )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Pool.DB as Pool
@@ -256,6 +256,8 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
                 era <- clusterToApiEra <$> clusterEraFromEnv
 
+                mintSeaHorseAssetsLock <- newMVar ()
+
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = (baseUrl, manager)
@@ -266,9 +268,11 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = era
                     , _smashUrl = smashUrl
-                    , _mintSeaHorseAssets = \nPerAddr c addrs -> do
-                        sendFaucetAssetsTo tr' faucetConn testDir 1 $
-                            encodeAddresses (seaHorseTestAssets nPerAddr c addrs)
+                    , _mintSeaHorseAssets = \nPerAddr c addrs ->
+                        withMVar mintSeaHorseAssetsLock $ \() ->
+                            sendFaucetAssetsTo tr' faucetConn testDir 1
+                                $ encodeAddresses
+                                $ seaHorseTestAssets nPerAddr c addrs
                     }
         let action' = bracketTracer' tr "spec" . action
         res <- race
