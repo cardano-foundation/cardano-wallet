@@ -150,13 +150,14 @@ import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigratio
 import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
+import qualified Test.Integration.Scenario.API.Shared.Addresses as SharedAddresses
+import qualified Test.Integration.Scenario.API.Shared.Wallets as SharedWallets
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.CoinSelections as CoinSelections
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Shelley.Migrations as Migrations
 import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
 import qualified Test.Integration.Scenario.API.Shelley.Settings as Settings
-import qualified Test.Integration.Scenario.API.Shelley.SharedWallets as SharedWallets
 import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
@@ -184,6 +185,7 @@ main = withTestsSetup $ \testDir tracers -> do
                     ByronCoinSelections.spec @n
                     Wallets.spec @n
                     SharedWallets.spec @n
+                    SharedAddresses.spec @n
                     ByronWallets.spec @n
                     HWWallets.spec @n
                     Migrations.spec @n
