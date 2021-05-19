@@ -255,4 +255,9 @@ def teardown
   ws.list.each do |w|
     ws.delete w['id']
   end
+
+  wsh = SHARED.wallets
+  wsh.list.each do |w|
+    wsh.delete w['id']
+  end
 end
