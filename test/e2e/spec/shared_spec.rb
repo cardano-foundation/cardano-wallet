@@ -337,7 +337,6 @@ RSpec.describe CardanoWallet::Shared do
       }
 
       it "Get public key - pending wallet from mnemonics" do
-        pending "utxo_internal returns empty response"
         m24 = mnemonic_sentence(24)
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
         pending_wid = create_pending_shared_wallet(m24, '0H', acc_xpub)
@@ -358,7 +357,6 @@ RSpec.describe CardanoWallet::Shared do
       end
 
       it "Get public key - pending wallet from acc pub key" do
-        pending "utxo_internal returns empty response"
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
@@ -380,7 +378,6 @@ RSpec.describe CardanoWallet::Shared do
       end
 
       it "Get public key - active wallet from mnemonics" do
-        pending "utxo_internal returns empty response"
         m24 = mnemonic_sentence(24)
         active_wid = create_pending_shared_wallet(m24, '11H', 'self')
 
@@ -400,7 +397,6 @@ RSpec.describe CardanoWallet::Shared do
       end
 
       it "Get public key - active wallet from acc pub key" do
-        pending "utxo_internal returns empty response"
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
