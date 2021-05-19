@@ -77,7 +77,7 @@ ASSETS = [ { "policy_id" => "789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff
             },
          ]
 
-def create_pending_shared_wallet(m, acc_ix, acc_xpub)
+def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
   script_template = { 'cosigners' =>
                         { 'cosigner#0' => acc_xpub },
                       'template' =>
