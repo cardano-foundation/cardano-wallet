@@ -90,39 +90,39 @@ RSpec.describe CardanoWallet::Misc do
     describe "Construct addresses" do
       it "Enterprise script address - signature" do
         script = {
-                  "payment": "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a"
+                  "payment": "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq"
                  }
         res = UTILS.post_address(script)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1wp6eswctz5wzrv3ceh3h4y3na2t6d95sjn23dawy0zlzg0q569eke"
+        expect(res.to_s).to include "addr_test1wrrqr8fmk4ulc7pgycd96fuqcg40e5ecuway0ypc2tsnteqqu6qs0"
       end
 
       it "Enterprise script address - any" do
         script = {
                   "payment": {
                       "any": [
-                          "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                          "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                          "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                          "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp"
                           ]
                       }
                   }
         res = UTILS.post_address(script)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1wzt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxyc2ykp4j"
+        expect(res.to_s).to include "addr_test1wrjtlgneqelxxlckcsgrkd7rd6ycrgegu5th24x0f058gmqvc8s20"
       end
 
       it "Enterprise script address - all" do
         script = {
                   "payment": {
                       "all": [
-                          "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                          "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                          "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                          "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp"
                           ]
                       }
                   }
         res = UTILS.post_address(script)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1wp4h4mtdkxr2x68zx4tk0cgmd9hymjgsuhmzaxkg5tkl3scr8umfh"
+        expect(res.to_s).to include "addr_test1wpq0ghwy73wapjcdwqxm6ytwe66j8eccsmn9jptshrjerashp7y82"
       end
 
       it "Enterprise script address - some" do
@@ -130,9 +130,9 @@ RSpec.describe CardanoWallet::Misc do
                   "payment": {
                       "some": {
                           "from": [
-                              "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                              "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                              "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                              "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                              "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                              "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                               ],
                            "at_least": 2
                            }
@@ -140,21 +140,21 @@ RSpec.describe CardanoWallet::Misc do
                  }
         res = UTILS.post_address(script)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1wq5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclcp983gu"
+        expect(res.to_s).to include "addr_test1wqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84agpc0nuz"
       end
 
       it "Reward account script address - any" do
         script = {
                   "stake": {
                       "any": [
-                          "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                          "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                          "stake_shared_vkh1nqc00hvlc6cq0sfhretk0rmzw8dywmusp8retuqnnxzajtzhjg5",
+                          "stake_shared_vkh1nac0awgfa4zjsh4elnjmsscz0huhss8q2g0x3n7m539mwaa5m7s"
                           ]
                       }
                   }
         res = UTILS.post_address(script)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "stake_test17zt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxyc2vgezc"
+        expect(res.to_s).to include "stake_test17qshpfjkgh98wumvnn9y3yfhevllp4y04u6y84q3flxcv9s2kvrnx"
       end
 
       it "Delegating script address - any" do
@@ -162,9 +162,9 @@ RSpec.describe CardanoWallet::Misc do
                     "payment": {
                         "some": {
                             "from": [
-                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                                "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                                "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                                "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                                 ],
                              "at_least": 2
                              }
@@ -178,7 +178,7 @@ RSpec.describe CardanoWallet::Misc do
                   }
         res = UTILS.post_address(script)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1xq5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zrmajh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfsjg2j62"
+        expect(res.to_s).to include "addr_test1wqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84agpc0nuz"
       end
 
       it "Enterprise pub key address" do
@@ -214,9 +214,9 @@ RSpec.describe CardanoWallet::Misc do
                   "payment": {
                       "some": {
                           "from": [
-                              "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                              "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                              "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                              "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                              "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                              "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                               ],
                            "at_least": 2
                            }
@@ -225,7 +225,7 @@ RSpec.describe CardanoWallet::Misc do
                  }
         res = UTILS.post_address(script)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1zq5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacle5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7su0qjlj"
+        expect(res.to_s).to include "addr_test1zqqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84af5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7sq4jdnx"
       end
 
       it "Delegating address - payment from key, stake from script" do
@@ -234,9 +234,9 @@ RSpec.describe CardanoWallet::Misc do
                   "stake": {
                       "some": {
                           "from": [
-                              "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                              "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                              "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                              "addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq",
+                              "addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp",
+                              "addr_shared_vkh175wsm9ckhm3snwcsn72543yguxeuqm7v9r6kl6gx57h8gdydcd9"
                               ],
                            "at_least": 2
                            }
@@ -244,7 +244,7 @@ RSpec.describe CardanoWallet::Misc do
                    }
         res = UTILS.post_address(script)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "addr_test1ypqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfffxzlhgvlzh6drdsm04j43jk2wpsnqw7uketsgelghm3lsmpggt5"
+        expect(res.to_s).to include "addr_test1ypqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgph8kaew0fj7jd6s3l4ms4wnjp8s3a53qxl76wqmy60t6snk9ahl"
       end
 
     end
