@@ -97,15 +97,15 @@ def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
                 payment_script_template: pscript,
                 delegation_script_template: dscript,
                 }
-   else
-     payload = { account_public_key: m,
-                 passphrase: PASS,
-                 name: "Shared wallet",
-                 account_index: acc_ix,
-                 payment_script_template: pscript,
-                 delegation_script_template: dscript
-                 }
-   end
+  else
+    payload = { account_public_key: m,
+                passphrase: PASS,
+                name: "Shared wallet",
+                account_index: acc_ix,
+                payment_script_template: pscript,
+                delegation_script_template: dscript
+                }
+  end
 
   SHARED.wallets.create(payload)['id']
 end
@@ -129,15 +129,15 @@ def create_active_shared_wallet(m, acc_ix, acc_xpub)
                 payment_script_template: pscript,
                 delegation_script_template: dscript,
                 }
-   else
-     payload = { account_public_key: m,
-                 passphrase: PASS,
-                 name: "Shared wallet",
-                 account_index: acc_ix,
-                 payment_script_template: pscript,
-                 delegation_script_template: dscript
-                 }
-   end
+  else
+    payload = { account_public_key: m,
+                passphrase: PASS,
+                name: "Shared wallet",
+                account_index: acc_ix,
+                payment_script_template: pscript,
+                delegation_script_template: dscript
+                }
+  end
 
   SHARED.wallets.create(payload)['id']
 end

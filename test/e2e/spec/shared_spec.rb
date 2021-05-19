@@ -347,6 +347,80 @@ RSpec.describe CardanoWallet::Shared do
       end
     end
 
+    describe "Addresses" do
+      it "Can list addresses on active shared wallet - from pub key" do
+        m24 = mnemonic_sentence(24)
+        acc_ix = '0H'
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
+        active_wid = create_active_shared_wallet(acc_xpub, acc_ix, "self")
+
+        a = SHARED.addresses.list(active_wid)
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 20
+
+        a = SHARED.addresses.list(active_wid, { state: "used" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+
+        a = SHARED.addresses.list(active_wid, { state: "unused" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 20
+      end
+
+      it "Can list addresses on active shared wallet - from mnemonics" do
+        m24 = mnemonic_sentence(24)
+        active_wid = create_active_shared_wallet(m24, '0H', "self")
+
+        a = SHARED.addresses.list(active_wid)
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 20
+
+        a = SHARED.addresses.list(active_wid, { state: "used" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+
+        a = SHARED.addresses.list(active_wid, { state: "unused" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 20
+      end
+
+      it "Lists empty addresses on incomplete shared wallet - from pub key" do
+        m24 = mnemonic_sentence(24)
+        acc_ix = '0H'
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
+        active_wid = create_incomplete_shared_wallet(acc_xpub, acc_ix, "self")
+
+        a = SHARED.addresses.list(active_wid)
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+
+        a = SHARED.addresses.list(active_wid, { state: "used" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+
+        a = SHARED.addresses.list(active_wid, { state: "unused" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+      end
+
+      it "Lists empty addresses on incomplete shared wallet - from mnemonics" do
+        m24 = mnemonic_sentence(24)
+        active_wid = create_incomplete_shared_wallet(m24, '0H', "self")
+
+        a = SHARED.addresses.list(active_wid)
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+
+        a = SHARED.addresses.list(active_wid, { state: "used" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+
+        a = SHARED.addresses.list(active_wid, { state: "unused" })
+        expect(a).to be_correct_and_respond 200
+        expect(a.size).to be 0
+      end
+    end
+
     describe "Public Keys" do
       matrix = {
         "utxo_internal" => "addr_shared_vk",
@@ -373,7 +447,7 @@ RSpec.describe CardanoWallet::Shared do
 
         matrix_h.each do |role, addr_prefix|
           id = [*0..100000].sample
-          res = SHARED.keys.get_public_key(incomplete_wid, role, id, {hash: true})
+          res = SHARED.keys.get_public_key(incomplete_wid, role, id, { hash: true })
           expect(res).to be_correct_and_respond 200
           expect(res.to_s).to include addr_prefix
         end
@@ -394,7 +468,7 @@ RSpec.describe CardanoWallet::Shared do
 
         matrix_h.each do |role, addr_prefix|
           id = [*0..100000].sample
-          res = SHARED.keys.get_public_key(incomplete_wid, role, id, {hash: true})
+          res = SHARED.keys.get_public_key(incomplete_wid, role, id, { hash: true })
           expect(res).to be_correct_and_respond 200
           expect(res.to_s).to include addr_prefix
         end
@@ -413,7 +487,7 @@ RSpec.describe CardanoWallet::Shared do
 
         matrix_h.each do |role, addr_prefix|
           id = [*0..100000].sample
-          res = SHARED.keys.get_public_key(active_wid, role, id, {hash: true})
+          res = SHARED.keys.get_public_key(active_wid, role, id, { hash: true })
           expect(res).to be_correct_and_respond 200
           expect(res.to_s).to include addr_prefix
         end
@@ -434,7 +508,7 @@ RSpec.describe CardanoWallet::Shared do
 
         matrix_h.each do |role, addr_prefix|
           id = [*0..100000].sample
-          res = SHARED.keys.get_public_key(active_wid, role, id, {hash: true})
+          res = SHARED.keys.get_public_key(active_wid, role, id, { hash: true })
           expect(res).to be_correct_and_respond 200
           expect(res.to_s).to include addr_prefix
         end
