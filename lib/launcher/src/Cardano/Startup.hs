@@ -41,6 +41,8 @@ import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Text.Class
     ( ToText (..) )
+import GHC.IO.Encoding
+    ( setFileSystemEncoding )
 import System.IO
     ( Handle, hIsOpen, hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
 import System.IO.CodePage
@@ -79,6 +81,7 @@ setUtf8EncodingHandles :: IO ()
 setUtf8EncodingHandles = do
     utf8' <- mkTextEncoding "UTF-8//TRANSLIT"
     mapM_ (`hSetEncoding` utf8') [stdin, stdout, stderr]
+    setFileSystemEncoding utf8'
 
 {-------------------------------------------------------------------------------
                                Shutdown handlers
