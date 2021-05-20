@@ -196,9 +196,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         (errMsg404NoWallet $ sourceWallet ^. walletId)
                     ]
 
-    it "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
+    Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
         \Cannot create a plan for a wallet that only contains freeriders."
-        $ \ctx -> runResourceT $ do
+        $ \ctx -> runResourceT @IO $ do
             sourceWallet <- emptyWallet ctx
             srcAddrs <- map (getApiT . fst . view #id)
                 <$> listAddresses @n ctx sourceWallet
@@ -320,11 +320,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (`shouldBe` 0)
                 ]
 
-    it "SHELLEY_CREATE_MIGRATION_PLAN_07 - \
+    Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_07 - \
         \Can create a complete migration plan for a wallet with a large number \
         \of freerider UTxO entries, but with just enough non-freerider entries \
         \to enable the entire UTxO set to be migrated."
-        $ \ctx -> runResourceT $ do
+        $ \ctx -> runResourceT @IO $ do
 
             -- Create a source wallet with some pure ada entries, where each
             -- ada entry is large enough to create a singleton transaction:
@@ -451,11 +451,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         . TokenMap.getAssets)
                 ]
 
-    it "SHELLEY_CREATE_MIGRATION_PLAN_08 - \
+    Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_08 - \
         \Can create a partial migration plan for a wallet with a large number \
         \of freerider UTxO entries, but with not quite enough non-freerider \
         \entries to enable the entire UTxO set to be migrated."
-        $ \ctx -> runResourceT $ do
+        $ \ctx -> runResourceT @IO $ do
 
             -- Create a source wallet with just one pure ada entry that is
             -- large enough to create a singleton transaction:
