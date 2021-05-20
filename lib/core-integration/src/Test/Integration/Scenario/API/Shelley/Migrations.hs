@@ -203,15 +203,31 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             srcAddrs <- map (getApiT . fst . view #id)
                 <$> listAddresses @n ctx sourceWallet
 
-            -- `_mintSeaHorseAssets` doesn't know how to compute the minimum ada
-            -- amount for a `TokenBundle`. So we provide a custom value here
-            -- that is above the limit, but also as small as possible.
+            -- Add a relatively small number of freerider UTxO entries to the
+            -- source wallet. (Few enough to not require more than one
+            -- transaction within a complete migration plan.)
             --
-            -- I.e. big enough to make the minting succeed, but small enough to
-            -- make the subsequent migration fail.
-            let adaPerBundle = Coin 3_300_000
-
-            liftIO $ _mintSeaHorseAssets ctx 10 adaPerBundle srcAddrs
+            -- We assign to each UTxO entry:
+            --
+            --  - a fixed quantity of non-ada assets.
+            --
+            --  - a fixed quantity of ada that is above the minimum, but not
+            --    enough to allow the entry to be included in a singleton
+            --    transaction (thus making it a freerider).
+            --
+            -- We use '_mintSeaHorseAssets' to mint non-ada assets. Since this
+            -- function doesn't know how to compute the minimum ada quantity
+            -- for a token bundle, we provide a custom ada quantity here. This
+            -- ada quantity is large enough to allow minting to succeed, but
+            -- small enough to make the migration algorithm categorize the
+            -- entry as a freerider.
+            --
+            let perEntryAdaQuantity = Coin 3_300_000
+            let perEntryAssetCount = 10
+            liftIO $ _mintSeaHorseAssets ctx
+                perEntryAssetCount
+                perEntryAdaQuantity
+                srcAddrs
             waitForTxImmutability ctx
 
             -- Check that the minting indeed worked, and that the wallet isn't
