@@ -90,7 +90,6 @@ import Test.Integration.Framework.DSL
     , icarusAddresses
     , json
     , listAddresses
-    , listUnusedAddresses
     , postWallet
     , randomAddresses
     , request
@@ -380,17 +379,13 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let perEntryAdaQuantity = Coin 1_562_500
             let perEntryAssetCount = 1
             let batchSize = 20
-            replicateM_ 6 $ do
-                -- Since the 'listAddresses' endpoint only returns a limited
-                -- number of addresses, we assign assets to source addresses
-                -- in batches.
-                sourceAddresses <- take 20 . map (getApiT . fst . view #id)
-                    <$> listUnusedAddresses @n ctx sourceWallet
-                liftIO $ _mintSeaHorseAssets ctx
-                    perEntryAssetCount
-                    batchSize
-                    perEntryAdaQuantity
-                    sourceAddresses
+            sourceAddresses <- take 20 . map (getApiT . fst . view #id)
+                <$> listAddresses @n ctx sourceWallet
+            replicateM_ 6 $ liftIO $ _mintSeaHorseAssets ctx
+                perEntryAssetCount
+                batchSize
+                perEntryAdaQuantity
+                sourceAddresses
             waitForTxImmutability ctx
 
             -- Check that minting was successful, and that the balance and UTxO
@@ -510,17 +505,13 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let perEntryAdaQuantity = Coin 1_562_500
             let perEntryAssetCount = 1
             let batchSize = 20
-            replicateM_ 6 $ do
-                -- Since the 'listAddresses' endpoint only returns a limited
-                -- number of addresses, we assign assets to source addresses
-                -- in batches.
-                sourceAddresses <- take 20 . map (getApiT . fst . view #id)
-                    <$> listUnusedAddresses @n ctx sourceWallet
-                liftIO $ _mintSeaHorseAssets ctx
-                    perEntryAssetCount
-                    batchSize
-                    perEntryAdaQuantity
-                    sourceAddresses
+            sourceAddresses <- take 20 . map (getApiT . fst . view #id)
+                <$> listAddresses @n ctx sourceWallet
+            replicateM_ 6 $ liftIO $ _mintSeaHorseAssets ctx
+                perEntryAssetCount
+                batchSize
+                perEntryAdaQuantity
+                sourceAddresses
             waitForTxImmutability ctx
 
             -- Check that minting was successful, and that the balance and UTxO
