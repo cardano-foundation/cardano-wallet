@@ -1,6 +1,6 @@
 # Foreword
 
-This file contains agreed-upon coding standards and best practices, as well as proposals for changes or new standards. Proposals are prefixed with `[PROPOSAL]` and are voted on by the wallet backend team through polls on Slack. To be accepted, a practice should be voted with majority + 1, with neutral votes counting as positive votes. 
+This file contains agreed-upon coding standards and best practices, as well as proposals for changes or new standards. Proposals are prefixed with `[PROPOSAL]` and are voted on by the wallet backend team through polls on Slack. To be accepted, a practice should be voted with majority + 1, with neutral votes counting as positive votes.
 
 Each proposal should start with a section justifying the standard with rational arguments. When it makes sense, we should also provide examples of good and bad practices to make the point clearer.
 
@@ -22,6 +22,7 @@ Each proposal should start with a section justifying the standard with rational 
     * [Avoid wildcards when pattern-matching on sum types](#avoid-wildcards-when-pattern-matching-on-sum-types)
     * [Prefer pattern-matching to equality testing on sum types](#prefer-pattern-matching-to-equality-testing-on-sum-types)
     * [Prefer named constants over magic numbers](#prefer-named-constants-over-magic-numbers)
+    * [Be aware of the user's locale](#be-aware-of-users-locale)
 
 * [QuickCheck](#quickcheck)
     * [See your property fail](#see-your-property-fail)
@@ -44,9 +45,9 @@ A `.editorconfig` (see https://editorconfig.org/) at the root of the project spe
 
 - Line length
 - Indentation style (spaces vs tabs)
-- Encoding 
+- Encoding
 
-This file should be parsed and enforced by any contributor's editor. 
+This file should be parsed and enforced by any contributor's editor.
 
 > *Why*
 >
@@ -137,7 +138,7 @@ Haskell provides convenient support for multi-line string literals:
 
 ```Haskell
 -- BAD
-errorAccountFundsCompletelyExhausted = "The funds in this account have been completely spent, and its balance is now zero. Either add more funds to this account or use a different account for this transaction." 
+errorAccountFundsCompletelyExhausted = "The funds in this account have been completely spent, and its balance is now zero. Either add more funds to this account or use a different account for this transaction."
 ```
 ```Haskell
 -- GOOD
@@ -248,9 +249,9 @@ newtype BlockHeader = BlockHeader
 
 Variables, arguments, fields and tokens in general shouldn't be aligned based
 on the length of a previous token. Rather, tokens should go over a new line and
-be indented one-level extra when it makes sense, or not be aligned at all. 
+be indented one-level extra when it makes sense, or not be aligned at all.
 
-> *Why* 
+> *Why*
 >
 > Haskellers have a tendency to over-align everything vertically for the sake
 > of readability. In practice, this is much more of an habit than a real gain
@@ -272,21 +273,21 @@ data AddressPool address = AddressPool
 
 -- GOOD
 data AddressPool address = AddressPool
-    { _addresses 
+    { _addresses
         :: !(Map address Word32)
-    , _gap 
+    , _gap
         :: !AddressPoolGap
     }
 
 -- GOOD
 deriveAccountPrivateKey
-    :: PassPhrase               
-    -> EncryptedSecretKey       
-    -> Word32                   
-    -> Maybe EncryptedSecretKey 
-deriveAccountPrivateKey passPhrase masterEncPrvKey accountIx = 
+    :: PassPhrase
+    -> EncryptedSecretKey
+    -> Word32
+    -> Maybe EncryptedSecretKey
+deriveAccountPrivateKey passPhrase masterEncPrvKey accountIx =
 
--- BAD 
+-- BAD
 myFunction :: Word64 -> Maybe String
 myFunction w = let res = Wrap w in
                case someOp res of
@@ -301,7 +302,7 @@ myFunction :: Int
                         (Map Word32 ([String], Set ByteString)))
 
 -- BAD
-data MyRecord = MyRecord 
+data MyRecord = MyRecord
     { _myRecordLongNameField :: !String
     , _myRecordShort         :: ![Int]
     }
@@ -313,23 +314,23 @@ data MyRecord = MyRecord
 
 Contributors' editors should pick up and enforce the rules defined by the `.stylish-haskell.yaml`
 configuration file at the root of the project. Also, in order to maximize readability, imports
-should be grouped into three groups, separated by a blank newline. 
+should be grouped into three groups, separated by a blank newline.
 
 - Prelude import
 - Explicit imports
 - Qualified imports
 
 > **Why**
-> 
-> It is rather annoying and time-consuming to align import lines or statement
-> as we code and it's much simpler to leave that to our editor. Yet, we do want 
-> to enforce some common formatting such that everyone gets to be aligned (pun
-> intended). 
 >
-> We can use Stylish-Haskell with various set of rules, yet, the same arguments 
-> from 'Avoid Variable-Length Indentation' applies when it comes to automatic 
+> It is rather annoying and time-consuming to align import lines or statement
+> as we code and it's much simpler to leave that to our editor. Yet, we do want
+> to enforce some common formatting such that everyone gets to be aligned (pun
+> intended).
+>
+> We can use Stylish-Haskell with various set of rules, yet, the same arguments
+> from 'Avoid Variable-Length Indentation' applies when it comes to automatic
 > formatting. Imports are a real pain with git and Haskell when they are vertically
-> aligned based on the imported module's name. 
+> aligned based on the imported module's name.
 
 <details>
     <summary>See examples</summary>
@@ -393,7 +394,7 @@ steps:
       align: false
       remove_redundant: true
       style: vertical
-```  
+```
 
 <details>
   <summary>See example</summary>
@@ -454,7 +455,7 @@ robustness.
 > things a bit better for the reader, they have a tendency to spread through
 > the code-base transforming those sweet help spot into traps. We can't define
 > proper instances on type aliases, and we treat them as different type whereas
-> they are behind the scene, just another one. 
+> they are behind the scene, just another one.
 
 <details>
   <summary>See examples</summary>
@@ -462,7 +463,7 @@ robustness.
   ```hs
   -- GOOD
   newtype HardenedIndex = HardenedIndex { getHardenedIndex :: Word32 }
-  deriveAccount :: HardenedIndex -> XPrv -> XPrv 
+  deriveAccount :: HardenedIndex -> XPrv -> XPrv
 
   -- GOOD
   data Scheme = Seq | Rnd
@@ -474,23 +475,23 @@ robustness.
   startNode :: Tagged "nodeId" -> IO ()
 
   -- BAD
-  type HardenedIndex = Word32 
-  deriveAccount :: HardenedIndex -> XPrv -> XPrv 
+  type HardenedIndex = Word32
+  deriveAccount :: HardenedIndex -> XPrv -> XPrv
   ```
 </details>
 
 ## Language extensions are specified on top of each module
 
-Haskell's language extension are specified on top of each module. 
+Haskell's language extension are specified on top of each module.
 
 > **Why**
 >
-> Having a lot of default extensions enabled across the whole project can sometimes lead to cryptic 
-> errors where GHC would interpret things differently because of the enabled extensions. Yet, it's 
-> sometimes hard to distinguish by simply looking at the module themselves. 
+> Having a lot of default extensions enabled across the whole project can sometimes lead to cryptic
+> errors where GHC would interpret things differently because of the enabled extensions. Yet, it's
+> sometimes hard to distinguish by simply looking at the module themselves.
 >
 > Also, being more explicit on extensions used by a module can help speeding up compile-time of such simple modules
-> that don't need to be pull in a lot of extra complexity. 
+> that don't need to be pull in a lot of extra complexity.
 
 <details>
   <summary>See examples</summary>
@@ -499,7 +500,7 @@ Haskell's language extension are specified on top of each module.
   -- GOOD
   {-# LANGUAGE DataKinds #-}
   {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-  {-# LANGUAGE DerivingStrategies #-} 
+  {-# LANGUAGE DerivingStrategies #-}
 
   module Cardano.Wallet where
 
@@ -519,10 +520,10 @@ committed without warnings or errors. When it make senses, developer may ignore
 lints at a function site using a proper annotation:
 
 > **Why**
-> 
+>
 > Linters are common practices in software development and help maintaining consistency across a large codebase with
-> many developers. Hlint is de de-facto linter in Haskell and comes with a lot of different rules and features that 
-> are _most of the time_ rather relevant and convey good practices, agreed upon and shared across the team. 
+> many developers. Hlint is de de-facto linter in Haskell and comes with a lot of different rules and features that
+> are _most of the time_ rather relevant and convey good practices, agreed upon and shared across the team.
 
 e.g.
 
@@ -562,7 +563,7 @@ Apart from the chosen prelude, there should be no implicit imports. Instead,
 every function or class used from a given module should be listed explicitly.
 In case where a function name is ambiguous or requires context, a qualified
 import should be used instead (this is mainly the case for modules coming from
-`containers`, `bytestring` and `aeson`). 
+`containers`, `bytestring` and `aeson`).
 
 > **Why**
 >
@@ -570,7 +571,7 @@ import should be used instead (this is mainly the case for modules coming from
 > foreign code (and every code becomes quite hostile after a while, even if we
 > originally wrote it), it can be hard to understand where functions and
 > abstractions are pulled from. On the other hand, fully qualified imports can
-> become verbose and a real impediment to readability. 
+> become verbose and a real impediment to readability.
 
 <details>
   <summary>See examples</summary>
@@ -584,46 +585,46 @@ import should be used instead (this is mainly the case for modules coming from
       ( ByteString )
   import Data.Map.Strict
       ( Map )
-  import Data.Aeson 
+  import Data.Aeson
       ( FromJSON (..), ToJSON (..) )
-  
-  
+
+
   -- GOOD
   import qualified Data.Map.Strict as Map
   import qualified Data.ByteString as BS
-  
+
   isSubsetOf :: UTxO -> UTxO -> Bool
   isSubsetOf (UTxO a) (UTxO b) =
       a `Map.isSubmapOf` b
-  
+
   (magic, filetype, version) =
       ( BS.take 8 bytes
       , BS.take 4 $ BS.drop 8 bytes
       , BS.take 4 $ BS.drop 12 bytes
       )
-  
-  
+
+
   -- BAD
   import Options.Applicative
-  
-  
+
+
   -- BAD
   import qualified Data.Aeson as Aeson
-  
+
   instance Aeson.FromJSON MyType where
       -- ...
-  
-  
+
+
   -- BAD
-  import Data.Map.Strict 
+  import Data.Map.Strict
     ( filter )
-  import Data.Set 
+  import Data.Set
     ( member )
-  
+
   restrictedTo :: UTxO -> Set TxOut ->  UTxO
   restrictedTo (UTxO utxo) outs =
       UTxO $ filter (`member` outs) utxo
-  ```   
+  ```
 </details>
 
 
@@ -643,7 +644,7 @@ We should keep an eye out out-of-date comments. For instance when creating and r
 > In the legacy code-base, it was common to have multiple functions with the same or similar names, in different modules.
 > Try seaching for `applyBlocks` or `switchToFork`. What is the difference between `DB.Spec.Update.switchToFork` and `DB.AcidState.switchToFork`?
 >
-> Having a comment at the top of each module would be an easy-to-follow rule to better document this. It is also very appropriate for 
+> Having a comment at the top of each module would be an easy-to-follow rule to better document this. It is also very appropriate for
 > our [haddock docs](https://input-output-hk.github.io/cardano-wallet/haddock/).
 >
 > If we re-design a module and forget to update the comment, the comment is no longer useful.
@@ -759,8 +760,8 @@ of the new branches.
 > **Why**
 >
 > When pattern-matching on sum types it is tempting to handle a few similar cases
-> using a wildcard `_`. However, this often leads to undesirable behavior when 
-> adding new branches to an ADT. Compilers won't trigger any warnings and, as 
+> using a wildcard `_`. However, this often leads to undesirable behavior when
+> adding new branches to an ADT. Compilers won't trigger any warnings and, as
 > developers, we might miss some necessary logic updates in existing pattern
 > matches.
 
@@ -809,24 +810,93 @@ prefer pattern matching over equality testing for values of that type.
   <summary>See examples</summary>
 
   ```hs
-  data SortOrder = Ascending | Descending   
-      deriving Eq   
-  
+  data SortOrder = Ascending | Descending
+      deriving Eq
+
   -- BAD
   sortWithOrder' :: Ord a => SortOrder -> [a] -> [a]
-  sortWithOrder' order = f . sort   
-    where   
+  sortWithOrder' order = f . sort
+    where
       f = if order == Ascending then id else reverse
-  
-  -- GOOD   
-  sortWithOrder :: Ord a => SortOrder -> [a] -> [a] 
+
+  -- GOOD
+  sortWithOrder :: Ord a => SortOrder -> [a] -> [a]
   sortWithOrder order = f . sort
-    where   
-      f = case order of 
-          Ascending -> id  
+    where
+      f = case order of
+          Ascending -> id
           Descending -> reverse
   ```
 </details>
+
+## Be aware of the user's locale
+
+Don't assume that the user has set a locale which encodes text with
+UTF-8. There are various 8-bit encodings still in use for European
+languages and Japanese, for example. Additionally, build environments
+such as Docker and Nix often use the default `C` locale, which only
+supports ASCII characters.
+
+> **Why**
+> You have probably seen this common error when running a program
+> written in Haskell:
+>
+> ```
+> hGetContents: invalid argument (invalid character)
+> ```
+>
+> It is often because the program received UTF-8-encoded input, which
+> the programmer assumed was the only possible encoding, but the Haskell
+> base library tried to decode the input with the actual user's locale
+> encoding.
+
+You can test for this issue by running your program with
+`LANG=C`. Conversely, one workaround is the run your program with
+`LANG=en_US.UTF-8`.
+
+<details>
+  <summary>See how to fix it</summary>
+
+  A cheap and easy fix is to adopt the same mentality as with JSON
+  ([everything must be UTF-8](https://datatracker.ietf.org/doc/html/rfc8259#section-8.1)).
+  This is easy on Linux, but on Windows you also have to change
+  the console's encoding, in case it's UTF-16 or something else.
+
+  ```haskell
+  import System.IO
+      ( hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
+  import System.IO.CodePage
+      ( withCP65001 )
+
+  -- | Force the locale text encoding to UTF-8. This is needed because the CLI
+  -- prints UTF-8 characters regardless of the @LANG@ environment variable or any
+  -- other settings.
+  --
+  -- On Windows the current console code page is changed to UTF-8.
+  withUtf8Encoding :: IO a -> IO a
+  withUtf8Encoding action = withCP65001 (setUtf8EncodingHandles >> action)
+
+  setUtf8EncodingHandles :: IO ()
+  setUtf8EncodingHandles = do
+      -- Set up error-resistant codec
+      utf8' <- mkTextEncoding "UTF-8//TRANSLIT"
+      -- Set encoding of handles which are already open
+      mapM_ (`hSetEncoding` utf8') [stdin, stdout, stderr]
+      -- Set default character encoding for file IO and command-line arguments
+      setFileSystemEncoding utf8'
+  ```
+</details>
+
+The other issue is that `Data.Text.Encoding.decodeUtf8` is a partial
+function. Avoid it whenever possible and use `decodeUtf8'` instead.
+See [Diehl: String Conversions](http://dev.stephendiehl.com/hask/#string-conversions).
+
+```terminal
+λ Data.Text.Encoding.decodeUtf8 (Data.ByteString.pack [128])
+"*** Exception: Cannot decode byte '\x80': Data.Text.Internal.Encoding.decodeUtf8: Invalid UTF-8 stream
+λ
+```
+
 
 # QuickCheck
 
@@ -835,10 +905,10 @@ prefer pattern matching over equality testing for values of that type.
 This is a general practice in TDD (**T**est **D**riven **D**evelopment) but
 even more important in property-based testing.  You want to see _how_ your
 property fails and whether, as a developer, you have enough information to
-understand the reason of the failure and debug it. 
+understand the reason of the failure and debug it.
 
 > **Why**
-> 
+>
 > It is really easy to write all sort of properties which, once they fail, give
 > close to no details about the reason why they failed. Yet, as with any tests,
 > one wants to understand what happens. It is therefore important to see
@@ -848,14 +918,14 @@ understand the reason of the failure and debug it.
 ## Define properties as separate functions
 
 It is often tempting to write properties inlined with `hspec` other combinators
-instead of having them as separate functions. However, we recommend writing 
+instead of having them as separate functions. However, we recommend writing
 properties as separate functions, prefixed with a `prop_` prefix to clearly
 identify them.
 
 > **Why**
 >
 > It makes for more readable test files where the set of properties can be easily
-> identified by looking at the top-level exported spec. But more importantly, it 
+> identified by looking at the top-level exported spec. But more importantly, it
 > allows for re-using the property with some regression test cases coming from past
 > failures. Having a separate function makes it easy to simply apply counter examples
 > yielded by QuickCheck as arguments!
@@ -908,15 +978,15 @@ it "Eventually converge for decreasing functions" $ do
 
 Use [counterexample](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:counterexample) to display human-readable
 counter examples when a test fails; in particular, for data-types which have a [Buildable](https://hackage.haskell.org/package/fmt-0.6.1.2/docs/Fmt.html#t:Buildable) instances
-that are typically hard to read through their standard `Show` instance. For monadic properties, this can be used via [monitor](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck-Monadic.html#v:monitor). 
+that are typically hard to read through their standard `Show` instance. For monadic properties, this can be used via [monitor](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck-Monadic.html#v:monitor).
 
 > **Why**
 >
-> Some property-based tests can use complex combinations of inputs that can be hard to decipher 
+> Some property-based tests can use complex combinations of inputs that can be hard to decipher
 > when printed out to the console using only the stock `Show` instance. On the other hand, we
 > want to keep using the stock `Show` instance in order to be able to easily copy-paste failing
-> cases and turn them into regression tests. QuickCheck however provides a good set of tools to 
-> display counter examples on failures to ease debbugging. 
+> cases and turn them into regression tests. QuickCheck however provides a good set of tools to
+> display counter examples on failures to ease debbugging.
 
 <details>
   <summary>See examples</summary>
@@ -929,7 +999,7 @@ property (Bech32.decode corruptedString `shouldSatisfy` isLeft)
         , "         char #1: " <> show char1
         , "         char #2: " <> show char2
         , " original string: " <> show originalString
-        , "corrupted string: " <> show corruptedString 
+        , "corrupted string: " <> show corruptedString
         ]
 
 property (bs' === Just expected)
@@ -985,7 +1055,7 @@ prop_sync s0 = monadicIO $ do
 --    7.195% switched to a longer chain
 --    6.773% rewinded without switch
 --    0.880% rolled back full k
---   
+--
 --   57.516% Intersection hit rate GREAT (75% - 100%)
 --   32.183% Intersection hit rate GOOD  (50% - 75%)
 --   10.292% Intersection hit rate POOR  (10% - 50%)
@@ -1040,8 +1110,8 @@ prop_accuracy r = withMaxSuccess 1000 $ monadicIO $ do
 
 ## Write properties to assert the validity of complex generators (and shrinkers)
 
-Arbitrary generators, and in particular complex ones, should be tested independently 
-to make sure they yield correct values. This also includes shrinkers associated with 
+Arbitrary generators, and in particular complex ones, should be tested independently
+to make sure they yield correct values. This also includes shrinkers associated with
 the generator which can often break some invariants enforced by the generator itself.
 
 > **Why**
@@ -1058,9 +1128,9 @@ the generator which can often break some invariants enforced by the generator it
 ```hs
 --| Checks that generated mock node test cases are valid
 prop_MockNodeGenerator :: S -> Property
-prop_MockNodeGenerator (S n0 ops _ _) = 
+prop_MockNodeGenerator (S n0 ops _ _) =
     prop_continuous .&&. prop_uniqueIds
-  where 
+  where
     prop_continuous :: Property
     prop_continuous =
         conjoin (follow <$> scanl (flip applyNodeOp) n0 (concat ops))
@@ -1068,7 +1138,7 @@ prop_MockNodeGenerator (S n0 ops _ _) =
     prop_uniqueIds :: Property
     prop_uniqueIds =
         length (nub bids) === length bids
-            & counterexample ("Non-unique ID: " ++ show bids) 
+            & counterexample ("Non-unique ID: " ++ show bids)
       where
         bids = concat [map mockBlockId bs | NodeAddBlocks bs <- concat ops]
 
@@ -1084,9 +1154,9 @@ prop_nonSingletonRangeGenerator = property $ \(nsr :: NonSingletonRange Int) ->
 ## Use `checkCoverage` to measure coverage requirements
 
 Using [label](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:label) or [classify](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:classify)
-instruments QuickCheck to gather some metrics about a particular properties and print out results in the console. However, 
-it also possible to _enforce_ that some collected values stay above a certain threshold using [checkCoverage](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:checkCoverage). 
-When used, QuickCheck will run the property as many times as necessary until a particular coverage requirement is satisfied, with a certain confidence. 
+instruments QuickCheck to gather some metrics about a particular properties and print out results in the console. However,
+it also possible to _enforce_ that some collected values stay above a certain threshold using [checkCoverage](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:checkCoverage).
+When used, QuickCheck will run the property as many times as necessary until a particular coverage requirement is satisfied, with a certain confidence.
 
 > **Why**
 >
@@ -1095,9 +1165,9 @@ When used, QuickCheck will run the property as many times as necessary until a p
 > for someone to accidentally make a generator worse for an existing property
 > without noticing it. Therefore, by enforcing clear coverage requirements with
 > `checkCoverage`, one can make a property fail if the coverage drops below an
-> acceptable threshold. For example, a property can measure the proportion of 
+> acceptable threshold. For example, a property can measure the proportion of
 > empty lists its generator yield and require that at least 50% of all generated
-> list are not empty. 
+> list are not empty.
 
 <details>
     <summary>See examples</summary>
@@ -1107,7 +1177,7 @@ prop_rangeIsValid :: Property
 prop_rangeIsValid = property $ \(r :: Range Integer) ->
     rangeIsValid r .&&.  all rangeIsValid (shrink r)
         & cover 10 (rangeIsFinite r) "finite range" $
-        & checkCoverage 
+        & checkCoverage
 
 spec :: Spec
 spec = do
@@ -1116,7 +1186,7 @@ spec = do
             checkCoverageWith lowerConfidence prop_shuffleCanShuffle
         it "shuffle is non-deterministic" $
             checkCoverageWith lowerConfidence prop_shuffleNotDeterministic
-        it "sort (shuffled xs) == sort xs" $ 
+        it "sort (shuffled xs) == sort xs" $
             checkCoverageWith lowerConfidence prop_shufflePreserveElements
   where
     lowerConfidence :: Confidence
@@ -1137,7 +1207,7 @@ in order to lift operation in the property monad.
 >
 > This is very important if the property also contains calls to `monitor`, `label`, `counterexample`
 > and so forth... Using `liftIO` actually breaks the abstraction boundary of the property monad which
-> then makes the reporting with these combinator ineffective. Using `run` however correctly inserts 
+> then makes the reporting with these combinator ineffective. Using `run` however correctly inserts
 > monadic operations and preserve reporting and measures done during the property.
 
 <details>
@@ -1175,14 +1245,14 @@ prop_createWalletTwice db (key@(PrimaryKey wid), cp, meta) =
 Test files do not import other test files. Arbitrary instances are not shared
 across test files and are defined locally. If we do observe a recurring pattern
 in tests (like for instance, testing roundtrips), we may consider making this a
-library that test can import. 
+library that test can import.
 
 > **Why**
-> 
+>
 > It is really easy to make the testing code more complex than the actual code
-> it's initially testing. Limiting the interaction between test modules helps 
-> keeping a good maintainability and a rather low overhead when it comes to 
-> extend, modify, read or comprehend some tests. Also, in many cases, we do 
+> it's initially testing. Limiting the interaction between test modules helps
+> keeping a good maintainability and a rather low overhead when it comes to
+> extend, modify, read or comprehend some tests. Also, in many cases, we do
 > actually want to have different arbitrary generators for different test cases
 > so sharing instances is risky and cumbersome.
 
@@ -1190,11 +1260,11 @@ library that test can import.
 
 Every module from a library has a corresponding test file, within the same
 folder architecture, and, sharing a same name prefix. Test files are postfixed
-with 'Spec' to distinguish them from their corresponding sources. 
+with 'Spec' to distinguish them from their corresponding sources.
 
-> **Why** 
+> **Why**
 >
-> It is much easier to find the corresponding test to a module if they share 
+> It is much easier to find the corresponding test to a module if they share
 > a same name. Also, this gives consistency and a clear pattern for naming
 > tests in order to avoid chaos.
 
