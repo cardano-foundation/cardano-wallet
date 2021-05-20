@@ -100,7 +100,8 @@ library
       Test.Integration.Scenario.API.Shelley.Transactions
       Test.Integration.Scenario.API.Shelley.Migrations
       Test.Integration.Scenario.API.Shelley.Wallets
-      Test.Integration.Scenario.API.Shelley.SharedWallets
+      Test.Integration.Scenario.API.Shared.Wallets
+      Test.Integration.Scenario.API.Shared.Addresses
       Test.Integration.Scenario.API.Network
       Test.Integration.Scenario.CLI.Byron.Wallets
       Test.Integration.Scenario.CLI.Byron.Addresses
