@@ -1,15 +1,15 @@
 {
-    "seed": -5422365735401835244,
+    "seed": -8603412545870348773,
     "samples": [
-        "addr_vk1xf4yxvdnvymxj5t6dy4zszu6q9urv26lz30qk9pzmvf4nptu89aqyg3zyd",
-        "addr_vk1rea8g9pps4ljkpp0rahrvfmr25kz5afz9uezwp3yyevrtxnyl4qqku8mq5",
-        "addr_vk1tp883lljr3s8uqj6c9gqd0sclg7jjgmpc4aq5scayqlzsu3mv9ms5jpumg",
-        "addr_vk1qgxn7yjlxc97wnfkpawkjnpafxuqarmzq9fnhkqwqre5slqepd5scek0zu",
-        "addr_vk1f398gfdgrppg20t4v3mvcyx88vlk7zsqgtmhvftz028pklftxezqyfpp9p",
-        "addr_vk1ne5nqq6yfpvyjztxtf33jwf8vc2kgf2jvcjj2lw0xa77yhf48guskfp5zf",
-        "addr_vk1gq6gnvcfxd20gcfmvp6y5jr9wygxzxfc4f9z66ftduf8cg6lrpmsmn47ac",
-        "stake_vk1ceyjgvgq0azgjxggvq5ujzpwfwgh2sc6r85xzq2edcxkzjepmd6skznfua",
-        "addr_vk1dyqj39zpepf0y30g9awq29pxg5dny5ehpemmwf782g5vvacjqv8qgu8ua9",
-        "addr_vk1qqy9qcjl05sy5z2jrsrqr0029cc9sujvzcdycjturhwjkptd8ylsxkjtxm"
+        "addr_vk1wajkqas5pv7zx6z385y82aeeqvyq9jcp8eunkk6gzehjwjjfd3asxudfwh",
+        "stake_vk1pu4yzyek8p45qjetpszhu5rn9ytpjuevq3q8kdqpr3x68a2awausx3x2jf",
+        "addr_vkh1wuksjm39gt25jhr5fpszzh6h2cq3qhc3zdv0wknm2grycf26j9g",
+        "stake_vk1t5s9s5gudplpggc7q5k4q3p5rg2nzfyrkm3z3nrtgvdygdgtvu3qkd8r8c",
+        "stake_vk1p3hp43902yqjctlvxet9wzpw0vkntcjvxf7q5ac9hag4rhpcvmnqst79xm",
+        "stake_vkh1r9v5xuk29a0yyfj8864fv2qdrqvy7usxxhnyqs3w237jq4k3ftl",
+        "addr_vk10qq9sqg7q8x86c2rgqhzdrqmrgvrkftp39k36nnlttt4caazta4q4qz5p8",
+        "addr_vkh1z6epw7fs8de9za52rpmd9uqrdv6lflmeds0kvtgu8s2ywll5lcv",
+        "addr_vkh1r6kh462nqlq5ypgddaxn2qtld3l82wy49uks23trg9yzzxvp6z7",
+        "addr_vk1q32d7mtldc2z6mt7xyr32c3lgv0xv9sypqvq80qwzd4qc66hpfvs4yshnc"
     ]
 }

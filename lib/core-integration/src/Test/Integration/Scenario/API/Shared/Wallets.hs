@@ -32,7 +32,7 @@ import Cardano.Wallet.Api.Types
     , KeyFormat (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), Passphrase (..), Role (..), hex )
+    ( DerivationIndex (..), Passphrase (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -56,7 +56,9 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldNotBe )
+    ( SpecWith, describe )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldNotBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -75,10 +77,12 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , genMnemonics
     , genXPubs
+    , getAccountKeyShared
     , getFromResponse
     , getSharedWallet
     , getSharedWalletKey
     , getWalletIdFromSharedWallet
+    , hexText
     , json
     , listFilteredSharedWallets
     , notDelegating
@@ -94,6 +98,10 @@ import Test.Integration.Framework.TestData
     , errMsg403KeyAlreadyPresent
     , errMsg403NoDelegationTemplate
     , errMsg403NoSuchCosigner
+    , errMsg403TemplateInvalidDuplicateXPub
+    , errMsg403TemplateInvalidNoCosignerInScript
+    , errMsg403TemplateInvalidScript
+    , errMsg403TemplateInvalidUnknownCosigner
     , errMsg403WalletAlreadyActive
     )
 
@@ -103,7 +111,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
-import qualified Test.Hspec.Expectations.Lifted as Expectations
 
 spec :: forall n.
     ( DecodeAddress n
@@ -167,8 +174,17 @@ spec = describe "SHARED_WALLETS" $ do
             [ expectResponseCode HTTP.status202
             , expectField #format (`shouldBe` Extended)
             ]
-        let (ApiAccountKeyShared bytes _) = getFromResponse id rKey
-        T.decodeUtf8 (hex bytes) `Expectations.shouldBe` accXPubDerived
+        let ApiAccountKeyShared bytes _ = getFromResponse id rKey
+        hexText bytes `shouldBe` accXPubDerived
+
+        aKey <- getAccountKeyShared ctx wal (Just Extended)
+
+        verify aKey
+            [ expectResponseCode HTTP.status200
+            , expectField #format (`shouldBe` Extended)
+            ]
+        let ApiAccountKeyShared bytes' _ = getFromResponse id aKey
+        hexText bytes' `shouldBe` accXPubDerived
 
     it "SHARED_WALLETS_CREATE_02 - Create a pending shared wallet from root xprv" $ \ctx -> runResourceT $ do
         m15txt <- liftIO $ genMnemonics M15
@@ -220,8 +236,8 @@ spec = describe "SHARED_WALLETS" $ do
             [ expectResponseCode HTTP.status202
             , expectField #format (`shouldBe` Extended)
             ]
-        let (ApiAccountKeyShared bytes _) = getFromResponse id rKey
-        T.decodeUtf8 (hex bytes) `Expectations.shouldBe` accXPubDerived
+        let ApiAccountKeyShared bytes _ = getFromResponse id rKey
+        hexText bytes `shouldBe` accXPubDerived
 
     it "SHARED_WALLETS_CREATE_03 - Create an active shared wallet from account xpub" $ \ctx -> runResourceT $ do
         (_, accXPubTxt):_ <- liftIO $ genXPubs 1
@@ -240,8 +256,8 @@ spec = describe "SHARED_WALLETS" $ do
                           }
                     }
                 } |]
-        r <- postSharedWallet ctx Default payload
-        verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) r)
+        rPost <- postSharedWallet ctx Default payload
+        verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) rPost)
             [ expectResponseCode HTTP.status201
             , expectField
                     (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
@@ -257,6 +273,16 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField #delegationScriptTemplate (`shouldBe` Nothing)
             , expectField (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483658)
             ]
+
+        let wal = getFromResponse id rPost
+        aKey <- getAccountKeyShared ctx wal (Just Extended)
+
+        verify aKey
+            [ expectResponseCode HTTP.status200
+            , expectField #format (`shouldBe` Extended)
+            ]
+        let ApiAccountKeyShared bytes' _ = getFromResponse id aKey
+        hexText bytes' `shouldBe` accXPubTxt
 
     it "SHARED_WALLETS_CREATE_04 - Create a pending shared wallet from account xpub" $ \ctx -> runResourceT $ do
         (_, accXPubTxt):_ <- liftIO $ genXPubs 1
@@ -346,7 +372,7 @@ spec = describe "SHARED_WALLETS" $ do
 
         let walWithSelf = getFromResponse id rPostWithSelf
 
-        getWalletIdFromSharedWallet walWithSelf `Expectations.shouldBe` getWalletIdFromSharedWallet wal
+        getWalletIdFromSharedWallet walWithSelf `shouldBe` getWalletIdFromSharedWallet wal
 
     it "SHARED_WALLETS_CREATE_06 - Create an active shared wallet from account xpub with self" $ \ctx -> runResourceT $ do
         (_, accXPubTxt):_ <- liftIO $ genXPubs 1
@@ -397,7 +423,138 @@ spec = describe "SHARED_WALLETS" $ do
 
         let walWithSelf = getFromResponse id rPostWithSelf
 
-        getWalletIdFromSharedWallet walWithSelf `Expectations.shouldBe` getWalletIdFromSharedWallet wal
+        getWalletIdFromSharedWallet walWithSelf `shouldBe` getWalletIdFromSharedWallet wal
+
+    it "SHARED_WALLETS_CREATE_07 - Incorrect script template due to NoCosignerInScript" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        expectResponseCode HTTP.status403 rPost
+        expectErrorMessage errMsg403TemplateInvalidNoCosignerInScript rPost
+
+    it "SHARED_WALLETS_CREATE_08 - Incorrect script template due to UnknownCosigner" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#1": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                              { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        expectResponseCode HTTP.status403 rPost
+        expectErrorMessage errMsg403TemplateInvalidUnknownCosigner rPost
+
+    it "SHARED_WALLETS_CREATE_09 - Incorrect script template due to DuplicateXPub" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt}, "cosigner#1": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                              { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        expectResponseCode HTTP.status403 rPost
+        expectErrorMessage errMsg403TemplateInvalidDuplicateXPub rPost
+
+    it "SHARED_WALLETS_CREATE_10 - Incorrect script template due to WrongScript when recommended validation" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 },
+                               "cosigner#0"
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        expectResponseCode HTTP.status403 rPost
+        let reason = "The list inside a script has duplicate keys (which is not recommended)."
+        expectErrorMessage (errMsg403TemplateInvalidScript reason) rPost
+
+    it "SHARED_WALLETS_CREATE_11 - Correct script template when required validation" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 },
+                               "cosigner#0"
+                             ]
+                          }
+                    },
+                "script_validation": "required"
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        expectResponseCode HTTP.status201 rPost
+
+    it "SHARED_WALLETS_CREATE_12 - Incorrect script template due to WrongScript - timelocks" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 },
+                               { "active_until": 110 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        expectResponseCode HTTP.status403 rPost
+        let reason = "The timelocks used are contradictory when used with 'all' (which is not recommended)."
+        expectErrorMessage (errMsg403TemplateInvalidScript reason) rPost
 
     it "SHARED_WALLETS_DELETE_01 - Delete of a shared wallet" $ \ctx -> runResourceT $ do
         let walName = "Shared Wallet" :: Text
@@ -470,7 +627,7 @@ spec = describe "SHARED_WALLETS" $ do
                     { "cosigners":
                         { "cosigner#0": #{accXPubTxt0} },
                       "template":
-                          { "all":
+                          { "any":
                              [ "cosigner#0",
                                "cosigner#1",
                                { "active_from": 120 },
@@ -599,7 +756,7 @@ spec = describe "SHARED_WALLETS" $ do
                     { "cosigners":
                         { "cosigner#0": #{accXPubTxt0} },
                       "template":
-                          { "all":
+                          { "any":
                              [ "cosigner#0",
                                "cosigner#1",
                                { "active_from": 120 },
@@ -688,10 +845,10 @@ spec = describe "SHARED_WALLETS" $ do
         (_, Right stakeKey) <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0) Nothing
 
         let (String paymentAddr) = toJSON paymentKey
-        T.isPrefixOf "addr_shared_vk" paymentAddr `Expectations.shouldBe` True
+        T.isPrefixOf "addr_shared_vk" paymentAddr `shouldBe` True
 
         let (String stakeAddr) = toJSON stakeKey
-        T.isPrefixOf "stake_shared_vk" stakeAddr `Expectations.shouldBe` True
+        T.isPrefixOf "stake_shared_vk" stakeAddr `shouldBe` True
 
     it "SHARED_WALLETS_KEYS_02 - Getting verification keys works for pending shared wallet" $ \ctx -> runResourceT $ do
         (_, accXPubTxt):_ <- liftIO $ genXPubs 1
@@ -721,25 +878,25 @@ spec = describe "SHARED_WALLETS" $ do
         (_, Right stakeKey) <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0) Nothing
 
         let (String paymentAddr) = toJSON paymentKey
-        T.isPrefixOf "addr_shared_vk" paymentAddr `Expectations.shouldBe` True
+        T.isPrefixOf "addr_shared_vk" paymentAddr `shouldBe` True
 
         let (String stakeAddr) = toJSON stakeKey
-        T.isPrefixOf "stake_shared_vk" stakeAddr `Expectations.shouldBe` True
+        T.isPrefixOf "stake_shared_vk" stakeAddr `shouldBe` True
 
         (_, Right paymentKey') <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 10) (Just False)
         (_, Right stakeKey') <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0) (Just False)
 
-        paymentKey' `Expectations.shouldBe` paymentKey
-        stakeKey' `Expectations.shouldBe` stakeKey
+        paymentKey' `shouldBe` paymentKey
+        stakeKey' `shouldBe` stakeKey
 
         (_, Right paymentKeyH) <- getSharedWalletKey ctx wal UtxoExternal (DerivationIndex 10) (Just True)
         (_, Right stakeKeyH) <- getSharedWalletKey ctx wal MutableAccount (DerivationIndex 0) (Just True)
 
         let (String paymentAddrH) = toJSON paymentKeyH
-        T.isPrefixOf "addr_shared_vkh" paymentAddrH `Expectations.shouldBe` True
+        T.isPrefixOf "addr_shared_vkh" paymentAddrH `shouldBe` True
 
         let (String stakeAddrH) = toJSON stakeKeyH
-        T.isPrefixOf "stake_shared_vkh" stakeAddrH `Expectations.shouldBe` True
+        T.isPrefixOf "stake_shared_vkh" stakeAddrH `shouldBe` True
 
     it "SHARED_WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> runResourceT $ do
         let walName = "Shared Wallet" :: Text

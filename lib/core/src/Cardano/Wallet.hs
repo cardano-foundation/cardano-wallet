@@ -165,7 +165,8 @@ module Cardano.Wallet
     -- ** Root Key
     , withRootKey
     , derivePublicKey
-    , readPublicAccountKey
+    , getAccountPublicKeyAtIndex
+    , readAccountPublicKey
     , signMetadataWith
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
@@ -272,6 +273,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..)
     , ErrAddCosigner (..)
+    , ErrScriptTemplate (..)
     , SharedState (..)
     , SharedStateFields (..)
     , addCosignerAccXPub
@@ -2262,8 +2264,26 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
 
--- | Retrieve public account key of a wallet.
-readPublicAccountKey
+-- | Retrieve current public account key of a wallet.
+readAccountPublicKey
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , GetAccount s k
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrReadAccountPublicKey IO (k 'AccountK XPub)
+readAccountPublicKey ctx wid = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically
+        $ withExceptT ErrReadAccountPublicKeyNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
+    pure $ getAccount (getState cp)
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
+-- | Retrieve any public account key of a wallet.
+getAccountPublicKeyAtIndex
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , HardDerivation k
@@ -2274,7 +2294,7 @@ readPublicAccountKey
     -> Passphrase "raw"
     -> DerivationIndex
     -> ExceptT ErrReadAccountPublicKey IO (k 'AccountK XPub)
-readPublicAccountKey ctx wid pwd ix = db & \DBLayer{..} -> do
+getAccountPublicKeyAtIndex ctx wid pwd ix = db & \DBLayer{..} -> do
     acctIx <- withExceptT ErrReadAccountPublicKeyInvalidIndex $ guardHardIndex ix
 
     _cp <- mapExceptT atomically
@@ -2390,9 +2410,9 @@ data ErrAddCosignerKey
         -- ^ Error adding this co-signer to the shared wallet.
     deriving (Eq, Show)
 
-data ErrConstructSharedWallet
-    = ErrConstructSharedWalletMissingKey
-        -- ^ The shared wallet' script template doesn't have the wallet's account public key
+newtype ErrConstructSharedWallet
+    = ErrConstructSharedWalletWrongScriptTemplate ErrScriptTemplate
+        -- ^ The shared wallet' script template doesn't pass validation
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey
