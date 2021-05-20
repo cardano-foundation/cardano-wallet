@@ -1,0 +1,65 @@
+{
+    "seed": 772200001575048498,
+    "samples": [
+        {
+            "stake": {
+                "quantity": 85,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 170,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 76,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 114,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 231,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 246,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 90,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 4,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 150,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 32,
+                "unit": "lovelace"
+            }
+        }
+    ]
+}

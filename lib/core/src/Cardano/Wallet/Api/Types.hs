@@ -109,6 +109,10 @@ module Cardano.Wallet.Api.Types
     , ApiSlotId (..)
     , ApiBlockReference (..)
     , ApiBlockInfo (..)
+    , ApiStakeKeys (..)
+    , ApiOurStakeKey (..)
+    , ApiForeignStakeKey (..)
+    , ApiNullStakeKey (..)
     , Iso8601Time (..)
     , MinWithdrawal (..)
     , ApiNetworkParameters (..)
@@ -172,6 +176,7 @@ module Cardano.Wallet.Api.Types
 
     -- * Type families
     , ApiAddressT
+    , ApiStakeKeysT
     , ApiPutAddressesDataT
     , ApiAddressIdT
     , ApiCoinSelectionT
@@ -1462,6 +1467,46 @@ newtype ApiMnemonicT (sizes :: [Nat]) =
     ApiMnemonicT { getApiMnemonicT :: SomeMnemonic }
     deriving (Generic, Show, Eq)
 
+-- | A stake key belonging to the current wallet.
+data ApiOurStakeKey n = ApiOurStakeKey
+     { _index :: !Natural
+    , _key :: !(ApiT W.RewardAccount, Proxy n)
+    , _stake :: !(Quantity "lovelace" Natural)
+      -- ^ The total ada this stake key controlls / is associated with. This
+      -- also includes the reward balance.
+    , _rewardBalance :: !(Quantity "lovelace" Natural)
+      -- ^ The current reward balance (not lifetime).
+    , _delegation :: !ApiWalletDelegation
+      -- ^ The delegation of this stake key
+    } deriving (Generic, Eq, Show)
+
+-- | A stake key found in the wallet UTxO, but which isn't ours.
+--
+-- We /could/ provide the current delegation status for foreign stake
+-- keys.
+data ApiForeignStakeKey n = ApiForeignStakeKey
+    { _key :: !(ApiT W.RewardAccount, Proxy n)
+    , _stake :: !(Quantity "lovelace" Natural)
+      -- ^ The total ada this stake key controlls / is associated with. This
+      -- also includes the reward balance.
+    , _rewardBalance :: !(Quantity "lovelace" Natural)
+      -- ^ The current reward balance (not lifetime).
+    } deriving (Generic, Eq, Show)
+
+-- | For describing how much stake is associated with no stake key.
+newtype ApiNullStakeKey = ApiNullStakeKey
+    { _stake :: Quantity "lovelace" Natural
+      -- ^ The total stake of the wallet UTxO that is not associated with a
+      -- stake key, because it's part of an enterprise address.
+    } deriving (Generic, Eq, Show)
+
+-- | Collection of stake keys associated with a wallet.
+data ApiStakeKeys n = ApiStakeKeys
+    { _ours :: ![ApiOurStakeKey n]
+    , _foreign :: ![ApiForeignStakeKey n]
+    , _none :: !ApiNullStakeKey
+    } deriving (Generic, Eq, Show)
+
 {-------------------------------------------------------------------------------
                                JSON Instances
 -------------------------------------------------------------------------------}
@@ -1479,6 +1524,26 @@ instance ToJSON ApiMetadataError where
 instance FromJSON ApiAsset where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiAsset where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeStakeAddress n => FromJSON (ApiOurStakeKey n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeStakeAddress n => ToJSON (ApiOurStakeKey n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeStakeAddress n => FromJSON (ApiForeignStakeKey n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeStakeAddress n => ToJSON (ApiForeignStakeKey n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiNullStakeKey where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiNullStakeKey where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeStakeAddress n => FromJSON (ApiStakeKeys n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeStakeAddress n => ToJSON (ApiStakeKeys n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT W.TokenPolicyId) where
@@ -2886,6 +2951,7 @@ instance DecodeStakeAddress 'Mainnet => DecodeStakeAddress ('Staging pm) where
 --
 -- We use an open type family so it can be extended by other module in places.
 type family ApiAddressT (n :: k) :: Type
+type family ApiStakeKeysT (n :: k) :: Type
 type family ApiAddressIdT (n :: k) :: Type
 type family ApiCoinSelectionT (n :: k) :: Type
 type family ApiSelectCoinsDataT (n :: k) :: Type
@@ -2898,6 +2964,9 @@ type family ApiPutAddressesDataT (n :: k) :: Type
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
+
+type instance ApiStakeKeysT (n :: NetworkDiscriminant) =
+    ApiStakeKeys n
 
 type instance ApiPutAddressesDataT (n :: NetworkDiscriminant) =
     ApiPutAddressesData n

@@ -60,6 +60,7 @@ module Cardano.Wallet.Api
         , JoinStakePool
         , QuitStakePool
         , DelegationFee
+        , ListStakeKeys
         , PostPoolMaintenance
         , GetPoolMaintenance
 
@@ -176,6 +177,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWallet
     , ApiSharedWalletPatchData
     , ApiSharedWalletPostData
+    , ApiStakeKeysT
     , ApiT
     , ApiTransactionT
     , ApiTxId
@@ -560,6 +562,7 @@ type StakePools n apiPool =
     :<|> JoinStakePool n
     :<|> QuitStakePool n
     :<|> DelegationFee
+    :<|> ListStakeKeys n
     :<|> PostPoolMaintenance
     :<|> GetPoolMaintenance
 
@@ -583,6 +586,11 @@ type QuitStakePool n = "stake-pools"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiWalletPassphrase
     :> DeleteAccepted '[JSON] (ApiTransactionT n)
+
+type ListStakeKeys n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "stake-keys"
+    :> Get '[JSON] (ApiStakeKeysT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getDelegationFee
 type DelegationFee = "wallets"

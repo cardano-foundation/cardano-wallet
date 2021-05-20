@@ -78,6 +78,7 @@ import Cardano.Wallet.Api.Types
     , ApiEraInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiForeignStakeKey
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
@@ -86,6 +87,8 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNtpStatus (..)
+    , ApiNullStakeKey
+    , ApiOurStakeKey
     , ApiPendingSharedWallet (..)
     , ApiPostAccountKeyData
     , ApiPostRandomAddressData
@@ -102,6 +105,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
+    , ApiStakeKeys
     , ApiStakePool (..)
     , ApiStakePoolFlag (..)
     , ApiStakePoolMetrics (..)
@@ -475,6 +479,10 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceAction
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceActionPostData
             jsonRoundtripAndGolden $ Proxy @ApiAsset
+            jsonRoundtripAndGolden $ Proxy @(ApiStakeKeys ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiOurStakeKey ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiForeignStakeKey ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @ApiNullStakeKey
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -2046,6 +2054,22 @@ instance Arbitrary Natural where
     shrink = shrinkIntegral
     arbitrary = genNatural
 
+instance Arbitrary (Proxy n) => Arbitrary (ApiStakeKeys n) where
+    arbitrary = Test.QuickCheck.scale (`div` 4) genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (Proxy n) => Arbitrary (ApiOurStakeKey n) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary (Proxy n) => Arbitrary (ApiForeignStakeKey n) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiNullStakeKey where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
 
@@ -2332,6 +2356,18 @@ instance ToSchema ApiAccountKey where
 
 instance ToSchema ApiAccountKeyShared where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKeyShared"
+
+instance ToSchema (ApiStakeKeys n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiStakeKeys"
+
+instance ToSchema (ApiOurStakeKey n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiOurStakeKey"
+
+instance ToSchema (ApiForeignStakeKey n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiForeignStakeKey"
+
+instance ToSchema ApiNullStakeKey where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiNullStakeKey"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.

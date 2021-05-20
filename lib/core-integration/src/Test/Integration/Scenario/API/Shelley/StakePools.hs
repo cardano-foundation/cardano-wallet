@@ -18,6 +18,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
     , ApiHealthCheck
+    , ApiStakeKeys
     , ApiStakePool (flags)
     , ApiStakePoolFlag (..)
     , ApiT (..)
@@ -84,7 +85,7 @@ import Numeric.Natural
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldSatisfy )
+    ( expectationFailure, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( flakyBecauseOf, it )
 import Test.Integration.Framework.Context
@@ -118,6 +119,7 @@ import Test.Integration.Framework.DSL
     , postWallet
     , quitStakePool
     , quitStakePoolUnsigned
+    , replaceStakeKey
     , request
     , triggerMaintenanceAction
     , unsafeRequest
@@ -127,6 +129,7 @@ import Test.Integration.Framework.DSL
     , verifyMaintenanceAction
     , verifyMetadataSource
     , waitForNextEpoch
+    , waitForTxImmutability
     , walletId
     , (.<)
     , (.>)
@@ -303,6 +306,23 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                   [ expectField
                       (#balance . #reward) (`shouldBe` walletRewards)
                   ]
+
+
+        -- Listing stake keys shows
+        request @(ApiStakeKeys n) ctx (Link.listStakeKeys src) Default Empty
+            >>= flip verify
+            [ expectField (#_foreign) (`shouldBe` [])
+            , expectField (#_ours) (\case
+                [acc] -> do
+                    (acc ^. #_stake) .> Quantity 0
+                    acc ^. (#_delegation . #active . #status)
+                        `shouldBe` Delegating
+                    acc ^. (#_delegation . #active . #target)
+                        `shouldBe` (Just pool)
+                _ -> expectationFailure "wrong number of accounts in \"ours\""
+                )
+            , expectField (#_none . #_stake) (.> Quantity 0)
+            ]
 
         -- there's currently no withdrawals in the wallet
         rw1 <- request @[ApiTransaction n] ctx
@@ -1234,6 +1254,109 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status400
                 , expectErrorMessage message
                 ]
+
+    it "STAKE_KEY_LIST_01 - Can list stake keys" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+        let balance = Quantity 1000000000000
+
+        -- fixtureWallets have funds on payment addresses, so their entire ada
+        -- balance is not associated with their first stake key.
+        request @(ApiStakeKeys n) ctx (Link.listStakeKeys w) Default Empty
+            >>= flip verify
+            [ expectField (#_foreign) (`shouldBe` [])
+            , expectField (#_ours) (\case
+                [acc] -> do
+                    (acc ^. #_index) `shouldBe` 0
+                    (acc ^. #_stake) `shouldBe` Quantity 0
+                    acc ^. (#_delegation . #active . #status)
+                        `shouldBe` NotDelegating
+                _ -> expectationFailure "wrong number of accounts in \"ours\""
+                )
+            , expectField (#_none . #_stake) (`shouldBe` balance)
+            ]
+
+        -- By sending funds to ourselves, we associate funds with our stake key.
+        -- Both from the payment output itself and the change.
+        addrs <- listAddresses @n ctx w
+        let addr = (addrs !! 1) ^. #id
+        let payload = [json|
+                { "payments":
+                    [ { "address": #{addr}
+                      , "amount":
+                        { "quantity": 950000000000
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase}
+                }|]
+
+        request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley w)
+            Default (Json payload)
+            >>= flip verify
+                [ expectResponseCode HTTP.status202 ]
+
+        waitForTxImmutability ctx
+
+        request @(ApiStakeKeys n) ctx (Link.listStakeKeys w) Default Empty
+            >>= flip verify
+            [ expectField (#_foreign) (`shouldBe` [])
+            , expectField (#_ours) (\case
+                [acc] -> do
+                    (acc ^. #_stake) .> Quantity 0
+                    acc ^. (#_delegation . #active . #status)
+                        `shouldBe` NotDelegating
+                _ -> expectationFailure "wrong number of accounts in \"ours\""
+                )
+            , expectField (#_none . #_stake) (.< balance)
+            ]
+
+    it "STAKE_KEY_LIST_02 - Can list foreign stake key from UTxO" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+        let balance = Quantity 1000000000000
+        otherWallet <- emptyWallet ctx
+
+        -- We send funds to one of our addresses but with a modified stake key.
+        foreignAddr <- head . map (view #id) <$> listAddresses @n ctx otherWallet
+        ourAddr <- head . map (view #id) <$> listAddresses @n ctx w
+        let ourAddr' = replaceStakeKey ourAddr foreignAddr
+        let payload = [json|
+                { "payments":
+                    [ { "address": #{ourAddr'}
+                      , "amount":
+                        { "quantity": 950000000000
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase}
+                }|]
+        request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley w)
+            Default (Json payload)
+            >>= flip verify
+                [ expectResponseCode HTTP.status202 ]
+        waitForTxImmutability ctx
+
+        request @(ApiStakeKeys n) ctx (Link.listStakeKeys w) Default Empty
+            >>= flip verify
+            [ expectField (#_foreign) (\case
+                [acc] -> do
+                    (acc ^. #_stake) .> Quantity 0
+                _ -> expectationFailure "wrong number of accounts in \"foreign\""
+                )
+            , expectField (#_ours) (\case
+                [acc] -> do
+                    -- NOTE: because of the change from the transaction, this
+                    -- is no longer 0:
+                    (acc ^. #_stake) .> Quantity 0
+                    acc ^. (#_delegation . #active . #status)
+                        `shouldBe` NotDelegating
+                _ -> expectationFailure "wrong number of accounts in \"ours\""
+                )
+            , expectField (#_none . #_stake) (.< balance)
+            ]
   where
     metadataPossible = Set.fromList
         [ StakePoolMetadata

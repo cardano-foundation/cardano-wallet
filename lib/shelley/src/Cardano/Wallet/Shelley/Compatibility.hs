@@ -72,6 +72,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoStakeCredential
     , toCardanoValue
     , fromCardanoValue
+    , rewardAccountFromAddress
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -1232,6 +1233,25 @@ toStakePoolDlgCert xpub (W.PoolId pid) =
   where
     cred = SL.KeyHash $ UnsafeHash $ toShort $ blake2b224 $ xpubPublicKey xpub
     pool = SL.KeyHash $ UnsafeHash $ toShort pid
+
+
+-- | Extract a stake reference / `RewardAccount` from an address, if it exists.
+--
+-- Note that this returns `Nothing` for pointer addresses, not just enterprise
+-- addresses.
+rewardAccountFromAddress :: W.Address -> Maybe W.RewardAccount
+rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr bytes
+  where
+    parseAddr :: ByteString -> Maybe (Cardano.Address Cardano.ShelleyAddr)
+    parseAddr = Cardano.deserialiseFromRawBytes AsShelleyAddress
+
+    ref :: Cardano.Address Cardano.ShelleyAddr -> SL.StakeReference StandardCrypto
+    ref (Cardano.ShelleyAddress _n _paymentKey stakeRef) = stakeRef
+
+    refToAccount :: SL.StakeReference StandardCrypto -> Maybe W.RewardAccount
+    refToAccount (SL.StakeRefBase cred) = Just $ fromStakeCredential cred
+    refToAccount (SL.StakeRefPtr _) = Nothing
+    refToAccount SL.StakeRefNull = Nothing
 
 {-------------------------------------------------------------------------------
                    Assessing sizes of token bundles
