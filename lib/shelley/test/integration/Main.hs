@@ -268,9 +268,9 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = era
                     , _smashUrl = smashUrl
-                    , _mintSeaHorseAssets = \nPerAddr c addrs ->
+                    , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                         withMVar mintSeaHorseAssetsLock $ \() ->
-                            sendFaucetAssetsTo tr' faucetConn testDir 1
+                            sendFaucetAssetsTo tr' faucetConn testDir batchSize
                                 $ encodeAddresses
                                 $ seaHorseTestAssets nPerAddr c addrs
                     }

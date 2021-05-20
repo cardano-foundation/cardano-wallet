@@ -66,7 +66,7 @@ data Context = Context
     , _smashUrl :: Text
         -- ^ Base URL of the mock smash server.
 
-    , _mintSeaHorseAssets :: Int -> Coin -> [Address] -> IO ()
+    , _mintSeaHorseAssets :: Int -> Int -> Coin -> [Address] -> IO ()
         -- ^ TODO: Remove once we can unify cardano-wallet-core-integration and
         -- cardano-wallet:integration, or when the wallet supports minting.
         --

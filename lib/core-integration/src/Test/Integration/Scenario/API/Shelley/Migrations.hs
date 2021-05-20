@@ -224,8 +224,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             --
             let perEntryAdaQuantity = Coin 3_300_000
             let perEntryAssetCount = 10
+            let batchSize = 20
             liftIO $ _mintSeaHorseAssets ctx
                 perEntryAssetCount
+                batchSize
                 perEntryAdaQuantity
                 srcAddrs
             waitForTxImmutability ctx
@@ -377,6 +379,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             --
             let perEntryAdaQuantity = Coin 1_562_500
             let perEntryAssetCount = 1
+            let batchSize = 20
             replicateM_ 6 $ do
                 -- Since the 'listAddresses' endpoint only returns a limited
                 -- number of addresses, we assign assets to source addresses
@@ -385,9 +388,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     <$> listUnusedAddresses @n ctx sourceWallet
                 liftIO $ _mintSeaHorseAssets ctx
                     perEntryAssetCount
+                    batchSize
                     perEntryAdaQuantity
                     sourceAddresses
-                waitForTxImmutability ctx
+            waitForTxImmutability ctx
 
             -- Check that minting was successful, and that the balance and UTxO
             -- distribution have both changed accordingly:
@@ -505,6 +509,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             --
             let perEntryAdaQuantity = Coin 1_562_500
             let perEntryAssetCount = 1
+            let batchSize = 20
             replicateM_ 6 $ do
                 -- Since the 'listAddresses' endpoint only returns a limited
                 -- number of addresses, we assign assets to source addresses
@@ -513,9 +518,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     <$> listUnusedAddresses @n ctx sourceWallet
                 liftIO $ _mintSeaHorseAssets ctx
                     perEntryAssetCount
+                    batchSize
                     perEntryAdaQuantity
                     sourceAddresses
-                waitForTxImmutability ctx
+            waitForTxImmutability ctx
 
             -- Check that minting was successful, and that the balance and UTxO
             -- distribution have both changed accordingly:
