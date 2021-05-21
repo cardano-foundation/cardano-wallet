@@ -46,7 +46,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
 import Control.Monad
-    ( forM_, void, when )
+    ( forM_, replicateM_, void, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
@@ -85,6 +85,7 @@ import Test.Integration.Framework.DSL
     , fixtureMultiAssetWallet
     , fixturePassphrase
     , fixtureWallet
+    , fixtureWalletWith
     , getFromResponse
     , icarusAddresses
     , json
@@ -194,22 +195,40 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         (errMsg404NoWallet $ sourceWallet ^. walletId)
                     ]
 
-    it "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
+    Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
         \Cannot create a plan for a wallet that only contains freeriders."
-        $ \ctx -> runResourceT $ do
+        $ \ctx -> runResourceT @IO $ do
             sourceWallet <- emptyWallet ctx
             srcAddrs <- map (getApiT . fst . view #id)
                 <$> listAddresses @n ctx sourceWallet
 
-            -- `_mintSeaHorseAssets` doesn't know how to compute the minimum ada
-            -- amount for a `TokenBundle`. So we provide a custom value here
-            -- that is above the limit, but also as small as possible.
+            -- Add a relatively small number of freerider UTxO entries to the
+            -- source wallet. (Few enough to not require more than one
+            -- transaction within a complete migration plan.)
             --
-            -- I.e. big enough to make the minting succeed, but small enough to
-            -- make the subsequent migration fail.
-            let adaPerBundle = Coin 3_300_000
-
-            liftIO $ _mintSeaHorseAssets ctx 10 adaPerBundle srcAddrs
+            -- We assign to each UTxO entry:
+            --
+            --  - a fixed quantity of non-ada assets.
+            --
+            --  - a fixed quantity of ada that is above the minimum, but not
+            --    enough to allow the entry to be included in a singleton
+            --    transaction (thus making it a freerider).
+            --
+            -- We use '_mintSeaHorseAssets' to mint non-ada assets. Since this
+            -- function doesn't know how to compute the minimum ada quantity
+            -- for a token bundle, we provide a custom ada quantity here. This
+            -- ada quantity is large enough to allow minting to succeed, but
+            -- small enough to make the migration algorithm categorize the
+            -- entry as a freerider.
+            --
+            let perEntryAdaQuantity = Coin 3_300_000
+            let perEntryAssetCount = 10
+            let batchSize = 20
+            liftIO $ _mintSeaHorseAssets ctx
+                perEntryAssetCount
+                batchSize
+                perEntryAdaQuantity
+                srcAddrs
             waitForTxImmutability ctx
 
             -- Check that the minting indeed worked, and that the wallet isn't
@@ -300,6 +319,262 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (`shouldBe` 1_100_000_000_000)
                 , expectField (#balanceLeftover . #ada . #getQuantity)
                     (`shouldBe` 0)
+                ]
+
+    Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_07 - \
+        \Can create a complete migration plan for a wallet with a large number \
+        \of freerider UTxO entries, but with just enough non-freerider entries \
+        \to enable the entire UTxO set to be migrated."
+        $ \ctx -> runResourceT @IO $ do
+
+            -- Create a source wallet with some pure ada entries, where each
+            -- ada entry is large enough to create a singleton transaction:
+            sourceWallet <- fixtureWalletWith @n ctx
+                [ 100_000_000
+                , 100_000_000
+                ]
+
+            -- Check that the source wallet has the expected balance and UTxO
+            -- distribution:
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField (#balance . #reward . #getQuantity)
+                    (`shouldBe` 0)
+                , expectField (#balance . #available . #getQuantity)
+                    (`shouldBe` 200_000_000)
+                , expectField (#balance . #total . #getQuantity)
+                    (`shouldBe` 200_000_000)
+                ]
+            let expectedSourceDistribution =
+                    [(100_000_000, 2)]
+            request @ApiUtxoStatistics ctx
+                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField #distribution
+                    ((`shouldBe` expectedSourceDistribution)
+                    . Map.toList
+                    . Map.filter (> 0)
+                    )
+                ]
+
+            -- Add a relatively large number of freerider UTxO entries to the
+            -- source wallet.
+            --
+            -- We assign to each UTxO entry:
+            --
+            --  - a fixed token quantity of exactly one non-ada asset.
+            --
+            --  - a fixed quantity of ada that is above the minimum, but not
+            --    enough to allow the entry to be included in a singleton
+            --    transaction (thus making it a freerider).
+            --
+            -- We use '_mintSeaHorseAssets' to mint non-ada assets. Since this
+            -- function doesn't know how to compute the minimum ada quantity
+            -- for a token bundle, we provide a custom ada quantity here. This
+            -- ada quantity is large enough to allow minting to succeed, but
+            -- small enough to make the migration algorithm categorize the
+            -- entry as a freerider.
+            --
+            let perEntryAdaQuantity = Coin 1_562_500
+            let perEntryAssetCount = 1
+            let batchSize = 20
+            sourceAddresses <- take 20 . map (getApiT . fst . view #id)
+                <$> listAddresses @n ctx sourceWallet
+            replicateM_ 6 $ liftIO $ _mintSeaHorseAssets ctx
+                perEntryAssetCount
+                batchSize
+                perEntryAdaQuantity
+                sourceAddresses
+            waitForTxImmutability ctx
+
+            -- Check that minting was successful, and that the balance and UTxO
+            -- distribution have both changed accordingly:
+            let expectedBalanceAda = 387_500_000
+            let expectedAssetCount = 20
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField (#balance . #available . #getQuantity)
+                    (`shouldBe` expectedBalanceAda)
+                , expectField (#balance . #total . #getQuantity)
+                    (`shouldBe` expectedBalanceAda)
+                , expectField (#assets . #available . #getApiT)
+                    ((`shouldBe` expectedAssetCount)
+                        . Set.size
+                        . TokenMap.getAssets)
+                ]
+            let expectedSourceDistributionAfterMinting =
+                    [ ( 10_000_000, 120)
+                    , (100_000_000,   2)
+                    ]
+            request @ApiUtxoStatistics ctx
+                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField #distribution
+                    ((`shouldBe` expectedSourceDistributionAfterMinting)
+                        . Map.toList
+                        . Map.filter (> 0)
+                    )
+                ]
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+            -- Create a migration plan, and check that the plan is complete:
+            let ep = Link.createMigrationPlan @'Shelley sourceWallet
+            request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+                >>= flip verify
+                [ expectResponseCode HTTP.status202
+                , expectField (#selections)
+                    ((`shouldBe` 2) . length)
+                , expectField id
+                    ((`shouldBe` 122) . apiPlanTotalInputCount)
+                , expectField id
+                    ((`shouldBe` 2) . apiPlanTotalOutputCount)
+                , expectField (#balanceSelected . #ada . #getQuantity)
+                    (`shouldBe` expectedBalanceAda)
+                , expectField (#balanceSelected . #assets . #getApiT)
+                    ((`shouldBe` expectedAssetCount)
+                        . Set.size
+                        . TokenMap.getAssets)
+                , expectField (#balanceLeftover . #ada . #getQuantity)
+                    (`shouldBe` 0)
+                , expectField (#balanceLeftover . #assets . #getApiT)
+                    ((`shouldBe` 0)
+                        . Set.size
+                        . TokenMap.getAssets)
+                ]
+
+    Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_08 - \
+        \Can create a partial migration plan for a wallet with a large number \
+        \of freerider UTxO entries, but with not quite enough non-freerider \
+        \entries to enable the entire UTxO set to be migrated."
+        $ \ctx -> runResourceT @IO $ do
+
+            -- Create a source wallet with just one pure ada entry that is
+            -- large enough to create a singleton transaction:
+            sourceWallet <- fixtureWalletWith @n ctx [ 100_000_000 ]
+
+            -- Check that the source wallet has the expected balance and UTxO
+            -- distribution:
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField (#balance . #reward . #getQuantity)
+                    (`shouldBe` 0)
+                , expectField (#balance . #available . #getQuantity)
+                    (`shouldBe` 100_000_000)
+                , expectField (#balance . #total . #getQuantity)
+                    (`shouldBe` 100_000_000)
+                ]
+            let expectedSourceDistribution =
+                    [(100_000_000, 1)]
+            request @ApiUtxoStatistics ctx
+                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField #distribution
+                    ((`shouldBe` expectedSourceDistribution)
+                    . Map.toList
+                    . Map.filter (> 0)
+                    )
+                ]
+
+            -- Add a relatively large number of freerider UTxO entries to the
+            -- source wallet.
+            --
+            -- We assign to each UTxO entry:
+            --
+            --  - a fixed token quantity of exactly one non-ada asset.
+            --
+            --  - a fixed quantity of ada that is above the minimum, but not
+            --    enough to allow the entry to be included in a singleton
+            --    transaction (thus making it a freerider).
+            --
+            -- We use '_mintSeaHorseAssets' to mint non-ada assets. Since this
+            -- function doesn't know how to compute the minimum ada quantity
+            -- for a token bundle, we provide a custom ada quantity here. This
+            -- ada quantity is large enough to allow minting to succeed, but
+            -- small enough to make the migration algorithm categorize the
+            -- entry as a freerider.
+            --
+            let perEntryAdaQuantity = Coin 1_562_500
+            let perEntryAssetCount = 1
+            let batchSize = 20
+            sourceAddresses <- take 20 . map (getApiT . fst . view #id)
+                <$> listAddresses @n ctx sourceWallet
+            replicateM_ 6 $ liftIO $ _mintSeaHorseAssets ctx
+                perEntryAssetCount
+                batchSize
+                perEntryAdaQuantity
+                sourceAddresses
+            waitForTxImmutability ctx
+
+            -- Check that minting was successful, and that the balance and UTxO
+            -- distribution have both changed accordingly:
+            let expectedBalanceAda = 287_500_000
+            let expectedAssetCount = 20
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField (#balance . #available . #getQuantity)
+                    (`shouldBe` expectedBalanceAda)
+                , expectField (#balance . #total . #getQuantity)
+                    (`shouldBe` expectedBalanceAda)
+                , expectField (#assets . #available . #getApiT)
+                    ((`shouldBe` expectedAssetCount)
+                        . Set.size
+                        . TokenMap.getAssets)
+                ]
+            let expectedSourceDistributionAfterMinting =
+                    [ ( 10_000_000, 120)
+                    , (100_000_000,   1)
+                    ]
+            request @ApiUtxoStatistics ctx
+                (Link.getUTxOsStatistics @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectField #distribution
+                    ((`shouldBe` expectedSourceDistributionAfterMinting)
+                    . Map.toList
+                    . Map.filter (> 0)
+                    )
+                ]
+
+            -- Create an empty target wallet:
+            targetWallet <- emptyWallet ctx
+            targetAddresses <- listAddresses @n ctx targetWallet
+            let targetAddressIds = targetAddresses <&>
+                    (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
+
+            -- Create a migration plan, and check that the plan is only
+            -- partially complete:
+            let ep = Link.createMigrationPlan @'Shelley sourceWallet
+            request @(ApiWalletMigrationPlan n) ctx ep Default
+                (Json [json|{addresses: #{targetAddressIds}}|])
+                >>= flip verify
+                [ expectResponseCode HTTP.status202
+                , expectField (#selections)
+                    ((`shouldBe` 1) . length)
+                , expectField id
+                    ((`shouldBe` 102) . apiPlanTotalInputCount)
+                , expectField id
+                    ((`shouldBe` 1) . apiPlanTotalOutputCount)
+                , expectField (#balanceSelected . #ada . #getQuantity)
+                    (`shouldBe` 257_812_500)
+                , expectField (#balanceLeftover . #ada . #getQuantity)
+                    (`shouldBe`  29_687_500)
+                , expectField (#balanceSelected . #assets . #getApiT)
+                    ((.> 0)
+                        . Set.size
+                        . TokenMap.getAssets)
+                , expectField (#balanceLeftover . #assets . #getApiT)
+                    ((.> 0)
+                        . Set.size
+                        . TokenMap.getAssets)
                 ]
 
     describe "SHELLEY_MIGRATE_01 - \

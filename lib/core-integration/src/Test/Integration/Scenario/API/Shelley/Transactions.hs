@@ -713,8 +713,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 wSrc <- fixtureWallet ctx
                 srcAddrs <-
                     map (getApiT . fst . view #id) <$> listAddresses @n ctx wSrc
+                let batchSize = 1
+                let coinPerAddr = Coin 1000_000_000
                 liftIO $ _mintSeaHorseAssets ctx
-                    nAssetsPerAddr (Coin 1000_000_000) (take 2 srcAddrs)
+                    nAssetsPerAddr batchSize  coinPerAddr (take 2 srcAddrs)
                 return (wSrc, nAssetsPerAddr)
             wDest <- emptyWallet ctx
             destAddr <- head . map (view #id) <$> listAddresses @n ctx wDest
