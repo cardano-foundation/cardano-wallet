@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -131,6 +132,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ApiWalletSignData (..)
+    , ApiWalletUtxoSnapshot (..)
+    , ApiWalletUtxoSnapshotEntry (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
     , ByronWalletFromXPrvPostData (..)
@@ -216,7 +219,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinLargePositive )
+    ( genCoinLargePositive, genCoinSmallPositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -1966,6 +1969,27 @@ instance Arbitrary TxIn where
         -- NOTE: No need for a crazy high indexes
         <*> Test.QuickCheck.scale (`mod` 3) arbitrary
 
+instance Arbitrary ApiWalletUtxoSnapshot where
+    arbitrary = do
+        entryCount <- choose (0, 4)
+        entries <- replicateM entryCount genEntry
+        pure $ ApiWalletUtxoSnapshot { entries }
+      where
+        genEntry :: Gen ApiWalletUtxoSnapshotEntry
+        genEntry = do
+            adaValue1 <- genCoinSmallPositive
+            adaValue2 <- genCoinSmallPositive
+            -- The actual ada quantity of an output's token bundle must be
+            -- greater than or equal to the minimum permissible ada quantity:
+            let ada = Api.coinToQuantity $ max adaValue1 adaValue2
+            let adaMinimum = Api.coinToQuantity $ min adaValue1 adaValue2
+            assets <- ApiT <$> genTokenMapSmallRange
+            pure ApiWalletUtxoSnapshotEntry
+                { ada
+                , adaMinimum
+                , assets
+                }
+
 instance Arbitrary ApiUtxoStatistics where
     arbitrary = do
         utxos <- arbitrary
@@ -2174,6 +2198,10 @@ instance ToSchema (ApiWalletMigrationPostData t "raw") where
 instance ToSchema ApiWalletPassphrase where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPassphrase"
+
+instance ToSchema ApiWalletUtxoSnapshot where
+    declareNamedSchema _ =
+        declareSchemaForDefinition "ApiWalletUtxoSnapshot"
 
 instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakePool"

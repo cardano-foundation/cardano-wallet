@@ -78,6 +78,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiWallet (..)
     , ApiWalletPassphrase
+    , ApiWalletUtxoSnapshot (..)
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
@@ -129,6 +130,9 @@ data WalletClient wallet = WalletClient
     , getWalletUtxoStatistics
         :: ApiT WalletId
         -> ClientM ApiUtxoStatistics
+    , getWalletUtxoSnapshot
+        :: ApiT WalletId
+        -> ClientM ApiWalletUtxoSnapshot
     , listWallets
         :: ClientM [wallet]
     , postWallet
@@ -229,6 +233,7 @@ walletClient =
             :<|> _postWallet
             :<|> _putWallet
             :<|> _putWalletPassphrase
+            :<|> _getWalletUtxoSnapshot
             :<|> _getWalletUtxoStatistics
             = client (Proxy @("v2" :> Wallets))
     in
@@ -239,6 +244,7 @@ walletClient =
             , postWallet = _postWallet
             , putWallet = _putWallet
             , putWalletPassphrase = _putWalletPassphrase
+            , getWalletUtxoSnapshot = _getWalletUtxoSnapshot
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }
 
@@ -251,6 +257,7 @@ byronWalletClient =
             :<|> _getWallet
             :<|> _listWallets
             :<|> _putWallet
+            :<|> _getWalletUtxoSnapshot
             :<|> _getWalletUtxoStatistics
             :<|> _putWalletPassphrase
             = client (Proxy @("v2" :> ByronWallets))
@@ -266,6 +273,7 @@ byronWalletClient =
                     { oldPassphrase = Just $ coerce <$> body ^. #oldPassphrase
                     , newPassphrase = body ^. #newPassphrase
                     }
+            , getWalletUtxoSnapshot = _getWalletUtxoSnapshot
             , getWalletUtxoStatistics = _getWalletUtxoStatistics
             }
 

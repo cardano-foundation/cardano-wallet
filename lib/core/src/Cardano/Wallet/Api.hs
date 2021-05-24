@@ -28,6 +28,7 @@ module Cardano.Wallet.Api
         , PutWallet
         , PutWalletPassphrase
         , GetUTxOsStatistics
+        , GetWalletUtxoSnapshot
 
     , WalletKeys
         , GetWalletKey
@@ -81,6 +82,7 @@ module Cardano.Wallet.Api
         , PostByronWallet
         , PutByronWallet
         , GetByronUTxOsStatistics
+        , GetByronWalletUtxoSnapshot
         , PutByronWalletPassphrase
 
     , ByronAssets
@@ -190,6 +192,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostDataT
     , ApiWalletPassphrase
     , ApiWalletSignData
+    , ApiWalletUtxoSnapshot
     , ByronWalletPutPassphraseData
     , Iso8601Time
     , KeyFormat
@@ -311,6 +314,7 @@ type Wallets =
     :<|> PostWallet
     :<|> PutWallet
     :<|> PutWalletPassphrase
+    :<|> GetWalletUtxoSnapshot
     :<|> GetUTxOsStatistics
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
@@ -344,6 +348,11 @@ type PutWalletPassphrase = "wallets"
     :> "passphrase"
     :> ReqBody '[JSON] WalletPutPassphraseData
     :> PutNoContent
+
+type GetWalletUtxoSnapshot = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "utxo"
+    :> Get '[JSON] ApiWalletUtxoSnapshot
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getUTxOsStatistics
 type GetUTxOsStatistics = "wallets"
@@ -634,6 +643,7 @@ type ByronWallets =
     :<|> GetByronWallet
     :<|> ListByronWallets
     :<|> PutByronWallet
+    :<|> GetByronWalletUtxoSnapshot
     :<|> GetByronUTxOsStatistics
     :<|> PutByronWalletPassphrase
 
@@ -661,6 +671,12 @@ type PutByronWallet = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] WalletPutData
     :> Put '[JSON] ApiByronWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletUtxoSnapshot
+type GetByronWalletUtxoSnapshot = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "utxo"
+    :> Get '[JSON] ApiWalletUtxoSnapshot
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronUTxOsStatistics
 type GetByronUTxOsStatistics = "byron-wallets"

@@ -78,6 +78,8 @@ module Cardano.Wallet.Api.Types
     , ApiWalletAssetsBalance (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
+    , ApiWalletUtxoSnapshot (..)
+    , ApiWalletUtxoSnapshotEntry (..)
     , ApiUtxoStatistics (..)
     , toApiUtxoStatistics
     , WalletPostData (..)
@@ -696,6 +698,20 @@ newtype ApiWalletPassphrase = ApiWalletPassphrase
     { passphrase :: ApiT (Passphrase "lenient")
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
+
+newtype ApiWalletUtxoSnapshot = ApiWalletUtxoSnapshot
+    { entries :: [ApiWalletUtxoSnapshotEntry]
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiWalletUtxoSnapshotEntry = ApiWalletUtxoSnapshotEntry
+    { ada :: !(Quantity "lovelace" Natural)
+    , adaMinimum :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiStakePool = ApiStakePool
     { id :: !(ApiT PoolId)
@@ -1895,6 +1911,16 @@ instance ToJSON ApiWallet where
 instance FromJSON ApiWalletPassphrase where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiWalletPassphrase where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiWalletUtxoSnapshot where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiWalletUtxoSnapshot where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiWalletUtxoSnapshotEntry where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiWalletUtxoSnapshotEntry where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON WalletPostData where

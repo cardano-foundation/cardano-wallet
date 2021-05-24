@@ -65,6 +65,7 @@ module Cardano.Wallet
     , createIcarusWallet
     , attachPrivateKeyFromPwd
     , attachPrivateKeyFromPwdHash
+    , getWalletUtxoSnapshot
     , listUtxoStatistics
     , readWallet
     , deleteWallet
@@ -351,6 +352,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus
@@ -369,7 +372,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , withdrawals
     )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxOStatistics, computeUtxoStatistics, log10 )
+    ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Transaction
@@ -485,6 +488,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
+import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
@@ -768,6 +772,36 @@ updateWalletPassphrase ctx wid (old, new) =
             let newP = preparePassphrase EncryptWithPBKDF2 new
             let xprv' = changePassphrase oldP newP xprv
             attachPrivateKeyFromPwd @ctx @s @k ctx wid (xprv', newP)
+
+getWalletUtxoSnapshot
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
+        , HasTransactionLayer k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO [(TokenBundle, Coin)]
+getWalletUtxoSnapshot ctx wid = do
+    (wallet, _, pending) <- withExceptT id (readWallet @ctx @s @k ctx wid)
+    pp <- liftIO $ currentProtocolParameters nl
+    let bundles = availableUTxO @s pending wallet
+            & getUTxO
+            & F.toList
+            & fmap (view #tokens)
+    pure $ pairBundleWithMinAdaQuantity pp <$> bundles
+  where
+    nl = ctx ^. networkLayer
+    tl = ctx ^. transactionLayer @k
+
+    pairBundleWithMinAdaQuantity
+        :: ProtocolParameters -> TokenBundle -> (TokenBundle, Coin)
+    pairBundleWithMinAdaQuantity pp bundle =
+        (bundle, computeMinAdaQuantity $ view #tokens bundle)
+      where
+        computeMinAdaQuantity :: TokenMap -> Coin
+        computeMinAdaQuantity =
+            view #txOutputMinimumAdaQuantity (view #constraints tl pp)
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
