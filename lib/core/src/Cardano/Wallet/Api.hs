@@ -40,6 +40,7 @@ module Cardano.Wallet.Api
         , ListAssets
         , GetAsset
         , GetAssetDefault
+        , MintBurnAsset
 
     , Addresses
         , ListAddresses
@@ -160,6 +161,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressIdT
     , ApiAddressInspect
     , ApiAddressInspectData
+    , ApiMintBurnTransactionT
     , ApiAddressT
     , ApiAsset
     , ApiByronWallet
@@ -198,6 +200,7 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time
     , KeyFormat
     , MinWithdrawal
+    , PostMintBurnAssetDataT
     , PostExternalTransactionData
     , PostTransactionDataT
     , PostTransactionFeeDataT
@@ -282,7 +285,7 @@ type ApiV2 n apiPool = "v2" :> Api n apiPool
 type Api n apiPool =
          Wallets
     :<|> WalletKeys
-    :<|> Assets
+    :<|> Assets n
     :<|> Addresses n
     :<|> CoinSelections n
     :<|> Transactions n
@@ -413,10 +416,11 @@ type GetAccountKey = "wallets"
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Assets
 -------------------------------------------------------------------------------}
 
-type Assets =
+type Assets n =
     ListAssets
     :<|> GetAsset
     :<|> GetAssetDefault
+    :<|> MintBurnAsset n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAssets
 type ListAssets = "wallets"
@@ -438,6 +442,13 @@ type GetAssetDefault = "wallets"
     :> "assets"
     :> Capture "policyId" (ApiT TokenPolicyId)
     :> Get '[JSON] ApiAsset
+
+type MintBurnAsset n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "assets"
+    :> "mint"
+    :> ReqBody '[JSON] (PostMintBurnAssetDataT n)
+    :> PostAccepted '[JSON] (ApiMintBurnTransactionT n)
 
 {-------------------------------------------------------------------------------
                                   Addresses
@@ -943,7 +954,7 @@ type DeleteSharedWallet = "shared-wallets"
     :> DeleteNoContent
 
 {-------------------------------------------------------------------------------
-                                  Shared Wallet Keys
+                                 Shared Wallet Keys
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Keys
 -------------------------------------------------------------------------------}
 

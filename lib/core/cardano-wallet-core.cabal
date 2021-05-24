@@ -40,6 +40,8 @@ library
     , cardano-addresses
     , cardano-api
     , cardano-crypto
+    , cardano-crypto-class
+    , cardano-crypto-wrapper
     , cardano-numeric
     , cardano-slotting
     , cborg
@@ -97,6 +99,7 @@ library
     , servant
     , servant-client
     , servant-server
+    , shelley-spec-ledger
     , split
     , statistics
     , streaming-commons
@@ -105,6 +108,7 @@ library
     , template-haskell
     , text
     , text-class
+    , these
     , time
     , tls
     , tracer-transformers
@@ -147,6 +151,7 @@ library
       Cardano.Pool.Metadata
       Cardano.Wallet
       Cardano.Wallet.Api
+      Cardano.Wallet.MintBurn
       Cardano.Wallet.Api.Client
       Cardano.Wallet.Api.Link
       Cardano.Wallet.Api.Server
@@ -317,6 +322,7 @@ test-suite unit
     , text-class
     , tls
     , time
+    , these
     , transformers
     , tree-diff
     , unliftio

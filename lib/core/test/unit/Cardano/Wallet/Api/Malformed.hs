@@ -69,6 +69,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphrase
     , ApiWalletSignData
     , ByronWalletPutPassphraseData
+    , PostMintBurnAssetData
     , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
@@ -1803,3 +1804,165 @@ putAddressesDataCases =
       , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPutAddressesData(ApiPutAddressesData) failed, key 'addresses' not found"
       )
     ]
+
+instance Malformed (BodyParam (PostMintBurnAssetData ('Testnet pm))) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.PostMintBurnAssetData(PostMintBurnAssetData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.PostMintBurnAssetData(PostMintBurnAssetData) failed, expected Object, but encountered String")
+            , ("{\"mint_burn: {}, \"random\"}", msgJsonInvalid)
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$>
+            [
+              ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "not a monetary policy index"
+                               , "asset_name": "deadbeef"
+                               , "operation": { "mint": [ { "receiving_address": #{addrPlaceholder}
+                                                          , "amount": { "unit": "assets"
+                                                                      , "quantity": 3
+                                                                      }
+                                                          }
+                                                        ]
+                                              }
+                  }
+                , "passphrase": ""
+                }|]
+              , "Error in $['mint_burn']['monetary_policy_index']: A derivation index must be a natural number between 0 and 2147483647 with an optional 'H' suffix (e.g. '1815H' or '44'). Indexes without suffixes are called 'Soft' Indexes with suffixes are called 'Hardened'."
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "0"
+                               , "asset_name": "deadbeef"
+                               , "operation": { "mint": [ { "receiving_address": #{addrPlaceholder}
+                                                          , "amount": { "unit": "assets"
+                                                                      , "quantity": 3
+                                                                      }
+                                                          }
+                                                        ]
+                                              }
+                  }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "-1"
+                               , "asset_name": "deadbeef"
+                               , "operation": { "mint": [ { "receiving_address": #{addrPlaceholder}
+                                                          , "amount": { "unit": "assets"
+                                                                      , "quantity": 3
+                                                                      }
+                                                          }
+                                                        ]
+                                              }
+                  }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $['mint_burn']['monetary_policy_index']: A derivation index must be a natural number between 0 and 2147483647 with an optional 'H' suffix (e.g. '1815H' or '44'). Indexes without suffixes are called 'Soft' Indexes with suffixes are called 'Hardened'."
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "0"
+                               , "asset_name": "not hexadecimal"
+                               , "operation": { "mint": [ { "receiving_address": #{addrPlaceholder}
+                                                          , "amount": { "unit": "assets"
+                                                                      , "quantity": 3
+                                                                      }
+                                                          }
+                                                        ]
+                                              }
+                  }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $['mint_burn']['asset_name']: 'base16: input: invalid length'"
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "0"
+                               , "asset_name": 3
+                               , "operation": { "mint": [ { "receiving_address": #{addrPlaceholder}
+                                                          , "amount": { "unit": "assets"
+                                                                      , "quantity": 3
+                                                                      }
+                                                          }
+                                                        ]
+                                              }
+                  }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $['mint_burn']['asset_name']: parsing AssetName failed, expected String, but encountered Number"
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "0"
+                               , "asset_name": "deadbeef"
+                               , "operation": {}
+                  }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $['mint_burn'].operation: Must include a mint or burn operation"
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "0"
+                               , "asset_name": "deadbeef"
+                               , "operation": { "mint": [] }
+                               }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $['mint_burn'].operation.mint: parsing NonEmpty failed, unexpected empty list"
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "0"
+                               , "asset_name": "deadbeef"
+                               , "operation": { "mint": [ { "receiving_address": #{addrPlaceholder}
+                                                          , "amount": { "unit": "not an asset unit"
+                                                                      , "quantity": 3
+                                                                      }
+                                                          }
+                                                        ]
+                                              }
+                               }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $['mint_burn'].operation.mint[0].amount: failed to parse quantified value. Expected value in 'assets' (e.g. { 'unit': 'assets', 'quantity': ... }) but got something else."
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "0"
+                               , "asset_name": "deadbeef"
+                               , "operation": { "mint": [ { "receiving_address": []
+                                                          , "amount": { "unit": "assets"
+                                                                      , "quantity": 3
+                                                                      }
+                                                          }
+                                                        ]
+                                              }
+                               }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $['mint_burn'].operation.mint[0]['receiving_address']: parsing Text failed, expected String, but encountered Array"
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "0"
+                               , "asset_name": "deadbeef"
+                               , "operation": { "burn": { "unit": "assets"
+                                                        , "quantity": -1
+                                                        }
+                                              }
+                               }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $['mint_burn'].operation.burn.quantity: parsing Natural failed, unexpected negative number -1"
+              )
+            , ( [aesonQQ|
+                { "mint_burn": { "monetary_policy_index": "0"
+                               , "asset_name": "deadbeef"
+                               , "operation": { "mint": [ { "receiving_address": #{addrPlaceholder}
+                                                          , "amount": { "unit": "assets"
+                                                                      , "quantity": -1
+                                                                      }
+                                                          }
+                                                        ]
+                                              }
+                               }
+                , "passphrase": #{nameTooLong}
+                }|]
+              , "Error in $['mint_burn'].operation.mint[0].amount.quantity: parsing Natural failed, unexpected negative number -1"
+              )
+            ]

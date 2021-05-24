@@ -32,15 +32,16 @@ module Cardano.Wallet.Transaction
     , ErrSelectionCriteria (..)
     , ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
-
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Address.Script
+    ( KeyHash, Script )
 import Cardano.Api
-    ( AnyCardanoEra )
+    ( AnyCardanoEra, SimpleScript, SimpleScriptV2 )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex, Passphrase )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
@@ -54,7 +55,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
+    ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -91,6 +92,10 @@ data TransactionLayer k = TransactionLayer
         -> SelectionResult TxOut
             -- A balanced coin selection where all change addresses have been
             -- assigned.
+        -> Maybe (k 'ScriptK XPrv, Passphrase "encryption")
+            -- Extra witness
+        -> [SimpleScript SimpleScriptV2]
+            -- Script witnesses
         -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a standard transaction
         --
@@ -152,6 +157,9 @@ data TransactionCtx = TransactionCtx
     -- ^ Transaction expiry (TTL) slot.
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
+    , txMintBurnInfo :: (Maybe (NonEmpty (Address, TokenMap)), Maybe TokenMap)
+    -- ^ Mint/burn transactions.
+    , txScripts :: [Script KeyHash]
     } deriving (Show, Generic, Eq)
 
 data Withdrawal
@@ -174,6 +182,8 @@ defaultTransactionCtx = TransactionCtx
     , txMetadata = Nothing
     , txTimeToLive = maxBound
     , txDelegationAction = Nothing
+    , txMintBurnInfo = (Nothing, Nothing)
+    , txScripts = []
     }
 
 -- | Whether the user is attempting any particular delegation action.

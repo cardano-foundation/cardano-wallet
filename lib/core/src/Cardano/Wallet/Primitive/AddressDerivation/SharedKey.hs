@@ -31,7 +31,12 @@ module Cardano.Wallet.Primitive.AddressDerivation.SharedKey
 import Prelude
 
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script (..), ScriptTemplate (..), toScriptHash )
+    ( Cosigner (..)
+    , KeyHash (..)
+    , Script (..)
+    , ScriptTemplate (..)
+    , toScriptHash
+    )
 import Cardano.Address.Style.Shared
     ( deriveAddressPublicKey, deriveDelegationPublicKey, hashKey, liftXPub )
 import Cardano.Address.Style.Shelley

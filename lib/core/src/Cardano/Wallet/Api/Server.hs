@@ -87,6 +87,7 @@ module Cardano.Wallet.Api.Server
     , postSharedWallet
     , patchSharedWallet
     , mkSharedWallet
+    , mintToken
 
     -- * Server error responses
     , IsServerError(..)
@@ -148,6 +149,7 @@ import Cardano.Wallet
     , ErrReadAccountPublicKey (..)
     , ErrReadRewardAccount (..)
     , ErrRemoveTx (..)
+    , ErrScriptConversion (..)
     , ErrSelectAssets (..)
     , ErrSignMetadataWith (..)
     , ErrSignPayment (..)
@@ -223,6 +225,7 @@ import Cardano.Wallet.Api.Types
     , ApiStakeKeys (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiMintBurnTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
@@ -272,6 +275,8 @@ import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
+import Cardano.Wallet.DB.Sqlite.Types
+    ()
 import Cardano.Wallet.Network
     ( NetworkLayer, fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -340,6 +345,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionResult (..)
     , UnableToConstructChangeError (..)
     , balanceMissing
+    , outputsMissing
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Delegation.UTxO
@@ -451,6 +457,7 @@ import Data.Aeson
     ( (.=) )
 import Data.ByteString
     ( ByteString )
+import Data.ByteArray.Encoding (convertToBase, Base(Base16))
 import Data.Coerce
     ( coerce )
 import Data.Either.Extra
@@ -549,6 +556,7 @@ import UnliftIO.Exception
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.MintBurn as MintBurn
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
@@ -1809,7 +1817,7 @@ postTransaction ctx genChange (ApiT wid) body = do
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+            $ W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel' Nothing []
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
         pure (sel, tx, txMeta, txTime)
@@ -1969,7 +1977,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+            $ W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel' Nothing []
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -2054,7 +2062,7 @@ quitStakePool ctx (ApiT wid) body = do
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+            $ W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel' Nothing []
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -2304,7 +2312,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     }
             (tx, txMeta, txTime, sealedTx) <- liftHandler $
                 W.signTransaction @_ @s @k wrk wid mkRewardAccount pwd txContext
-                    (selection {changeGenerated = []})
+                    (selection {changeGenerated = []}) Nothing []
             liftHandler $
                 W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
             liftIO $ mkApiTransaction
@@ -3168,6 +3176,7 @@ instance IsServerError ErrSignPayment where
             }
         ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
         ErrSignPaymentIncorrectTTL e -> toServerError e
+        ErrSignPaymentScriptConversion e -> toServerError e
 
 instance IsServerError ErrDecodeSignedTx where
     toServerError = \case
@@ -3282,6 +3291,22 @@ instance IsServerError PastHorizonException where
         , " Depending on the blockchain, this process can take an"
         , " unknown amount of time."
         ]
+
+instance IsServerError ErrScriptConversion where
+    toServerError e = apiError err400 BadRequest $ mconcat $
+        case e of
+            ErrScriptConversionHashExpectedSize sz ->
+                [ "While converting a key hash, expected a hash of size"
+                , " '" <> T.pack (show sz) <> "' bytes."
+                , " Please review the submitted scripts and ensure that"
+                , " the included key hashes are valid."
+                ]
+            ErrScriptConversionExpectedPaymentKey ->
+                [ "While converting a key hash, expected a payment key hash"
+                , " but got a delegation key hash."
+                , " Please review the submitted scripts and ensure that"
+                , " the included key hashes are valid."
+                ]
 
 instance IsServerError ErrGetTransaction where
     toServerError = \case
@@ -3556,6 +3581,13 @@ instance IsServerError ErrSelectAssets where
                         , "must specify enough ada. Here are the problematic "
                         , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
                         ]
+                OutputsInsufficient e ->
+                    apiError err403 MintedNotSpent $ mconcat
+                        [ "I can't process this transaction because some "
+                        , "minted values were not spent or burned. These "
+                        , "are the values that should be spent or burned: "
+                        , pretty . Flat $ outputsMissing e
+                        ]
                 UnableToConstructChange e ->
                     apiError err403 CannotCoverFee $ mconcat
                         [ "I am unable to finalize the transaction, as there is "
@@ -3659,3 +3691,101 @@ instance HasSeverityAnnotation WalletEngineLog where
     getSeverityAnnotation = \case
         MsgWalletWorker msg -> getSeverityAnnotation msg
         MsgSubmitSealedTx msg -> getSeverityAnnotation msg
+
+mintToken
+    :: forall ctx s k n.
+        ( ctx ~ ApiLayer s k
+        , s ~ SeqState n k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
+        , GenChange s
+        , SoftDerivation k
+        , HasNetworkLayer IO ctx
+        , IsOwned s k
+        , Typeable n
+        , Typeable s
+        )
+    => ctx
+    -> ArgGenChange s
+    -> ApiT WalletId
+    -> Api.PostMintBurnAssetData n
+    -> Handler (ApiMintBurnTransaction n)
+mintToken ctx genChange (ApiT wid) body = do
+    let pwd = coerce $ body ^. #passphrase . #getApiT
+    let md = body ^? #metadata . traverse . #getApiT
+    let mTTL = body ^? #timeToLive . traverse . #getQuantity
+
+    let mintBurnReq = MintBurn.fromApiMintBurnData $ body ^. #mintBurn
+
+    (wdrl, mkRwdAcct) <-
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+
+    ttl <- liftIO $ W.getTxExpiry ti mTTL
+
+    (sel, tx, txMeta, txTime, mintBurnData) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        -- In the HD-wallet, monetary policies are associated with
+        -- address indices under the account type "3" (MultiSigScript).
+        -- Each address index stores the key associated with a single
+        -- monetary policy.
+        --
+        -- e.g. m/1852(purpose)​/​1815(coin_type)/0(account)​/3/0 -> monetary policy 1
+        --      m/1852(purpose)​/​1815(coin_type)/0(account)​/3/1 -> monetary policy 2
+
+        -- Derive a signing key for the monetary policy
+        mintBurnData <- liftHandler $ MintBurn.enrich
+            (W.deriveScriptSigningCreds @_ @s @k @n wrk wid pwd) mintBurnReq
+
+        let txCtx = defaultTransactionCtx
+                { txWithdrawal = wdrl
+                , txMetadata = md
+                , txTimeToLive = ttl
+                , txMintBurnInfo = MintBurn.tmpGetAddrMap mintBurnData
+                , txScripts = [MintBurn.getMintBurnScript mintBurnData]
+                }
+
+        w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        sel <- liftHandler $ case MintBurn.getTxOuts mintBurnData of
+                 []     -> W.selectAssetsNoOutputs @_ @s @k wrk wid w txCtx (const Prelude.id)
+                 tx:txs -> W.selectAssets @_ @s @k wrk w txCtx (tx NE.:| txs) (const Prelude.id)
+        sel' <- liftHandler
+            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
+
+        (tx, txMeta, txTime, sealedTx) <- liftHandler $
+            W.signTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
+                (Just $ MintBurn.getSigningKey mintBurnData) [MintBurn.getMintBurnScript mintBurnData]
+        liftHandler
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+        pure (sel, tx, txMeta, txTime, mintBurnData)
+
+    liftIO $ do
+        txInfo <- mkApiTransaction
+            (timeInterpreter $ ctx ^. networkLayer)
+            (txId tx)
+            (tx ^. #fee)
+            (NE.toList $ second Just <$> sel ^. #inputsSelected)
+            (tx ^. #outputs)
+            (tx ^. #withdrawals)
+            (txMeta, txTime)
+            (tx ^. #metadata)
+            #pendingSince
+
+        let
+            asBase16 :: ToText a => a -> W.Encoded 'Base16
+            asBase16 = W.Encoded . convertToBase Base16 . T.encodeUtf8 . toText
+
+            respPolicyId = MintBurn.getPolicyId mintBurnData
+            respAssetName = MintBurn.getAssetName mintBurnData
+            respAssetNameBase16 = asBase16 respAssetName
+            respSubject = asBase16 respPolicyId <> respAssetNameBase16
+
+        pure $ ApiMintBurnTransaction
+            { transaction         = txInfo
+            , monetaryPolicyIndex = ApiT $ MintBurn.getMonetaryPolicyIndex mintBurnData
+            , policyId            = ApiT respPolicyId
+            , assetName           = ApiT respAssetName
+            , subject             = ApiT respSubject
+            }
+  where
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)

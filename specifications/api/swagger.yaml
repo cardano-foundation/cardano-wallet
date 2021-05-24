@@ -2748,6 +2748,86 @@ components:
 
         "none": *ApiNullStakeKey
 
+    ApiMintBurnTransaction: &ApiMintBurnTransaction
+      type: object
+      required:
+        - transaction
+        - monetary_policy_index
+        - policy_id
+        - asset_name
+        - subject
+      properties:
+        transaction: *ApiTransaction
+        monetary_policy_index: *derivationSegment
+        policy_id: *assetPolicyId
+        asset_name: *assetName
+        subject: *assetFingerprint
+
+    ApiAssetQuantity: &ApiAssetQuantity
+      type: object
+      required:
+        - quantity
+        - unit
+      properties:
+        quantity:
+          type: integer
+          example: 14
+        unit:
+          type: string
+          enum:
+            - assets
+
+    ApiMintData: &ApiMintData
+      type: object
+      required:
+        - receiving_address
+        - amount
+      properties:
+        receiving_address: *addressId
+        amount: *ApiAssetQuantity
+
+    ApiBurnData: &ApiBurnData
+      allOf:
+        - *ApiAssetQuantity
+
+    ApiMintBurnOperation: &ApiMintBurnOperation
+      type: object
+      properties:
+        mint:
+          type: array
+          items: *ApiMintData
+          minItems: 1
+        burn: *ApiBurnData
+
+    ApiMintBurnData: &ApiMintBurnData
+      type: object
+      required:
+        - asset_name
+        - operation
+      properties:
+        monetary_policy_index:
+          allOf:
+            - *derivationSegment
+            - type: string
+              default: 0
+        asset_name: *assetName
+        operation: *ApiMintBurnOperation
+
+    ApiPostMintBurnAssetData: &ApiPostMintBurnAssetData
+      type: object
+      required:
+        - mint_burn
+        - passphrase
+      properties:
+        mint_burn: *ApiMintBurnData
+        passphrase:
+          <<: *lenientPassphrase
+          description: The wallet's master passphrase.
+        metadata: *transactionMetadata
+        time_to_live: *transactionTTL
+
+
+
 
 #############################################################################
 #                                                                           #
@@ -3228,6 +3308,19 @@ x-errSharedWalletScriptTemplateInvalid: &errSharedWalletScriptTemplateInvalid
     code:
       type: string
       enum: ['shared_wallet_script_template_invalid']
+
+x-errMintedNotSpent: &errMintedNotSpent
+  <<: *responsesErr
+  title: funds_minted_were_not_spent
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user mints funds but does not spend them all (i.e. does
+        not send all minted funds to an address).
+    code:
+      type: string
+      enum: ['minted_not_spent']
 
 # TODO: Map this error to the place it belongs.
 x-errNetworkUnreachable: &errNetworkUnreachable
@@ -3756,6 +3849,31 @@ x-responsesPostSharedWallet: &responsesPostSharedWallet
     content:
       application/json:
         schema: *ApiSharedWallet
+
+x-responsesMintToken: &responsesMintToken
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errAlreadyWithdrawing
+            - <<: *errUtxoTooSmall
+            - <<: *errCannotCoverFee
+            - <<: *errNotEnoughMoney
+            - <<: *errTransactionIsTooBig
+            - <<: *errNoRootKey
+            - <<: *errWrongEncryptionPassphrase
+            - <<: *errMintedNotSpent
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiMintBurnTransaction
 
 x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr400
@@ -4462,6 +4580,27 @@ paths:
         - *parametersWalletId
         - *parametersPolicyId
       responses: *responsesGetAsset
+
+  /wallets/{walletId}/assets/mint:
+    post:
+      operationId: mintBurnToken
+      tags: ["Assets"]
+      summary: Mint/Burn
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Mint and burn assets from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - <<: *ApiPostMintBurnAssetData
+                  title: "mint/burn"
+      responses: *responsesMintToken
 
   /wallets/{walletId}/statistics/utxos:
     get:

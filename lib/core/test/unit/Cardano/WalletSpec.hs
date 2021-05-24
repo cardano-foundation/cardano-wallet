@@ -621,10 +621,10 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         selection' <- unsafeRunExceptT $
             W.assignChangeAddressesAndUpdateDb wl wid () selection
         (_,_,_,txOld) <- unsafeRunExceptT $ W.signTransaction
-            @_ @_ wl wid credentials (coerce pwd) ctx selection'
+            @_ @_ wl wid credentials (coerce pwd) ctx selection' Nothing []
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         (_,_,_,txNew) <- unsafeRunExceptT $ W.signTransaction
-            @_ @_ wl wid credentials newPwd ctx selection'
+            @_ @_ wl wid credentials newPwd ctx selection' Nothing []
         txOld `shouldBe` txNew
   where
     selection = SelectionResult
@@ -1279,7 +1279,7 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer ShelleyKey
 dummyTransactionLayer = TransactionLayer
-    { mkTransaction = \_era _stakeCredentials keystore _pp _ctx cs -> do
+    { mkTransaction = \_era _stakeCredentials keystore _pp _ctx cs _extraWit _scripts -> do
         let inps' = NE.toList $ second txOutCoin <$> inputsSelected cs
         let tid = mkTxId inps' (outputsCovered cs) mempty Nothing
         let tx = Tx tid Nothing inps' (outputsCovered cs) mempty Nothing

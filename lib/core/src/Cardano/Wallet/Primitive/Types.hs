@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -147,6 +148,9 @@ module Cardano.Wallet.Primitive.Types
     , InternalState (..)
     , defaultInternalState
 
+    -- * Encodings
+    , Encoded (..)
+
     ) where
 
 import Prelude
@@ -178,11 +182,11 @@ import Control.Monad.Trans.Except
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), withObject, (.:), (.:?) )
+    ( FromJSON (..), ToJSON (..), withObject, (.:), (.:?), withText )
 import Data.ByteArray
     ( ByteArrayAccess )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Functor.Identity
@@ -250,6 +254,7 @@ import Network.URI
 import Numeric.Natural
     ( Natural )
 
+import qualified Data.Aeson as Aeson
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteString as BS
@@ -1457,3 +1462,33 @@ instance FromJSON PoolMetadataSource where
 
 instance ToJSON PoolMetadataSource where
     toJSON = toJSON . toText
+
+--
+-- Encodings
+--
+
+newtype Encoded (base :: Base) = Encoded
+    { encodedRaw :: ByteString }
+    deriving (Generic, Show, Eq)
+    deriving anyclass NFData
+
+instance Semigroup (Encoded base) where
+    (Encoded r1) <> (Encoded r2) = Encoded $ r1 <> r2
+
+instance Monoid (Encoded base) where
+    mempty = Encoded mempty
+
+instance FromJSON (Encoded 'Base16) where
+    parseJSON = withText "base16 bytestring" $
+        either fail (pure . Encoded) . convertFromBase Base16 . T.encodeUtf8
+
+instance ToJSON (Encoded 'Base16) where
+    toJSON = Aeson.String . T.decodeUtf8 . convertToBase Base16 . encodedRaw 
+
+instance FromJSON (Encoded 'Base64) where
+    parseJSON = withText "base64 bytestring" $
+        either fail (pure . Encoded) . convertFromBase Base64 . T.encodeUtf8
+
+instance ToJSON (Encoded 'Base64) where
+    toJSON = Aeson.String . T.decodeUtf8 . convertToBase Base64 . encodedRaw 
+ 

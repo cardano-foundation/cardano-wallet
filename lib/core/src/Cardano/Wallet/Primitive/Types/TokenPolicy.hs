@@ -12,6 +12,7 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
     (
       -- * Token Policies
       TokenPolicyId (..)
+    , tokenPolicyIdFromScript
 
       -- * Token Names
     , TokenName (..)
@@ -38,6 +39,8 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyHash, Script, toScriptHash, unScriptHash )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Codec.Binary.Bech32.TH
@@ -107,6 +110,9 @@ instance ToText TokenPolicyId where
 
 instance FromText TokenPolicyId where
     fromText = fmap UnsafeTokenPolicyId . fromText
+
+tokenPolicyIdFromScript :: Script KeyHash -> TokenPolicyId
+tokenPolicyIdFromScript = UnsafeTokenPolicyId . Hash . unScriptHash . toScriptHash
 
 -- | Token names, defined by the monetary policy script.
 newtype TokenName =

@@ -52,6 +52,8 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
+    , ApiMintData(..)
+    , ApiBurnData(..)
     , AnyAddress (..)
     , ApiAccountKey (..)
     , ApiAccountKeyShared (..)
@@ -83,6 +85,8 @@ import Cardano.Wallet.Api.Types
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
+    , ApiMintBurnData (..)
+    , ApiMintBurnOperation (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -104,6 +108,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPostDataFromAccountPubX (..)
+    , ApiMintBurnTransaction (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
@@ -147,6 +152,7 @@ import Cardano.Wallet.Api.Types
     , HealthCheckSMASH (..)
     , Iso8601Time (..)
     , KeyFormat (..)
+    , PostMintBurnAssetData (..)
     , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
@@ -172,6 +178,7 @@ import Cardano.Wallet.Gen
     , shrinkPercentage
     , shrinkTxMetadata
     )
+
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..)
     , DerivationType (..)
@@ -235,12 +242,17 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetIdSmallRange, genTokenMapSmallRange, shrinkTokenMapSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
+    , TokenName(..)
     , AssetLogo (..)
     , AssetMetadata (..)
+    , TokenPolicyId(..)
     , AssetURL (..)
     , TokenFingerprint
     , mkTokenFingerprint
+    , unTokenName
     )
+import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+    ( genTokenNameSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxIn (..), TxMetadata (..), TxOut (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -293,7 +305,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..) )
+    ( ToText(..), FromText (..), TextDecodingError (..) )
 import Data.Time.Clock
     ( NominalDiffTime )
 import Data.Time.Clock.POSIX
@@ -339,6 +351,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , applyArbitrary2
     , applyArbitrary3
+    , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -373,6 +386,9 @@ import Text.Regex.PCRE
     ( compBlank, execBlank, makeRegexOpts, matchTest )
 import Web.HttpApiData
     ( FromHttpApiData (..) )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
+import Cardano.Wallet.Primitive.Types (Encoded(..))
 
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.Aeson as Aeson
@@ -489,6 +505,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiOurStakeKey ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiForeignStakeKey ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiNullStakeKey
+            jsonRoundtripAndGolden $ Proxy @(PostMintBurnAssetData ('Testnet 0))
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -971,6 +988,16 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "PostMintBurnAssetData" $ property $ \x ->
+          let
+            x' = PostMintBurnAssetData
+                 { mintBurn = mintBurn (x :: PostMintBurnAssetData ('Testnet 0))
+                 , passphrase = passphrase (x :: PostMintBurnAssetData ('Testnet 0))
+                 , metadata = metadata (x :: PostMintBurnAssetData ('Testnet 0))
+                 , timeToLive = timeToLive (x :: PostMintBurnAssetData ('Testnet 0))
+                 }
+          in
+               x' === x .&&. show x' === show x
         it "PostTransactionFeeData" $ property $ \x ->
             let
                 x' = PostTransactionFeeData
@@ -1320,6 +1347,11 @@ instance Arbitrary Address where
     arbitrary = pure $ Address "<addr>"
 
 instance Arbitrary (Quantity "lovelace" Natural) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
+
+instance Arbitrary (Quantity "token-unit" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
@@ -1857,6 +1889,57 @@ instance Arbitrary (PostTransactionData t) where
         <*> arbitrary
         <*> arbitrary
 
+instance Arbitrary (PostMintBurnAssetData t) where
+    arbitrary = applyArbitrary4 PostMintBurnAssetData
+
+instance Arbitrary (ApiMintBurnData t) where
+    arbitrary = ApiMintBurnData
+        <$> arbitrary
+        <*> (ApiT <$> genTokenNameSmallRange)
+        <*> arbitrary
+
+instance Arbitrary (ApiMintData t) where
+    arbitrary = ApiMintData <$> arbitrary <*> arbitrary
+
+instance Arbitrary ApiBurnData where
+    arbitrary = ApiBurnData <$> arbitrary
+
+instance Arbitrary (ApiMintBurnOperation t) where
+    arbitrary
+        = oneof [ ApiMint <$> arbitrary
+                , ApiBurn <$> arbitrary
+                , ApiMintAndBurn <$> arbitrary <*> arbitrary
+                ]
+
+instance Arbitrary (ApiMintBurnTransaction t) where
+    arbitrary = do
+        tx <- arbitrary
+        mpi <- arbitrary
+        policyId <- arbitrary
+        assetName <- arbitrary
+        let
+            asBase16 :: ToText a => a -> Encoded 'Base16
+            asBase16 = Encoded . convertToBase Base16 . T.encodeUtf8 . toText
+
+            assetNameEnc = Encoded $ unTokenName assetName
+            subject = asBase16 policyId <> assetNameEnc
+
+        pure $ ApiMintBurnTransaction tx mpi (ApiT policyId) (ApiT assetName) (ApiT assetNameEnc) (ApiT subject)
+
+instance ToSchema (ApiMintBurnTransaction t) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiMintBurnTransaction"
+
+instance Arbitrary TokenPolicyId where
+    arbitrary = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
+
+instance Arbitrary TokenName where
+    arbitrary = UnsafeTokenName . BS.pack <$> vector 32
+
+instance Arbitrary (Quantity "assets" Natural) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
+
 instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -2274,6 +2357,10 @@ instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionData"
+
+instance ToSchema (PostMintBurnAssetData t) where
+    declareNamedSchema _ = do
+        declareSchemaForDefinition "ApiPostMintBurnAssetData"
 
 instance ToSchema (PostTransactionFeeData t) where
     declareNamedSchema _ = do

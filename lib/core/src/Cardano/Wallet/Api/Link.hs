@@ -71,6 +71,7 @@ module Cardano.Wallet.Api.Link
     , getAsset
     , listByronAssets
     , getByronAsset
+    , mintToken
 
       -- * Transactions
     , createTransaction
@@ -881,3 +882,13 @@ instance HasVerb sub => HasVerb (QueryFlag sym :> sub) where
 
 instance HasVerb sub => HasVerb (Header' opts name ty :> sub) where
     method _ = method (Proxy @sub)
+
+mintToken
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+mintToken w = (endpoint @(Api.MintBurnAsset Net) (wid &))
+  where
+    wid = w ^. typed @(ApiT WalletId)

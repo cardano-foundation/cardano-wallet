@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
+    , OutputsInsufficientError (..)
     , SelectionCriteria (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
@@ -49,6 +50,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAssets
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
+    , outputsMissing
     , performSelection
     , prepareOutputsWith
     , runRoundRobin
@@ -175,6 +177,7 @@ import Test.QuickCheck
     , property
     , shrinkIntegral
     , shrinkList
+    , sublistOf
     , suchThat
     , tabulate
     , withMaxSuccess
@@ -567,17 +570,52 @@ genSelectionCriteria genUTxOIndex = do
           )
         ]
     extraCoinSource <- oneof [ pure Nothing, Just <$> genCoinSmall ]
+    burnInputs <- TokenMap.fromFlatList <$> sublistOf (availableTokensToBurn utxoAvailable outputsToCover)
+    -- mintInputs <- (uncurry TokenMap.singleton) <$> oneof (pure <$> allSpentOrBurntTokens outputsToCover burnInputs)
+    -- mintInputs <- (uncurry TokenMap.singleton) <$> oneof (pure <$> allSpentOrBurntTokens outputsToCover burnInputs)
+    mintInputs <- TokenMap.fromFlatList <$> sublistOf (allSpentOrBurntTokens outputsToCover burnInputs)
+    -- burnInputs <- pure mempty
+    -- mintInputs <- pure mempty
     pure $ SelectionCriteria
-        { outputsToCover, utxoAvailable, extraCoinSource, selectionLimit }
+        { outputsToCover
+        , utxoAvailable
+        , extraCoinSource
+        , selectionLimit
+        , mintInputs
+        , burnInputs
+        }
+
+  where
+    allSpentOrBurntTokens :: NonEmpty TxOut -> TokenMap -> [(AssetId, TokenQuantity)]
+    allSpentOrBurntTokens outputsToCover burntTokens =
+      let
+        (TokenBundle _ requestedTokens) = F.foldMap (view #tokens) outputsToCover
+      in
+        TokenMap.toFlatList $ burntTokens <> requestedTokens
+
+    availableTokensToBurn :: UTxOIndex -> NonEmpty TxOut -> [(AssetId, TokenQuantity)]
+    availableTokensToBurn index outputsToCover =
+      let
+        (TokenBundle _ availableTokens) = UTxOIndex.balance index `TokenBundle.difference` F.foldMap (view #tokens) outputsToCover
+      in
+        TokenMap.toFlatList availableTokens
+
 
 balanceSufficient :: SelectionCriteria -> Bool
 balanceSufficient criteria =
     balanceRequired `leq` balanceAvailable
   where
-    SelectionCriteria {outputsToCover, utxoAvailable, extraCoinSource}
+    SelectionCriteria {outputsToCover, utxoAvailable, extraCoinSource, mintInputs, burnInputs}
         = criteria
-    balanceRequired = F.foldMap (view #tokens) outputsToCover
+    -- FIXME: Way too many places this logic repeated. Consider making
+    -- a module with closed interface.
+    balanceRequired =
+      F.foldMap (view #tokens) outputsToCover
+        `TokenBundle.add`
+          TokenBundle.fromTokenMap burnInputs
     balanceAvailable = fullBalance utxoAvailable extraCoinSource
+        `TokenBundle.add`
+          TokenBundle.fromTokenMap mintInputs
 
 prop_performSelection_small
     :: MinCoinValueFor
@@ -585,10 +623,11 @@ prop_performSelection_small
     -> Blind (Small SelectionCriteria)
     -> Property
 prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
+    withMaxSuccess 1000 $
     checkCoverage $
     cover 30 (balanceSufficient criteria)
         "balance sufficient" $
-    cover 30 (not $ balanceSufficient criteria)
+    cover 25 (not $ balanceSufficient criteria)
         "balance insufficient" $
     cover 5 (utxoHasAtLeastOneAsset)
         "No assets in UTxO" $
@@ -599,7 +638,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
-        . cover 10 (selectionLimited && selectionSufficient result)
+        . cover 5 (selectionLimited && selectionSufficient result)
             "selection limited but sufficient"
         . cover 10 (selectionLimited && selectionInsufficient result)
             "selection limited and insufficient"
@@ -661,6 +700,10 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , show extraCoinSource
             , "selectionLimit:"
             , show selectionLimit
+            , "mintInputs:"
+            , pretty (Flat mintInputs)
+            , "burnInputs:"
+            , pretty (Flat burnInputs)
             ]
         result <- run $ performSelection
             (mkMinCoinValueFor minCoinValueFor)
@@ -675,18 +718,33 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         , utxoAvailable
         , extraCoinSource
         , selectionLimit
+        , mintInputs
+        , burnInputs
         } = criteria
 
     onSuccess result = do
+        let
+          totalInputValue =
+            balanceSelected
+              `TokenBundle.add`
+                TokenBundle.fromTokenMap mintInputs
+          totalOutputValue =
+            (F.foldMap (view #tokens) outputsCovered)
+              `TokenBundle.add` balanceChange
+              `TokenBundle.add` TokenBundle.fromTokenMap burnInputs
         monitor $ counterexample $ unlines
-            [ "available balance:"
-            , pretty (Flat balanceAvailable)
-            , "required balance:"
-            , pretty (Flat balanceRequired)
+            [ "inputs balance:"
+            , pretty (Flat totalInputValue)
+            , "outputs balance:"
+            , pretty (Flat totalOutputValue)
+            , "balance diff:"
+            , pretty (Flat $ totalInputValue `TokenBundle.difference` totalOutputValue)
+            , "outputsToCover"
+            , pretty (Flat $ F.foldMap (view #tokens) outputsToCover)
             , "selected balance:"
             , pretty (Flat balanceSelected)
-            , "change balance:"
-            , pretty (Flat balanceChange)
+            -- , "change balance:"
+            -- , pretty (Flat balanceChange)
             , "cost:"
             , pretty expectedCost
             , "absolute minimum coin quantity:"
@@ -700,15 +758,23 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "number of change outputs:"
             , pretty (length changeGenerated)
             ]
+        monitor $ counterexample "balance sufficient?"
         assert $ balanceSufficient criteria
+        monitor $ counterexample "balance inputsSelected + balance minted == balance outputsToCover + balance burned + balance changeGenerated"
         assert $ on (==) (view #tokens)
-            balanceSelected (balanceRequired <> balanceChange)
+            totalInputValue
+            totalOutputValue
+        monitor $ counterexample "delta >= expectedCost?"
         assert $ TokenBundle.getCoin delta >= expectedCost
+        monitor $ counterexample "delta <= maximumExpectedDelta"
         assert $ TokenBundle.getCoin delta <= maximumExpectedDelta
+        monitor $ counterexample "utxoAvailable == inputsSelected...?"
         assert $ utxoAvailable
             == UTxOIndex.insertMany inputsSelected utxoRemaining
+        monitor $ counterexample "utxoAvailable2?"
         assert $ utxoRemaining
             == UTxOIndex.deleteMany (fst <$> inputsSelected) utxoAvailable
+        monitor $ counterexample "outputsCovered == outputsToCover?"
         assert $ outputsCovered == NE.toList outputsToCover
         case selectionLimit of
             MaximumInputLimit limit ->
@@ -717,9 +783,11 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
                 assert True
       where
         absoluteMinCoinValue = mkMinCoinValueFor minCoinValueFor TokenMap.empty
-        delta = TokenBundle.unsafeSubtract
-            balanceSelected
-            (balanceRequired <> balanceChange)
+        delta :: TokenBundle
+        delta =
+          balanceSelected
+            `TokenBundle.unsafeSubtract`
+              (balanceRequired `TokenBundle.add` balanceChange)
         maximumExpectedDelta =
             expectedCost `addCoin`
             (absoluteMinCoinValue `multiplyCoin`
@@ -742,6 +810,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             }
         balanceSelected =
             fullBalance (UTxOIndex.fromSequence inputsSelected) extraCoinSource
+              -- `TokenBundle.add`
+              --   TokenBundle.fromTokenMap mintInputs
         balanceChange =
             F.fold changeGenerated
         expectedCost =
@@ -750,6 +820,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
+        OutputsInsufficient e ->
+            onOutputsInsufficient e
         SelectionInsufficient e ->
             onSelectionInsufficient e
         InsufficientMinCoinValues es ->
@@ -783,15 +855,34 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "selected balance:"
             , pretty (Flat errorBalanceSelected)
             ]
+        monitor $ counterexample "A"
         assert $ selectionLimit ==
             MaximumInputLimit (length errorInputsSelected)
+        monitor $ counterexample "B"
         assert $ not (errorBalanceRequired `leq` errorBalanceSelected)
+        monitor $ counterexample "C"
         assert $ balanceRequired == errorBalanceRequired
+        monitor $ counterexample "D"
       where
         SelectionInsufficientError
             errorBalanceRequired errorInputsSelected = e
         errorBalanceSelected =
             F.foldMap (view #tokens . snd) errorInputsSelected
+
+    onOutputsInsufficient e = do
+        monitor $ counterexample $ unlines
+          [ "minted values:"
+          , pretty (Flat errorMintedValues)
+          , "burnt values:"
+          , pretty (Flat errorBurntValues)
+          , "requested outputsToCover:"
+          , pretty (Flat requestedOutputs)
+          , "values minted but not spent or burnt:"
+          , pretty (Flat $ outputsMissing e)
+          ]
+        assert $ TokenBundle.fromTokenMap errorMintedValues `leq` (requestedOutputs `TokenBundle.add` TokenBundle.fromTokenMap errorBurntValues)
+      where
+        OutputsInsufficientError errorMintedValues errorBurntValues requestedOutputs = e
 
     onInsufficientMinCoinValues es = do
         monitor $ counterexample $ unlines
@@ -824,8 +915,17 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             Right{} -> do
                 assert True
 
-    balanceRequired  = F.foldMap (view #tokens) outputsToCover
+    -- FIXME: I shouldn't need to update this logic in the
+    -- implementation AND the test.
+    balanceRequired  =
+      F.foldMap (view #tokens) outputsToCover
+        `TokenBundle.add`
+          (TokenBundle.fromTokenMap burnInputs)
+        `TokenBundle.unsafeSubtract`
+          (TokenBundle.fromTokenMap mintInputs)
     balanceAvailable = fullBalance utxoAvailable extraCoinSource
+        -- `TokenBundle.add`
+        --   (TokenBundle.fromTokenMap mintInputs)
 
 --------------------------------------------------------------------------------
 -- Running a selection (without making change)
@@ -1177,6 +1277,10 @@ encodeBoundaryTestCriteria c = SelectionCriteria
         NoLimit
     , extraCoinSource =
         Nothing
+    , mintInputs =
+        TokenMap.empty
+    , burnInputs =
+        TokenMap.empty
     }
   where
     dummyAddresses :: [Address]
@@ -1610,28 +1714,50 @@ isValidMakeChangeData p = (&&)
     (totalOutputValue `leq` totalInputValue)
     (totalOutputCoinValue > Coin 0)
   where
-    totalInputValue = TokenBundle.add
+    totalInputValue =
         (F.fold $ inputBundles p)
-        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
-    totalOutputValue = F.fold $ outputBundles p
+        `TokenBundle.add` (F.foldMap TokenBundle.fromCoin (view #extraCoinSource p))
+        `TokenBundle.add` (TokenBundle.fromTokenMap $ view #mintInputs p)
+    totalOutputValue =
+      (F.fold $ outputBundles p)
+        `TokenBundle.add` (TokenBundle.fromTokenMap $ view #burnInputs p)
     totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
 
 genMakeChangeData :: Gen MakeChangeData
 genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     outputBundleCount <- choose (0, 15)
     let inputBundleCount = outputBundleCount * 4
+
+    inputBundles <- genTokenBundles inputBundleCount
+    outputBundles <- genTokenBundles outputBundleCount
+
+    -- Tokens in the input but not the output can be burned
+    burnInputs <- TokenMap.fromFlatList <$> sublistOf (difference' inputBundles outputBundles)
+    -- Tokens in the output but not the input can be minted
+    mintInputs <- TokenMap.fromFlatList <$> sublistOf (difference' outputBundles inputBundles)
+
     MakeChangeCriteria
         <$> arbitrary
         <*> pure NoBundleSizeLimit
         <*> genCoinSmall
         <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
-        <*> genTokenBundles inputBundleCount
-        <*> genTokenBundles outputBundleCount
+        <*> pure inputBundles
+        <*> pure outputBundles
+        <*> pure mintInputs
+        <*> pure burnInputs
+
   where
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
         <$> genTokenBundleSmallRangePositive
         <*> replicateM count genTokenBundleSmallRangePositive
+
+    difference' :: NonEmpty TokenBundle -> NonEmpty TokenBundle -> [(AssetId, TokenQuantity)]
+    difference' a b =
+      let
+        (TokenBundle _ availableTokens) = F.fold a `TokenBundle.difference` F.fold b
+      in
+        TokenMap.toFlatList availableTokens
 
 makeChangeWith
     :: MakeChangeData
@@ -1654,6 +1780,8 @@ prop_makeChange_identity bundles = (===)
         , bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
         , inputBundles = bundles
         , outputBundles = bundles
+        , mintInputs = TokenMap.empty
+        , burnInputs = TokenMap.empty
         }
 
 -- | Tests that 'makeChange' generates the correct number of change bundles.
@@ -1755,28 +1883,48 @@ prop_makeChange_success_delta p change =
             totalOutputValue
             (F.fold change)
 
-        delta = TokenBundle.unsafeSubtract
-            totalInputValue
-            totalOutputWithChange
+        delta = TokenBundle.unsafeSubtract totalInputValue totalOutputWithChange
     in
         (delta === TokenBundle.fromCoin (view #requiredCost p))
             & counterexample counterExampleText
+
   where
+    counterExampleText :: String
     counterExampleText = unlines
-        [ "totalChangeValue:"
+        [ "totalInputValue"
+        , pretty (Flat totalInputValue)
+        , "totalOutputValue"
+        , pretty (Flat totalOutputValue)
+        , "required cost"
+        , pretty (Flat $ TokenBundle.fromCoin (view #requiredCost p))
+        , "mintInputs"
+        , pretty (Flat $ view #mintInputs p)
+        , "burnInputs"
+        , pretty (Flat $ view #burnInputs p)
+        , "change"
+        , pretty (Flat $ F.fold change)
+        , "outputsToCover"
+        , pretty (Flat $ F.fold (outputBundles p))
+        , "selected:"
+        , pretty (Flat $ F.fold (inputBundles p))
+        , "totalChangeValue:"
         , pretty totalChangeCoin
         , "totalOutputValue:"
         , pretty totalOutputCoin
         , "totalInputValue:"
         , pretty totalInputCoin
         ]
-    totalInputValue = TokenBundle.add
-        (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
+    -- FIXME: Replicated logic
+    totalInputValue =
+        F.fold (inputBundles p)
+        `TokenBundle.add` maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p)
+        `TokenBundle.add` TokenBundle.fromTokenMap (view #mintInputs p)
     totalInputCoin =
         TokenBundle.getCoin totalInputValue
+    -- FIXME: Replicated logic
     totalOutputValue =
-        F.fold $ outputBundles p
+        F.fold (outputBundles p)
+        `TokenBundle.add` TokenBundle.fromTokenMap (view #burnInputs p)
     totalOutputCoin =
         TokenBundle.getCoin totalOutputValue
     totalChangeCoin =
@@ -1826,11 +1974,13 @@ prop_makeChange_fail_costTooBig p =
         deltaCoin < view #requiredCost p
             & counterexample ("delta: " <> pretty deltaCoin)
   where
-    totalInputValue = TokenBundle.add
-        (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
+    totalInputValue = 
+        F.fold (inputBundles p)
+          `TokenBundle.add` maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p)
+          `TokenBundle.add` TokenBundle.fromTokenMap (view #mintInputs p)
     totalOutputValue =
-        F.fold $ outputBundles p
+        F.fold (outputBundles p)
+          `TokenBundle.add` TokenBundle.fromTokenMap (view #burnInputs p)
 
 -- The 'makeChange' function will fail if there is not enough ada to assign
 -- to all the generated change outputs. Indeed, each output must include a
@@ -1873,11 +2023,13 @@ prop_makeChange_fail_minValueTooBig p =
             totalMinCoinDeposit = F.foldr addCoin (Coin 0)
                 (minCoinValueFor . view #tokens <$> change)
   where
-    totalInputValue = TokenBundle.add
-        (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
+    totalInputValue = 
+        F.fold (inputBundles p)
+          `TokenBundle.add` maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p)
+          `TokenBundle.add` TokenBundle.fromTokenMap (view #mintInputs p)
     totalOutputValue =
-        F.fold $ outputBundles p
+        F.fold (outputBundles p)
+          `TokenBundle.add` TokenBundle.fromTokenMap (view #burnInputs p)
 
 unit_makeChange
     :: [Expectation]
@@ -1891,6 +2043,8 @@ unit_makeChange =
               , bundleSizeAssessor
               , inputBundles = i
               , outputBundles = o
+              , mintInputs = TokenMap.empty
+              , burnInputs = TokenMap.empty
               }
     ]
   where
@@ -1922,6 +2076,7 @@ unit_makeChange =
           , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
           , b 1 [(assetA, 5)] :| [b 1 [(assetB, 1)]]
           , Right
+              -- TODO: Why did this fail?
               [ b 0 [(assetA, 5), (assetC, 1)]
               , b 0 [(assetB, 1), (assetC, 8)]
               ]

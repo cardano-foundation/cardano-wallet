@@ -27,6 +27,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiMintBurnTransaction
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiWallet
@@ -1020,6 +1021,135 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField #expiresAt (`shouldSatisfy` isJust)
             ]
+
+    it "TRANS_MINT_01 - Mint tokens" $ \ctx -> runResourceT $ do
+      w <- fixtureWallet ctx
+
+      payload <- mkMintPayload ctx w 5 fixturePassphrase "0" "aaaa"
+      r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default payload
+      verify r1
+        [ expectResponseCode HTTP.status202
+        ]
+
+      r2 <- request @([ApiAsset]) ctx (Link.listAssets w) Default Empty
+      verify r2
+        [ expectSuccess
+        , expectListSizeSatisfy (> 0)
+        ]
+
+    describe "TRANS_MINT - Boundary values" $ do
+      it "TRANS_MINT_02a - Cannot mint policy index < 0" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+
+        payload <- mkMintPayload ctx w 150 fixturePassphrase "-1" "123"
+        r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default payload
+        expectResponseCode HTTP.status400 r1
+
+      it "TRANS_MINT_02b - Cannot mint policy index > 2147483647" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+
+        payload <- mkMintPayload ctx w 150 fixturePassphrase "2147483648" "123"
+        r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default payload
+        expectResponseCode HTTP.status400 r1
+
+      it "TRANS_MINT_02c - Cannot mint policy index that is not a number" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+
+        payload <- mkMintPayload ctx w 150 fixturePassphrase "pomidor" "123"
+        r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default payload
+        expectResponseCode HTTP.status400 r1
+
+      it "TRANS_MINT_03a - Can mint with empty token name" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+
+        payload <- mkMintPayload ctx w 150 fixturePassphrase "0" ""
+        r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default payload
+        expectResponseCode HTTP.status202 r1
+
+      it "TRANS_MINT_03b - Sufficient error on too long token name" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+
+        let tokenName = T.pack $ replicate 66 'a'
+        payload <- mkMintPayload ctx w 233 fixturePassphrase "0" tokenName
+        r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default payload
+        expectResponseCode HTTP.status403 r1
+
+      it "TRANS_MINT_04a - Cannot mint 0 tokens" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+
+        payload <- mkMintPayload ctx w 0 fixturePassphrase "0" "aaaa"
+        r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default payload
+        expectResponseCode HTTP.status403 r1
+
+      it "TRANS_MINT_04b - Can mint max allowed value of tokens" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+
+        payload <- mkMintPayload ctx w 9223372036854775807 fixturePassphrase "0" "aaaa"
+        r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default payload
+        expectResponseCode HTTP.status202 r1
+
+      it "TRANS_MINT_04c - Cannot mint tokens exceeding max value" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+
+        payload <- mkMintPayload ctx w 18446744073709551615 fixturePassphrase "0" "aaaa"
+        r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default payload
+        expectResponseCode HTTP.status403 r1
+
+
+    it "TRANS_MINT_BURN_01 - Mint then burn tokens" $ \ctx -> runResourceT $ do
+      w <- fixtureWallet ctx
+
+      mintPayload <- mkMintPayload ctx w 5 fixturePassphrase "0" "aaaa"
+      r1 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default mintPayload
+      verify r1
+        [ expectResponseCode HTTP.status202
+        ]
+
+      r2 <- request @([ApiAsset]) ctx (Link.listAssets w) Default Empty
+      verify r2
+        [ expectSuccess
+        , expectListSizeSatisfy (> 0)
+        ]
+
+      eventually "Minted tokens are available" $ do
+        let link = Link.listTransactions' @'Shelley w Nothing Nothing Nothing (Just Descending)
+        (_, txs) <- unsafeRequest @([ApiTransaction n]) ctx link Empty
+        case filter ((== Pending) . view (#status . #getApiT)) txs of
+               -- No more pending transactions, can we now burn? Continue to test.
+               []  -> pure ()
+               -- Still pending transactions, retry
+               _tx -> fail "Mint Tx still pending, need to retry scenario."
+
+      -- rGet2 <- request @ApiWallet ctx
+      --     (Link.getWallet @'Shelley w) Default Empty
+      -- verify rGet2
+      --     [ expectField (#assets . #total) (`shouldBe` mempty)
+      --     ]
+
+      let burnPayload = Json [json|{
+                              "mint_burn": {
+                                  "monetary_policy_index": "0",
+                                  "asset_name": "aaaa",
+                                  "operation": {
+                                    "burn": { "quantity": 5, "unit": "assets" }
+                                  }
+                              },
+                              "passphrase": #{fixturePassphrase}
+                   }|]
+
+      r3 <- request @(ApiMintBurnTransaction n) ctx (Link.mintToken w) Default burnPayload
+
+      verify r3
+        [ expectResponseCode HTTP.status202
+        ]
+
+      eventually "Burned tokens are no longer available" $ do
+        rGet <- request @ApiWallet ctx
+            (Link.getWallet @'Shelley w) Default Empty
+        verify rGet
+            [ expectField (#assets . #total) (`shouldBe` mempty)
+            ]
+
 
     it "TRANSMETA_CREATE_01 - Transaction with metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -2298,7 +2428,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -> Natural
         -> Text
         -> m Payload
-    mkTxPayload ctx wDest amt passphrase = do
+    mkTxPayload ctx wDest amt pass = do
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         return $ Json [json|{
@@ -2309,8 +2439,37 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         "unit": "lovelace"
                     }
                 }],
-                "passphrase": #{passphrase}
+                "passphrase": #{pass}
             }|]
+
+    -- Construct a JSON payment request for minting transaction.
+    mkMintPayload
+        :: MonadUnliftIO m
+        => Context
+        -> ApiWallet
+        -> Natural
+        -> Text
+        -> Text
+        -> Text
+        -> m Payload
+    mkMintPayload ctx wDest amt pass polId asName = do
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        return $ Json [json|{
+                        "mint_burn": {
+                            "monetary_policy_index": #{polId},
+                            "asset_name": #{asName},
+                            "operation": {
+                              "mint": [ { "receiving_address": #{destination},
+                                          "amount": { "unit": "assets"
+                                                    , "quantity": #{amt}
+                                                    }
+                                         }
+                                       ]
+                            }
+                        },
+                        "passphrase": #{pass}
+                     }|]
 
     addTxTTL :: Double -> Payload -> Payload
     addTxTTL t (Json (Aeson.Object o)) = Json (Aeson.Object (o <> ttl))

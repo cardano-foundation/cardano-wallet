@@ -81,6 +81,8 @@ module Cardano.Wallet
     , readRewardAccount
     , someRewardAccount
     , queryRewardBalance
+    , guardSoftIndex
+    , guardHardIndex
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
     , ErrListUTxOStatistics (..)
@@ -115,10 +117,12 @@ module Cardano.Wallet
     , assignChangeAddressesAndUpdateDb
     , selectionToUnsignedTx
     , signTransaction
+    , prettyPrintScriptConversionError
     , ErrSelectAssets(..)
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotWorth (..)
+    , ErrScriptConversion (..)
 
     -- ** Migration
     , createMigrationPlan
@@ -168,6 +172,7 @@ module Cardano.Wallet
     , derivePublicKey
     , getAccountPublicKeyAtIndex
     , readAccountPublicKey
+    , deriveScriptSigningCreds
     , signMetadataWith
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
@@ -178,7 +183,6 @@ module Cardano.Wallet
 
     -- * Utilities
     , throttle
-    , guardHardIndex
 
     -- * Logging
     , WalletWorkerLog (..)
@@ -243,6 +247,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , ToRewardAccount (..)
     , WalletKey (..)
     , checkPassphrase
+    , deriveScriptSigningKey
     , encryptPassphrase
     , liftIndex
     , preparePassphrase
@@ -400,6 +405,8 @@ import Control.Monad.Class.MonadTime
     , diffTime
     , getCurrentTime
     )
+import Control.Monad.Except
+    ( liftEither )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
 import Control.Monad.Trans.Class
@@ -450,7 +457,7 @@ import Data.List.NonEmpty
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Proxy
-    ( Proxy )
+    ( Proxy (Proxy) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -480,6 +487,9 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
+import qualified Cardano.Address.Script as Cardano.Address
+import qualified Cardano.Api
+import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -496,6 +506,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
+import qualified Shelley.Spec.Ledger.Keys as Shelley
 
 
 -- $Development
@@ -1536,10 +1547,13 @@ signTransaction
     -> Passphrase "raw"
     -> TransactionCtx
     -> SelectionResult TxOut
+    -> Maybe (k 'ScriptK XPrv, Passphrase "encryption")
+    -> [Cardano.Address.Script Cardano.Address.KeyHash]
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTransaction ctx wid mkRwdAcct pwd txCtx sel =
+signTransaction ctx wid mkRwdAcct pwd txCtx sel extraWit scripts =
     db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl
+    lift $ putStrLn $ show era
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -1549,8 +1563,12 @@ signTransaction ctx wid mkRwdAcct pwd txCtx sel =
             pp <- liftIO $ currentProtocolParameters nl
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = mkRwdAcct (xprv, pwdP)
+
+            scripts' <- withExceptT ErrSignPaymentScriptConversion $ liftEither $
+              traverse fromCardanoAddressScript scripts
+
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkTransaction tl era rewardAcnt keyFrom pp txCtx sel
+                mkTransaction tl era rewardAcnt keyFrom pp txCtx sel extraWit scripts'
             (time, meta) <- liftIO $
                 mkTxMeta ti (currentTip cp) (getState cp) txCtx sel
             return (tx, meta, time, sealedTx)
@@ -2326,6 +2344,37 @@ readAccountPublicKey ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
 
+deriveScriptSigningCreds
+    :: forall ctx s k n.
+        ( HasDBLayer IO s k ctx
+        , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
+        , s ~ SeqState n k
+        , WalletKey k
+        )
+    => ctx
+    -> WalletId
+    -> Passphrase "raw"
+    -> DerivationIndex
+    -> ExceptT ErrSignMetadataWith IO (k 'ScriptK XPrv, Passphrase "encryption")
+deriveScriptSigningCreds ctx wid pwd ix = db & \DBLayer{..} -> do
+    addrIx <- withExceptT ErrSignMetadataWithInvalidIndex $ guardSoftIndex ix
+    let acctIx = minBound
+
+    -- fixme: make new error type instead of ErrSignMetadataWith
+    _cp <- mapExceptT atomically
+        $ withExceptT ErrSignMetadataWithNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint wid
+
+    withRootKey @ctx @s @k ctx wid pwd ErrSignMetadataWithRootKey
+        $ \rootK scheme -> do
+            let encPwd = preparePassphrase scheme pwd
+            let (scriptK, _) = deriveScriptSigningKey encPwd rootK acctIx addrIx
+            pure (scriptK, encPwd)
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
 -- | Retrieve any public account key of a wallet.
 getAccountPublicKeyAtIndex
     :: forall ctx s k.
@@ -2493,6 +2542,7 @@ data ErrSignPayment
     | ErrSignPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSignPaymentWithRootKey ErrWithRootKey
     | ErrSignPaymentIncorrectTTL PastHorizonException
+    | ErrSignPaymentScriptConversion ErrScriptConversion
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction to the network.
@@ -2569,6 +2619,20 @@ data ErrQuitStakePool
 newtype ErrFetchRewards
     = ErrFetchRewardsReadRewardAccount ErrReadRewardAccount
     deriving (Generic, Eq, Show)
+
+-- | Errors that can occur when converting our script type to the
+-- underlying cardano-api script type.
+data ErrScriptConversion
+    = ErrScriptConversionHashExpectedSize !Int
+    | ErrScriptConversionExpectedPaymentKey
+    deriving (Generic, Eq, Show)
+
+prettyPrintScriptConversionError :: ErrScriptConversion -> T.Text
+prettyPrintScriptConversionError = \case
+    ErrScriptConversionHashExpectedSize sz ->
+        "Expected a hash of size '" <> T.pack (show sz) <> "'."
+    ErrScriptConversionExpectedPaymentKey  ->
+        "Scripts can't require the signature of a delegation key."
 
 data ErrCheckWalletIntegrity
     = ErrCheckWalletIntegrityNoSuchWallet ErrNoSuchWallet
@@ -2845,3 +2909,61 @@ instance HasSeverityAnnotation TxSubmitLog where
         MsgRetryPostTxResult _ (Right _) -> Info
         MsgRetryPostTxResult _ (Left _) -> Debug
         MsgProcessPendingPool msg -> getSeverityAnnotation msg
+
+{-------------------------------------------------------------------------------
+                                 Scripts
+-------------------------------------------------------------------------------}
+
+fromCardanoAddressScript
+    :: Cardano.Address.Script Cardano.Address.KeyHash
+    -> Either ErrScriptConversion (Cardano.Api.SimpleScript Cardano.Api.SimpleScriptV2)
+fromCardanoAddressScript = \case
+    Cardano.Address.RequireSignatureOf keyHash ->
+        Cardano.Api.RequireSignature
+        <$> fromCardanoAddressKeyHash keyHash
+    Cardano.Address.RequireAllOf ss ->
+        Cardano.Api.RequireAllOf
+        <$> traverse fromCardanoAddressScript ss
+    Cardano.Address.RequireAnyOf ss ->
+        Cardano.Api.RequireAnyOf
+        <$> traverse fromCardanoAddressScript ss
+    Cardano.Address.RequireSomeOf n ss ->
+        Cardano.Api.RequireMOf (fromIntegral n)
+        <$> traverse fromCardanoAddressScript ss
+    Cardano.Address.ActiveFromSlot slot ->
+        Right
+        $ Cardano.Api.RequireTimeAfter Cardano.Api.TimeLocksInSimpleScriptV2
+        $ fromIntegral slot
+    Cardano.Address.ActiveUntilSlot slot ->
+        Right
+        $ Cardano.Api.RequireTimeBefore Cardano.Api.TimeLocksInSimpleScriptV2
+        $ fromIntegral slot
+
+-- toCardanoAddressScript :: Cardano.Api.SimpleScript Cardano.Api.SimpleScriptV2 -> Cardano.Address.Script Cardano.Address.KeyHash
+-- toCardanoAddressScript (Cardano.Api.RequireSignature keyHash) = Cardano.Address.RequireSignatureOf . toCardanoAddressKeyHash $ keyHash
+-- toCardanoAddressScript (Cardano.Api.RequireAllOf ss) = Cardano.Address.RequireAllOf $ toCardanoAddressScript <$> ss
+-- toCardanoAddressScript (Cardano.Api.RequireAnyOf ss) = Cardano.Address.RequireAnyOf $ toCardanoAddressScript <$> ss
+-- toCardanoAddressScript (Cardano.Api.RequireMOf n ss) = Cardano.Address.RequireSomeOf (fromIntegral n) $ toCardanoAddressScript <$> ss
+-- toCardanoAddressScript (Cardano.Api.RequireTimeAfter _ slot) = Cardano.Address.ActiveFromSlot . fromIntegral . Cardano.Api.unSlotNo $ slot
+-- toCardanoAddressScript (Cardano.Api.RequireTimeBefore _ slot) = Cardano.Address.ActiveUntilSlot . fromIntegral . Cardano.Api.unSlotNo $ slot
+
+fromCardanoAddressKeyHash
+    :: Cardano.Address.KeyHash
+    -> Either ErrScriptConversion (Cardano.Api.Hash Cardano.Api.PaymentKey)
+fromCardanoAddressKeyHash = \case
+    Cardano.Address.KeyHash Cardano.Address.Delegation _ ->
+        Left ErrScriptConversionExpectedPaymentKey
+    Cardano.Address.KeyHash Cardano.Address.Payment bs ->
+        case Crypto.hashFromBytes bs of
+            Nothing -> Left
+                $ ErrScriptConversionHashExpectedSize
+                $ fromIntegral
+                $ Crypto.sizeHash
+                $ (Proxy :: Proxy Crypto.Blake2b_224)
+            Just h  -> Right
+                $ Cardano.Api.PaymentKeyHash
+                $ Shelley.KeyHash
+                $ h
+
+-- toCardanoAddressKeyHash :: Cardano.Api.Hash Cardano.Api.PaymentKey -> Cardano.Address.KeyHash
+-- toCardanoAddressKeyHash (Cardano.Api.PaymentKeyHash (Shelley.KeyHash h)) = Cardano.Address.KeyHash Cardano.Address.Payment (Crypto.hashToBytes h)

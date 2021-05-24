@@ -16,6 +16,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -48,6 +49,10 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
+import Cardano.Address.Script
+    ( KeyHash
+    , Script (ActiveFromSlot, ActiveUntilSlot, RequireAllOf, RequireAnyOf, RequireSignatureOf, RequireSomeOf)
+    )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , ByronEra
@@ -94,7 +99,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenQuantity (TokenQuantity) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , TokenBundleSizeAssessment (..)
@@ -146,14 +151,22 @@ import Data.ByteString
     ( ByteString )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
 import Data.Kind
     ( Type )
+import Data.List
+    ( nub )
+import Data.Maybe
+    ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Semigroup
+    ( Option (Option), getOption )
 import Data.Set
     ( Set )
 import Data.Type.Equality
@@ -267,16 +280,19 @@ mkTx
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
+    -> (Maybe (NE.NonEmpty (Address, TokenMap)), Maybe TokenMap)
+    -> Maybe (k 'ScriptK XPrv, Passphrase "encryption")
+    -> [Cardano.SimpleScript Cardano.SimpleScriptV2]
     -> ShelleyBasedEra era
     -> Either ErrMkTx (Tx, SealedTx)
-mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
+mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees mintBurnOuts extraWit scripts era = do
     let TxPayload md certs mkExtraWits = payload
     let wdrls = mkWithdrawals
             networkId
             (toRewardAccountRaw . toXPub $ rewardAcnt)
             wdrl
 
-    unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
+    unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees) mintBurnOuts
 
     wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do
@@ -289,7 +305,23 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
                     | otherwise =
                       [mkShelleyWitness unsigned (rewardAcnt, pwdAcnt)]
 
-            pure $ mkExtraWits unsigned <> F.toList addrWits <> wdrlsWits
+            let
+              scriptSignWit =
+                case extraWit of
+                  Nothing -> []
+                  Just (wit, pwd) -> [mkShelleyWitness unsigned (getRawKey wit, pwd)]
+
+            let
+              liftScript :: Cardano.SimpleScript Cardano.SimpleScriptV2 -> Maybe (Cardano.ScriptInEra era)
+              liftScript = case era of
+                ShelleyBasedEraShelley -> const Nothing
+                ShelleyBasedEraAllegra -> Just . Cardano.ScriptInEra Cardano.SimpleScriptV2InAllegra . Cardano.SimpleScript Cardano.SimpleScriptV2
+                ShelleyBasedEraMary    -> Just . Cardano.ScriptInEra Cardano.SimpleScriptV2InMary    . Cardano.SimpleScript Cardano.SimpleScriptV2
+
+              scriptWits :: [Cardano.Witness era]
+              scriptWits = fmap Cardano.makeScriptWitness . catMaybes . fmap liftScript $ scripts
+
+            pure $ mkExtraWits unsigned <> F.toList addrWits <> wdrlsWits <> scriptWits <> scriptSignWit 
 
         TxWitnessByronUTxO{} -> do
             bootstrapWits <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
@@ -314,16 +346,17 @@ newTransactionLayer
     => NetworkId
     -> TransactionLayer k
 newTransactionLayer networkId = TransactionLayer
-    { mkTransaction = \era stakeCreds keystore pp ctx selection -> do
+    { mkTransaction = \era stakeCreds keystore pp ctx selection extraWit scripts -> do
         let ttl   = txTimeToLive ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
+        let mMintBurnInfo = view #txMintBurnInfo ctx
         case view #txDelegationAction ctx of
             Nothing -> do
                 withShelleyBasedEra era $ do
                     let payload = TxPayload (view #txMetadata ctx) mempty mempty
                     let fees = delta
-                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
+                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees mMintBurnInfo extraWit scripts
 
             Just action -> do
                 withShelleyBasedEra era $ do
@@ -338,7 +371,7 @@ newTransactionLayer networkId = TransactionLayer
                                 unsafeSubtractCoin selection delta (stakeKeyDeposit pp)
                             _ ->
                                 delta
-                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
+                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees mMintBurnInfo extraWit scripts
 
     , initSelectionCriteria = _initSelectionCriteria @k
 
@@ -462,7 +495,7 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
                 }
     | otherwise =
         pure SelectionCriteria
-            {outputsToCover, utxoAvailable, selectionLimit, extraCoinSource}
+            {outputsToCover, utxoAvailable, selectionLimit, extraCoinSource, mintInputs, burnInputs}
   where
     -- The complete list of token bundles whose serialized lengths are greater
     -- than the limit of what is allowed in a transaction output:
@@ -500,6 +533,16 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
 
     selectionLimit = MaximumInputLimit $
         _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
+
+    mintInputs :: TokenMap
+    mintInputs = case view #txMintBurnInfo ctx of
+      (Nothing, _) -> mempty
+      (Just is, _) -> foldMap snd is
+
+    burnInputs :: TokenMap
+    burnInputs = case view #txMintBurnInfo ctx of
+      (_, Nothing)     -> mempty
+      (_, Just tokens) -> tokens 
 
     extraCoinSource = Just $ addCoin
         (withdrawalToCoin $ view #txWithdrawal ctx)
@@ -656,6 +699,8 @@ data TxSkeleton = TxSkeleton
     , txInputCount :: !Int
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
+    , txScripts :: [Script KeyHash]
+    , txMintAssets :: [AssetId]
     }
     deriving (Eq, Show)
 
@@ -672,6 +717,8 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txInputCount = 0
     , txOutputs = []
     , txChange = []
+    , txScripts = []
+    , txMintAssets = []
     }
 
 -- | Constructs a transaction skeleton from wallet primitive types.
@@ -692,7 +739,16 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txInputCount = view #skeletonInputCount skeleton
     , txOutputs = view #skeletonOutputs skeleton
     , txChange = view #skeletonChange skeleton
+    , txScripts = view #txScripts context
+    , txMintAssets =
+        let
+          (mMinting, mBurning) = view #txMintBurnInfo context
+          getAssetIds = fmap fst . TokenMap.toFlatList
+        in
+          -- nub $ foldMap (maybe [] (fmap fst . TokenMap.toFlatList . foldMap snd)) [mMinting, mBurning]
+          (nub $ maybe [] getAssetIds mBurning) <> (nub $ maybe [] (getAssetIds . foldMap snd) mMinting)
     }
+
 
 -- | Estimates the final cost of a transaction based on its skeleton.
 --
@@ -725,6 +781,8 @@ estimateTxSize skeleton =
         , txInputCount
         , txOutputs
         , txChange
+        , txScripts
+        , txMintAssets
         } = skeleton
 
     numberOf_Inputs
@@ -736,6 +794,19 @@ estimateTxSize skeleton =
     numberOf_Withdrawals
         = if txRewardWithdrawal > Coin 0 then 1 else 0
 
+    -- Total number of signatures the scripts require
+    numberOf_ScriptVkeyWitnesses
+      = sumVia scriptRequiredKeySigs txScripts
+
+    scriptRequiredKeySigs :: Num num => Script KeyHash -> num 
+    scriptRequiredKeySigs (RequireSignatureOf _) = 1
+    scriptRequiredKeySigs (RequireAllOf ss)      = sumVia scriptRequiredKeySigs ss
+    scriptRequiredKeySigs (RequireAnyOf ss)      = sumVia scriptRequiredKeySigs ss
+    scriptRequiredKeySigs (ActiveFromSlot _)     = 0
+    scriptRequiredKeySigs (ActiveUntilSlot _)    = 0
+    -- We don't know how many the user will sign with, so we just assume the worst case of "signs with all".
+    scriptRequiredKeySigs (RequireSomeOf _ ss)   = sumVia scriptRequiredKeySigs ss
+
     numberOf_VkeyWitnesses
         = case txWitnessTag of
             TxWitnessByronUTxO{} -> 0
@@ -743,6 +814,7 @@ estimateTxSize skeleton =
                 numberOf_Inputs
                 + numberOf_Withdrawals
                 + numberOf_CertificateSignatures
+                + numberOf_ScriptVkeyWitnesses
 
     numberOf_BootstrapWitnesses
         = case txWitnessTag of
@@ -769,6 +841,8 @@ estimateTxSize skeleton =
     --   , ? 5 : withdrawals
     --   , ? 6 : update
     --   , ? 7 : metadata_hash
+    --   , ? 8 : uint ; validity interval start
+    --   , ? 9 : mint
     --   }
     sizeOf_TransactionBody
         = sizeOf_SmallMap
@@ -780,6 +854,8 @@ estimateTxSize skeleton =
         + sizeOf_Withdrawals
         + sizeOf_Update
         + sizeOf_MetadataHash
+        + sizeOf_ValidityIntervalStart
+        + sumVia sizeOf_Mint txMintAssets
       where
         -- 0 => set<transaction_input>
         sizeOf_Inputs
@@ -838,6 +914,21 @@ estimateTxSize skeleton =
         sizeOf_MetadataHash
             = maybe 0 (const (sizeOf_SmallUInt + sizeOf_Hash32)) txMetadata
 
+        -- ?8 => uint ; validity interval start
+        sizeOf_ValidityIntervalStart
+          = sizeOf_UInt
+
+        -- ?9 => mint = multiasset<int64>
+        -- multiasset<a> = { * policy_id => { * asset_name => a } }
+        -- policy_id = scripthash
+        -- asset_name = bytes .size (0..32)
+        sizeOf_Mint AssetId{tokenName}
+          = sizeOf_SmallMap -- NOTE: Assuming < 23 policies per output
+          + sizeOf_Hash28
+          + sizeOf_SmallMap -- NOTE: Assuming < 23 assets per policy
+          + sizeOf_AssetName tokenName
+          + sizeOf_LargeInt
+
     -- For metadata, we can't choose a reasonable upper bound, so it's easier to
     -- measure the serialize data since we have it anyway. When it's "empty",
     -- metadata are represented by a special "null byte" in CBOR `F6`.
@@ -862,8 +953,7 @@ estimateTxSize skeleton =
         + sizeOf_Address address
         + sizeOf_SmallArray
         + sizeOf_Coin (TokenBundle.getCoin tokens)
-        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0
-            (TokenBundle.getAssets tokens)
+        + sumVia sizeOf_NativeAsset (TokenBundle.getAssets tokens)
 
     -- transaction_output =
     --   [address, amount : value]
@@ -874,7 +964,7 @@ estimateTxSize skeleton =
         + sizeOf_ChangeAddress
         + sizeOf_SmallArray
         + sizeOf_LargeUInt
-        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0 xs
+        + sumVia sizeOf_NativeAsset xs
 
     -- stake_registration =
     --   (0, stake_credential)
@@ -960,7 +1050,7 @@ estimateTxSize skeleton =
     sizeOf_WitnessSet
         = sizeOf_SmallMap
         + sizeOf_VKeyWitnesses
-        + sizeOf_MultisigScript
+        + sizeOf_NativeScripts txScripts
         + sizeOf_BootstrapWitnesses
       where
         -- ?0 => [* vkeywitness ]
@@ -969,9 +1059,9 @@ estimateTxSize skeleton =
                 then sizeOf_Array + sizeOf_SmallUInt else 0)
             + sizeOf_VKeyWitness * numberOf_VkeyWitnesses
 
-        -- ?1 => [* multisig_script ]
-        sizeOf_MultisigScript
-            = 0
+        -- ?1 => [* native_script ]
+        sizeOf_NativeScripts [] = 0
+        sizeOf_NativeScripts ss = sizeOf_Array + sizeOf_SmallUInt + sumVia sizeOf_NativeScript ss
 
         -- ?2 => [* bootstrap_witness ]
         sizeOf_BootstrapWitnesses
@@ -1005,6 +1095,26 @@ estimateTxSize skeleton =
         sizeOf_ChainCode  = 34
         sizeOf_Attributes = 45 -- NOTE: could be smaller by ~34 for Icarus
 
+    -- native_script =
+    --   [ script_pubkey      = (0, addr_keyhash)
+    --   // script_all        = (1, [ * native_script ])
+    --   // script_any        = (2, [ * native_script ])
+    --   // script_n_of_k     = (3, n: uint, [ * native_script ])
+    --   // invalid_before    = (4, uint)
+    --      ; Timelock validity intervals are half-open intervals [a, b).
+    --      ; This field specifies the left (included) endpoint a.
+    --   // invalid_hereafter = (5, uint)
+    --      ; Timelock validity intervals are half-open intervals [a, b).
+    --      ; This field specifies the right (excluded) endpoint b.
+    --   ]
+    sizeOf_NativeScript = \case
+        RequireSignatureOf _ -> sizeOf_SmallUInt + sizeOf_Hash28
+        RequireAllOf ss      -> sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+        RequireAnyOf ss      -> sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+        RequireSomeOf _ ss   -> sizeOf_SmallUInt + sizeOf_UInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+        ActiveFromSlot _     -> sizeOf_SmallUInt + sizeOf_UInt
+        ActiveUntilSlot _    -> sizeOf_SmallUInt + sizeOf_UInt
+
     -- A Blake2b-224 hash, resulting in a 28-byte digest wrapped in CBOR, so
     -- with 2 bytes overhead (length <255, but length > 23)
     sizeOf_Hash28
@@ -1036,6 +1146,11 @@ estimateTxSize skeleton =
     sizeOf_UInt = 5
     sizeOf_LargeUInt = 9
 
+    -- A CBOR Int which is less than 23 in value fits on a single byte. Beyond,
+    -- the first byte is used to encode the number of bytes necessary to encode
+    -- the number itself, followed by the number itself.
+    sizeOf_LargeInt = 9
+
     -- A CBOR array with less than 23 elements, fits on a single byte, followed
     -- by each key-value pair (encoded as two concatenated CBOR elements).
     sizeOf_SmallMap = 1
@@ -1048,6 +1163,9 @@ estimateTxSize skeleton =
     -- have up to 65536 elements.
     sizeOf_SmallArray = 1
     sizeOf_Array = 3
+
+sumVia :: (Foldable t, Num m) => (a -> m) -> t a -> m
+sumVia f = F.foldl' (\t -> (t +) . f) 0
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
@@ -1085,6 +1203,7 @@ mkUnsignedTx
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
     -> Cardano.Lovelace
+    -> (Maybe (NE.NonEmpty (Address, TokenMap)), Maybe TokenMap)
     -> Either ErrMkTx (Cardano.TxBody era)
 mkUnsignedTx era ttl cs md wdrls certs fees =
     left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
@@ -1132,11 +1251,23 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         Cardano.TxUpdateProposalNone
 
     , Cardano.txMintValue =
-        Cardano.TxMintNone
+        (getOption $ Option mintValue <> Option burnValue)
+        & maybe Cardano.TxMintNone (Cardano.TxMintValue Cardano.MultiAssetInMaryEra)
     }
   where
     toErrMkTx :: Cardano.TxBodyError era -> ErrMkTx
     toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
+
+    mintValue :: Maybe Cardano.Value
+    mintValue =
+      mMintOuts
+      & fmap (F.foldMap' (Compatibility.toCardanoValue . TokenBundle.fromTokenMap . snd))
+
+    burnValue :: Maybe Cardano.Value
+    burnValue =
+      mBurnOuts
+      <&> (Compatibility.toCardanoValue . TokenBundle.fromTokenMap)
+      <&> Cardano.negateValue
 
     toShelleyBasedTxOut :: TxOut -> Cardano.TxOut era
     toShelleyBasedTxOut = case era of

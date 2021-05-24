@@ -80,7 +80,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.Logging
     ( BracketLog (..), LoggedException (..), bracketTracer, produceTimings )
 import Cardano.Wallet.Primitive.Types
-    ( TokenMetadataServer (..) )
+    ( TokenMetadataServer (..), Encoded(..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -125,7 +125,7 @@ import Data.Aeson.Types
 import Data.Bifunctor
     ( first )
 import Data.ByteArray.Encoding
-    ( Base (Base16, Base64), convertFromBase, convertToBase )
+    ( Base (Base16, Base64), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Foldable
@@ -575,30 +575,14 @@ applyValidator validate = either fail pure . validate
 
 instance FromJSON Signature where
     parseJSON = withObject "Signature" $ \o -> Signature
-        <$> fmap (raw @'Base16) (o .: "signature")
-        <*> fmap (raw @'Base16) (o .: "publicKey")
+        <$> fmap (encodedRaw @'Base16) (o .: "signature")
+        <*> fmap (encodedRaw @'Base16) (o .: "publicKey")
 
 instance FromJSON AssetURL where
     parseJSON = parseJSON >=> applyValidator validateMetadataURL
 
 instance FromJSON AssetLogo where
-    parseJSON = fmap (AssetLogo . raw @'Base64) . parseJSON
+    parseJSON = fmap (AssetLogo . encodedRaw @'Base64) . parseJSON
 
 instance FromJSON AssetDecimals where
     parseJSON = fmap AssetDecimals . parseJSON
-
---
--- Helpers
---
-
-newtype Encoded (base :: Base) = Encoded
-    { raw :: ByteString }
-    deriving (Generic, Show, Eq)
-
-instance FromJSON (Encoded 'Base16) where
-    parseJSON = withText "base16 bytestring" $
-        either fail (pure . Encoded) . convertFromBase Base16 . T.encodeUtf8
-
-instance FromJSON (Encoded 'Base64) where
-    parseJSON = withText "base64 bytestring" $
-        either fail (pure . Encoded) . convertFromBase Base64 . T.encodeUtf8
