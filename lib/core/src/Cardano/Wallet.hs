@@ -2685,9 +2685,9 @@ instance ToText WalletLog where
             "|utxo| = "+|UTxOIndex.size utxo|+" " <>
             "#recipients = "+|NE.length recipients|+""
         MsgSelectionDone (Left e) ->
-            "Failed to select assets: "+|| e ||+""
+            "Failed to select assets:\n"+|| e ||+""
         MsgSelectionDone (Right s) ->
-            "Assets selected successfully: "+| s |+""
+            "Assets selected successfully:\n"+| s |+""
         MsgMigrationUTxOBefore summary ->
             "About to migrate the following distribution: \n" <> pretty summary
         MsgMigrationUTxOAfter summary ->
