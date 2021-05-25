@@ -327,6 +327,7 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
     , choose
+    , chooseInt
     , counterexample
     , elements
     , frequency
@@ -334,6 +335,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
+    , sized
     , vector
     , vectorOf
     , (.&&.)
@@ -1568,8 +1570,9 @@ instance Arbitrary WalletId where
 
 instance Arbitrary WalletName where
     arbitrary = do
-        nameLength <- choose (walletNameMinLength, walletNameMaxLength)
-        WalletName . T.pack <$> replicateM nameLength arbitraryPrintableChar
+        len <- Test.QuickCheck.scale (min walletNameMaxLength) $ sized $ \n ->
+            chooseInt (walletNameMinLength, walletNameMinLength `max` n)
+        WalletName . T.pack <$> vectorOf len arbitraryPrintableChar
     shrink (WalletName t)
         | T.length t <= walletNameMinLength = []
         | otherwise = [WalletName $ T.take walletNameMinLength t]

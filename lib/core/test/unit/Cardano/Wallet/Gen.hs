@@ -26,14 +26,14 @@ module Cardano.Wallet.Gen
     , genScriptTemplate
     , genScriptTemplateComplete
     , genScriptTemplateEntry
-    , genXPub
+    , genMockXPub
     , genNatural
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubFromBytes )
+    ( XPub, xpubFromBytes )
 import Cardano.Address.Script
     ( Cosigner (..), Script (..), ScriptTemplate (..) )
 import Cardano.Api
@@ -43,18 +43,9 @@ import Cardano.Api
     , metadataFromJson
     )
 import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , Mnemonic
-    , SomeMnemonic (..)
-    , entropyToMnemonic
-    )
+    ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
 import Cardano.Wallet.Api.Types
     ( ApiScriptTemplateEntry (..), XPubOrSelf (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), WalletKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.Types
@@ -77,6 +68,8 @@ import Data.List
     ( sortOn )
 import Data.List.Extra
     ( nubOrdOn )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -94,7 +87,6 @@ import Numeric.Natural
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
-    , InfiniteList (..)
     , Positive (..)
     , PrintableString (..)
     , arbitrarySizedNatural
@@ -114,10 +106,8 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
@@ -323,7 +313,7 @@ genScriptTemplate = do
     script <- genScriptCosigners `suchThat` (not . null . retrieveAllCosigners)
     let scriptCosigners = retrieveAllCosigners script
     cosignersSubset <- sublistOf scriptCosigners `suchThat` (not . null)
-    xpubs <- vectorOf (length cosignersSubset) genXPub
+    xpubs <- vectorOf (length cosignersSubset) genMockXPub
     pure $ ScriptTemplate (Map.fromList $ zip cosignersSubset xpubs) script
 
 genScriptTemplateEntry :: Gen ApiScriptTemplateEntry
@@ -338,27 +328,15 @@ genScriptTemplateComplete :: Gen ScriptTemplate
 genScriptTemplateComplete = do
     script <- genScriptCosigners `suchThat` (not . null . retrieveAllCosigners)
     let scriptCosigners = retrieveAllCosigners script
-    xpubs <- vectorOf (length scriptCosigners) genXPub
+    xpubs <- vectorOf (length scriptCosigners) genMockXPub
     pure $ ScriptTemplate (Map.fromList $ zip scriptCosigners xpubs) script
 
-genRootKeySeqWithPass
-    :: Passphrase "encryption"
-    -> Gen (ShelleyKey depth XPrv)
-genRootKeySeqWithPass encryptionPass = do
-    s <- SomeMnemonic <$> genMnemonic @15
-    g <- Just . SomeMnemonic <$> genMnemonic @12
-    return $ Shelley.unsafeGenerateKeyFromSeed (s, g) encryptionPass
-
-genXPub :: Gen XPub
-genXPub = do
-    getRawKey . publicKey <$> (genRootKeySeqWithPass =<< genPassphrase (0, 16))
+genMockXPub :: Gen XPub
+genMockXPub = fromMaybe impossible . xpubFromBytes . BS.pack <$> genBytes
+  where
+    genBytes = vectorOf 64 arbitrary
+    impossible = error "incorrect length in genMockXPub"
 
 genXPubOrSelf :: Gen XPubOrSelf
 genXPubOrSelf =
-    oneof [SomeAccountKey <$> genXPub, pure Self]
-
-genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
-genPassphrase range = do
-    n <- choose range
-    InfiniteList bytes _ <- arbitrary
-    return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
+    oneof [SomeAccountKey <$> genMockXPub, pure Self]
