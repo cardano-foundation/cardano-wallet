@@ -37,6 +37,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletMigrationPlan (..)
     , EncodeAddress (..)
     , WalletStyle (..)
     )
@@ -203,7 +204,8 @@ walletApiBench capture ctx = do
     nFixtureWallet n = do
         wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
         walMA <- fixtureMultiAssetWallet ctx
-        pure (wal1, wal2, walMA)
+        maWalletToMigrate <- fixtureMultiAssetWallet ctx
+        pure (wal1, wal2, walMA, maWalletToMigrate)
 
     -- Creates n fixture wallets and send 1-ada transactions to one of them
     -- (m times). The money is sent in batches (see batchSize below) from
@@ -211,7 +213,7 @@ walletApiBench capture ctx = do
     -- to be accommodated in recipient wallet. After that the source fixture
     -- wallet is removed.
     nFixtureWalletWithTxs n m = do
-        (wal1, wal2, walMA) <- nFixtureWallet n
+        (wal1, wal2, walMA, maWalletToMigrate) <- nFixtureWallet n
 
         let amt = minUTxOValue
         let batchSize = 10
@@ -226,12 +228,12 @@ walletApiBench capture ctx = do
         let expInflows' = filter (/=0) expInflows
 
         mapM_ (repeatPostTx wal1 amt batchSize . amtExp) expInflows'
-        pure (wal1, wal2, walMA)
+        pure (wal1, wal2, walMA, maWalletToMigrate)
 
     nFixtureWalletWithUTxOs n utxoNumber = do
         let utxoExp = replicate utxoNumber minUTxOValue
         wal1 <- fixtureWalletWith @n ctx utxoExp
-        (_, wal2, walMA) <- nFixtureWallet n
+        (_, wal2, walMA, maWalletToMigrate) <- nFixtureWallet n
 
         eventually "Wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx
@@ -247,7 +249,7 @@ walletApiBench capture ctx = do
                 (Link.getUTxOsStatistics @'Shelley wal1) Default Empty
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO (fromIntegral <$> utxoExp) (snd rStat)
-        pure (wal1, wal2, walMA)
+        pure (wal1, wal2, walMA, maWalletToMigrate)
 
     repeatPostTx wDest amtToSend batchSize amtExp = do
         wSrc <- fixtureWallet ctx
@@ -283,7 +285,7 @@ walletApiBench capture ctx = do
         expectResponseCode HTTP.status202 r
         return r
 
-    runScenario scenario = runResourceT $ scenario >>= \(wal1, wal2, walMA) -> liftIO $ do
+    runScenario scenario = runResourceT $ scenario >>= \(wal1, wal2, walMA, maWalletToMigrate) -> liftIO $ do
         t1 <- measureApiLogs capture
             (request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty)
         fmtResult "listWallets        " t1
@@ -383,6 +385,23 @@ walletApiBench capture ctx = do
         t11 <- measureApiLogs capture $ request @([ApiAsset]) ctx
             (Link.getAsset walMA polId assName) Default Empty
         fmtResult "getMultiAsset      " t11
+
+        -- Create a migration plan:
+        let endpointPlan = (Link.createMigrationPlan @'Shelley maWalletToMigrate)
+        t12a <- measureApiLogs capture $ request @(ApiWalletMigrationPlan n)
+            ctx endpointPlan Default $
+            Json [json|{addresses: #{addresses}}|]
+        fmtResult "postMigrationPlan  " t12a
+
+        -- Perform a migration:
+        let endpointMigrate = Link.migrateWallet @'Shelley maWalletToMigrate
+        t12b <- measureApiLogs capture $ request @[ApiTransaction n]
+            ctx endpointMigrate Default $
+            Json [json|
+                { passphrase: #{fixturePassphrase}
+                , addresses: #{addresses}
+                }|]
+        fmtResult "postMigration      " t12b
 
         pure ()
      where
