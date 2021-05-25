@@ -35,6 +35,8 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Ratio
@@ -60,6 +62,7 @@ import Test.QuickCheck
     , stdConfidence
     , withMaxSuccess
     , (===)
+    , (==>)
     )
 import Test.QuickCheck.Classes
     ( eqLaws )
@@ -155,6 +158,8 @@ spec =
             property prop_selectRandom_all_withAsset
         it "prop_selectRandom_all_withAssetOnly" $
             property prop_selectRandom_all_withAssetOnly
+        it "prop_selectRandomWithPriority" $
+            property prop_selectRandomWithPriority
 
     parallel $ describe "Set Selection" $ do
 
@@ -530,6 +535,38 @@ prop_selectRandom_all_withAssetOnly u a = checkCoverage $ monadicIO $ do
     assert $ all (\(_, o) -> txOutHasAssetOnly o a) selectedEntries
     assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) u == u'
     assert $ UTxOIndex.insertMany selectedEntries u' == u
+
+-- | Verify that priority order is respected when selecting with more than
+--   one filter.
+--
+prop_selectRandomWithPriority
+    :: UTxOIndex -> AssetId -> AssetId -> Property
+prop_selectRandomWithPriority u a1 a2 =
+    (a1 /= a2) ==>
+        checkCoverage $ monadicIO $ do
+        haveMatchForAsset1 <- isJust <$>
+            (run $ UTxOIndex.selectRandom u $ WithAssetOnly a1)
+        haveMatchForAsset2 <- isJust <$>
+            (run $ UTxOIndex.selectRandom u $ WithAssetOnly a2)
+        monitor $ cover 4 (haveMatchForAsset1 && not haveMatchForAsset2)
+            "have match for asset 1 but not for asset 2"
+        monitor $ cover 4 (not haveMatchForAsset1 && haveMatchForAsset2)
+            "have match for asset 2 but not for asset 1"
+        monitor $ cover 4 (haveMatchForAsset1 && haveMatchForAsset2)
+            "have match for both asset 1 and asset 2"
+        monitor $ cover 4 (not haveMatchForAsset1 && not haveMatchForAsset2)
+            "have match for neither asset 1 nor asset 2"
+        result <- run $ UTxOIndex.selectRandomWithPriority u $
+            WithAssetOnly a1 :| [WithAssetOnly a2]
+        case result of
+            Just ((_, o), _) | o `txOutHasAsset` a1 -> do
+                assert haveMatchForAsset1
+            Just ((_, o), _) | o `txOutHasAsset` a2 -> do
+                assert (not haveMatchForAsset1)
+                assert haveMatchForAsset2
+            _ -> do
+                assert (not haveMatchForAsset1)
+                assert (not haveMatchForAsset2)
 
 --------------------------------------------------------------------------------
 -- Set selection properties
