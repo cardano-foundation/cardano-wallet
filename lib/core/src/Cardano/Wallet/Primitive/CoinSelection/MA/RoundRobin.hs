@@ -125,14 +125,7 @@ import Data.Ord
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..)
-    , Builder
-    , blockListF
-    , blockListF'
-    , nameF
-    , tupleF
-    , unlinesF
-    )
+    ( Buildable (..), Builder, blockListF', nameF, tupleF, unlinesF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -243,24 +236,92 @@ data SelectionResult change = SelectionResult
     deriving (Generic, Eq, Show)
 
 instance Buildable (SelectionResult TokenBundle) where
-    build = buildSelectionResult (blockListF . fmap TokenBundle.Flat)
+    build = buildSelectionResult id
 
 instance Buildable (SelectionResult TxOut) where
-    build = buildSelectionResult (blockListF . fmap build)
+    build = buildSelectionResult (view #tokens)
 
 buildSelectionResult
-    :: ([change] -> Builder)
+    :: forall change . (change -> TokenBundle)
     -> SelectionResult change
     -> Builder
-buildSelectionResult changeF s@SelectionResult{inputsSelected,extraCoinSource} =
-    mconcat
-        [ nameF "inputs selected" (inputsF inputsSelected)
-        , nameF "extra coin input" (build extraCoinSource)
-        , nameF "outputs covered" (build $ outputsCovered s)
-        , nameF "change generated" (changeF $ changeGenerated s)
-        , nameF "size utxo remaining" (build $ UTxOIndex.size $ utxoRemaining s)
-        ]
+buildSelectionResult changeToBundle s =
+    -- We first give a fixed-length summary, and then give more detailed
+    -- information:
+    informationSummarized <>
+    informationDetailed
   where
+    -- A fixed-length summary of a selection that includes several data points,
+    -- where each data point can be serialized as a single line of text.
+    informationSummarized = mconcat
+        [ nameF "computed fee"
+            $ build computedFee
+        , nameF "total ada balance in"
+            $ build totalAdaBalanceIn
+        , nameF "total ada balance out"
+            $ build totalAdaBalanceOut
+        , nameF "ada balance of selected inputs"
+            $ build adaBalanceOfSelectedInputs
+        , nameF "ada balance of extra input"
+            $ build adaBalanceOfExtraInput
+        , nameF "ada balance of requested outputs"
+            $ build adaBalanceOfRequestedOutputs
+        , nameF "ada balance of generated change outputs"
+            $ build adaBalanceOfGeneratedChangeOutputs
+        , nameF "number of selected inputs"
+            $ build $ length $ view #inputsSelected s
+        , nameF "number of requested outputs"
+            $ build $ length $ view #outputsCovered s
+        , nameF "number of generated change outputs"
+            $ build $ length $ view #changeGenerated s
+        , nameF "number of unique non-ada assets in selected inputs"
+            $ build
+            $ Set.size
+            $ F.foldMap (TokenBundle.getAssets . view #tokens . snd)
+            $ view #inputsSelected s
+        , nameF "number of unique non-ada assets in requested outputs"
+            $ build
+            $ Set.size
+            $ F.foldMap (TokenBundle.getAssets . view #tokens)
+            $ view #outputsCovered s
+        , nameF "number of unique non-ada assets in generated change outputs"
+            $ build
+            $ Set.size
+            $ F.foldMap (TokenBundle.getAssets . changeToBundle)
+            $ view #changeGenerated s
+        , nameF "size of remaining utxo"
+            $ build $ UTxOIndex.size $ utxoRemaining s
+        ]
+      where
+        computedFee = Coin.distance totalAdaBalanceIn totalAdaBalanceOut
+
+        totalAdaBalanceIn =
+            adaBalanceOfSelectedInputs <> adaBalanceOfExtraInput
+        totalAdaBalanceOut =
+            adaBalanceOfGeneratedChangeOutputs <> adaBalanceOfRequestedOutputs
+
+        adaBalanceOfSelectedInputs =
+            F.foldMap (view (#tokens . #coin) . snd) $ view #inputsSelected s
+        adaBalanceOfExtraInput =
+            F.fold (view #extraCoinSource s)
+        adaBalanceOfGeneratedChangeOutputs =
+            F.foldMap (view #coin . changeToBundle) $ view #changeGenerated s
+        adaBalanceOfRequestedOutputs =
+            F.foldMap (view (#tokens . #coin)) $ view #outputsCovered s
+
+    -- Detailed information about a selection.
+    informationDetailed = mconcat
+        [ nameF "inputs"
+            $ inputsF $ view #inputsSelected s
+        , nameF "outputs"
+            $ build $ view #outputsCovered s
+        , nameF "change outputs"
+            $ changeF $ view #changeGenerated s
+        ]
+
+    changeF :: [change] -> Builder
+    changeF = blockListF' "+" (build . TokenBundle.Flat . changeToBundle)
+
     inputsF :: NonEmpty (TxIn, TxOut) -> Builder
     inputsF = blockListF' "+" tupleF
 
