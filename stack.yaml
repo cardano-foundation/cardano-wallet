@@ -24,9 +24,9 @@ extra-deps:
 - markov-chain-usage-model-0.0.0
 - quickcheck-state-machine-0.7.0
 
-# cardano-addresses-3.4.0
+# cardano-addresses-3.5.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 430c5f98b735c8fea6e2d552650a9f74b0fd477d
+  commit: 9fe7084c9c53b9edf3eba34ee8459c896734ac7a
   subdirs:
     - command-line
     - core
