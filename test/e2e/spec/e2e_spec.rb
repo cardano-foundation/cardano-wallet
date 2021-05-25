@@ -136,6 +136,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
         plan = SHELLEY.migrations.plan(@wid, addrs)
         expect(plan).to be_correct_and_respond 202
+        expect(plan['balance_selected']['assets']).not_to be []
         expect(plan['balance_leftover']).to eq ({ "ada" => { "quantity" => 0,
                                                          "unit" => "lovelace" },
                                                  "assets" => [] })
@@ -514,6 +515,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
         plan = BYRON.migrations.plan(@wid_rnd, addrs)
         expect(plan).to be_correct_and_respond 202
+        expect(plan['balance_selected']['assets']).not_to be []
         expect(plan['balance_leftover']).to eq ({ "ada" => { "quantity" => 0,
                                                          "unit" => "lovelace" },
                                                  "assets" => [] })
@@ -525,6 +527,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
         plan = BYRON.migrations.plan(@wid_ic, addrs)
         expect(plan).to be_correct_and_respond 202
+        expect(plan['balance_selected']['assets']).not_to be []
         expect(plan['balance_leftover']).to eq ({ "ada" => { "quantity" => 0,
                                                          "unit" => "lovelace" },
                                                  "assets" => [] })
