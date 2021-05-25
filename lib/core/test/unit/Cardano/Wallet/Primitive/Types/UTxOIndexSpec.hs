@@ -546,9 +546,9 @@ prop_selectRandomWithPriority u =
     forAll (genAssetIdSmallRange `suchThat` (/= a1)) $ \a2 ->
     checkCoverage $ monadicIO $ do
         haveMatchForAsset1 <- isJust <$>
-            (run $ UTxOIndex.selectRandom u $ WithAssetOnly a1)
+            run (UTxOIndex.selectRandom u $ WithAssetOnly a1)
         haveMatchForAsset2 <- isJust <$>
-            (run $ UTxOIndex.selectRandom u $ WithAssetOnly a2)
+            run (UTxOIndex.selectRandom u $ WithAssetOnly a2)
         monitor $ cover 4 (haveMatchForAsset1 && not haveMatchForAsset2)
             "have match for asset 1 but not for asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && haveMatchForAsset2)
