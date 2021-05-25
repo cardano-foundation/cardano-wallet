@@ -57,12 +57,13 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
+    , forAll
     , oneof
     , property
     , stdConfidence
+    , suchThat
     , withMaxSuccess
     , (===)
-    , (==>)
     )
 import Test.QuickCheck.Classes
     ( eqLaws )
@@ -539,11 +540,11 @@ prop_selectRandom_all_withAssetOnly u a = checkCoverage $ monadicIO $ do
 -- | Verify that priority order is respected when selecting with more than
 --   one filter.
 --
-prop_selectRandomWithPriority
-    :: UTxOIndex -> AssetId -> AssetId -> Property
-prop_selectRandomWithPriority u a1 a2 =
-    (a1 /= a2) ==>
-        checkCoverage $ monadicIO $ do
+prop_selectRandomWithPriority :: UTxOIndex -> Property
+prop_selectRandomWithPriority u =
+    forAll (genAssetIdSmallRange) $ \a1 ->
+    forAll (genAssetIdSmallRange `suchThat` (/= a1)) $ \a2 ->
+    checkCoverage $ monadicIO $ do
         haveMatchForAsset1 <- isJust <$>
             (run $ UTxOIndex.selectRandom u $ WithAssetOnly a1)
         haveMatchForAsset2 <- isJust <$>
