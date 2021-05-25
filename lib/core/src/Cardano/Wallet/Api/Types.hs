@@ -266,7 +266,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata
-    ()
+    ( TokenMetadataError (..) )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Codec.Binary.Bech32.TH
@@ -480,7 +480,8 @@ data ApiAsset = ApiAsset
     , assetName :: ApiT W.TokenName
     , fingerprint :: ApiT W.TokenFingerprint
     , metadata :: Maybe ApiAssetMetadata
-    } deriving (Eq, Generic, Ord, Show)
+    , metadataError :: Maybe Text
+    } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
 data ApiAssetMetadata = ApiAssetMetadata
@@ -493,13 +494,22 @@ data ApiAssetMetadata = ApiAssetMetadata
     } deriving (Eq, Generic, Ord, Show)
       deriving anyclass NFData
 
-toApiAsset :: Maybe W.AssetMetadata -> W.AssetId -> ApiAsset
+toApiAsset
+    :: Either TokenMetadataError (Maybe W.AssetMetadata)
+    -> W.AssetId
+    -> ApiAsset
 toApiAsset metadata_ (W.AssetId policyId_ assetName_) = ApiAsset
     { policyId = ApiT policyId_
     , assetName = ApiT assetName_
     , fingerprint = ApiT $ W.mkTokenFingerprint policyId_ assetName_
-    , metadata = toApiAssetMetadata <$> metadata_
+    , metadata = either (const Nothing) (fmap toApiAssetMetadata) metadata_
+    , metadataError = either (Just . category) (const Nothing) metadata_
     }
+  where
+    category = \case
+        TokenMetadataClientError _ -> "fetch"
+        TokenMetadataFetchError _ -> "fetch"
+        TokenMetadataJSONParseError _ _ -> "parse"
 
 toApiAssetMetadata :: W.AssetMetadata -> ApiAssetMetadata
 toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,decimals} =

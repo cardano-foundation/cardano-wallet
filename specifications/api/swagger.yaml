@@ -2147,6 +2147,15 @@ components:
         asset_name: *assetName
         fingerprint: *assetFingerprint
         metadata: *assetMetadata
+        metadata_error:
+          type: string
+          description: |
+            If there was an error fetching metadata from the server,
+            this will be set to one of `fetch` or `parse`, to indicate
+            the kind of error.
+          enum:
+            - fetch
+            - parse
 
     ApiWalletMigrationBalance: &ApiWalletMigrationBalance
       type: object

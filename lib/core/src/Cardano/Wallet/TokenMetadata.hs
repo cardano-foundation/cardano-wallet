@@ -19,7 +19,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ViewPatterns #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -51,6 +50,7 @@ module Cardano.Wallet.TokenMetadata
     , TokenMetadataClient
     , newMetadataClient
     , getTokenMetadata
+    , TokenMetadataError (..)
 
     -- * Logging
     , TokenMetadataLog (..)
@@ -101,6 +101,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     )
 import Control.Applicative
     ( (<|>) )
+import Control.DeepSeq
+    ( NFData (..) )
 import Control.Monad
     ( when, (>=>) )
 import Control.Tracer
@@ -188,16 +190,13 @@ fillMetadata
     :: (Foldable t, Functor t)
     => TokenMetadataClient IO
     -> t AssetId
-    -> (Maybe AssetMetadata -> AssetId -> a)
+    -> (Either TokenMetadataError (Maybe AssetMetadata) -> AssetId -> a)
     -> IO (t a)
 fillMetadata client assets f = do
-    res <- getTokenMetadata client (toList assets)
-    case res of
-        Right (Map.fromList -> m) ->
-            return $ fmap (\aid -> f (Map.lookup aid m) aid) assets
-        Left _e -> do
-            -- TODO: Trace error?
-            return $ fmap (f Nothing) assets
+    res <- fmap Map.fromList <$> getTokenMetadata client (toList assets)
+    pure $ findAsset res <$> assets
+  where
+    findAsset res aid = f (Map.lookup aid <$> res) aid
 
 {-------------------------------------------------------------------------------
                             Cardano Metadata Server
@@ -355,6 +354,9 @@ data TokenMetadataError
     | TokenMetadataJSONParseError ByteString String
         -- ^ Error from aeson decoding of JSON
     deriving (Generic, Show, Eq)
+
+instance NFData TokenMetadataError where
+    rnf = rnf . show
 
 instance ToText TokenMetadataError where
     toText = \case
@@ -583,7 +585,7 @@ instance FromJSON AssetLogo where
     parseJSON = fmap (AssetLogo . raw @'Base64) . parseJSON
 
 instance FromJSON AssetDecimals where
-    parseJSON = fmap AssetDecimals . parseJSON 
+    parseJSON = fmap AssetDecimals . parseJSON
 
 --
 -- Helpers

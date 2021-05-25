@@ -1792,7 +1792,7 @@ instance Arbitrary Word31 where
     shrink = shrinkIntegral
 
 instance Arbitrary ApiAsset where
-    arbitrary = toApiAsset Nothing <$> genAssetIdSmallRange
+    arbitrary = toApiAsset (Right Nothing) <$> genAssetIdSmallRange
 
 instance Arbitrary a => Arbitrary (AddressAmount a) where
     arbitrary = applyArbitrary3 AddressAmount
