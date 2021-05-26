@@ -1,55 +1,89 @@
 {
-    "seed": 4252581413497557201,
+    "seed": -4024595179411080435,
     "samples": [
-        {
-            "asset_name": "546f6b656e43",
-            "fingerprint": "asset1s3kj3fyeq97tfjnyvdd03z0prq74gz444wyux7",
-            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-        },
-        {
-            "asset_name": "546f6b656e42",
-            "fingerprint": "asset1gazx907gch67k7z698zvjnqtk688lprzsj4h3v",
-            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-        },
-        {
-            "asset_name": "546f6b656e43",
-            "fingerprint": "asset159ls9ezykdrcczlxnz79x3snxr4vzechj99srs",
-            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-        },
-        {
-            "asset_name": "546f6b656e42",
-            "fingerprint": "asset1gazx907gch67k7z698zvjnqtk688lprzsj4h3v",
-            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-        },
         {
             "asset_name": "546f6b656e42",
             "fingerprint": "asset1eqa8zxmephvu6t0lypy8vu87esewclnmztltzs",
+            "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "metadata": {
+                "name": "asset",
+                "ticker": "AST",
+                "description": "An asset"
+            }
+        },
+        {
+            "asset_name": "546f6b656e41",
+            "fingerprint": "asset1mksrxmxjap6x6kdurmjj9qrxc9y8u89n6ufl69",
+            "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "metadata": {
+                "name": "asset",
+                "ticker": "AST",
+                "decimals": 19,
+                "description": "An asset"
+            }
+        },
+        {
+            "asset_name": "546f6b656e43",
+            "fingerprint": "asset1s3kj3fyeq97tfjnyvdd03z0prq74gz444wyux7",
+            "metadata_error": "fetch",
+            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        {
+            "asset_name": "546f6b656e43",
+            "fingerprint": "asset1s3kj3fyeq97tfjnyvdd03z0prq74gz444wyux7",
+            "metadata_error": "fetch",
+            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        {
+            "asset_name": "546f6b656e41",
+            "fingerprint": "asset1mksrxmxjap6x6kdurmjj9qrxc9y8u89n6ufl69",
+            "metadata_error": "parse",
             "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
         },
         {
             "asset_name": "546f6b656e43",
-            "fingerprint": "asset1nhxkxttnpua4phszcvqsxjrlm96uqeg9k950tr",
-            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        },
-        {
-            "asset_name": "546f6b656e41",
-            "fingerprint": "asset16pv5x3vyadqs6khds6wjmenanyy5xvjz35c5va",
-            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        },
-        {
-            "asset_name": "546f6b656e41",
-            "fingerprint": "asset1frylrhchs9tepdq6p4s7ynf3txfet6g405kxpv",
-            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-        },
-        {
-            "asset_name": "546f6b656e44",
-            "fingerprint": "asset1zzhx6uhk3273w5kegsm2h3hhx9gl5pwy8ncqkr",
+            "fingerprint": "asset159ls9ezykdrcczlxnz79x3snxr4vzechj99srs",
+            "metadata_error": "parse",
             "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
         },
         {
             "asset_name": "546f6b656e44",
             "fingerprint": "asset1j3852kq2l32k4dfdlyj272nrdwvaaqpals708e",
-            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "metadata": {
+                "name": "asset",
+                "ticker": "AST",
+                "logo": "PGxvZ28+",
+                "description": "An asset"
+            }
+        },
+        {
+            "asset_name": "546f6b656e43",
+            "fingerprint": "asset1hayjgfpeenndhcuyymv26ayfgh9uqtcaxmgu5s",
+            "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "metadata": {
+                "name": "asset",
+                "ticker": "AST",
+                "decimals": 4,
+                "logo": "PGxvZ28+",
+                "description": "An asset"
+            }
+        },
+        {
+            "asset_name": "546f6b656e42",
+            "fingerprint": "asset178hawgktq6ah7wrzkzcy9gefg5ekdpspf3uve7",
+            "metadata_error": "parse",
+            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        {
+            "asset_name": "546f6b656e43",
+            "fingerprint": "asset1hayjgfpeenndhcuyymv26ayfgh9uqtcaxmgu5s",
+            "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "metadata": {
+                "name": "asset",
+                "logo": "PGxvZ28+",
+                "description": "An asset"
+            }
         }
     ]
 }

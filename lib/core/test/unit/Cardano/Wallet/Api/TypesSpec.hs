@@ -1,7 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -13,6 +12,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -226,7 +226,13 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetIdSmallRange, genTokenMapSmallRange, shrinkTokenMapSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenFingerprint, mkTokenFingerprint )
+    ( AssetDecimals (..)
+    , AssetLogo (..)
+    , AssetMetadata (..)
+    , AssetURL (..)
+    , TokenFingerprint
+    , mkTokenFingerprint
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxIn (..), TxMetadata (..), TxOut (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -236,6 +242,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , computeUtxoStatistics
     , log10
     )
+import Cardano.Wallet.TokenMetadata
+    ( TokenMetadataError (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
 import Control.Lens
@@ -1791,8 +1799,37 @@ instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
 
+instance Arbitrary AssetDecimals where
+    arbitrary = AssetDecimals <$> choose (1, 19)
+
+instance Arbitrary AssetMetadata where
+    -- TODO: We should add a proper arbitrary instance
+    arbitrary = AssetMetadata
+        <$> (pure "asset")
+        <*> (pure "An asset")
+        <*> (oneof [pure Nothing, pure $ Just "AST"])
+        <*> genMaybe (pure $ AssetURL $ fromJust $
+                parseURI "https://asset.url")
+        <*> genLogo
+        <*> arbitrary
+      where
+        genMaybe g = frequency
+            [ (80, pure Nothing)
+            , (20, Just <$> g)
+            ]
+        genLogo = genMaybe $ pure $ AssetLogo $ B8.pack "<logo>"
+
+    shrink _ = []
+
+instance Arbitrary TokenMetadataError where
+    arbitrary = oneof $ map pure
+        [ TokenMetadataClientError (error "actual exception not needed")
+        , TokenMetadataFetchError (error "actual exception not needed")
+        , TokenMetadataJSONParseError "" ""
+        ]
+
 instance Arbitrary ApiAsset where
-    arbitrary = toApiAsset (Right Nothing) <$> genAssetIdSmallRange
+    arbitrary = toApiAsset <$> arbitrary <*> genAssetIdSmallRange
 
 instance Arbitrary a => Arbitrary (AddressAmount a) where
     arbitrary = applyArbitrary3 AddressAmount
