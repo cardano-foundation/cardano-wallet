@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Cardano Wallet Backend API
-  version: 2021.4.28
+  version: 2021.5.26
   license:
     name: Apache-2.0
     url: https://raw.githubusercontent.com/input-output-hk/cardano-wallet/master/LICENSE
@@ -4524,7 +4524,7 @@ paths:
     post:
       operationId: postAccountKey
       tags: ["Keys"]
-      summary: Create
+      summary: Create Account Public Key
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Derive an account public key for any account index. For this key derivation to be possible,
@@ -4545,7 +4545,7 @@ paths:
     get:
       operationId: getAccountKey
       tags: ["Keys"]
-      summary: Get
+      summary: Get Account Public Key
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Retrieve the account public key of this wallet.
@@ -5456,32 +5456,11 @@ paths:
             schema: *ApiSharedWalletPatchData
       responses: *responsesPatchSharedWallet
 
-  /shared-wallets/{walletId}/keys/{role}/{index}:
-    get:
-      operationId: getSharedWalletKey
-      tags: ["Shared Keys"]
-      summary: Get Public Key
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-        Return a public key for a given role and derivation index for
-        a shared wallet.
-
-        To get a hash of the public key, instead of the public key,
-        use query parameter `hash=true`.
-
-        <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
-      parameters:
-        - *parametersWalletId
-        - *parametersRole
-        - *parametersDerivationSegment
-        - *parametersDerivationHash
-      responses: *responsesGetSharedKey
-
   /shared-wallets/{walletId}/keys/{index}:
     post:
       operationId: postAccountKeyShared
       tags: ["Shared Keys"]
-      summary: Create
+      summary: Create Account Public Key
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Derive an account public key for any account index. For this key derivation to be possible,
@@ -5502,7 +5481,7 @@ paths:
     get:
       operationId: getAccountKeyShared
       tags: ["Shared Keys"]
-      summary: Get
+      summary: Get Account Public Key
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Retrieve the account public key of this shared wallet.
@@ -5515,6 +5494,27 @@ paths:
         - *parametersWalletId
       responses: *responsesGetAccountSharedKey
 
+  /shared-wallets/{walletId}/keys/{role}/{index}:
+    get:
+      operationId: getSharedWalletKey
+      tags: ["Shared Keys"]
+      summary: Get Public Key
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Return a public key for a given role and derivation index for
+        a shared wallet.
+
+        To get a hash of the public key, instead of the public key,
+        use query parameter `hash=true`.
+
+        <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
+      parameters:
+        - *parametersWalletId
+        - *parametersRole
+        - *parametersDerivationSegment
+        - *parametersDerivationHash
+      responses: *responsesGetSharedKey
+      
   /shared-wallets/{walletId}/addresses:
     get:
       operationId: listSharedAddresses
