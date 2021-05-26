@@ -480,9 +480,13 @@ data ApiAsset = ApiAsset
     , assetName :: ApiT W.TokenName
     , fingerprint :: ApiT W.TokenFingerprint
     , metadata :: Maybe ApiAssetMetadata
-    , metadataError :: Maybe Text
+    , metadataError :: Maybe ApiMetadataError
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
+
+data ApiMetadataError = Fetch | Parse
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiAssetMetadata = ApiAssetMetadata
     { name :: Text
@@ -507,9 +511,9 @@ toApiAsset metadata_ (W.AssetId policyId_ assetName_) = ApiAsset
     }
   where
     category = \case
-        TokenMetadataClientError _ -> "fetch"
-        TokenMetadataFetchError _ -> "fetch"
-        TokenMetadataJSONParseError _ _ -> "parse"
+        TokenMetadataClientError _ -> Fetch
+        TokenMetadataFetchError _ -> Fetch
+        TokenMetadataJSONParseError _ _ -> Parse
 
 toApiAssetMetadata :: W.AssetMetadata -> ApiAssetMetadata
 toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,decimals} =
@@ -1466,6 +1470,11 @@ instance DecodeAddress n => FromJSON (ApiAddress n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiAddress n) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiMetadataError where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+instance ToJSON ApiMetadataError where
+    toJSON = genericToJSON defaultSumTypeOptions
 
 instance FromJSON ApiAsset where
     parseJSON = genericParseJSON defaultRecordTypeOptions
