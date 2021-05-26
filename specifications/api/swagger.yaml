@@ -267,16 +267,6 @@ x-addressState: &addressState
     - used
     - unused
 
-x-statusIncomplete: &statusIncomplete
-  type: object
-  required:
-    - status
-  properties:
-    status:
-      type: string
-      enum:
-        - incomplete
-
 x-stakePoolId: &stakePoolId
   type: string
   format: hex|bech32
@@ -2094,7 +2084,18 @@ components:
         address_pool_gap: *walletAddressPoolGap
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
-        state: *statusIncomplete
+        state:
+          type: object
+          required:
+            - status
+          properties:
+            status:
+              description: |
+                A pending shared wallet does not have a complete set
+                of keys, so the only possible status is `incomplete`.
+              type: string
+              enum:
+                - incomplete
 
     ApiSharedWallet: &ApiSharedWallet
       type: object
