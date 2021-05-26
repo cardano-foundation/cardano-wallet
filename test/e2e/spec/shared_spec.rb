@@ -536,20 +536,19 @@ RSpec.describe CardanoWallet::Shared do
         end
       end
 
-      it "Create account public key - incomplete wallet from acc pub key" do
-        pending 'no_root key error on wallet from acc pub key'
+      it "Cannot create account public key - incomplete wallet from acc pub key" do
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         incomplete_wid = create_incomplete_shared_wallet(acc_xpub, acc_ix, "self")
         ["0H", "1H", "2147483647H", "44H"].each do |index|
           res = SHARED.keys.create_acc_public_key(incomplete_wid, index, PASS, 'extended')
-          expect(res).to be_correct_and_respond 202
-          expect(res.to_s).to include "acct_shared_xvk"
+          expect(res).to be_correct_and_respond 403
+          expect(res.to_s).to include "no_root_key"
 
           res = SHARED.keys.create_acc_public_key(incomplete_wid, index, PASS, 'non_extended')
-          expect(res).to be_correct_and_respond 202
-          expect(res.to_s).to include "acct_shared_vk"
+          expect(res).to be_correct_and_respond 403
+          expect(res.to_s).to include "no_root_key"
         end
       end
 
@@ -568,20 +567,19 @@ RSpec.describe CardanoWallet::Shared do
         end
       end
 
-      it "Create account public key - active wallet from acc pub key" do
-        pending 'no_root key error on wallet from acc pub key'
+      it "Cannot create account public key - active wallet from acc pub key" do
         m24 = mnemonic_sentence(24)
         acc_ix = '0H'
         acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
         active_wid = create_active_shared_wallet(acc_xpub, acc_ix, "self")
         ["0H", "1H", "2147483647H", "44H"].each do |index|
           res = SHARED.keys.create_acc_public_key(active_wid, index, PASS, 'extended')
-          expect(res).to be_correct_and_respond 202
-          expect(res.to_s).to include "acct_shared_xvk"
+          expect(res).to be_correct_and_respond 403
+          expect(res.to_s).to include "no_root_key"
 
           res = SHARED.keys.create_acc_public_key(active_wid, index, PASS, 'non_extended')
-          expect(res).to be_correct_and_respond 202
-          expect(res.to_s).to include "acct_shared_vk"
+          expect(res).to be_correct_and_respond 403
+          expect(res.to_s).to include "no_root_key"
         end
       end
 
@@ -594,11 +592,11 @@ RSpec.describe CardanoWallet::Shared do
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_vk"
 
-        res = SHARED.keys.get_acc_public_key(active_wid, {format: "extended"})
+        res = SHARED.keys.get_acc_public_key(active_wid, { format: "extended" })
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_xvk"
 
-        res = SHARED.keys.get_acc_public_key(active_wid, {format: "non_extended"})
+        res = SHARED.keys.get_acc_public_key(active_wid, { format: "non_extended" })
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_vk"
       end
@@ -613,11 +611,11 @@ RSpec.describe CardanoWallet::Shared do
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_vk"
 
-        res = SHARED.keys.get_acc_public_key(active_wid, {format: "extended"})
+        res = SHARED.keys.get_acc_public_key(active_wid, { format: "extended" })
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_xvk"
 
-        res = SHARED.keys.get_acc_public_key(active_wid, {format: "non_extended"})
+        res = SHARED.keys.get_acc_public_key(active_wid, { format: "non_extended" })
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_vk"
       end
@@ -631,11 +629,11 @@ RSpec.describe CardanoWallet::Shared do
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_vk"
 
-        res = SHARED.keys.get_acc_public_key(incomplete_wid, {format: "extended"})
+        res = SHARED.keys.get_acc_public_key(incomplete_wid, { format: "extended" })
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_xvk"
 
-        res = SHARED.keys.get_acc_public_key(incomplete_wid, {format: "non_extended"})
+        res = SHARED.keys.get_acc_public_key(incomplete_wid, { format: "non_extended" })
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_vk"
       end
@@ -650,11 +648,11 @@ RSpec.describe CardanoWallet::Shared do
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_vk"
 
-        res = SHARED.keys.get_acc_public_key(incomplete_wid, {format: "extended"})
+        res = SHARED.keys.get_acc_public_key(incomplete_wid, { format: "extended" })
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_xvk"
 
-        res = SHARED.keys.get_acc_public_key(incomplete_wid, {format: "non_extended"})
+        res = SHARED.keys.get_acc_public_key(incomplete_wid, { format: "non_extended" })
         expect(res).to be_correct_and_respond 200
         expect(res.to_s).to include "acct_shared_vk"
       end

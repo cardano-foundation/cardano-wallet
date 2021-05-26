@@ -401,7 +401,7 @@ RSpec.describe CardanoWallet::Shelley do
 
     it "Get account public key - wallet from mnemonics" do
       wid = create_shelley_wallet
-      res = SHELLEY.keys.get_acc_public_key(wid, {format: "extended"})
+      res = SHELLEY.keys.get_acc_public_key(wid, { format: "extended" })
       expect(res).to be_correct_and_respond 200
       expect(res.to_s).to include "acct_xvk"
     end
@@ -414,7 +414,7 @@ RSpec.describe CardanoWallet::Shelley do
                          })
       expect(wallet).to be_correct_and_respond 201
 
-      res = SHELLEY.keys.get_acc_public_key(wallet['id'], {format: "non_extended"})
+      res = SHELLEY.keys.get_acc_public_key(wallet['id'], { format: "non_extended" })
       expect(res).to be_correct_and_respond 200
       expect(res.to_s).to include "acct_vk"
     end
