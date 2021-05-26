@@ -581,6 +581,79 @@ RSpec.describe CardanoWallet::Shared do
         end
       end
 
+      it "Get account public key - active wallet from mnemonics" do
+        m24 = mnemonic_sentence(24)
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
+        active_wid = create_active_shared_wallet(m24, '0H', acc_xpub)
+
+        res = SHARED.keys.get_acc_public_key(active_wid)
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_vk"
+
+        res = SHARED.keys.get_acc_public_key(active_wid, {format: "extended"})
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_xvk"
+
+        res = SHARED.keys.get_acc_public_key(active_wid, {format: "non_extended"})
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_vk"
+      end
+
+      it "Get account public key - active wallet from acc pub key" do
+        m24 = mnemonic_sentence(24)
+        acc_ix = '0H'
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
+        active_wid = create_active_shared_wallet(acc_xpub, acc_ix, "self")
+
+        res = SHARED.keys.get_acc_public_key(active_wid)
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_vk"
+
+        res = SHARED.keys.get_acc_public_key(active_wid, {format: "extended"})
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_xvk"
+
+        res = SHARED.keys.get_acc_public_key(active_wid, {format: "non_extended"})
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_vk"
+      end
+
+      it "Get account public key - incomplete wallet from mnemonics" do
+        m24 = mnemonic_sentence(24)
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/0H")
+        incomplete_wid = create_incomplete_shared_wallet(m24, '0H', acc_xpub)
+
+        res = SHARED.keys.get_acc_public_key(incomplete_wid)
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_vk"
+
+        res = SHARED.keys.get_acc_public_key(incomplete_wid, {format: "extended"})
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_xvk"
+
+        res = SHARED.keys.get_acc_public_key(incomplete_wid, {format: "non_extended"})
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_vk"
+      end
+
+      it "Get account public key - incomplete wallet from acc pub key" do
+        m24 = mnemonic_sentence(24)
+        acc_ix = '0H'
+        acc_xpub = cardano_address_get_acc_xpub(m24, "1854H/1815H/#{acc_ix}")
+        incomplete_wid = create_incomplete_shared_wallet(acc_xpub, acc_ix, "self")
+
+        res = SHARED.keys.get_acc_public_key(incomplete_wid)
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_vk"
+
+        res = SHARED.keys.get_acc_public_key(incomplete_wid, {format: "extended"})
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_xvk"
+
+        res = SHARED.keys.get_acc_public_key(incomplete_wid, {format: "non_extended"})
+        expect(res).to be_correct_and_respond 200
+        expect(res.to_s).to include "acct_shared_vk"
+      end
     end
   end
 end
