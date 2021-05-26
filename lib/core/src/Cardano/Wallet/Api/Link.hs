@@ -148,6 +148,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
+import GHC.Stack
+    ( HasCallStack )
 import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Types.Method
@@ -221,7 +223,8 @@ getWallet w = discriminate @style
 
 getUTxOsStatistics
     :: forall (style :: WalletStyle) w.
-        ( Discriminate style
+        ( HasCallStack
+        , Discriminate style
         , HasType (ApiT WalletId) w
         )
     => w
@@ -245,7 +248,8 @@ listWallets = discriminate @style
 
 putWallet
     :: forall (style :: WalletStyle) w.
-        ( Discriminate style
+        ( HasCallStack
+        , Discriminate style
         , HasType (ApiT WalletId) w
         )
     => w
@@ -259,7 +263,8 @@ putWallet w = discriminate @style
 
 putWalletPassphrase
     :: forall (style :: WalletStyle) w.
-        ( Discriminate style
+        ( HasCallStack
+        , Discriminate style
         , HasType (ApiT WalletId) w
         )
     => w
@@ -273,7 +278,8 @@ putWalletPassphrase w = discriminate @style
 
 migrateWallet
     :: forall (style :: WalletStyle) w.
-        ( Discriminate style
+        ( HasCallStack
+        , Discriminate style
         , HasType (ApiT WalletId) w
         )
     => w
@@ -287,7 +293,8 @@ migrateWallet w = discriminate @style
 
 createMigrationPlan
     :: forall (style :: WalletStyle) w.
-        ( Discriminate style
+        ( HasCallStack
+        , Discriminate style
         , HasType (ApiT WalletId) w
         )
     => w
@@ -305,7 +312,8 @@ createMigrationPlan w = discriminate @style
 
 getWalletKey
     :: forall style w.
-        ( HasType (ApiT WalletId) w
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
         , Discriminate style
         )
     => w
@@ -335,7 +343,8 @@ signMetadata w role_ index =
 
 postAccountKey
     :: forall style w.
-        ( HasType (ApiT WalletId) w
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
         , Discriminate style
         )
     => w
@@ -350,7 +359,8 @@ postAccountKey w index = discriminate @style
 
 getAccountKey
     :: forall style w.
-        ( HasType (ApiT WalletId) w
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
         , Discriminate style
         )
     => w
@@ -432,7 +442,8 @@ postAnyAddress =
 
 selectCoins
     :: forall style w.
-        ( HasType (ApiT WalletId) w
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
         , Discriminate style
         )
     => w
@@ -508,7 +519,8 @@ getByronAsset w pid n
 
 createTransaction
     :: forall style w.
-        ( HasType (ApiT WalletId) w
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
         , Discriminate style
         )
     => w
@@ -532,7 +544,8 @@ listTransactions w =
 
 listTransactions'
     :: forall (style :: WalletStyle) w.
-        ( Discriminate style
+        ( HasCallStack
+        , Discriminate style
         , HasType (ApiT WalletId) w
         )
     => w
@@ -552,7 +565,8 @@ listTransactions' w minWithdrawal inf sup order = discriminate @style
 
 getTransactionFee
     :: forall style w.
-        ( HasType (ApiT WalletId) w
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
         , Discriminate style
         )
     => w
@@ -566,7 +580,8 @@ getTransactionFee w = discriminate @style
 
 deleteTransaction
     :: forall (style :: WalletStyle) w t.
-        ( Discriminate style
+        ( HasCallStack
+        , Discriminate style
         , HasType (ApiT WalletId) w
         , HasType (ApiT (Hash "Tx")) t
         )
@@ -584,7 +599,8 @@ deleteTransaction w t = discriminate @style
 
 getTransaction
     :: forall (style :: WalletStyle) w t.
-        ( Discriminate style
+        ( HasCallStack
+        , Discriminate style
         , HasType (ApiT WalletId) w
         , HasType (ApiT (Hash "Tx")) t
         )
@@ -801,7 +817,7 @@ instance Discriminate 'Byron where
 instance Discriminate 'Shared where
     discriminate _ _ a = a
 
-notSupported :: String -> a
+notSupported :: HasCallStack => String -> a
 notSupported style = error $ "Endpoint not supported for " <> style <> " style"
 
 -- | Some endpoints are parameterized via a network discriminant in order to
