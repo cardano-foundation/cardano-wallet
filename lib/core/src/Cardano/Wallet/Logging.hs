@@ -53,6 +53,8 @@ import Cardano.BM.Data.Tracer
     )
 import Cardano.BM.Trace
     ( Trace, traceNamedItem )
+import Control.DeepSeq
+    ( NFData (..) )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Unlift
@@ -213,7 +215,12 @@ instance HasSeverityAnnotation BracketLog where
         BracketAsyncException _ -> Debug
 
 newtype LoggedException e = LoggedException e
-    deriving (Generic, Show)
+    deriving (Generic, Show, Ord)
+
+instance NFData e => NFData (LoggedException e)
+
+instance NFData (LoggedException SomeException) where
+    rnf (LoggedException e) = rnf (show e)
 
 instance Exception e => ToText (LoggedException e) where
     toText (LoggedException e) = T.pack $ displayException e

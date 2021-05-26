@@ -605,6 +605,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         r2 <- request @[ApiAsset] ctx (Link.listAssets w) Default Empty
         verify r2
             [ expectListField 0 #metadata (`shouldBe` Just steveToken)
+            , expectListField 0 #metadataError (`shouldBe` Nothing)
             ]
 
     it "TRANS_ASSETS_CREATE_01a - Multi-asset transaction with Ada" $ \ctx -> runResourceT $ do
@@ -828,6 +829,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectListField 0 #assetName (`shouldBe` ApiT assName)
             , expectListField 0 (#fingerprint . #getApiT) (`shouldBe` tokenFingerprint)
             , expectListField 0 #metadata (`shouldBe` Just steveToken)
+            , expectListField 0 #metadataError (`shouldBe` Nothing)
             ]
 
     it "TRANS_ASSETS_LIST_02 - Asset list present when not used" $ \ctx -> runResourceT $ do
@@ -863,6 +865,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField #assetName (`shouldBe` ApiT assName)
             , expectField (#fingerprint . #getApiT) (`shouldBe` tokenFingerprint)
             , expectField #metadata (`shouldBe` Just steveToken)
+            , expectField #metadataError (`shouldBe` Nothing)
             ]
 
     it "TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
