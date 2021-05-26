@@ -279,9 +279,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
+    , SelectionReportDetailed
+    , SelectionReportSummarized
     , SelectionResult (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
+    , makeSelectionReportDetailed
+    , makeSelectionReportSummarized
     , performSelection
     )
 import Cardano.Wallet.Primitive.Migration
@@ -1439,14 +1443,21 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
     liftIO $ traceWith tr $ MsgSelectionStart utxo outs
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
         initSelectionCriteria tl pp tx utxo outs
-    sel <- performSelection
+    mSel <- performSelection
         (view #txOutputMinimumAdaQuantity $ constraints tl pp)
         (calcMinimumCost tl pp tx)
         (tokenBundleSizeAssessor tl)
         (selectionCriteria)
-    liftIO $ traceWith tr $ MsgSelectionDone sel
+    case mSel of
+        Left e -> liftIO $
+            traceWith tr $ MsgSelectionError e
+        Right sel -> liftIO $ do
+            traceWith tr $ MsgSelectionReportSummarized
+                $ makeSelectionReportSummarized sel
+            traceWith tr $ MsgSelectionReportDetailed
+                $ makeSelectionReportDetailed sel
     withExceptT ErrSelectAssetsSelectionError $ except $
-        transform (getState cp) <$> sel
+        transform (getState cp) <$> mSel
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
@@ -2638,7 +2649,9 @@ data WalletFollowLog
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
     = MsgSelectionStart UTxOIndex (NonEmpty TxOut)
-    | MsgSelectionDone (Either SelectionError (SelectionResult TokenBundle))
+    | MsgSelectionError SelectionError
+    | MsgSelectionReportSummarized SelectionReportSummarized
+    | MsgSelectionReportDetailed SelectionReportDetailed
     | MsgMigrationUTxOBefore UTxOStatistics
     | MsgMigrationUTxOAfter UTxOStatistics
     | MsgRewardBalanceQuery BlockHeader
@@ -2684,10 +2697,12 @@ instance ToText WalletLog where
             "Starting coin selection " <>
             "|utxo| = "+|UTxOIndex.size utxo|+" " <>
             "#recipients = "+|NE.length recipients|+""
-        MsgSelectionDone (Left e) ->
+        MsgSelectionError e ->
             "Failed to select assets:\n"+|| e ||+""
-        MsgSelectionDone (Right s) ->
-            "Assets selected successfully:\n"+| s |+""
+        MsgSelectionReportSummarized s ->
+            "Selection report (summarized):\n"+| s |+""
+        MsgSelectionReportDetailed s ->
+            "Selection report (detailed):\n"+| s |+""
         MsgMigrationUTxOBefore summary ->
             "About to migrate the following distribution: \n" <> pretty summary
         MsgMigrationUTxOAfter summary ->
@@ -2726,7 +2741,9 @@ instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
     getSeverityAnnotation = \case
         MsgSelectionStart{} -> Debug
-        MsgSelectionDone{} -> Debug
+        MsgSelectionError{} -> Debug
+        MsgSelectionReportSummarized{} -> Info
+        MsgSelectionReportDetailed{} -> Debug
         MsgMigrationUTxOBefore _ -> Info
         MsgMigrationUTxOAfter _ -> Info
         MsgRewardBalanceQuery _ -> Debug
