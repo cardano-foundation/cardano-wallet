@@ -26,8 +26,10 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( ApiAccountKeyShared (..)
     , ApiAddress
+    , ApiFee (..)
     , ApiSharedWallet (..)
     , ApiTransaction
+    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -77,6 +79,7 @@ import Test.Integration.Framework.DSL
     , expectListField
     , expectListSize
     , expectResponseCode
+    , faucetAmt
     , fixturePassphrase
     , fixtureWallet
     , genMnemonics
@@ -95,6 +98,7 @@ import Test.Integration.Framework.DSL
     , postAccountKeyShared
     , postSharedWallet
     , request
+    , unsafeRequest
     , verify
     , walletId
     )
@@ -999,8 +1003,11 @@ spec = describe "SHARED_WALLETS" $ do
                     }
                 } |]
         rPost <- postSharedWallet ctx Default payload
-        verify rPost
-            [ expectResponseCode HTTP.status201 ]
+        verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) rPost)
+            [ expectResponseCode HTTP.status201
+            , expectField (#balance . #available) (`shouldBe` Quantity 0)
+            , expectField (#balance . #total) (`shouldBe` Quantity 0)
+            ]
         let (ApiSharedWallet (Right wal)) = getFromResponse id rPost
 
         rAddr <- request @[ApiAddress n] ctx
@@ -1021,9 +1028,18 @@ spec = describe "SHARED_WALLETS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
+        (_, ApiFee (Quantity _) (Quantity feeMax) _ _) <- unsafeRequest ctx
+            (Link.getTransactionFee @'Shelley wShelley) payloadTx
         let ep = Link.createTransaction @'Shelley
         rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
         expectResponseCode HTTP.status202 rTx
+        eventually "wShelley balance is decreased" $ do
+            ra <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wShelley) Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
+
   where
      getAccountWallet name = do
           (_, accXPubTxt):_ <- liftIO $ genXPubs 1
