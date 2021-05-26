@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -36,6 +37,14 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
+
+    -- * Reporting
+    , SelectionReport (..)
+    , SelectionReportSummarized (..)
+    , SelectionReportDetailed (..)
+    , makeSelectionReport
+    , makeSelectionReportSummarized
+    , makeSelectionReportDetailed
 
     -- * Running a selection (without making change)
     , runSelection
@@ -111,7 +120,7 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
@@ -125,7 +134,7 @@ import Data.Ord
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..), Builder, blockListF', nameF, tupleF, unlinesF )
+    ( Buildable (..), genericF, nameF, unlinesF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -234,96 +243,6 @@ data SelectionResult change = SelectionResult
         -- the selection.
     }
     deriving (Generic, Eq, Show)
-
-instance Buildable (SelectionResult TokenBundle) where
-    build = buildSelectionResult id
-
-instance Buildable (SelectionResult TxOut) where
-    build = buildSelectionResult (view #tokens)
-
-buildSelectionResult
-    :: forall change . (change -> TokenBundle)
-    -> SelectionResult change
-    -> Builder
-buildSelectionResult changeToBundle s =
-    -- We first give a fixed-length summary, and then give more detailed
-    -- information:
-    informationSummarized <>
-    informationDetailed
-  where
-    -- A fixed-length summary of a selection that includes several data points,
-    -- where each data point can be serialized as a single line of text.
-    informationSummarized = mconcat
-        [ nameF "computed fee"
-            $ build computedFee
-        , nameF "total ada balance in"
-            $ build totalAdaBalanceIn
-        , nameF "total ada balance out"
-            $ build totalAdaBalanceOut
-        , nameF "ada balance of selected inputs"
-            $ build adaBalanceOfSelectedInputs
-        , nameF "ada balance of extra input"
-            $ build adaBalanceOfExtraInput
-        , nameF "ada balance of requested outputs"
-            $ build adaBalanceOfRequestedOutputs
-        , nameF "ada balance of generated change outputs"
-            $ build adaBalanceOfGeneratedChangeOutputs
-        , nameF "number of selected inputs"
-            $ build $ length $ view #inputsSelected s
-        , nameF "number of requested outputs"
-            $ build $ length $ view #outputsCovered s
-        , nameF "number of generated change outputs"
-            $ build $ length $ view #changeGenerated s
-        , nameF "number of unique non-ada assets in selected inputs"
-            $ build
-            $ Set.size
-            $ F.foldMap (TokenBundle.getAssets . view #tokens . snd)
-            $ view #inputsSelected s
-        , nameF "number of unique non-ada assets in requested outputs"
-            $ build
-            $ Set.size
-            $ F.foldMap (TokenBundle.getAssets . view #tokens)
-            $ view #outputsCovered s
-        , nameF "number of unique non-ada assets in generated change outputs"
-            $ build
-            $ Set.size
-            $ F.foldMap (TokenBundle.getAssets . changeToBundle)
-            $ view #changeGenerated s
-        , nameF "size of remaining utxo"
-            $ build $ UTxOIndex.size $ utxoRemaining s
-        ]
-      where
-        computedFee = Coin.distance totalAdaBalanceIn totalAdaBalanceOut
-
-        totalAdaBalanceIn =
-            adaBalanceOfSelectedInputs <> adaBalanceOfExtraInput
-        totalAdaBalanceOut =
-            adaBalanceOfGeneratedChangeOutputs <> adaBalanceOfRequestedOutputs
-
-        adaBalanceOfSelectedInputs =
-            F.foldMap (view (#tokens . #coin) . snd) $ view #inputsSelected s
-        adaBalanceOfExtraInput =
-            F.fold (view #extraCoinSource s)
-        adaBalanceOfGeneratedChangeOutputs =
-            F.foldMap (view #coin . changeToBundle) $ view #changeGenerated s
-        adaBalanceOfRequestedOutputs =
-            F.foldMap (view (#tokens . #coin)) $ view #outputsCovered s
-
-    -- Detailed information about a selection.
-    informationDetailed = mconcat
-        [ nameF "inputs"
-            $ inputsF $ view #inputsSelected s
-        , nameF "outputs"
-            $ build $ view #outputsCovered s
-        , nameF "change outputs"
-            $ changeF $ view #changeGenerated s
-        ]
-
-    changeF :: [change] -> Builder
-    changeF = blockListF' "+" (build . TokenBundle.Flat . changeToBundle)
-
-    inputsF :: NonEmpty (TxIn, TxOut) -> Builder
-    inputsF = blockListF' "+" tupleF
 
 -- | Calculate the actual difference between the total outputs (incl. change)
 -- and total inputs of a particular selection. By construction, this should be
@@ -685,6 +604,125 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         , "extra input source: " <> show extraCoinSource
         , "outputs: " <> show outputsToCover
         ]
+
+--------------------------------------------------------------------------------
+-- Reporting
+--------------------------------------------------------------------------------
+
+-- | Includes both summarized and detailed information about a selection.
+--
+data SelectionReport = SelectionReport
+    { summary :: SelectionReportSummarized
+    , detail :: SelectionReportDetailed
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Includes summarized information about a selection.
+--
+-- Each data point can be serialized as a single line of text.
+--
+data SelectionReportSummarized = SelectionReportSummarized
+    { computedFee :: Coin
+    , totalAdaBalanceIn :: Coin
+    , totalAdaBalanceOut :: Coin
+    , adaBalanceOfSelectedInputs :: Coin
+    , adaBalanceOfExtraInput :: Coin
+    , adaBalanceOfRequestedOutputs :: Coin
+    , adaBalanceOfGeneratedChangeOutputs :: Coin
+    , numberOfSelectedInputs :: Int
+    , numberOfRequestedOutputs :: Int
+    , numberOfGeneratedChangeOutputs :: Int
+    , numberOfUniqueNonAdaAssetsInSelectedInputs :: Int
+    , numberOfUniqueNonAdaAssetsInRequestedOutputs :: Int
+    , numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs :: Int
+    , sizeOfRemainingUtxoSet :: Int
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Includes detailed information about a selection.
+--
+data SelectionReportDetailed = SelectionReportDetailed
+    { selectedInputs :: [(TxIn, TxOut)]
+    , requestedOutputs :: [TxOut]
+    , generatedChangeOutputs :: [TokenBundle.Flat TokenBundle]
+    }
+    deriving (Eq, Generic, Show)
+
+instance Buildable SelectionReport where
+    build = genericF
+instance Buildable SelectionReportSummarized where
+    build = genericF
+instance Buildable SelectionReportDetailed where
+    build = genericF
+
+makeSelectionReport
+    :: SelectionResult TokenBundle -> SelectionReport
+makeSelectionReport s = SelectionReport
+    { summary = makeSelectionReportSummarized s
+    , detail = makeSelectionReportDetailed s
+    }
+
+makeSelectionReportSummarized
+    :: SelectionResult TokenBundle -> SelectionReportSummarized
+makeSelectionReportSummarized s = SelectionReportSummarized {..}
+  where
+    computedFee
+        = Coin.distance totalAdaBalanceIn totalAdaBalanceOut
+    totalAdaBalanceIn
+        = adaBalanceOfSelectedInputs <> adaBalanceOfExtraInput
+    totalAdaBalanceOut
+        = adaBalanceOfGeneratedChangeOutputs <> adaBalanceOfRequestedOutputs
+    adaBalanceOfSelectedInputs
+        = F.foldMap (view (#tokens . #coin) . snd) $ view #inputsSelected s
+    adaBalanceOfExtraInput
+        = F.fold (view #extraCoinSource s)
+    adaBalanceOfGeneratedChangeOutputs
+        = F.foldMap (view #coin) $ view #changeGenerated s
+    adaBalanceOfRequestedOutputs
+        = F.foldMap (view (#tokens . #coin)) $ view #outputsCovered s
+    numberOfSelectedInputs
+        = length $ view #inputsSelected s
+    numberOfRequestedOutputs
+        = length $ view #outputsCovered s
+    numberOfGeneratedChangeOutputs
+        = length $ view #changeGenerated s
+    numberOfUniqueNonAdaAssetsInSelectedInputs
+        = Set.size
+        $ F.foldMap (TokenBundle.getAssets . view #tokens . snd)
+        $ view #inputsSelected s
+    numberOfUniqueNonAdaAssetsInRequestedOutputs
+        = Set.size
+        $ F.foldMap (TokenBundle.getAssets . view #tokens)
+        $ view #outputsCovered s
+    numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs
+        = Set.size
+        $ F.foldMap TokenBundle.getAssets
+        $ view #changeGenerated s
+    sizeOfRemainingUtxoSet
+        = UTxOIndex.size $ utxoRemaining s
+
+makeSelectionReportDetailed
+    :: SelectionResult TokenBundle -> SelectionReportDetailed
+makeSelectionReportDetailed s = SelectionReportDetailed
+    { selectedInputs
+        = F.toList $ view #inputsSelected s
+    , requestedOutputs
+        = view #outputsCovered s
+    , generatedChangeOutputs
+        = TokenBundle.Flat <$> view #changeGenerated s
+    }
+
+-- A convenience instance for 'Buildable' contexts that include a nested
+-- 'SelectionResult' value.
+instance Buildable (SelectionResult TokenBundle) where
+    build = build . makeSelectionReport
+
+-- A convenience instance for 'Buildable' contexts that include a nested
+-- 'SelectionResult' value.
+instance Buildable (SelectionResult TxOut) where
+    build = build
+        . makeSelectionReport
+        . over #changeGenerated (fmap $ view #tokens)
 
 --------------------------------------------------------------------------------
 -- Running a selection (without making change)
