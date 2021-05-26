@@ -1006,9 +1006,8 @@ spec = describe "SHARED_WALLETS" $ do
         verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) rPost)
             [ expectResponseCode HTTP.status201
             , expectField (#balance . #available) (`shouldBe` Quantity 0)
-            , expectField (#balance . #total) (`shouldBe` Quantity 0)
             ]
-        let (ApiSharedWallet (Right wal)) = getFromResponse id rPost
+        let walShared@(ApiSharedWallet (Right wal)) = getFromResponse id rPost
 
         rAddr <- request @[ApiAddress n] ctx
             (Link.listAddresses @'Shared wal) Default Empty
@@ -1040,6 +1039,11 @@ spec = describe "SHARED_WALLETS" $ do
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
 
+        rWal <- getSharedWallet ctx walShared
+        verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) rWal)
+            [ expectResponseCode HTTP.status200
+            , expectField (#balance . #available) (`shouldBe` Quantity amt)
+            ]
   where
      getAccountWallet name = do
           (_, accXPubTxt):_ <- liftIO $ genXPubs 1
