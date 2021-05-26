@@ -1864,7 +1864,7 @@ components:
     ApiVerificationKeyShelley: &ApiVerificationKeyShelley
       type: string
       format: bech32
-      pattern: "^((addr_vk)|(stake_vk))1[0-9a-z]*$"
+      pattern: "^((addr_vk)|(stake_vk)|(addr_vkh)|(stake_vkh))1[0-9a-z]*$"
 
     ApiVerificationKeyShared: &ApiVerificationKeyShared
       type: string
@@ -2076,6 +2076,7 @@ components:
         - account_index
         - address_pool_gap
         - payment_script_template
+        - state
       properties:
         id: *walletId
         name: *walletName
@@ -2083,6 +2084,18 @@ components:
         address_pool_gap: *walletAddressPoolGap
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
+        state:
+          type: object
+          required:
+            - status
+          properties:
+            status:
+              description: |
+                A pending shared wallet does not have a complete set
+                of keys, so the only possible status is `incomplete`.
+              type: string
+              enum:
+                - incomplete
 
     ApiSharedWallet: &ApiSharedWallet
       type: object
@@ -2108,6 +2121,7 @@ components:
         account_index: *derivationSegment
         payment_script_template: *scriptTemplateEntry
         delegation_script_template: *scriptTemplateEntry
+        script_validation: *validationLevel
 
     ApiSharedWalletPostDataFromAccountPubX: &ApiSharedWalletPostDataFromAccountPubX
       type: object
@@ -2122,6 +2136,7 @@ components:
         account_index: *derivationSegment
         payment_script_template: *scriptTemplateEntry
         delegation_script_template: *scriptTemplateEntry
+        script_validation: *validationLevel
 
     ApiSharedWalletPostData: &ApiSharedWalletPostData
       type: object
@@ -3095,18 +3110,18 @@ x-errSharedWalletCannotUpdateKey: &errSharedWalletCannotUpdateKey
       type: string
       enum: ['shared_wallet_cannot_update_key']
 
-x-errSharedWalletCreateNotAllowed: &errSharedWalletCreateNotAllowed
+x-errSharedWalletScriptTemplateInvalid: &errSharedWalletScriptTemplateInvalid
   <<: *responsesErr
-  title: shared_wallet_create_not_allowed
+  title: shared_wallet_script_template_invalid
   properties:
     message:
       type: string
       description: |
-        Returned when a user tries to create a shared wallet with missing wallet's
-        account key in all the script templates.
+        Returned when a user tries to create a shared wallet with script template
+        that does not pass validation.
     code:
       type: string
-      enum: ['shared_wallet_create_not_allowed']
+      enum: ['shared_wallet_script_template_invalid']
 
 # TODO: Map this error to the place it belongs.
 x-errNetworkUnreachable: &errNetworkUnreachable
@@ -3620,7 +3635,7 @@ x-responsesPostSharedWallet: &responsesPostSharedWallet
       application/json:
         schema:
           oneOf:
-            - <<: *errSharedWalletCreateNotAllowed
+            - <<: *errSharedWalletScriptTemplateInvalid
   201:
     description: Created
     content:
@@ -3980,12 +3995,32 @@ x-responsesGetSharedKey: &responsesGetSharedKey
       application/json:
         schema: *ApiVerificationKeyShared
 
+x-responsesGetAccountSharedKey: &responsesGetAccountSharedKey
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiAccountKeyShared
+
 x-responsesPostAccountKey: &responsesPostAccountKey
   <<: *responsesErr400
   <<: *responsesErr406
   <<: *responsesErr415
   202:
     description: Accepted
+    content:
+      application/json:
+        schema: *ApiAccountKey
+
+x-responsesGetAccountKey: &responsesGetAccountKey
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
     content:
       application/json:
         schema: *ApiAccountKey
@@ -4505,7 +4540,8 @@ paths:
       summary: Create
       description: |
         <p align="right">status: <strong>stable</strong></p>
-        Retrieve account public key from the wallet.
+        Derive an account public key for any account index. For this key derivation to be possible,
+        the wallet must have been created from mnemonic.
 
         <b>Note:</b> Only _Hardened_ indexes are supported by this endpoint.
       parameters:
@@ -4518,6 +4554,23 @@ paths:
             schema: *ApiPostAccountKeyData
       responses: *responsesPostAccountKey
 
+  /wallets/{walletId}/keys:
+    get:
+      operationId: getAccountKey
+      tags: ["Keys"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Retrieve the account public key of this wallet.
+
+        To get an extended public key, instead of the public key,
+        use query parameter `format=extended`. For non-extended public key
+        use `format=non_extended` or omit query parameter.
+
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetAccountKey
+
   /wallets/{walletId}/keys/{role}/{index}:
     get:
       operationId: getWalletKey
@@ -4526,6 +4579,9 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Return a public key for a given role and derivation index.
+
+        To get a hash of the public key, instead of the public key,
+        use query parameter `hash=true`.
 
         <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
       parameters:
@@ -5441,7 +5497,8 @@ paths:
       summary: Create
       description: |
         <p align="right">status: <strong>stable</strong></p>
-        Retrieve account public key from the shared wallet.
+        Derive an account public key for any account index. For this key derivation to be possible,
+        the wallet must have been created from mnemonic.
 
         <b>Note:</b> Only _Hardened_ indexes are supported by this endpoint.
       parameters:
@@ -5453,6 +5510,23 @@ paths:
           application/json:
             schema: *ApiPostAccountKeyData
       responses: *responsesPostAccountKeyShared
+
+  /shared-wallets/{walletId}/keys:
+    get:
+      operationId: getAccountKeyShared
+      tags: ["Shared Keys"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Retrieve the account public key of this shared wallet.
+
+        To get an extended public key, instead of the public key,
+        use query parameter `format=extended`. For non-extended public key
+        use `format=non_extended` or omit query parameter.
+
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetAccountSharedKey
 
   /shared-wallets/{walletId}/addresses:
     get:
