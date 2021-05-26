@@ -35,9 +35,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     wait_for_all_byron_wallets(@nighly_byron_wallets)
     wait_for_all_shelley_wallets(@nightly_shelley_wallets)
 
-
+    # @wid_rnd = "94c0af1034914f4455b7eb795ebea74392deafe9"
+    # @wid_ic = "a468e96ab85ad2043e48cf2e5f3437b4356769f4"
     # @wid = "b1fb863243a9ae451bc4e2e662f60ff217b126e2"
-    # @target_id_pools = "4eff7771b9975e0731e2c5eb9695fece9067ee92"
   end
 
   after(:all) do
@@ -127,6 +127,20 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         end
       end
 
+    end
+
+    describe "Shelley Migrations" do
+      it "I can create migration plan shelley -> shelley" do
+        target_id = create_shelley_wallet
+        addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
+
+        plan = SHELLEY.migrations.plan(@wid, addrs)
+        expect(plan).to be_correct_and_respond 202
+        expect(plan['balance_selected']['assets']).not_to be []
+        expect(plan['balance_leftover']).to eq ({ "ada" => { "quantity" => 0,
+                                                         "unit" => "lovelace" },
+                                                 "assets" => [] })
+      end
     end
 
     describe "Shelley Transactions" do
@@ -491,6 +505,32 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
       it "I can send transaction and funds are received, icarus -> shelley" do
         test_byron_tx(@wid_ic, @target_id_ic_assets)
+      end
+    end
+
+    describe "Byron Migrations" do
+      it "I can create migration plan byron -> shelley" do
+        target_id = create_shelley_wallet
+        addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
+
+        plan = BYRON.migrations.plan(@wid_rnd, addrs)
+        expect(plan).to be_correct_and_respond 202
+        expect(plan['balance_selected']['assets']).not_to be []
+        expect(plan['balance_leftover']).to eq ({ "ada" => { "quantity" => 0,
+                                                         "unit" => "lovelace" },
+                                                 "assets" => [] })
+      end
+
+      it "I can create migration plan icarus -> shelley" do
+        target_id = create_shelley_wallet
+        addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
+
+        plan = BYRON.migrations.plan(@wid_ic, addrs)
+        expect(plan).to be_correct_and_respond 202
+        expect(plan['balance_selected']['assets']).not_to be []
+        expect(plan['balance_leftover']).to eq ({ "ada" => { "quantity" => 0,
+                                                         "unit" => "lovelace" },
+                                                 "assets" => [] })
       end
     end
 

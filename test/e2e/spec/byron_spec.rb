@@ -272,7 +272,8 @@ RSpec.describe CardanoWallet::Byron do
       addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
 
       plan = BYRON.migrations.plan(id, addrs)
-      expect(plan).to be_correct_and_respond 501
+      expect(plan).to be_correct_and_respond 403
+      expect(plan.to_s).to include "nothing_to_migrate"
     end
 
     it "I could create migration plan - random" do
