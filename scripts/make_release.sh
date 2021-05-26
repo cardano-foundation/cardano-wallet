@@ -19,8 +19,8 @@ set -euo pipefail
 ################################################################################
 # Release-specific parameters (Change when you bump the version)
 # Release tags must follow format vYYYY-MM-DD.
-GIT_TAG="v2021-04-28"
-OLD_GIT_TAG="v2021-04-08"
+GIT_TAG="v2021-05-26"
+OLD_GIT_TAG="v2021-04-28"
 
 CARDANO_NODE_TAG="1.26.2"
 

@@ -399,6 +399,25 @@ RSpec.describe CardanoWallet::Shelley do
       end
     end
 
+    it "Get account public key - wallet from mnemonics" do
+      wid = create_shelley_wallet
+      res = SHELLEY.keys.get_acc_public_key(wid, { format: "extended" })
+      expect(res).to be_correct_and_respond 200
+      expect(res.to_s).to include "acct_xvk"
+    end
+
+    it "Get account public key - wallet from acc pub key" do
+      w = SHELLEY.wallets
+      wallet = w.create({ name: "Wallet from pub key",
+                         account_public_key: "b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b",
+                         address_pool_gap: 20,
+                         })
+      expect(wallet).to be_correct_and_respond 201
+
+      res = SHELLEY.keys.get_acc_public_key(wallet['id'], { format: "non_extended" })
+      expect(res).to be_correct_and_respond 200
+      expect(res.to_s).to include "acct_vk"
+    end
   end
 
 end
