@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2021 IOHK
@@ -29,12 +30,13 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , SharedStatePending (..)
     , SupportsSharedState
     , ErrAddCosigner (..)
+    , ErrScriptTemplate (..)
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
     , addCosignerAccXPub
     , isShared
     , retrieveAllCosigners
-    , walletCreationInvariant
+    , validateScriptTemplates
 
     , CredentialType (..)
     , liftPaymentAddress
@@ -46,12 +48,14 @@ import Prelude
 
 import Cardano.Address.Script
     ( Cosigner (..)
+    , ErrValidateScriptTemplate (..)
     , KeyHash (..)
     , Script (..)
     , ScriptHash (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
+    , prettyErrValidateScriptTemplate
     , toScriptHash
     , validateScriptTemplate
     )
@@ -104,14 +108,20 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad
+    ( unless )
 import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
+import Data.Either.Combinators
+    ( mapLeft )
 import Data.Kind
     ( Type )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import GHC.Generics
@@ -123,6 +133,7 @@ import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
                                 Shared State
@@ -305,17 +316,45 @@ accountXPubCondition
 accountXPubCondition accXPub (ScriptTemplate cosignerKeys _) =
     getRawKey accXPub `F.elem` cosignerKeys
 
-walletCreationInvariant
+data ErrScriptTemplate =
+      ErrScriptTemplateInvalid !CredentialType !ErrValidateScriptTemplate
+    | ErrScriptTemplateMissingKey !CredentialType !Text
+    deriving (Show, Eq)
+
+instance ToText ErrValidateScriptTemplate where
+    toText = T.pack . prettyErrValidateScriptTemplate
+
+validateScriptTemplates
     :: WalletKey k
     => k 'AccountK XPub
+    -> ValidationLevel
     -> ScriptTemplate
     -> Maybe ScriptTemplate
-    -> Bool
-walletCreationInvariant accXPub pTemplate dTemplate =
-    isValid pTemplate && maybe True isValid dTemplate
+    -> Either ErrScriptTemplate ()
+validateScriptTemplates accXPub level pTemplate dTemplateM = do
+    checkTemplate Payment pTemplate
+    unless (checkXPub pTemplate) $ Left $ ErrScriptTemplateMissingKey Payment accXPubErr
+    case dTemplateM of
+        Just dTemplate -> do
+            checkTemplate Delegation dTemplate
+            unless (checkXPub dTemplate) $ Left $ ErrScriptTemplateMissingKey Delegation accXPubErr
+        Nothing -> pure ()
   where
-    isValid template' =
-        accountXPubCondition accXPub template'
+      --when creating the shared wallet we can have cosigners in script with missing
+      --account public key. They are supposed to be collected when patching.
+      handleUnusedCosigner
+          :: Either ErrValidateScriptTemplate ()
+          -> Either ErrValidateScriptTemplate ()
+      handleUnusedCosigner = \case
+          Left MissingCosignerXPub -> Right ()
+          rest -> rest
+      checkTemplate cred template' =
+          mapLeft (ErrScriptTemplateInvalid cred) $
+          handleUnusedCosigner $
+          validateScriptTemplate level template'
+      checkXPub template' =
+          accountXPubCondition accXPub template'
+      accXPubErr = "The wallet's account key must be always present for the script template."
 
 templatesComplete
     :: WalletKey k

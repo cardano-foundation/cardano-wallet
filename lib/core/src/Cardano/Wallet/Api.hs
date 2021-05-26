@@ -33,6 +33,7 @@ module Cardano.Wallet.Api
         , GetWalletKey
         , SignMetadata
         , PostAccountKey
+        , GetAccountKey
 
     , Assets
         , ListAssets
@@ -126,6 +127,7 @@ module Cardano.Wallet.Api
     , SharedWalletKeys
         , GetSharedWalletKey
         , PostAccountKeyShared
+        , GetAccountKeyShared
 
     , SharedAddresses
         , ListSharedAddresses
@@ -188,6 +190,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletSignData
     , ByronWalletPutPassphraseData
     , Iso8601Time
+    , KeyFormat
     , MinWithdrawal
     , PostExternalTransactionData
     , PostTransactionDataT
@@ -356,6 +359,7 @@ type WalletKeys =
     GetWalletKey
     :<|> SignMetadata
     :<|> PostAccountKey
+    :<|> GetAccountKey
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWalletKey
 type GetWalletKey = "wallets"
@@ -363,6 +367,7 @@ type GetWalletKey = "wallets"
     :> "keys"
     :> Capture "role" (ApiT Role)
     :> Capture "index" (ApiT DerivationIndex)
+    :> QueryParam "hash" Bool
     :> Get '[JSON] ApiVerificationKeyShelley
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signMetadata
@@ -381,6 +386,13 @@ type PostAccountKey = "wallets"
     :> Capture "index" (ApiT DerivationIndex)
     :> ReqBody '[JSON] ApiPostAccountKeyData
     :> PostAccepted '[JSON] ApiAccountKey
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getAccountKey
+type GetAccountKey = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "keys"
+    :> QueryParam "format" KeyFormat
+    :> Get '[JSON] ApiAccountKey
 
 {-------------------------------------------------------------------------------
                                   Assets
@@ -912,6 +924,7 @@ type DeleteSharedWallet = "shared-wallets"
 type SharedWalletKeys =
          GetSharedWalletKey
     :<|> PostAccountKeyShared
+    :<|> GetAccountKeyShared
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getSharedWalletKey
 type GetSharedWalletKey = "shared-wallets"
@@ -929,6 +942,13 @@ type PostAccountKeyShared = "shared-wallets"
     :> Capture "index" (ApiT DerivationIndex)
     :> ReqBody '[JSON] ApiPostAccountKeyData
     :> PostAccepted '[JSON] ApiAccountKeyShared
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getAccountKeyShared
+type GetAccountKeyShared = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "keys"
+    :> QueryParam "format" KeyFormat
+    :> Get '[JSON] ApiAccountKeyShared
 
 {-------------------------------------------------------------------------------
                                  Shared Addresses

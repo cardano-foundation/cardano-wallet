@@ -42,8 +42,7 @@ module Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
-    , derivePublicKeyShelley
-    , derivePublicKeyShared
+    , derivePublicKey
     , getNetworkClock
     , getNetworkInformation
     , getNetworkParameters
@@ -82,6 +81,7 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForQuit
     , signMetadata
     , postAccountPublicKey
+    , getAccountPublicKey
     , postSharedWallet
     , patchSharedWallet
     , mkSharedWallet
@@ -113,7 +113,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..), ScriptTemplate (..) )
+    ( Cosigner (..), ScriptTemplate (..), ValidationLevel (..) )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
 import Cardano.BM.Tracing
@@ -221,8 +221,6 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
-    , ApiVerificationKeyShared (..)
-    , ApiVerificationKeyShelley (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -299,6 +297,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange (ArgGenChange)
+    , GetAccount
     , IsOurs
     , IsOwned
     , KnownAddresses
@@ -319,12 +318,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..)
     , ErrAddCosigner (..)
+    , ErrScriptTemplate (..)
     , SharedState (..)
     , SharedStateFields (..)
     , SharedStatePending (..)
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
-    , walletCreationInvariant
+    , validateScriptTemplates
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
@@ -419,7 +419,7 @@ import Control.DeepSeq
 import Control.Error.Util
     ( failWith )
 import Control.Monad
-    ( forM, forever, join, unless, void, when, (>=>) )
+    ( forM, forever, join, void, when, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -894,8 +894,10 @@ postSharedWalletFromRootXPrv
     -> ApiSharedWalletPostDataFromMnemonics
     -> Handler ApiSharedWallet
 postSharedWalletFromRootXPrv ctx generateKey body = do
-    unless (walletCreationInvariant accXPub pTemplate dTemplateM) $
-        liftHandler $ throwE ErrConstructSharedWalletMissingKey
+    case validateScriptTemplates accXPub scriptValidation pTemplate dTemplateM of
+        Left err ->
+            liftHandler $ throwE $ ErrConstructSharedWalletWrongScriptTemplate err
+        Right _ -> pure ()
     let state = mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx g pTemplate dTemplateM
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
@@ -915,6 +917,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     dTemplateM = scriptTemplateFromSelf (getRawKey accXPub) <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
     accXPub = publicKey $ deriveAccountPrivateKey pwd rootXPrv accIx
+    scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 postSharedWalletFromAccountXPub
     :: forall ctx s k n.
@@ -934,8 +937,10 @@ postSharedWalletFromAccountXPub
     -> ApiSharedWalletPostDataFromAccountPubX
     -> Handler ApiSharedWallet
 postSharedWalletFromAccountXPub ctx liftKey body = do
-    unless (walletCreationInvariant (liftKey accXPub) pTemplate dTemplateM) $
-        liftHandler $ throwE ErrConstructSharedWalletMissingKey
+    case validateScriptTemplates (liftKey accXPub) scriptValidation pTemplate dTemplateM of
+        Left err ->
+            liftHandler $ throwE $ ErrConstructSharedWalletWrongScriptTemplate err
+        Right _ -> pure ()
     let state = mkSharedStateFromAccountXPub (liftKey accXPub) accIx g pTemplate dTemplateM
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
@@ -950,6 +955,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
     wid = WalletId $ digest (liftKey accXPub)
+    scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 scriptTemplateFromSelf :: XPub -> ApiScriptTemplateEntry -> ScriptTemplate
 scriptTemplateFromSelf xpub (ApiScriptTemplateEntry cosigners' template') =
@@ -2297,40 +2303,24 @@ signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
         getSignature <$> W.signMetadataWith @_ @s @k @n
             wrk wid (coerce pwd) (role_, ix) meta
 
-derivePublicKeyShelley
-    :: forall ctx s k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k
+derivePublicKey
+    :: forall ctx s k ver.
+        ( ctx ~ ApiLayer s k
         , SoftDerivation k
         , WalletKey k
+        , GetAccount s k
         )
     => ctx
-    -> ApiT WalletId
-    -> ApiT Role
-    -> ApiT DerivationIndex
-    -> Handler ApiVerificationKeyShelley
-derivePublicKeyShelley ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
-    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.derivePublicKey @_ @s @k wrk wid role_ ix
-        pure $ ApiVerificationKeyShelley (xpubPublicKey $ getRawKey k, role_)
-
-derivePublicKeyShared
-    :: forall ctx s k n.
-        ( s ~ SharedState n k
-        , ctx ~ ApiLayer s k
-        , SoftDerivation k
-        , WalletKey k
-        )
-    => ctx
+    -> ((ByteString, Role) -> VerificationKeyHashing -> ver)
     -> ApiT WalletId
     -> ApiT Role
     -> ApiT DerivationIndex
     -> Maybe Bool
-    -> Handler ApiVerificationKeyShared
-derivePublicKeyShared ctx (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
+    -> Handler ver
+derivePublicKey ctx mkVer (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.derivePublicKey @_ @s @k wrk wid role_ ix
-        pure $ ApiVerificationKeyShared (computePayload k, role_) hashing
+        pure $ mkVer (computePayload k, role_) hashing
   where
     hashing = case hashed of
         Nothing -> WithoutHashing
@@ -2353,13 +2343,33 @@ postAccountPublicKey
     -> Handler account
 postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.readPublicAccountKey @_ @s @k wrk wid pwd ix
-        pure $ mkAccount (xPubtoBytes extd $ getRawKey k) extd
+        k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s @k wrk wid pwd ix
+        pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd
+
+publicKeyToBytes' :: KeyFormat -> XPub -> ByteString
+publicKeyToBytes' = \case
+    Extended -> xpubToBytes
+    NonExtended -> xpubPublicKey
+
+getAccountPublicKey
+    :: forall ctx s k account.
+        ( ctx ~ ApiLayer s k
+        , GetAccount s k
+        , WalletKey k
+        )
+    => ctx
+    -> (ByteString -> KeyFormat -> account)
+    -> ApiT WalletId
+    -> Maybe KeyFormat
+    -> Handler account
+getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        k <- liftHandler $ W.readAccountPublicKey @_ @s @k wrk wid
+        pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd
   where
-      xPubtoBytes :: KeyFormat -> XPub -> ByteString
-      xPubtoBytes = \case
-          Extended -> xpubToBytes
-          NonExtended -> xpubPublicKey
+      extd = case extended of
+          Just Extended -> Extended
+          _ -> NonExtended
 
 {-------------------------------------------------------------------------------
                                   Helpers
@@ -3291,11 +3301,16 @@ instance IsServerError ErrAddCosignerKey where
 
 instance IsServerError ErrConstructSharedWallet where
     toServerError = \case
-        ErrConstructSharedWalletMissingKey ->
-            apiError err403 SharedWalletCreateNotAllowed $ mconcat
+        ErrConstructSharedWalletWrongScriptTemplate (ErrScriptTemplateInvalid cred reason) ->
+            handleTemplateErr cred (toText reason)
+        ErrConstructSharedWalletWrongScriptTemplate (ErrScriptTemplateMissingKey cred reason) ->
+            handleTemplateErr cred reason
+      where
+          handleTemplateErr cred reason =
+            apiError err403 SharedWalletScriptTemplateInvalid $ mconcat
                 [ "It looks like you've tried to create a shared wallet "
-                , "with a missing account key in the script template(s). This cannot be done "
-                , "as the wallet's account key must be always present for each script template."
+                , "with a template script for ", toText cred, " credential that does not "
+                , "pass validation. The problem is: ", reason
                 ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where

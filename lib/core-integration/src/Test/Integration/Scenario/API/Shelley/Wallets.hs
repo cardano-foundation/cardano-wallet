@@ -1044,7 +1044,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
         forM_ matrix $ \(role_, index, expected) ->
             counterexample (show role_ <> "/" <> show index) $ do
-                let link = Link.getWalletKey (apiWal ^. id) role_ index
+                let link = Link.getWalletKey @'Shelley (apiWal ^. id) role_ index Nothing
                 rGet <- request @ApiVerificationKeyShelley ctx link Default Empty
                 verify rGet
                     [ expectResponseCode HTTP.status200
@@ -1054,7 +1054,7 @@ spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_GET_KEY_02 - invalid index for verification key" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
 
-        let link = Link.getWalletKey w UtxoExternal (DerivationIndex 2147483648)
+        let link = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex 2147483648) Nothing
         r <- request @ApiVerificationKeyShelley ctx link Default Empty
 
         verify r
@@ -1067,7 +1067,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
 
-        let link = Link.getWalletKey w UtxoExternal (DerivationIndex 0)
+        let link = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex 0) Nothing
         r <- request @ApiVerificationKeyShelley ctx link Default Empty
 
         verify r
@@ -1093,7 +1093,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
         -- get corresponding public key
         rKey <- request @ApiVerificationKeyShelley ctx
-            (Link.getWalletKey w role_ index)
+            (Link.getWalletKey @'Shelley w role_ index Nothing)
             Default
             Empty
         verify rKey

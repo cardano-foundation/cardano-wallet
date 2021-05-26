@@ -90,6 +90,10 @@ module Test.Integration.Framework.TestData
     , errMsg400ScriptDuplicateKeys
     , errMsg400ScriptTimelocksContradictory
     , errMsg400ScriptNotUniformRoles
+    , errMsg403TemplateInvalidNoCosignerInScript
+    , errMsg403TemplateInvalidUnknownCosigner
+    , errMsg403TemplateInvalidDuplicateXPub
+    , errMsg403TemplateInvalidScript
     ) where
 
 import Prelude
@@ -546,9 +550,37 @@ errMsg403CannotUpdateThisCosigner = mconcat
 
 errMsg403CreateIllegal :: String
 errMsg403CreateIllegal = mconcat
-    [ "It looks like you've tried to create a shared wallet "
-    , "with a missing account key in the script template(s). This cannot be done "
-    , "as the wallet's account key must be always present for each script template."
+    [ "It looks like you've tried to create a shared wallet with a template "
+    , "script for payment credential that does not pass validation. The problem "
+    , "is: The wallet's account key must be always present for the script template."
+    ]
+
+errMsg403TemplateInvalidNoCosignerInScript :: String
+errMsg403TemplateInvalidNoCosignerInScript = mconcat
+    [ "It looks like you've tried to create a shared wallet with a template "
+    , "script for payment credential that does not pass validation. "
+    , "The problem is: The list inside a script is empty or only contains timelocks (which is not recommended)."
+    ]
+
+errMsg403TemplateInvalidUnknownCosigner :: String
+errMsg403TemplateInvalidUnknownCosigner = mconcat
+    [ "It looks like you've tried to create a shared wallet with a template"
+    , " script for payment credential that does not pass validation. The problem is:"
+    , " The specified cosigner must be present in the script of the template."
+    ]
+
+errMsg403TemplateInvalidDuplicateXPub :: String
+errMsg403TemplateInvalidDuplicateXPub = mconcat
+    [ "It looks like you've tried to create a shared wallet with a template"
+    , " script for payment credential that does not pass validation. The problem is:"
+    , " The cosigners in a script template must stand behind an unique extended public key."
+    ]
+
+errMsg403TemplateInvalidScript :: String -> String
+errMsg403TemplateInvalidScript reason = mconcat
+    [ "It looks like you've tried to create a shared wallet with a template"
+    , " script for payment credential that does not pass validation. The problem is: "
+    , reason
     ]
 
 errMsg400ScriptWrongCoeffcient :: String

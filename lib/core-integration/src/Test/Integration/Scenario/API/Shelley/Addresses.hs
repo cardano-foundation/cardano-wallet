@@ -50,7 +50,9 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldNotSatisfy, shouldSatisfy )
+    ( SpecWith, describe )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldNotSatisfy, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -93,7 +95,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Lens as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
-import qualified Test.Hspec.Expectations.Lifted as Expectations
 
 spec :: forall n.
     ( DecodeAddress n
@@ -634,10 +635,10 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         -- wallet API
         let indices = [0..19]
         generatedAddresses <- forM indices $ \index -> do
-            let paymentPath = Link.getWalletKey w UtxoExternal (DerivationIndex index)
+            let paymentPath = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex index) Nothing
             (_, paymentKey) <- unsafeRequest @ApiVerificationKeyShelley ctx paymentPath Empty
 
-            let stakePath = Link.getWalletKey w MutableAccount (DerivationIndex 0)
+            let stakePath = Link.getWalletKey @'Shelley w MutableAccount (DerivationIndex 0) Nothing
             (_, stakeKey) <- unsafeRequest @ApiVerificationKeyShelley ctx stakePath Empty
 
             let payload = Json [json|{
@@ -652,7 +653,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         forM_ (zip (fmap fromIntegral indices) generatedAddresses)
             $ \(idx, genAddr) -> do
                 let walAddr = fst (addrs !! idx ^. #id) ^. (#getApiT . #unAddress)
-                walAddr `Expectations.shouldBe` genAddr
+                walAddr `shouldBe` genAddr
 
     it "ANY_ADDRESS_POST_13 - Golden tests for script with timelocks" $ \ctx -> do
         let payload = Json [json|{
@@ -910,7 +911,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let initPoolGap = 10
         w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)
 
-        let endpoint = Link.postAccountKey w (DerivationIndex 0)
+        let endpoint = Link.postAccountKey @'Shelley w (DerivationIndex 0)
         let payload = Json [json|{
                 "passphrase": #{fixturePassphrase},
                 "format": "extended"
@@ -921,7 +922,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         -- Request first 10 extended account public keys
         let indices = [0..9]
         accountPublicKeys <- forM indices $ \index -> do
-            let accountPath = Link.postAccountKey w (DerivationIndex $ 2147483648 + index)
+            let accountPath = Link.postAccountKey @'Shelley w (DerivationIndex $ 2147483648 + index)
             let payload1 = Json [json|{
                     "passphrase": #{fixturePassphrase},
                     "format": "extended"
@@ -933,7 +934,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             (_, accXPub) <- unsafeRequest @ApiAccountKey ctx accountPath payload1
             (_, accPub) <- unsafeRequest @ApiAccountKey ctx accountPath payload2
             pure [accXPub, accPub]
-        length (concat accountPublicKeys) `Expectations.shouldBe` 20
+        length (concat accountPublicKeys) `shouldBe` 20
   where
     validateAddr resp expected = do
         let addr = getFromResponse id resp

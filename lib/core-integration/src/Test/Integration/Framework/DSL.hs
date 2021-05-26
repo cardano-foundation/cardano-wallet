@@ -80,6 +80,7 @@ module Test.Integration.Framework.DSL
     , patchSharedWallet
     , getSharedWalletKey
     , postAccountKeyShared
+    , getAccountKeyShared
 
     -- * Wallet helpers
     , listFilteredWallets
@@ -160,6 +161,8 @@ module Test.Integration.Framework.DSL
     , triggerMaintenanceAction
     , verifyMaintenanceAction
     , genXPubs
+    , hexText
+    , fromHexText
     , accPubKeyFromMnemonics
 
     -- * Delegation helpers
@@ -242,6 +245,7 @@ import Cardano.Wallet.Api.Types
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
     , Iso8601Time (..)
+    , KeyFormat
     , SettingsPutData (..)
     , WalletStyle (..)
     , insertedAt
@@ -855,9 +859,11 @@ genXPubs num =
     xpubFromText :: Text -> Maybe XPub
     xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
 
-    fromHexText :: Text -> Either String ByteString
-    fromHexText = fromHex . T.encodeUtf8
+fromHexText :: Text -> Either String ByteString
+fromHexText = fromHex . T.encodeUtf8
 
+hexText :: ByteString -> Text
+hexText = T.decodeLatin1 . hex
 
 getTxId :: (ApiTransaction n) -> String
 getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
@@ -1457,7 +1463,7 @@ getSharedWalletKey ctx wal role ix hashed =
         ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
-      r w = request @ApiVerificationKeyShared ctx (Link.getSharedWalletKey w role ix hashed) Default Empty
+      r w = request @ApiVerificationKeyShared ctx (Link.getWalletKey @'Shared w role ix hashed) Default Empty
 
 postAccountKeyShared
     :: forall m.
@@ -1476,7 +1482,24 @@ postAccountKeyShared ctx wal ix headers payload =
         ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
-      r w = request @ApiAccountKeyShared ctx (Link.postAccountKeyShared w ix) headers payload
+      r w = request @ApiAccountKeyShared ctx (Link.postAccountKey @'Shared w ix) headers payload
+
+getAccountKeyShared
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiSharedWallet
+    -> Maybe KeyFormat
+    -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
+getAccountKeyShared ctx wal hashed =
+    case wal of
+        ApiSharedWallet (Left wal') -> r wal'
+        ApiSharedWallet (Right wal') -> r wal'
+  where
+      r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
+      r w = request @ApiAccountKeyShared ctx (Link.getAccountKey @'Shared w hashed) Default Empty
 
 patchEndpointEnding :: CredentialType -> Text
 patchEndpointEnding = \case

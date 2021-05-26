@@ -1723,10 +1723,15 @@ instance Arbitrary (Quantity "percent" Double) where
     arbitrary = Quantity <$> choose (0,100)
 
 instance Arbitrary ApiVerificationKeyShelley where
-    arbitrary =
-        fmap ApiVerificationKeyShelley . (,)
-            <$> fmap B8.pack (replicateM 32 arbitrary)
+    arbitrary = do
+        hashing <- elements [WithHashing, WithoutHashing]
+        ApiVerificationKeyShelley <$> genKeyRole (len hashing) <*> pure hashing
+      where
+        genKeyRole n = (,)
+            <$> fmap B8.pack (vectorOf n arbitrary)
             <*> elements [UtxoExternal, UtxoInternal, MutableAccount]
+        len WithHashing = 28
+        len WithoutHashing = 32
 
 instance ToSchema ApiVerificationKeyShelley where
     declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKeyShelley"

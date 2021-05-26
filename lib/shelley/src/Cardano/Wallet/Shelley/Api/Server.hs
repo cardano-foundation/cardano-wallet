@@ -65,8 +65,8 @@ import Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
-    , derivePublicKeyShared
-    , derivePublicKeyShelley
+    , derivePublicKey
+    , getAccountPublicKey
     , getAsset
     , getAssetDefault
     , getCurrentEpoch
@@ -134,6 +134,8 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsData (..)
     , ApiStakePool
     , ApiT (..)
+    , ApiVerificationKeyShared (..)
+    , ApiVerificationKeyShelley (..)
     , ApiWithdrawalPostData (..)
     , HealthCheckSMASH (..)
     , MaintenanceAction (..)
@@ -250,9 +252,10 @@ server byron icarus shelley multisig spl ntp =
         :<|> getUTxOsStatistics shelley
 
     walletKeys :: Server WalletKeys
-    walletKeys = derivePublicKeyShelley shelley
+    walletKeys = derivePublicKey shelley ApiVerificationKeyShelley
         :<|> signMetadata shelley
         :<|> postAccountPublicKey shelley ApiAccountKey
+        :<|> getAccountPublicKey shelley ApiAccountKey
 
     assets :: Server Assets
     assets = listAssets shelley :<|> getAsset shelley :<|> getAssetDefault shelley
@@ -502,25 +505,25 @@ server byron icarus shelley multisig spl ntp =
         :: ApiLayer (SharedState n SharedKey) SharedKey
         -> Server SharedWallets
     sharedWallets apilayer =
-             (postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey)
+             postSharedWallet @_ @_ @SharedKey apilayer Shared.generateKeyFromSeed SharedKey
         :<|> (fmap fst . getWallet apilayer mkSharedWallet)
         :<|> (fmap fst <$> listWallets apilayer mkSharedWallet)
-        :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment)
-        :<|> (patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation)
-        :<|> (deleteWallet apilayer)
+        :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Payment
+        :<|> patchSharedWallet @_ @_ @SharedKey apilayer SharedKey Delegation
+        :<|> deleteWallet apilayer
 
     sharedWalletKeys
         :: ApiLayer (SharedState n SharedKey) SharedKey
         -> Server SharedWalletKeys
-    sharedWalletKeys apilayer =
-             (derivePublicKeyShared apilayer)
-        :<|> (postAccountPublicKey apilayer ApiAccountKeyShared)
+    sharedWalletKeys apilayer = derivePublicKey apilayer ApiVerificationKeyShared
+        :<|> postAccountPublicKey apilayer ApiAccountKeyShared
+        :<|> getAccountPublicKey apilayer ApiAccountKeyShared
 
     sharedAddresses
         :: ApiLayer (SharedState n SharedKey) SharedKey
         -> Server (SharedAddresses n)
     sharedAddresses apilayer =
-             (listAddresses apilayer (normalizeSharedAddress @_ @SharedKey @n))
+             listAddresses apilayer (normalizeSharedAddress @_ @SharedKey @n)
 
 postAnyAddress
     :: NetworkId

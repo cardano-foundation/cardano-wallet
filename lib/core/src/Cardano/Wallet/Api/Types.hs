@@ -1060,14 +1060,15 @@ data ApiWalletSignData = ApiWalletSignData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-newtype ApiVerificationKeyShelley = ApiVerificationKeyShelley
-    { getApiVerificationKey :: (ByteString, Role)
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
-
 data VerificationKeyHashing = WithHashing | WithoutHashing
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
+
+data ApiVerificationKeyShelley = ApiVerificationKeyShelley
+    { getApiVerificationKey :: (ByteString, Role)
+    , hashed :: VerificationKeyHashing
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiVerificationKeyShared = ApiVerificationKeyShared
     { getApiVerificationKey :: (ByteString, Role)
@@ -1078,6 +1079,25 @@ data ApiVerificationKeyShared = ApiVerificationKeyShared
 data KeyFormat = Extended | NonExtended
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
+
+instance ToText KeyFormat where
+    toText Extended = "extended"
+    toText NonExtended = "non_extended"
+
+instance ToHttpApiData KeyFormat where
+    toUrlPiece = toText
+
+instance FromText KeyFormat where
+    fromText txt = case txt of
+        "extended" -> Right Extended
+        "non_extended" -> Right NonExtended
+        _ -> Left $ TextDecodingError $ unwords
+            [ "I couldn't parse the given key format."
+            , "I am expecting one of the words 'extended' or"
+            , "'non_extended'."]
+
+instance FromHttpApiData KeyFormat where
+    parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
 
 data ApiPostAccountKeyData = ApiPostAccountKeyData
     { passphrase :: ApiT (Passphrase "raw")
@@ -1115,6 +1135,7 @@ data ApiSharedWalletPostDataFromMnemonics = ApiSharedWalletPostDataFromMnemonics
     , accountIndex :: !(ApiT DerivationIndex)
     , paymentScriptTemplate :: !ApiScriptTemplateEntry
     , delegationScriptTemplate :: !(Maybe ApiScriptTemplateEntry)
+    , scriptValidation :: !(Maybe (ApiT ValidationLevel))
     } deriving (Eq, Generic, Show)
 
 data ApiSharedWalletPostDataFromAccountPubX = ApiSharedWalletPostDataFromAccountPubX
@@ -1123,6 +1144,7 @@ data ApiSharedWalletPostDataFromAccountPubX = ApiSharedWalletPostDataFromAccount
     , accountIndex :: !(ApiT DerivationIndex)
     , paymentScriptTemplate :: !ApiScriptTemplateEntry
     , delegationScriptTemplate :: !(Maybe ApiScriptTemplateEntry)
+    , scriptValidation :: !(Maybe (ApiT ValidationLevel))
     } deriving (Eq, Generic, Show)
 
 newtype ApiSharedWalletPostData = ApiSharedWalletPostData
@@ -1221,7 +1243,7 @@ data ApiErrorCode
     | SharedWalletKeyAlreadyExists
     | SharedWalletNoSuchCosigner
     | SharedWalletCannotUpdateKey
-    | SharedWalletCreateNotAllowed
+    | SharedWalletScriptTemplateInvalid
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
@@ -1484,29 +1506,39 @@ instance FromJSON (ApiT DerivationIndex) where
     parseJSON = fromTextJSON "DerivationIndex"
 
 instance ToJSON ApiVerificationKeyShelley where
-    toJSON (ApiVerificationKeyShelley (pub, role_)) =
+    toJSON (ApiVerificationKeyShelley (pub, role_) hashed) =
         toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
       where
         hrp = case role_ of
-            UtxoInternal -> [humanReadablePart|addr_vk|]
-            UtxoExternal -> [humanReadablePart|addr_vk|]
-            MutableAccount -> [humanReadablePart|stake_vk|]
+            UtxoExternal -> case hashed of
+                WithHashing -> [humanReadablePart|addr_vkh|]
+                WithoutHashing -> [humanReadablePart|addr_vk|]
+            UtxoInternal -> case hashed of
+                WithHashing -> [humanReadablePart|addr_vkh|]
+                WithoutHashing -> [humanReadablePart|addr_vk|]
+            MutableAccount -> case hashed of
+                WithHashing -> [humanReadablePart|stake_vkh|]
+                WithoutHashing -> [humanReadablePart|stake_vk|]
 
 instance FromJSON ApiVerificationKeyShelley where
     parseJSON value = do
         (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed verification key")
-        fmap ApiVerificationKeyShelley . (,)
-            <$> parsePubVer bytes
-            <*> parseRole hrp
+        (role, hashing) <- parseRoleHashing hrp
+        payload <- case hashing of
+            WithoutHashing -> parsePubVer bytes
+            WithHashing -> parsePubVerHash bytes
+        pure $ ApiVerificationKeyShelley (payload,role) hashing
       where
-        parseRole = \case
-            hrp | hrp == [humanReadablePart|addr_vk|] -> pure UtxoExternal
-            hrp | hrp == [humanReadablePart|stake_vk|] -> pure MutableAccount
+        parseRoleHashing = \case
+            hrp | hrp == [humanReadablePart|addr_vk|] -> pure (UtxoExternal, WithoutHashing)
+            hrp | hrp == [humanReadablePart|stake_vk|] -> pure (MutableAccount, WithoutHashing)
+            hrp | hrp == [humanReadablePart|addr_vkh|] -> pure (UtxoExternal, WithHashing)
+            hrp | hrp == [humanReadablePart|stake_vkh|] -> pure (MutableAccount, WithHashing)
             _ -> fail errRole
           where
             errRole =
                 "Unrecognized human-readable part. Expected one of:\
-                \ \"addr_vk\" or \"stake_vk\"."
+                \ \"addr_vkh\", \"stake_vkh\",\"addr_vk\" or \"stake_vk\"."
 
 parseBech32
     :: Text
@@ -2538,9 +2570,15 @@ instance ToJSON ApiActiveSharedWallet where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiPendingSharedWallet where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON val = case val of
+        Aeson.Object obj -> do
+            let obj' = HM.delete "state" obj
+            genericParseJSON defaultRecordTypeOptions (Aeson.Object obj')
+        _ -> fail "ApiPendingSharedWallet should be object"
 instance ToJSON ApiPendingSharedWallet where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON wal = Aeson.Object $ HM.insert "state" (object ["status" .= String "incomplete"]) obj
+      where
+        (Aeson.Object obj) = genericToJSON defaultRecordTypeOptions wal
 
 instance FromJSON ApiSharedWallet where
     parseJSON obj = do
