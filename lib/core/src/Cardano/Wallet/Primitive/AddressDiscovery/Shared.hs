@@ -65,6 +65,7 @@ import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationIndex (..)
     , DerivationPrefix (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -78,6 +79,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     , deriveVerificationKey
     , hashVerificationKey
+    , utxoExternal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..)
@@ -106,6 +108,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Control.Arrow
+    ( first )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -132,6 +136,7 @@ import Type.Reflection
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
@@ -481,8 +486,23 @@ isShared addr st = case fields st of
     PendingFields _ ->
         (Nothing, st)
 
-instance IsOurs (SharedState n k) Address where
-    isOurs _addr state = (Nothing, state)
+instance
+    ( SoftDerivation k
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , MkKeyFingerprint k Address
+    , Typeable n
+    ) => IsOurs (SharedState n k) Address
+  where
+    isOurs addr state@(SharedState prefix _) =
+        let DerivationPrefix (purpose, coinType, accIx) = prefix
+            decorateIx addrIx = NE.fromList
+                [ DerivationIndex $ getIndex purpose
+                , DerivationIndex $ getIndex coinType
+                , DerivationIndex $ getIndex accIx
+                , DerivationIndex $ getIndex utxoExternal
+                , DerivationIndex $ getIndex addrIx
+                ]
+            in first (fmap decorateIx) (isShared addr state)
 
 instance IsOurs (SharedState n k) RewardAccount where
     isOurs _account state = (Nothing, state)

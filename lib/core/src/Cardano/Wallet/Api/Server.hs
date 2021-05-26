@@ -983,6 +983,10 @@ mkSharedWallet
         ( ctx ~ ApiLayer s k
         , s ~ SharedState n k
         , HasWorkerRegistry s k ctx
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , Typeable n
         )
     => MkApiWallet ctx s ApiSharedWallet
 mkSharedWallet ctx wid cp meta pending progress = case getState cp of
