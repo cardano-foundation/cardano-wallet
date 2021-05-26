@@ -322,8 +322,8 @@ getWalletKey
     -> Maybe Bool
     -> (Method, Text)
 getWalletKey w role_ index hashed = discriminate @style
-    (notSupported "Byron")
     (endpoint @Api.GetWalletKey (\mk -> mk wid (ApiT role_) (ApiT index) hashed))
+    (notSupported "Byron")
     (endpoint @Api.GetSharedWalletKey (\mk -> mk wid (ApiT role_) (ApiT index) hashed))
   where
     wid = w ^. typed @(ApiT WalletId)
@@ -351,8 +351,8 @@ postAccountKey
     -> DerivationIndex
     -> (Method, Text)
 postAccountKey w index = discriminate @style
-    (notSupported "Byron")
     (endpoint @Api.PostAccountKey (\mk -> mk wid (ApiT index)))
+    (notSupported "Byron")
     (endpoint @Api.PostAccountKeyShared (\mk -> mk wid (ApiT index)))
   where
     wid = w ^. typed @(ApiT WalletId)
@@ -367,8 +367,8 @@ getAccountKey
     -> Maybe KeyFormat
     -> (Method, Text)
 getAccountKey w extended = discriminate @style
-    (notSupported "Byron")
     (endpoint @Api.GetAccountKey (\mk -> mk wid extended))
+    (notSupported "Byron")
     (endpoint @Api.GetAccountKeyShared (\mk -> mk wid extended))
   where
     wid = w ^. typed @(ApiT WalletId)
