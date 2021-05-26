@@ -28,7 +28,6 @@ services:
     entrypoint: []
     command: bash -c "
         ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
-        ([[ $$NETWORK == \"mainnet_candidate*\" ]] && $$CMD --staging /config/*-$$NETWORK-byron-genesis.json) ||
         ($$CMD --testnet /config/*-$$NETWORK-byron-genesis.json)
       "
     environment:
@@ -45,15 +44,7 @@ services:
 volumes:
   node-mainnet-db:
   node-testnet-db:
-  node-mainnet_candidate-db:
-  node-mainnet_candidate_2-db:
-  node-mainnet_candidate_3-db:
-  node-mainnet_candidate_4-db:
   wallet-mainnet-db:
   wallet-testnet-db:
-  wallet-mainnet_candidate-db:
-  wallet-mainnet_candidate_2-db:
-  wallet-mainnet_candidate_3-db:
-  wallet-mainnet_candidate_4-db:
   node-ipc:
   node-config:
