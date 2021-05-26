@@ -188,6 +188,7 @@ RSpec.describe CardanoWallet::Shared do
                                                               acc_xpub_upd)
 
         expect(update_payment).to be_correct_and_respond 200
+        expect(SHARED.wallets.get(incomplete_wid)['state']['status']).to eq 'incomplete'
         expect(SHARED.wallets.get(incomplete_wid)).to be_correct_and_respond 200
 
         update_delegation = SHARED.wallets.update_delegation_script(incomplete_wid,
@@ -216,6 +217,7 @@ RSpec.describe CardanoWallet::Shared do
         expect(update_payment).to be_correct_and_respond 200
 
         expect(SHARED.wallets.get(incomplete_wid)).to be_correct_and_respond 200
+        expect(SHARED.wallets.get(incomplete_wid)['state']['status']).to eq 'incomplete'
 
         expect(SHARED.wallets.list).to be_correct_and_respond 200
 
@@ -288,6 +290,7 @@ RSpec.describe CardanoWallet::Shared do
 
         wallet = w.create(payload)
         expect(wallet).to be_correct_and_respond 201
+        expect(wallet['state']['status']).to eq 'syncing'
 
         wid = wallet['id']
         g = w.get(wid)
@@ -334,6 +337,7 @@ RSpec.describe CardanoWallet::Shared do
 
         wallet = w.create(payload)
         expect(wallet).to be_correct_and_respond 201
+        expect(wallet['state']['status']).to eq 'incomplete'
 
         wid = wallet['id']
         g = w.get(wid)
