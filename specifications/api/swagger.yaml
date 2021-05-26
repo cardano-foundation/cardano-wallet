@@ -671,32 +671,19 @@ x-assetMetadataDescription: &assetMetadataDescription
   type: string
   maxLength: 500
 
-x-assetMetadataUnit: &assetMetadataUnit
-  type: object
+x-assetMetadataDecimals: &assetMetadataDecimals
+  type: integer
   description: |
-    Defines a larger unit for the asset, in the same way Ada is the
-    larger unit of Lovelace.
-  required:
-    - decimals
-    - name
-  additionalProperties: false
-  properties:
-    decimals:
-      type: integer
-      description: |
-        The number of digits after the decimal point.
-      minimum: 1
-      maximum: 19
-    name:
-      type: string
-      minLength: 1
-      maxLength: 30
-      description: |
-        The human-readable name for the larger unit of the asset. Used
-        for display in user interfaces.
-  example:
-    name: API
-    decimals: 3
+    Defines a scaling factor for the asset of 10<sup>-n</sup>. The
+    decimals value _n_ is therefore the number of digits after the
+    decimal point for quantities of this token.
+
+    It is up to API clients to use this metadata field to decimalize
+    asset quantities before displaying to users. The wallet backend
+    will always return unscaled token quantities as whole numbers.
+  minimum: 0
+  maximum: 255
+  example: 2
 
 x-assetMetadataUrl: &assetMetadataUrl
   description: |
@@ -736,7 +723,7 @@ x-assetMetadata: &assetMetadata
     name: *assetMetadataName
     description: *assetMetadataDescription
     ticker: *assetMetadataTicker
-    unit: *assetMetadataUnit
+    decimals: *assetMetadataDecimals
     url: *assetMetadataUrl
     logo: *assetMetadataLogo
 
