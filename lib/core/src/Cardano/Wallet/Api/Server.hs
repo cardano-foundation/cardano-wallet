@@ -911,7 +911,9 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
         Left err ->
             liftHandler $ throwE $ ErrConstructSharedWalletWrongScriptTemplate err
         Right _ -> pure ()
-    let state = mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx g pTemplate dTemplateM
+    ix' <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
+        W.guardHardIndex ix
+    let state = mkSharedStateFromRootXPrv (rootXPrv, pwd) ix' g pTemplate dTemplateM
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
@@ -924,12 +926,12 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     pwd = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = generateKey (seed, secondFactor) pwd
     g = defaultAddressPoolGap
-    accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
+    ix = getApiT (body ^. #accountIndex)
     wid = WalletId $ digest $ publicKey rootXPrv
     pTemplate = scriptTemplateFromSelf (getRawKey accXPub) $ body ^. #paymentScriptTemplate
     dTemplateM = scriptTemplateFromSelf (getRawKey accXPub) <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
-    accXPub = publicKey $ deriveAccountPrivateKey pwd rootXPrv accIx
+    accXPub = publicKey $ deriveAccountPrivateKey pwd rootXPrv (Index $ getDerivationIndex ix)
     scriptValidation = maybe RecommendedValidation getApiT (body ^. #scriptValidation)
 
 postSharedWalletFromAccountXPub
@@ -954,14 +956,16 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
         Left err ->
             liftHandler $ throwE $ ErrConstructSharedWalletWrongScriptTemplate err
         Right _ -> pure ()
-    let state = mkSharedStateFromAccountXPub (liftKey accXPub) accIx g pTemplate dTemplateM
+    acctIx <- liftHandler $ withExceptT ErrConstructSharedWalletInvalidIndex $
+        W.guardHardIndex ix
+    let state = mkSharedStateFromAccountXPub (liftKey accXPub) acctIx g pTemplate dTemplateM
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     g = defaultAddressPoolGap
-    accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
+    ix = getApiT (body ^. #accountIndex)
     pTemplate = scriptTemplateFromSelf accXPub $ body ^. #paymentScriptTemplate
     dTemplateM = scriptTemplateFromSelf accXPub <$> body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
@@ -3425,6 +3429,7 @@ instance IsServerError ErrConstructSharedWallet where
             handleTemplateErr cred (toText reason)
         ErrConstructSharedWalletWrongScriptTemplate (ErrScriptTemplateMissingKey cred reason) ->
             handleTemplateErr cred reason
+        ErrConstructSharedWalletInvalidIndex e -> toServerError e
       where
           handleTemplateErr cred reason =
             apiError err403 SharedWalletScriptTemplateInvalid $ mconcat
