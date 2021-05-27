@@ -69,7 +69,10 @@ jobs:
           keep_files: true
           user_name: 'William King Noel Bot'
           user_email: 'adrestia@iohk.io'
-          full_commit_message: ${{ steps.build.outputs.commit_message }}
+          full_commit_message: |
+            docs: ${{ github.event.head_commit.message }}
+
+            Source commit: ${{ github.sha }}
 
   bump_sh:
     if: startsWith(github.ref, 'refs/tags/v')
