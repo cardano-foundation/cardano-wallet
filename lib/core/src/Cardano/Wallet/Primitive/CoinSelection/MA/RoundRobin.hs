@@ -520,9 +520,17 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         -> m (Either SelectionError (SelectionResult TokenBundle))
     makeChangeRepeatedly s = case mChangeGenerated of
 
-        Right change | length change == length outputsToCover ->
-            -- We've succeeded in making the optimal number of change outputs.
-            -- Terminate here.
+        Right change | length change >= length outputsToCover ->
+            -- We've succeeded in making at least the optimal number of change
+            -- outputs, and can terminate here.
+            --
+            -- Note that we can't use an exact length equality check here, as
+            -- the 'makeChange' function will split up change outputs if they
+            -- are oversized in any way. (See 'splitOversizedMaps'.)
+            --
+            -- It is therefore possible for 'makeChange' to generate more change
+            -- outputs than the number of user-specified outputs.
+            --
             pure $ Right $ mkSelectionResult change
 
         Right change ->
