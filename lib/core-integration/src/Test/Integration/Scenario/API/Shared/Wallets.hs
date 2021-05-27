@@ -113,6 +113,7 @@ import Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidScript
     , errMsg403TemplateInvalidUnknownCosigner
     , errMsg403WalletAlreadyActive
+    , errMsg403WrongIndex
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -567,6 +568,28 @@ spec = describe "SHARED_WALLETS" $ do
         expectResponseCode HTTP.status403 rPost
         let reason = "The timelocks used are contradictory when used with 'all' (which is not recommended)."
         expectErrorMessage (errMsg403TemplateInvalidScript reason) rPost
+
+    it "SHARED_WALLETS_CREATE_13 - Incorrect account index" $ \ctx -> runResourceT $ do
+        [(_, accXPubTxt0)] <- liftIO $ genXPubs 1
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status403 rPost
+        expectErrorMessage errMsg403WrongIndex rPost
 
     it "SHARED_WALLETS_DELETE_01 - Delete of a shared wallet" $ \ctx -> runResourceT $ do
         let walName = "Shared Wallet" :: Text
