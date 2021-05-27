@@ -6,6 +6,8 @@
 }:
 
 let
+  # To update gemset.nix, run:
+  #   nix-shell --arg bins false --run bundix
   gems = pkgs.bundlerEnv {
     name = "gems-cardano-wallet-e2e";
     gemdir = ./.;
