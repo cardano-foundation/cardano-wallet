@@ -24,7 +24,31 @@ $ cardano-wallet serve --port 8090 \
 ```
 Make sure wallet server `--token-metadata-server` points to an url which is not token metadata server.
 
-2. On the wallet that has some assets check that `"metadata_error":"fetch"` is returned when getting assets.
+2. Restore one of the wallets which has some assets.
+
+The following command will decrypt the E2E test fixtures (see LastPass for the password).
+
+```console
+$ export TESTS_E2E_FIXTURES=*******
+$ nix-shell --run "cd test/e2e && rake fixture_wallets_decode"
+$ jq 'map_values(.shelley|join(" "))' test/e2e/fixtures/fixture_wallets.json
+```
+
+This will restore the Shelley E2E test wallet for Linux:
+
+```console
+$ jq '{ name: "E2E Linux Shelley", passphrase: "Secure passphrase", mnemonic_sentence: .linux.shelley }' test/e2e/fixtures/fixture_wallets.json | curl -H 'Content-type: application/json' http://localhost:8091/v2/wallets --data @- | jq .
+{
+  "id": "b1fb863243a9ae451bc4e2e662f60ff217b126e2",
+  "assets": {
+    "total": [ ... ],
+    "available": [ ... ]
+  },
+  ...
+}
+```
+
+3. On the wallet that has some assets check that `"metadata_error":"fetch"` is returned when getting assets.
  - when listing all assets
 ```
 $ curl -X GET http://localhost:8090/v2/wallets/73d38c71e4b8b5d71769622ab4f5bfdedbb7c39d/assets
