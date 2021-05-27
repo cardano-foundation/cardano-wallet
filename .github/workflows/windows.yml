@@ -121,7 +121,7 @@ jobs:
   notify:
     name: Notify slack channel
     runs-on: ubuntu-latest
-    if: ${{ always() && (github.ref == 'refs/heads/master' || github.ref == 'refs/tags/v' || github.ref == 'refs/heads/rvl/adp-753/ci-notify') }}
+    if: always()
     needs: finish
     env:
       RESULT_FILE: 'previous-result.txt'
@@ -151,5 +151,6 @@ jobs:
           channel: '@rvl'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        # Only notify when state changes between failure/success
-        if: ${{ steps.previous.do_notify }}
+        # Only notify when state changes between failure/success for
+        # interesting branches/tags.
+        if: ${{ steps.previous.do_notify && (github.ref == 'refs/heads/master' || github.ref == 'refs/tags/v' || github.ref == 'refs/heads/rvl/adp-753/ci-notify') }}
