@@ -2551,7 +2551,7 @@ instance
                  , sharedStateDerivationPrefix = prefix
                  }
          insertCosigner cs cred = do
-             deleteWhere [CosignerKeyWalletId ==. wid]
+             deleteWhere [CosignerKeyWalletId ==. wid, CosignerKeyCredential ==. cred]
 
              dbChunked insertMany_
                  [ CosignerKey wid cred (serializeXPub @(k 'AccountK) $ liftRawKey xpub) c
