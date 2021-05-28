@@ -1180,6 +1180,7 @@ boundaryTestMatrix_largeTokenQuantities =
     , boundaryTest_largeTokenQuantities_2
     , boundaryTest_largeTokenQuantities_3
     , boundaryTest_largeTokenQuantities_4
+    , boundaryTest_largeTokenQuantities_5
     ]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
@@ -1300,6 +1301,44 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     boundaryTestChange =
       [ (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
       , (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+
+-- In the event that generated change bundles must be split, demonstrate that
+-- the change generation algorithm terminates after only a subset of the UTxO
+-- has been selected.
+--
+-- See: https://jira.iohk.io/browse/ADP-890
+--
+boundaryTest_largeTokenQuantities_5 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_5 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
+    boundaryTestOutputs =
+      [ (Coin 2_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+    boundaryTestChange =
+      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
       ]
 
 --------------------------------------------------------------------------------
