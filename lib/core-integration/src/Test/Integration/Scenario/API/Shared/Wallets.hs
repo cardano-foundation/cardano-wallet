@@ -25,11 +25,16 @@ import Cardano.Mnemonic
     ( MkSomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAccountKeyShared (..)
+    , ApiAddress
+    , ApiFee (..)
     , ApiSharedWallet (..)
+    , ApiTransaction
+    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
     , KeyFormat (..)
+    , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Passphrase (..), Role (..) )
@@ -74,7 +79,9 @@ import Test.Integration.Framework.DSL
     , expectListField
     , expectListSize
     , expectResponseCode
+    , faucetAmt
     , fixturePassphrase
+    , fixtureWallet
     , genMnemonics
     , genXPubs
     , getAccountKeyShared
@@ -85,10 +92,13 @@ import Test.Integration.Framework.DSL
     , hexText
     , json
     , listFilteredSharedWallets
+    , minUTxOValue
     , notDelegating
     , patchSharedWallet
     , postAccountKeyShared
     , postSharedWallet
+    , request
+    , unsafeRequest
     , verify
     , walletId
     )
@@ -103,14 +113,17 @@ import Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidScript
     , errMsg403TemplateInvalidUnknownCosigner
     , errMsg403WalletAlreadyActive
+    , errMsg403WrongIndex
     )
 
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteArray as BA
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
+
 
 spec :: forall n.
     ( DecodeAddress n
@@ -556,6 +569,28 @@ spec = describe "SHARED_WALLETS" $ do
         let reason = "The timelocks used are contradictory when used with 'all' (which is not recommended)."
         expectErrorMessage (errMsg403TemplateInvalidScript reason) rPost
 
+    it "SHARED_WALLETS_CREATE_13 - Incorrect account index" $ \ctx -> runResourceT $ do
+        [(_, accXPubTxt0)] <- liftIO $ genXPubs 1
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status403 rPost
+        expectErrorMessage errMsg403WrongIndex rPost
+
     it "SHARED_WALLETS_DELETE_01 - Delete of a shared wallet" $ \ctx -> runResourceT $ do
         let walName = "Shared Wallet" :: Text
         (_, payload) <- getAccountWallet walName
@@ -972,6 +1007,65 @@ spec = describe "SHARED_WALLETS" $ do
         verify rl
             [ expectResponseCode HTTP.status200
             , expectListSize 0
+            ]
+
+    it "SHARED_WALLETS_DISCOVER_01 - Shared wallets can discover its address" $ \ctx -> runResourceT $ do
+        (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt},
+                "account_index": "10H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0"
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payload
+        verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) rPost)
+            [ expectResponseCode HTTP.status201
+            , expectField (#balance . #available) (`shouldBe` Quantity 0)
+            ]
+        let walShared@(ApiSharedWallet (Right wal)) = getFromResponse id rPost
+
+        rAddr <- request @[ApiAddress n] ctx
+            (Link.listAddresses @'Shared wal) Default Empty
+        expectResponseCode HTTP.status200 rAddr
+        let sharedAddrs = getFromResponse id rAddr
+        let destination = (sharedAddrs !! 1) ^. #id
+
+        wShelley <- fixtureWallet ctx
+        let amt = minUTxOValue
+        let payloadTx = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        (_, ApiFee (Quantity _) (Quantity feeMax) _ _) <- unsafeRequest ctx
+            (Link.getTransactionFee @'Shelley wShelley) payloadTx
+        let ep = Link.createTransaction @'Shelley
+        rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
+        expectResponseCode HTTP.status202 rTx
+        eventually "wShelley balance is decreased" $ do
+            ra <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wShelley) Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra
+
+        rWal <- getSharedWallet ctx walShared
+        verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) rWal)
+            [ expectResponseCode HTTP.status200
+            , expectField (#balance . #available) (`shouldBe` Quantity amt)
             ]
   where
      getAccountWallet name = do

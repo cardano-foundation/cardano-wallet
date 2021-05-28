@@ -177,6 +177,7 @@ module Cardano.Wallet
 
     -- * Utilities
     , throttle
+    , guardHardIndex
 
     -- * Logging
     , WalletWorkerLog (..)
@@ -2421,9 +2422,11 @@ data ErrAddCosignerKey
         -- ^ Error adding this co-signer to the shared wallet.
     deriving (Eq, Show)
 
-newtype ErrConstructSharedWallet
+data ErrConstructSharedWallet
     = ErrConstructSharedWalletWrongScriptTemplate ErrScriptTemplate
         -- ^ The shared wallet' script template doesn't pass validation
+    | ErrConstructSharedWalletInvalidIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
+        -- ^ User provided a derivation index outside of the 'Hard' domain
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey

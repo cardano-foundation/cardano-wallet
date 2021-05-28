@@ -5464,7 +5464,6 @@ paths:
         <p align="right">status: <strong>⚠ under development</strong></p>
         Create a shared wallet from either an account public key and script
         templates or mnemonic and script templates.
-        ADP-686 will enable restoration.
 
       requestBody:
         required: true
@@ -5608,7 +5607,7 @@ paths:
         - *parametersDerivationSegment
         - *parametersDerivationHash
       responses: *responsesGetSharedKey
-      
+
   /shared-wallets/{walletId}/addresses:
     get:
       operationId: listSharedAddresses
