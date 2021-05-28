@@ -19,6 +19,7 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiUtxoStatistics
     , ApiWalletDiscovery (..)
+    , ApiWalletUtxoSnapshot
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -69,8 +70,12 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , expectWalletUTxO
+    , fixtureIcarusWallet
+    , fixtureMultiAssetIcarusWallet
+    , fixtureMultiAssetRandomWallet
     , fixturePassphrase
     , fixturePassphraseEncrypted
+    , fixtureRandomWallet
     , genMnemonics
     , getFromResponse
     , json
@@ -374,6 +379,32 @@ spec = describe "BYRON_WALLETS" $ do
                  (Link.getUTxOsStatistics @'Byron w) Default Empty
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO [] (snd rStat)
+
+    it "BYRON_UTXO_SNAPSHOT_01 - Wallet's inactivity is reflected in utxo snapshot" $ \ctx ->
+        forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> runResourceT $ do
+        w <- emptyByronWallet ctx
+        rSnap <- request @ApiWalletUtxoSnapshot ctx
+                 (Link.getUTxOsSnapshot @'Byron w) Default Empty
+        expectResponseCode HTTP.status200 rSnap
+        expectField #entries (`shouldBe` []) rSnap
+
+    it "BYRON_UTXO_SNAPSHOT_02 - Wallet's snapshot with ADA" $ \ctx ->
+        forM_ [ fixtureRandomWallet, fixtureIcarusWallet ] $ \fixtureWallet -> runResourceT $ do
+        w <- fixtureWallet ctx
+        rSnap <- request @ApiWalletUtxoSnapshot ctx
+                 (Link.getUTxOsSnapshot @'Byron w) Default Empty
+        expectResponseCode HTTP.status200 rSnap
+        let entries = getFromResponse #entries rSnap
+        length entries `shouldBe` 10
+
+    it "BYRON_UTXO_SNAPSHOT_03 - Wallet's snapshot with ADA and assets" $ \ctx ->
+        forM_ [ fixtureMultiAssetRandomWallet @n, fixtureMultiAssetIcarusWallet @n ] $ \fixtureWallet -> runResourceT $ do
+        w <- fixtureWallet ctx
+        rSnap <- request @ApiWalletUtxoSnapshot ctx
+                 (Link.getUTxOsSnapshot @'Byron w) Default Empty
+        expectResponseCode HTTP.status200 rSnap
+        let entries = getFromResponse #entries rSnap
+        length entries `shouldBe` 11
 
     it "BYRON_UPDATE_PASS_01 - change passphrase" $ \ctx ->
         forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> runResourceT $ do

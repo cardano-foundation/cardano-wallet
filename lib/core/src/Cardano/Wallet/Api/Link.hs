@@ -44,6 +44,7 @@ module Cardano.Wallet.Api.Link
     , postWallet
     , putWallet
     , putWalletPassphrase
+    , getUTxOsSnapshot
     , getUTxOsStatistics
     , createMigrationPlan
     , migrateWallet
@@ -233,6 +234,21 @@ getUTxOsStatistics
 getUTxOsStatistics w = discriminate @style
     (endpoint @Api.GetUTxOsStatistics (wid &))
     (endpoint @Api.GetByronUTxOsStatistics (wid &))
+    (notSupported "Shared")
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+getUTxOsSnapshot
+    :: forall (style :: WalletStyle) w.
+        ( HasCallStack
+        , Discriminate style
+        , HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+getUTxOsSnapshot w = discriminate @style
+    (endpoint @Api.GetWalletUtxoSnapshot (wid &))
+    (endpoint @Api.GetByronWalletUTxOSnapshot (wid &))
     (notSupported "Shared")
   where
     wid = w ^. typed @(ApiT WalletId)
