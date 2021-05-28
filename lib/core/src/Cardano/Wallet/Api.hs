@@ -349,6 +349,7 @@ type PutWalletPassphrase = "wallets"
     :> ReqBody '[JSON] WalletPutPassphraseData
     :> PutNoContent
 
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWalletUtxoSnapshot
 type GetWalletUtxoSnapshot = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "utxo"
