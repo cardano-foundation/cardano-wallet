@@ -446,6 +446,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "lenient")
             jsonRoundtripAndGolden $ Proxy @(ApiWalletMigrationPostData ('Testnet 0) "raw")
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphrase
+            jsonRoundtripAndGolden $ Proxy @ApiWalletUtxoSnapshot
             jsonRoundtripAndGolden $ Proxy @ApiUtxoStatistics
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
