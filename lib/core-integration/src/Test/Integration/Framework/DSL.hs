@@ -178,6 +178,7 @@ module Test.Integration.Framework.DSL
     , createWalletViaCLI
     , createWalletFromPublicKeyViaCLI
     , deleteWalletViaCLI
+    , getWalletUtxoSnapshotViaCLI
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , createAddressViaCLI
@@ -2470,6 +2471,18 @@ getWalletUtxoStatisticsViaCLI
     -> m r
 getWalletUtxoStatisticsViaCLI ctx walId = cardanoWalletCLI
     ["wallet", "utxo", "--port", show (ctx ^. typed @(Port "wallet")) , walId ]
+
+getWalletUtxoSnapshotViaCLI
+    :: forall r s m.
+        ( CmdResult r
+
+        , HasType (Port "wallet") s
+        , MonadIO m)
+    => s
+    -> String
+    -> m r
+getWalletUtxoSnapshotViaCLI ctx walId = cardanoWalletCLI
+    ["wallet", "utxo-snapshot", "--port", show (ctx ^. typed @(Port "wallet")) , walId ]
 
 createAddressViaCLI
     :: forall s m. (HasType (Port "wallet") s, MonadIO m)
