@@ -1599,6 +1599,7 @@ prop_makeChange_length p =
             conjoin
                 [ property (length (outputBundles p) == length changeUnsplit)
                 , property (length (outputBundles p) <  length changeSplit)
+                , property (F.fold changeSplit == F.fold changeUnsplit)
                 ]
 
     mChangeUnsplit =
