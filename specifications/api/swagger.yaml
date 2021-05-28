@@ -1826,6 +1826,7 @@ components:
         retirement: *stakePoolRetirement
         flags: *stakePoolFlags
 
+
     ApiFee: &ApiFee
       type: object
       required:
@@ -2639,6 +2640,70 @@ components:
           title: icarus/trezor/ledger (from xpub)
         - <<: *ApiByronWalletRandomXPrvPostData
           title: random (from xprv)
+
+    softIndex: &softIndex
+      type: integer
+      minimum: 0
+      maximum: 2147483647
+      description: |
+        A soft derivation index.
+
+    ApiOurStakeKey: &ApiOurStakeKey
+      type: object
+      required:
+        - index
+        - key
+        - stake
+        - reward_balance
+        - delegation
+      properties:
+        index: *softIndex
+        key: *stakeAddress
+        stake: *amount
+        reward_balance: *amount
+        delegation: *ApiWalletDelegation
+
+    ApiForeignStakeKey: &ApiForeignStakeKey
+      type: object
+      required:
+        - key
+        - stake
+        - reward_balance
+      properties:
+        key: *stakeAddress
+        stake: *amount
+        reward_balance: *amount
+    ApiNullStakeKey: &ApiNullStakeKey
+      type: object
+      required:
+        - stake
+      properties:
+        stake: *amount
+      description: |
+        The absence of a stake key. The `stake` field shows how much of the wallet funds
+        are not associated with an identifiable stake key.
+
+        Most likely, these funds are associated with enterprise addresses lacking staking rights.
+        But they /could/ also be associate with more rare types of addreses like pointer addresses.
+    ApiStakeKeys: &ApiStakeKeys
+      type: object
+      required:
+        - ours
+        - foreign
+        - "none"
+      properties:
+        ours:
+          type: array
+          items: *ApiOurStakeKey
+          description: |
+            Stake keys belonging to the wallet.
+        foreign:
+          type: array
+          items: *ApiForeignStakeKey
+          description: |
+            Stake keys found in the wallet's UTxO, but does not belong to the wallet.
+
+        "none": *ApiNullStakeKey
 
 
 #############################################################################
@@ -4045,6 +4110,13 @@ x-responsesListStakePools: &responsesListStakePools
           type: array
           items: *ApiStakePool
 
+x-responsesListStakeKeys: &responsesListStakeKeys
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiStakeKeys
+
 x-responsesPostMaintenanceAction: &responsesPostMaintenanceAction
   <<: *responsesErr404
   204:
@@ -4585,6 +4657,19 @@ paths:
         - *parametersRole
         - *parametersDerivationSegment
       responses: *responsesGetShelleyKey
+
+  /wallets/{walletId}/stake-keys:
+    get:
+      operationId: listStakePools
+      tags: ["Stake Pools"]
+      summary: List stake keys
+      description: |
+        <p align="right">status: <strong>Experimental</strong></p>
+
+        List stake-keys relevant to the wallet, and how much ada is associated with each.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesListStakeKeys
 
   /stake-pools:
     get:

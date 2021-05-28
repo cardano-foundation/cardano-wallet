@@ -196,6 +196,7 @@ module Test.Integration.Framework.DSL
 
     -- utilites
     , getRetirementEpoch
+    , replaceStakeKey
      -- * Re-exports
     , runResourceT
     , ResourceT
@@ -350,7 +351,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromJust, fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -425,11 +426,13 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -2771,3 +2774,57 @@ getRetirementEpoch = fmap (view (#epochNumber . #getApiT)) .  view #retirement
 
 unsafeResponse :: (HTTP.Status, Either RequestException a) -> a
 unsafeResponse = either (error . show) id . snd
+
+-- | Returns the first address, modified to have the same stake key as the
+-- second address.
+--
+-- Only intended to be used with well-known inputs in tests, so throws if
+-- anything goes unexpectedly.
+replaceStakeKey
+    :: forall (n :: NetworkDiscriminant). (DecodeAddress n, EncodeAddress n)
+    => (ApiT Address, Proxy n)
+    -> (ApiT Address, Proxy n)
+    -> (ApiT Address, Proxy n)
+replaceStakeKey addr1 addr2 =
+    let
+        (hrp1, (tag1, pay1, _stake1)) = decodeAddr addr1
+        (hrp2, (tag2, _pay2, stake2)) = decodeAddr addr2
+    in
+       if tag1 == tag2 && hrp1 == hrp2
+       then encodeAddr (hrp1, (tag1, pay1, stake2))
+       else error
+        "replaceStakeKey: hrp or tag mismatch between addresses"
+
+  where
+    decodeAddr
+        :: (ApiT Address, Proxy n)
+        -> (Bech32.HumanReadablePart, (ByteString, ByteString, ByteString))
+    decodeAddr =
+        either
+            (error . show)
+            (second (splitAddr . fromJust . Bech32.dataPartToBytes))
+        . Bech32.decodeLenient . encodeAddress @n . getApiT . fst
+      where
+        splitAddr :: ByteString -> (ByteString, ByteString, ByteString)
+        splitAddr whole =
+            let
+                (tag, rest) = BS.splitAt 1 whole
+                (paymentKeyH, stakeKeyH) = BS.splitAt 28 rest
+            in
+                case (BS.length tag, BS.length paymentKeyH, BS.length stakeKeyH) of
+                    (1,28,28) -> (tag, paymentKeyH, stakeKeyH)
+                    lengths   -> error $ mconcat
+                        [ "replaceStakeKey: unknown lengths "
+                        , show lengths
+                        ]
+    encodeAddr
+        :: (Bech32.HumanReadablePart, (ByteString, ByteString, ByteString) )
+        -> (ApiT Address, Proxy n)
+    encodeAddr (hrp, (tag, pay, stake)) =
+        let
+            bytes = tag <> pay <> stake
+            dp = Bech32.dataPartFromBytes bytes
+            addr = either (error . show) id $
+                decodeAddress @n $ Bech32.encodeLenient hrp dp
+        in
+            (ApiT addr, Proxy)

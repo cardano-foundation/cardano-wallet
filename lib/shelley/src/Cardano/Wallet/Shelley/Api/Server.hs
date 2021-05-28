@@ -81,6 +81,7 @@ import Cardano.Wallet.Api.Server
     , liftHandler
     , listAddresses
     , listAssets
+    , listStakeKeys
     , listTransactions
     , listWallets
     , migrateWallet
@@ -161,7 +162,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Shelley.Compatibility
-    ( HasNetworkId (..), NetworkId, inspectAddress )
+    ( HasNetworkId (..), NetworkId, inspectAddress, rewardAccountFromAddress )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..) )
 import Control.Applicative
@@ -311,6 +312,7 @@ server byron icarus shelley multisig spl ntp =
         :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> quitStakePool shelley
         :<|> delegationFee shelley
+        :<|> listStakeKeys rewardAccountFromAddress shelley
         :<|> postPoolMaintenance
         :<|> getPoolMaintenance
       where

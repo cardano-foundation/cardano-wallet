@@ -178,6 +178,7 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery.Shared
       Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+      Cardano.Wallet.Primitive.Delegation.UTxO
       Cardano.Wallet.Primitive.Migration
       Cardano.Wallet.Primitive.Migration.Planning
       Cardano.Wallet.Primitive.Migration.Selection

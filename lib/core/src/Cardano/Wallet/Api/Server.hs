@@ -56,6 +56,7 @@ module Cardano.Wallet.Api.Server
     , listTransactions
     , getTransaction
     , listWallets
+    , listStakeKeys
     , createMigrationPlan
     , migrateWallet
     , postExternalTransaction
@@ -196,10 +197,13 @@ import Cardano.Wallet.Api.Types
     , ApiEra (..)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiForeignStakeKey (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
+    , ApiNullStakeKey (..)
+    , ApiOurStakeKey (..)
     , ApiPendingSharedWallet (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyData (..)
@@ -215,6 +219,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
+    , ApiStakeKeys (..)
     , ApiT (..)
     , ApiTransaction (..)
     , ApiTxId (..)
@@ -265,7 +270,7 @@ import Cardano.Wallet.Compat
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( NetworkLayer, timeInterpreter )
+    ( NetworkLayer, getAccountBalance, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -333,10 +338,18 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , balanceMissing
     , selectionDelta
     )
+import Cardano.Wallet.Primitive.Delegation.UTxO
+    ( stakeKeyCoinDistr )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
-    ( Wallet, availableBalance, currentTip, getState, totalBalance )
+    ( Wallet
+    , availableBalance
+    , availableUTxO
+    , currentTip
+    , getState
+    , totalBalance
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     , RelativeTime
@@ -449,7 +462,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.List
-    ( isInfixOf, isPrefixOf, isSubsequenceOf, sortOn )
+    ( isInfixOf, isPrefixOf, isSubsequenceOf, sortOn, (\\) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -2028,6 +2041,109 @@ quitStakePool ctx (ApiT wid) body = do
     ti = timeInterpreter (ctx ^. networkLayer)
 
     genChange = delegationAddress @n
+
+-- More testable helper for `listStakeKeys`.
+--
+-- TODO: Ideally test things like
+-- no rewards => ada in distr == utxo balance
+-- all keys in inputs appear (once) in output
+listStakeKeys'
+    :: forall (n :: NetworkDiscriminant) m. Monad m
+    => UTxO.UTxO
+        -- ^ The wallet's UTxO
+    -> (Address -> Maybe RewardAccount)
+        -- ^ Lookup reward account of addr
+    -> (Set RewardAccount -> m (Map RewardAccount (Maybe Coin)))
+        -- ^ Batch fetch of rewards
+    -> [(RewardAccount, Natural, ApiWalletDelegation)]
+        -- ^ The wallet's known stake keys, along with derivation index, and
+        -- delegation status.
+    -> m (ApiStakeKeys n)
+listStakeKeys' utxo lookupStakeRef fetchRewards ourKeysWithInfo = do
+        let distr = stakeKeyCoinDistr lookupStakeRef utxo
+        let stakeKeysInUTxO = catMaybes $ Map.keys distr
+        let stake acc = fromMaybe (Coin 0) $ Map.lookup acc distr
+
+        let ourKeys = map (\(acc,_,_) -> acc) ourKeysWithInfo
+
+        let allKeys = ourKeys <> stakeKeysInUTxO
+
+        -- If we wanted to know whether a stake key is registered or not, we
+        -- could look at the difference between @Nothing@ and
+        -- @Just (Coin 0)@ from the response here, instead of hiding the
+        -- difference.
+        rewardsMap <- fetchRewards $ Set.fromList allKeys
+
+        let rewards acc = fromMaybe (Coin 0) $
+                join $ Map.lookup acc rewardsMap
+
+        let mkOurs (acc, ix, deleg) = ApiOurStakeKey
+                { _index = ix
+                , _key = (ApiT acc, Proxy)
+                , _rewardBalance = coinToQuantity $
+                    rewards acc
+                , _delegation = deleg
+                , _stake = coinToQuantity $
+                    stake (Just acc) <> rewards acc
+                }
+
+        let mkForeign acc = ApiForeignStakeKey
+                { _key = (ApiT acc, Proxy)
+                , _rewardBalance = coinToQuantity $
+                    rewards acc
+                , _stake = coinToQuantity $
+                    stake (Just acc) <> rewards acc
+                }
+
+        let foreignKeys = stakeKeysInUTxO \\ ourKeys
+
+        let nullKey = ApiNullStakeKey
+                { _stake = coinToQuantity $ stake Nothing
+                }
+
+        return $ ApiStakeKeys
+            { _ours = map mkOurs ourKeysWithInfo
+            , _foreign = map mkForeign foreignKeys
+            , _none = nullKey
+            }
+
+listStakeKeys
+    :: forall ctx s n k.
+        ( ctx ~ ApiLayer s k
+        , s ~ SeqState n k
+        , HasNetworkLayer IO ctx
+        , Typeable n
+        , Typeable s
+        )
+    => (Address -> Maybe RewardAccount)
+    -> ctx
+    -> ApiT WalletId
+    -> Handler (ApiStakeKeys n)
+listStakeKeys lookupStakeRef ctx (ApiT wid) = do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+            (wal, meta, pending) <- W.readWallet @_ @s @k wrk wid
+            let utxo = availableUTxO @s pending wal
+
+            mourAccount <- fmap (fmap fst . eitherToMaybe)
+                <$> liftIO . runExceptT $ W.readRewardAccount @_ @s @k @n wrk wid
+            ourApiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
+                (unsafeExtendSafeZone (timeInterpreter $ ctx ^. networkLayer))
+            let ourKeys = case mourAccount of
+                    Just acc -> [(acc, 0, ourApiDelegation)]
+                    Nothing -> []
+
+            let fetchRewards = flip lookupUsing rewardsOfAccount . Set.toList
+            liftIO $ listStakeKeys' @n utxo lookupStakeRef fetchRewards ourKeys
+
+  where
+    lookupUsing
+        :: (Traversable t, Monad m, Ord a) => t a -> (a -> m b) -> m (Map a b)
+    lookupUsing xs f =
+        Map.fromList . F.toList <$> forM xs (\x -> f x >>= \x' -> pure (x,x') )
+
+    rewardsOfAccount :: forall m. MonadIO m => RewardAccount -> m (Maybe Coin)
+    rewardsOfAccount acc = fmap eitherToMaybe <$> liftIO . runExceptT $
+        getAccountBalance (ctx ^. networkLayer) acc
 
 {-------------------------------------------------------------------------------
                                 Migrations

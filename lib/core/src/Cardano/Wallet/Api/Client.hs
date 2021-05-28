@@ -71,6 +71,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
+    , ApiStakeKeysT
     , ApiT (..)
     , ApiTransactionT
     , ApiTxId (..)
@@ -365,13 +366,14 @@ byronAddressClient =
 
 -- | Produces an 'StakePoolsClient n' working against the /stake-pools API
 stakePoolClient
-    :: forall apiPool. (Aeson.FromJSON apiPool) => StakePoolClient apiPool
+    :: forall apiPool. Aeson.FromJSON apiPool => StakePoolClient apiPool
 stakePoolClient =
     let
         _listPools
             :<|> _joinStakePool
             :<|> _quitStakePool
             :<|> _delegationFee
+            :<|> _listStakeKeys
             :<|> _postPoolMaintenance
             :<|> _getPoolMaintenance
             = client (Proxy @("v2" :> StakePools Aeson.Value apiPool))
@@ -403,6 +405,7 @@ networkClient =
 --
 
 type instance ApiAddressT Aeson.Value = Aeson.Value
+type instance ApiStakeKeysT Aeson.Value = Aeson.Value
 type instance ApiAddressIdT Aeson.Value = Text
 type instance ApiCoinSelectionT Aeson.Value = Aeson.Value
 type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
