@@ -932,7 +932,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             rSnap <- request @ApiWalletUtxoSnapshot ctx
-                (Link.getUTxOsSnapshot @'Shelley w) Default Empty
+                (Link.getWalletUtxoSnapshot @'Shelley w) Default Empty
             expectResponseCode HTTP.status200 rSnap
             expectField #entries (`shouldBe` []) rSnap
 
@@ -941,7 +941,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             rSnap <- request @ApiWalletUtxoSnapshot ctx
-                (Link.getUTxOsSnapshot @'Shelley w) Default Empty
+                (Link.getWalletUtxoSnapshot @'Shelley w) Default Empty
             expectResponseCode HTTP.status200 rSnap
             let entries = getFromResponse #entries rSnap
             length entries `shouldBe` 10
@@ -951,7 +951,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         \ctx -> runResourceT $ do
             w <- fixtureMultiAssetWallet ctx
             rSnap <- request @ApiWalletUtxoSnapshot ctx
-                (Link.getUTxOsSnapshot @'Shelley w) Default Empty
+                (Link.getWalletUtxoSnapshot @'Shelley w) Default Empty
             expectResponseCode HTTP.status200 rSnap
             let entries = getFromResponse #entries rSnap
             length entries `shouldBe` 3

@@ -390,7 +390,7 @@ spec = describe "BYRON_WALLETS" $ do
             forM_ emptyByronWallets $ \emptyByronWallet -> runResourceT $ do
                 w <- emptyByronWallet ctx
                 rSnap <- request @ApiWalletUtxoSnapshot ctx
-                  (Link.getUTxOsSnapshot @'Byron w) Default Empty
+                  (Link.getWalletUtxoSnapshot @'Byron w) Default Empty
                 expectResponseCode HTTP.status200 rSnap
                 expectField #entries (`shouldBe` []) rSnap
 
@@ -404,7 +404,7 @@ spec = describe "BYRON_WALLETS" $ do
             forM_ fixtureWallets $ \fixtureWallet -> runResourceT $ do
                 w <- fixtureWallet ctx
                 rSnap <- request @ApiWalletUtxoSnapshot ctx
-                    (Link.getUTxOsSnapshot @'Byron w) Default Empty
+                    (Link.getWalletUtxoSnapshot @'Byron w) Default Empty
                 expectResponseCode HTTP.status200 rSnap
                 let entries = getFromResponse #entries rSnap
                 length entries `shouldBe` 10
@@ -419,7 +419,7 @@ spec = describe "BYRON_WALLETS" $ do
             forM_ fixtureWallets $ \fixtureWallet -> runResourceT $ do
                 w <- fixtureWallet ctx
                 rSnap <- request @ApiWalletUtxoSnapshot ctx
-                    (Link.getUTxOsSnapshot @'Byron w) Default Empty
+                    (Link.getWalletUtxoSnapshot @'Byron w) Default Empty
                 expectResponseCode HTTP.status200 rSnap
                 let entries = getFromResponse #entries rSnap
                 length entries `shouldBe` 11
