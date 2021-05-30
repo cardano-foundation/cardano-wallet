@@ -2255,6 +2255,39 @@ components:
           <<: *addresses
           description: The recipient addresses.
 
+    ApiWalletUtxoSnapshotEntry: &ApiWalletUtxoSnapshotEntry
+      type: object
+      required:
+        - ada
+        - ada_minimum
+        - assets
+      properties:
+        ada:
+          <<: *amount
+          description: |
+            The ada quantity associated with this UTxO entry.
+        ada_minimum:
+          <<: *amount
+          description: |
+            The minimum ada quantity permitted by the ledger for this UTxO
+            entry.
+        assets:
+          <<: *walletAssets
+          description: |
+            The set of non-ada assets associated with this UTxO entry.
+
+    ApiWalletUtxoSnapshot: &ApiWalletUtxoSnapshot
+      type: object
+      required:
+        - entries
+      properties:
+        entries:
+          type: array
+          items: *ApiWalletUtxoSnapshotEntry
+          minItems: 0
+          description: |
+            The complete set of UTxO entries associated with a wallet.
+
     ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
       type: object
       required:
@@ -3674,6 +3707,15 @@ x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
       application/json:
         schema: *ApiWalletUTxOsStatistics
 
+x-responsesGetWalletUtxoSnapshot: &responsesGetWalletUtxoSnapshot
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiWalletUtxoSnapshot
+
 x-responsesPostWallet: &responsesPostWallet
   <<: *responsesErr400
   <<: *responsesErr406
@@ -4437,6 +4479,19 @@ paths:
         - *parametersWalletId
       responses: *responsesGetUTxOsStatistics
 
+  /wallets/{walletId}/utxo:
+    get:
+      operationId: getWalletUtxoSnapshot
+      tags: ["Wallets"]
+      summary: A snapshot of the wallet's UTxO set
+      description: |
+        Generate a snapshot of the wallet's UTxO set.
+
+        This endpoint is intended for debugging purposes.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetWalletUtxoSnapshot
+
   /wallets/{walletId}:
     get:
       operationId: getWallet
@@ -4969,6 +5024,19 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesGetUTxOsStatistics
+
+  /byron-wallets/{walletId}/utxo:
+    get:
+      operationId: getByronWalletUtxoSnapshot
+      tags: ["Byron Wallets"]
+      summary: A snapshot of the wallet's UTxO set
+      description: |
+        Generate a snapshot of the wallet's UTxO set.
+
+        This endpoint is intended for debugging purposes.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetWalletUtxoSnapshot
 
   /byron-wallets/{walletId}:
     get:
