@@ -19,6 +19,7 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiUtxoStatistics
     , ApiWalletDiscovery (..)
+    , ApiWalletUtxoSnapshot
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -69,8 +70,12 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , expectWalletUTxO
+    , fixtureIcarusWallet
+    , fixtureMultiAssetIcarusWallet
+    , fixtureMultiAssetRandomWallet
     , fixturePassphrase
     , fixturePassphraseEncrypted
+    , fixtureRandomWallet
     , genMnemonics
     , getFromResponse
     , json
@@ -374,6 +379,50 @@ spec = describe "BYRON_WALLETS" $ do
                  (Link.getUTxOsStatistics @'Byron w) Default Empty
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO [] (snd rStat)
+
+    it "BYRON_WALLET_UTXO_SNAPSHOT_01 - \
+        \Can generate UTxO snapshot of empty wallet" $
+        \ctx -> do
+            let emptyByronWallets =
+                  [ emptyRandomWallet
+                  , emptyIcarusWallet
+                  ]
+            forM_ emptyByronWallets $ \emptyByronWallet -> runResourceT $ do
+                w <- emptyByronWallet ctx
+                rSnap <- request @ApiWalletUtxoSnapshot ctx
+                  (Link.getWalletUtxoSnapshot @'Byron w) Default Empty
+                expectResponseCode HTTP.status200 rSnap
+                expectField #entries (`shouldBe` []) rSnap
+
+    it "BYRON_WALLET_UTXO_SNAPSHOT_02 - \
+        \Can generate UTxO snapshot of pure-ada wallet" $
+        \ctx -> do
+            let fixtureWallets =
+                  [ fixtureRandomWallet
+                  , fixtureIcarusWallet
+                  ]
+            forM_ fixtureWallets $ \fixtureWallet -> runResourceT $ do
+                w <- fixtureWallet ctx
+                rSnap <- request @ApiWalletUtxoSnapshot ctx
+                    (Link.getWalletUtxoSnapshot @'Byron w) Default Empty
+                expectResponseCode HTTP.status200 rSnap
+                let entries = getFromResponse #entries rSnap
+                length entries `shouldBe` 10
+
+    it "BYRON_WALLET_UTXO_SNAPSHOT_03 - \
+        \Can generate UTxO snapshot of multi-asset wallet" $
+        \ctx -> do
+            let fixtureWallets =
+                    [ fixtureMultiAssetRandomWallet @n
+                    , fixtureMultiAssetIcarusWallet @n
+                    ]
+            forM_ fixtureWallets $ \fixtureWallet -> runResourceT $ do
+                w <- fixtureWallet ctx
+                rSnap <- request @ApiWalletUtxoSnapshot ctx
+                    (Link.getWalletUtxoSnapshot @'Byron w) Default Empty
+                expectResponseCode HTTP.status200 rSnap
+                let entries = getFromResponse #entries rSnap
+                length entries `shouldBe` 11
 
     it "BYRON_UPDATE_PASS_01 - change passphrase" $ \ctx ->
         forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> runResourceT $ do

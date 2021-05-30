@@ -20,6 +20,7 @@ import Cardano.Wallet.Api.Types
     ( ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletUtxoSnapshot
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
@@ -78,6 +79,7 @@ import Test.Integration.Framework.DSL
     , expectWalletUTxO
     , fixtureWallet
     , generateMnemonicsViaCLI
+    , getWalletUtxoSnapshotViaCLI
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
     , listAddresses
@@ -717,6 +719,16 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         e `shouldBe` cmdOk
         utxoStats <- expectValidJSON (Proxy @ApiUtxoStatistics) o
         expectWalletUTxO [] (Right utxoStats)
+
+    it "WALLET_UTXO_SNAPSHOT_01 - \
+        \Can generate UTxO snapshot of empty wallet" $
+        \ctx -> runResourceT $ do
+            wid <- emptyWallet' ctx
+            (Exit c, Stdout o, Stderr e) <- getWalletUtxoSnapshotViaCLI ctx wid
+            c `shouldBe` ExitSuccess
+            e `shouldBe` cmdOk
+            utxoSnap <- expectValidJSON (Proxy @ApiWalletUtxoSnapshot) o
+            expectCliField (#entries) (`shouldBe` []) utxoSnap
 
     it "WALLETS_UTXO_02 - Utxo statistics works properly" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx

@@ -1,0 +1,322 @@
+{
+    "seed": 7656127382344739251,
+    "samples": [
+        {
+            "entries": [
+                {
+                    "ada_minimum": {
+                        "quantity": 2,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 4,
+                        "unit": "lovelace"
+                    },
+                    "assets": [
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 10,
+                            "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "entries": []
+        },
+        {
+            "entries": [
+                {
+                    "ada_minimum": {
+                        "quantity": 2,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 10,
+                        "unit": "lovelace"
+                    },
+                    "assets": [
+                        {
+                            "asset_name": "546f6b656e41",
+                            "quantity": 6,
+                            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        },
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 8,
+                            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        },
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 6,
+                            "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                        },
+                        {
+                            "asset_name": "546f6b656e44",
+                            "quantity": 4,
+                            "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                        },
+                        {
+                            "asset_name": "546f6b656e41",
+                            "quantity": 1,
+                            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                        },
+                        {
+                            "asset_name": "546f6b656e42",
+                            "quantity": 6,
+                            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                        },
+                        {
+                            "asset_name": "546f6b656e44",
+                            "quantity": 1,
+                            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "entries": [
+                {
+                    "ada_minimum": {
+                        "quantity": 5,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 8,
+                        "unit": "lovelace"
+                    },
+                    "assets": []
+                },
+                {
+                    "ada_minimum": {
+                        "quantity": 2,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 10,
+                        "unit": "lovelace"
+                    },
+                    "assets": []
+                }
+            ]
+        },
+        {
+            "entries": [
+                {
+                    "ada_minimum": {
+                        "quantity": 4,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 7,
+                        "unit": "lovelace"
+                    },
+                    "assets": [
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 11,
+                            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        }
+                    ]
+                },
+                {
+                    "ada_minimum": {
+                        "quantity": 9,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 10,
+                        "unit": "lovelace"
+                    },
+                    "assets": [
+                        {
+                            "asset_name": "546f6b656e42",
+                            "quantity": 1,
+                            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        },
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 2,
+                            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        },
+                        {
+                            "asset_name": "546f6b656e44",
+                            "quantity": 4,
+                            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        },
+                        {
+                            "asset_name": "546f6b656e41",
+                            "quantity": 7,
+                            "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                        },
+                        {
+                            "asset_name": "546f6b656e41",
+                            "quantity": 6,
+                            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                        },
+                        {
+                            "asset_name": "546f6b656e42",
+                            "quantity": 8,
+                            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                        },
+                        {
+                            "asset_name": "546f6b656e41",
+                            "quantity": 19,
+                            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        },
+                        {
+                            "asset_name": "546f6b656e42",
+                            "quantity": 7,
+                            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        },
+                        {
+                            "asset_name": "546f6b656e44",
+                            "quantity": 17,
+                            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        }
+                    ]
+                },
+                {
+                    "ada_minimum": {
+                        "quantity": 8,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 9,
+                        "unit": "lovelace"
+                    },
+                    "assets": [
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 6,
+                            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                        }
+                    ]
+                },
+                {
+                    "ada_minimum": {
+                        "quantity": 2,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 8,
+                        "unit": "lovelace"
+                    },
+                    "assets": []
+                }
+            ]
+        },
+        {
+            "entries": [
+                {
+                    "ada_minimum": {
+                        "quantity": 2,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 5,
+                        "unit": "lovelace"
+                    },
+                    "assets": [
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 5,
+                            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "entries": []
+        },
+        {
+            "entries": [
+                {
+                    "ada_minimum": {
+                        "quantity": 5,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 10,
+                        "unit": "lovelace"
+                    },
+                    "assets": []
+                }
+            ]
+        },
+        {
+            "entries": []
+        },
+        {
+            "entries": [
+                {
+                    "ada_minimum": {
+                        "quantity": 2,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 4,
+                        "unit": "lovelace"
+                    },
+                    "assets": [
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 9,
+                            "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        },
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 10,
+                            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        }
+                    ]
+                },
+                {
+                    "ada_minimum": {
+                        "quantity": 2,
+                        "unit": "lovelace"
+                    },
+                    "ada": {
+                        "quantity": 4,
+                        "unit": "lovelace"
+                    },
+                    "assets": [
+                        {
+                            "asset_name": "546f6b656e44",
+                            "quantity": 7,
+                            "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                        },
+                        {
+                            "asset_name": "546f6b656e41",
+                            "quantity": 9,
+                            "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                        },
+                        {
+                            "asset_name": "546f6b656e41",
+                            "quantity": 6,
+                            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        },
+                        {
+                            "asset_name": "546f6b656e42",
+                            "quantity": 10,
+                            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        },
+                        {
+                            "asset_name": "546f6b656e43",
+                            "quantity": 9,
+                            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        },
+                        {
+                            "asset_name": "546f6b656e44",
+                            "quantity": 10,
+                            "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

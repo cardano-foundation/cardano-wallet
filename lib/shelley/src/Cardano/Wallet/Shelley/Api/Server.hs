@@ -76,6 +76,7 @@ import Cardano.Wallet.Api.Server
     , getTransaction
     , getUTxOsStatistics
     , getWallet
+    , getWalletUtxoSnapshot
     , idleWorker
     , joinStakePool
     , liftHandler
@@ -250,6 +251,7 @@ server byron icarus shelley multisig spl ntp =
         :<|> postWallet shelley Shelley.generateKeyFromSeed ShelleyKey
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
+        :<|> getWalletUtxoSnapshot shelley
         :<|> getUTxOsStatistics shelley
 
     walletKeys :: Server WalletKeys
@@ -366,6 +368,10 @@ server byron icarus shelley multisig spl ntp =
         :<|> (\wid name -> withLegacyLayer wid
                 (byron , putWallet byron mkLegacyWallet wid name)
                 (icarus, putWallet icarus mkLegacyWallet wid name)
+             )
+        :<|> (\wid -> withLegacyLayer wid
+                (byron , getWalletUtxoSnapshot byron wid)
+                (icarus, getWalletUtxoSnapshot icarus wid)
              )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , getUTxOsStatistics byron wid)

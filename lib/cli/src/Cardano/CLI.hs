@@ -400,6 +400,7 @@ cmdWallet cmdCreate mkClient =
         <> cmdWalletUpdate mkClient
         <> cmdWalletDelete mkClient
         <> cmdWalletGetUtxoStatistics mkClient
+        <> cmdWalletGetUtxoSnapshot mkClient
 
 -- | Arguments for 'wallet list' command
 newtype WalletListArgs = WalletListArgs
@@ -682,6 +683,26 @@ cmdWalletDelete mkClient =
     exec (WalletDeleteArgs wPort wId) = do
         runClient wPort (const "") $ deleteWallet mkClient $
             ApiT wId
+
+cmdWalletGetUtxoSnapshot
+    :: ToJSON wallet
+    => WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdWalletGetUtxoSnapshot mkClient =
+    command "utxo-snapshot" $ info (helper <*> cmd) $ mempty
+        <> progDesc "Get UTxO snapshot for wallet with specified id."
+  where
+    cmd = fmap exec $ WalletGetArgs
+        <$> portOption
+        <*> walletIdArgument
+    exec (WalletGetArgs wPort wId) = do
+        res <- sendRequest wPort $ getWallet mkClient $ ApiT wId
+        case res of
+            Right _ -> do
+                runClient wPort Aeson.encodePretty $
+                    getWalletUtxoSnapshot mkClient (ApiT wId)
+            Left _ ->
+                handleResponse Aeson.encodePretty res
 
 cmdWalletGetUtxoStatistics
     :: ToJSON wallet

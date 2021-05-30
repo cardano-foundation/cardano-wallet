@@ -26,6 +26,7 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , ApiVerificationKeyShelley (..)
     , ApiWallet
+    , ApiWalletUtxoSnapshot
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -98,6 +99,7 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , expectWalletUTxO
+    , fixtureMultiAssetWallet
     , fixturePassphrase
     , fixtureWallet
     , genMnemonics
@@ -924,6 +926,35 @@ spec = describe "SHELLEY_WALLETS" $ do
                  (Link.getUTxOsStatistics @'Shelley w) Default Empty
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO [] (snd rStat)
+
+    it "WALLET_UTXO_SNAPSHOT_01 - \
+        \Can generate UTxO snapshot of empty wallet" $
+        \ctx -> runResourceT $ do
+            w <- emptyWallet ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getWalletUtxoSnapshot @'Shelley w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            expectField #entries (`shouldBe` []) rSnap
+
+    it "WALLET_UTXO_SNAPSHOT_02 - \
+        \Can generate UTxO snapshot of pure-ada wallet" $
+        \ctx -> runResourceT $ do
+            w <- fixtureWallet ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getWalletUtxoSnapshot @'Shelley w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            let entries = getFromResponse #entries rSnap
+            length entries `shouldBe` 10
+
+    it "WALLET_UTXO_SNAPSHOT_03 - \
+        \Can generate UTxO snapshot of multi-asset wallet" $
+        \ctx -> runResourceT $ do
+            w <- fixtureMultiAssetWallet ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getWalletUtxoSnapshot @'Shelley w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            let entries = getFromResponse #entries rSnap
+            length entries `shouldBe` 3
 
     it "WALLETS_UTXO_02 - Sending and receiving funds updates wallet's utxo." $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx

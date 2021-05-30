@@ -47,6 +47,7 @@ module Cardano.Wallet.Api.Server
     , getNetworkInformation
     , getNetworkParameters
     , getUTxOsStatistics
+    , getWalletUtxoSnapshot
     , getWallet
     , joinStakePool
     , listAssets
@@ -239,6 +240,8 @@ import Cardano.Wallet.Api.Types
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ApiWalletSignData (..)
+    , ApiWalletUtxoSnapshot (..)
+    , ApiWalletUtxoSnapshotEntry (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
     , ByronWalletFromXPrvPostData
@@ -1463,6 +1466,28 @@ getUTxOsStatistics ctx (ApiT wid) = do
     stats <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listUtxoStatistics wrk wid
     return $ toApiUtxoStatistics stats
+
+getWalletUtxoSnapshot
+    :: forall ctx s k. (ctx ~ ApiLayer s k)
+    => ctx
+    -> ApiT WalletId
+    -> Handler ApiWalletUtxoSnapshot
+getWalletUtxoSnapshot ctx (ApiT wid) = do
+    entries <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
+        W.getWalletUtxoSnapshot wrk wid
+    return $ mkApiWalletUtxoSnapshot entries
+  where
+    mkApiWalletUtxoSnapshot :: [(TokenBundle, Coin)] -> ApiWalletUtxoSnapshot
+    mkApiWalletUtxoSnapshot bundleMinCoins = ApiWalletUtxoSnapshot
+        { entries = mkApiWalletUtxoSnapshotEntry <$> bundleMinCoins }
+
+    mkApiWalletUtxoSnapshotEntry
+        :: (TokenBundle, Coin) -> ApiWalletUtxoSnapshotEntry
+    mkApiWalletUtxoSnapshotEntry (bundle, minCoin) = ApiWalletUtxoSnapshotEntry
+        { ada = coinToQuantity $ view #coin bundle
+        , adaMinimum = coinToQuantity minCoin
+        , assets = ApiT $ view #tokens bundle
+        }
 
 {-------------------------------------------------------------------------------
                                   Coin Selections

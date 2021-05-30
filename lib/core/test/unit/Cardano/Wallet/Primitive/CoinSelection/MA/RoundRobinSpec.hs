@@ -171,6 +171,7 @@ import Test.QuickCheck
     , shrinkIntegral
     , shrinkList
     , suchThat
+    , tabulate
     , withMaxSuccess
     , (.&&.)
     , (===)
@@ -1179,6 +1180,8 @@ boundaryTestMatrix_largeTokenQuantities =
     , boundaryTest_largeTokenQuantities_2
     , boundaryTest_largeTokenQuantities_3
     , boundaryTest_largeTokenQuantities_4
+    , boundaryTest_largeTokenQuantities_5
+    , boundaryTest_largeTokenQuantities_6
     ]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
@@ -1299,6 +1302,84 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     boundaryTestChange =
       [ (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
       , (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+
+-- In the event that generated change bundles must be split, demonstrate that
+-- the change generation algorithm terminates after only a subset of the UTxO
+-- has been selected.
+--
+-- See: https://jira.iohk.io/browse/ADP-890
+--
+boundaryTest_largeTokenQuantities_5 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_5 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
+    boundaryTestOutputs =
+      [ (Coin 2_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+    boundaryTestChange =
+      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+
+-- In the event that generated change bundles must be split, demonstrate that
+-- the change generation algorithm terminates after only a subset of the UTxO
+-- has been selected.
+--
+-- See: https://jira.iohk.io/browse/ADP-890
+--
+boundaryTest_largeTokenQuantities_6 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_6 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
+    boundaryTestOutputs =
+      [ (Coin 1_000_000, [])
+      , (Coin 1_000_000, [])
+      ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+    boundaryTestChange =
+      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)])
       ]
 
 --------------------------------------------------------------------------------
@@ -1552,18 +1633,73 @@ prop_makeChange_identity bundles = (===)
         , outputBundles = bundles
         }
 
+-- | Tests that 'makeChange' generates the correct number of change bundles.
+--
+-- In normal circumstances, provided there are no cost constraints in place,
+-- the 'makeChange' function is expected to generate a list of change bundles
+-- that is equal in length to the number of user-specified outputs.
+--
+-- However, if any of the generated change bundles are oversized, 'makeChange'
+-- is expected to split these bundles into smaller bundles that are not
+-- oversized. Therefore, it's possible for 'makeChange' to return a list of
+-- change bundles that is longer than the number of user-specified outputs.
+--
+-- This property tests both scenarios:
+--
+--    - when change bundles are not split.
+--    - when change bundles are split.
+--
 prop_makeChange_length
     :: MakeChangeData
     -> Property
 prop_makeChange_length p =
-    case change of
-        Left{} -> property False
-        Right xs -> length xs === length (outputBundles p)
+    case (mChangeUnsplit, mChangeSplit) of
+        (Right changeUnsplit, Right changeSplit) ->
+            prop changeUnsplit changeSplit
+        _ ->
+            -- We expect 'makeChange' to always succeed in a zero-cost scenario.
+            property False
   where
-    change = makeChange p
+    prop :: [TokenBundle] -> [TokenBundle] -> Property
+    prop changeUnsplit changeSplit =
+        checkCoverage $
+        cover 50 (changeSplit /= changeUnsplit)
+            "able to generate split change" $
+        tabulate
+            "largest asset set sizes (unsplit change, split change)"
+            [ show
+                ( getLargestAssetSetSize changeUnsplit
+                , getLargestAssetSetSize changeSplit
+                )
+            ] $
+        if (changeSplit == changeUnsplit)
+        then
+            property (length (outputBundles p) == length changeUnsplit)
+        else
+            conjoin
+                [ property (length (outputBundles p) == length changeUnsplit)
+                , property (length (outputBundles p) <  length changeSplit)
+                , property (F.fold changeSplit == F.fold changeUnsplit)
+                ]
+
+    mChangeUnsplit =
+        makeChange zeroCostMakeChangeScenario
+            { bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit }
+    mChangeSplit = mChangeUnsplit >>= \changeUnsplit ->
+        makeChange zeroCostMakeChangeScenario
+            { bundleSizeAssessor = mkBundleSizeAssessor
+                $ BundleAssetCountUpperLimit
+                $ max 1
+                $ (`div` 2)
+                $ getLargestAssetSetSize changeUnsplit
+            }
+
+    getLargestAssetSetSize :: [TokenBundle] -> Int
+    getLargestAssetSetSize = F.maximum . fmap (Set.size . TokenBundle.getAssets)
+
+    zeroCostMakeChangeScenario = p
         { minCoinFor = noMinCoin
         , requiredCost = noCost
-        , bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
         }
 
 prop_makeChange

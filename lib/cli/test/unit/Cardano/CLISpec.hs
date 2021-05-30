@@ -165,6 +165,8 @@ spec = do
             , "                           id."
             , "  utxo                     Get UTxO statistics for the wallet"
             , "                           with specified id."
+            , "  utxo-snapshot            Get UTxO snapshot for wallet with"
+            , "                           specified id."
             ]
 
         ["wallet", "list", "--help"] `shouldShowUsage`
