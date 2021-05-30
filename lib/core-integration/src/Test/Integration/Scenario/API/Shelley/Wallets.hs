@@ -927,28 +927,34 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO [] (snd rStat)
 
-    it "WALLETS_UTXO_SNAPSHOT_01 - Wallet's inactivity is reflected in utxo snapshot" $ \ctx -> runResourceT $ do
-        w <- emptyWallet ctx
-        rSnap <- request @ApiWalletUtxoSnapshot ctx
-                 (Link.getUTxOsSnapshot @'Shelley w) Default Empty
-        expectResponseCode HTTP.status200 rSnap
-        expectField #entries (`shouldBe` []) rSnap
+    it "WALLET_UTXO_SNAPSHOT_01 - \
+        \Can generate UTxO snapshot of empty wallet" $
+        \ctx -> runResourceT $ do
+            w <- emptyWallet ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getUTxOsSnapshot @'Shelley w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            expectField #entries (`shouldBe` []) rSnap
 
-    it "WALLETS_UTXO_SNAPSHOT_02 - Wallet's snapshot with ADA" $ \ctx -> runResourceT $ do
-        w <- fixtureWallet ctx
-        rSnap <- request @ApiWalletUtxoSnapshot ctx
-                 (Link.getUTxOsSnapshot @'Shelley w) Default Empty
-        expectResponseCode HTTP.status200 rSnap
-        let entries = getFromResponse #entries rSnap
-        length entries `shouldBe` 10
+    it "WALLET_UTXO_SNAPSHOT_02 - \
+        \Can generate UTxO snapshot of pure-ada wallet" $
+        \ctx -> runResourceT $ do
+            w <- fixtureWallet ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getUTxOsSnapshot @'Shelley w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            let entries = getFromResponse #entries rSnap
+            length entries `shouldBe` 10
 
-    it "WALLETS_UTXO_SNAPSHOT_03 - Wallet's snapshot with ADA and assets" $ \ctx -> runResourceT $ do
-        w <- fixtureMultiAssetWallet ctx
-        rSnap <- request @ApiWalletUtxoSnapshot ctx
-                 (Link.getUTxOsSnapshot @'Shelley w) Default Empty
-        expectResponseCode HTTP.status200 rSnap
-        let entries = getFromResponse #entries rSnap
-        length entries `shouldBe` 3
+    it "WALLET_UTXO_SNAPSHOT_03 - \
+        \Can generate UTxO snapshot of multi-asset wallet" $
+        \ctx -> runResourceT $ do
+            w <- fixtureMultiAssetWallet ctx
+            rSnap <- request @ApiWalletUtxoSnapshot ctx
+                (Link.getUTxOsSnapshot @'Shelley w) Default Empty
+            expectResponseCode HTTP.status200 rSnap
+            let entries = getFromResponse #entries rSnap
+            length entries `shouldBe` 3
 
     it "WALLETS_UTXO_02 - Sending and receiving funds updates wallet's utxo." $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
