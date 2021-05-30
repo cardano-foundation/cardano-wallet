@@ -2475,14 +2475,19 @@ getWalletUtxoStatisticsViaCLI ctx walId = cardanoWalletCLI
 getWalletUtxoSnapshotViaCLI
     :: forall r s m.
         ( CmdResult r
-
         , HasType (Port "wallet") s
-        , MonadIO m)
+        , MonadIO m
+        )
     => s
     -> String
     -> m r
 getWalletUtxoSnapshotViaCLI ctx walId = cardanoWalletCLI
-    ["wallet", "utxo-snapshot", "--port", show (ctx ^. typed @(Port "wallet")) , walId ]
+    [ "wallet"
+    , "utxo-snapshot"
+    , "--port"
+    , show (ctx ^. typed @(Port "wallet"))
+    , walId
+    ]
 
 createAddressViaCLI
     :: forall s m. (HasType (Port "wallet") s, MonadIO m)
