@@ -72,7 +72,12 @@ RSpec.describe CardanoWallet::Byron do
       id = create_byron_wallet
       utxo = BYRON.wallets.utxo(id)
       expect(utxo).to be_correct_and_respond 200
+    end
 
+    it "Can see utxo snapshot" do
+      id = create_byron_wallet
+      utxo = BYRON.wallets.utxo_snapshot(id)
+      expect(utxo).to be_correct_and_respond 200
     end
   end
 
