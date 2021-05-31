@@ -142,6 +142,30 @@ def create_active_shared_wallet(m, acc_ix, acc_xpub)
   SHARED.wallets.create(payload)['id']
 end
 
+def wait_for_shared_wallet_to_sync(wid)
+  puts "Syncing Shared wallet..."
+  retry_count = 10
+  begin
+    while (SHARED.wallets.get(wid)['state']['status'] == "syncing") do
+      w = SHARED.wallets.get(wid)
+      puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
+      sleep 5
+    end
+  rescue NoMethodError
+    puts "Retry #{retry_count}"
+    retry_count -= 1
+    puts "SHARED.wallets.get(#{wid}) returned:"
+    puts SHARED.wallets.get(wid)
+    retry if retry_count > 0
+  end
+end
+
+def wait_for_all_shared_wallets(wids)
+  wids.each do |w|
+    wait_for_shared_wallet_to_sync(w)
+  end
+end
+
 def create_shelley_wallet(name = "Wallet from mnemonic_sentence")
   SHELLEY.wallets.create({ name: name,
                           passphrase: PASS,

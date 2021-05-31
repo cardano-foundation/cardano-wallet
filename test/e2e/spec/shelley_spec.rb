@@ -111,6 +111,12 @@ RSpec.describe CardanoWallet::Shelley do
       utxo = SHELLEY.wallets.utxo(id)
       expect(utxo).to be_correct_and_respond 200
     end
+
+    it "Can see utxo snapshot" do
+      id = create_shelley_wallet
+      utxo = SHELLEY.wallets.utxo_snapshot(id)
+      expect(utxo).to be_correct_and_respond 200
+    end
   end
 
   describe CardanoWallet::Shelley::Addresses do
