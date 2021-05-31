@@ -3572,12 +3572,12 @@ instance IsServerError ErrSelectAssets where
 
 instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
     toServerError = \case
-        ErrIndexOutOfBound minIx maxIx _ix ->
+        ErrIndexOutOfBound (Index minIx) (Index maxIx) _ix ->
             apiError err403 HardenedDerivationRequired $ mconcat
                 [ "It looks like you've provided a derivation index that is "
                 , "out of bound. The index is well-formed, but I require "
                 , "indexes valid for hardened derivation only. That is, indexes "
-                , "between ", pretty minIx, " and ", pretty maxIx, " with a suffix 'H'."
+                , "between 0H and ", pretty (Index $ maxIx - minIx), "H."
                 ]
 
 instance IsServerError (Request, ServerError) where
