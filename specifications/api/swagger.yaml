@@ -2960,7 +2960,9 @@ x-errHardenedDerivationRequired: &errHardenedDerivationRequired
   properties:
     message:
       type: string
-      description: A descriptive error message.
+      description:
+        Occurs when hardened derivation is required and soft index is used
+        (without suffix 'H').
     code:
       type: string
       enum: ['hardened_derivation_required']
