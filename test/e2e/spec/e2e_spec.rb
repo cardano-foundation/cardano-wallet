@@ -18,6 +18,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     @target_id_rnd_assets = create_shelley_wallet("Target asset tx wallet")
     @target_id_ic_assets = create_shelley_wallet("Target asset tx wallet")
 
+    # shared tests
+    @wid_sha = create_active_shared_wallet(mnemonic_sentence(24), '0H', 'self')
+
+    @nightly_shared_wallets = [ @wid_sha ]
     @nighly_byron_wallets = [ @wid_rnd, @wid_ic ]
     @nightly_shelley_wallets = [
                                   @wid,
@@ -34,6 +38,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
                                 ]
     wait_for_all_byron_wallets(@nighly_byron_wallets)
     wait_for_all_shelley_wallets(@nightly_shelley_wallets)
+    wait_for_all_shared_wallets(@nightly_shared_wallets)
 
     # @wid_rnd = "94c0af1034914f4455b7eb795ebea74392deafe9"
     # @wid_ic = "a468e96ab85ad2043e48cf2e5f3437b4356769f4"
@@ -46,6 +51,61 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
     @nightly_shelley_wallets.each do |wid|
       SHELLEY.wallets.delete wid
+    end
+    @nightly_shared_wallets.each do |wid|
+      SHARED.wallets.delete wid
+    end
+  end
+
+  describe "E2E Shared" do
+    it "I can receive transaction to shared wallet" do
+      asset_quantity = 1
+      ada_amt = 3000000
+      address = SHARED.addresses.list(@wid_sha)[1]['id']
+      payload = [{ "address" => address,
+                  "amount" => { "quantity" => ada_amt, "unit" => "lovelace" },
+                  "assets" => [ { "policy_id" => ASSETS[0]["policy_id"],
+                                  "asset_name" => ASSETS[0]["asset_name"],
+                                  "quantity" => asset_quantity
+                                },
+                                { "policy_id" => ASSETS[1]["policy_id"],
+                                  "asset_name" => ASSETS[1]["asset_name"],
+                                  "quantity" => asset_quantity
+                                }
+                              ]
+                  }
+                 ]
+
+      tx_sent = SHELLEY.transactions.create(@wid, PASS, payload)
+
+      expect(tx_sent).to be_correct_and_respond 202
+      expect(tx_sent.to_s).to include "pending"
+
+      eventually "Assets are on target shared wallet: #{@wid_sha}" do
+        first = ASSETS[0]["policy_id"] + ASSETS[0]["asset_name"]
+        second = ASSETS[1]["policy_id"] + ASSETS[1]["asset_name"]
+        shared_wallet = SHARED.wallets.get(@wid_sha)
+        total_assets = shared_wallet['assets']['total']
+        available_assets = shared_wallet['assets']['available']
+        total_ada = shared_wallet['balance']['total']['quantity']
+        available_ada = shared_wallet['balance']['available']['quantity']
+        total = Hash.new
+        available = Hash.new
+
+        unless total_assets.empty?
+          total[first] = total_assets.select { |a| a['policy_id'] == ASSETS[0]["policy_id"] && a['asset_name'] == ASSETS[0]["asset_name"] }.first["quantity"]
+          total[second] = total_assets.select { |a| a['policy_id'] == ASSETS[1]["policy_id"] && a['asset_name'] == ASSETS[1]["asset_name"] }.first["quantity"]
+        end
+
+        unless available_assets.empty?
+          available[first] = available_assets.select { |a| a['policy_id'] == ASSETS[0]["policy_id"] && a['asset_name'] == ASSETS[0]["asset_name"] }.first["quantity"]
+          available[second] = available_assets.select { |a| a['policy_id'] == ASSETS[1]["policy_id"] && a['asset_name'] == ASSETS[1]["asset_name"] }.first["quantity"]
+        end
+
+        (total[first] == asset_quantity) && (total[second] == asset_quantity) &&
+        (available[first] == asset_quantity) && (available[second] == asset_quantity) &&
+        (available_ada == ada_amt) && (total_ada == ada_amt)
+      end
     end
   end
 
