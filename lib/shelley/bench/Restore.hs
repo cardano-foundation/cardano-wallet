@@ -754,7 +754,7 @@ waitForNodeSync
     => Tracer IO (BenchmarkLog n)
     -> NetworkLayer IO Block
     -> IO SlotNo
-waitForNodeSync tr nw = loop 120 -- allow 30 minutes for first tip
+waitForNodeSync tr nw = loop 480 -- allow 120 minutes for first tip
   where
     loop :: Int -> IO SlotNo
     loop retries = do
