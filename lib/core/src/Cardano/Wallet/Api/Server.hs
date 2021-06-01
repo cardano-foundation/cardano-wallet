@@ -2083,9 +2083,15 @@ listStakeKeys'
     => UTxO.UTxO
         -- ^ The wallet's UTxO
     -> (Address -> Maybe RewardAccount)
-        -- ^ Lookup reward account of addr
-    -> (Set RewardAccount -> m (Map RewardAccount Coin))
-        -- ^ Batch fetch of rewards
+        -- ^ Lookup the `RewardAccount` of an `Address`.
+    -> (Set RewardAccount -> m (Map RewardAccount (Maybe Coin)))
+        -- ^ A way to fetch the rewards of any set of `RewardAccount`s.
+        --
+        -- This allows:
+        -- - The caller to choose how to fetch rewards.
+        -- - This function to choose which accounts / stake keys to fetch
+        -- rewards for. This is tricky to know for the caller, as we also fetch
+        -- rewards for the foreign keys we find in the UTxO.
     -> [(RewardAccount, Natural, ApiWalletDelegation)]
         -- ^ The wallet's known stake keys, along with derivation index, and
         -- delegation status.
@@ -2151,24 +2157,27 @@ listStakeKeys
     -> ctx
     -> ApiT WalletId
     -> Handler (ApiStakeKeys n)
-listStakeKeys lookupStakeRef ctx (ApiT wid) = do
+listStakeKeys lookupStakeRef ctx (ApiT wid) =
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-            (wal, meta, pending) <- W.readWallet @_ @s @k wrk wid
-            let utxo = availableUTxO @s pending wal
+        (wal, meta, pending) <- W.readWallet @_ @s @k wrk wid
+        let utxo = availableUTxO @s pending wal
 
-            mourAccount <- fmap (fmap fst . eitherToMaybe)
-                <$> liftIO . runExceptT $ W.readRewardAccount @_ @s @k @n wrk wid
-            ourApiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
-                (unsafeExtendSafeZone (timeInterpreter $ ctx ^. networkLayer))
-            let ourKeys = case mourAccount of
-                    Just acc -> [(acc, 0, ourApiDelegation)]
-                    Nothing -> []
+        mourAccount <- fmap (fmap fst . eitherToMaybe)
+            <$> liftIO . runExceptT $ W.readRewardAccount @_ @s @k @n wrk wid
+        ourApiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
+            (unsafeExtendSafeZone (timeInterpreter $ ctx ^. networkLayer))
 
-            liftIO $ listStakeKeys' @n
-                utxo
-                lookupStakeRef
-                (fetchRewardAccountBalances nl)
-                ourKeys
+        -- With ADP-808 we will be able to have many keys. Currently there's
+        -- only one.
+        let ourKeys = case mourAccount of
+                Just acc -> [(acc, 0, ourApiDelegation)]
+                Nothing -> []
+
+        liftIO $ listStakeKeys' @n
+            utxo
+            lookupStakeRef
+            (fetchRewardAccountBalances nl)
+            ourKeys
   where
     nl = ctx ^. networkLayer
 
