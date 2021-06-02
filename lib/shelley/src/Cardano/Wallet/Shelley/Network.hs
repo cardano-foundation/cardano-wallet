@@ -855,7 +855,14 @@ newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
     fetch _tip accounts = do
         -- NOTE: We no longer need the tip to run LSQ queries. The local state
         -- query client will automatically acquire the latest tip.
+        Just <$> fetchRewardAccounts tr queryRewardQ accounts
 
+fetchRewardAccounts
+    :: Tracer IO NetworkLayerLog
+    -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
+    -> Set W.RewardAccount
+    -> IO (Map W.RewardAccount W.Coin)
+fetchRewardAccounts tr queryRewardQ accounts = do
         liftIO $ traceWith tr $
             MsgGetRewardAccountBalance accounts
 
@@ -867,11 +874,10 @@ newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
 
         (res,logs) <- bracketQuery "queryRewards" tr (send queryRewardQ (SomeLSQ qry))
         liftIO $ mapM_ (traceWith tr) logs
-        return $ Just res
-
-      where
-        byronValue :: Map W.RewardAccount W.Coin
-        byronValue = Map.fromList . map (, minBound) $ Set.toList accounts
+        return res
+  where
+    byronValue :: Map W.RewardAccount W.Coin
+    byronValue = Map.fromList . map (, minBound) $ Set.toList accounts
 
     fromBalanceResult
         :: ( Map (SL.Credential 'SL.Staking crypto)
@@ -884,7 +890,6 @@ newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
             Map.map fromShelleyCoin rewardAccounts
         , [MsgAccountDelegationAndRewards deleg rewardAccounts]
         )
-
 data ObserverLog key value
     = MsgWillFetch (Set key)
     | MsgDidFetch (Map key value)
