@@ -1344,6 +1344,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         waitForTxImmutability ctx
 
         let foreignRewardBalance = otherWallet ^. #balance .  #reward
+
+        -- NOTE: It might make more sense to not include the rewards in the
+        -- stake here.
         let expectedForeignStake =
                 Quantity $ amt + getQuantity foreignRewardBalance
 

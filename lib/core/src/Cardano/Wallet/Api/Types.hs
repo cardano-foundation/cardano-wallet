@@ -1513,6 +1513,15 @@ data ApiForeignStakeKey n = ApiForeignStakeKey
     , _stake :: !(Quantity "lovelace" Natural)
       -- ^ The total ada this stake key controlls / is associated with. This
       -- also includes the reward balance.
+      --
+      -- NOTE: Maybe we shouldn't include the rewards. The foreign stake key
+      -- could have a huge reward balance compared to the user's utxo stake. The
+      -- user only controls its utxo, but cannot in general make withdrawals
+      -- from the foreign stake key.
+      --
+      -- Including rewards in the stake in `ApiOurStakeKey` makes more sense, as
+      -- the user can withdraw the rewards to move them to a different stake key
+      -- (via the to-be-implemented rebalancing endpoint).
     , _rewardBalance :: !(Quantity "lovelace" Natural)
       -- ^ The current reward balance (not lifetime).
     } deriving (Generic, Eq, Show)
