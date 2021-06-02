@@ -26,9 +26,11 @@ stack build --test --no-run-tests
 You may need to install the [`libsodium-dev`](https://doc.libsodium.org/installation), `libghc-hsopenssl-dev`, `gmp`, `sqlite` and `systemd` development
 libraries for the build to succeed.
 
-# Cabal 
+# Cabal
 
 Alternatively, it's possible to build this project with [Cabal][].
+
+**Note:** the Cabal build is checked by [Buildkite](https://github.com/input-output-hk/cardano-wallet/blob/master/.buildkite/nightly.yml).
 
 1. Update your Hackage index (this may take a while):
 
@@ -36,39 +38,60 @@ Alternatively, it's possible to build this project with [Cabal][].
    cabal update
    ```
 
-2. Build the project
+   > :warning: **Important!** Don't skip this, otherwise there may be
+   > warnings from Cabal about index states, or some packages will
+   > fail to build.
+
+2. Build the project packages:
 
    ```console
-   cabal build all
+   $ cabal build all
    ```
 
-3. Run executables or tests (examples)
+3. Run the freshly-built `cardano-wallet` executable.
 
-   Show the help page for `cardano-wallet`:
-   
+   As an example, this will show the help page:
+
    ```console
-   cabal run cardano-wallet:exe:cardano-wallet -- --help
+   $ cabal run cardano-wallet:exe:cardano-wallet -- --help
    ```
 
-   Run a unit test suite:
-   
+4. Make a build with `-O2` level compiler optimizations:
    ```console
-   cabal run cardano-wallet-core:test:unit
+   $ cabal build cardano-wallet:exe:cardano-wallet -frelease
    ```
 
-4. (Optional) Install binaries
+5. Build and run the test suites or benchmarks.
+
+   First, enable tests and benchmarks:
 
    ```console
-   cabal install --install-method=copy --installdir=/usr/local/bin
+   $ cabal configure --enable-tests --enable-benchmarks
+   ```
+
+   To run one of the unit test suites:
+   ```console
+   $ cabal run cardano-wallet-core:test:unit
+   ```
+
+   To run the DB benchmark:
+   ```console
+   $ cabal run cardano-wallet-core:bench:db
+   ```
+
+4. Install binaries from `./dist-newstyle/` into a system location:
+
+   ```console
+   $ cabal install --install-method=copy --installdir=/usr/local/bin
    ```
 
 ### Syncing `stack` and `cabal` dependencies
 
 1. Install [stack2cabal](https://hackage.haskell.org/package/stack2cabal)
 
-2. Run `stack2cabal -p now` to convert the dependencies list from `stack` into a suitable format for `cabal`. 
+2. Run `stack2cabal -p now` to convert the dependencies list from `stack` into a suitable format for `cabal`.
 
-# Nix 
+# Nix
 
 Use the [Nix](./Nix) build if:
 
