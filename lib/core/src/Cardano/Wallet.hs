@@ -216,8 +216,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, traceWithExceptT, unliftIOTracer )
 import Cardano.Wallet.Network
-    ( ErrGetAccountBalance (..)
-    , ErrPostTx (..)
+    ( ErrPostTx (..)
     , FollowAction (..)
     , FollowExceptionRecovery (..)
     , FollowLog (..)
@@ -1057,13 +1056,9 @@ queryRewardBalance
     -> RewardAccount
     -> ExceptT ErrFetchRewards IO Coin
 queryRewardBalance ctx acct = do
-    mapExceptT (fmap handleErr) $ getAccountBalance nw acct
+    liftIO $ getCachedAccountBalance nw acct
   where
     nw = ctx ^. networkLayer
-    handleErr = \case
-        Right x -> Right x
-        Left (ErrGetAccountBalanceAccountNotFound _) ->
-            Right $ Coin 0
 
 manageRewardBalance
     :: forall ctx s k (n :: NetworkDiscriminant).
