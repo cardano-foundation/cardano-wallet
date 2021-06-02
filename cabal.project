@@ -178,61 +178,9 @@ package cardano-wallet-test-utils
 package strict-non-empty-containers
   tests: True
 
--- Disable all other tests. This is what they do in the cardano-node
--- cabal project.
--- The global tests: False flag doesn't seem to work though.
+-- Now disable all other tests with a global flag.
+-- This is what they do in cardano-node/cabal.project.
 
 tests: False
-
-package cardano-api
-  tests: False
-
-package cardano-cli
-  tests: False
-
-package cardano-node
-  tests: False
-
-package cardano-node-chairman
-  tests: False
-
-package byron-spec-ledger
-  tests: False
-
-package iohk-monitoring
-  tests: False
-
-package ouroboros-consensus-test
-  tests: False
-
-package ouroboros-consensus-cardano-test
-  tests: False
-
-package ouroboros-network
-  tests: False
-
-package ouroboros-network-framework
-  tests: False
-
-package plutus-tx
-  tests: False
-
-package prettyprinter-configurable
-  tests: False
-
-package small-steps
-  tests: False
-
-package small-steps-test
-  tests: False
-
-package goblins
-  tests: False
-
-package io-sim-classes
-  tests: False
-
-package cardano-ledger-alonzo-test
-  tests: False
 
 -- -------------------------------------------------------------------------
