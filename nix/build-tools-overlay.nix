@@ -30,6 +30,7 @@
 let
   index-state = "2021-03-11T00:00:00Z";
   tools = {
+    cabal-cache.version             = "1.0.2.1";
     cabal-install.exe               = "cabal";
     cabal-install.version           = "3.4.0.0";
     haskell-language-server.version = "1.0.0.0";

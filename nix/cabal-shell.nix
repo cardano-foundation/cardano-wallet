@@ -8,8 +8,10 @@
 { walletPackages ? import ../default.nix {}
 , pkgs ? walletPackages.private.pkgs
 # optional string argument to override compiler, e.g.
-#   nix-shell nix/cabal-shell.nix --argstr compiler ghc8102
-, compiler ? null
+#   nix-shell nix/cabal-shell.nix --argstr ghcVersion ghc8104
+, ghcVersion ? null
+# Enable building the cabal-cache util - only needed under CI
+, withCabalCache ? false
 }:
 
 with pkgs;
@@ -18,9 +20,9 @@ mkShell rec {
   name = "cardano-wallet-cabal-env";
   meta.platforms = lib.platforms.unix;
 
-  ghc = if (compiler == null)
+  ghc = if (ghcVersion == null)
     then walletPackages.private.project.pkg-set.config.ghc.package
-    else haskell-nix.compiler.${compiler};
+    else haskell-nix.compiler.${ghcVersion};
 
   tools = [
     ghc
@@ -32,7 +34,8 @@ mkShell rec {
   ++ (with walletPackages; [
     cardano-node
     cardano-cli
-  ]);
+  ])
+  ++ lib.optional withCabalCache haskell-build-tools.cabal-cache;
 
   libs = [
     zlib
