@@ -30,7 +30,7 @@ bench="./bench-restore/bin/restore $network --node-db $node_db"
 
 echo "--- Run benchmarks - $network"
 
-command time -o $total_time -v $bench +RTS -N2 -qg -A1m -I0 -T -M8G -h -RTS 2>&1 | tee $log
+command time -o $total_time -v $bench +RTS -N2 -qg -A1m -I0 -T -M16G -h -RTS 2>&1 | tee $log
 
 grep -v INFO $log | awk '/All results/,EOF { print $0 }' > $results
 
