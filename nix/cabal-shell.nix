@@ -41,6 +41,7 @@ mkShell rec {
     lzma
     openssl
     libsodium
+    pcre
   ]
   ++ lib.optional (stdenv.hostPlatform.libc == "glibc") glibcLocales
   ++ lib.optional stdenv.isLinux systemd.dev
