@@ -187,7 +187,7 @@ let
 
       ({ config, ...}: let
         setGitRevPostInstall = ''
-          ${buildPackages.haskellBuildUtils}/bin/set-git-rev "${config.packages.cardano-node.src.rev}" $out/bin/* || true
+          ${buildPackages.iohk-nix-utils}/bin/set-git-rev "${config.packages.cardano-node.src.rev}" $out/bin/* || true
         '';
       in {
         # Add shell completions for tools.

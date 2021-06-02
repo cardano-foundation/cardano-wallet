@@ -36,7 +36,7 @@ pkgs.stdenv.mkDerivation {
   inherit name;
   buildInputs = with pkgs.buildPackages; [
     binutils
-    haskellBuildUtils
+    iohk-nix-utils
     nix
   ]
   ++ lib.optionals makeTarball [ gnutar gzip ]
