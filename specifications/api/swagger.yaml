@@ -4717,9 +4717,9 @@ paths:
 
   /wallets/{walletId}/stake-keys:
     get:
-      operationId: listStakePools
+      operationId: listStakeKeys
       tags: ["Stake Pools"]
-      summary: List stake keys
+      summary: List Stake Keys
       description: |
         <p align="right">status: <strong>Experimental</strong></p>
 
@@ -4749,7 +4749,7 @@ paths:
     get:
       operationId: getMaintenanceActions
       tags: ["Stake Pools"]
-      summary: View maintenance actions
+      summary: View Maintenance Actions
       description: |
         Returns the current status of the stake pools maintenance actions.
       responses: *responsesGetMaintenanceAction
@@ -4757,7 +4757,7 @@ paths:
     post:
       operationId: postMaintenanceAction
       tags: ["Stake Pools"]
-      summary: Trigger Maintenance actions
+      summary: Trigger Maintenance Actions
       description: |
         Performs maintenance actions on stake pools, such
         as triggering metadata garbage collection.
