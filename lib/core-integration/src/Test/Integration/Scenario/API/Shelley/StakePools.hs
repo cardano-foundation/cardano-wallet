@@ -121,6 +121,7 @@ import Test.Integration.Framework.DSL
     , quitStakePoolUnsigned
     , replaceStakeKey
     , request
+    , rewardWallet
     , triggerMaintenanceAction
     , unsafeRequest
     , unsafeResponse
@@ -1268,6 +1269,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [acc] -> do
                     (acc ^. #_index) `shouldBe` 0
                     (acc ^. #_stake) `shouldBe` Quantity 0
+                    (acc ^. #_rewardBalance) `shouldBe` Quantity 0
                     acc ^. (#_delegation . #active . #status)
                         `shouldBe` NotDelegating
                 _ -> expectationFailure "wrong number of accounts in \"ours\""
@@ -1305,6 +1307,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectField (#_ours) (\case
                 [acc] -> do
                     (acc ^. #_stake) .> Quantity 0
+                    (acc ^. #_rewardBalance) `shouldBe` Quantity 0
                     acc ^. (#_delegation . #active . #status)
                         `shouldBe` NotDelegating
                 _ -> expectationFailure "wrong number of accounts in \"ours\""
@@ -1315,17 +1318,18 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     it "STAKE_KEY_LIST_02 - Can list foreign stake key from UTxO" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
         let balance = Quantity 1000000000000
-        otherWallet <- emptyWallet ctx
+        (otherWallet, _) <- rewardWallet ctx
 
         -- We send funds to one of our addresses but with a modified stake key.
         foreignAddr <- head . map (view #id) <$> listAddresses @n ctx otherWallet
         ourAddr <- head . map (view #id) <$> listAddresses @n ctx w
         let ourAddr' = replaceStakeKey ourAddr foreignAddr
+        let amt = 950000000000
         let payload = [json|
                 { "payments":
                     [ { "address": #{ourAddr'}
                       , "amount":
-                        { "quantity": 950000000000
+                        { "quantity": #{amt}
                         , "unit": "lovelace"
                         }
                       }
@@ -1339,11 +1343,17 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status202 ]
         waitForTxImmutability ctx
 
+        let foreignRewardBalance = otherWallet ^. #balance .  #reward
+        let expectedForeignStake =
+                Quantity $ amt + getQuantity foreignRewardBalance
+
         request @(ApiStakeKeys n) ctx (Link.listStakeKeys w) Default Empty
             >>= flip verify
             [ expectField (#_foreign) (\case
                 [acc] -> do
-                    (acc ^. #_stake) .> Quantity 0
+                    (acc ^. #_stake) `shouldBe` expectedForeignStake
+                    (acc ^. #_rewardBalance) .> Quantity 0
+                    acc ^. #_rewardBalance `shouldBe` foreignRewardBalance
                 _ -> expectationFailure "wrong number of accounts in \"foreign\""
                 )
             , expectField (#_ours) (\case
@@ -1353,9 +1363,34 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     (acc ^. #_stake) .> Quantity 0
                     acc ^. (#_delegation . #active . #status)
                         `shouldBe` NotDelegating
+                    (acc ^. #_rewardBalance) `shouldBe` Quantity 0
                 _ -> expectationFailure "wrong number of accounts in \"ours\""
                 )
             , expectField (#_none . #_stake) (.< balance)
+            ]
+
+    it "STAKE_KEY_LIST_03 - Includes reward balance" $ \ctx -> runResourceT $ do
+        (w, _) <- rewardWallet ctx
+        request @(ApiStakeKeys n) ctx (Link.listStakeKeys w) Default Empty
+            >>= flip verify
+            [ expectField (#_foreign) (`shouldBe` [])
+            , expectField (#_ours) (\case
+                [acc] -> do
+                    (acc ^. #_index) `shouldBe` 0
+                    (acc ^. #_stake) .> Quantity 0
+                    acc ^. (#_delegation . #active . #status)
+                        `shouldBe` NotDelegating
+                    (acc ^. #_rewardBalance) .> Quantity 0
+                    acc ^. #_rewardBalance
+                        `shouldBe` (w ^. #balance .  #reward)
+                _ -> expectationFailure "wrong number of accounts in \"ours\""
+                )
+
+            -- The wallet starts with its UTxO funds on enterprise addresses,
+            -- even if it also has rewards in its account.
+            , expectField (#_none . #_stake) (.> Quantity 0)
+            , expectField (#_none . #_stake)
+                (`shouldBe` (w ^. #balance .  #available))
             ]
   where
     metadataPossible = Set.fromList
