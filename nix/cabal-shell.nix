@@ -26,7 +26,7 @@ mkShell rec {
 
   tools = [
     ghc
-    cabal-install
+    haskell-build-tools.cabal-install
     nix
     pkgconfig
   ]
