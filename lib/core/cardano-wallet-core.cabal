@@ -87,7 +87,7 @@ library
     , pretty-simple
     , profunctors
     , quiet
-    , random
+    , random < 1.2
     , random-shuffle
     , resource-pool
     , retry
