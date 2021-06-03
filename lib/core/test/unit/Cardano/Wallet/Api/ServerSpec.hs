@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -38,15 +39,17 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( ApiNetworkInformation (..)
     , ApiStakeKeys (..)
+    , ApiT (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
-    , coinToQuantity
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyNetworkLayer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter, mkTimeInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -81,6 +84,7 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.Generics.Product
 import Data.Map
     ( Map )
 import Data.Maybe
@@ -119,7 +123,6 @@ import Test.QuickCheck
     , NonNegative (..)
     , Property
     , checkCoverage
-    , classify
     , cover
     , elements
     , (===)
@@ -325,24 +328,16 @@ listStakeKeysSpec = do
             property prop_listStakeKeysDisjoint
 
 prop_listStakeKeysDisjoint
-    :: UTxO
-    -> Set RewardAccount
-    -> (Map RewardAccount (Maybe Coin))
+    :: PrettyShow UTxO
+    -> SaneOurStakeKeysInput
+    -> (Map RewardAccount Coin)
     -> Property
-prop_listStakeKeysDisjoint utxo ours' m =
+prop_listStakeKeysDisjoint (PrettyShow utxo) (SaneOurStakeKeysInput ours) m =
     let
-        -- Build a list to pass listStakeKeys'
-        ours = zipWith (\ix acc -> (acc, ix, noDelegation))
-            [(0::Natural) ..]
-            (Set.toList ours')
-
-        ApiStakeKeys{_ours, _foreign, _none } = runIdentity $
+        res@ApiStakeKeys{_ours, _foreign, _none } = runIdentity $
             listStakeKeys' utxo accountOfAddress (const $ pure m) ours
-
-        ourKeys = keys _ours
-        foreignKeys = keys _foreign
     in
-        classify (length ourKeys > 1 && length foreignKeys > 1) "non-trivial" $
+        checkCoverage $ cover 35 (isNonTrivial res) "non-trivial" $
             keys _ours `disjoint` keys _foreign
   where
     labeledCheck notF f a b = counterexample
@@ -351,46 +346,69 @@ prop_listStakeKeysDisjoint utxo ours' m =
 
     disjoint = labeledCheck "is not disjoint from" Set.disjoint
 
-    keys = Set.fromList . map (view #_key)
-
 prop_listStakeKeysBalance
-    :: UTxO
-    -> Set RewardAccount
+    :: PrettyShow UTxO
+    -> SaneOurStakeKeysInput
     -> Property
-prop_listStakeKeysBalance utxo ours' = checkCoverage $
+prop_listStakeKeysBalance (PrettyShow utxo) (SaneOurStakeKeysInput ours) =
     let
-        -- Build a list to pass listStakeKeys'
-        --
-        -- Passing the same account twice in the list would break the
-        -- property, but protecting against this in the implementation of
-        -- listStakeKeys' might not be worth it.
-        ours = zipWith (\ix acc -> (acc, ix, noDelegation))
-            [(0::Natural) ..]
-            (Set.toList ours')
-        ApiStakeKeys{_ours, _foreign, _none } = runIdentity $
+        res@ApiStakeKeys{_ours, _foreign, _none } = runIdentity $
             listStakeKeys' utxo accountOfAddress (const $ pure mempty) ours
 
-        ourKeys = keys _ours
-        foreignKeys = keys _foreign
-        isNonTrivial =
-            length ourKeys > 1
-            && length foreignKeys > 1
-            && totalStake [_none] > 0
-
     in
-       cover 35 isNonTrivial "non-trivial" $
-            ((totalStake _ours) +
-                (totalStake _foreign) +
-                (totalStake [_none]))
+        checkCoverage $ cover 35 (isNonTrivial res) "non-trivial" $
+            mconcat
+                [ totalStake _ours
+                , totalStake _foreign
+                , totalStake [_none]
+                ]
                 ===
-            getQuantity (coinToQuantity (TokenBundle.getCoin (balance utxo)))
-  where
-    keys = Set.fromList . map (view #_key)
-    totalStake = sum . map (getQuantity . view (#_stake))
+            TokenBundle.getCoin (balance utxo)
+
+-- | Type for where the reward accounts and indices are unique.
+--
+-- This is required for some properties, and does not seem worthwhile to protect
+-- against.
+newtype SaneOurStakeKeysInput
+    = SaneOurStakeKeysInput [(RewardAccount, Natural, ApiWalletDelegation)]
+    deriving (Show, Eq)
+
+mockOurStakeKeysInput :: Set RewardAccount -> SaneOurStakeKeysInput
+mockOurStakeKeysInput oursSet = SaneOurStakeKeysInput
+    $ zipWith (\ix acc -> (acc, ix, noDelegation))
+        [(0::Natural) ..]
+        (Set.toList oursSet)
+
+instance Arbitrary SaneOurStakeKeysInput where
+    arbitrary = mockOurStakeKeysInput <$> arbitrary
+    shrink (SaneOurStakeKeysInput x) = map mockOurStakeKeysInput $
+        shrink (Set.fromList (map (\(acc,_,_) -> acc) x))
+
+isNonTrivial :: ApiStakeKeys (n :: NetworkDiscriminant) -> Bool
+isNonTrivial ApiStakeKeys{_ours,_foreign,_none} =
+    length (keys _ours)> 1
+    && length (keys _foreign) > 1
+    && totalStake [_none] > Coin 0
+
+-- | Get the set of @RewardAccount@s from a list of stake keys (works with both
+-- ours and foregin).
+keys
+    :: (HasField' "_key" a (ApiT RewardAccount, proxy))
+    => [a]
+    -> Set RewardAccount
+keys = Set.fromList . map (getApiT . fst . view #_key)
+
+-- | Get the total stake of a list of stake keys (works with ours-, foreign-, or
+-- none-keys).
+totalStake
+    :: (HasField' "_stake" a (Quantity "lovelace" Natural))
+    => [a]
+    -> Coin
+totalStake = foldMap (Coin . fromIntegral . getQuantity . view #_stake)
 
 -- | Just something to pass listStakeKeys
 noDelegation :: ApiWalletDelegation
-noDelegation = ApiWalletDelegation
+noDelegaion = ApiWalletDelegation
     (ApiWalletDelegationNext NotDelegating Nothing Nothing)
     []
 
