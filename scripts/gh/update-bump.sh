@@ -16,3 +16,12 @@ yq eval specifications/api/swagger.yaml -j > specifications/api/swagger.json
 
 bump_swagger validate
 bump_swagger deploy
+
+echo ==============================h
+hxnormalize -x 'https://bump.sh/doc/cardano-wallet-diff/changes' \
+    | hxselect "ul.timeline-event-diff" \
+    | hxselect -s '\n' "ul:first-child" \
+    | sed -z 's/\n[ ]\+/ /g' \
+    | hxselect -c -s '\n' 'li' \
+    | sed 's/^\([ ]*\)\([A-Z][^:]\+: \)\(.*\)$/\1- \2`\3`/g'
+echo ==============================
