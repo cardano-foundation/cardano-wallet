@@ -313,7 +313,8 @@ cardanoRestoreBench tr c socketFile = do
         , benchRestoreSeqWithOwnership (Proxy @4)
 
         , benchRestoreRndWithOwnership (Proxy @0)
-        , benchRestoreRndWithOwnership (Proxy @1)
+        -- benchRestoreRndWithOwnership (Proxy @1)
+        -- Removed to prevent timeout in CI.
         , benchRestoreRndWithOwnership (Proxy @4)
         ]
   where
