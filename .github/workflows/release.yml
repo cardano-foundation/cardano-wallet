@@ -81,12 +81,15 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: 2.7
-      - name: 'Install gems'
-        run: 'gem install bump-cli'
       - name: 'Install dependencies'
-        run: 'sudo snap install yq'
+        run: |
+          gem install bump-cli
+          sudo snap install yq
+          sudo apt-get -yu install html-xml-utils
       - name: 'Update Release in Bump.sh'
         run: './scripts/gh/update-bump.sh'
         env:
           BUMP_SH_DOC_ID: ${{ secrets.BUMP_SH_DOC_ID }}
           BUMP_SH_TOKEN: ${{ secrets.BUMP_SH_TOKEN }}
+      - name: 'Show latest changes from Bump.sh'
+        run: './scripts/gh/show-bump.sh'
