@@ -2691,6 +2691,18 @@ components:
       description: |
         A soft derivation index.
 
+    stakeKeyStake: &stakeKeyStake
+      <<: *amount
+      description: |
+          The current, live stake associated with the stake-key.
+
+          The `stake` and delegation choice at the end of the current epoch `e` will be active during epoch `e+2`.
+          So note that the currently active `delegation` is associated with the stake from a past snapshot, not this field.
+
+    stakeKeyRewardBalance: &stakeKeyRewardBalance
+      <<: *amount
+      description: The current (not lifetime) reward balance of the stake-key.
+
     ApiOurStakeKey: &ApiOurStakeKey
       type: object
       required:
@@ -2702,8 +2714,8 @@ components:
       properties:
         index: *softIndex
         key: *stakeAddress
-        stake: *amount
-        reward_balance: *amount
+        stake: *stakeKeyStake
+        reward_balance: *stakeKeyRewardBalance
         delegation: *ApiWalletDelegation
 
     ApiForeignStakeKey: &ApiForeignStakeKey
@@ -2714,20 +2726,21 @@ components:
         - reward_balance
       properties:
         key: *stakeAddress
-        stake: *amount
-        reward_balance: *amount
+        stake: *stakeKeyStake
+        reward_balance: *stakeKeyRewardBalance
+
     ApiNullStakeKey: &ApiNullStakeKey
       type: object
       required:
         - stake
       properties:
-        stake: *amount
+        stake: *stakeKeyStake
       description: |
         The absence of a stake key. The `stake` field shows how much of the wallet funds
         are not associated with an identifiable stake key.
 
         Most likely, these funds are associated with enterprise addresses lacking staking rights.
-        But they /could/ also be associate with more rare types of addreses like pointer addresses.
+        But they /could/ also be associated with more rare types of addreses like pointer addresses.
     ApiStakeKeys: &ApiStakeKeys
       type: object
       required:
@@ -2744,7 +2757,7 @@ components:
           type: array
           items: *ApiForeignStakeKey
           description: |
-            Stake keys found in the wallet's UTxO, but does not belong to the wallet.
+            Stake keys found in the wallet's UTxO, but which do not belong to the wallet.
 
         "none": *ApiNullStakeKey
 
