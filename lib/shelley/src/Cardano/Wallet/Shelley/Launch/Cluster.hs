@@ -354,11 +354,22 @@ cliConfig tr = cliConfigBase tr Nothing
 -- | A quick helper to interact with the 'cardano-cli'. Assumes the cardano-cli
 -- is available in PATH.
 cli :: Tracer IO ClusterLog -> [String] -> IO ()
-cli tr = cliConfig tr >=> void . readProcessStdout_
+cli tr = cliConfig tr >=> void . readProcessStdoutOrFail
 
 cliLine :: Tracer IO ClusterLog -> [String] -> IO String
 cliLine tr = cliConfig tr >=>
-    fmap (BL8.unpack . getFirstLine) . readProcessStdout_
+    fmap (BL8.unpack . getFirstLine) . readProcessStdoutOrFail
+
+readProcessStdoutOrFail :: ProcessConfig () () () -> IO BL.ByteString
+readProcessStdoutOrFail processConfig = do
+    (st, out, err) <- readProcess processConfig
+    case st of
+        ExitSuccess -> pure out
+        ExitFailure _ -> throwIO $ userError $ mconcat
+            [ "command failed: "
+            , BL8.unpack err
+            ]
+
 
 getFirstLine :: BL8.ByteString -> BL8.ByteString
 getFirstLine = BL8.takeWhile (\c -> c /= '\r' && c /= '\n')
