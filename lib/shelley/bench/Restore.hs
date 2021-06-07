@@ -309,12 +309,10 @@ cardanoRestoreBench tr c socketFile = do
         , benchRestoreMultipleWallets 100 (unsafeMkPercentage 0.01)
 
         , benchRestoreSeqWithOwnership (Proxy @0)
-        , benchRestoreSeqWithOwnership (Proxy @1)
-        , benchRestoreSeqWithOwnership (Proxy @4)
+        , benchRestoreSeqWithOwnership (Proxy @2)
 
         , benchRestoreRndWithOwnership (Proxy @0)
-        , benchRestoreRndWithOwnership (Proxy @1)
-        , benchRestoreRndWithOwnership (Proxy @4)
+        , benchRestoreRndWithOwnership (Proxy @2)
         ]
   where
     walletRnd
