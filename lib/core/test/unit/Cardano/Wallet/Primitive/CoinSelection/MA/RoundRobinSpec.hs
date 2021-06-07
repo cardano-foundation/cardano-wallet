@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -39,6 +40,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
     , balanceMissing
     , coinSelectionLens
+    , collateNonUserSpecifiedAssetQuantities
     , fullBalance
     , groupByKey
     , makeChange
@@ -135,6 +137,8 @@ import Data.Word
     ( Word64, Word8 )
 import Fmt
     ( blockListF, pretty )
+import GHC.Generics
+    ( Generic )
 import Numeric.Natural
     ( Natural )
 import Safe
@@ -300,6 +304,13 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChange
         unitTests "makeChange"
             unit_makeChange
+
+    parallel $ describe "Collating non-user specified asset quantities" $ do
+
+        it "prop_collateNonUserSpecifiedAssetQuantities" $
+            property prop_collateNonUserSpecifiedAssetQuantities
+        describe "unit_collateNonUserSpecifiedAssetQuantities"
+            unit_collateNonUserSpecifiedAssetQuantities
 
     parallel $ describe "assignCoinsToChangeMaps" $ do
         unitTests "assignCoinsToChangeMaps"
@@ -1916,6 +1927,218 @@ unit_makeChange =
 
     assetC :: AssetId
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
+
+--------------------------------------------------------------------------------
+-- Collating non-user-specified asset quantities.
+--------------------------------------------------------------------------------
+
+prop_collateNonUserSpecifiedAssetQuantities
+    :: NonEmpty TokenMap
+    -- ^ Token maps of all selected inputs.
+    -> Set AssetId
+    -- ^ Set of all assets in user-specified outputs.
+    -> Property
+prop_collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
+    checkCoverage $
+    cover 40 bothSetsNonEmpty
+        "both sets non-empty" $
+    cover 1 nonUserSpecifiedAssetIdsEmpty
+        "non-user-specified asset id set is empty" $
+    cover 1 userSpecifiedAssetIdsEmpty
+        "user-specified asset id set is empty" $
+    cover 0.1 bothSetsEmpty
+        "both sets empty" $
+    conjoin
+        [ actualResult === expectedResult
+        , property $
+            userSpecifiedAssetIds `Set.disjoint` nonUserSpecifiedAssetIds
+        ]
+  where
+    actualResult :: Map AssetId (NonEmpty TokenQuantity)
+    actualResult =
+        collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds
+
+    expectedResult :: Map AssetId (NonEmpty TokenQuantity)
+    expectedResult = Map.fromSet getQuantitiesForAsset nonUserSpecifiedAssetIds
+      where
+        getQuantitiesForAsset assetId = NE.fromList $ NE.filter
+            (> TokenQuantity 0)
+            ((`TokenMap.getQuantity` assetId) <$> inputMaps)
+
+    nonUserSpecifiedAssetIds :: Set AssetId
+    nonUserSpecifiedAssetIds =
+        TokenMap.getAssets (F.fold inputMaps)
+        `Set.difference`
+        userSpecifiedAssetIds
+
+    bothSetsEmpty :: Bool
+    bothSetsEmpty = (&&)
+        (Set.null userSpecifiedAssetIds)
+        (Set.null nonUserSpecifiedAssetIds)
+
+    bothSetsNonEmpty :: Bool
+    bothSetsNonEmpty = (&&)
+        (not $ Set.null userSpecifiedAssetIds)
+        (not $ Set.null nonUserSpecifiedAssetIds)
+
+    nonUserSpecifiedAssetIdsEmpty :: Bool
+    nonUserSpecifiedAssetIdsEmpty = (&&)
+        (not $ Set.null userSpecifiedAssetIds)
+        (Set.null nonUserSpecifiedAssetIds)
+
+    userSpecifiedAssetIdsEmpty :: Bool
+    userSpecifiedAssetIdsEmpty = (&&)
+        (Set.null userSpecifiedAssetIds)
+        (not $ Set.null nonUserSpecifiedAssetIds)
+
+data TestDataForCollateNonUserSpecifiedAssetQuantities =
+    TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps
+            :: NonEmpty TokenMap
+        , userSpecifiedAssetIds
+            :: Set AssetId
+        , expectedResult
+            :: Map AssetId (NonEmpty TokenQuantity)
+        }
+    deriving (Eq, Generic)
+
+unit_collateNonUserSpecifiedAssetQuantities :: Spec
+unit_collateNonUserSpecifiedAssetQuantities =
+    forM_ (zip [1..] tests) $ \(testNumber :: Int, test) -> do
+        let title = "Unit test #" <> show testNumber
+        it title $ property $
+            collateNonUserSpecifiedAssetQuantities
+                (view #selectedInputMaps test)
+                (view #userSpecifiedAssetIds test)
+                ===
+                (view #expectedResult test)
+  where
+    mkSelectedInputMaps :: [[(ByteString, Natural)]] -> NonEmpty TokenMap
+    mkSelectedInputMaps
+        = NE.fromList
+        . fmap (TokenMap.fromFlatList . fmap (uncurry mockAssetQuantity))
+
+    mkUserSpecifiedAssetIds :: [ByteString] -> Set AssetId
+    mkUserSpecifiedAssetIds
+        = Set.fromList . fmap mockAsset
+
+    mkExpectedResult
+        :: [(ByteString, [Natural])]
+        -> Map AssetId (NonEmpty TokenQuantity)
+    mkExpectedResult
+        = fmap NE.fromList
+        . Map.fromList
+        . fmap (bimap mockAsset (fmap TokenQuantity))
+
+    tests :: [TestDataForCollateNonUserSpecifiedAssetQuantities]
+    tests = [test1, test2, test3, test4, test5, test6, test7, test8]
+
+    test1 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1)]
+            , [("A", 2)]
+            , [("A", 3)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            []
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2, 3]) ]
+        }
+
+    test2 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1)]
+            , [("A", 2)]
+            , [("A", 3)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "A" ]
+        , expectedResult = mkExpectedResult
+            []
+        }
+
+    test3 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1), ("B", 3)          ]
+            , [          ("B", 4), ("C", 5)]
+            , [("A", 2),           ("C", 6)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            []
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2])
+            , ("B", [3, 4])
+            , ("C", [5, 6])
+            ]
+        }
+
+    test4 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1), ("B", 3)          ]
+            , [          ("B", 4), ("C", 5)]
+            , [("A", 2),           ("C", 6)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "A" ]
+        , expectedResult = mkExpectedResult
+            [ ("B", [3, 4])
+            , ("C", [5, 6])
+            ]
+        }
+
+    test5 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1), ("B", 3)          ]
+            , [          ("B", 4), ("C", 5)]
+            , [("A", 2),           ("C", 6)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "B" ]
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2])
+            , ("C", [5, 6])
+            ]
+        }
+
+    test6 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1), ("B", 3)          ]
+            , [          ("B", 4), ("C", 5)]
+            , [("A", 2),           ("C", 6)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "C" ]
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2])
+            , ("B", [3, 4])
+            ]
+        }
+
+    test7 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1)          ]
+            , [          ("B", 3)]
+            , [("A", 2)          ]
+            , [          ("B", 4)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "A" ]
+        , expectedResult = mkExpectedResult
+            [ ("B", [3, 4]) ]
+        }
+
+    test8 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1)          ]
+            , [          ("B", 3)]
+            , [("A", 2)          ]
+            , [          ("B", 4)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "B" ]
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2]) ]
+        }
 
 --------------------------------------------------------------------------------
 -- Assigning coins to change maps
