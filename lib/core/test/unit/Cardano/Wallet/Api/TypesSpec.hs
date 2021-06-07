@@ -92,6 +92,7 @@ import Cardano.Wallet.Api.Types
     , ApiOurStakeKey
     , ApiPendingSharedWallet (..)
     , ApiPostAccountKeyData
+    , ApiPostAccountKeyDataWithPurpose
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
@@ -401,6 +402,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiAddressData
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyData
+            jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyDataWithPurpose
             jsonRoundtripAndGolden $ Proxy @ApiAccountKey
             jsonRoundtripAndGolden $ Proxy @ApiAccountKeyShared
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
@@ -2051,6 +2053,10 @@ instance Arbitrary ApiPostAccountKeyData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiPostAccountKeyDataWithPurpose where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary TokenFingerprint where
     arbitrary = do
         AssetId policy aName <- genAssetIdSmallRange
@@ -2379,6 +2385,9 @@ instance ToSchema ApiWalletSignData where
 
 instance ToSchema ApiPostAccountKeyData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostAccountKeyData"
+
+instance ToSchema ApiPostAccountKeyDataWithPurpose where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostAccountKeyDataWithPurpose"
 
 instance ToSchema ApiAccountKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKey"
