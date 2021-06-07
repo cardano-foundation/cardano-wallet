@@ -2465,6 +2465,16 @@ components:
         passphrase: *walletPassphrase
         format: *keyExtended
 
+    ApiPostAccountKeyDataWithPurpose: &ApiPostAccountKeyDataWithPurpose
+      type: object
+      required:
+        - passphrase
+        - format
+      properties:
+        passphrase: *walletPassphrase
+        format: *keyExtended
+        purpose: *derivationSegment
+
     ApiSettingsPutData: &ApiSettingsPutData
       type: object
       properties:
@@ -4666,7 +4676,8 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Derive an account public key for any account index. For this key derivation to be possible,
-        the wallet must have been created from mnemonic.
+        the wallet must have been created from mnemonic. In request body, arbitrary purpose can be specified.
+        Omitting the purpose segment means default purpose, ie., 1852H, will be used.
 
         <b>Note:</b> Only _Hardened_ indexes are supported by this endpoint.
       parameters:
@@ -4676,7 +4687,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiPostAccountKeyData
+            schema: *ApiPostAccountKeyDataWithPurpose
       responses: *responsesPostAccountKey
 
   /wallets/{walletId}/keys:
