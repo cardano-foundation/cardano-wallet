@@ -200,6 +200,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Crypto.Wallet
+    ( toXPub )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.DB
@@ -254,11 +256,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey, deriveAccountPrivateKeyShelley )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)
+    , GetPurpose (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -2332,15 +2335,16 @@ readAccountPublicKey ctx wid = db & \DBLayer{..} -> do
 getAccountPublicKeyAtIndex
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
-        , HardDerivation k
         , WalletKey k
+        , GetPurpose k
         )
     => ctx
     -> WalletId
     -> Passphrase "raw"
     -> DerivationIndex
+    -> Maybe DerivationIndex
     -> ExceptT ErrReadAccountPublicKey IO (k 'AccountK XPub)
-getAccountPublicKeyAtIndex ctx wid pwd ix = db & \DBLayer{..} -> do
+getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
     acctIx <- withExceptT ErrReadAccountPublicKeyInvalidIndex $ guardHardIndex ix
 
     _cp <- mapExceptT atomically
@@ -2351,9 +2355,11 @@ getAccountPublicKeyAtIndex ctx wid pwd ix = db & \DBLayer{..} -> do
     withRootKey @ctx @s @k ctx wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            pure $ publicKey $ deriveAccountPrivateKey encPwd rootK acctIx
+            let xprv = deriveAccountPrivateKeyShelley purpose encPwd (getRawKey rootK) acctIx
+            pure $ liftRawKey $ toXPub $ xprv
   where
     db = ctx ^. dbLayer @IO @s @k
+    purpose = fromMaybe (getPurpose @k) (Index . getDerivationIndex <$> purposeM)
 
 guardSoftIndex
     :: Monad m

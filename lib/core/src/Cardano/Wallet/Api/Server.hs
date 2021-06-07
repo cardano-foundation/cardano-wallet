@@ -306,6 +306,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange (ArgGenChange)
     , GetAccount
+    , GetPurpose (..)
     , IsOurs
     , IsOwned
     , KnownAddresses
@@ -2481,8 +2482,8 @@ derivePublicKey ctx mkVer (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
 postAccountPublicKey
     :: forall ctx s k account.
         ( ctx ~ ApiLayer s k
-        , HardDerivation k
         , WalletKey k
+        , GetPurpose k
         )
     => ctx
     -> (ByteString -> KeyFormat -> account)
@@ -2490,9 +2491,9 @@ postAccountPublicKey
     -> ApiT DerivationIndex
     -> ApiPostAccountKeyDataWithPurpose
     -> Handler account
-postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyDataWithPurpose (ApiT pwd) extd _purposeM) = do
+postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyDataWithPurpose (ApiT pwd) extd purposeM) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s @k wrk wid pwd ix
+        k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s @k wrk wid pwd ix (getApiT <$> purposeM)
         pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd
 
 publicKeyToBytes' :: KeyFormat -> XPub -> ByteString
