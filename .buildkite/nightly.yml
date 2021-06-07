@@ -46,6 +46,14 @@ steps:
   #   agents:
   #     system: x86_64-linux
 
+  - label: 'Full cabal build'
+    command: 'nix-shell nix/cabal-shell.nix --arg withCabalCache true --run "scripts/buildkite/cabal-ci.sh build"'
+    env:
+      CABAL_CACHE_ARCHIVE: "/cache/cardano-wallet"
+      CABAL_STORE_DIR: "/build/cardano-wallet.store"
+    agents:
+      system: x86_64-linux
+
   - wait
 
   - label: "Advance linux-tests-pass and all-tests-pass branches"

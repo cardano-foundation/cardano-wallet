@@ -2,11 +2,12 @@
 # It provides the system dependencies required for a stack build.
 { walletPackages ? import ../default.nix {}
 , pkgs ? walletPackages.private.pkgs
+, ghcVersion ? null
 }:
 
 let
   cabalShell = import ./cabal-shell.nix {
-    inherit walletPackages pkgs;
+    inherit walletPackages pkgs ghcVersion;
   };
 in
   cabalShell.overrideAttrs (old: {

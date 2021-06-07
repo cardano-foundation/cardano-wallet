@@ -152,7 +152,7 @@ let
       # cached by CI.
       roots = pkgs.recurseIntoAttrs {
         project = project.roots;
-        haskellBuildUtils = pkgs.haskellBuildUtils.roots;
+        iohk-nix-utils = pkgs.iohk-nix-utils.roots;
       };
     };
   };

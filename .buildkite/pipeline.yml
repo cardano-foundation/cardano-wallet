@@ -36,10 +36,7 @@ steps:
       system: x86_64-linux
 
   - label: 'Check Cabal Configure'
-    command:
-      - 'nix-shell nix/cabal-shell.nix --run "cabal update"'
-      - 'nix-shell nix/cabal-shell.nix --run "cabal configure --enable-tests --enable-benchmarks"'
-      - 'nix-shell nix/cabal-shell.nix --run "cabal configure -frelease --enable-tests --enable-benchmarks"'
+    command: 'nix-shell nix/cabal-shell.nix --run "scripts/buildkite/cabal-ci.sh configure"'
     agents:
       system: x86_64-linux
 

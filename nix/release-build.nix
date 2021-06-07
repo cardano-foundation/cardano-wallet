@@ -15,7 +15,7 @@ pkgs.stdenv.mkDerivation rec {
   name = "${exe.identifier.name}-${version}";
   version = exe.identifier.version;
   phases = [ "installPhase" ];
-  nativeBuildInputs = with pkgs.buildPackages; [ haskellBuildUtils binutils nix ];
+  nativeBuildInputs = with pkgs.buildPackages; [ iohk-nix-utils binutils nix ];
   installPhase = ''
     cp -R ${exe} $out
     chmod -R +w $out
