@@ -962,6 +962,13 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         (_, accXPub3) <- unsafeRequest @ApiAccountKey ctx accountPath payload3
         accXPub1 `shouldNotBe` accXPub3
 
+        let payload4 = Json [json|{
+                "passphrase": #{fixturePassphrase},
+                "format": "extended",
+                "purpose": "1854"
+            }|]
+        resp <- request @ApiAccountKey ctx accountPath Default payload4
+        expectErrorMessage errMsg403WrongIndex resp
   where
     validateAddr resp expected = do
         let addr = getFromResponse id resp

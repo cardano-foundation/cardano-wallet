@@ -3408,7 +3408,8 @@ instance IsServerError ErrReadAccountPublicKey where
     toServerError = \case
         ErrReadAccountPublicKeyRootKey e -> toServerError e
         ErrReadAccountPublicKeyNoSuchWallet e -> toServerError e
-        ErrReadAccountPublicKeyInvalidIndex e -> toServerError e
+        ErrReadAccountPublicKeyInvalidAccountIndex e -> toServerError e
+        ErrReadAccountPublicKeyInvalidPurposeIndex e -> toServerError e
 
 instance IsServerError ErrDerivePublicKey where
     toServerError = \case

@@ -449,7 +449,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromJust, fromMaybe, isJust, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -2345,7 +2345,13 @@ getAccountPublicKeyAtIndex
     -> Maybe DerivationIndex
     -> ExceptT ErrReadAccountPublicKey IO (k 'AccountK XPub)
 getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
-    acctIx <- withExceptT ErrReadAccountPublicKeyInvalidIndex $ guardHardIndex ix
+    acctIx <- withExceptT ErrReadAccountPublicKeyInvalidAccountIndex $ guardHardIndex ix
+
+    when (isJust purposeM) $ do
+        purposeGuarded <- runExceptT $ guardHardIndex (fromJust purposeM)
+        case purposeGuarded of
+            Left err -> throwE $ ErrReadAccountPublicKeyInvalidPurposeIndex err
+            Right _ -> pure ()
 
     _cp <- mapExceptT atomically
         $ withExceptT ErrReadAccountPublicKeyNoSuchWallet
@@ -2356,10 +2362,10 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
             let xprv = deriveAccountPrivateKeyShelley purpose encPwd (getRawKey rootK) acctIx
-            pure $ liftRawKey $ toXPub $ xprv
+            pure $ liftRawKey $ toXPub xprv
   where
     db = ctx ^. dbLayer @IO @s @k
-    purpose = fromMaybe (getPurpose @k) (Index . getDerivationIndex <$> purposeM)
+    purpose = maybe (getPurpose @k) (Index . getDerivationIndex) purposeM
 
 guardSoftIndex
     :: Monad m
@@ -2373,7 +2379,7 @@ guardSoftIndex ix =
 guardHardIndex
     :: Monad m
     => DerivationIndex
-    -> ExceptT (ErrInvalidDerivationIndex 'Hardened 'AccountK) m (Index 'Hardened whatever)
+    -> ExceptT (ErrInvalidDerivationIndex 'Hardened level) m (Index 'Hardened whatever)
 guardHardIndex ix =
     if ix > DerivationIndex (getIndex @'Hardened maxBound) || ix < DerivationIndex (getIndex @'Hardened minBound)
     then throwE $ ErrIndexOutOfBound minBound maxBound ix
@@ -2472,8 +2478,10 @@ data ErrConstructSharedWallet
 data ErrReadAccountPublicKey
     = ErrReadAccountPublicKeyNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrReadAccountPublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
-        -- ^ User provided a derivation index outside of the 'Hard' domain
+    | ErrReadAccountPublicKeyInvalidAccountIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
+        -- ^ User provided a derivation index for account outside of the 'Hard' domain
+    | ErrReadAccountPublicKeyInvalidPurposeIndex (ErrInvalidDerivationIndex 'Hardened 'PurposeK)
+        -- ^ User provided a derivation index for purpose outside of the 'Hard' domain
     | ErrReadAccountPublicKeyRootKey ErrWithRootKey
         -- ^ The wallet exists, but there's no root key attached to it
     deriving (Eq, Show)
