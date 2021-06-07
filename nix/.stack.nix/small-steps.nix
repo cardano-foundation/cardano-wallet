@@ -31,15 +31,16 @@
           (hsPkgs."ansi-wl-pprint" or (errorHandler.buildDepError "ansi-wl-pprint"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
           (hsPkgs."free" or (errorHandler.buildDepError "free"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
+          (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
@@ -47,23 +48,12 @@
           ];
         buildable = true;
         };
-      tests = {
-        "doctests" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.10") (hsPkgs."doctest" or (errorHandler.buildDepError "doctest"));
-          build-tools = [
-            (hsPkgs.buildPackages.doctest-discover.components.exes.doctest-discover or (pkgs.buildPackages.doctest-discover or (errorHandler.buildToolDepError "doctest-discover:doctest-discover")))
-            ];
-          buildable = true;
-          };
-        };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "2e0e7b625492e5e0182464247f4c26d6949ab6f7";
-      sha256 = "14affgsf0yl0y5mf9c5r9d9jvah2crrvcslq5cc2h4wii1agl07z";
+      rev = "e8f19bcc9c8f405131cb95ca6ada26b2b4eac638";
+      sha256 = "1v36d3lyhmadzj0abdfsppjna7n7llzqzp9ikx5yq28l2kda2f1p";
       });
     postUnpack = "sourceRoot+=/semantics/executable-spec; echo source root reset to \$sourceRoot";
     }

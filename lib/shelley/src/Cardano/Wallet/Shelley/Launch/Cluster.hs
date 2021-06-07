@@ -531,7 +531,7 @@ withCluster tr dir LocalClusterConfig{..} onClusterStart =
             waitForSocket tr bftSocket
 
             (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
-            tx <- signTx tr dir rawTx [] [faucetPrv]
+            tx <- signTx tr dir rawTx [faucetPrv]
             submitTx tr bftSocket "pre-registered stake key" tx
 
             waitGroup <- newChan
@@ -781,7 +781,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
             ]
     (rawTx, faucetPrv) <- preparePoolRegistration
         tr dir stakePub certificates pledgeAmt
-    tx <- signTx tr dir rawTx [] [faucetPrv, stakePrv, opPrv]
+    tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
             { nodeDir = dir
@@ -1294,6 +1294,9 @@ sendFaucet tr conn dir what targets = do
 
     let targetAssets = concatMap (snd . TokenBundle.toFlatList . fst . snd) targets
 
+    scripts <- forM (nub $ concatMap (map snd . snd . snd) targets) $
+        writeMonetaryPolicyScriptFile dir
+
     cli tr $
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
@@ -1304,14 +1307,13 @@ sendFaucet tr conn dir what targets = do
         , "--out-file", file
         ] ++
         concatMap (uncurry mkOutput . fmap fst) targets ++
-        mkMint targetAssets
+        mkMint targetAssets ++
+        (concatMap (\f -> ["--minting-script-file", f]) scripts)
 
     policyKeys <- forM (nub $ concatMap (snd . snd) targets) $
         \(skey, keyHash) -> writePolicySigningKey dir keyHash skey
-    scripts <- forM (nub $ concatMap (map snd . snd . snd) targets) $
-        writeMonetaryPolicyScriptFile dir
 
-    tx <- signTx tr dir file scripts (faucetPrv:policyKeys)
+    tx <- signTx tr dir file (faucetPrv:policyKeys)
     submitTx tr conn (what ++ " faucet tx") tx
 
 batch :: Int -> [a] -> ([a] -> IO b) -> IO ()
@@ -1354,7 +1356,7 @@ moveInstantaneousRewardsTo tr conn dir targets = do
     testData <- getShelleyTestDataPath
     let bftPrv = testData </> "bft-leader" <> ".skey"
 
-    tx <- signTx tr dir file [] [faucetPrv, bftPrv]
+    tx <- signTx tr dir file [faucetPrv, bftPrv]
     submitTx tr conn "MIR certificates" tx
   where
     mkVerificationKey
@@ -1445,10 +1447,9 @@ signTx
     :: Tracer IO ClusterLog
     -> FilePath -- ^ Output directory
     -> FilePath -- ^ Tx body file
-    -> [FilePath] -- ^ Script files
     -> [FilePath] -- ^ Signing keys for witnesses
     -> IO FilePath
-signTx tr dir rawTx scripts keys = do
+signTx tr dir rawTx keys = do
     let file = dir </> "tx.signed"
     cli tr $
         [ "transaction", "sign"
@@ -1456,7 +1457,6 @@ signTx tr dir rawTx scripts keys = do
         , "--mainnet"
         , "--out-file", file
         ]
-        ++ concatMap (\s -> ["--script-file", s]) scripts
         ++ concatMap (\key -> ["--signing-key-file", key]) keys
     pure file
 

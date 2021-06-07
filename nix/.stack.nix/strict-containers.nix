@@ -8,34 +8,34 @@
   , config
   , ... }:
   {
-    flags = { development = false; external-libsodium-vrf = true; };
+    flags = { development = false; };
     package = {
-      specVersion = "2.2";
-      identifier = { name = "cardano-crypto-praos"; version = "2.0.0"; };
+      specVersion = "1.10";
+      identifier = { name = "strict-containers"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019-2021 IOHK";
+      copyright = "IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
       homepage = "";
       url = "";
-      synopsis = "Crypto primitives from libsodium";
-      description = "VRF (and KES, tba) primitives from libsodium.";
+      synopsis = "Various strict container types";
+      description = "";
       buildType = "Simple";
       isLocal = true;
       };
     components = {
       "library" = {
         depends = [
+          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-          (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
+          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."fingertree" or (errorHandler.buildDepError "fingertree"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          ];
-        pkgconfig = [
-          (pkgconfPkgs."libsodium" or (errorHandler.pkgConfDepError "libsodium"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           ];
         buildable = true;
         };
@@ -46,5 +46,5 @@
       rev = "47db5b818ca4fa051f2e44cdf5e7c5c18c1fb0bf";
       sha256 = "0fr0r5dwfmsp15j19xh20js8nzsqyhwx4q797rxsvpyjfabb2y11";
       });
-    postUnpack = "sourceRoot+=/cardano-crypto-praos; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/strict-containers; echo source root reset to \$sourceRoot";
     }

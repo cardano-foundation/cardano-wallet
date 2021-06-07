@@ -11,6 +11,7 @@
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -51,7 +52,7 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , ByronEra
     , CardanoEra (..)
-    , IsShelleyBasedEra
+    , IsShelleyBasedEra (..)
     , NetworkId
     , SerialiseAsCBOR (..)
     , ShelleyBasedEra (..)
@@ -108,9 +109,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txSizeDistance
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( AllegraEra
-    , ShelleyEra
-    , fromAllegraTx
+    ( fromAllegraTx
     , fromMaryTx
     , fromShelleyTx
     , maxTokenBundleSerializedLengthBytes
@@ -187,6 +186,7 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
@@ -204,14 +204,14 @@ data TxPayload era = TxPayload
     , _certificates :: [Cardano.Certificate]
       -- ^ Certificates to be included in the transactions.
 
-    , _extraWitnesses :: Cardano.TxBody era -> [Cardano.Witness era]
+    , _extraWitnesses :: Cardano.TxBody era -> [Cardano.KeyWitness era]
       -- ^ Create payload-specific witesses given the unsigned transaction body.
       --
       -- Caller has the freedom and responsibility to provide the correct
       -- witnesses for what they're trying to do.
     }
 
-emptyTxPayload :: TxPayload c
+emptyTxPayload :: TxPayload era
 emptyTxPayload = TxPayload Nothing mempty mempty
 
 data TxWitnessTag
@@ -1077,7 +1077,8 @@ withShelleyBasedEra era fn = case era of
 --
 -- Which suggests that we may get away with Shelley-only transactions for now?
 mkUnsignedTx
-    :: ShelleyBasedEra era
+    :: forall era.  Cardano.IsCardanoEra era
+    => ShelleyBasedEra era
     -> Cardano.SlotNo
     -> SelectionResult TxOut
     -> Maybe Cardano.TxMetadata
@@ -1086,132 +1087,92 @@ mkUnsignedTx
     -> Cardano.Lovelace
     -> Either ErrMkTx (Cardano.TxBody era)
 mkUnsignedTx era ttl cs md wdrls certs fees =
-    case era of
-        ShelleyBasedEraShelley -> mkShelleyTx
-        ShelleyBasedEraAllegra -> mkAllegraTx
-        ShelleyBasedEraMary    -> mkMaryTx
+    left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
+    { Cardano.txIns =
+        (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
+        . toCardanoTxIn
+        . fst <$> F.toList (inputsSelected cs)
+
+    , Cardano.txOuts =
+        toShelleyBasedTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
+
+    , Cardano.txWithdrawals =
+        let
+            wit = Cardano.BuildTxWith
+                $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
+        in
+            Cardano.TxWithdrawals wdrlsSupported
+                (map (\(key, coin) -> (key, coin, wit)) wdrls)
+
+    , Cardano.txCertificates =
+        let
+            -- It seems that passing Map.empty here works just fine.
+            witMap = Map.empty
+            ctx = Cardano.BuildTxWith witMap
+        in
+            Cardano.TxCertificates certSupported certs ctx
+
+    , Cardano.txFee = explicitFees fees
+
+    , Cardano.txValidityRange =
+        ( Cardano.TxValidityNoLowerBound
+        , Cardano.TxValidityUpperBound txValidityUpperBoundSupported ttl
+        )
+
+    , Cardano.txMetadata =
+        maybe
+            Cardano.TxMetadataNone
+            (Cardano.TxMetadataInEra metadataSupported)
+            md
+
+    , Cardano.txAuxScripts =
+        Cardano.TxAuxScriptsNone
+
+    , Cardano.txUpdateProposal =
+        Cardano.TxUpdateProposalNone
+
+    , Cardano.txMintValue =
+        Cardano.TxMintNone
+    }
   where
-    mkShelleyTx :: Either ErrMkTx (Cardano.TxBody ShelleyEra)
-    mkShelleyTx = left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
-        { Cardano.txIns =
-            toCardanoTxIn . fst <$> F.toList (inputsSelected cs)
+    toErrMkTx :: Cardano.TxBodyError era -> ErrMkTx
+    toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
 
-        , Cardano.txOuts =
-            toShelleyTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
+    toShelleyBasedTxOut :: TxOut -> Cardano.TxOut era
+    toShelleyBasedTxOut = case era of
+        ShelleyBasedEraShelley -> toShelleyTxOut
+        ShelleyBasedEraAllegra -> toAllegraTxOut
+        ShelleyBasedEraMary -> toMaryTxOut
 
-        , Cardano.txWithdrawals =
-            Cardano.TxWithdrawals Cardano.WithdrawalsInShelleyEra wdrls
+    metadataSupported :: Cardano.TxMetadataSupportedInEra era
+    metadataSupported = case era of
+        ShelleyBasedEraShelley -> Cardano.TxMetadataInShelleyEra
+        ShelleyBasedEraAllegra -> Cardano.TxMetadataInAllegraEra
+        ShelleyBasedEraMary -> Cardano.TxMetadataInMaryEra
 
-        , Cardano.txCertificates =
-            Cardano.TxCertificates Cardano.CertificatesInShelleyEra certs
+    certSupported :: Cardano.CertificatesSupportedInEra era
+    certSupported = case era of
+        ShelleyBasedEraShelley -> Cardano.CertificatesInShelleyEra
+        ShelleyBasedEraAllegra -> Cardano.CertificatesInAllegraEra
+        ShelleyBasedEraMary    -> Cardano.CertificatesInMaryEra
 
-        , Cardano.txFee =
-            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra fees
+    explicitFees :: Cardano.Lovelace -> Cardano.TxFee era
+    explicitFees = case era of
+        ShelleyBasedEraShelley -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra
+        ShelleyBasedEraAllegra -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra
+        ShelleyBasedEraMary    -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra
 
-        , Cardano.txValidityRange =
-            ( Cardano.TxValidityNoLowerBound
-            , Cardano.TxValidityUpperBound Cardano.ValidityUpperBoundInShelleyEra ttl
-            )
+    wdrlsSupported :: Cardano.WithdrawalsSupportedInEra era
+    wdrlsSupported = case era of
+        ShelleyBasedEraShelley -> Cardano.WithdrawalsInShelleyEra
+        ShelleyBasedEraAllegra -> Cardano.WithdrawalsInAllegraEra
+        ShelleyBasedEraMary    -> Cardano.WithdrawalsInMaryEra
 
-        , Cardano.txMetadata =
-            maybe
-                Cardano.TxMetadataNone
-                (Cardano.TxMetadataInEra Cardano.TxMetadataInShelleyEra)
-                md
-
-        , Cardano.txAuxScripts =
-            Cardano.TxAuxScriptsNone
-
-        , Cardano.txUpdateProposal =
-            Cardano.TxUpdateProposalNone
-
-        , Cardano.txMintValue =
-            Cardano.TxMintNone
-        }
-      where
-        toErrMkTx :: Cardano.TxBodyError ShelleyEra -> ErrMkTx
-        toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
-
-    mkAllegraTx :: Either ErrMkTx (Cardano.TxBody AllegraEra)
-    mkAllegraTx = left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
-        { Cardano.txIns =
-            toCardanoTxIn . fst <$> F.toList (inputsSelected cs)
-
-        , Cardano.txOuts =
-            toAllegraTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
-
-        , Cardano.txWithdrawals =
-            Cardano.TxWithdrawals Cardano.WithdrawalsInAllegraEra wdrls
-
-        , Cardano.txCertificates =
-            Cardano.TxCertificates Cardano.CertificatesInAllegraEra certs
-
-        , Cardano.txFee =
-            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra fees
-
-        , Cardano.txValidityRange =
-            ( Cardano.TxValidityNoLowerBound
-            , Cardano.TxValidityUpperBound Cardano.ValidityUpperBoundInAllegraEra ttl
-            )
-
-        , Cardano.txMetadata =
-            maybe
-                Cardano.TxMetadataNone
-                (Cardano.TxMetadataInEra Cardano.TxMetadataInAllegraEra)
-                md
-
-        , Cardano.txAuxScripts =
-            Cardano.TxAuxScriptsNone
-
-        , Cardano.txUpdateProposal =
-            Cardano.TxUpdateProposalNone
-
-        , Cardano.txMintValue =
-            Cardano.TxMintNone
-        }
-      where
-        toErrMkTx :: Cardano.TxBodyError AllegraEra -> ErrMkTx
-        toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
-
-
-    mkMaryTx = left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
-        { Cardano.txIns =
-            toCardanoTxIn . fst <$> F.toList (inputsSelected cs)
-
-        , Cardano.txOuts =
-            toMaryTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
-
-        , Cardano.txWithdrawals =
-            Cardano.TxWithdrawals Cardano.WithdrawalsInMaryEra wdrls
-
-        , Cardano.txCertificates =
-            Cardano.TxCertificates Cardano.CertificatesInMaryEra certs
-
-        , Cardano.txFee =
-            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra fees
-
-        , Cardano.txValidityRange =
-            ( Cardano.TxValidityNoLowerBound
-            , Cardano.TxValidityUpperBound Cardano.ValidityUpperBoundInMaryEra ttl
-            )
-
-        , Cardano.txMetadata =
-            maybe
-                Cardano.TxMetadataNone
-                (Cardano.TxMetadataInEra Cardano.TxMetadataInMaryEra)
-                md
-
-        , Cardano.txAuxScripts =
-            Cardano.TxAuxScriptsNone
-
-        , Cardano.txUpdateProposal =
-            Cardano.TxUpdateProposalNone
-
-        , Cardano.txMintValue =
-            Cardano.TxMintNone
-        }
-      where
-        toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
+    txValidityUpperBoundSupported :: Cardano.ValidityUpperBoundSupportedInEra era
+    txValidityUpperBoundSupported = case era of
+        ShelleyBasedEraShelley -> Cardano.ValidityUpperBoundInShelleyEra
+        ShelleyBasedEraAllegra -> Cardano.ValidityUpperBoundInAllegraEra
+        ShelleyBasedEraMary -> Cardano.ValidityUpperBoundInMaryEra
 
 mkWithdrawals
     :: NetworkId
@@ -1229,7 +1190,7 @@ mkShelleyWitness
     :: IsShelleyBasedEra era
     => Cardano.TxBody era
     -> (XPrv, Passphrase "encryption")
-    -> Cardano.Witness era
+    -> Cardano.KeyWitness era
 mkShelleyWitness body key =
     Cardano.makeShelleyKeyWitness body (unencrypt key)
   where
@@ -1243,8 +1204,8 @@ mkByronWitness
     -> Cardano.NetworkId
     -> Address
     -> (XPrv, Passphrase "encryption")
-    -> Cardano.Witness era
-mkByronWitness (Cardano.ShelleyTxBody era body _) nw addr encryptedKey =
+    -> Cardano.KeyWitness era
+mkByronWitness (Cardano.ShelleyTxBody era body _scripts _auxData) nw addr encryptedKey =
     Cardano.ShelleyBootstrapWitness era $
         SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr
   where

@@ -146,6 +146,7 @@ import Test.QuickCheck
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Shelley as SL
+import qualified Cardano.Ledger.Shelley as SLAPI
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -212,7 +213,7 @@ spec = do
 
     describe "decentralizationLevelFromPParams" $ do
 
-        let mkDecentralizationParam :: SL.UnitInterval -> SL.PParams (SL.ShelleyEra StandardCrypto)
+        let mkDecentralizationParam :: SL.UnitInterval -> SLAPI.PParams (SL.ShelleyEra StandardCrypto)
             mkDecentralizationParam i = SL.emptyPParams { SL._d = i }
 
         let testCases :: [(Ratio Word64, Text)]

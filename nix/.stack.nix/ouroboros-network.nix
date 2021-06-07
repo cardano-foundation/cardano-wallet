@@ -43,6 +43,7 @@
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+          (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
@@ -67,6 +68,7 @@
             (hsPkgs."pipes" or (errorHandler.buildDepError "pipes"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+            (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
@@ -77,6 +79,7 @@
             (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
             (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
             (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
+            (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
             (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
             ];
           buildable = true;
@@ -129,6 +132,7 @@
             (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
             (hsPkgs."splitmix" or (errorHandler.buildDepError "splitmix"))
             (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+            (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
@@ -162,12 +166,16 @@
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."fingertree" or (errorHandler.buildDepError "fingertree"))
             (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
+            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
             (hsPkgs."pipes" or (errorHandler.buildDepError "pipes"))
             (hsPkgs."process-extras" or (errorHandler.buildDepError "process-extras"))
             (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
             (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
@@ -187,8 +195,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "7f90c8c59ffc7d61a4e161e886d8962a9c26787a";
-      sha256 = "0hnw6hvbyny3wniaqw8d37l4ysgp8xrq5d84fapxfm525a4hfs0x";
+      rev = "9b279c7548ee549e1ed755cd1acb69b6e69d0c7b";
+      sha256 = "0d7bk9vzmhhb2z4ns2qw7f1vz6lr186m98sh8wvrnfpxk3z86dxb";
       });
     postUnpack = "sourceRoot+=/ouroboros-network; echo source root reset to \$sourceRoot";
     }

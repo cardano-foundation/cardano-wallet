@@ -264,6 +264,8 @@ import Ouroboros.Network.Point
     ( WithOrigin (..) )
 import Shelley.Spec.Ledger.BaseTypes
     ( interval0, strictMaybeToMaybe, urlToText )
+import Shelley.Spec.Ledger.Serialization
+    ( ToCBORGroup )
 import Type.Reflection
     ( Typeable, typeRep )
 
@@ -278,6 +280,7 @@ import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Crypto as SL
+import qualified Cardano.Ledger.Era as Ledger.Era
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley.Constraints as SL
@@ -309,6 +312,7 @@ import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.API as SL
+import qualified Shelley.Spec.Ledger.API as SLAPI
 import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Credential as SL
@@ -433,7 +437,7 @@ toCardanoBlockHeader gp = \case
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
 
 toShelleyBlockHeader
-    :: Era e
+    :: (Era e, ToCBORGroup (Ledger.Era.TxSeq e))
     => W.Hash "Genesis"
     -> ShelleyBlock e
     -> W.BlockHeader
@@ -453,7 +457,9 @@ toShelleyBlockHeader genesisHash blk =
                     SL.bheaderPrev header
             }
 
-getProducer :: Era e => ShelleyBlock e -> W.PoolId
+getProducer
+    :: (Era e, ToCBORGroup (Ledger.Era.TxSeq e))
+    => ShelleyBlock e -> W.PoolId
 getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
@@ -597,7 +603,7 @@ fromMaxTxSize =
     Quantity . fromIntegral
 
 fromShelleyPParams
-    :: forall era. W.EraInfo Bound -> SL.PParams era -> W.ProtocolParameters
+    :: forall era. W.EraInfo Bound -> SLAPI.PParams era -> W.ProtocolParameters
 fromShelleyPParams eraInfo pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
@@ -635,7 +641,7 @@ fromShelleyPParams eraInfo pp = W.ProtocolParameters
 -- convert it into a percentage.
 --
 decentralizationLevelFromPParams
-    :: SL.PParams era
+    :: SLAPI.PParams era
     -> W.DecentralizationLevel
 decentralizationLevelFromPParams pp =
     W.DecentralizationLevel $ fromUnitInterval
@@ -645,7 +651,7 @@ decentralizationLevelFromPParams pp =
     d = SL._d pp
 
 txParametersFromPParams
-    :: SL.PParams era
+    :: SLAPI.PParams era
     -> W.TxParameters
 txParametersFromPParams pp = W.TxParameters
     { getFeePolicy = W.LinearFee
@@ -658,17 +664,17 @@ txParametersFromPParams pp = W.TxParameters
     naturalToDouble = fromIntegral
 
 desiredNumberOfStakePoolsFromPParams
-    :: SL.PParams era
+    :: SLAPI.PParams era
     -> Word16
 desiredNumberOfStakePoolsFromPParams pp = fromIntegral (SL._nOpt pp)
 
 minimumUTxOvalueFromPParams
-    :: SL.PParams era
+    :: SLAPI.PParams era
     -> W.Coin
 minimumUTxOvalueFromPParams = toWalletCoin . SL._minUTxOValue
 
 stakeKeyDepositFromPParams
-    :: SL.PParams era
+    :: SLAPI.PParams era
     -> W.Coin
 stakeKeyDepositFromPParams = toWalletCoin . SL._keyDeposit
 
@@ -780,7 +786,10 @@ fromNonMyopicMemberRewards =
     . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
     . O.unNonMyopicMemberRewards
 
-optimumNumberOfPools :: forall era. (SL.PParams era ~ SL.Core.PParams era) => SL.Core.PParams era -> Int
+optimumNumberOfPools
+    :: forall era. (SLAPI.PParams era ~ SL.Core.PParams era)
+    => SL.Core.PParams era
+    -> Int
 optimumNumberOfPools = unsafeConvert . SL._nOpt
   where
     -- A value of ~100 can be expected, so should be fine.
@@ -809,9 +818,9 @@ fromShelleyTxOut
     :: ( SL.ShelleyBased era
        , SL.Core.Value era ~ SL.Coin
        )
-    => SL.TxOut era
+    => SLAPI.TxOut era
     -> W.TxOut
-fromShelleyTxOut (SL.TxOut addr amount) = W.TxOut
+fromShelleyTxOut (SLAPI.TxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ fromShelleyCoin amount)
 
@@ -834,7 +843,7 @@ toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
-    :: SL.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
+    :: SLAPI.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
@@ -854,7 +863,7 @@ fromShelleyTx tx =
     SL.Tx bod@(SL.TxBody ins outs certs wdrls fee _ _ _) _ mmd = tx
 
 fromAllegraTx
-    :: SL.Tx (Cardano.ShelleyLedgerEra AllegraEra)
+    :: SLAPI.Tx (Cardano.ShelleyLedgerEra AllegraEra)
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
@@ -879,7 +888,7 @@ fromAllegraTx tx =
     toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
 
 fromMaryTx
-    :: SL.Tx (Cardano.ShelleyLedgerEra MaryEra)
+    :: SLAPI.Tx (Cardano.ShelleyLedgerEra MaryEra)
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
@@ -905,7 +914,7 @@ fromMaryTx tx =
     toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
 
     fromMaryTxOut
-         :: SL.TxOut (Cardano.ShelleyLedgerEra MaryEra)
+         :: SLAPI.TxOut (Cardano.ShelleyLedgerEra MaryEra)
          -> W.TxOut
     fromMaryTxOut (SL.TxOut addr value) =
         W.TxOut (fromShelleyAddress addr) $
@@ -1085,7 +1094,7 @@ unsealShelleyTx wrap = wrap
 
 sealShelleyTx
     :: forall era b c. (O.ShelleyBasedEra (Cardano.ShelleyLedgerEra era))
-    => (SL.Tx (Cardano.ShelleyLedgerEra era) -> (W.Tx, b, c))
+    => (SLAPI.Tx (Cardano.ShelleyLedgerEra era) -> (W.Tx, b, c))
     -> Cardano.Tx era
     -> (W.Tx, W.SealedTx)
 sealShelleyTx fromTx (Cardano.ShelleyTx _era tx) =

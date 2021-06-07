@@ -44,6 +44,7 @@ library
     , cardano-crypto-wrapper
     , cardano-wallet-launcher
     , cardano-ledger-byron
+    , cardano-ledger-core
     , cardano-ledger-shelley-ma
     , cardano-slotting
     , cardano-wallet-cli
@@ -206,9 +207,10 @@ test-suite unit
     , cardano-addresses
     , cardano-api
     , cardano-crypto-class
+    , cardano-ledger-core
+    , cardano-wallet
     , cardano-wallet-core
     , cardano-wallet-test-utils
-    , cardano-wallet
     , containers
     , contra-tracer
     , fmt

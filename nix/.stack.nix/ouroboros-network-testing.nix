@@ -27,7 +27,9 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
+          (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
@@ -38,8 +40,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "f0eb6e439e7c0121476ded5e88d2f638e8aa36ac";
-      sha256 = "0pii9myzb5ckf2vagd9b7fsmk78w72z8lw3zyyfzw58dyapy5c70";
+      rev = "9b279c7548ee549e1ed755cd1acb69b6e69d0c7b";
+      sha256 = "0d7bk9vzmhhb2z4ns2qw7f1vz6lr186m98sh8wvrnfpxk3z86dxb";
       });
     postUnpack = "sourceRoot+=/ouroboros-network-testing; echo source root reset to \$sourceRoot";
     }

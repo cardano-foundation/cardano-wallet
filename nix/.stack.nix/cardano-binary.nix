@@ -10,7 +10,7 @@
   {
     flags = { development = false; };
     package = {
-      specVersion = "1.10";
+      specVersion = "2.2";
       identifier = { name = "cardano-binary"; version = "1.5.0"; };
       license = "Apache-2.0";
       copyright = "2019-2021 IOHK";
@@ -27,13 +27,13 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."data-fix" or (errorHandler.buildDepError "data-fix"))
-          (hsPkgs."digest" or (errorHandler.buildDepError "digest"))
           (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
@@ -50,6 +50,7 @@
         "test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
@@ -64,6 +65,7 @@
             (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
             (hsPkgs."tagged" or (errorHandler.buildDepError "tagged"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
             ];
           buildable = true;
@@ -73,8 +75,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "101e7752cf4b23fd0b411736f523b8f6c43f6bc2";
-      sha256 = "04qnq9a3mhfqsisln2sygfm0xkkvj8f8hdzxm1qn2ss0mfsfzx8y";
+      rev = "47db5b818ca4fa051f2e44cdf5e7c5c18c1fb0bf";
+      sha256 = "0fr0r5dwfmsp15j19xh20js8nzsqyhwx4q797rxsvpyjfabb2y11";
       });
     postUnpack = "sourceRoot+=/binary; echo source root reset to \$sourceRoot";
     }

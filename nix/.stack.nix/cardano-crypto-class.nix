@@ -10,7 +10,7 @@
   {
     flags = { development = false; };
     package = {
-      specVersion = "1.10";
+      specVersion = "2.2";
       identifier = { name = "cardano-crypto-class"; version = "2.0.0"; };
       license = "Apache-2.0";
       copyright = "2019-2021 IOHK";
@@ -26,6 +26,7 @@
     components = {
       "library" = {
         depends = [
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
@@ -52,6 +53,7 @@
         "test-memory-example" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
             ] ++ (pkgs.lib).optional (system.isLinux || system.isOsx) (hsPkgs."unix" or (errorHandler.buildDepError "unix"));
@@ -62,8 +64,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "101e7752cf4b23fd0b411736f523b8f6c43f6bc2";
-      sha256 = "04qnq9a3mhfqsisln2sygfm0xkkvj8f8hdzxm1qn2ss0mfsfzx8y";
+      rev = "47db5b818ca4fa051f2e44cdf5e7c5c18c1fb0bf";
+      sha256 = "0fr0r5dwfmsp15j19xh20js8nzsqyhwx4q797rxsvpyjfabb2y11";
       });
     postUnpack = "sourceRoot+=/cardano-crypto-class; echo source root reset to \$sourceRoot";
     }
