@@ -63,6 +63,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForUserSpecifiedAsset
     , makeChangeForNonUserSpecifiedAsset
     , assignCoinsToChangeMaps
+    , collateNonUserSpecifiedAssetQuantities
 
     -- * Splitting bundles
     , splitBundleIfAssetCountExcessive
@@ -1138,13 +1139,32 @@ makeChange criteria
     -- present in the selected inputs.
     nonUserSpecifiedAssets :: [(AssetId, NonEmpty TokenQuantity)]
     nonUserSpecifiedAssets = Map.toList $
-        F.foldr discardUserSpecifiedAssets mempty inputBundles
+        collateNonUserSpecifiedAssetQuantities
+            (view #tokens <$> inputBundles) userSpecifiedAssetIds
 
+-- | Generates a map of all non-user-specified assets and their quantities.
+--
+-- Each key in the resulting map corresponds to an asset that was NOT included
+-- in the original set of user-specified outputs, but that was nevertheless
+-- selected during the selection process.
+--
+-- The value associated with each key corresponds to the complete list of all
+-- discrete non-zero quantities of that asset present in the selected inputs.
+--
+collateNonUserSpecifiedAssetQuantities
+    :: NonEmpty TokenMap
+      -- ^ Token maps of all selected inputs.
+    -> Set AssetId
+      -- ^ Set of all assets in user-specified outputs.
+    -> Map AssetId (NonEmpty TokenQuantity)
+collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
+    F.foldr discardUserSpecifiedAssets mempty inputMaps
+  where
     discardUserSpecifiedAssets
-        :: TokenBundle
+        :: TokenMap
         -> Map AssetId (NonEmpty TokenQuantity)
         -> Map AssetId (NonEmpty TokenQuantity)
-    discardUserSpecifiedAssets (TokenBundle _ tokens) m =
+    discardUserSpecifiedAssets tokens m =
         foldr (\(k, v) -> Map.insertWith (<>) k (v :| [])) m filtered
       where
         filtered = filter
