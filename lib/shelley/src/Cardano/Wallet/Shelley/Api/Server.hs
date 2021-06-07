@@ -132,6 +132,8 @@ import Cardano.Wallet.Api.Types
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
+    , ApiPostAccountKeyData (..)
+    , ApiPostAccountKeyDataWithPurpose (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool
@@ -524,8 +526,12 @@ server byron icarus shelley multisig spl ntp =
         :: ApiLayer (SharedState n SharedKey) SharedKey
         -> Server SharedWalletKeys
     sharedWalletKeys apilayer = derivePublicKey apilayer ApiVerificationKeyShared
-        :<|> postAccountPublicKey apilayer ApiAccountKeyShared
+        :<|> (\wid ix p -> postAccountPublicKey apilayer ApiAccountKeyShared wid ix (toKeyDataPurpose p) )
         :<|> getAccountPublicKey apilayer ApiAccountKeyShared
+      where
+          toKeyDataPurpose :: ApiPostAccountKeyData -> ApiPostAccountKeyDataWithPurpose
+          toKeyDataPurpose (ApiPostAccountKeyData p f) =
+              ApiPostAccountKeyDataWithPurpose p f Nothing
 
     sharedAddresses
         :: ApiLayer (SharedState n SharedKey) SharedKey

@@ -207,7 +207,7 @@ import Cardano.Wallet.Api.Types
     , ApiOurStakeKey (..)
     , ApiPendingSharedWallet (..)
     , ApiPoolId (..)
-    , ApiPostAccountKeyData (..)
+    , ApiPostAccountKeyDataWithPurpose (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
@@ -2488,9 +2488,9 @@ postAccountPublicKey
     -> (ByteString -> KeyFormat -> account)
     -> ApiT WalletId
     -> ApiT DerivationIndex
-    -> ApiPostAccountKeyData
+    -> ApiPostAccountKeyDataWithPurpose
     -> Handler account
-postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
+postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyDataWithPurpose (ApiT pwd) extd _purposeM) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s @k wrk wid pwd ix
         pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd

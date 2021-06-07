@@ -173,6 +173,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters
     , ApiPoolId
     , ApiPostAccountKeyData
+    , ApiPostAccountKeyDataWithPurpose
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
@@ -396,7 +397,7 @@ type PostAccountKey = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "keys"
     :> Capture "index" (ApiT DerivationIndex)
-    :> ReqBody '[JSON] ApiPostAccountKeyData
+    :> ReqBody '[JSON] ApiPostAccountKeyDataWithPurpose
     :> PostAccepted '[JSON] ApiAccountKey
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getAccountKey

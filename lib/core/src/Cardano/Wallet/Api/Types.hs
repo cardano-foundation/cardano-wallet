@@ -139,6 +139,7 @@ module Cardano.Wallet.Api.Types
     , ApiAccountKeyShared (..)
     , KeyFormat (..)
     , ApiPostAccountKeyData (..)
+    , ApiPostAccountKeyDataWithPurpose (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1140,6 +1141,13 @@ data ApiPostAccountKeyData = ApiPostAccountKeyData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data ApiPostAccountKeyDataWithPurpose = ApiPostAccountKeyDataWithPurpose
+    { passphrase :: ApiT (Passphrase "raw")
+    , format :: KeyFormat
+    , purpose :: Maybe (ApiT DerivationIndex)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiAccountKey = ApiAccountKey
     { getApiAccountKey :: ByteString
     , format :: KeyFormat
@@ -1781,6 +1789,11 @@ instance ToJSON KeyFormat where
 instance FromJSON ApiPostAccountKeyData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiPostAccountKeyData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPostAccountKeyDataWithPurpose where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPostAccountKeyDataWithPurpose where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiEpochInfo where
