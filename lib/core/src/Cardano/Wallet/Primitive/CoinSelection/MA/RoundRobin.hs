@@ -1084,11 +1084,8 @@ makeChange criteria
     -- Change for non-user-specified assets: assets that were not present
     -- in the original set of user-specified outputs ('outputsToCover').
     changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
-    changeForNonUserSpecifiedAssets = F.foldr
-        (NE.zipWith (<>)
-            . makeChangeForNonUserSpecifiedAsset outputMaps)
-        (TokenMap.empty <$ outputMaps)
-        nonUserSpecifiedAssets
+    changeForNonUserSpecifiedAssets = makeChangeForNonUserSpecifiedAssets
+        outputMaps nonUserSpecifiedAssetQuantities
 
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
@@ -1137,8 +1134,8 @@ makeChange criteria
     --
     -- Each asset is paired with the complete list of quantities of that asset
     -- present in the selected inputs.
-    nonUserSpecifiedAssets :: [(AssetId, NonEmpty TokenQuantity)]
-    nonUserSpecifiedAssets = Map.toList $
+    nonUserSpecifiedAssetQuantities :: Map AssetId (NonEmpty TokenQuantity)
+    nonUserSpecifiedAssetQuantities =
         collateNonUserSpecifiedAssetQuantities
             (view #tokens <$> inputBundles) userSpecifiedAssetIds
 
@@ -1336,6 +1333,24 @@ makeChangeForNonUserSpecifiedAsset
     -> NonEmpty TokenMap
 makeChangeForNonUserSpecifiedAsset n (asset, quantities) =
     TokenMap.singleton asset <$> padCoalesce quantities n
+
+-- | Constructs change outputs for all non-user-specified assets: assets that
+--   were not present in the original set of outputs.
+--
+-- The resultant list is sorted into ascending order when maps are compared
+-- with the `leq` function.
+--
+makeChangeForNonUserSpecifiedAssets
+    :: NonEmpty a
+        -- ^ Determines the number of change maps to create.
+    -> Map AssetId (NonEmpty TokenQuantity)
+        -- ^ A map of asset quantities to distribute.
+    -> NonEmpty TokenMap
+makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
+    F.foldr
+        (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
+        (TokenMap.empty <$ n)
+        (Map.toList nonUserSpecifiedAssetQuantities)
 
 -- | Constructs a list of ada change outputs based on the given distribution.
 --
