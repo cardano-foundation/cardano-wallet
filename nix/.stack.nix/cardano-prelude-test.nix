@@ -13,7 +13,7 @@
       specVersion = "2.2";
       identifier = { name = "cardano-prelude-test"; version = "0.1.0.0"; };
       license = "MIT";
-      copyright = "2018 IOHK";
+      copyright = "2018-2021 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
       homepage = "";
@@ -67,8 +67,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-prelude";
-      rev = "ee4e7b547a991876e6b05ba542f4e62909f4a571";
-      sha256 = "0dg6ihgrn5mgqp95c4f11l6kh9k3y75lwfqf47hdp554w7wyvaw6";
+      rev = "bb4ed71ba8e587f672d06edf9d2e376f4b055555";
+      sha256 = "00h10l5mmiza9819p9v5q5749nb9pzgi20vpzpy1d34zmh6gf1cj";
       });
     postUnpack = "sourceRoot+=/cardano-prelude-test; echo source root reset to \$sourceRoot";
     }

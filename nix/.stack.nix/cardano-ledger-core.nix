@@ -10,16 +10,16 @@
   {
     flags = {};
     package = {
-      specVersion = "2.2";
-      identifier = { name = "cardano-ledger-shelley-ma"; version = "0.1.0.0"; };
+      specVersion = "2.4";
+      identifier = { name = "cardano-ledger-core"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2020 Input Output (Hong Kong) Ltd.";
+      copyright = "2021 Input Output (Hong Kong) Ltd.";
       maintainer = "formal.methods@iohk.io";
       author = "IOHK Formal Methods Team";
       homepage = "";
       url = "";
-      synopsis = "Shelley ledger with multiasset and time lock support.";
-      description = "This package extends the Shelley ledger with support for\nnative tokens and timelocks.";
+      synopsis = "Core components of Cardano ledgers from the Shelley release on.";
+      description = "Cardano ledgers from the Shelley release onwards share a core basis rooted in\nthe Shelley ledger specification. This package abstracts a number of components\nwhich we expect to be shared amongst all future ledgers implemented around this base.";
       buildType = "Simple";
       isLocal = true;
       };
@@ -27,27 +27,21 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-          (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
+          (hsPkgs."cardano-crypto-praos" or (errorHandler.buildDepError "cardano-crypto-praos"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-          (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
-          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."groups" or (errorHandler.buildDepError "groups"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
-          (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
-          (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
+          (hsPkgs."partial-order" or (errorHandler.buildDepError "partial-order"))
+          (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           ];
         buildable = true;
         };
@@ -58,5 +52,5 @@
       rev = "e8f19bcc9c8f405131cb95ca6ada26b2b4eac638";
       sha256 = "1v36d3lyhmadzj0abdfsppjna7n7llzqzp9ikx5yq28l2kda2f1p";
       });
-    postUnpack = "sourceRoot+=/shelley-ma/impl; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/cardano-ledger-core; echo source root reset to \$sourceRoot";
     }

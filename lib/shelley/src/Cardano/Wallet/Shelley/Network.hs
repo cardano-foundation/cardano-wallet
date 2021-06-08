@@ -169,7 +169,7 @@ import Ouroboros.Consensus.Cardano.Block
     , Query (..)
     )
 import Ouroboros.Consensus.HardFork.Combinator
-    ( QueryAnytime (..), QueryHardFork (..), eraIndexToInt )
+    ( EraIndex (..), QueryAnytime (..), QueryHardFork (..), eraIndexToInt )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
@@ -1354,7 +1354,6 @@ shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron
     (Just <$> onShelleyBased)
 
-
 -- NOTE:
 -- In theory we should be able to know the current era from the tip sync
 -- client. But there are is a problem from the combination of:
@@ -1364,14 +1363,23 @@ shelleyBased onShelleyBased = byronOrShelleyBased
 -- which would make us unable to send Local State Queries until the node has
 -- updated its tip once.
 currentEra :: LSQ (CardanoBlock StandardCrypto) m AnyCardanoEra
-currentEra = intToEra . eraIndexToInt <$> LSQry (QueryHardFork GetCurrentEra)
-  where
-    -- NOTE: We could presumably map the EraIndex to a QueryIfCurrent in a
-    -- type-safe way.
-    --
-    -- If this were to be messed up, our integration tests would tell
-    -- immediately though.
-    intToEra = toEnum . fromEnum
+currentEra = eraIndexToAnyCardanoEra <$> LSQry (QueryHardFork GetCurrentEra)
+
+-- | Provides a mapping from 'EraIndex' to 'AnyCardanoEra'.
+--
+-- This mapping replaces a conversion between enumerations.
+--
+-- The following is used as a reference for the index mapping:
+-- https://github.com/input-output-hk/cardano-node/blob/3531289c9f79eab7ac5d3272ce6e6821504fec4c/cardano-api/src/Cardano/Api/Eras.hs#L188
+--
+eraIndexToAnyCardanoEra :: EraIndex xs -> AnyCardanoEra
+eraIndexToAnyCardanoEra index =
+    case eraIndexToInt index of
+        0 -> AnyCardanoEra ByronEra
+        1 -> AnyCardanoEra ShelleyEra
+        2 -> AnyCardanoEra AllegraEra
+        3 -> AnyCardanoEra MaryEra
+        _ -> error "eraIndexToAnyCardanoEra: unknown era"
 
 -- | Workaround to deal with @GetCurrentPParams@ now returning a
 -- 'SL.Core.PParams era' type family application, instead of a concrete datatype
