@@ -273,7 +273,7 @@ import Cardano.Wallet.Compat
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( NetworkLayer, fetchAccountBalances, timeInterpreter )
+    ( NetworkLayer, fetchRewardAccountBalances, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -2167,7 +2167,7 @@ listStakeKeys lookupStakeRef ctx (ApiT wid) = do
             liftIO $ listStakeKeys' @n
                 utxo
                 lookupStakeRef
-                (fetchAccountBalances nl)
+                (fetchRewardAccountBalances nl)
                 ourKeys
   where
     nl = ctx ^. networkLayer

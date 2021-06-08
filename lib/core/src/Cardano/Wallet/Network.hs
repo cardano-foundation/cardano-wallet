@@ -175,7 +175,7 @@ data NetworkLayer m block = NetworkLayer
         :: Coin -- Stake to consider for rewards
         -> m StakePoolsSummary
 
-    , getCachedAccountBalance
+    , getCachedRewardAccountBalance
         :: RewardAccount
         -> m Coin
         -- ^ Return the cached reward balance of an account.
@@ -184,7 +184,7 @@ data NetworkLayer m block = NetworkLayer
         -- account to the internal set of observed account, such that it will be
         -- fetched later.
 
-    , fetchAccountBalances
+    , fetchRewardAccountBalances
         :: Set RewardAccount
         -> m (Map RewardAccount Coin)
         -- ^ Fetch the reward account balance of a set of accounts without

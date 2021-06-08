@@ -355,9 +355,9 @@ withNetworkLayerBase tr np conn (versionData, _) tol action = do
             _postTx localTxSubmissionQ era sealed
         , stakeDistribution =
             _stakeDistribution queryRewardQ
-        , getCachedAccountBalance =
-            _getAccountBalance rewardsObserver
-        , fetchAccountBalances =
+        , getCachedRewardAccountBalance =
+            _getCachedRewardAccountBalance rewardsObserver
+        , fetchRewardAccountBalances =
             fetchRewardAccounts tr queryRewardQ
         , timeInterpreter =
             _timeInterpreter (contramap MsgInterpreterLog tr) interpreterVar
@@ -547,7 +547,7 @@ withNetworkLayerBase tr np conn (versionData, _) tol action = do
 
     -- TODO(#2042): Make wallets call manually, with matching
     -- stopObserving.
-    _getAccountBalance rewardsObserver k = do
+    _getCachedRewardAccountBalance rewardsObserver k = do
         startObserving rewardsObserver k
         fromMaybe (W.Coin 0) <$> query rewardsObserver k
 
@@ -866,7 +866,7 @@ fetchRewardAccounts
     -> IO (Map W.RewardAccount W.Coin)
 fetchRewardAccounts tr queryRewardQ accounts = do
         liftIO $ traceWith tr $
-            MsgGetRewardAccountBalance accounts
+            MsgFetchRewardAccountBalance accounts
 
         let qry = byronOrShelleyBased (pure (byronValue, [])) $
                    fmap fromBalanceResult
@@ -1154,7 +1154,7 @@ data NetworkLayerLog where
     MsgProtocolParameters :: W.ProtocolParameters -> W.SlottingParameters -> NetworkLayerLog
     MsgLocalStateQueryError :: QueryClientName -> String -> NetworkLayerLog
     MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras StandardCrypto) -> NetworkLayerLog
-    MsgGetRewardAccountBalance
+    MsgFetchRewardAccountBalance
         :: Set W.RewardAccount
         -> NetworkLayerLog
     MsgAccountDelegationAndRewards
@@ -1234,7 +1234,7 @@ instance ToText NetworkLayerLog where
         MsgLocalStateQueryEraMismatch mismatch ->
             "Local state query for the wrong era - this is fine. " <>
             T.pack (show mismatch)
-        MsgGetRewardAccountBalance accts -> T.unwords
+        MsgFetchRewardAccountBalance accts -> T.unwords
             [ "Querying the reward account balance for"
             , fmt $ listF accts
             ]
@@ -1303,7 +1303,7 @@ instance HasSeverityAnnotation NetworkLayerLog where
             | isSlowQuery qry dt           -> Notice
             | otherwise                    -> Debug
         MsgInterpreterLog msg              -> getSeverityAnnotation msg
-        MsgGetRewardAccountBalance{}       -> Debug
+        MsgFetchRewardAccountBalance{}       -> Debug
         MsgObserverLog (MsgDidChange _)    -> Notice
         MsgObserverLog{}                   -> Debug
 

@@ -1056,7 +1056,7 @@ queryRewardBalance
     -> RewardAccount
     -> ExceptT ErrFetchRewards IO Coin
 queryRewardBalance ctx acct = do
-    liftIO $ getCachedAccountBalance nw acct
+    liftIO $ getCachedRewardAccountBalance nw acct
   where
     nw = ctx ^. networkLayer
 

@@ -165,8 +165,8 @@ dummyNetworkLayer = NetworkLayer
     , currentSlottingParameters = error "currentSlottingParameters: not implemented"
     , postTx = error "postTx: not implemented"
     , stakeDistribution = error "stakeDistribution: not implemented"
-    , getCachedAccountBalance = error "getCachedAccountBalance: not implemented"
-    , fetchAccountBalances = error "fetchAccountBalances: not implemented"
+    , getCachedRewardAccountBalance = error "getRewardCachedAccountBalance: not implemented"
+    , fetchRewardAccountBalances = error "fetchRewardAccountBalances: not implemented"
     , timeInterpreter = error "timeInterpreter: not implemented"
     , syncProgress = error "syncProgress: not implemented"
     }
