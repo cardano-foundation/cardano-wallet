@@ -2465,6 +2465,16 @@ components:
         passphrase: *walletPassphrase
         format: *keyExtended
 
+    ApiPostAccountKeyDataWithPurpose: &ApiPostAccountKeyDataWithPurpose
+      type: object
+      required:
+        - passphrase
+        - format
+      properties:
+        passphrase: *walletPassphrase
+        format: *keyExtended
+        purpose: *derivationSegment
+
     ApiSettingsPutData: &ApiSettingsPutData
       type: object
       properties:
@@ -4668,6 +4678,10 @@ paths:
         Derive an account public key for any account index. For this key derivation to be possible,
         the wallet must have been created from mnemonic.
 
+        It is possible to use the optional `purpose` field to override that branch of the derivation path
+        with different hardened derivation index. If that field is omitted, the default purpose
+        for Cardano wallets (`1852H`) will be used.
+
         <b>Note:</b> Only _Hardened_ indexes are supported by this endpoint.
       parameters:
         - *parametersWalletId
@@ -4676,7 +4690,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiPostAccountKeyData
+            schema: *ApiPostAccountKeyDataWithPurpose
       responses: *responsesPostAccountKey
 
   /wallets/{walletId}/keys:
