@@ -1332,6 +1332,7 @@ makeChangeForNonUserSpecifiedAsset
     -> (AssetId, NonEmpty TokenQuantity)
         -- ^ An asset quantity to distribute.
     -> NonEmpty TokenMap
+        -- ^ The resultant change maps.
 makeChangeForNonUserSpecifiedAsset n (asset, quantities) =
     TokenMap.singleton asset <$> padCoalesce quantities n
 
@@ -1347,6 +1348,7 @@ makeChangeForNonUserSpecifiedAssets
     -> Map AssetId (NonEmpty TokenQuantity)
         -- ^ A map of asset quantities to distribute.
     -> NonEmpty TokenMap
+        -- ^ The resultant change maps.
 makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
     F.foldr
         (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
