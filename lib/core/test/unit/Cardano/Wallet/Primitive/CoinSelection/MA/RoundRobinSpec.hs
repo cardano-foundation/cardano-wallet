@@ -2250,7 +2250,7 @@ unit_makeChangeForCoin =
         ]
 
 --------------------------------------------------------------------------------
--- Making change for unknown assets
+-- Making change for a single non-user-specified asset
 --------------------------------------------------------------------------------
 
 prop_makeChangeForNonUserSpecifiedAsset_sum
