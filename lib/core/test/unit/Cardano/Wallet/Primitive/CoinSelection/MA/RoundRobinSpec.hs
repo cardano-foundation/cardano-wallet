@@ -345,6 +345,8 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChangeForNonUserSpecifiedAssets_order
         it "prop_makeChangeForNonUserSpecifiedAssets_sum" $
             property prop_makeChangeForNonUserSpecifiedAssets_sum
+        describe "unit_makeChangeForNonUserSpecifiedAssets"
+            unit_makeChangeForNonUserSpecifiedAssets
 
     parallel $ describe "Making change for user-specified assets" $ do
 
@@ -2418,6 +2420,159 @@ prop_makeChangeForNonUserSpecifiedAssets_sum n assetQuantities =
     sumExpected :: TokenMap
     sumExpected =
         TokenMap.fromFlatList $ Map.toList $ F.fold <$> assetQuantityMap
+
+data TestDataForMakeChangeForNonUserSpecifiedAssets =
+    TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount
+            :: NonEmpty ()
+        , nonUserSpecifiedAssetQuantities
+            :: Map AssetId (NonEmpty TokenQuantity)
+        , expectedResult
+            :: NonEmpty TokenMap
+        }
+    deriving (Eq, Generic)
+
+unit_makeChangeForNonUserSpecifiedAssets :: Spec
+unit_makeChangeForNonUserSpecifiedAssets =
+    forM_ (zip [1..] tests) $ \(testNumber :: Int, test) -> do
+        let title = "Unit test #" <> show testNumber
+        it title $ property $
+            makeChangeForNonUserSpecifiedAssets
+                (view #changeMapCount test)
+                (view #nonUserSpecifiedAssetQuantities test)
+                ===
+                (view #expectedResult test)
+  where
+    mkChangeMapCount :: Int -> NonEmpty ()
+    mkChangeMapCount n = NE.fromList $ replicate n ()
+
+    mkNonUserSpecifiedAssetQuantities
+        :: [(ByteString, [Natural])]
+        -> Map AssetId (NonEmpty TokenQuantity)
+    mkNonUserSpecifiedAssetQuantities =
+        Map.fromList . fmap (bimap mockAsset (NE.fromList . fmap TokenQuantity))
+
+    mkExpectedResult
+        :: [[(ByteString, Natural)]]
+        -> NonEmpty TokenMap
+    mkExpectedResult
+        = NE.fromList
+        . fmap (TokenMap.fromFlatList . fmap (uncurry mockAssetQuantity))
+
+    tests :: [TestDataForMakeChangeForNonUserSpecifiedAssets]
+    tests = [test1, test2, test3, test4, test5, test6, test7, test8]
+
+    test1 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            1
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [1])
+            , ("B", [3, 2, 1])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [("A", 1), ("B", 6)] ]
+        }
+
+    test2 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            2
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [1])
+            , ("B", [3, 2, 1])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [          ("B", 3)]
+            , [("A", 1), ("B", 3)]
+            ]
+        }
+
+    test3 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            3
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [1])
+            , ("B", [3, 2, 1])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [          ("B", 1)]
+            , [          ("B", 2)]
+            , [("A", 1), ("B", 3)]
+            ]
+        }
+
+    test4 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            4
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [1])
+            , ("B", [3, 2, 1])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [                  ]
+            , [          ("B", 1)]
+            , [          ("B", 2)]
+            , [("A", 1), ("B", 3)]
+            ]
+        }
+
+    test5 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            1
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [4, 1, 3, 2])
+            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [("A", 10), ("B", 45)] ]
+        }
+
+    test6 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            2
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [4, 1, 3, 2])
+            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [("A", 4), ("B", 18)]
+            , [("A", 6), ("B", 27)]
+            ]
+        }
+
+    test7 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            4
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [4, 1, 3, 2])
+            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [("A", 1), ("B",  9)]
+            , [("A", 2), ("B",  9)]
+            , [("A", 3), ("B", 12)]
+            , [("A", 4), ("B", 15)]
+            ]
+        }
+
+    test8 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            9
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [4, 1, 3, 2])
+            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [          ("B",  1)]
+            , [          ("B",  2)]
+            , [          ("B",  3)]
+            , [          ("B",  4)]
+            , [          ("B",  5)]
+            , [("A", 1), ("B",  6)]
+            , [("A", 2), ("B",  7)]
+            , [("A", 3), ("B",  8)]
+            , [("A", 4), ("B",  9)]
+            ]
+        }
 
 --------------------------------------------------------------------------------
 -- Making change for known assets
