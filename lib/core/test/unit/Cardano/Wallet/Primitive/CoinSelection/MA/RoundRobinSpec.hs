@@ -2254,54 +2254,59 @@ unit_makeChangeForCoin =
 --------------------------------------------------------------------------------
 
 prop_makeChangeForNonUserSpecifiedAsset_sum
-    :: NonEmpty TokenMap
+    :: NonEmpty ()
     -> (AssetId, NonEmpty TokenQuantity)
     -> Property
-prop_makeChangeForNonUserSpecifiedAsset_sum weights (asset, quantities) =
+prop_makeChangeForNonUserSpecifiedAsset_sum n (asset, quantities) =
     F.fold quantities === F.fold ((`TokenMap.getQuantity` asset) <$> changes)
   where
-    changes = makeChangeForNonUserSpecifiedAsset weights (asset, quantities)
+    changes = makeChangeForNonUserSpecifiedAsset n (asset, quantities)
 
 prop_makeChangeForNonUserSpecifiedAsset_order
-    :: NonEmpty TokenMap
+    :: NonEmpty ()
     -> (AssetId, NonEmpty TokenQuantity)
     -> Property
-prop_makeChangeForNonUserSpecifiedAsset_order weights assetQuantities =
+prop_makeChangeForNonUserSpecifiedAsset_order n assetQuantities =
     property $ inAscendingPartialOrder
-        $ makeChangeForNonUserSpecifiedAsset weights assetQuantities
+        $ makeChangeForNonUserSpecifiedAsset n assetQuantities
 
 prop_makeChangeForNonUserSpecifiedAsset_length
-    :: NonEmpty TokenMap
+    :: NonEmpty ()
     -> (AssetId, NonEmpty TokenQuantity)
     -> Property
-prop_makeChangeForNonUserSpecifiedAsset_length weights surplus =
-    F.length changes === F.length weights
+prop_makeChangeForNonUserSpecifiedAsset_length n surplus =
+    F.length changes === F.length n
   where
-    changes = makeChangeForNonUserSpecifiedAsset weights surplus
+    changes = makeChangeForNonUserSpecifiedAsset n surplus
 
 unit_makeChangeForNonUserSpecifiedAsset
     :: [Expectation]
 unit_makeChangeForNonUserSpecifiedAsset =
-    [ makeChangeForNonUserSpecifiedAsset weights surplus `shouldBe` expectation
-    | (weights, surplus, expectation) <- matrix
+    [ makeChangeForNonUserSpecifiedAsset
+        (mkChangeMapCount changeMapCount) surplus
+        `shouldBe` expectation
+    | (changeMapCount, surplus, expectation) <- matrix
     ]
   where
     matrix =
-        [ ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
-          , (assetC, q <$> 1 :| [1])
-          , m [(assetC, q 1)] :| [m [(assetC, q 1)]]
+        [ ( 2
+          , (assetA, q <$> 1 :| [1])
+          , m [(assetA, q 1)] :| [m [(assetA, q 1)]]
           )
 
-        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
-          , (assetC, q <$> 1 :| [1, 1])
-          , m [(assetC, q 1)] :| [m [(assetC, q 2)]]
+        , ( 2
+          , (assetA, q <$> 1 :| [1, 1])
+          , m [(assetA, q 1)] :| [m [(assetA, q 2)]]
           )
 
-        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
-          , (assetC, q <$> 1 :| [])
-          , m [(assetC, q 0)] :| [m [(assetC, q 1)]]
+        , ( 2
+          , (assetA, q <$> 1 :| [])
+          , m [(assetA, q 0)] :| [m [(assetA, q 1)]]
           )
         ]
+
+    mkChangeMapCount :: Int -> NonEmpty ()
+    mkChangeMapCount n = NE.fromList $ replicate n ()
 
     q :: Natural -> TokenQuantity
     q = TokenQuantity
@@ -2311,12 +2316,6 @@ unit_makeChangeForNonUserSpecifiedAsset =
 
     assetA :: AssetId
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-
-    assetB :: AssetId
-    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
-
-    assetC :: AssetId
-    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
 -- Making change for known assets
