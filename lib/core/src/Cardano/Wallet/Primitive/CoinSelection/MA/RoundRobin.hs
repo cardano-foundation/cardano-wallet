@@ -1329,9 +1329,8 @@ makeChangeForUserSpecifiedAsset targets (asset, excess) =
 -- with the `leq` function.
 --
 makeChangeForNonUserSpecifiedAsset
-    :: NonEmpty TokenMap
-        -- ^ A list of weights for the distribution. The list is only used for
-        -- its number of elements.
+    :: NonEmpty a
+        -- ^ Determines the number of change maps to create.
     -> (AssetId, NonEmpty TokenQuantity)
         -- ^ An asset quantity to distribute.
     -> NonEmpty TokenMap
