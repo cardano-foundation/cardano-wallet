@@ -388,6 +388,16 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           (available == amt) && (total == amt)
         end
 
+        # Check wallet stake keys before joing stake pool
+        stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id_pools)
+        expect(stake_keys).to be_correct_and_respond 200
+        expect(stake_keys['foreign'].size).to eq 0
+        expect(stake_keys['ours'].size).to eq 1
+        expect(stake_keys['ours'].first['stake']['quantity']).to eq amt
+        expect(stake_keys['none']['stake']['quantity']).to eq 0
+        expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
+        expect(stake_keys['ours'].first['delegation']['next']).to eq []
+
         # Pick up pool id to join
         pools = SHELLEY.stake_pools
         pool_id = pools.list({ stake: 1000 }).sample['id']
@@ -405,6 +415,16 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           tx['status'] == "in_ledger"
         end
 
+        # Check wallet stake keys after joing stake pool
+        stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id_pools)
+        expect(stake_keys).to be_correct_and_respond 200
+        expect(stake_keys['foreign'].size).to eq 0
+        expect(stake_keys['ours'].size).to eq 1
+        expect(stake_keys['ours'].first['stake']['quantity']).to be > 0
+        expect(stake_keys['none']['stake']['quantity']).to eq 0
+        expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
+        expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq "delegating"
+
         # Quit pool
         puts "Quitting pool: #{pool_id}"
         quit = pools.quit(@target_id_pools, PASS)
@@ -417,6 +437,16 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           tx = SHELLEY.transactions.get(@target_id_pools, quit_tx_id)
           tx['status'] == "in_ledger"
         end
+
+        # Check wallet stake keys after quitting stake pool
+        stake_keys = SHELLEY.stake_pools.list_stake_keys(@target_id_pools)
+        expect(stake_keys).to be_correct_and_respond 200
+        expect(stake_keys['foreign'].size).to eq 0
+        expect(stake_keys['ours'].size).to eq 1
+        expect(stake_keys['ours'].first['stake']['quantity']).to be > 0
+        expect(stake_keys['none']['stake']['quantity']).to eq 0
+        expect(stake_keys['ours'].first['delegation']['active']['status']).to eq "not_delegating"
+        expect(stake_keys['ours'].first['delegation']['next'].first['status']).to eq "not_delegating"
       end
     end
 

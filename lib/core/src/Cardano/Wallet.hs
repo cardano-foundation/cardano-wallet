@@ -200,6 +200,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Crypto.Wallet
+    ( toXPub )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.DB
@@ -254,11 +256,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey, deriveAccountPrivateKeyShelley )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)
+    , GetPurpose (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -1305,11 +1308,11 @@ selectionToUnsignedTx wdrl sel s =
         -> t a
         -> t (a, NonEmpty DerivationIndex)
     qualifyAddresses getAddress hasAddresses =
-        case traverse withDerivationPath hasAddresses of
-            Just as -> as
-            Nothing -> error
-                "selectionToUnsignedTx: unable to find derivation path of a \
-                \known input or change address. This is impossible."
+        fromMaybe
+        (error
+         "selectionToUnsignedTx: unable to find derivation path of a known \
+         \input or change address. This is impossible.")
+        (traverse withDerivationPath hasAddresses)
       where
         withDerivationPath hasAddress =
             (hasAddress,) <$> fst (isOurs (getAddress hasAddress) s)
@@ -2332,16 +2335,21 @@ readAccountPublicKey ctx wid = db & \DBLayer{..} -> do
 getAccountPublicKeyAtIndex
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
-        , HardDerivation k
         , WalletKey k
+        , GetPurpose k
         )
     => ctx
     -> WalletId
     -> Passphrase "raw"
     -> DerivationIndex
+    -> Maybe DerivationIndex
     -> ExceptT ErrReadAccountPublicKey IO (k 'AccountK XPub)
-getAccountPublicKeyAtIndex ctx wid pwd ix = db & \DBLayer{..} -> do
-    acctIx <- withExceptT ErrReadAccountPublicKeyInvalidIndex $ guardHardIndex ix
+getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
+    acctIx <- withExceptT ErrReadAccountPublicKeyInvalidAccountIndex $ guardHardIndex ix
+
+    purpose <- maybe (pure (getPurpose @k))
+        (withExceptT ErrReadAccountPublicKeyInvalidPurposeIndex . guardHardIndex)
+        purposeM
 
     _cp <- mapExceptT atomically
         $ withExceptT ErrReadAccountPublicKeyNoSuchWallet
@@ -2351,7 +2359,8 @@ getAccountPublicKeyAtIndex ctx wid pwd ix = db & \DBLayer{..} -> do
     withRootKey @ctx @s @k ctx wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            pure $ publicKey $ deriveAccountPrivateKey encPwd rootK acctIx
+            let xprv = deriveAccountPrivateKeyShelley purpose encPwd (getRawKey rootK) acctIx
+            pure $ liftRawKey $ toXPub xprv
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -2367,7 +2376,7 @@ guardSoftIndex ix =
 guardHardIndex
     :: Monad m
     => DerivationIndex
-    -> ExceptT (ErrInvalidDerivationIndex 'Hardened 'AccountK) m (Index 'Hardened whatever)
+    -> ExceptT (ErrInvalidDerivationIndex 'Hardened level) m (Index 'Hardened whatever)
 guardHardIndex ix =
     if ix > DerivationIndex (getIndex @'Hardened maxBound) || ix < DerivationIndex (getIndex @'Hardened minBound)
     then throwE $ ErrIndexOutOfBound minBound maxBound ix
@@ -2466,8 +2475,10 @@ data ErrConstructSharedWallet
 data ErrReadAccountPublicKey
     = ErrReadAccountPublicKeyNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrReadAccountPublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
-        -- ^ User provided a derivation index outside of the 'Hard' domain
+    | ErrReadAccountPublicKeyInvalidAccountIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
+        -- ^ User provided a derivation index for account outside of the 'Hard' domain
+    | ErrReadAccountPublicKeyInvalidPurposeIndex (ErrInvalidDerivationIndex 'Hardened 'PurposeK)
+        -- ^ User provided a derivation index for purpose outside of the 'Hard' domain
     | ErrReadAccountPublicKeyRootKey ErrWithRootKey
         -- ^ The wallet exists, but there's no root key attached to it
     deriving (Eq, Show)

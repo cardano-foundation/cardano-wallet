@@ -263,6 +263,19 @@ RSpec.describe CardanoWallet::Shelley do
       teardown
     end
 
+    it "I can list stake keys" do
+      id = create_shelley_wallet
+      stake_keys = SHELLEY.stake_pools.list_stake_keys(id)
+      expect(stake_keys).to be_correct_and_respond 200
+      expect(stake_keys['foreign'].size).to eq 0
+      expect(stake_keys['ours'].size).to eq 1
+      expect(stake_keys['ours'].first['stake']).to eq({ "quantity" => 0, "unit" => "lovelace" })
+      expect(stake_keys['none']['stake']).to eq({ "quantity" => 0, "unit" => "lovelace" })
+      expect(stake_keys['ours'].first['delegation']).to eq({ "next" => [],
+                                                             "active" =>
+                                                             { "status" => "not_delegating" } })
+    end
+
     it "ADP-634 - Pool metadata is updated when settings are updated" do
       settings = CardanoWallet.new.misc.settings
       pools = SHELLEY.stake_pools

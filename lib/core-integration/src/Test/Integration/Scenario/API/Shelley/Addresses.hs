@@ -52,7 +52,7 @@ import Data.Text
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotSatisfy, shouldSatisfy )
+    ( shouldBe, shouldNotBe, shouldNotSatisfy, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -935,6 +935,40 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             (_, accPub) <- unsafeRequest @ApiAccountKey ctx accountPath payload2
             pure [accXPub, accPub]
         length (concat accountPublicKeys) `shouldBe` 20
+
+    it "POST_ACCOUNT_02 - Can get account public key using purpose" $ \ctx -> runResourceT $ do
+        let initPoolGap = 10
+        w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)
+        let accountPath = Link.postAccountKey @'Shelley w (DerivationIndex $ 2147483648 + 1)
+        let payload1 = Json [json|{
+                "passphrase": #{fixturePassphrase},
+                "format": "extended"
+            }|]
+        (_, accXPub1) <- unsafeRequest @ApiAccountKey ctx accountPath payload1
+
+        let payload2 = Json [json|{
+                "passphrase": #{fixturePassphrase},
+                "format": "extended",
+                "purpose": "1852H"
+            }|]
+        (_, accXPub2) <- unsafeRequest @ApiAccountKey ctx accountPath payload2
+        accXPub1 `shouldBe` accXPub2
+
+        let payload3 = Json [json|{
+                "passphrase": #{fixturePassphrase},
+                "format": "extended",
+                "purpose": "1854H"
+            }|]
+        (_, accXPub3) <- unsafeRequest @ApiAccountKey ctx accountPath payload3
+        accXPub1 `shouldNotBe` accXPub3
+
+        let payload4 = Json [json|{
+                "passphrase": #{fixturePassphrase},
+                "format": "extended",
+                "purpose": "1854"
+            }|]
+        resp <- request @ApiAccountKey ctx accountPath Default payload4
+        expectErrorMessage errMsg403WrongIndex resp
   where
     validateAddr resp expected = do
         let addr = getFromResponse id resp

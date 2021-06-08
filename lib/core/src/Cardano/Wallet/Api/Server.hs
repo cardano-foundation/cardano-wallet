@@ -207,7 +207,7 @@ import Cardano.Wallet.Api.Types
     , ApiOurStakeKey (..)
     , ApiPendingSharedWallet (..)
     , ApiPoolId (..)
-    , ApiPostAccountKeyData (..)
+    , ApiPostAccountKeyDataWithPurpose (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
@@ -306,6 +306,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery
     , GenChange (ArgGenChange)
     , GetAccount
+    , GetPurpose (..)
     , IsOurs
     , IsOwned
     , KnownAddresses
@@ -2481,18 +2482,18 @@ derivePublicKey ctx mkVer (ApiT wid) (ApiT role_) (ApiT ix) hashed = do
 postAccountPublicKey
     :: forall ctx s k account.
         ( ctx ~ ApiLayer s k
-        , HardDerivation k
         , WalletKey k
+        , GetPurpose k
         )
     => ctx
     -> (ByteString -> KeyFormat -> account)
     -> ApiT WalletId
     -> ApiT DerivationIndex
-    -> ApiPostAccountKeyData
+    -> ApiPostAccountKeyDataWithPurpose
     -> Handler account
-postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
+postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyDataWithPurpose (ApiT pwd) extd purposeM) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s @k wrk wid pwd ix
+        k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s @k wrk wid pwd ix (getApiT <$> purposeM)
         pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd
 
 publicKeyToBytes' :: KeyFormat -> XPub -> ByteString
@@ -3407,7 +3408,8 @@ instance IsServerError ErrReadAccountPublicKey where
     toServerError = \case
         ErrReadAccountPublicKeyRootKey e -> toServerError e
         ErrReadAccountPublicKeyNoSuchWallet e -> toServerError e
-        ErrReadAccountPublicKeyInvalidIndex e -> toServerError e
+        ErrReadAccountPublicKeyInvalidAccountIndex e -> toServerError e
+        ErrReadAccountPublicKeyInvalidPurposeIndex e -> toServerError e
 
 instance IsServerError ErrDerivePublicKey where
     toServerError = \case
