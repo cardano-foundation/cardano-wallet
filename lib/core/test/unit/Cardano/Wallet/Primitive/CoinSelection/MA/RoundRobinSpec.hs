@@ -46,6 +46,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChange
     , makeChangeForCoin
     , makeChangeForNonUserSpecifiedAsset
+    , makeChangeForNonUserSpecifiedAssets
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
     , performSelection
@@ -325,7 +326,7 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         unitTests "makeChangeForCoin"
             unit_makeChangeForCoin
 
-    parallel $ describe "Making change for non-user-specified assets" $ do
+    parallel $ describe "Making change for one non-user-specified asset" $ do
 
         it "prop_makeChangeForNonUserSpecifiedAsset_sum" $
             property prop_makeChangeForNonUserSpecifiedAsset_sum
@@ -335,6 +336,15 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChangeForNonUserSpecifiedAsset_length
         unitTests "makeChangeForNonUserSpecifiedAsset"
             unit_makeChangeForNonUserSpecifiedAsset
+
+    parallel $ describe "Making change for many non-user-specified assets" $ do
+
+        it "prop_makeChangeForNonUserSpecifiedAssets_length" $
+            property prop_makeChangeForNonUserSpecifiedAssets_length
+        it "prop_makeChangeForNonUserSpecifiedAssets_order" $
+            property prop_makeChangeForNonUserSpecifiedAssets_order
+        it "prop_makeChangeForNonUserSpecifiedAssets_sum" $
+            property prop_makeChangeForNonUserSpecifiedAssets_sum
 
     parallel $ describe "Making change for user-specified assets" $ do
 
@@ -2316,6 +2326,98 @@ unit_makeChangeForNonUserSpecifiedAsset =
 
     assetA :: AssetId
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+
+--------------------------------------------------------------------------------
+-- Making change for multiple non-user-specified assets
+--------------------------------------------------------------------------------
+
+checkCoverageFor_makeChangeForNonUserSpecifiedAssets
+    :: NonEmpty ()
+    -> Map AssetId (NonEmpty TokenQuantity)
+    -> Property
+    -> Property
+checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap prop =
+    checkCoverage $
+
+    -- Number of distinct assets:
+    cover 1 (Map.size assetQuantityMap == 1)
+        "number of distinct assets == 1" $
+    cover 50 (Map.size assetQuantityMap >= 2)
+        "number of distinct assets >= 2" $
+    cover 10 (Map.size assetQuantityMap >= 4)
+        "number of distinct assets >= 4" $
+
+    -- Number of change maps:
+    cover 1 (length n == 1)
+        "number of change maps == 1" $
+    cover 50 (length n >= 2)
+        "number of change maps >= 2" $
+    cover 10 (length n >= 4)
+        "number of change maps >= 4" $
+
+    -- Largest number of distinct token quantities for a given asset:
+    cover 1 (largestTokenQuantityCount == 1)
+        "largest number of token quantities == 1" $
+    cover 50 (largestTokenQuantityCount >= 2)
+        "largest number of token quantities >= 2" $
+    cover 10 (largestTokenQuantityCount >= 4)
+        "largest number of token quantities >= 4"
+
+    prop
+  where
+    largestTokenQuantityCount :: Int
+    largestTokenQuantityCount = maximum (length <$> F.toList (assetQuantityMap))
+
+prop_makeChangeForNonUserSpecifiedAssets_length
+    :: NonEmpty ()
+    -> NonEmpty (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAssets_length n assetQuantities =
+    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
+    lengthActual === lengthExpected
+  where
+    assetQuantityMap :: Map AssetId (NonEmpty TokenQuantity)
+    assetQuantityMap = Map.fromList (F.toList assetQuantities)
+
+    lengthActual :: Int
+    lengthActual = length
+        (makeChangeForNonUserSpecifiedAssets n assetQuantityMap)
+
+    lengthExpected :: Int
+    lengthExpected = length n
+
+prop_makeChangeForNonUserSpecifiedAssets_order
+    :: NonEmpty ()
+    -> NonEmpty (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAssets_order n assetQuantities =
+    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
+    property $ inAscendingPartialOrder result
+  where
+    assetQuantityMap :: Map AssetId (NonEmpty TokenQuantity)
+    assetQuantityMap = Map.fromList (F.toList assetQuantities)
+
+    result :: NonEmpty TokenMap
+    result = makeChangeForNonUserSpecifiedAssets n assetQuantityMap
+
+prop_makeChangeForNonUserSpecifiedAssets_sum
+    :: NonEmpty ()
+    -> NonEmpty (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAssets_sum n assetQuantities =
+    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
+    sumActual === sumExpected
+  where
+    assetQuantityMap :: Map AssetId (NonEmpty TokenQuantity)
+    assetQuantityMap = Map.fromList (F.toList assetQuantities)
+
+    sumActual :: TokenMap
+    sumActual =
+        F.fold (makeChangeForNonUserSpecifiedAssets n assetQuantityMap)
+
+    sumExpected :: TokenMap
+    sumExpected =
+        TokenMap.fromFlatList $ Map.toList $ F.fold <$> assetQuantityMap
 
 --------------------------------------------------------------------------------
 -- Making change for known assets

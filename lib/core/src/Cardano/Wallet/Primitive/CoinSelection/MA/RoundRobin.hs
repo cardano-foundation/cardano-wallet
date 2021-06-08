@@ -62,6 +62,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForCoin
     , makeChangeForUserSpecifiedAsset
     , makeChangeForNonUserSpecifiedAsset
+    , makeChangeForNonUserSpecifiedAssets
     , assignCoinsToChangeMaps
     , collateNonUserSpecifiedAssetQuantities
 
