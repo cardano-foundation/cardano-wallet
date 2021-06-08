@@ -449,7 +449,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromJust, fromMaybe, isJust, mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -1308,11 +1308,11 @@ selectionToUnsignedTx wdrl sel s =
         -> t a
         -> t (a, NonEmpty DerivationIndex)
     qualifyAddresses getAddress hasAddresses =
-        case traverse withDerivationPath hasAddresses of
-            Just as -> as
-            Nothing -> error
-                "selectionToUnsignedTx: unable to find derivation path of a \
-                \known input or change address. This is impossible."
+        fromMaybe
+        (error
+         "selectionToUnsignedTx: unable to find derivation path of a known \
+         \input or change address. This is impossible.")
+        (traverse withDerivationPath hasAddresses)
       where
         withDerivationPath hasAddress =
             (hasAddress,) <$> fst (isOurs (getAddress hasAddress) s)
@@ -2347,11 +2347,9 @@ getAccountPublicKeyAtIndex
 getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
     acctIx <- withExceptT ErrReadAccountPublicKeyInvalidAccountIndex $ guardHardIndex ix
 
-    when (isJust purposeM) $ do
-        purposeGuarded <- runExceptT $ guardHardIndex (fromJust purposeM)
-        case purposeGuarded of
-            Left err -> throwE $ ErrReadAccountPublicKeyInvalidPurposeIndex err
-            Right _ -> pure ()
+    purpose <- maybe (pure (getPurpose @k))
+        (withExceptT ErrReadAccountPublicKeyInvalidPurposeIndex . guardHardIndex)
+        purposeM
 
     _cp <- mapExceptT atomically
         $ withExceptT ErrReadAccountPublicKeyNoSuchWallet
@@ -2365,7 +2363,6 @@ getAccountPublicKeyAtIndex ctx wid pwd ix purposeM = db & \DBLayer{..} -> do
             pure $ liftRawKey $ toXPub xprv
   where
     db = ctx ^. dbLayer @IO @s @k
-    purpose = maybe (getPurpose @k) (Index . getDerivationIndex) purposeM
 
 guardSoftIndex
     :: Monad m

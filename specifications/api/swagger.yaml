@@ -4676,8 +4676,11 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Derive an account public key for any account index. For this key derivation to be possible,
-        the wallet must have been created from mnemonic. In request body, arbitrary purpose can be specified.
-        Omitting the purpose segment means default purpose, ie., 1852H, will be used.
+        the wallet must have been created from mnemonic.
+
+        It is possible to use the optional `purpose` field to override that branch of the derivation path
+        with different hardened derivation index. If that field is omitted, the default purpose
+        for Cardano wallets (`1852H`) will be used.
 
         <b>Note:</b> Only _Hardened_ indexes are supported by this endpoint.
       parameters:
