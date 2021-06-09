@@ -28,7 +28,6 @@ module Cardano.Wallet.Network
 
     -- * Errors
     , ErrPostTx (..)
-    , ErrGetAccountBalance (..)
 
     -- * Logging
     , FollowLog (..)
@@ -84,8 +83,12 @@ import Data.Functor
     ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map
+    ( Map )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -172,9 +175,20 @@ data NetworkLayer m block = NetworkLayer
         :: Coin -- Stake to consider for rewards
         -> m StakePoolsSummary
 
-    , getAccountBalance
+    , getCachedRewardAccountBalance
         :: RewardAccount
-        -> ExceptT ErrGetAccountBalance m Coin
+        -> m Coin
+        -- ^ Return the cached reward balance of an account.
+        --
+        -- If there is no cached value, it will return `Coin 0`, and add the
+        -- account to the internal set of observed account, such that it will be
+        -- fetched later.
+
+    , fetchRewardAccountBalances
+        :: Set RewardAccount
+        -> m (Map RewardAccount Coin)
+        -- ^ Fetch the reward account balance of a set of accounts without
+        -- any caching.
 
     , timeInterpreter
         :: TimeInterpreter (ExceptT PastHorizonException m)
@@ -201,10 +215,6 @@ instance ToText ErrPostTx where
     toText = \case
         ErrPostTxBadRequest msg -> msg
         ErrPostTxProtocolFailure msg -> msg
-
-newtype ErrGetAccountBalance
-    = ErrGetAccountBalanceAccountNotFound RewardAccount
-    deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------
                               Initialization

@@ -355,8 +355,10 @@ withNetworkLayerBase tr np conn (versionData, _) tol action = do
             _postTx localTxSubmissionQ era sealed
         , stakeDistribution =
             _stakeDistribution queryRewardQ
-        , getAccountBalance =
-            _getAccountBalance rewardsObserver
+        , getCachedRewardAccountBalance =
+            _getCachedRewardAccountBalance rewardsObserver
+        , fetchRewardAccountBalances =
+            fetchRewardAccounts tr queryRewardQ
         , timeInterpreter =
             _timeInterpreter (contramap MsgInterpreterLog tr) interpreterVar
         , syncProgress = _syncProgress interpreterVar
@@ -545,7 +547,7 @@ withNetworkLayerBase tr np conn (versionData, _) tol action = do
 
     -- TODO(#2042): Make wallets call manually, with matching
     -- stopObserving.
-    _getAccountBalance rewardsObserver k = liftIO $ do
+    _getCachedRewardAccountBalance rewardsObserver k = do
         startObserving rewardsObserver k
         fromMaybe (W.Coin 0) <$> query rewardsObserver k
 
@@ -855,9 +857,16 @@ newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
     fetch _tip accounts = do
         -- NOTE: We no longer need the tip to run LSQ queries. The local state
         -- query client will automatically acquire the latest tip.
+        Just <$> fetchRewardAccounts tr queryRewardQ accounts
 
+fetchRewardAccounts
+    :: Tracer IO NetworkLayerLog
+    -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
+    -> Set W.RewardAccount
+    -> IO (Map W.RewardAccount W.Coin)
+fetchRewardAccounts tr queryRewardQ accounts = do
         liftIO $ traceWith tr $
-            MsgGetRewardAccountBalance accounts
+            MsgFetchRewardAccountBalance accounts
 
         let qry = byronOrShelleyBased (pure (byronValue, [])) $
                    fmap fromBalanceResult
@@ -867,11 +876,10 @@ newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
 
         (res,logs) <- bracketQuery "queryRewards" tr (send queryRewardQ (SomeLSQ qry))
         liftIO $ mapM_ (traceWith tr) logs
-        return $ Just res
-
-      where
-        byronValue :: Map W.RewardAccount W.Coin
-        byronValue = Map.fromList . map (, minBound) $ Set.toList accounts
+        return res
+  where
+    byronValue :: Map W.RewardAccount W.Coin
+    byronValue = Map.fromList . map (, minBound) $ Set.toList accounts
 
     fromBalanceResult
         :: ( Map (SL.Credential 'SL.Staking crypto)
@@ -1146,7 +1154,7 @@ data NetworkLayerLog where
     MsgProtocolParameters :: W.ProtocolParameters -> W.SlottingParameters -> NetworkLayerLog
     MsgLocalStateQueryError :: QueryClientName -> String -> NetworkLayerLog
     MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras StandardCrypto) -> NetworkLayerLog
-    MsgGetRewardAccountBalance
+    MsgFetchRewardAccountBalance
         :: Set W.RewardAccount
         -> NetworkLayerLog
     MsgAccountDelegationAndRewards
@@ -1226,7 +1234,7 @@ instance ToText NetworkLayerLog where
         MsgLocalStateQueryEraMismatch mismatch ->
             "Local state query for the wrong era - this is fine. " <>
             T.pack (show mismatch)
-        MsgGetRewardAccountBalance accts -> T.unwords
+        MsgFetchRewardAccountBalance accts -> T.unwords
             [ "Querying the reward account balance for"
             , fmt $ listF accts
             ]
@@ -1295,7 +1303,7 @@ instance HasSeverityAnnotation NetworkLayerLog where
             | isSlowQuery qry dt           -> Notice
             | otherwise                    -> Debug
         MsgInterpreterLog msg              -> getSeverityAnnotation msg
-        MsgGetRewardAccountBalance{}       -> Debug
+        MsgFetchRewardAccountBalance{}       -> Debug
         MsgObserverLog (MsgDidChange _)    -> Notice
         MsgObserverLog{}                   -> Debug
 
