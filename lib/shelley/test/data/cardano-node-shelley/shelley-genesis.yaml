@@ -47,7 +47,7 @@ maxLovelaceSupply: 1000000000000000000
 protocolMagicId: 764824073
 networkMagic: 764824073
 networkId: Mainnet
-epochLength: 50
+epochLength: 100
 staking:
 slotsPerKESPeriod: 86400
 slotLength: 0.2
