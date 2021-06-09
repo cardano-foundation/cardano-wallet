@@ -111,6 +111,8 @@ import Network.URI
     ( URI )
 import System.Directory
     ( createDirectory )
+import System.Environment
+    ( setEnv )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -172,6 +174,11 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
+
+    -- Enables small test-specific workarounds, like timing out faster if wallet
+    -- deletion fails.
+    setEnv "CARDANO_WALLET_INTEGRATION" "1"
+
     hspec $ do
         describe "No backend required" $
             parallelIf (not nix) $ describe "Miscellaneous CLI tests"
