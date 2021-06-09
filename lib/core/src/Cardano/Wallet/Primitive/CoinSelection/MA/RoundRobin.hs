@@ -62,7 +62,9 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForCoin
     , makeChangeForUserSpecifiedAsset
     , makeChangeForNonUserSpecifiedAsset
+    , makeChangeForNonUserSpecifiedAssets
     , assignCoinsToChangeMaps
+    , collateNonUserSpecifiedAssetQuantities
 
     -- * Splitting bundles
     , splitBundleIfAssetCountExcessive
@@ -1083,11 +1085,8 @@ makeChange criteria
     -- Change for non-user-specified assets: assets that were not present
     -- in the original set of user-specified outputs ('outputsToCover').
     changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
-    changeForNonUserSpecifiedAssets = F.foldr
-        (NE.zipWith (<>)
-            . makeChangeForNonUserSpecifiedAsset outputMaps)
-        (TokenMap.empty <$ outputMaps)
-        nonUserSpecifiedAssets
+    changeForNonUserSpecifiedAssets = makeChangeForNonUserSpecifiedAssets
+        outputMaps nonUserSpecifiedAssetQuantities
 
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
@@ -1136,15 +1135,34 @@ makeChange criteria
     --
     -- Each asset is paired with the complete list of quantities of that asset
     -- present in the selected inputs.
-    nonUserSpecifiedAssets :: [(AssetId, NonEmpty TokenQuantity)]
-    nonUserSpecifiedAssets = Map.toList $
-        F.foldr discardUserSpecifiedAssets mempty inputBundles
+    nonUserSpecifiedAssetQuantities :: Map AssetId (NonEmpty TokenQuantity)
+    nonUserSpecifiedAssetQuantities =
+        collateNonUserSpecifiedAssetQuantities
+            (view #tokens <$> inputBundles) userSpecifiedAssetIds
 
+-- | Generates a map of all non-user-specified assets and their quantities.
+--
+-- Each key in the resulting map corresponds to an asset that was NOT included
+-- in the original set of user-specified outputs, but that was nevertheless
+-- selected during the selection process.
+--
+-- The value associated with each key corresponds to the complete list of all
+-- discrete non-zero quantities of that asset present in the selected inputs.
+--
+collateNonUserSpecifiedAssetQuantities
+    :: NonEmpty TokenMap
+      -- ^ Token maps of all selected inputs.
+    -> Set AssetId
+      -- ^ Set of all assets in user-specified outputs.
+    -> Map AssetId (NonEmpty TokenQuantity)
+collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
+    F.foldr discardUserSpecifiedAssets mempty inputMaps
+  where
     discardUserSpecifiedAssets
-        :: TokenBundle
+        :: TokenMap
         -> Map AssetId (NonEmpty TokenQuantity)
         -> Map AssetId (NonEmpty TokenQuantity)
-    discardUserSpecifiedAssets (TokenBundle _ tokens) m =
+    discardUserSpecifiedAssets tokens m =
         foldr (\(k, v) -> Map.insertWith (<>) k (v :| [])) m filtered
       where
         filtered = filter
@@ -1309,14 +1327,33 @@ makeChangeForUserSpecifiedAsset targets (asset, excess) =
 -- with the `leq` function.
 --
 makeChangeForNonUserSpecifiedAsset
-    :: NonEmpty TokenMap
-        -- ^ A list of weights for the distribution. The list is only used for
-        -- its number of elements.
+    :: NonEmpty a
+        -- ^ Determines the number of change maps to create.
     -> (AssetId, NonEmpty TokenQuantity)
         -- ^ An asset quantity to distribute.
     -> NonEmpty TokenMap
+        -- ^ The resultant change maps.
 makeChangeForNonUserSpecifiedAsset n (asset, quantities) =
     TokenMap.singleton asset <$> padCoalesce quantities n
+
+-- | Constructs change outputs for all non-user-specified assets: assets that
+--   were not present in the original set of outputs.
+--
+-- The resultant list is sorted into ascending order when maps are compared
+-- with the `leq` function.
+--
+makeChangeForNonUserSpecifiedAssets
+    :: NonEmpty a
+        -- ^ Determines the number of change maps to create.
+    -> Map AssetId (NonEmpty TokenQuantity)
+        -- ^ A map of asset quantities to distribute.
+    -> NonEmpty TokenMap
+        -- ^ The resultant change maps.
+makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
+    F.foldr
+        (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
+        (TokenMap.empty <$ n)
+        (Map.toList nonUserSpecifiedAssetQuantities)
 
 -- | Constructs a list of ada change outputs based on the given distribution.
 --

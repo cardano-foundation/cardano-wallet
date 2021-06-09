@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -39,11 +40,13 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
     , balanceMissing
     , coinSelectionLens
+    , collateNonUserSpecifiedAssetQuantities
     , fullBalance
     , groupByKey
     , makeChange
     , makeChangeForCoin
     , makeChangeForNonUserSpecifiedAsset
+    , makeChangeForNonUserSpecifiedAssets
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
     , performSelection
@@ -135,6 +138,8 @@ import Data.Word
     ( Word64, Word8 )
 import Fmt
     ( blockListF, pretty )
+import GHC.Generics
+    ( Generic )
 import Numeric.Natural
     ( Natural )
 import Safe
@@ -301,6 +306,13 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         unitTests "makeChange"
             unit_makeChange
 
+    parallel $ describe "Collating non-user specified asset quantities" $ do
+
+        it "prop_collateNonUserSpecifiedAssetQuantities" $
+            property prop_collateNonUserSpecifiedAssetQuantities
+        describe "unit_collateNonUserSpecifiedAssetQuantities"
+            unit_collateNonUserSpecifiedAssetQuantities
+
     parallel $ describe "assignCoinsToChangeMaps" $ do
         unitTests "assignCoinsToChangeMaps"
             unit_assignCoinsToChangeMaps
@@ -314,7 +326,7 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         unitTests "makeChangeForCoin"
             unit_makeChangeForCoin
 
-    parallel $ describe "Making change for non-user-specified assets" $ do
+    parallel $ describe "Making change for one non-user-specified asset" $ do
 
         it "prop_makeChangeForNonUserSpecifiedAsset_sum" $
             property prop_makeChangeForNonUserSpecifiedAsset_sum
@@ -324,6 +336,17 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChangeForNonUserSpecifiedAsset_length
         unitTests "makeChangeForNonUserSpecifiedAsset"
             unit_makeChangeForNonUserSpecifiedAsset
+
+    parallel $ describe "Making change for many non-user-specified assets" $ do
+
+        it "prop_makeChangeForNonUserSpecifiedAssets_length" $
+            property prop_makeChangeForNonUserSpecifiedAssets_length
+        it "prop_makeChangeForNonUserSpecifiedAssets_order" $
+            property prop_makeChangeForNonUserSpecifiedAssets_order
+        it "prop_makeChangeForNonUserSpecifiedAssets_sum" $
+            property prop_makeChangeForNonUserSpecifiedAssets_sum
+        describe "unit_makeChangeForNonUserSpecifiedAssets"
+            unit_makeChangeForNonUserSpecifiedAssets
 
     parallel $ describe "Making change for user-specified assets" $ do
 
@@ -1918,6 +1941,218 @@ unit_makeChange =
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
+-- Collating non-user-specified asset quantities.
+--------------------------------------------------------------------------------
+
+prop_collateNonUserSpecifiedAssetQuantities
+    :: NonEmpty TokenMap
+    -- ^ Token maps of all selected inputs.
+    -> Set AssetId
+    -- ^ Set of all assets in user-specified outputs.
+    -> Property
+prop_collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
+    checkCoverage $
+    cover 40 bothSetsNonEmpty
+        "both sets non-empty" $
+    cover 1 nonUserSpecifiedAssetIdsEmpty
+        "non-user-specified asset id set is empty" $
+    cover 1 userSpecifiedAssetIdsEmpty
+        "user-specified asset id set is empty" $
+    cover 0.1 bothSetsEmpty
+        "both sets empty" $
+    conjoin
+        [ actualResult === expectedResult
+        , property $
+            userSpecifiedAssetIds `Set.disjoint` nonUserSpecifiedAssetIds
+        ]
+  where
+    actualResult :: Map AssetId (NonEmpty TokenQuantity)
+    actualResult =
+        collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds
+
+    expectedResult :: Map AssetId (NonEmpty TokenQuantity)
+    expectedResult = Map.fromSet getQuantitiesForAsset nonUserSpecifiedAssetIds
+      where
+        getQuantitiesForAsset assetId = NE.fromList $ NE.filter
+            (> TokenQuantity 0)
+            ((`TokenMap.getQuantity` assetId) <$> inputMaps)
+
+    nonUserSpecifiedAssetIds :: Set AssetId
+    nonUserSpecifiedAssetIds =
+        TokenMap.getAssets (F.fold inputMaps)
+        `Set.difference`
+        userSpecifiedAssetIds
+
+    bothSetsEmpty :: Bool
+    bothSetsEmpty = (&&)
+        (Set.null userSpecifiedAssetIds)
+        (Set.null nonUserSpecifiedAssetIds)
+
+    bothSetsNonEmpty :: Bool
+    bothSetsNonEmpty = (&&)
+        (not $ Set.null userSpecifiedAssetIds)
+        (not $ Set.null nonUserSpecifiedAssetIds)
+
+    nonUserSpecifiedAssetIdsEmpty :: Bool
+    nonUserSpecifiedAssetIdsEmpty = (&&)
+        (not $ Set.null userSpecifiedAssetIds)
+        (Set.null nonUserSpecifiedAssetIds)
+
+    userSpecifiedAssetIdsEmpty :: Bool
+    userSpecifiedAssetIdsEmpty = (&&)
+        (Set.null userSpecifiedAssetIds)
+        (not $ Set.null nonUserSpecifiedAssetIds)
+
+data TestDataForCollateNonUserSpecifiedAssetQuantities =
+    TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps
+            :: NonEmpty TokenMap
+        , userSpecifiedAssetIds
+            :: Set AssetId
+        , expectedResult
+            :: Map AssetId (NonEmpty TokenQuantity)
+        }
+    deriving (Eq, Generic)
+
+unit_collateNonUserSpecifiedAssetQuantities :: Spec
+unit_collateNonUserSpecifiedAssetQuantities =
+    forM_ (zip [1..] tests) $ \(testNumber :: Int, test) -> do
+        let title = "Unit test #" <> show testNumber
+        it title $ property $
+            collateNonUserSpecifiedAssetQuantities
+                (view #selectedInputMaps test)
+                (view #userSpecifiedAssetIds test)
+                ===
+                (view #expectedResult test)
+  where
+    mkSelectedInputMaps :: [[(ByteString, Natural)]] -> NonEmpty TokenMap
+    mkSelectedInputMaps
+        = NE.fromList
+        . fmap (TokenMap.fromFlatList . fmap (uncurry mockAssetQuantity))
+
+    mkUserSpecifiedAssetIds :: [ByteString] -> Set AssetId
+    mkUserSpecifiedAssetIds
+        = Set.fromList . fmap mockAsset
+
+    mkExpectedResult
+        :: [(ByteString, [Natural])]
+        -> Map AssetId (NonEmpty TokenQuantity)
+    mkExpectedResult
+        = fmap NE.fromList
+        . Map.fromList
+        . fmap (bimap mockAsset (fmap TokenQuantity))
+
+    tests :: [TestDataForCollateNonUserSpecifiedAssetQuantities]
+    tests = [test1, test2, test3, test4, test5, test6, test7, test8]
+
+    test1 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1)]
+            , [("A", 2)]
+            , [("A", 3)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            []
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2, 3]) ]
+        }
+
+    test2 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1)]
+            , [("A", 2)]
+            , [("A", 3)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "A" ]
+        , expectedResult = mkExpectedResult
+            []
+        }
+
+    test3 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1), ("B", 3)          ]
+            , [          ("B", 4), ("C", 5)]
+            , [("A", 2),           ("C", 6)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            []
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2])
+            , ("B", [3, 4])
+            , ("C", [5, 6])
+            ]
+        }
+
+    test4 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1), ("B", 3)          ]
+            , [          ("B", 4), ("C", 5)]
+            , [("A", 2),           ("C", 6)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "A" ]
+        , expectedResult = mkExpectedResult
+            [ ("B", [3, 4])
+            , ("C", [5, 6])
+            ]
+        }
+
+    test5 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1), ("B", 3)          ]
+            , [          ("B", 4), ("C", 5)]
+            , [("A", 2),           ("C", 6)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "B" ]
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2])
+            , ("C", [5, 6])
+            ]
+        }
+
+    test6 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1), ("B", 3)          ]
+            , [          ("B", 4), ("C", 5)]
+            , [("A", 2),           ("C", 6)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "C" ]
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2])
+            , ("B", [3, 4])
+            ]
+        }
+
+    test7 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1)          ]
+            , [          ("B", 3)]
+            , [("A", 2)          ]
+            , [          ("B", 4)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "A" ]
+        , expectedResult = mkExpectedResult
+            [ ("B", [3, 4]) ]
+        }
+
+    test8 = TestDataForCollateNonUserSpecifiedAssetQuantities
+        { selectedInputMaps = mkSelectedInputMaps
+            [ [("A", 1)          ]
+            , [          ("B", 3)]
+            , [("A", 2)          ]
+            , [          ("B", 4)]
+            ]
+        , userSpecifiedAssetIds = mkUserSpecifiedAssetIds
+            [ "B" ]
+        , expectedResult = mkExpectedResult
+            [ ("A", [1, 2]) ]
+        }
+
+--------------------------------------------------------------------------------
 -- Assigning coins to change maps
 --------------------------------------------------------------------------------
 
@@ -2027,58 +2262,63 @@ unit_makeChangeForCoin =
         ]
 
 --------------------------------------------------------------------------------
--- Making change for unknown assets
+-- Making change for a single non-user-specified asset
 --------------------------------------------------------------------------------
 
 prop_makeChangeForNonUserSpecifiedAsset_sum
-    :: NonEmpty TokenMap
+    :: NonEmpty ()
     -> (AssetId, NonEmpty TokenQuantity)
     -> Property
-prop_makeChangeForNonUserSpecifiedAsset_sum weights (asset, quantities) =
+prop_makeChangeForNonUserSpecifiedAsset_sum n (asset, quantities) =
     F.fold quantities === F.fold ((`TokenMap.getQuantity` asset) <$> changes)
   where
-    changes = makeChangeForNonUserSpecifiedAsset weights (asset, quantities)
+    changes = makeChangeForNonUserSpecifiedAsset n (asset, quantities)
 
 prop_makeChangeForNonUserSpecifiedAsset_order
-    :: NonEmpty TokenMap
+    :: NonEmpty ()
     -> (AssetId, NonEmpty TokenQuantity)
     -> Property
-prop_makeChangeForNonUserSpecifiedAsset_order weights assetQuantities =
+prop_makeChangeForNonUserSpecifiedAsset_order n assetQuantities =
     property $ inAscendingPartialOrder
-        $ makeChangeForNonUserSpecifiedAsset weights assetQuantities
+        $ makeChangeForNonUserSpecifiedAsset n assetQuantities
 
 prop_makeChangeForNonUserSpecifiedAsset_length
-    :: NonEmpty TokenMap
+    :: NonEmpty ()
     -> (AssetId, NonEmpty TokenQuantity)
     -> Property
-prop_makeChangeForNonUserSpecifiedAsset_length weights surplus =
-    F.length changes === F.length weights
+prop_makeChangeForNonUserSpecifiedAsset_length n surplus =
+    F.length changes === F.length n
   where
-    changes = makeChangeForNonUserSpecifiedAsset weights surplus
+    changes = makeChangeForNonUserSpecifiedAsset n surplus
 
 unit_makeChangeForNonUserSpecifiedAsset
     :: [Expectation]
 unit_makeChangeForNonUserSpecifiedAsset =
-    [ makeChangeForNonUserSpecifiedAsset weights surplus `shouldBe` expectation
-    | (weights, surplus, expectation) <- matrix
+    [ makeChangeForNonUserSpecifiedAsset
+        (mkChangeMapCount changeMapCount) surplus
+        `shouldBe` expectation
+    | (changeMapCount, surplus, expectation) <- matrix
     ]
   where
     matrix =
-        [ ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
-          , (assetC, q <$> 1 :| [1])
-          , m [(assetC, q 1)] :| [m [(assetC, q 1)]]
+        [ ( 2
+          , (assetA, q <$> 1 :| [1])
+          , m [(assetA, q 1)] :| [m [(assetA, q 1)]]
           )
 
-        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
-          , (assetC, q <$> 1 :| [1, 1])
-          , m [(assetC, q 1)] :| [m [(assetC, q 2)]]
+        , ( 2
+          , (assetA, q <$> 1 :| [1, 1])
+          , m [(assetA, q 1)] :| [m [(assetA, q 2)]]
           )
 
-        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
-          , (assetC, q <$> 1 :| [])
-          , m [(assetC, q 0)] :| [m [(assetC, q 1)]]
+        , ( 2
+          , (assetA, q <$> 1 :| [])
+          , m [(assetA, q 0)] :| [m [(assetA, q 1)]]
           )
         ]
+
+    mkChangeMapCount :: Int -> NonEmpty ()
+    mkChangeMapCount n = NE.fromList $ replicate n ()
 
     q :: Natural -> TokenQuantity
     q = TokenQuantity
@@ -2089,11 +2329,250 @@ unit_makeChangeForNonUserSpecifiedAsset =
     assetA :: AssetId
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
 
-    assetB :: AssetId
-    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
+--------------------------------------------------------------------------------
+-- Making change for multiple non-user-specified assets
+--------------------------------------------------------------------------------
 
-    assetC :: AssetId
-    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
+checkCoverageFor_makeChangeForNonUserSpecifiedAssets
+    :: NonEmpty ()
+    -> Map AssetId (NonEmpty TokenQuantity)
+    -> Property
+    -> Property
+checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap prop =
+    checkCoverage $
+
+    -- Number of distinct assets:
+    cover 1 (Map.size assetQuantityMap == 1)
+        "number of distinct assets == 1" $
+    cover 50 (Map.size assetQuantityMap >= 2)
+        "number of distinct assets >= 2" $
+    cover 10 (Map.size assetQuantityMap >= 4)
+        "number of distinct assets >= 4" $
+
+    -- Number of change maps:
+    cover 1 (length n == 1)
+        "number of change maps == 1" $
+    cover 50 (length n >= 2)
+        "number of change maps >= 2" $
+    cover 10 (length n >= 4)
+        "number of change maps >= 4" $
+
+    -- Largest number of distinct token quantities for a given asset:
+    cover 1 (largestTokenQuantityCount == 1)
+        "largest number of token quantities == 1" $
+    cover 50 (largestTokenQuantityCount >= 2)
+        "largest number of token quantities >= 2" $
+    cover 10 (largestTokenQuantityCount >= 4)
+        "largest number of token quantities >= 4"
+
+    prop
+  where
+    largestTokenQuantityCount :: Int
+    largestTokenQuantityCount = maximum (length <$> F.toList (assetQuantityMap))
+
+prop_makeChangeForNonUserSpecifiedAssets_length
+    :: NonEmpty ()
+    -> NonEmpty (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAssets_length n assetQuantities =
+    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
+    lengthActual === lengthExpected
+  where
+    assetQuantityMap :: Map AssetId (NonEmpty TokenQuantity)
+    assetQuantityMap = Map.fromList (F.toList assetQuantities)
+
+    lengthActual :: Int
+    lengthActual = length
+        (makeChangeForNonUserSpecifiedAssets n assetQuantityMap)
+
+    lengthExpected :: Int
+    lengthExpected = length n
+
+prop_makeChangeForNonUserSpecifiedAssets_order
+    :: NonEmpty ()
+    -> NonEmpty (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAssets_order n assetQuantities =
+    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
+    property $ inAscendingPartialOrder result
+  where
+    assetQuantityMap :: Map AssetId (NonEmpty TokenQuantity)
+    assetQuantityMap = Map.fromList (F.toList assetQuantities)
+
+    result :: NonEmpty TokenMap
+    result = makeChangeForNonUserSpecifiedAssets n assetQuantityMap
+
+prop_makeChangeForNonUserSpecifiedAssets_sum
+    :: NonEmpty ()
+    -> NonEmpty (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAssets_sum n assetQuantities =
+    checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
+    sumActual === sumExpected
+  where
+    assetQuantityMap :: Map AssetId (NonEmpty TokenQuantity)
+    assetQuantityMap = Map.fromList (F.toList assetQuantities)
+
+    sumActual :: TokenMap
+    sumActual =
+        F.fold (makeChangeForNonUserSpecifiedAssets n assetQuantityMap)
+
+    sumExpected :: TokenMap
+    sumExpected =
+        TokenMap.fromFlatList $ Map.toList $ F.fold <$> assetQuantityMap
+
+data TestDataForMakeChangeForNonUserSpecifiedAssets =
+    TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount
+            :: NonEmpty ()
+        , nonUserSpecifiedAssetQuantities
+            :: Map AssetId (NonEmpty TokenQuantity)
+        , expectedResult
+            :: NonEmpty TokenMap
+        }
+    deriving (Eq, Generic)
+
+unit_makeChangeForNonUserSpecifiedAssets :: Spec
+unit_makeChangeForNonUserSpecifiedAssets =
+    forM_ (zip [1..] tests) $ \(testNumber :: Int, test) -> do
+        let title = "Unit test #" <> show testNumber
+        it title $ property $
+            makeChangeForNonUserSpecifiedAssets
+                (view #changeMapCount test)
+                (view #nonUserSpecifiedAssetQuantities test)
+                ===
+                (view #expectedResult test)
+  where
+    mkChangeMapCount :: Int -> NonEmpty ()
+    mkChangeMapCount n = NE.fromList $ replicate n ()
+
+    mkNonUserSpecifiedAssetQuantities
+        :: [(ByteString, [Natural])]
+        -> Map AssetId (NonEmpty TokenQuantity)
+    mkNonUserSpecifiedAssetQuantities =
+        Map.fromList . fmap (bimap mockAsset (NE.fromList . fmap TokenQuantity))
+
+    mkExpectedResult
+        :: [[(ByteString, Natural)]]
+        -> NonEmpty TokenMap
+    mkExpectedResult
+        = NE.fromList
+        . fmap (TokenMap.fromFlatList . fmap (uncurry mockAssetQuantity))
+
+    tests :: [TestDataForMakeChangeForNonUserSpecifiedAssets]
+    tests = [test1, test2, test3, test4, test5, test6, test7, test8]
+
+    test1 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            1
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [1])
+            , ("B", [3, 2, 1])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [("A", 1), ("B", 6)] ]
+        }
+
+    test2 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            2
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [1])
+            , ("B", [3, 2, 1])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [          ("B", 3)]
+            , [("A", 1), ("B", 3)]
+            ]
+        }
+
+    test3 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            3
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [1])
+            , ("B", [3, 2, 1])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [          ("B", 1)]
+            , [          ("B", 2)]
+            , [("A", 1), ("B", 3)]
+            ]
+        }
+
+    test4 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            4
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [1])
+            , ("B", [3, 2, 1])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [                  ]
+            , [          ("B", 1)]
+            , [          ("B", 2)]
+            , [("A", 1), ("B", 3)]
+            ]
+        }
+
+    test5 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            1
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [4, 1, 3, 2])
+            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [("A", 10), ("B", 45)] ]
+        }
+
+    test6 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            2
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [4, 1, 3, 2])
+            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [("A", 4), ("B", 18)]
+            , [("A", 6), ("B", 27)]
+            ]
+        }
+
+    test7 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            4
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [4, 1, 3, 2])
+            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [("A", 1), ("B",  9)]
+            , [("A", 2), ("B",  9)]
+            , [("A", 3), ("B", 12)]
+            , [("A", 4), ("B", 15)]
+            ]
+        }
+
+    test8 = TestDataForMakeChangeForNonUserSpecifiedAssets
+        { changeMapCount = mkChangeMapCount
+            9
+        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
+            [ ("A", [4, 1, 3, 2])
+            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+            ]
+        , expectedResult = mkExpectedResult
+            [ [          ("B",  1)]
+            , [          ("B",  2)]
+            , [          ("B",  3)]
+            , [          ("B",  4)]
+            , [          ("B",  5)]
+            , [("A", 1), ("B",  6)]
+            , [("A", 2), ("B",  7)]
+            , [("A", 3), ("B",  8)]
+            , [("A", 4), ("B",  9)]
+            ]
+        }
 
 --------------------------------------------------------------------------------
 -- Making change for known assets
