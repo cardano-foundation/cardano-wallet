@@ -166,10 +166,10 @@ def wait_for_all_shared_wallets(wids)
   end
 end
 
-def create_shelley_wallet(name = "Wallet from mnemonic_sentence")
+def create_shelley_wallet(name = "Wallet from mnemonic_sentence", mnemonic_sentence = mnemonic_sentence(24))
   SHELLEY.wallets.create({ name: name,
                           passphrase: PASS,
-                          mnemonic_sentence: mnemonic_sentence(24)
+                          mnemonic_sentence: mnemonic_sentence
                          })['id']
 end
 

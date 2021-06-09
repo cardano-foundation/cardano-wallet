@@ -401,20 +401,59 @@ RSpec.describe CardanoWallet::Shelley do
     end
 
     it "Create account public key - extended" do
-      wid = create_shelley_wallet
+      m24 = mnemonic_sentence(24)
+      wid = create_shelley_wallet("Wallet", m24)
       ["0H", "1H", "2147483647H", "44H"].each do |index|
-        res = SHELLEY.keys.create_acc_public_key(wid, index, PASS, 'extended')
+        payload = { passphrase: PASS, format: 'extended' }
+        res = SHELLEY.keys.create_acc_public_key(wid, index, payload)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "acc"
+        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
+                                                                 "1852H/1815H/#{index}",
+                                                                 hex = false,
+                                                                 "Shelley")
       end
     end
 
     it "Create account public key - non_extended" do
-      wid = create_shelley_wallet
+      m24 = mnemonic_sentence(24)
+      wid = create_shelley_wallet("Wallet", m24)
       ["0H", "1H", "2147483647H", "44H"].each do |index|
-        res = SHELLEY.keys.create_acc_public_key(wid, index, PASS, 'non_extended')
+        payload = { passphrase: PASS, format: 'non_extended' }
+        res = SHELLEY.keys.create_acc_public_key(wid, index, payload)
+        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
+                                                                 "1852H/1815H/#{index}",
+                                                                 hex = false,
+                                                                 "Shelley",
+                                                                 "--without-chain-code")
+      end
+    end
+
+    it "Create account public key - extended with purpose" do
+      m24 = mnemonic_sentence(24)
+      wid = create_shelley_wallet("Wallet", m24)
+      ["0H", "1H", "2147483647H", "1854H"].each do |index_purpose|
+        payload = { passphrase: PASS, format: 'extended', purpose: index_purpose }
+        res = SHELLEY.keys.create_acc_public_key(wid, index_purpose, payload)
         expect(res).to be_correct_and_respond 202
-        expect(res.to_s).to include "acc"
+        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
+                                                                 "#{index_purpose}/1815H/#{index_purpose}",
+                                                                 hex = false,
+                                                                 "Shelley")
+      end
+    end
+
+    it "Create account public key - non_extended with purpose" do
+      m24 = mnemonic_sentence(24)
+      wid = create_shelley_wallet("Wallet", m24)
+      ["0H", "1H", "2147483647H", "1854H"].each do |index_purpose|
+        payload = { passphrase: PASS, format: 'non_extended', purpose: index_purpose }
+        res = SHELLEY.keys.create_acc_public_key(wid, index_purpose, payload)
+        expect(res).to be_correct_and_respond 202
+        expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
+                                                                 "#{index_purpose}/1815H/#{index_purpose}",
+                                                                 hex = false,
+                                                                 "Shelley",
+                                                                 "--without-chain-code")
       end
     end
 
