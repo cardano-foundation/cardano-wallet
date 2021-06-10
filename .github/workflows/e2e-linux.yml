@@ -4,6 +4,11 @@ on:
   schedule:
   - cron:  "0 21 * * *"
   workflow_dispatch:
+    inputs:
+      network:
+        description: 'Network'
+        required: true
+        default: 'testnet'
 
 defaults:
   run:
@@ -34,7 +39,7 @@ jobs:
         key: ${{ runner.os }}-node-cache-v2
 
     - name: Run all tests
-      run: rake run_on[testnet]
+      run: rake run_on[$NETWORK]
 
     - name: 📎 Upload logs
       uses: actions/upload-artifact@v2
@@ -45,3 +50,4 @@ jobs:
 
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
+      NETWORK: ${{ github.event.inputs.network || 'testnet' }}

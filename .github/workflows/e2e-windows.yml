@@ -4,6 +4,11 @@ on:
   schedule:
   - cron:  "0 21 * * *"
   workflow_dispatch:
+    inputs:
+      network:
+        description: 'Network'
+        required: true
+        default: 'testnet'
 
 defaults:
   run:
@@ -39,7 +44,7 @@ jobs:
         choco install nssm
 
     - name: Run all tests
-      run: rake run_on[testnet]
+      run: rake run_on[%NETWORK%]
 
     - name: 📎 Upload logs
       uses: actions/upload-artifact@v2
@@ -49,4 +54,5 @@ jobs:
         path: test/e2e/state/logs
 
     env:
+      NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
