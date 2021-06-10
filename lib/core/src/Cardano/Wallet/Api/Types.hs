@@ -140,6 +140,8 @@ module Cardano.Wallet.Api.Types
     , KeyFormat (..)
     , ApiPostAccountKeyData (..)
     , ApiPostAccountKeyDataWithPurpose (..)
+    , ApiConstructTransaction (..)
+    , ApiTxInputExtended (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -840,7 +842,21 @@ newtype ApiBytesT (base :: Base) bs = ApiBytesT { getApiBytesT :: bs }
 
 data ApiSerialisedTransaction
     = ApiSerialisedTransaction (ApiBytesT 'Base64 SerialisedTx)
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
+data ApiTxInputExtended (n :: NetworkDiscriminant) = ApiTxInputExtended
+    { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
+    , input :: !(ApiT TxIn)
+    , derivationPath :: !(NonEmpty (ApiT DerivationIndex))
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
+    { serializedTransaction :: !ApiSerialisedTransaction
+    , inputs :: [ApiTxInputExtended n]
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
