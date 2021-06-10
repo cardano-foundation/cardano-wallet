@@ -992,6 +992,48 @@ x-transactionInputs: &transactionInputs
         type: integer
         minimum: 0
 
+x-derivationSegment: &derivationSegment
+  description: |
+    An individual segment within a derivation path.
+
+    The `H` suffix indicates a _Hardened_ child private key, which
+    means that children of this key cannot be derived from the public
+    key. Indices without a `H` suffix are called _Soft_.
+  type: string
+  example: 1852H
+
+x-derivationPath: &derivationPath
+  description: A path for deriving a child key from a parent key.
+  type: array
+  minItems: 1
+  items: *derivationSegment
+
+x-transactionInputsExtended: &transactionInputsExtended
+  description: |
+    A list of transaction inputs.
+
+    `assets` and `address` are always present for `outgoing`
+    transactions but generally absent for `incoming`
+    transactions. This information is present on the Cardano explorer,
+    but is not tracked by the wallet.
+  type: array
+  minItems: 0
+  items:
+    type: object
+    required:
+      - id
+      - index
+      - derivation_path
+    properties:
+      address: *addressId
+      amount: *amount
+      assets: *walletAssets
+      id: *transactionId
+      index:
+        type: integer
+        minimum: 0
+      derivation_path: *derivationPath
+
 x-transactionOutputs: &transactionOutputs
   description: A list of target outputs
   type: array
@@ -1121,22 +1163,6 @@ x-transactionMint: &transactionMint
   type: array
   minItems: 0
   items: *assetMint
-
-x-derivationSegment: &derivationSegment
-  description: |
-    An individual segment within a derivation path.
-
-    The `H` suffix indicates a _Hardened_ child private key, which
-    means that children of this key cannot be derived from the public
-    key. Indices without a `H` suffix are called _Soft_.
-  type: string
-  example: 1852H
-
-x-derivationPath: &derivationPath
-  description: A path for deriving a child key from a parent key.
-  type: array
-  minItems: 1
-  items: *derivationSegment
 
 x-transactionChange: &transactionChange
   description: A list of transaction change outputs.
@@ -1901,7 +1927,7 @@ components:
         - inputs
       properties:
         serialized_transaction: *serializedTransaction
-        inputs: *transactionInputs
+        inputs: *transactionInputsExtended
 
     ApiTransaction: &ApiTransaction
       type: object
