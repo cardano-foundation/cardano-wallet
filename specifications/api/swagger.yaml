@@ -1142,11 +1142,9 @@ x-transactionDelegations: &transactionDelegations
     type: object
     additionalProperties: false
     required:
-      - delegation_action
-      - delegation_target
+      - action
     properties:
-      delegation_action: *delegationTarget
-      delegation_target: *delegationTarget
+      action: *delegationAction
 
 x-transactionMint: &transactionMint
   description: |

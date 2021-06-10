@@ -858,6 +858,20 @@ data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransactio
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data ApiDelegationTx = ApiDelegationTx
+    { delegationAction :: !ApiDelegationAction
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiTransactionConstructData (n :: NetworkDiscriminant) = ApiTransactionConstructData
+    { payments :: !(Maybe (NonEmpty (AddressAmount (ApiT Address, Proxy n))))
+    , withdrawal :: !(Maybe ApiWithdrawalPostData)
+    , metadata :: !(Maybe (ApiT TxMetadata))
+    , mint :: !(Maybe (ApiT W.TokenMap))
+    , delegation :: ![ApiDelegationTx]
+    , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
+    } deriving (Eq, Generic, Show)
+
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "lenient"))
