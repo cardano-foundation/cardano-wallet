@@ -1020,6 +1020,10 @@ x-delegationAction: &delegationAction
       enum: ["quit", "join"]
     pool: *stakePoolId
 
+x-delegationTarget: &delegationTarget
+  <<: *stakePoolId
+  description: A unique Stake-Pool identifier (present only if status = `delegating`)
+
 x-rewardAccountPath: &rewardAccountPath
   type: array
   minItems: 5
@@ -1087,6 +1091,20 @@ x-transactionWithdrawals: &transactionWithdrawals
     properties:
       stake_address: *stakeAddress
       amount: *amount
+
+x-transactionDelegations: &transactionDelegations
+  description: A list of staking actions (joining, rejoining or leaving from stake pools).
+  type: array
+  minItems: 0
+  items:
+    type: object
+    additionalProperties: false
+    required:
+      - delegation_action
+      - delegation_target
+    properties:
+      delegation_action: *delegationTarget
+      delegation_target: *delegationTarget
 
 x-transactionMint: &transactionMint
   description: |
@@ -1492,10 +1510,6 @@ x-delegationStatus: &delegationStatus
   enum:
     - not_delegating
     - delegating
-
-x-delegationTarget: &delegationTarget
-  <<: *stakePoolId
-  description: A unique Stake-Pool identifier (present only if status = `delegating`)
 
 x-addressIndex: &addressIndex
   type: number
@@ -2600,6 +2614,16 @@ components:
       properties:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
+
+    ApiTransactionConstructData: &ApiTransactionConstructData
+      type: object
+      properties:
+        payments: *transactionOutputs
+        withdrawal: *transactionWithdrawalRequestSelf
+        metadata: *transactionMetadata
+        mint: *transactionMint
+        delegation: *transactionDelegations
+        time_to_live: *transactionTTL
 
     CredentialValue: *CredentialValue
 
