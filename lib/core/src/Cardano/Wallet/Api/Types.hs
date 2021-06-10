@@ -141,7 +141,9 @@ module Cardano.Wallet.Api.Types
     , ApiPostAccountKeyData (..)
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiConstructTransaction (..)
+    , ApiConstructTransactionData (..)
     , ApiTxInputExtended (..)
+    , ApiMultiDelegationAction (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -858,17 +860,16 @@ data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransactio
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiDelegationTx = ApiDelegationTx
-    { delegationAction :: !ApiDelegationAction
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+data ApiMultiDelegationAction = Joining (ApiT PoolId) Natural | Leaving (ApiT PoolId)
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
-data ApiTransactionConstructData (n :: NetworkDiscriminant) = ApiTransactionConstructData
+data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
     { payments :: !(Maybe (NonEmpty (AddressAmount (ApiT Address, Proxy n))))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , mint :: !(Maybe (ApiT W.TokenMap))
-    , delegation :: ![ApiDelegationTx]
+    , delegation :: ![ApiMultiDelegationAction]
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     } deriving (Eq, Generic, Show)
 

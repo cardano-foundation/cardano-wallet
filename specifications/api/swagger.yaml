@@ -1134,6 +1134,28 @@ x-transactionWithdrawals: &transactionWithdrawals
       stake_address: *stakeAddress
       amount: *amount
 
+x-softIndex: &softIndex
+  type: integer
+  minimum: 0
+  maximum: 2147483647
+  description: A soft derivation index.
+
+x-multiDelegationAction: &multiDelegationAction
+  description: |
+    A delegation action for a given stake key denoted by its soft index.
+
+    Stake key index is only required for "join".
+  type: object
+  required:
+    - action
+    - pool
+  properties:
+    action:
+      type: string
+      enum: ["quit", "join"]
+    pool: *stakePoolId
+    stake_key_index: *softIndex
+
 x-transactionDelegations: &transactionDelegations
   description: A list of staking actions (joining, rejoining or leaving from stake pools).
   type: array
@@ -1144,7 +1166,7 @@ x-transactionDelegations: &transactionDelegations
     required:
       - action
     properties:
-      action: *delegationAction
+      action: *multiDelegationAction
 
 x-transactionMint: &transactionMint
   description: |
@@ -2659,7 +2681,7 @@ components:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
 
-    ApiTransactionConstructData: &ApiTransactionConstructData
+    ApiConstructTransactionData: &ApiConstructTransactionData
       type: object
       properties:
         payments: *transactionOutputs
@@ -2751,13 +2773,6 @@ components:
           title: icarus/trezor/ledger (from xpub)
         - <<: *ApiByronWalletRandomXPrvPostData
           title: random (from xprv)
-
-    softIndex: &softIndex
-      type: integer
-      minimum: 0
-      maximum: 2147483647
-      description: |
-        A soft derivation index.
 
     ApiOurStakeKey: &ApiOurStakeKey
       type: object
@@ -4771,7 +4786,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiTransactionConstructData
+            schema: *ApiConstructTransactionData
       responses: *responsesPostTransactionFee
 
   /wallets/{walletId}/transactions/construct:
@@ -4789,7 +4804,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiTransactionConstructData
+            schema: *ApiConstructTransactionData
       responses: *responsesConstructTransaction
 
   /wallets/{walletId}/addresses:
