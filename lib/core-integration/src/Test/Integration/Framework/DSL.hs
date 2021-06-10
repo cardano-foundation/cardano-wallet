@@ -659,7 +659,7 @@ securityParameterValue = 5
 
 -- | Parameter in test cluster shelley genesis.
 epochLengthValue :: Word32
-epochLengthValue = 50
+epochLengthValue = 100
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.

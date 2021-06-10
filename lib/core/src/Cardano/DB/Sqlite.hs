@@ -7,6 +7,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -78,6 +79,8 @@ import Data.Aeson
     ( ToJSON (..) )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.List
     ( isInfixOf )
 import Data.List.Split
@@ -116,6 +119,8 @@ import Fmt
     ( fmt, ordinalF, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
+import System.Environment
+    ( lookupEnv )
 import System.Log.FastLogger
     ( fromLogStr )
 import UnliftIO.Compat
@@ -218,7 +223,9 @@ newSqliteContext tr pool manualMigrations autoMigration = do
                -- resource is NOT placed back in the pool.
                 runQuery :: SqlPersistT IO a -> IO a
                 runQuery cmd = withResource pool $
-                    observe . retryOnBusy tr . runSqlConn cmd . fst
+                    observe
+                    . retryOnBusy tr retryOnBusyTimeout
+                    . runSqlConn cmd . fst
 
             in Right $ SqliteContext { runQuery }
 
@@ -236,7 +243,21 @@ destroySqliteBackend
     -> IO ()
 destroySqliteBackend tr sqlBackend dbFile = do
     traceWith tr (MsgCloseSingleConnection dbFile)
-    retryOnBusy tr (close' sqlBackend)
+
+    -- Hack for ADP-827: timeout earlier in integration tests.
+    --
+    -- There seem to be some concurrency problem causing persistent-sqlite to
+    -- leak unfinalized statements, causing SQLITE_BUSY when we try to close the
+    -- connection. In this case, retrying 2 or 60 seconds would have no
+    -- difference.
+    --
+    -- But in production, the longer timeout isn't as much of a problem, and
+    -- might be needed for windows.
+    timeoutSec <- lookupEnv "CARDANO_WALLET_TEST_INTEGRATION" <&> \case
+            Just _ -> 2
+            Nothing -> retryOnBusyTimeout
+
+    retryOnBusy tr timeoutSec (close' sqlBackend)
         & handleIf isAlreadyClosed
             (traceWith tr . MsgIsAlreadyClosed . showT)
         & handleIf statementAlreadyFinalized
@@ -256,6 +277,10 @@ destroySqliteBackend tr sqlBackend dbFile = do
     showT :: Show a => a -> Text
     showT = T.pack . show
 
+-- | Default timeout for `retryOnBusy`
+retryOnBusyTimeout :: NominalDiffTime
+retryOnBusyTimeout = 60
+
 -- | Retry an action if the database yields an 'SQLITE_BUSY' error.
 --
 -- From <https://www.sqlite.org/rescode.html#busy>
@@ -273,12 +298,17 @@ destroySqliteBackend tr sqlBackend dbFile = do
 --     and sqlite3_busy_handler() interfaces and the busy_timeout pragma are
 --     available to process B to help it deal with SQLITE_BUSY errors.
 --
-retryOnBusy :: Tracer IO DBLog -> IO a -> IO a
-retryOnBusy tr action = recovering policy
+retryOnBusy
+    :: Tracer IO DBLog -- ^ Logging
+    -> NominalDiffTime -- ^ Timeout
+    -> IO a -- ^ Action to retry
+    -> IO a
+retryOnBusy tr timeout action = recovering policy
     [logRetries isBusy traceRetries]
     (\st -> action <* trace MsgRetryDone st)
   where
-    policy = limitRetriesByCumulativeDelay (60000*ms) $ constantDelay (25*ms)
+    policy = limitRetriesByCumulativeDelay usTimeout $ constantDelay (25*ms)
+    usTimeout = truncate (timeout * 1_000_000)
     ms = 1000 -- microseconds in a millisecond
 
     isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
