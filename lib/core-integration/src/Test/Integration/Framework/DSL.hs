@@ -945,7 +945,7 @@ waitForTxImmutability _ctx = liftIO $ do
     --
     -- let stabilityDelay   = round (sl * 3 * k / f)
     -- let txInsertionDelay = round (sl * 10 / f)
-    let stabilityDelay   = 12 * oneSecond
+    let stabilityDelay   = 6 * oneSecond
     let txInsertionDelay = 4 * oneSecond
 
     threadDelay $ stabilityDelay + txInsertionDelay
