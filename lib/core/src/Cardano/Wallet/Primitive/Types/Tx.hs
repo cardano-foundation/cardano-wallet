@@ -26,6 +26,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , TxStatus (..)
     , SealedTx (..)
+    , SerialisedTx (..)
     , UnsignedTx (..)
     , TransactionInfo (..)
     , Direction (..)
@@ -90,7 +91,7 @@ import Control.DeepSeq
 import Data.Bifunctor
     ( first )
 import Data.ByteArray
-    ( ByteArrayAccess )
+    ( ByteArray, ByteArrayAccess )
 import Data.ByteString
     ( ByteString )
 import Data.Function
@@ -407,6 +408,12 @@ newtype SealedTx = SealedTx { getSealedTx :: ByteString }
 -- | True if the given metadata refers to a pending transaction
 isPending :: TxMeta -> Bool
 isPending = (== Pending) . (status :: TxMeta -> TxStatus)
+
+-- | A serialised transaction that may be only partially signed, or even
+-- invalid.
+newtype SerialisedTx = SerialisedTx { payload :: ByteString }
+    deriving stock (Show, Eq, Generic, Ord)
+    deriving newtype (Semigroup, Monoid, ByteArray, ByteArrayAccess, NFData)
 
 -- | Full expanded and resolved information about a transaction, suitable for
 -- presentation to the user.

@@ -270,7 +270,13 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxIn (..), TxMetadata, TxStatus (..), txMetadataIsNull )
+    ( Direction (..)
+    , SerialisedTx (..)
+    , TxIn (..)
+    , TxMetadata
+    , TxStatus (..)
+    , txMetadataIsNull
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata
@@ -313,6 +319,8 @@ import Data.Aeson.Types
     )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteArray
+    ( ByteArray, ByteArrayAccess )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.ByteString
@@ -362,7 +370,7 @@ import Data.Time.Text
 import Data.Traversable
     ( for )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable, typeRep )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Data.Word.Odd
@@ -822,6 +830,17 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
     { oldPassphrase :: !(Maybe (ApiT (Passphrase "lenient")))
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
+
+-- | Polymorphic wrapper for byte arrays, parameterised by the desired string
+-- encoding.
+newtype ApiBytesT (base :: Base) bs = ApiBytesT { getApiBytesT :: bs }
+    deriving (Generic, Show, Eq, Functor)
+    deriving newtype (Semigroup, Monoid, Hashable)
+    deriving anyclass NFData
+
+data ApiSerialisedTransaction
+    = ApiSerialisedTransaction (ApiBytesT 'Base64 SerialisedTx)
+
 
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
@@ -2359,6 +2378,19 @@ instance DecodeAddress t => FromJSON (PostTransactionFeeData t) where
 instance EncodeAddress t => ToJSON (PostTransactionFeeData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance (HasBase base, ByteArray bs) => FromJSON (ApiBytesT base bs) where
+    parseJSON = withText (show (typeRep (Proxy @base)) ++ " ByteString") $
+        eitherToParser . first ShowFmt . fromText @(ApiBytesT base bs)
+
+instance (HasBase base, ByteArrayAccess bs) => ToJSON (ApiBytesT base bs) where
+    toJSON = String . toText @(ApiBytesT base bs)
+
+instance FromJSON ApiSerialisedTransaction where
+    parseJSON v = ApiSerialisedTransaction <$> parseJSON v
+
+instance ToJSON ApiSerialisedTransaction where
+    toJSON (ApiSerialisedTransaction tx) = toJSON tx
+
 -- Note: These custom JSON instances are for compatibility with the existing API
 -- schema. At some point, we can switch to the generic instances.
 instance FromJSON ApiSlotReference where
@@ -2797,6 +2829,27 @@ instance FromJSON ApiAddressInspect where
                              FromText/ToText instances
 -------------------------------------------------------------------------------}
 
+instance (HasBase b, ByteArray bs) => FromText (ApiBytesT b bs) where
+    fromText = fmap ApiBytesT . fromTextBytes (baseFor @b)
+instance (HasBase b, ByteArrayAccess bs) => ToText (ApiBytesT b bs) where
+    toText = toTextBytes (baseFor @b) . getApiBytesT
+
+class Typeable a => HasBase a where
+    baseFor :: Base
+instance HasBase 'Base16 where
+    baseFor = Base16
+instance HasBase 'Base64 where
+    baseFor = Base64
+
+fromTextBytes :: ByteArray bs => Base -> Text -> Either TextDecodingError bs
+fromTextBytes base = first (const errMsg) . convertFromBase base . T.encodeUtf8
+  where
+    errMsg = TextDecodingError $ mconcat
+        [ "Parse error. Expecting ", show base, "-encoded format." ]
+
+toTextBytes :: ByteArrayAccess bs => Base -> bs -> Text
+toTextBytes base = T.decodeLatin1 . convertToBase base
+
 instance FromText (AddressAmount Text) where
     fromText text = do
         let err = Left . TextDecodingError $ "Parse error. Expecting format \
@@ -2848,6 +2901,18 @@ instance FromText (ApiT Cosigner) where
 {-------------------------------------------------------------------------------
                              HTTPApiData instances
 -------------------------------------------------------------------------------}
+
+instance MimeUnrender OctetStream (ApiBytesT base ByteString) where
+    mimeUnrender _ = pure . ApiBytesT . BL.toStrict
+
+instance MimeRender OctetStream (ApiBytesT base ByteString) where
+   mimeRender _ = BL.fromStrict . getApiBytesT
+
+instance MimeUnrender OctetStream (ApiBytesT base SerialisedTx) where
+    mimeUnrender _ = pure . ApiBytesT . SerialisedTx . BL.toStrict
+
+instance MimeRender OctetStream (ApiBytesT base SerialisedTx) where
+   mimeRender _ = BL.fromStrict . view #payload . getApiBytesT
 
 instance FromText a => FromHttpApiData (ApiT a) where
     parseUrlPiece = bimap pretty ApiT . fromText
