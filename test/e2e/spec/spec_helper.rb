@@ -27,7 +27,7 @@ TIMEOUT = 180
 
 ##
 # Intit cardano-wallet wrapper with timeout for getting the response back
-CW = CardanoWallet.new({ timeout: TIMEOUT })
+CW = CardanoWallet.new({ timeout: TIMEOUT, port: ENV['WALLET_PORT'].to_i })
 BYRON = CW.byron
 SHELLEY = CW.shelley
 SHARED = CW.shared
