@@ -333,21 +333,21 @@ spec = describe "BYRON_MIGRATIONS" $ do
         -- migration is complete.
         --
         liftIO $ migrateWallet ctx sourceWallet targetAddressIds
+        waitForTxImmutability ctx
 
         -- Check that funds become available in the target wallet.
         let expectedTargetBalance =
                 sourceBalance - balanceLeftover - expectedFee
-        eventually "Target wallet balance reaches expected balance" $ do
-            response <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley targetWallet) Default Empty
-            verify response
-                [ expectField
-                    (#balance . #available . #getQuantity)
-                    (`shouldBe` expectedTargetBalance)
-                , expectField
-                    (#balance . #total . #getQuantity)
-                    (`shouldBe` expectedTargetBalance)
-                ]
+        request @ApiWallet ctx
+            (Link.getWallet @'Shelley targetWallet) Default Empty
+            >>= flip verify
+            [ expectField
+                (#balance . #available . #getQuantity)
+                (`shouldBe` expectedTargetBalance)
+            , expectField
+                (#balance . #total . #getQuantity)
+                (`shouldBe` expectedTargetBalance)
+            ]
 
         -- Analyse the target wallet's UTxO distribution:
         responseStats <- request @ApiUtxoStatistics ctx
@@ -693,10 +693,10 @@ spec = describe "BYRON_MIGRATIONS" $ do
             -- Check that funds have become available in the target wallet:
             let expectedTargetBalance =
                     sourceBalance - expectedFee - balanceLeftover
-            eventually "Target wallet has expected balance." $ do
-                response2 <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley targetWallet) Default Empty
-                verify response2
+            waitForTxImmutability ctx
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley targetWallet) Default Empty
+                >>= flip verify
                     [ expectField
                         (#balance . #available)
                         (`shouldBe` Quantity expectedTargetBalance)

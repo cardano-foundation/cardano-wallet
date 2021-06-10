@@ -652,21 +652,21 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         -- migration is complete.
         --
         liftIO $ migrateWallet ctx sourceWallet targetAddressIds
+        waitForTxImmutability ctx
 
         -- Check that funds become available in the target wallet:
         let expectedTargetBalance =
                 sourceBalance - balanceLeftover - expectedFee
-        eventually "Target wallet balance reaches expected balance" $ do
-            response <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley targetWallet) Default Empty
-            verify response
-                [ expectField
-                    (#balance . #available . #getQuantity)
-                    (`shouldBe` expectedTargetBalance)
-                , expectField
-                    (#balance . #total . #getQuantity)
-                    (`shouldBe` expectedTargetBalance)
-                ]
+        response <- request @ApiWallet ctx
+            (Link.getWallet @'Shelley targetWallet) Default Empty
+        verify response
+            [ expectField
+                (#balance . #available . #getQuantity)
+                (`shouldBe` expectedTargetBalance)
+            , expectField
+                (#balance . #total . #getQuantity)
+                (`shouldBe` expectedTargetBalance)
+            ]
 
         -- Analyse the target wallet's UTxO distribution:
         responseStats <- request @ApiUtxoStatistics ctx
@@ -902,20 +902,21 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     . fmap apiTransactionFee
                 ]
 
+            waitForTxImmutability ctx
+
             -- Check that funds become available in the target wallet:
             let expectedBalance = sourceBalance - feeExpected
-            eventually "Target wallet balance reaches the expected amount." $ do
-                request @ApiWallet ctx
-                    (Link.getWallet @'Shelley targetWallet)
-                    Default
-                    Empty >>= flip verify
-                    [ expectField
-                        (#balance . #available)
-                        ( `shouldBe` Quantity expectedBalance)
-                    , expectField
-                        (#balance . #total)
-                        ( `shouldBe` Quantity expectedBalance)
-                    ]
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley targetWallet)
+                Default
+                Empty >>= flip verify
+                [ expectField
+                    (#balance . #available)
+                    ( `shouldBe` Quantity expectedBalance)
+                , expectField
+                    (#balance . #total)
+                    ( `shouldBe` Quantity expectedBalance)
+                ]
 
             -- Analyse the target wallet's UTxO distribution:
             let expectedTargetDistribution = [(100_000_000, 1)]
@@ -976,33 +977,33 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     . fmap apiTransactionFee
                 ]
 
+            waitForTxImmutability ctx
+
             -- Check that funds become available in the target wallet:
             let expectedTargetBalance = expectedAdaBalanceTotal - expectedFee
-            eventually "Target wallet balance reaches the expected amount." $ do
-                request @ApiWallet ctx
-                    (Link.getWallet @'Shelley targetWallet) Default Empty
-                    >>= flip verify
-                    [ expectField
-                        (#balance . #available)
-                        (`shouldBe` Quantity expectedTargetBalance)
-                    , expectField
-                        (#balance . #total)
-                        (`shouldBe` Quantity expectedTargetBalance)
-                    ]
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley targetWallet) Default Empty
+                >>= flip verify
+                [ expectField
+                    (#balance . #available)
+                    (`shouldBe` Quantity expectedTargetBalance)
+                , expectField
+                    (#balance . #total)
+                    (`shouldBe` Quantity expectedTargetBalance)
+                ]
 
             -- Check that the source wallet has been depleted:
-            eventually "Source wallet balance is depleted." $ do
-                request @ApiWallet ctx
-                    (Link.getWallet @'Shelley sourceWallet) Default Empty
-                    >>= flip verify
-                    [ expectResponseCode HTTP.status200
-                    , expectField
-                        (#balance . #available)
-                        (`shouldBe` Quantity 0)
-                    , expectField
-                        (#balance . #total)
-                        (`shouldBe` Quantity 0)
-                    ]
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley sourceWallet) Default Empty
+                >>= flip verify
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (#balance . #available)
+                    (`shouldBe` Quantity 0)
+                , expectField
+                    (#balance . #total)
+                    (`shouldBe` Quantity 0)
+                ]
 
     Hspec.it "SHELLEY_MIGRATE_MULTI_ASSET_01 - \
         \Can migrate a multi-asset wallet."
@@ -1088,25 +1089,26 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     . fmap apiTransactionFee
                 ]
 
+            waitForTxImmutability ctx
+
             -- Check that funds become available in the target wallet:
             let expectedTargetBalance = expectedAdaBalance - expectedFee
-            eventually "Target wallet balance reaches the expected amount." $ do
-                request @ApiWallet ctx
-                    (Link.getWallet @'Shelley targetWallet) Default Empty
-                    >>= flip verify
-                    [ expectField
-                        (#balance . #available)
-                        (`shouldBe` Quantity expectedTargetBalance)
-                    , expectField
-                        (#balance . #total)
-                        (`shouldBe` Quantity expectedTargetBalance)
-                    , expectField
-                        (#assets . #available . #getApiT)
-                        (`shouldBe` view #tokens sourceBalance)
-                    , expectField
-                        (#assets . #total . #getApiT)
-                        (`shouldBe` view #tokens sourceBalance)
-                    ]
+            request @ApiWallet ctx
+                (Link.getWallet @'Shelley targetWallet) Default Empty
+                >>= flip verify
+                [ expectField
+                    (#balance . #available)
+                    (`shouldBe` Quantity expectedTargetBalance)
+                , expectField
+                    (#balance . #total)
+                    (`shouldBe` Quantity expectedTargetBalance)
+                , expectField
+                    (#assets . #available . #getApiT)
+                    (`shouldBe` view #tokens sourceBalance)
+                , expectField
+                    (#assets . #total . #getApiT)
+                    (`shouldBe` view #tokens sourceBalance)
+                ]
 
             -- Check that the source wallet has been depleted:
             responseFinalSourceBalance <- request @ApiWallet ctx
@@ -1222,19 +1224,20 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectField id (`shouldSatisfy` (not . null))
                 ]
 
+            waitForTxImmutability ctx
+
             -- Check that funds have become available in the target wallet:
             let expectedTargetBalance = sourceBalance - expectedFee
-            eventually "Target wallet has expected balance." $ do
-                response2 <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley targetWallet) Default Empty
-                verify response2
-                    [ expectField
-                        (#balance . #available)
-                        (`shouldBe` Quantity expectedTargetBalance)
-                    , expectField
-                        (#balance . #total)
-                        (`shouldBe` Quantity expectedTargetBalance)
-                    ]
+            response2 <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley targetWallet) Default Empty
+            verify response2
+                [ expectField
+                    (#balance . #available)
+                    (`shouldBe` Quantity expectedTargetBalance)
+                , expectField
+                    (#balance . #total)
+                    (`shouldBe` Quantity expectedTargetBalance)
+                ]
 
             -- Check that the source wallet has a balance of zero:
             responseFinalSourceBalance <- request @ApiWallet ctx
