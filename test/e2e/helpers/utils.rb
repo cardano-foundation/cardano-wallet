@@ -11,12 +11,11 @@ module Helpers
       res
     end
 
-    def cardano_address_get_acc_xpub(mnemonics, derivation_path)
+    def cardano_address_get_acc_xpub(mnemonics, derivation_path, hex = true, wallet_type = "Shared", chain_code = "--with-chain-code")
       cmd(%(echo #{mnemonics.join(' ')} \
-         | cardano-address key from-recovery-phrase Shared \
+         | cardano-address key from-recovery-phrase #{wallet_type} \
          | cardano-address key child #{derivation_path} \
-         | cardano-address key public --with-chain-code \
-         | bech32)).gsub("\n", '')
+         | cardano-address key public #{chain_code} #{" | bech32" if hex})).gsub("\n", '')
     end
 
     def absolute_path(path)
@@ -108,7 +107,7 @@ module Helpers
     end
 
     def get_latest_configs_base_url
-      "https://hydra.iohk.io/job/Cardano/cardano-node/cardano-deployment/latest-finished/download/1"
+      "https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1"
     end
   end
 end
