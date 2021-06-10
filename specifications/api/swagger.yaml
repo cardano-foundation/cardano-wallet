@@ -1920,13 +1920,20 @@ components:
       properties:
         id: *transactionId
 
+    ApiSerialisedTransaction: &ApiSerialisedTransaction
+      <<: *serializedTransaction
+      description: |
+        An transaction can be posted fully encoded, or separated into
+        a body and witness set, each of these being individually
+        encoded.
+
     ApiConstructTransaction: &ApiConstructTransaction
       type: object
       required:
         - serialized_transaction
         - inputs
       properties:
-        serialized_transaction: *serializedTransaction
+        serialized_transaction: *ApiSerialisedTransaction
         inputs: *transactionInputsExtended
 
     ApiTransaction: &ApiTransaction
