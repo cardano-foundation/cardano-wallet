@@ -174,11 +174,6 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
-
-    -- Enables small test-specific workarounds, like timing out faster if wallet
-    -- deletion fails.
-    setEnv "CARDANO_WALLET_INTEGRATION" "1"
-
     hspec $ do
         describe "No backend required" $
             parallelIf (not nix) $ describe "Miscellaneous CLI tests"
@@ -233,6 +228,9 @@ withTestsSetup action = do
     hSetBuffering stderr LineBuffering
     -- Stop cardano-cli complaining about file permissions
     setDefaultFilePermissions
+    -- Enables small test-specific workarounds, like timing out faster if wallet
+    -- deletion fails.
+    setEnv "CARDANO_WALLET_TEST_INTEGRATION" "1"
     -- Set UTF-8, regardless of user locale
     withUtf8Encoding $
         -- This temporary directory will contain logs, and all other data

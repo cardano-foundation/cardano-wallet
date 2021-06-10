@@ -7,6 +7,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -252,11 +253,11 @@ destroySqliteBackend tr sqlBackend dbFile = do
     --
     -- But in production, the longer timeout isn't as much of a problem, and
     -- might be needed for windows.
-    timeout <- lookupEnv "CARDANO_WALLET_INTEGRATION" <&> \case
-            Just _ -> 2 * s
+    timeoutSec <- lookupEnv "CARDANO_WALLET_TEST_INTEGRATION" <&> \case
+            Just _ -> 2
             Nothing -> retryOnBusyTimeout
 
-    retryOnBusy tr timeout (close' sqlBackend)
+    retryOnBusy tr timeoutSec (close' sqlBackend)
         & handleIf isAlreadyClosed
             (traceWith tr . MsgIsAlreadyClosed . showT)
         & handleIf statementAlreadyFinalized
@@ -275,13 +276,10 @@ destroySqliteBackend tr sqlBackend dbFile = do
 
     showT :: Show a => a -> Text
     showT = T.pack . show
-    s = 1000*1000
 
 -- | Default timeout for `retryOnBusy`
-retryOnBusyTimeout :: Int
-retryOnBusyTimeout = 60 * s
-  where
-    s = 1000*1000
+retryOnBusyTimeout :: NominalDiffTime
+retryOnBusyTimeout = 60
 
 -- | Retry an action if the database yields an 'SQLITE_BUSY' error.
 --
@@ -301,17 +299,16 @@ retryOnBusyTimeout = 60 * s
 --     available to process B to help it deal with SQLITE_BUSY errors.
 --
 retryOnBusy
-    :: Tracer IO DBLog
-    -> Int -- ^ Timeout in microseconds
+    :: Tracer IO DBLog -- ^ Logging
+    -> NominalDiffTime -- ^ Timeout
+    -> IO a -- ^ Action to retry
     -> IO a
-    -> IO a
-retryOnBusy tr timeout action = do
-    let policy = limitRetriesByCumulativeDelay timeout $ constantDelay (25*ms)
-
-    recovering policy
-        [logRetries isBusy traceRetries]
-        (\st -> action <* trace MsgRetryDone st)
+retryOnBusy tr timeout action = recovering policy
+    [logRetries isBusy traceRetries]
+    (\st -> action <* trace MsgRetryDone st)
   where
+    policy = limitRetriesByCumulativeDelay usTimeout $ constantDelay (25*ms)
+    usTimeout = truncate (timeout * 1_000_000)
     ms = 1000 -- microseconds in a millisecond
 
     isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
