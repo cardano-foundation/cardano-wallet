@@ -1192,6 +1192,11 @@ x-transactionResolvedWithdrawals: &transactionResolvedWithdrawals
       derivation_path: *derivationPath
       amount: *amount
 
+x-serializedTransaction: &serializedTransaction
+  description: CBOR transaction data, base64-encoded.
+  type: string
+  format: base64
+
 x-signedTransactionBlob: &signedTransactionBlob
   description: Signed transaction message binary blob.
   type: string
@@ -1329,7 +1334,6 @@ x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   type: number
   minimum: 0
   example: 0.5053763440860215
-
 
 x-stakePoolMetadata: &stakePoolMetadata
   description: |
@@ -1889,6 +1893,15 @@ components:
         - id
       properties:
         id: *transactionId
+
+    ApiConstructTransaction: &ApiConstructTransaction
+      type: object
+      required:
+        - serialized_transaction
+        - inputs
+      properties:
+        serialized_transaction: *serializedTransaction
+        inputs: *transactionInputs
 
     ApiTransaction: &ApiTransaction
       type: object
@@ -4035,6 +4048,35 @@ x-responsesPostTransaction: &responsesPostTransaction
       application/json:
         schema: *ApiTransaction
 
+x-responsesConstructTransaction: &responsesConstructTransaction
+  400:
+    description: Bad Request
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errBadRequest
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errAlreadyWithdrawing
+            - <<: *errUtxoTooSmall
+            - <<: *errCannotCoverFee
+            - <<: *errNotEnoughMoney
+            - <<: *errTransactionIsTooBig
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiConstructTransaction
+
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
   <<: *responsesErr406
@@ -4677,6 +4719,24 @@ paths:
         - *parametersWalletId
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
+
+  /wallets/{walletId}/transactions/construct:
+    post:
+      operationId: postTransactionConstruct
+      tags: ["Transactions"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Create a transaction to be signed from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiTransactionConstructData
+      responses: *responsesConstructTransaction
 
   /wallets/{walletId}/addresses:
     get:
