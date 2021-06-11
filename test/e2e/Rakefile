@@ -19,6 +19,7 @@ FIXTURES_FILE = absolute_path ENV['TESTS_E2E_FIXTURES_FILE']
 FIXTURES_SECRET = absolute_path ENV['TESTS_E2E_FIXTURES']
 
 TOKEN_METADATA = ENV['TESTS_E2E_TOKEN_METADATA']
+WALLET_PORT = ENV['WALLET_PORT']
 
 path_separator = is_win? ? ';' : ':'
 ENV['PATH'] = "#{BINS}#{path_separator}#{ENV['PATH']}"
@@ -70,9 +71,10 @@ task :fixture_wallets_template do
 
 end
 
-task :clean_logs do
+task :clean_logs, [:env] do |task, args|
   puts "\n  >> Removing logs"
-  rm_files(LOGS)
+  log_dir = File.join(LOGS, args[:env])
+  rm_files(log_dir)
 end
 
 task :clean_bins do
@@ -110,29 +112,32 @@ task :start_node_and_wallet, [:env] do |task, args|
 
   bin_dir = BINS == '' ? BINS : "#{BINS}/"
   config_dir = File.join(CONFIGS, args[:env])
+  log_dir = File.join(LOGS, args[:env])
+  wallet_db_dir = File.join(WALLET_DB, args[:env])
+  node_db_dir = File.join(NODE_DB, args[:env])
   cd = Dir.pwd
   mk_dir(STATE)
-  mk_dir(LOGS)
+  mk_dir(log_dir)
 
   if is_win?
     # create cardano-node.bat file
-    node_cmd = "#{bin_dir}cardano-node.exe run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{NODE_DB} --socket-path \\\\.\\pipe\\cardano-node-testnet"
+    node_cmd = "#{bin_dir}cardano-node.exe run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.open("cardano-node.bat", "w") do |f|
       f.write(node_cmd)
     end
 
     # create cardano-wallet.bat file
-    wallet_cmd = "#{bin_dir}cardano-wallet.exe serve --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{config_dir}/genesis-byron.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
+    wallet_cmd = "#{bin_dir}cardano-wallet.exe serve --port #{WALLET_PORT} --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{config_dir}/genesis-byron.json --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
     File.open("cardano-wallet.bat", "w") do |f|
       f.write(wallet_cmd)
     end
 
     install_node = "nssm install cardano-node #{cd}/cardano-node.bat"
     install_wallet = "nssm install cardano-wallet #{cd}/cardano-wallet.bat"
-    log_stdout_node = "nssm set cardano-node AppStdout #{LOGS}/node.log"
-    log_stderr_node = "nssm set cardano-node AppStderr #{LOGS}/node.log"
-    log_stdout_wallet = "nssm set cardano-wallet AppStdout #{LOGS}/wallet.log"
-    log_stderr_wallet = "nssm set cardano-wallet AppStderr #{LOGS}/wallet.log"
+    log_stdout_node = "nssm set cardano-node AppStdout #{log_dir}/node.log"
+    log_stderr_node = "nssm set cardano-node AppStderr #{log_dir}/node.log"
+    log_stdout_wallet = "nssm set cardano-wallet AppStdout #{log_dir}/wallet.log"
+    log_stderr_wallet = "nssm set cardano-wallet AppStderr #{log_dir}/wallet.log"
     start_node = "nssm start cardano-node"
     start_wallet = "nssm start cardano-wallet"
 
@@ -145,11 +150,11 @@ task :start_node_and_wallet, [:env] do |task, args|
     cmd start_node
     cmd start_wallet
   else
-    start_node = "#{bin_dir}cardano-node run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{NODE_DB} --socket-path #{STATE}/node.socket"
-    start_wallet = "#{bin_dir}cardano-wallet serve --node-socket #{STATE}/node.socket --testnet #{config_dir}/genesis-byron.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
+    start_node = "#{bin_dir}cardano-node run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path #{node_db_dir}/node.socket"
+    start_wallet = "#{bin_dir}cardano-wallet serve --port #{WALLET_PORT} --node-socket #{node_db_dir}/node.socket --testnet #{config_dir}/genesis-byron.json --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
 
-    cmd "screen -dmS NODE -L -Logfile #{LOGS}/node.log #{start_node}"
-    cmd "screen -dmS WALLET -L -Logfile #{LOGS}/wallet.log #{start_wallet}"
+    cmd "screen -dmS NODE_#{args[:env]} -L -Logfile #{log_dir}/node.log #{start_node}"
+    cmd "screen -dmS WALLET_#{args[:env]} -L -Logfile #{log_dir}/wallet.log #{start_wallet}"
     cmd "screen -ls"
   end
 end
@@ -169,7 +174,7 @@ task :launch_on, [:env] do |task, args|
   Rake::Task[:start_node_and_wallet].invoke(env)
 end
 
-task :stop_node_and_wallet do
+task :stop_node_and_wallet, [:env] do |task, args|
   puts "\n  >> Stopping cardano-node and cardano-wallet"
 
   if is_win?
@@ -179,8 +184,8 @@ task :stop_node_and_wallet do
     cmd "nssm remove cardano-wallet confirm"
     cmd "nssm remove cardano-node confirm"
   else
-    cmd "screen -XS WALLET quit"
-    cmd "screen -XS NODE quit"
+    cmd "screen -XS WALLET_#{args[:env]} quit"
+    cmd "screen -XS NODE_#{args[:env]} quit"
   end
 
 end
@@ -223,6 +228,7 @@ task :get_latest_configs, [:env] do |task, args|
     wget("#{base_url}/#{env}-config.json", config_file)
     wget("#{base_url}/#{env}-byron-genesis.json", "#{out}/genesis-byron.json")
     wget("#{base_url}/#{env}-shelley-genesis.json", "#{out}/genesis-shelley.json")
+    wget("#{base_url}/#{env}-alonzo-genesis.json", "#{out}/genesis-alonzo.json")
     wget("#{base_url}/#{env}-topology.json", "#{out}/topology.json")
     # remove environment names from genesis files
     config = File.read(config_file)
@@ -269,5 +275,5 @@ task :run_on, [:env, :sync_strategy, :skip_configs] do |task, args|
   end
 
   Rake::Task[:spec].invoke
-  Rake::Task[:stop_node_and_wallet].invoke
+  Rake::Task[:stop_node_and_wallet].invoke(env)
 end

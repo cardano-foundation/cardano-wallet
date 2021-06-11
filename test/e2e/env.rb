@@ -18,3 +18,4 @@ ENV['TESTS_E2E_BINDIR'] ||= "./bins"
 
 ENV['TESTS_E2E_TOKEN_METADATA'] ||= "https://metadata.cardano-testnet.iohkdev.io/"
 ENV['TESTS_E2E_SMASH'] ||= "https://smash.cardano-testnet.iohkdev.io"
+ENV['WALLET_PORT'] ||= "8090"

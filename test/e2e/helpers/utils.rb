@@ -73,7 +73,7 @@ module Helpers
     end
 
     def mk_dir(path)
-      Dir.mkdir(path) unless File.exists?(path)
+      FileUtils.mkdir_p(path)
     end
 
     def rm_files(path)

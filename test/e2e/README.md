@@ -2,6 +2,7 @@
 
 
 
+
 # E2E testing
 [![E2E Docker](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml) [![E2E Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml) [![E2E MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml) [![E2E Windows](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml)
 
@@ -40,13 +41,13 @@ $ rake get_latest_configs[testnet]
 $ rake start_node_and_wallet[testnet]
 $ rake wait_until_node_synced
 $ rake spec
-$ rake stop_node_and_wallet
+$ rake stop_node_and_wallet[testnet]
 ```
 > :information_source:  **_Linux / MacOS_**
 cardano-node and cardano-wallet are started as separate [screen](https://www.gnu.org/software/screen/manual/screen.html) sessions. One can attach to the respective session using:
 >```bash
->$ screen -r NODE
->$ screen -r WALLET
+>$ screen -r NODE_testnet
+>$ screen -r WALLET_testnet
 >```
 
 > :information_source: **_Windows_**

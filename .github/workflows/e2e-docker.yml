@@ -13,6 +13,10 @@ on:
         description: 'Wallet tag (docker)'
         required: true
         default: 'dev-master'
+      network:
+        description: 'Network'
+        required: true
+        default: 'testnet'
 
 defaults:
   run:
@@ -38,7 +42,7 @@ jobs:
     - name: Get recent configs and decode fixture_wallets.json.gpg
       run: |
         rake fixture_wallets_decode
-        rake get_latest_configs["testnet"]
+        rake get_latest_configs[$NETWORK]
         rake get_latest_bins
 
     - name: Cache node db
@@ -48,19 +52,7 @@ jobs:
         path: ~/node-db-nightly-docker
         key: ${{ runner.os }}-docker-node-cache-v2
 
-    - name: Set up cardano-wallet and cardano-node MANUAL
-      if: ${{ github.event.inputs.walletTag != '' && github.event.inputs.nodeTag != ''}}
-      env:
-        WALLET: ${{ github.event.inputs.walletTag }}
-        NODE: ${{ github.event.inputs.nodeTag }}
-      run: |
-        echo "Wallet: $WALLET"
-        echo "Node: $NODE"
-        NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml up --detach
-        ls ~/node-db-nightly-docker
-
-    - name: Set up cardano-wallet and cardano-node NIGHTLY
-      if: ${{ github.event.inputs.walletTag == '' && github.event.inputs.nodeTag == ''}}
+    - name: Set up cardano-wallet and cardano-node
       run: |
         echo "Wallet: $WALLET"
         echo "Node: $NODE"
@@ -92,8 +84,8 @@ jobs:
     - name: Stop docker-compose
       run: NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml down
     env:
-      TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
-      NETWORK: testnet
-      WALLET: dev-master
-      NODE: 1.27.0
+      NETWORK: ${{ github.event.inputs.network || 'testnet' }}
+      WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
+      NODE: ${{ github.event.inputs.nodeTag || '1.27.0' }}
+      TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
