@@ -26,7 +26,7 @@ module Cardano.Wallet.Version
     , Version
 
       -- * Displaying Versions
-    , showVersion
+    , showVersionAsDate
     , showFullVersion
     ) where
 
@@ -43,7 +43,9 @@ import Data.Text
 import Data.Text.Encoding
     ( decodeLatin1 )
 import Data.Version
-    ( Version, showVersion )
+    ( Version (..), showVersion )
+import Fmt
+    ( build, fmt, padLeftF )
 import Paths_cardano_wallet_core
     ( version )
 
@@ -51,10 +53,19 @@ import qualified Data.Text as T
 
 newtype GitRevision = GitRevision Text deriving (Show, Eq)
 
--- | Like 'showVersion', but also show the git revision.
+-- | Like 'showVersionAsDate', but also show the git revision.
 showFullVersion :: Version -> GitRevision -> String
 showFullVersion v (GitRevision r) =
-    showVersion v <> " (git revision: " <> T.unpack r <> ")"
+    showVersionAsDate v <> " (git revision: " <> T.unpack r <> ")"
+
+-- | Format the Cabal version in the vYYYY-MM-DD style that we use for git tags.
+showVersionAsDate :: Version -> String
+showVersionAsDate (Version (y:m:d:vs) tags) = fmt . mconcat $
+    ["v", digits 4 y, "-", digits 2 m, "-", digits 2 d ] ++
+    map (("." <>) . build) vs ++ (map (("-" <>) . build) tags)
+  where
+    digits n i = padLeftF n '0' i
+showVersionAsDate (Version vs tags) = showVersion (Version vs tags)
 
 -- | The Git revision ID (40 character hex string) of this build.
 --

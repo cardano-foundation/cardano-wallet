@@ -260,7 +260,7 @@ updateEmptyPassPayload newPass = Json [json| {
       } |]
 
 versionLine :: Text
-versionLine = "Running as v" <> pack (showFullVersion version gitRevision)
+versionLine = "Running as " <> pack (showFullVersion version gitRevision)
 
 ---
 --- Error messages

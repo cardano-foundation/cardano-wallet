@@ -280,7 +280,7 @@ instance ToText MainLog where
         MsgCmdLine exe args ->
             T.pack $ unwords ("Command line:":exe:args)
         MsgVersion ver rev arch os ->
-            "Running as v" <> T.pack (showFullVersion ver rev) <> " on " <>
+            "Running as " <> T.pack (showFullVersion ver rev) <> " on " <>
             T.pack arch <> "-" <> T.pack os
         MsgSetupStateDir txt ->
             "Wallet state: " <> txt

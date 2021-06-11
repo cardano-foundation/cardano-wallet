@@ -13,7 +13,7 @@
       specVersion = "1.10";
       identifier = {
         name = "cardano-wallet-core-integration";
-        version = "2021.5.26";
+        version = "2021.6.11";
         };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
