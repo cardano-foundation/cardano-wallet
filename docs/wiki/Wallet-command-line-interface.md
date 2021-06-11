@@ -62,6 +62,7 @@ Available COMMANDS:
       <a href="#wallet-create-from-recovery-phrase">from-recovery-phrase</a> Create a new wallet using a recovery-phrase
     <a href="#wallet-get">get</a>                    Fetch a particular wallet
     <a href="#wallet-utxo">utxo</a>                   Get a wallet's UTxO distribution
+    <a href="#wallet-utxo-snapshot">utxo-snapshot</a> Get UTxO snapshot for wallet with specified id.
     update
       <a href="#wallet-update-passphrase">passphrase</a>           Update a wallet's master passphrase
       <a href="#wallet-update-name">name</a>                 Update a wallet's name
@@ -372,6 +373,49 @@ which could be plotted as:
     └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └──────│────────────
           10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳        1000₳
 ```
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
+## wallet utxo-snapshot
+
+> `cardano-wallet wallet utxo-snapshot [--port INT] WALLET_ID`
+
+Dumps a view of the wallet's UTxO in JSON format. Each `TxOut` entry
+includes the quantity of Ada and other assets, as well as the
+calculated minimum Ada amount.
+
+```json
+{
+    "entries": [
+        {
+            "ada_minimum": {
+                "quantity": 1666665,
+                "unit": "lovelace"
+            },
+            "ada": {
+                "quantity": 15582575,
+                "unit": "lovelace"
+            },
+            "assets": [
+                {
+                    "asset_name": "",
+                    "quantity": 1503,
+                    "policy_id": "789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff169f1"
+                },
+                {
+                    "asset_name": "4861707079436f696e",
+                    "quantity": 4958,
+                    "policy_id": "919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149"
+                }
+            ]
+        },
+        ...
+    ]
+}
+```
+
+> ⚠ This endpoint was intended to be used for debugging purposes. The
+> output format is subject to change at any time.
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
