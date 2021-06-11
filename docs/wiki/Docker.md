@@ -6,14 +6,14 @@ Docker builds of `cardano-wallet` are available on [DockerHub][].
 
 To get the latest release of `cardano-wallet`, run:
 
-    docker pull inputoutput/cardano-wallet:shelley
+    docker pull inputoutput/cardano-wallet:latest
 
 ## Running the Docker container for `cardano-wallet`
 
 To run basic CLI commands, use:
 
 ```
-docker run --rm inputoutput/cardano-wallet:shelley --help
+docker run --rm inputoutput/cardano-wallet:latest --help
 ```
 
 See [Wallet Command Line Interface](./Wallet-command-line-interface)
@@ -25,11 +25,10 @@ The following tags are pushed to [DockerHub][].
 
 | Tag                                                 | Network node backend        | Version          |
 |:----------------------------------------------------|:---------------------------:|:-----------------|
-| `inputoutput/cardano-wallet`                        | cardano-node  | same as _shelley_ |
-| `inputoutput/cardano-wallet:shelley`                | cardano-node  | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
-| `inputoutput/cardano-wallet:dev-master-shelley`     | cardano-node  | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
-| `inputoutput/cardano-wallet:2020.7.28-shelley`      | cardano-node  | [v2020-07-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-07-28) (for example) |
-| `inputoutput/cardano-wallet:aa46adfd67134bf713bd103d51541f6cb7597aa9-shelley` | cardano-node | A certain revision of the master branch (aa46adf for example). |
+| `inputoutput/cardano-wallet`                        | cardano-node  | same as _latest_ |
+| `inputoutput/cardano-wallet:latest`                | cardano-node  | Latest [GitHub release](https://github.com/input-output-hk/cardano-wallet/releases) |
+| `inputoutput/cardano-wallet:dev-master`     | cardano-node  | Latest revision of [master branch](https://github.com/input-output-hk/cardano-wallet/commits/master) |
+| `inputoutput/cardano-wallet:2020.7.28`      | cardano-node  | [v2020-07-28](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2020-07-28) (for example) |
 
 ## Building the Docker image locally
 
@@ -53,7 +52,7 @@ The default entrypoint of the image is
 inside the Docker image, use the bash shell as the entrypoint:
 
 ```
-docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:shelley
+docker run --rm -it --entrypoint bash inputoutput/cardano-wallet:latest
 ```
 
 ## Docker compose
