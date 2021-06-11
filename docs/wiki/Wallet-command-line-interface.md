@@ -62,7 +62,7 @@ Available COMMANDS:
       <a href="#wallet-create-from-recovery-phrase">from-recovery-phrase</a> Create a new wallet using a recovery-phrase
     <a href="#wallet-get">get</a>                    Fetch a particular wallet
     <a href="#wallet-utxo">utxo</a>                   Get a wallet's UTxO distribution
-    <a href="#wallet-utxo-snapshot">utxo-snapshot</a> Get UTxO snapshot for wallet with specified id.
+    <a href="#wallet-utxo-snapshot">utxo-snapshot</a>          Get UTxO snapshot for wallet with specified id.
     update
       <a href="#wallet-update-passphrase">passphrase</a>           Update a wallet's master passphrase
       <a href="#wallet-update-name">name</a>                 Update a wallet's name
