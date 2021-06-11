@@ -1,21 +1,23 @@
 ## Preparing the release
 - [ ] Make sure `cardano-wallet` points to correct revisions of
-  dependent low-level libs in [stack.yaml](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml.)
+  dependent low-level libs in [`stack.yaml`](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml) and [`cabal.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal.project).
+
+  Verify that the stack snapshot revision is on the [cardano-haskell](https://github.com/input-output-hk/cardano-haskell) `master` branch.
 
   Verify that the stack resolver corresponds to the `cardano-node` version.
 
-  Verify that target repositories point to appopriate revisions for `persistent`, `cardano-addresses`, `bech32`, ...).
+  Verify that target repositories point to appopriate revisions for `persistent`, `cardano-addresses`, `bech32`, ...)
 
 - [ ] Fetch the tip of `master`:
 
-  ```sh
+  ```shell
   $ git checkout master
   $ git pull
   ```
 
 - [ ] Create a new branch for the release:
 
-  ```sh
+  ```shell
   $ git checkout -b your-name/bump-release/YYYY-MM-DD
   ```
 
@@ -48,7 +50,7 @@
 
 - [ ] From the **root** of the repository, run:
 
-  ```bash
+  ```shell
   $ ./scripts/make_release.sh
   ```
 
@@ -68,7 +70,7 @@
 - [ ] Trigger a release build on CI (Travis) and wait for the build
   artifacts to be published on github
 
-  ```
+  ```shell
   $ git push origin refs/tags/vYYYY-MM-DD
   ```
 
@@ -116,7 +118,7 @@
   ```
 
 - [ ] Verify latest [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) and make sure the results are fine. [Benchmark charts](http://cardano-wallet-benchmarks.herokuapp.com/) may be helpful in analysis.
-  
+
 ## Publication
 
 - [ ] Once everyone has signed off (i.e. Tech lead, QA & Release manager), publish the release draft.
