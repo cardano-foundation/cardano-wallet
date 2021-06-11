@@ -75,6 +75,7 @@ import Test.Integration.Framework.DSL
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
     , verify
+    , waitForTxImmutability
     , walletId
     , (.>)
     )
@@ -122,13 +123,14 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
         cp `shouldBe` ExitSuccess
 
-        eventually "Wallet balance is as expected" $ do
-            Stdout og <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
-            jg <- expectValidJSON (Proxy @ApiWallet) og
-            expectCliField (#balance . #available)
-                (`shouldBe` Quantity amount) jg
-            expectCliField (#balance . #total)
-                (`shouldBe` Quantity amount) jg
+        waitForTxImmutability ctx
+
+        Stdout og <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
+        jg <- expectValidJSON (Proxy @ApiWallet) og
+        expectCliField (#balance . #available)
+            (`shouldBe` Quantity amount) jg
+        expectCliField (#balance . #total)
+            (`shouldBe` Quantity amount) jg
 
         -- delete wallet
         Exit cd <- deleteWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
@@ -143,17 +145,18 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         wRestored <- expectValidJSON (Proxy @ApiWallet) o2
 
         -- make sure funds are there
-        eventually "Wallet balance is as expected on wallet from pubKey" $ do
-            Stdout o3 <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
-            justRestored <- expectValidJSON (Proxy @ApiWallet) o3
-            verify justRestored
-                [ expectCliField
-                        (#balance . #available)
-                        (`shouldBe` Quantity amount)
-                , expectCliField
-                        (#balance . #total)
-                        (`shouldBe` Quantity amount)
-                ]
+        waitForTxImmutability ctx
+
+        Stdout o3 <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
+        justRestored <- expectValidJSON (Proxy @ApiWallet) o3
+        verify justRestored
+            [ expectCliField
+                    (#balance . #available)
+                    (`shouldBe` Quantity amount)
+            , expectCliField
+                    (#balance . #total)
+                    (`shouldBe` Quantity amount)
+            ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
         it "Cannot send tx" $ \ctx -> runResourceT $ do
