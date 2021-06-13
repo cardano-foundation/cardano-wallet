@@ -34,6 +34,7 @@ library
     , contra-tracer
     , filepath
     , file-embed
+    , formatting
     , hspec
     , hspec-core
     , hspec-expectations
@@ -42,10 +43,12 @@ library
     , HUnit
     , iohk-monitoring
     , lattices
+    , pretty-simple
     , QuickCheck
     , quickcheck-classes
     , say
     , template-haskell
+    , text
     , text-class
     , time
     , unliftio
@@ -61,6 +64,7 @@ library
       Test.Utils.Laws
       Test.Utils.Laws.PartialOrd
       Test.Utils.Paths
+      Test.Utils.Pretty
       Test.Utils.Roundtrip
       Test.Utils.Resource
       Test.Utils.StaticServer
