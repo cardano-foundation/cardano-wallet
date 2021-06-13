@@ -1,3 +1,4 @@
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -54,8 +55,10 @@ import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
-import Fmt
-    ( Buildable )
+import Formatting
+    ( builder, sformat )
+import Formatting.Buildable
+    ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -79,6 +82,9 @@ import qualified Text.Casing as Casing
 class ToText a where
     -- | Encode the specified value as text.
     toText :: a -> Text
+
+    default toText :: Buildable a => a -> Text
+    toText = sformat builder . build
 
 -- | Defines a textual decoding for a type.
 class FromText a where
