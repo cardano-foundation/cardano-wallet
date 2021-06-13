@@ -45,6 +45,7 @@ module Test.Integration.Framework.DSL
     , (.>)
     , (.<)
     , verify
+    , verifyMsg
     , Headers(..)
     , Payload(..)
     , RequestException(..)
@@ -369,6 +370,8 @@ import Data.Time.Text
     ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
     ( Word32, Word64 )
+import Fmt
+    ( indentF, (+|), (|+) )
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
 import Network.HTTP.Types.Method
@@ -402,6 +405,8 @@ import Test.Integration.Framework.Request
     , request
     , unsafeRequest
     )
+import Test.Utils.Pretty
+    ( pShowBuilder )
 import UnliftIO.Async
     ( async, race, wait )
 import UnliftIO.Concurrent
@@ -2285,11 +2290,21 @@ wantedErrorButSuccess = liftIO
     . ("expected an error but got a successful response: " <>)
     . show
 
--- | Apply 'a' to all actions in sequence
-verify :: (Show a, MonadIO m, MonadUnliftIO m) => a -> [a -> m ()] -> m ()
+-- | Applies the value 'a' to all assertions in the given sequence.
+--
+-- If any of the assertions fail, 'a' is shown as the counter-example text.
+verify :: (Show a, MonadUnliftIO m) => a -> [a -> m ()] -> m ()
 verify a = counterexample msg . mapM_ (a &)
   where
-    msg = "While verifying " ++ show a
+    msg = "While verifying value:\n"+|indentF 2 (pShowBuilder a)|+""
+
+-- | Applies the value 'a' to all assertions in the given sequence.
+--
+-- Like 'verify', but the counterexample shows a description of what conditions were being checked.
+verifyMsg :: (Show a, MonadUnliftIO m) => String -> a -> [a -> m ()] -> m ()
+verifyMsg desc a = counterexample msg . mapM_ (a &)
+  where
+    msg = "Verifying "+|desc|+" for value:\n"+|indentF 2 (pShowBuilder a)|+""
 
 -- | Can be used to add context to a @HUnitFailure@.
 --

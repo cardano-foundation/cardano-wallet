@@ -37,6 +37,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Class
+    ( ToText (..) )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -75,6 +77,7 @@ import Test.Integration.Framework.DSL
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
     , verify
+    , verifyMsg
     , waitForTxImmutability
     , walletId
     , (.>)
@@ -102,20 +105,18 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         c1 `shouldBe` ExitSuccess
         T.unpack e1 `shouldContain` cmdOk
         wDest <- expectValidJSON (Proxy @ApiWallet) o1
-        verify wDest
-            [ expectCliField
-                    (#balance . #available) (`shouldBe` Quantity 0)
-            , expectCliField
-                    (#balance . #total) (`shouldBe` Quantity 0)
+        verifyMsg "Wallet balance is as expected" wDest
+            [ expectCliField (#balance . #available) (`shouldBe` Quantity 0)
+            , expectCliField (#balance . #total) (`shouldBe` Quantity 0)
             ]
 
         --send transaction to the wallet
-        let amount = minUTxOValue
+        let amount = Quantity minUTxOValue
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
                 [ wSrc ^. walletId
-                , "--payment", T.pack (show amount) <> "@" <> addr
+                , "--payment", toText amount <> "@" <> addr
                 ]
 
         (cp, op, ep) <- postTransactionViaCLI ctx "cardano-wallet" args
@@ -127,10 +128,10 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
         Stdout og <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
         jg <- expectValidJSON (Proxy @ApiWallet) og
-        expectCliField (#balance . #available)
-            (`shouldBe` Quantity amount) jg
-        expectCliField (#balance . #total)
-            (`shouldBe` Quantity amount) jg
+        verifyMsg "Wallet balance is as expected" jg
+            [ expectCliField (#balance . #available) (`shouldBe` amount)
+            , expectCliField (#balance . #total) (`shouldBe` amount)
+            ]
 
         -- delete wallet
         Exit cd <- deleteWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
@@ -149,13 +150,9 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
         Stdout o3 <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
         justRestored <- expectValidJSON (Proxy @ApiWallet) o3
-        verify justRestored
-            [ expectCliField
-                    (#balance . #available)
-                    (`shouldBe` Quantity amount)
-            , expectCliField
-                    (#balance . #total)
-                    (`shouldBe` Quantity amount)
+        verifyMsg "Wallet balance is as expected" justRestored
+            [ expectCliField (#balance . #available) (`shouldBe` amount)
+            , expectCliField (#balance . #total) (`shouldBe` amount)
             ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
