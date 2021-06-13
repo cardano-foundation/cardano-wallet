@@ -24,7 +24,6 @@ import Cardano.Wallet.Primitive.Migration.Selection
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockInputId
     , MockTxConstraints (..)
-    , Pretty (..)
     , genMockInput
     , genRewardWithdrawal
     , genTokenBundleMixed
@@ -73,6 +72,8 @@ import Test.QuickCheck
     , withMaxSuccess
     , (===)
     )
+import Test.Utils.Pretty
+    ( Pretty (..) )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
