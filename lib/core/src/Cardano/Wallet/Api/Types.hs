@@ -144,6 +144,8 @@ module Cardano.Wallet.Api.Types
     , ApiConstructTransactionData (..)
     , ApiTxInputExtended (..)
     , ApiMultiDelegationAction (..)
+    , ApiSerialisedTransaction (..)
+    , ApiBytesT (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -844,7 +846,7 @@ newtype ApiBytesT (base :: Base) bs = ApiBytesT { getApiBytesT :: bs }
     deriving newtype (Semigroup, Monoid, Hashable)
     deriving anyclass NFData
 
-data ApiSerialisedTransaction
+newtype ApiSerialisedTransaction
     = ApiSerialisedTransaction (ApiBytesT 'Base64 SerialisedTx)
     deriving (Eq, Generic, Show)
     deriving anyclass NFData

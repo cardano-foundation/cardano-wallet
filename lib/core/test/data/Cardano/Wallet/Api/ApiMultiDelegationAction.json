@@ -1,0 +1,50 @@
+{
+    "seed": 5971106449392847522,
+    "samples": [
+        {
+            "action": "quit",
+            "stake_key_index": 1
+        },
+        {
+            "action": "quit",
+            "stake_key_index": 18
+        },
+        {
+            "action": "quit",
+            "stake_key_index": 30
+        },
+        {
+            "action": "join",
+            "pool": "pool1rtq22d29sn5tzrukcpnqx8wd2gdsqje3lxe0qqv2htqex5rhgew",
+            "stake_key_index": 3
+        },
+        {
+            "action": "join",
+            "pool": "pool1y5rxc5uyhk5hzg2j5grayf34m9vf6tjwm5dn74s0eqfjg8tm8ld",
+            "stake_key_index": 16
+        },
+        {
+            "action": "join",
+            "pool": "pool16zf6l9z8dww5ydzcqxfck4nh6hjunud6w42y2j8hs6x6qdzjksh",
+            "stake_key_index": 25
+        },
+        {
+            "action": "quit",
+            "stake_key_index": 12
+        },
+        {
+            "action": "quit",
+            "stake_key_index": 20
+        },
+        {
+            "action": "join",
+            "pool": "pool1f5lmw7ksu66arfxcjkrj9pznh45t0y9gk7xtqp4ff4jgz8tc2u9",
+            "stake_key_index": 15
+        },
+        {
+            "action": "join",
+            "pool": "pool172k3hrqj35gxx89j4mr2y5q2rz38grvztcnk5nthe6d4gx847w3",
+            "stake_key_index": 7
+        }
+    ]
+}
