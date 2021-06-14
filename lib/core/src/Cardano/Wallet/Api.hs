@@ -55,6 +55,7 @@ module Cardano.Wallet.Api
         , ListTransactions
         , DeleteTransaction
         , GetTransaction
+        , ConstructTransaction
 
     , StakePools
         , ListStakePools
@@ -164,6 +165,8 @@ import Cardano.Wallet.Api.Types
     , ApiAsset
     , ApiByronWallet
     , ApiCoinSelectionT
+    , ApiConstructTransactionDataT
+    , ApiConstructTransactionT
     , ApiFee
     , ApiHealthCheck
     , ApiMaintenanceAction
@@ -497,6 +500,7 @@ type Transactions n =
     :<|> PostTransactionFee n
     :<|> DeleteTransaction
     :<|> GetTransaction n
+    :<|> ConstructTransaction n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransaction n = "wallets"
@@ -535,6 +539,14 @@ type DeleteTransaction = "wallets"
     :> "transactions"
     :> Capture "transactionId" ApiTxId
     :> DeleteNoContent
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionConstruct
+type ConstructTransaction n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions"
+    :> "construct"
+    :> ReqBody '[JSON] (ApiConstructTransactionDataT n)
+    :> PostAccepted '[JSON] (ApiConstructTransactionT n)
 
 {-------------------------------------------------------------------------------
                                  Shelley Migrations

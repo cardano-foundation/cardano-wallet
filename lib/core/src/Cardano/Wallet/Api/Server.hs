@@ -56,6 +56,7 @@ module Cardano.Wallet.Api.Server
     , listAddresses
     , listTransactions
     , getTransaction
+    , constructTransaction
     , listWallets
     , listStakeKeys
     , createMigrationPlan
@@ -194,6 +195,8 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
+    , ApiConstructTransaction
+    , ApiConstructTransactionData
     , ApiEpochInfo (ApiEpochInfo)
     , ApiEra (..)
     , ApiErrorCode (..)
@@ -1917,6 +1920,13 @@ postTransactionFee ctx (ApiT wid) body = do
               where getFee = const (selectionDelta TokenBundle.getCoin)
         minCoins <- NE.toList <$> liftIO (W.calcMinimumCoinValues @_ @k wrk outs)
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
+
+constructTransaction
+    :: ctx
+    -> ApiT WalletId
+    -> ApiConstructTransactionData n
+    -> Handler (ApiConstructTransaction n)
+constructTransaction _ctx (ApiT _wid) _body = undefined
 
 joinStakePool
     :: forall ctx s n k.

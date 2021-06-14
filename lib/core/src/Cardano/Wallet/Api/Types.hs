@@ -189,6 +189,8 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiSelectCoinsDataT
     , ApiTransactionT
+    , ApiConstructTransactionT
+    , ApiConstructTransactionDataT
     , PostTransactionDataT
     , PostTransactionFeeDataT
     , ApiWalletMigrationPlanPostDataT
@@ -1924,6 +1926,11 @@ instance FromJSON ApiDelegationAction where
 instance ToJSON ApiDelegationAction where
     toJSON = genericToJSON apiDelegationActionOptions
 
+instance FromJSON ApiMultiDelegationAction where
+    parseJSON = genericParseJSON apiDelegationActionOptions
+instance ToJSON ApiMultiDelegationAction where
+    toJSON = genericToJSON apiDelegationActionOptions
+
 instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiCoinSelectionChange n) where
@@ -2392,6 +2399,16 @@ instance DecodeAddress t => FromJSON (PostTransactionData t) where
 instance EncodeAddress t => ToJSON (PostTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance DecodeAddress t => FromJSON (ApiConstructTransactionData t) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress t => ToJSON (ApiConstructTransactionData t) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress t => FromJSON (ApiConstructTransaction t) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress t => ToJSON (ApiConstructTransaction t) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance FromJSON ApiWithdrawalPostData where
     parseJSON obj =
         parseSelfWithdrawal <|> fmap ExternalWithdrawal (parseJSON obj)
@@ -2545,6 +2562,16 @@ instance DecodeAddress n => FromJSON (ApiTxInput n) where
 instance EncodeAddress n => ToJSON (ApiTxInput n) where
     toJSON (ApiTxInput s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
+      where
+        fromValue (Object o) = o
+        fromValue _ = mempty
+
+instance DecodeAddress n => FromJSON (ApiTxInputExtended n) where
+    parseJSON v = ApiTxInputExtended <$> optional (parseJSON v) <*> parseJSON v <*> parseJSON v
+
+instance EncodeAddress n => ToJSON (ApiTxInputExtended n) where
+    toJSON (ApiTxInputExtended s i p) =
+        Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i) <> fromValue (toJSON p))
       where
         fromValue (Object o) = o
         fromValue _ = mempty
@@ -3091,7 +3118,9 @@ type family ApiAddressIdT (n :: k) :: Type
 type family ApiCoinSelectionT (n :: k) :: Type
 type family ApiSelectCoinsDataT (n :: k) :: Type
 type family ApiTransactionT (n :: k) :: Type
+type family ApiConstructTransactionT (n :: k) :: Type
 type family PostTransactionDataT (n :: k) :: Type
+type family ApiConstructTransactionDataT (n :: k) :: Type
 type family PostTransactionFeeDataT (n :: k) :: Type
 type family ApiWalletMigrationPlanPostDataT (n :: k) :: Type
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
@@ -3118,8 +3147,14 @@ type instance ApiSelectCoinsDataT (n :: NetworkDiscriminant) =
 type instance ApiTransactionT (n :: NetworkDiscriminant) =
     ApiTransaction n
 
+type instance ApiConstructTransactionT (n :: NetworkDiscriminant) =
+    ApiConstructTransaction n
+
 type instance PostTransactionDataT (n :: NetworkDiscriminant) =
     PostTransactionData n
+
+type instance ApiConstructTransactionDataT (n :: NetworkDiscriminant) =
+    ApiConstructTransactionData n
 
 type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeData n

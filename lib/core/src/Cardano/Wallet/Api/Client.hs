@@ -63,6 +63,8 @@ import Cardano.Wallet.Api.Types
     , ApiAddressT
     , ApiByronWallet
     , ApiCoinSelectionT
+    , ApiConstructTransactionDataT
+    , ApiConstructTransactionT
     , ApiFee
     , ApiNetworkClock
     , ApiNetworkInformation (..)
@@ -174,6 +176,10 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiTxId
         -> ClientM (ApiTransactionT Aeson.Value)
+    , constructTransaction
+        :: ApiT WalletId
+        -> ApiConstructTransactionDataT Aeson.Value
+        -> ClientM (ApiConstructTransactionT Aeson.Value)
     }
 
 data AddressClient = AddressClient
@@ -287,6 +293,7 @@ transactionClient =
             :<|> _postTransactionFee
             :<|> _deleteTransaction
             :<|> _getTransaction
+            :<|> _constructTransaction
             = client (Proxy @("v2" :> (Transactions Aeson.Value)))
 
         _postExternalTransaction
@@ -299,6 +306,7 @@ transactionClient =
             , postExternalTransaction = _postExternalTransaction
             , deleteTransaction = _deleteTransaction
             , getTransaction = _getTransaction
+            , constructTransaction = _constructTransaction
             }
 
 -- | Produces a 'TransactionClient n' working against the /byron-wallets API.
@@ -323,6 +331,7 @@ byronTransactionClient =
         , postExternalTransaction = _postExternalTransaction
         , deleteTransaction = _deleteTransaction
         , getTransaction = _getTransaction
+        , constructTransaction = undefined
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API
@@ -418,6 +427,8 @@ type instance ApiAddressIdT Aeson.Value = Text
 type instance ApiCoinSelectionT Aeson.Value = Aeson.Value
 type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
 type instance ApiTransactionT Aeson.Value = Aeson.Value
+type instance ApiConstructTransactionT Aeson.Value = Aeson.Value
 type instance PostTransactionDataT Aeson.Value = Aeson.Value
+type instance ApiConstructTransactionDataT Aeson.Value = Aeson.Value
 type instance PostTransactionFeeDataT Aeson.Value = Aeson.Value
 type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value
