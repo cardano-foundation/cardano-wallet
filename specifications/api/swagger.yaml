@@ -1143,12 +1143,12 @@ x-softIndex: &softIndex
 x-multiDelegationAction: &multiDelegationAction
   description: |
     A delegation action for a given stake key denoted by its soft index.
-
-    Stake key index is only required for "join".
+    Pool id is only required for "join".
+    Stake key index are required for both actions.
   type: object
   required:
     - action
-    - pool
+    - stake_key_index
   properties:
     action:
       type: string

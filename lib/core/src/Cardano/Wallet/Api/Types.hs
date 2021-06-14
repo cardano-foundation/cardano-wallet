@@ -862,7 +862,7 @@ data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransactio
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiMultiDelegationAction = Joining (ApiT PoolId) Natural | Leaving (ApiT PoolId)
+data ApiMultiDelegationAction = Joining (ApiT PoolId) Natural | Leaving Natural
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -1926,10 +1926,23 @@ instance FromJSON ApiDelegationAction where
 instance ToJSON ApiDelegationAction where
     toJSON = genericToJSON apiDelegationActionOptions
 
-instance FromJSON ApiMultiDelegationAction where
-    parseJSON = genericParseJSON apiDelegationActionOptions
 instance ToJSON ApiMultiDelegationAction where
-    toJSON = genericToJSON apiDelegationActionOptions
+    toJSON (Joining poolId stakeKey) =
+        object [ "action" .= String "join"
+               , "pool" .= toJSON poolId
+               , "stake_key_index" .= toJSON stakeKey]
+    toJSON (Leaving stakeKey) =
+        object [ "action" .= String "quit"
+               , "stake_key_index" .= toJSON stakeKey]
+instance FromJSON ApiMultiDelegationAction where
+    parseJSON = withObject "ApiMultiDelegationAction" $ \o -> do
+        p <- o .:? "pool"
+        ix <- o .: "stake_key_index"
+        case (p :: Maybe (ApiT PoolId)) of
+            Just poolId -> do
+                pure $ Joining poolId ix
+            Nothing ->
+                pure $ Leaving ix
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
