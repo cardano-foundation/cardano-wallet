@@ -51,7 +51,7 @@ pkgs: super: let
     inherit name index-state compiler-nix-name;
   } // pkgs.lib.optionalAttrs enableMaterialization {
     checkMaterialization = false;
-    materialized = ./materialized + "/${name}";
+    materialized = ../materialized + "/${name}";
   } // builtins.removeAttrs args ["exe"]);
 
   # A script for updating materialized files
@@ -82,7 +82,7 @@ in {
       inherit compiler-nix-name index-state;
     } // pkgs.lib.optionalAttrs enableMaterialization {
       checkMaterialization = false;
-      materialized = ./materialized + "/${name}";
+      materialized = ../materialized + "/${name}";
     });
   in pkgs.symlinkJoin {
     inherit name;

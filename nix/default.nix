@@ -40,19 +40,19 @@ let
     ++ iohkNixMain.overlays.iohkNix
     # our own overlays:
     ++ [
-      (pkgs: _: with pkgs; {
+      (pkgs: _: {
         # commonLib: iohk-nix utils and our own:
-        commonLib = iohkNix
-          // import ./util.nix { inherit lib; }
+        commonLib = pkgs.iohkNix
+          // import ./util.nix { inherit (pkgs) lib; }
           # also expose our sources and overlays
           // { inherit overlays sources; };
       })
-      # haskell build tools
-      (import ./build-tools-overlay.nix)
-      # cardano-node packages
-      (import ./cardano-node-overlay.nix)
-      # Other package overlays
-      (import ./pkgs.nix { inherit system crossSystem config; })
+      # Haskell build tools
+      (import ./overlays/build-tools.nix)
+      # Cardano deployments
+      (import ./overlays/cardano-deployments.nix)
+      # Other packages overlay
+      (import ./overlays/pkgs.nix)
     ];
 
   pkgs = import nixpkgs {
