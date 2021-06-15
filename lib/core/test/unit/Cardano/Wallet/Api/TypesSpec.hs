@@ -64,6 +64,7 @@ import Cardano.Wallet.Api.Types
     , ApiAsset (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
+    , ApiBurnData (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiCertificate (..)
@@ -83,6 +84,10 @@ import Cardano.Wallet.Api.Types
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
+    , ApiMintBurnData (..)
+    , ApiMintBurnOperation (..)
+    , ApiMintBurnTransaction (..)
+    , ApiMintData (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -149,6 +154,7 @@ import Cardano.Wallet.Api.Types
     , KeyFormat (..)
     , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
+    , PostMintBurnAssetData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , SettingsPutData (..)
@@ -239,8 +245,12 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , AssetMetadata (..)
     , AssetURL (..)
     , TokenFingerprint
+    , TokenName (..)
+    , TokenPolicyId (..)
     , mkTokenFingerprint
     )
+import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+    ( genTokenNameSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxIn (..), TxMetadata (..), TxOut (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -339,6 +349,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , applyArbitrary2
     , applyArbitrary3
+    , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -489,6 +500,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiOurStakeKey ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiForeignStakeKey ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiNullStakeKey
+            jsonRoundtripAndGolden $ Proxy @(PostMintBurnAssetData ('Testnet 0))
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -971,6 +983,16 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "PostMintBurnAssetData" $ property $ \x ->
+          let
+            x' = PostMintBurnAssetData
+                 { mintBurn = mintBurn (x :: PostMintBurnAssetData ('Testnet 0))
+                 , passphrase = passphrase (x :: PostMintBurnAssetData ('Testnet 0))
+                 , metadata = metadata (x :: PostMintBurnAssetData ('Testnet 0))
+                 , timeToLive = timeToLive (x :: PostMintBurnAssetData ('Testnet 0))
+                 }
+          in
+               x' === x .&&. show x' === show x
         it "PostTransactionFeeData" $ property $ \x ->
             let
                 x' = PostTransactionFeeData
@@ -1320,6 +1342,11 @@ instance Arbitrary Address where
     arbitrary = pure $ Address "<addr>"
 
 instance Arbitrary (Quantity "lovelace" Natural) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
+
+instance Arbitrary (Quantity "assets" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
@@ -1857,6 +1884,49 @@ instance Arbitrary (PostTransactionData t) where
         <*> arbitrary
         <*> arbitrary
 
+instance Arbitrary (PostMintBurnAssetData t) where
+    arbitrary = applyArbitrary4 PostMintBurnAssetData
+
+instance Arbitrary (ApiMintBurnData t) where
+    arbitrary = ApiMintBurnData
+        <$> arbitrary
+        <*> (ApiT <$> genTokenNameSmallRange)
+        <*> arbitrary
+
+instance Arbitrary (ApiMintData t) where
+    arbitrary = ApiMintData <$> arbitrary <*> arbitrary
+
+instance Arbitrary ApiBurnData where
+    arbitrary = ApiBurnData <$> arbitrary
+
+instance Arbitrary (ApiMintBurnOperation t) where
+    arbitrary
+        = oneof [ ApiMint <$> arbitrary
+                , ApiBurn <$> arbitrary
+                ]
+
+instance Arbitrary (ApiMintBurnTransaction t) where
+    arbitrary = do
+        tx <- arbitrary
+        mpi <- arbitrary
+        policyId <- arbitrary
+        assetName <- arbitrary
+        let
+            subject = mkTokenFingerprint policyId assetName
+
+        pure $ ApiMintBurnTransaction tx mpi (ApiT policyId) (ApiT assetName) (ApiT subject)
+
+instance ToSchema (ApiMintBurnTransaction t) where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        declareSchemaForDefinition "ApiMintBurnTransaction"
+
+instance Arbitrary TokenPolicyId where
+    arbitrary = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
+
+instance Arbitrary TokenName where
+    arbitrary = UnsafeTokenName . BS.pack <$> vector 32
+
 instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -2274,6 +2344,11 @@ instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionData"
+
+instance ToSchema (PostMintBurnAssetData t) where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        declareSchemaForDefinition "ApiPostMintBurnAssetData"
 
 instance ToSchema (PostTransactionFeeData t) where
     declareNamedSchema _ = do

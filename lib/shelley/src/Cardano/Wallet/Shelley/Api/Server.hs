@@ -86,6 +86,7 @@ import Cardano.Wallet.Api.Server
     , listTransactions
     , listWallets
     , migrateWallet
+    , mintToken
     , mkLegacyWallet
     , mkSharedWallet
     , mkShelleyWallet
@@ -262,8 +263,12 @@ server byron icarus shelley multisig spl ntp =
         :<|> postAccountPublicKey shelley ApiAccountKey
         :<|> getAccountPublicKey shelley ApiAccountKey
 
-    assets :: Server Assets
-    assets = listAssets shelley :<|> getAsset shelley :<|> getAssetDefault shelley
+    assets :: Server (Assets n)
+    assets =
+        listAssets shelley
+        :<|> getAsset shelley
+        :<|> getAssetDefault shelley
+        :<|> mintToken shelley undefined
 
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
