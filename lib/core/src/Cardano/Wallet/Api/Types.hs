@@ -1993,8 +1993,11 @@ instance ToJSON SomeByronWalletPostData where
         fieldName = "style"
 
 instance FromJSON SomeByronWalletPostData where
-    parseJSON = withObject "SomeByronWallet" $ \obj -> do
-        choice <- (,) <$> obj .:? "account_public_key" <*> obj .:? "style"
+    parseJSON = withObject "SomeByronWallet" $ \objectWithStyle -> do
+        choice <- (,)
+            <$> objectWithStyle .:? "account_public_key"
+            <*> objectWithStyle .:? "style"
+        let obj = objectWithStyle `removeObjectFields` ["style"]
         case choice of
             (Nothing, Just t) | t == toText Random ->
                 (obj .:? "passphrase_hash" :: Aeson.Parser (Maybe Text)) >>= \case
@@ -3092,6 +3095,14 @@ instance ToJSON (ApiT SmashServer) where
 --------------------------------------------------------------------------------
 -- Utility functions
 --------------------------------------------------------------------------------
+
+-- | Removes all fields within the specified list from a JSON object.
+--
+removeObjectFields :: Aeson.Object -> [Text] -> Aeson.Object
+removeObjectFields o prohibitedFields =
+    HM.filterWithKey (\field _ -> Set.notMember field prohibitedFieldSet) o
+  where
+    prohibitedFieldSet = Set.fromList prohibitedFields
 
 -- | Restricts the set of fields within a JSON object to just those in the
 --   specified list.
