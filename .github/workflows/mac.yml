@@ -1,0 +1,16 @@
+on: [push]
+name: build
+jobs:
+  runhaskell:
+    name: Test
+    runs-on: macOS-latest # or macOS-latest, or windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: haskell/actions/setup@v1.2.2
+        with:
+          ghc-version: '8.10.4' # Exact version of ghc to use
+          # cabal-version: 'latest'. Omitted, but defalts to 'latest'
+          enable-stack: true
+          stack-version: 'latest'
+      - run: stack build --test --no-run-tests cardano-wallet-core
+      - run: stack test cardano-wallet-core
