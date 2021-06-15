@@ -396,6 +396,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
@@ -2363,11 +2364,14 @@ instance EncodeAddress t => ToJSON (PostTransactionFeeData t) where
 -- Note: These custom JSON instances are for compatibility with the existing API
 -- schema. At some point, we can switch to the generic instances.
 instance FromJSON ApiSlotReference where
-    parseJSON = withObject "SlotReference" $ \o ->
+    parseJSON = withObject "SlotReference" $ \o -> do
+        let apiSlotIdObject = Aeson.Object $
+                o `restrictObjectFields`
+                ["epoch_number", "slot_number"]
         ApiSlotReference
-        <$> o .: "absolute_slot_number"
-        <*> parseJSON (Aeson.Object o)
-        <*> o .: "time"
+            <$> o .: "absolute_slot_number"
+            <*> parseJSON apiSlotIdObject
+            <*> o .: "time"
 instance ToJSON ApiSlotReference where
     toJSON (ApiSlotReference sln sli t) =
         let Aeson.Object rest = toJSON sli
@@ -2382,9 +2386,15 @@ instance ToJSON ApiSlotId where
 -- schema. At some point, we can switch to the generic instances.
 -- A BlockReference is just a SlotReference with the block height included.
 instance FromJSON ApiBlockReference where
-    parseJSON v = do
-        ApiSlotReference sln sli t <- parseJSON v
-        ApiBlockReference sln sli t <$> parseJSON v
+    parseJSON = withObject "BlockReference" $ \o -> do
+        let apiSlotReferenceObject = Aeson.Object $
+                o `restrictObjectFields`
+                ["absolute_slot_number", "epoch_number", "slot_number", "time"]
+        let apiBlockInfoObject = Aeson.Object $
+                o `restrictObjectFields`
+                ["height"]
+        ApiSlotReference sln sli t <- parseJSON apiSlotReferenceObject
+        ApiBlockReference sln sli t <$> parseJSON apiBlockInfoObject
 instance ToJSON ApiBlockReference where
     toJSON (ApiBlockReference sln sli t (ApiBlockInfo bh)) =
         let Aeson.Object rest = toJSON (ApiSlotReference sln sli t)
@@ -3078,3 +3088,16 @@ instance FromJSON (ApiT SmashServer) where
     parseJSON = fromTextJSON "SmashServer"
 instance ToJSON (ApiT SmashServer) where
     toJSON = toTextJSON
+
+--------------------------------------------------------------------------------
+-- Utility functions
+--------------------------------------------------------------------------------
+
+-- | Restricts the set of fields within a JSON object to just those in the
+--   specified list.
+--
+restrictObjectFields :: Aeson.Object -> [Text] -> Aeson.Object
+restrictObjectFields o allowedFields =
+    HM.filterWithKey (\field _ -> Set.member field allowedFieldSet) o
+  where
+    allowedFieldSet = Set.fromList allowedFields
