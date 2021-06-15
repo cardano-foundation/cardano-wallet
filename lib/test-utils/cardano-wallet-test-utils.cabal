@@ -57,6 +57,7 @@ library
   exposed-modules:
       Test.Hspec.Extra
       Test.QuickCheck.Extra
+      Test.Utils.Darwin
       Test.Utils.FilePath
       Test.Utils.Laws
       Test.Utils.Laws.PartialOrd

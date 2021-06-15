@@ -96,6 +96,8 @@ import Test.QuickCheck
     ( Arbitrary (..), choose, counterexample, property, withMaxSuccess )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor )
+import Test.Utils.Darwin
+    ( pendingOnMacOS )
 import UnliftIO.Async
     ( Async, async, cancel, mapConcurrently, replicateConcurrently_ )
 import UnliftIO.Concurrent
@@ -113,7 +115,9 @@ import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
 spec :: Spec
-spec = describe "Logging Middleware" $ do
+spec = before (pendingOnMacOS "#2472 regular timeouts in macOS hydra builds")
+    $ describe "Logging Middleware" $ do
+
     before setup $ after tearDown $ do
         it "GET, 200, no query" $ \ctx -> do
             get ctx "/get"
