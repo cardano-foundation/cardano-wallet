@@ -380,9 +380,15 @@ which could be plotted as:
 
 > `cardano-wallet wallet utxo-snapshot [--port INT] WALLET_ID`
 
-Dumps a view of the wallet's UTxO in JSON format. Each `TxOut` entry
-includes the quantity of Ada and other assets, as well as the
-calculated minimum Ada amount.
+Gets a snapshot of the wallet's entire UTxO set, in JSON format.
+
+Each entry in the list contains the following fields:
+
+| Field | Description |
+| -- | -- |
+| `ada` | the actual ada quantity of this UTxO entry |
+| `ada_minimum` | the minimum ada quantity permitted by the protocol |
+| `assets` | quantities of all other assets included in this UTxO entry |
 
 ```json
 {
