@@ -302,6 +302,7 @@ import Data.Aeson.Types
     , object
     , omitNothingFields
     , prependFailure
+    , rejectUnknownFields
     , sumEncoding
     , tagSingleConstructors
     , withObject
@@ -2910,6 +2911,7 @@ defaultRecordTypeOptions :: Aeson.Options
 defaultRecordTypeOptions = Aeson.defaultOptions
     { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
     , omitNothingFields = True
+    , rejectUnknownFields = True
     }
 
 taggedSumTypeOptions :: Aeson.Options -> TaggedObjectOptions -> Aeson.Options
