@@ -89,6 +89,7 @@ module Cardano.Wallet.Api.Server
     , postSharedWallet
     , patchSharedWallet
     , mkSharedWallet
+    , mintBurnAssets
 
     -- * Server error responses
     , IsServerError(..)
@@ -142,6 +143,7 @@ import Cardano.Wallet
     , ErrJoinStakePool (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
+    , ErrMintBurnAssets (..)
     , ErrMkTx (..)
     , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
@@ -205,6 +207,7 @@ import Cardano.Wallet.Api.Types
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
+    , ApiMintedBurnedTransaction (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation
@@ -2640,6 +2643,16 @@ getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
           Just Extended -> Extended
           _ -> NonExtended
 
+mintBurnAssets
+    :: forall ctx n
+     . ctx
+    -> ApiT WalletId
+    -> Api.PostMintBurnAssetData n
+    -> Handler (ApiMintedBurnedTransaction n)
+mintBurnAssets _ctx (ApiT _wid) _body = liftHandler $ throwE $
+    ErrMintBurnNotImplemented
+    "Minting and burning are not supported yet - this is just a stub"
+
 {-------------------------------------------------------------------------------
                                   Helpers
 -------------------------------------------------------------------------------}
@@ -3304,6 +3317,10 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
+
+instance IsServerError ErrMintBurnAssets where
+    toServerError = \case
+        ErrMintBurnNotImplemented msg -> apiError err501 NotImplemented msg
 
 instance IsServerError ErrDecodeSignedTx where
     toServerError = \case

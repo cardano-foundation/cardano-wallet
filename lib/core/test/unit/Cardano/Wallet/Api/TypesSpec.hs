@@ -65,6 +65,7 @@ import Cardano.Wallet.Api.Types
     , ApiBase64
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
+    , ApiBurnData (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiBytesT (..)
@@ -87,6 +88,11 @@ import Cardano.Wallet.Api.Types
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
+    , ApiMintBurnData (..)
+    , ApiMintBurnOperation (..)
+    , ApiMintData (..)
+    , ApiMintedBurnedInfo (..)
+    , ApiMintedBurnedTransaction (..)
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
@@ -158,6 +164,7 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
+    , PostMintBurnAssetData (..)
     , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
     , SettingsPutData (..)
@@ -248,8 +255,12 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , AssetMetadata (..)
     , AssetURL (..)
     , TokenFingerprint
+    , TokenName (..)
+    , TokenPolicyId (..)
     , mkTokenFingerprint
     )
+import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+    ( genTokenNameSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SerialisedTx (..)
@@ -357,6 +368,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , applyArbitrary2
     , applyArbitrary3
+    , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -516,6 +528,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiOurStakeKey ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiForeignStakeKey ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiNullStakeKey
+            jsonRoundtripAndGolden $ Proxy @(PostMintBurnAssetData ('Testnet 0))
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -995,6 +1008,16 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "PostMintBurnAssetData" $ property $ \x ->
+          let
+            x' = PostMintBurnAssetData
+                 { mintBurn = mintBurn (x :: PostMintBurnAssetData ('Testnet 0))
+                 , passphrase = passphrase (x :: PostMintBurnAssetData ('Testnet 0))
+                 , metadata = metadata (x :: PostMintBurnAssetData ('Testnet 0))
+                 , timeToLive = timeToLive (x :: PostMintBurnAssetData ('Testnet 0))
+                 }
+          in
+               x' === x .&&. show x' === show x
         it "PostTransactionOldData" $ property $ \x ->
             let
                 x' = PostTransactionOldData
@@ -1367,6 +1390,11 @@ instance Arbitrary Address where
     arbitrary = pure $ Address "<addr>"
 
 instance Arbitrary (Quantity "lovelace" Natural) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
+
+instance Arbitrary (Quantity "assets" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
@@ -1913,19 +1941,73 @@ instance Arbitrary (ApiConstructTransactionData t) where
         <*> arbitrary
         <*> pure Nothing
 
+instance Arbitrary (PostMintBurnAssetData t) where
+    arbitrary = applyArbitrary4 PostMintBurnAssetData
+
 instance Arbitrary (ApiConstructTransaction t) where
     arbitrary = ApiConstructTransaction
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
 
+instance Arbitrary (ApiMintBurnData t) where
+    arbitrary = ApiMintBurnData
+        <$> arbitrary
+        <*> (ApiT <$> genTokenNameSmallRange)
+        <*> arbitrary
+
 instance Arbitrary ApiStakeKeyIndex where
     arbitrary = ApiStakeKeyIndex <$> arbitrary
+
+instance Arbitrary (ApiMintData t) where
+    arbitrary = ApiMintData <$> arbitrary <*> arbitrary
 
 instance Arbitrary (ApiPaymentDestination t) where
     arbitrary = oneof
         [ ApiPaymentAddresses <$> arbitrary
         , ApiPaymentAll <$> arbitrary]
+
+instance Arbitrary ApiBurnData where
+    arbitrary = ApiBurnData <$> arbitrary
+
+instance Arbitrary (ApiMintBurnOperation t) where
+    arbitrary
+        = oneof [ ApiMint <$> arbitrary
+                , ApiBurn <$> arbitrary
+                ]
+
+instance Arbitrary (ApiMintedBurnedTransaction t) where
+    arbitrary = ApiMintedBurnedTransaction <$> arbitrary <*> arbitrary
+
+instance Arbitrary ApiMintedBurnedInfo where
+    arbitrary = do
+        mpi <- arbitrary
+        policyId <- arbitrary
+        assetName <- arbitrary
+        let
+            subject = mkTokenFingerprint policyId assetName
+            script  =
+                RequireSignatureOf
+                    (KeyHash Payment $ getHash $ unTokenPolicyId policyId)
+
+        pure $ ApiMintedBurnedInfo
+            (ApiT mpi)
+            (ApiT policyId)
+            (ApiT assetName)
+            (ApiT subject)
+            (ApiT script)
+
+
+instance ToSchema (ApiMintedBurnedTransaction t) where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        declareSchemaForDefinition "ApiMintedBurnedTransaction"
+
+instance Arbitrary TokenPolicyId where
+    arbitrary = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
+
+instance Arbitrary TokenName where
+    arbitrary = UnsafeTokenName . BS.pack <$> vector 32
 
 instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
@@ -2393,6 +2475,11 @@ instance ToSchema (PostTransactionFeeOldData t) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionFeeData"
+
+instance ToSchema (PostMintBurnAssetData t) where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        declareSchemaForDefinition "ApiPostMintBurnAssetData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = do
