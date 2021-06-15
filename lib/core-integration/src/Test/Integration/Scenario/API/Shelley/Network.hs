@@ -27,6 +27,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , RequestException
+    , activeSlotCoeff
     , counterexample
     , epochLengthValue
     , expectField
@@ -73,7 +74,7 @@ spec = describe "SHELLEY_NETWORK" $ do
             , expectField #slotLength (`shouldBe` Quantity slotLengthValue)
             , expectField #epochLength (`shouldBe` Quantity epochLengthValue)
             , expectField #securityParameter (`shouldBe` Quantity securityParameterValue)
-            , expectField #activeSlotCoefficient (`shouldBe` Quantity 50.0)
+            , expectField #activeSlotCoefficient (`shouldBe` activeSlotCoeff)
             ]
             ++ map (expectEraField (`shouldNotBe` Nothing)) knownEras
             ++ map (expectEraField (`shouldBe` Nothing)) unknownEras

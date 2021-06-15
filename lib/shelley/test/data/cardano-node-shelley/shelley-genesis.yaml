@@ -8,7 +8,7 @@
 #
 
 ---
-activeSlotsCoeff: 0.5
+activeSlotsCoeff: 0.3125
 protocolParams:
   poolDeposit: 0
   protocolVersion:
@@ -47,10 +47,10 @@ maxLovelaceSupply: 1000000000000000000
 protocolMagicId: 764824073
 networkMagic: 764824073
 networkId: Mainnet
-epochLength: 100
+epochLength: 160
 staking:
 slotsPerKESPeriod: 86400
-slotLength: 0.2
+slotLength: 0.125
 maxKESEvolutions: 90
 securityParam: 5
 systemStart: "2020-06-19T16:07:37.740128433Z"

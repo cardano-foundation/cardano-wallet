@@ -56,6 +56,7 @@ module Test.Integration.Framework.DSL
     , minUTxOValue
     , slotLengthValue
     , securityParameterValue
+    , activeSlotCoeff
     , epochLengthValue
     , defaultTxTTL
 
@@ -651,7 +652,7 @@ minUTxOValue = 1_000_000
 --
 -- This space left blank intentionally.
 slotLengthValue :: NominalDiffTime
-slotLengthValue =  0.2
+slotLengthValue =  0.125
 
 -- | Parameter in test cluster shelley genesis.
 securityParameterValue :: Word32
@@ -659,12 +660,17 @@ securityParameterValue = 5
 
 -- | Parameter in test cluster shelley genesis.
 epochLengthValue :: Word32
-epochLengthValue = 100
+epochLengthValue = 160
+
+-- | Parameter in test cluster shelley genesis.
+activeSlotCoeff :: Quantity "percent" Double
+activeSlotCoeff = Quantity 31.25
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.
 defaultTxTTL :: NominalDiffTime
 defaultTxTTL = 7200
+
 
 --
 -- Helpers
