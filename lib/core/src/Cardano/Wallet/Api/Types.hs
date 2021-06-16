@@ -1313,6 +1313,7 @@ data ApiErrorCode
     | SharedWalletNoSuchCosigner
     | SharedWalletCannotUpdateKey
     | SharedWalletScriptTemplateInvalid
+    | MintedNotSpent
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

@@ -3311,6 +3311,19 @@ x-errSharedWalletScriptTemplateInvalid: &errSharedWalletScriptTemplateInvalid
       type: string
       enum: ['shared_wallet_script_template_invalid']
 
+x-errMintedNotSpent: &errMintedNotSpent
+  <<: *responsesErr
+  title: funds_minted_were_not_spent
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user mints funds but does not spend them all (i.e. does
+        not send all minted funds to an address).
+    code:
+      type: string
+      enum: ['minted_not_spent']
+
 # TODO: Map this error to the place it belongs.
 x-errNetworkUnreachable: &errNetworkUnreachable
   <<: *responsesErr
@@ -3854,6 +3867,7 @@ x-responsesMintToken: &responsesMintToken
             - <<: *errTransactionIsTooBig
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
+            - <<: *errMintedNotSpent
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
