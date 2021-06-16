@@ -24,6 +24,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -204,6 +205,7 @@ module Cardano.Wallet.Api.Types
 
     -- * Others
     , defaultRecordTypeOptions
+    , strictRecordTypeOptions
     , HealthStatusSMASH (..)
     , HealthCheckSMASH (..)
     , ApiHealthCheck (..)
@@ -316,6 +318,7 @@ import Data.Aeson.Types
     , object
     , omitNothingFields
     , prependFailure
+    , rejectUnknownFields
     , sumEncoding
     , tagSingleConstructors
     , withObject
@@ -400,6 +403,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Codec.Binary.Bech32 as Bech32
@@ -892,11 +896,16 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     } deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+-- | New transaction API version of 'AddressAmount'.
+data AddressValue addr = AddressValue
+    { address :: !addr
+    , value :: !(ApiT W.TokenBundle)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiPaymentDestination (n :: NetworkDiscriminant)
-    = ApiPaymentNone
-    -- ^ The only output is a change address.
-    | ApiPaymentAddresses !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
-    -- ^ Pay amounts to the following addresses.
+    = ApiPaymentAddresses ![AddressValue (ApiAddressIdT n)]
+    -- ^ Pay amounts to zero or more addresses.
     | ApiPaymentAll (ApiT Address, Proxy n)
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -2568,6 +2577,34 @@ instance FromJSON a => FromJSON (AddressAmount a) where
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (unCoin maxBound) <> " lovelace."
 
+instance ToJSON a => ToJSON (AddressValue a) where
+    toJSON = genericToJSON strictRecordTypeOptions
+
+instance FromJSON a => FromJSON (AddressValue a) where
+    parseJSON = genericParseJSON strictRecordTypeOptions
+
+instance ToJSON (ApiT W.TokenBundle) where
+    -- TODO: consider other structures
+    toJSON (ApiT (W.TokenBundle c ts)) = object
+        [ "amount" .= coinToQuantity c
+        , "assets" .= toJSON (ApiT ts)
+        ]
+
+instance FromJSON (ApiT W.TokenBundle) where
+    -- TODO: reject unknown fields
+    parseJSON = withObject "Value " $ \v ->
+        prependFailure "parsing Value failed, " $
+        fmap ApiT $ W.TokenBundle
+            <$> (v .: "amount" >>= validateCoin)
+            <*> fmap getApiT (v .: "assets" .!= mempty)
+      where
+        validateCoin :: Quantity "lovelace" Word64 -> Aeson.Parser Coin
+        validateCoin (coinFromQuantity -> c)
+            | isValidCoin c = pure c
+            | otherwise = fail $
+                "invalid coin value: value has to be lower than or equal to "
+                <> show (unCoin maxBound) <> " lovelace."
+
 instance ToJSON a => ToJSON (AddressAmount a) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
@@ -3098,6 +3135,11 @@ defaultRecordTypeOptions :: Aeson.Options
 defaultRecordTypeOptions = Aeson.defaultOptions
     { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
     , omitNothingFields = True
+    }
+
+strictRecordTypeOptions :: Aeson.Options
+strictRecordTypeOptions = defaultRecordTypeOptions
+    { rejectUnknownFields = True
     }
 
 taggedSumTypeOptions :: Aeson.Options -> TaggedObjectOptions -> Aeson.Options
