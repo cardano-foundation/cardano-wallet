@@ -40,8 +40,9 @@ let
         niv
         pkgconfig
         python3Packages.openapi-spec-validator
-        ruby
+        (ruby.withPackages (ps: [ ps.thor ]))
         sqlite-interactive
+        curlFull
         jq
         yq
       ] ++ lib.filter
