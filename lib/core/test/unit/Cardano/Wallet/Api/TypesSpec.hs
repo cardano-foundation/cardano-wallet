@@ -271,7 +271,7 @@ import Data.Aeson.QQ
 import Data.Char
     ( toLower )
 import Data.Data
-    ( Typeable, dataTypeConstrs, dataTypeOf, showConstr )
+    ( Typeable, dataTypeConstrs, dataTypeOf, showConstr, typeRep )
 import Data.Either
     ( lefts )
 import Data.FileEmbed
@@ -339,6 +339,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
+    , Property
     , applyArbitrary2
     , applyArbitrary3
     , arbitraryBoundedEnum
@@ -512,6 +513,12 @@ spec = parallel $ do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             forM_ apiTypes $ \(ApiType t) -> jsonRoundtripAndGolden t
+
+    parallel $ describe
+        "JSON parsers reject unknown fields" $
+            forM_ apiTypes $ \(ApiType p@(Proxy :: Proxy t)) ->
+                it (show $ typeRep p) $
+                    property $ jsonParserRejectsUnknownFields @t
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -1116,6 +1123,29 @@ spec = parallel $ do
                     Error s -> s
                     _ -> ""
             in counterexample errStr $ res == Success SchemaApiErrorCode
+
+--------------------------------------------------------------------------------
+-- Strict JSON parsing
+--------------------------------------------------------------------------------
+
+jsonParserRejectsUnknownFields :: forall t. IsApiType t => t -> Property
+jsonParserRejectsUnknownFields v = case Aeson.decode (Aeson.encode v) of
+    Just (Aeson.Object o) ->
+        testWithUnknownField o
+    Just _ ->
+        property True
+    Nothing ->
+        error "jsonParserRejectsUnknownFields: Unable to parse generated value."
+  where
+    testWithUnknownField :: Aeson.Object -> Property
+    testWithUnknownField o = case decodedResult of
+        Left _ -> property True
+        Right _ -> counterexample (show encodedResult) $ property False
+      where
+        decodedResult :: Either String t
+        decodedResult = Aeson.eitherDecode @t encodedResult
+        encodedResult =
+            Aeson.encode $ HM.insert "unknown_field" "unknown_value" o
 
 {-------------------------------------------------------------------------------
                               Error type Encoding
