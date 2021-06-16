@@ -300,7 +300,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData (..) )
 import Control.Monad
     ( guard, when, (>=>) )
 import Data.Aeson.Types
@@ -864,16 +864,24 @@ data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransactio
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+-- | Index of the stake key.
+--
+-- fixme: can this be replaced with ApiT DerivationIndex?
 newtype StakeKeyIndex = StakeKeyIndex Natural
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+-- | Stake pool delegation certificates.
 data ApiMultiDelegationAction
-    = Joining (ApiT PoolId) StakeKeyIndex
-    | Leaving StakeKeyIndex
+    = Joining !(ApiT PoolId) !StakeKeyIndex
+    -- ^ Delegate given staking index to a pool, possibly registering the stake
+    -- key at the same time.
+    | Leaving !StakeKeyIndex
+    -- ^ Undelegate the given staking index from its pool.
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+-- | Input parameters for transaction construction.
 data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
     { payments :: !(ApiPaymentDestination n)
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
@@ -882,12 +890,16 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , delegation :: ![ApiMultiDelegationAction]
     , validityInterval :: !(Maybe ApiValidityInterval)
     } deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiPaymentDestination (n :: NetworkDiscriminant)
     = ApiPaymentNone
+    -- ^ The only output is a change address.
     | ApiPaymentAddresses !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
+    -- ^ Pay amounts to the following addresses.
     | ApiPaymentAll (ApiT Address, Proxy n)
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 -- | Times where transactions are valid.
 data ApiValidityInterval = ApiValidityInterval
@@ -896,14 +908,20 @@ data ApiValidityInterval = ApiValidityInterval
     , invalidHereafter :: !ApiValidityBound
     -- ^ Tx is not valid at this time and after. Defaults to now + 2 hours.
     } deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 -- | One side of the validity interval.
 data ApiValidityBound
     = ApiValidityBoundUnspecified
+    -- ^ Use the default.
     | ApiValidityBoundAsTimeFromNow !(Quantity "second" NominalDiffTime)
+    -- ^ Time from transaction construction (not submission).
     | ApiValidityBoundAsSlot !(Quantity "slot" Word64)
+    -- ^ Absolute slot number.
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
+-- | Legacy transaction API.
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "lenient"))
@@ -1030,6 +1048,7 @@ data ApiWithdrawalPostData
     = SelfWithdrawal
     | ExternalWithdrawal (ApiMnemonicT '[15,18,21,24])
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
@@ -1571,6 +1590,10 @@ deriving instance Ord a => Ord (ApiT a)
 newtype ApiMnemonicT (sizes :: [Nat]) =
     ApiMnemonicT { getApiMnemonicT :: SomeMnemonic }
     deriving (Generic, Show, Eq)
+
+-- TODO: add instance NFData SomeMnemonic in cardano-addresses
+instance NFData (ApiMnemonicT sizes) where
+    rnf = rnf . show . getApiMnemonicT
 
 -- | A stake key belonging to the current wallet.
 data ApiOurStakeKey n = ApiOurStakeKey
