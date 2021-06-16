@@ -312,12 +312,12 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
     withServer dbDecorator onReady = bracketTracer' tr "withServer" $
         withSMASH testDir $ \smashUrl -> do
             clusterCfg <- localClusterConfigFromEnv
-            withCluster tr' testDir clusterCfg $
+            withCluster tr' testDir clusterCfg setupFaucet $
                 onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
     encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
-    setupFaucet conn = do
+    setupFaucet (RunningNode conn _ _) = do
         traceWith tr MsgSettingUpFaucet
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
                 concatMap genRewardAccounts mirMnemonics
@@ -328,7 +328,6 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
             encodeAddresses (maryIntegrationTestAssets (Coin 10_000_000))
 
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData)) = do
-        setupFaucet conn
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv

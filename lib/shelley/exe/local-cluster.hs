@@ -213,10 +213,11 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
     withLoggingNamed "cluster" clusterLogs $ \(_, (_, trCluster)) -> do
         let tr' = contramap MsgCluster $ trMessageText trCluster
         clusterCfg <- localClusterConfigFromEnv
-        withCluster tr' dir clusterCfg $
-            whenReady dir (trMessageText trCluster) walletLogs
+        withCluster tr' dir clusterCfg
+            (setupFaucet dir (trMessageText trCluster))
+            (whenReady dir (trMessageText trCluster) walletLogs)
   where
-    setupFaucet dir trCluster socketPath = do
+    setupFaucet dir trCluster (RunningNode socketPath _ _) = do
         traceWith trCluster MsgSettingUpFaucet
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
@@ -231,7 +232,6 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
-            setupFaucet dir trCluster socketPath
 
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 
