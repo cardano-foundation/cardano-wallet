@@ -288,7 +288,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( guard, when, (>=>) )
+    ( forM_, guard, when, (>=>) )
 import Data.Aeson.Types
     ( FromJSON (..)
     , SumEncoding (..)
@@ -3110,5 +3110,17 @@ removeObjectFields o prohibitedFields =
 restrictObjectFields :: Aeson.Object -> [Text] -> Aeson.Object
 restrictObjectFields o allowedFields =
     HM.filterWithKey (\field _ -> Set.member field allowedFieldSet) o
+  where
+    allowedFieldSet = Set.fromList allowedFields
+
+-- | Requires that the set of fields within a JSON object is a subset of
+--   those in the specified list.
+--
+onlyAllowObjectFields :: Aeson.Object -> [Text] -> Aeson.Parser ()
+onlyAllowObjectFields o allowedFields =
+    forM_ (HM.keysSet o) $ \field ->
+        if (Set.notMember field allowedFieldSet)
+        then fail ("Unexpected field: " <> show field)
+        else pure $ Aeson.Success ()
   where
     allowedFieldSet = Set.fromList allowedFields
