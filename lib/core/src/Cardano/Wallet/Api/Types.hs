@@ -860,22 +860,49 @@ data ApiTxInputExtended (n :: NetworkDiscriminant) = ApiTxInputExtended
 
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
     { serializedTransaction :: !ApiSerialisedTransaction
-    , inputs :: [ApiTxInputExtended n]
+    , coinSelection :: !(ApiCoinSelection n)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiMultiDelegationAction = Joining (ApiT PoolId) Natural | Leaving Natural
+newtype StakeKeyIndex = StakeKeyIndex Natural
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiMultiDelegationAction
+    = Joining (ApiT PoolId) StakeKeyIndex
+    | Leaving StakeKeyIndex
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
 data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
-    { payments :: !(Maybe (NonEmpty (AddressAmount (ApiT Address, Proxy n))))
+    { payments :: !(ApiPaymentDestination n)
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , mint :: !(Maybe (ApiT W.TokenMap))
     , delegation :: ![ApiMultiDelegationAction]
-    , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
+    , validityInterval :: !(Maybe ApiValidityInterval)
     } deriving (Eq, Generic, Show)
+
+data ApiPaymentDestination (n :: NetworkDiscriminant)
+    = ApiPaymentNone
+    | ApiPaymentAddresses !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
+    | ApiPaymentAll (ApiT Address, Proxy n)
+    deriving (Eq, Generic, Show)
+
+-- | Times where transactions are valid.
+data ApiValidityInterval = ApiValidityInterval
+    { invalidBefore :: !ApiValidityBound
+    -- ^ Tx is not valid before this time. Defaults to genesis.
+    , invalidHereafter :: !ApiValidityBound
+    -- ^ Tx is not valid at this time and after. Defaults to now + 2 hours.
+    } deriving (Eq, Generic, Show)
+
+-- | One side of the validity interval.
+data ApiValidityBound
+    = ApiValidityBoundUnspecified
+    | ApiValidityBoundAsTimeFromNow !(Quantity "second" NominalDiffTime)
+    | ApiValidityBoundAsSlot !(Quantity "slot" Word64)
+    deriving (Eq, Generic, Show)
 
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))

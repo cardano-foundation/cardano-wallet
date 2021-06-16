@@ -550,14 +550,6 @@ type ConstructTransaction n = "wallets"
     :> ReqBody '[JSON] (ApiConstructTransactionDataT n)
     :> PostAccepted '[JSON] (ApiConstructTransactionT n)
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionConstructFee
-type ConstructTransactionFee n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "transactions"
-    :> "fee"
-    :> ReqBody '[JSON] (ApiConstructTransactionDataT n)
-    :> PostAccepted '[JSON] ApiFee
-
 {-------------------------------------------------------------------------------
                                  Shelley Migrations
 
