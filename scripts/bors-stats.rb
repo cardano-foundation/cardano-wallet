@@ -132,9 +132,9 @@ def fetch_system_from_build_link(link, force_refetch: false)
     end
 end
 
-def try_fetch_system(comment, force_refetch=false)
+def try_fetch_system(comment, force_refetch: false)
   comment.links.each do |l|
-    os = fetch_system_from_build_link(l, force_refetch)
+    os = fetch_system_from_build_link(l, force_refetch: force_refetch)
     if os then comment.tags += [os] end
   end
 end
@@ -357,7 +357,7 @@ def fetch_comments_with_options(options)
 
   if options["fetch-system"] then
     comments.each do |c|
-      try_fetch_system(c, options["force-refetch"]) unless c.succeeded
+      try_fetch_system(c, force_refetch: options["force-refetch"]) unless c.succeeded
     end
   end
 
