@@ -380,7 +380,7 @@ newtype NumberOfRequests = NumberOfRequests Int deriving Show
 instance Arbitrary NumberOfRequests where
     shrink (NumberOfRequests n) =
         fmap NumberOfRequests $ filter (> 0) $ shrink n
-    arbitrary = NumberOfRequests <$> choose (1, 100)
+    arbitrary = NumberOfRequests <$> choose (1, 8)
 
 newtype RandomIndex = RandomIndex Int deriving Show
 
