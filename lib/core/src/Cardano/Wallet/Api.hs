@@ -56,7 +56,6 @@ module Cardano.Wallet.Api
         , DeleteTransaction
         , GetTransaction
         , ConstructTransaction
-        , ConstructTransactionFee
 
     , StakePools
         , ListStakePools
@@ -502,7 +501,6 @@ type Transactions n =
     :<|> DeleteTransaction
     :<|> GetTransaction n
     :<|> ConstructTransaction n
-    :<|> ConstructTransactionFee n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransaction n = "wallets"

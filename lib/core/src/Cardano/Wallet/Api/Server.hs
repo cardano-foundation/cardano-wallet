@@ -57,7 +57,6 @@ module Cardano.Wallet.Api.Server
     , listTransactions
     , getTransaction
     , constructTransaction
-    , constructTransactionFee
     , listWallets
     , listStakeKeys
     , createMigrationPlan
@@ -1928,13 +1927,6 @@ constructTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructTransaction _ctx (ApiT _wid) _body = undefined
-
-constructTransactionFee
-    :: ctx
-    -> ApiT WalletId
-    -> ApiConstructTransactionData n
-    -> Handler ApiFee
-constructTransactionFee _ctx (ApiT _wid) _body = undefined
 
 joinStakePool
     :: forall ctx s n k.

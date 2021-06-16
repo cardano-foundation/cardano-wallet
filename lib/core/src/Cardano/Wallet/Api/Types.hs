@@ -143,7 +143,6 @@ module Cardano.Wallet.Api.Types
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
-    , ApiTxInputExtended (..)
     , ApiMultiDelegationAction (..)
     , ApiSerialisedTransaction (..)
     , ApiBytesT (..)
@@ -855,13 +854,6 @@ newtype ApiSerialisedTransaction
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiTxInputExtended (n :: NetworkDiscriminant) = ApiTxInputExtended
-    { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
-    , input :: !(ApiT TxIn)
-    , derivationPath :: !(NonEmpty (ApiT DerivationIndex))
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
-
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
     { serializedTransaction :: !ApiSerialisedTransaction
     , coinSelection :: !(ApiCoinSelection n)
@@ -869,9 +861,7 @@ data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransactio
       deriving anyclass NFData
 
 -- | Index of the stake key.
---
--- fixme: can this be replaced with ApiT DerivationIndex?
-newtype StakeKeyIndex = StakeKeyIndex Natural
+newtype StakeKeyIndex = StakeKeyIndex (ApiT DerivationIndex)
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -887,7 +877,7 @@ data ApiMultiDelegationAction
 
 -- | Input parameters for transaction construction.
 data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
-    { payments :: !(ApiPaymentDestination n)
+    { payments :: !(Maybe (ApiPaymentDestination n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , mint :: !(Maybe (ApiT W.TokenMap))
@@ -1987,6 +1977,11 @@ instance FromJSON ApiDelegationAction where
 instance ToJSON ApiDelegationAction where
     toJSON = genericToJSON apiDelegationActionOptions
 
+instance ToJSON StakeKeyIndex where
+    toJSON (StakeKeyIndex ix) = toJSON ix
+instance FromJSON StakeKeyIndex where
+    parseJSON val = StakeKeyIndex <$> parseJSON val
+
 instance ToJSON ApiMultiDelegationAction where
     toJSON (Joining poolId stakeKey) =
         object [ "action" .= String "join"
@@ -2473,14 +2468,38 @@ instance DecodeAddress t => FromJSON (PostTransactionData t) where
 instance EncodeAddress t => ToJSON (PostTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance DecodeAddress t => FromJSON (ApiPaymentDestination t) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress t => ToJSON (ApiPaymentDestination t) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance DecodeAddress t => FromJSON (ApiConstructTransactionData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress t => ToJSON (ApiConstructTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress t => FromJSON (ApiConstructTransaction t) where
+instance ToJSON ApiValidityBound where
+    toJSON ApiValidityBoundUnspecified = String "not_specified"
+    toJSON (ApiValidityBoundAsTimeFromNow from) = toJSON from
+    toJSON (ApiValidityBoundAsSlot sl) = toJSON sl
+instance FromJSON ApiValidityBound where
+    parseJSON obj = processString obj <|> processObject
+      where
+        processString = withText "ApiValidityBound string" $ \str ->
+            if str == "not_specified" then
+                pure ApiValidityBoundUnspecified
+            else
+                fail "invalid string of ApiValidityBound"
+        processObject = undefined
+
+instance ToJSON ApiValidityInterval where
+    toJSON _ = undefined
+instance FromJSON ApiValidityInterval where
+    parseJSON _ = undefined
+
+instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress t => ToJSON (ApiConstructTransaction t) where
+instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiWithdrawalPostData where
@@ -2586,7 +2605,7 @@ instance FromJSON a => FromJSON (AddressValue a) where
 instance ToJSON (ApiT W.TokenBundle) where
     -- TODO: consider other structures
     toJSON (ApiT (W.TokenBundle c ts)) = object
-        [ "amount" .= coinToQuantity c
+        [ "amount" .= coinToQuantity @Word c
         , "assets" .= toJSON (ApiT ts)
         ]
 
@@ -2664,16 +2683,6 @@ instance DecodeAddress n => FromJSON (ApiTxInput n) where
 instance EncodeAddress n => ToJSON (ApiTxInput n) where
     toJSON (ApiTxInput s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
-      where
-        fromValue (Object o) = o
-        fromValue _ = mempty
-
-instance DecodeAddress n => FromJSON (ApiTxInputExtended n) where
-    parseJSON v = ApiTxInputExtended <$> optional (parseJSON v) <*> parseJSON v <*> parseJSON v
-
-instance EncodeAddress n => ToJSON (ApiTxInputExtended n) where
-    toJSON (ApiTxInputExtended s i p) =
-        Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i) <> fromValue (toJSON p))
       where
         fromValue (Object o) = o
         fromValue _ = mempty
