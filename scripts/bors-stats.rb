@@ -57,6 +57,8 @@ class BorsStats < Thor
   class_option :annotate, :type => :array, :required => false, :desc => "Convert matches in comments into tags"
   class_option :after, :type => :string, :required => false, :desc => "Only show failures after this date"
   class_option :before, :type => :string, :required => false, :desc => "Only show failures before this date"
+  class_option :group, :type => :array, :required => false, :desc => "Group all given tags into the first given tag.",
+    :long_desc => "`--group #1 #2 #3` will replace #2 and #3 with #1."
 
   desc "list", "list all failures"
   def list()
@@ -391,6 +393,16 @@ def fetch_comments_with_options(options)
       #                                              ^^^^^^^^^^^^^^^^
       matches = c.bodyText.scan(/\d+\) ((\w)+[ \,]{0,2})+/).to_a.map { |x| x.first }
       c.tags += matches
+    end
+  end
+
+  if options[:group] and options[:group].length >= 2 then
+    head, *tail = options[:group]
+    comments.each do |c|
+        new_tags = c.tags - tail
+        if new_tags != c.tags then
+          c.tags = new_tags + [head]
+        end
     end
   end
 
