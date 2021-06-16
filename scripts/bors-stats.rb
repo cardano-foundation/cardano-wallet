@@ -125,16 +125,16 @@ end
 # aggregate build, to use the json response, so a dirty workaround is
 # to scrape the HTML.
 #
-def fetch_system_from_build_link(link, force_refetch: false)
+def fetch_system_from_build_link(link)
     if link.start_with? "https://hydra.iohk.io" then
-      res = hydra_fetch(url: link, force_refetch: force_refetch)
+      res = hydra_fetch(url: link)
       return (res.include? "mac-mini") ? "mac" : "linux"
     end
 end
 
-def try_fetch_system(comment, force_refetch: false)
+def try_fetch_system(comment)
   comment.links.each do |l|
-    os = fetch_system_from_build_link(l, force_refetch: force_refetch)
+    os = fetch_system_from_build_link(l)
     if os then comment.tags += [os] end
   end
 end
@@ -357,7 +357,7 @@ def fetch_comments_with_options(options)
 
   if options["fetch-system"] then
     comments.each do |c|
-      try_fetch_system(c, force_refetch: options["force-refetch"]) unless c.succeeded
+      try_fetch_system(c) unless c.succeeded
     end
   end
 
