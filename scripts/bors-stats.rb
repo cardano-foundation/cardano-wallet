@@ -243,9 +243,10 @@ end
 
 def fetch_merged_prs(target, before = nil)
   numberPRsToFetch = [100, target.to_i].min
+  beforeQ = if before then ", before: \"" + before + "\"" else "" end
   query = <<~END
     query { repository(name: "cardano-wallet", owner: "input-output-hk") {
-      pullRequests(last: #{numberPRsToFetch}, states: MERGED) { edges { cursor, node {
+      pullRequests(last: #{numberPRsToFetch} #{beforeQ}, states: MERGED) { edges { cursor, node {
         number,
         mergedAt,
         title,
