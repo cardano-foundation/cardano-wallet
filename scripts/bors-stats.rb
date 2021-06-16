@@ -66,7 +66,7 @@ class BorsStats < Thor
       puts c.pretty(showDetails = options[:details])
     end
 
-    tm = fetch_gh_ticket_titlemap
+    tm = fetch_gh_ticket_titlemap options
     nTot = comments[:filtered].count
     nExcluded = comments[:unfiltered].length - nTot
     nSucc = comments[:filtered].filter { |x| x.succeeded }.length
@@ -276,7 +276,7 @@ end
 # === Example return value
 #
 #   {2083=>[{"number"=>2083, "url"=>"https://github.com/input-output-hk/cardano-wallet/issues/2083", "title"=>"Windows integration" }
-def fetch_gh_ticket_titlemap
+def fetch_gh_ticket_titlemap(options)
   query = <<~END
     query { repository(name: "cardano-wallet", owner: "input-output-hk") {
       issues(labels: ["Test failure"], last: 100) { edges { node {
@@ -286,7 +286,7 @@ def fetch_gh_ticket_titlemap
       }}}
     }}
   END
-  return sendGithubGraphQLQuery(query)['data']['repository']['issues']['edges']
+  return sendGithubGraphQLQuery(query, force_refetch: options["force_refetch"])['data']['repository']['issues']['edges']
     .map { |x| x['node'] }
     .group_by { |x| "#" + x['number'].to_s }
     .transform_values { |x| x[0] }
