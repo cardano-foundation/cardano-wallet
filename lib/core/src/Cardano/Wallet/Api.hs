@@ -40,7 +40,7 @@ module Cardano.Wallet.Api
         , ListAssets
         , GetAsset
         , GetAssetDefault
-        , MintBurnAsset
+        , MintBurnAssets
 
     , Addresses
         , ListAddresses
@@ -420,7 +420,7 @@ type Assets n =
     ListAssets
     :<|> GetAsset
     :<|> GetAssetDefault
-    :<|> MintBurnAsset n
+    :<|> MintBurnAssets n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAssets
 type ListAssets = "wallets"
@@ -443,8 +443,8 @@ type GetAssetDefault = "wallets"
     :> Capture "policyId" (ApiT TokenPolicyId)
     :> Get '[JSON] ApiAsset
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/mintBurnToken
-type MintBurnAsset n = "wallets"
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/mintBurnAssets
+type MintBurnAssets n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     -- :> "assets"
     -- :> "mint"

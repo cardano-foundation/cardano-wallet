@@ -889,6 +889,6 @@ mintToken
         )
     => w
     -> (Method, Text)
-mintToken w = (endpoint @(Api.MintBurnAsset Net) (wid &))
+mintToken w = (endpoint @(Api.MintBurnAssets Net) (wid &))
   where
     wid = w ^. typed @(ApiT WalletId)
