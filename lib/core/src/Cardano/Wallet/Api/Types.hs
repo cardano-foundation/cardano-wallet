@@ -2424,9 +2424,9 @@ instance ToJSON (ApiT SlotNo) where
     toJSON (ApiT (SlotNo sn)) = toJSON sn
 
 instance FromJSON a => FromJSON (AddressAmount a) where
-    parseJSON = withObject "AddressAmount " $ \v ->
-        prependFailure "parsing AddressAmount failed, " $
-        AddressAmount
+    parseJSON = withObject "AddressAmount " $ \v -> do
+        v `onlyAllowObjectFields` ["address", "amount", "assets"]
+        prependFailure "parsing AddressAmount failed, " $ AddressAmount
             <$> v .: "address"
             <*> (v .: "amount" >>= validateCoin)
             <*> v .:? "assets" .!= mempty
