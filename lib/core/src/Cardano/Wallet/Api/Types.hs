@@ -146,6 +146,10 @@ module Cardano.Wallet.Api.Types
     , ApiMultiDelegationAction (..)
     , ApiSerialisedTransaction (..)
     , ApiBytesT (..)
+    , StakeKeyIndex (..)
+    , ApiPaymentDestination (..)
+    , ApiValidityInterval (..)
+    , ApiValidityBound
 
     -- * API Types (Byron)
     , ApiByronWallet (..)

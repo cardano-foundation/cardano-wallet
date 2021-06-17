@@ -94,6 +94,7 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiNullStakeKey
     , ApiOurStakeKey
+    , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
     , ApiPostAccountKeyData
     , ApiPostAccountKeyDataWithPurpose
@@ -120,7 +121,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
-    , ApiTxInputExtended (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
     , ApiVerificationKeyShared (..)
@@ -159,6 +159,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionFeeData (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
+    , StakeKeyIndex (..)
     , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -469,6 +470,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShelley
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShared
+            jsonRoundtripAndGolden $ Proxy @(ApiPaymentDestination ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiConstructTransactionData ('Testnet 0))
@@ -1034,7 +1036,7 @@ spec = parallel $ do
                     , metadata = metadata (x :: ApiConstructTransactionData ('Testnet 0))
                     , mint = mint (x :: ApiConstructTransactionData ('Testnet 0))
                     , delegation = delegation (x :: ApiConstructTransactionData ('Testnet 0))
-                    , timeToLive = timeToLive (x :: ApiConstructTransactionData ('Testnet 0))
+                    , validityInterval = validityInterval (x :: ApiConstructTransactionData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1903,12 +1905,20 @@ instance Arbitrary (ApiConstructTransactionData t) where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> arbitrary
+        <*> pure Nothing
 
 instance Arbitrary (ApiConstructTransaction t) where
     arbitrary = ApiConstructTransaction
         <$> arbitrary
         <*> arbitrary
+
+instance Arbitrary StakeKeyIndex where
+    arbitrary = StakeKeyIndex <$> arbitrary
+
+instance Arbitrary (ApiPaymentDestination t) where
+    arbitrary = oneof
+        [ ApiPaymentAddresses <$> arbitrary
+        , ApiPaymentAll <$> arbitrary]
 
 instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
@@ -2061,10 +2071,6 @@ instance Arbitrary ApiUtxoStatistics where
 instance Arbitrary (ApiTxInput t) where
     shrink _ = []
     arbitrary = applyArbitrary2 ApiTxInput
-
-instance Arbitrary (ApiTxInputExtended t) where
-    shrink _ = []
-    arbitrary = applyArbitrary3 ApiTxInputExtended
 
 instance Arbitrary (Quantity "slot" Natural) where
     shrink (Quantity 0) = []

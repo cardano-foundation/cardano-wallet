@@ -1,50 +1,48 @@
 {
-    "seed": 5971106449392847522,
+    "seed": 131181474387981721,
     "samples": [
         {
             "action": "quit",
-            "stake_key_index": 1
+            "stake_key_index": "22692"
+        },
+        {
+            "action": "join",
+            "pool": "pool1qspcaf85vrq6pe6w7x6zsf3gafcvdwnnrh4mxe47d93n2wtvw90",
+            "stake_key_index": "21213"
         },
         {
             "action": "quit",
-            "stake_key_index": 18
+            "stake_key_index": "17816"
         },
         {
             "action": "quit",
-            "stake_key_index": 30
-        },
-        {
-            "action": "join",
-            "pool": "pool1rtq22d29sn5tzrukcpnqx8wd2gdsqje3lxe0qqv2htqex5rhgew",
-            "stake_key_index": 3
-        },
-        {
-            "action": "join",
-            "pool": "pool1y5rxc5uyhk5hzg2j5grayf34m9vf6tjwm5dn74s0eqfjg8tm8ld",
-            "stake_key_index": 16
-        },
-        {
-            "action": "join",
-            "pool": "pool16zf6l9z8dww5ydzcqxfck4nh6hjunud6w42y2j8hs6x6qdzjksh",
-            "stake_key_index": 25
+            "stake_key_index": "30444"
         },
         {
             "action": "quit",
-            "stake_key_index": 12
+            "stake_key_index": "27962"
+        },
+        {
+            "action": "join",
+            "pool": "pool1y7s822h8x3lwjlqhmjuhyeup3mvj8zd053z9qusd5slyug4r7a4",
+            "stake_key_index": "9948"
+        },
+        {
+            "action": "join",
+            "pool": "pool1kwrqwdnd7twrwk4hqrwgefh7xlm6pacmfdelc26xsam6uz4xzw4",
+            "stake_key_index": "11343"
         },
         {
             "action": "quit",
-            "stake_key_index": 20
+            "stake_key_index": "20405"
         },
         {
-            "action": "join",
-            "pool": "pool1f5lmw7ksu66arfxcjkrj9pznh45t0y9gk7xtqp4ff4jgz8tc2u9",
-            "stake_key_index": 15
+            "action": "quit",
+            "stake_key_index": "6118"
         },
         {
-            "action": "join",
-            "pool": "pool172k3hrqj35gxx89j4mr2y5q2rz38grvztcnk5nthe6d4gx847w3",
-            "stake_key_index": 7
+            "action": "quit",
+            "stake_key_index": "826"
         }
     ]
 }
