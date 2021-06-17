@@ -4545,6 +4545,13 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Mint and burn assets from the wallet.
+
+        **⚠️ WARNING ⚠️**
+
+        Please note that due to the fact that there is no physical access to policy keys
+        under which assets are minted from the wallet it is currently not possible to add metadata
+        of such assets into [Cardano Token Registry](https://github.com/cardano-foundation/cardano-token-registry).
+
       parameters:
         - *parametersWalletId
       requestBody:
