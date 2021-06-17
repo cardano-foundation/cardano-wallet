@@ -881,22 +881,25 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , mint :: !(Maybe (ApiT W.TokenMap))
-    , delegation :: ![ApiMultiDelegationAction]
+    , delegation :: !(Maybe [ApiMultiDelegationAction])
     , validityInterval :: !(Maybe ApiValidityInterval)
     } deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+{--
 -- | New transaction API version of 'AddressAmount'.
 data AddressValue addr = AddressValue
     { address :: !addr
     , value :: !(ApiT W.TokenBundle)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
+--}
 
 data ApiPaymentDestination (n :: NetworkDiscriminant)
-    = ApiPaymentAddresses ![AddressValue (ApiAddressIdT n)]
-    -- ^ Pay amounts to zero or more addresses.
-    | ApiPaymentAll (ApiT Address, Proxy n)
+    = ApiPaymentAddresses !(NonEmpty (AddressAmount (ApiAddressIdT n)))
+    -- ^ Pay amounts to one or more addresses.
+    | ApiPaymentAll !(NonEmpty  (ApiT Address, Proxy n))
+    -- ^ Migrate all money to one or more addresses.
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -2469,9 +2472,14 @@ instance EncodeAddress t => ToJSON (PostTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress t => FromJSON (ApiPaymentDestination t) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON obj = parseAll <|> parseAddrs
+      where
+        parseAll = ApiPaymentAll <$> parseJSON obj
+        parseAddrs = ApiPaymentAddresses <$> parseJSON obj
+
 instance EncodeAddress t => ToJSON (ApiPaymentDestination t) where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ApiPaymentAddresses addrs) = toJSON addrs
+    toJSON (ApiPaymentAll addrs) = toJSON addrs
 
 instance DecodeAddress t => FromJSON (ApiConstructTransactionData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -2483,19 +2491,26 @@ instance ToJSON ApiValidityBound where
     toJSON (ApiValidityBoundAsTimeFromNow from) = toJSON from
     toJSON (ApiValidityBoundAsSlot sl) = toJSON sl
 instance FromJSON ApiValidityBound where
-    parseJSON obj = processString obj <|> processObject
+    parseJSON obj = processString obj <|> processObject obj
       where
         processString = withText "ApiValidityBound string" $ \str ->
             if str == "not_specified" then
                 pure ApiValidityBoundUnspecified
             else
                 fail "invalid string of ApiValidityBound"
-        processObject = undefined
+        processObject = withObject "ApiValidityBound object" $ \o -> do
+            unit <- o .:? "unit"
+            case unit of
+                Just (String unitType) -> case unitType of
+                    "second" -> ApiValidityBoundAsTimeFromNow <$> parseJSON obj
+                    "slot" -> ApiValidityBoundAsSlot <$> parseJSON obj
+                    _ -> fail "ApiValidityBound string must have either 'second' or 'slot' unit."
+                _ -> fail "ApiValidityBound string must have 'unit' field."
 
 instance ToJSON ApiValidityInterval where
-    toJSON _ = undefined
+    toJSON = genericToJSON defaultRecordTypeOptions
 instance FromJSON ApiValidityInterval where
-    parseJSON _ = undefined
+    parseJSON = genericParseJSON defaultRecordTypeOptions
 
 instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -2595,12 +2610,6 @@ instance FromJSON a => FromJSON (AddressAmount a) where
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (unCoin maxBound) <> " lovelace."
-
-instance ToJSON a => ToJSON (AddressValue a) where
-    toJSON = genericToJSON strictRecordTypeOptions
-
-instance FromJSON a => FromJSON (AddressValue a) where
-    parseJSON = genericParseJSON strictRecordTypeOptions
 
 instance ToJSON (ApiT W.TokenBundle) where
     -- TODO: consider other structures
