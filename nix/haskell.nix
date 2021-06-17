@@ -104,6 +104,8 @@ let
               export TMPDIR=/tmp
             '';
 
+          unit.testFlags = ["-j" "1"];
+
           # Force more integration tests to run in parallel than the
           # default number of build cores.
           integration.testFlags = ["-j" "3" "+RTS" "-T"];
