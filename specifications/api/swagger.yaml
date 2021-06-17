@@ -4537,6 +4537,26 @@ paths:
         - *parametersWalletId
       responses: *responsesListAssets
 
+    post:
+      operationId: mintBurnAssets
+      tags: ["Assets"]
+      summary: Mint/Burn
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Mint and burn assets from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - <<: *ApiPostMintBurnAssetData
+                  title: "mint/burn"
+      responses: *responsesMintToken
+
   /wallets/{walletId}/assets/{policyId}/{assetName}:
     get:
       operationId: getAsset
@@ -4566,27 +4586,6 @@ paths:
         - *parametersWalletId
         - *parametersPolicyId
       responses: *responsesGetAsset
-
-  /wallets/{walletId}/assets:
-    post:
-      operationId: mintBurnAssets
-      tags: ["Assets"]
-      summary: Mint/Burn
-      description: |
-        <p align="right">status: <strong>stable</strong></p>
-
-        Mint and burn assets from the wallet.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              oneOf:
-                - <<: *ApiPostMintBurnAssetData
-                  title: "mint/burn"
-      responses: *responsesMintToken
 
   /wallets/{walletId}/statistics/utxos:
     get:
