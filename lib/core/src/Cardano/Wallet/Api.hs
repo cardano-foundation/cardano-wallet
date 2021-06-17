@@ -446,10 +446,8 @@ type GetAssetDefault = "wallets"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/mintBurnAssets
 type MintBurnAssets n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
-    -- :> "assets"
-    -- :> "mint"
-    -- This has been changed to prevent overlapping routes:
-    :> "assets-mint"
+    :> "assets"
+    :> "mint"
     :> ReqBody '[JSON] (PostMintBurnAssetDataT n)
     :> PostAccepted '[JSON] (ApiMintBurnTransactionT n)
 

@@ -4567,7 +4567,7 @@ paths:
         - *parametersPolicyId
       responses: *responsesGetAsset
 
-  /wallets/{walletId}/assets-mint:
+  /wallets/{walletId}/assets/mint:
     post:
       operationId: mintBurnAssets
       tags: ["Assets"]
