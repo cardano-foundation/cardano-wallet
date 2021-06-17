@@ -265,10 +265,10 @@ server byron icarus shelley multisig spl ntp =
 
     assets :: Server (Assets n)
     assets =
-        listAssets shelley
+        mintToken shelley undefined
+        :<|> listAssets shelley
         :<|> getAsset shelley
         :<|> getAssetDefault shelley
-        :<|> mintToken shelley undefined
 
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)

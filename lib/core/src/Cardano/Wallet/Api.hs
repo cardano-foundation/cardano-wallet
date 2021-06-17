@@ -417,10 +417,10 @@ type GetAccountKey = "wallets"
 -------------------------------------------------------------------------------}
 
 type Assets n =
-    ListAssets
+    MintBurnAssets n
+    :<|> ListAssets
     :<|> GetAsset
     :<|> GetAssetDefault
-    :<|> MintBurnAssets n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAssets
 type ListAssets = "wallets"
@@ -447,7 +447,6 @@ type GetAssetDefault = "wallets"
 type MintBurnAssets n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "assets"
-    :> "mint"
     :> ReqBody '[JSON] (PostMintBurnAssetDataT n)
     :> PostAccepted '[JSON] (ApiMintBurnTransactionT n)
 
