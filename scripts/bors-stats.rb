@@ -57,6 +57,8 @@ class BorsStats < Thor
   class_option :annotate, :type => :array, :required => false, :desc => "Convert matches in comments into tags"
   class_option :after, :type => :string, :required => false, :desc => "Only show failures after this date"
   class_option :before, :type => :string, :required => false, :desc => "Only show failures before this date"
+  class_option :group, :type => :array, :required => false, :desc => "Group all given tags into the first given tag.",
+    :long_desc => "`--group #1 #2 #3` will replace #2 and #3 with #1."
 
   desc "list", "list all failures"
   def list()
@@ -66,7 +68,7 @@ class BorsStats < Thor
       puts c.pretty(showDetails = options[:details])
     end
 
-    tm = fetch_gh_ticket_titlemap
+    tm = fetch_gh_ticket_titlemap options
     nTot = comments[:filtered].count
     nExcluded = comments[:unfiltered].length - nTot
     nSucc = comments[:filtered].filter { |x| x.succeeded }.length
@@ -125,16 +127,16 @@ end
 # aggregate build, to use the json response, so a dirty workaround is
 # to scrape the HTML.
 #
-def fetch_system_from_build_link(link, force_refetch: false)
+def fetch_system_from_build_link(link)
     if link.start_with? "https://hydra.iohk.io" then
-      res = hydra_fetch(url: link, force_refetch: force_refetch)
+      res = hydra_fetch(url: link)
       return (res.include? "mac-mini") ? "mac" : "linux"
     end
 end
 
-def try_fetch_system(comment, force_refetch=false)
+def try_fetch_system(comment)
   comment.links.each do |l|
-    os = fetch_system_from_build_link(l, force_refetch)
+    os = fetch_system_from_build_link(l)
     if os then comment.tags += [os] end
   end
 end
@@ -241,9 +243,10 @@ end
 
 def fetch_merged_prs(target, before = nil)
   numberPRsToFetch = [100, target.to_i].min
+  beforeQ = if before then ", before: \"" + before + "\"" else "" end
   query = <<~END
     query { repository(name: "cardano-wallet", owner: "input-output-hk") {
-      pullRequests(last: #{numberPRsToFetch}, states: MERGED) { edges { cursor, node {
+      pullRequests(last: #{numberPRsToFetch} #{beforeQ}, states: MERGED) { edges { cursor, node {
         number,
         mergedAt,
         title,
@@ -276,7 +279,7 @@ end
 # === Example return value
 #
 #   {2083=>[{"number"=>2083, "url"=>"https://github.com/input-output-hk/cardano-wallet/issues/2083", "title"=>"Windows integration" }
-def fetch_gh_ticket_titlemap
+def fetch_gh_ticket_titlemap(options)
   query = <<~END
     query { repository(name: "cardano-wallet", owner: "input-output-hk") {
       issues(labels: ["Test failure"], last: 100) { edges { node {
@@ -286,7 +289,7 @@ def fetch_gh_ticket_titlemap
       }}}
     }}
   END
-  return sendGithubGraphQLQuery(query)['data']['repository']['issues']['edges']
+  return sendGithubGraphQLQuery(query, force_refetch: options["force_refetch"])['data']['repository']['issues']['edges']
     .map { |x| x['node'] }
     .group_by { |x| "#" + x['number'].to_s }
     .transform_values { |x| x[0] }
@@ -357,7 +360,7 @@ def fetch_comments_with_options(options)
 
   if options["fetch-system"] then
     comments.each do |c|
-      try_fetch_system(c, options["force-refetch"]) unless c.succeeded
+      try_fetch_system(c) unless c.succeeded
     end
   end
 
@@ -391,6 +394,16 @@ def fetch_comments_with_options(options)
       #                                              ^^^^^^^^^^^^^^^^
       matches = c.bodyText.scan(/\d+\) ((\w)+[ \,]{0,2})+/).to_a.map { |x| x.first }
       c.tags += matches
+    end
+  end
+
+  if options[:group] and options[:group].length >= 2 then
+    head, *tail = options[:group]
+    comments.each do |c|
+        new_tags = c.tags - tail
+        if new_tags != c.tags then
+          c.tags = new_tags + [head]
+        end
     end
   end
 
