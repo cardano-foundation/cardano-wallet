@@ -106,7 +106,7 @@ let
 
           # Force more integration tests to run in parallel than the
           # default number of build cores.
-          integration.testFlags = ["-j" "3"];
+          integration.testFlags = ["-j" "3" "+RTS" "-T"];
 
           integration.preCheck = noCacheCookie + ''
             # Variables picked up by integration tests
