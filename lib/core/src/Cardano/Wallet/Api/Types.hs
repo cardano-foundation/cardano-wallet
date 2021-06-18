@@ -861,6 +861,7 @@ newtype ApiSerialisedTransaction
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
     { serializedTransaction :: !ApiSerialisedTransaction
     , coinSelection :: !(ApiCoinSelection n)
+    , fee :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -885,7 +886,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , mint :: !(Maybe (ApiT W.TokenMap))
-    , delegation :: !(Maybe [ApiMultiDelegationAction])
+    , delegations :: !(Maybe [ApiMultiDelegationAction])
     , validityInterval :: !(Maybe ApiValidityInterval)
     } deriving (Eq, Generic, Show)
     deriving anyclass NFData

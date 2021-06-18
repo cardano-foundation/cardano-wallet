@@ -1008,32 +1008,6 @@ x-derivationPath: &derivationPath
   minItems: 1
   items: *derivationSegment
 
-x-transactionInputsExtended: &transactionInputsExtended
-  description: |
-    A list of transaction inputs.
-
-    `assets` and `address` are always present for `outgoing`
-    transactions but generally absent for `incoming`
-    transactions. This information is present on the Cardano explorer,
-    but is not tracked by the wallet.
-  type: array
-  minItems: 0
-  items:
-    type: object
-    required:
-      - id
-      - index
-      - derivation_path
-    properties:
-      address: *addressId
-      amount: *amount
-      assets: *walletAssets
-      id: *transactionId
-      index:
-        type: integer
-        minimum: 0
-      derivation_path: *derivationPath
-
 x-transactionOutputs: &transactionOutputs
   description: A list of target outputs
   type: array
@@ -1154,19 +1128,14 @@ x-multiDelegationAction: &multiDelegationAction
       type: string
       enum: ["quit", "join"]
     pool: *stakePoolId
-    stake_key_index: *softIndex
+    stake_key_index: *derivationSegment
 
 x-transactionDelegations: &transactionDelegations
   description: A list of staking actions (joining, rejoining or leaving from stake pools).
   type: array
   minItems: 0
   items:
-    type: object
-    additionalProperties: false
-    required:
-      - action
-    properties:
-      action: *multiDelegationAction
+    <<: *multiDelegationAction
 
 x-transactionMint: &transactionMint
   description: |
@@ -1358,6 +1327,20 @@ x-transactionTTL: &transactionTTL
     value will be used.
 
   <<: *numberOfSeconds
+
+x-unspecified: &unspecified
+  type: string
+  enum:
+    - uspecified
+
+x-validityBound: &validityBound
+  oneOf:
+    - <<: *numberOfSeconds
+      title: number of seconds
+    - <<: *numberOfSlots
+      title: number of slots
+    - <<: *unspecified
+      title: unspecified
 
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
@@ -1951,10 +1934,12 @@ components:
       type: object
       required:
         - serialized_transaction
-        - inputs
+        - coin_selection
+        - fee
       properties:
         serialized_transaction: *ApiSerialisedTransaction
-        inputs: *transactionInputsExtended
+        coin_selection: *ApiCoinSelection
+        fee: *amount
 
     ApiTransaction: &ApiTransaction
       type: object
@@ -2681,6 +2666,15 @@ components:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
 
+    ApiValidityInterval: &ApiValidityInterval
+      type: object
+      required:
+        - invalid_before
+        - invalid_hereafter
+      properties:
+        invalid_before: *validityBound
+        invalid_hereafter: *validityBound
+
     ApiConstructTransactionData: &ApiConstructTransactionData
       type: object
       properties:
@@ -2688,8 +2682,8 @@ components:
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
         mint: *transactionMint
-        delegation: *transactionDelegations
-        time_to_live: *transactionTTL
+        delegations: *transactionDelegations
+        validity_interval: *ApiValidityInterval
 
     CredentialValue: *CredentialValue
 
