@@ -64,6 +64,7 @@ library
       Test.Utils.Roundtrip
       Test.Utils.Resource
       Test.Utils.Platform
+      Test.Utils.Startup
       Test.Utils.StaticServer
       Test.Utils.Time
       Test.Utils.Trace

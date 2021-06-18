@@ -99,8 +99,8 @@ import System.Exit
     ( ExitCode (..), die )
 import System.FilePath
     ( (</>) )
-import System.IO
-    ( BufferMode (..), hSetBuffering, stderr, stdout )
+import Test.Utils.Startup
+    ( withNoBuffering )
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
@@ -121,11 +121,8 @@ execBenchWithNode
     -> (Trace IO Text -> cfg -> CardanoNodeConn -> IO ())
     -- ^ Action to run
     -> IO ExitCode
-execBenchWithNode networkConfig action = do
+execBenchWithNode networkConfig action = withNoBuffering $ do
     args <- getRestoreBenchArgs
-
-    hSetBuffering stdout NoBuffering
-    hSetBuffering stderr NoBuffering
 
     (_logCfg, tr') <- initBenchmarkLogging "bench-restore" Info
     let tr = if argQuiet args then nullTracer else tr'

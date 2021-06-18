@@ -1,15 +1,15 @@
 module Main where
 
+import Prelude
+
 import Cardano.Startup
     ( withUtf8Encoding )
-import Prelude
-import qualified Spec
-import System.IO
-    ( BufferMode (..), hSetBuffering, stderr, stdout )
 import Test.Hspec.Runner
+    ( defaultConfig, hspecWith )
+import Test.Utils.Startup
+    ( withLineBuffering )
+
+import qualified Spec
 
 main :: IO ()
-main = do
-    hSetBuffering stdout LineBuffering
-    hSetBuffering stderr LineBuffering
-    withUtf8Encoding $ hspecWith defaultConfig Spec.spec
+main = withLineBuffering $ withUtf8Encoding $ hspecWith defaultConfig Spec.spec
