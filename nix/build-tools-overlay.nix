@@ -45,7 +45,7 @@ let
     weeder.version                  = "2.1.3";
   };
 
-  compiler-nix-name = "ghc8104";  # TODO: get it from the project
+  compiler-nix-name = "ghc8105";  # TODO: get it from the project
 in
 
 pkgs: super: let
