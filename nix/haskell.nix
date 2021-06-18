@@ -86,6 +86,16 @@ let
       in {
         packages.cardano-wallet-core.components.tests = {
           unit.preCheck = noCacheOnBorsCookie;
+          # Attempt to ensure visible progress in the macOS hydra job.
+          #
+          # An hypothesis is that #2472 is caused by heavy load and unfocused
+          # resources from running the tests concurrently, risking that the slowest
+          # hspec runner - and thererefore the stdout - being silent for 900s causing
+          # hydra to timeout.
+          #
+          # Setting -j 1 should hopefully focus the resource we have in one place. It
+          # should go silent less often, at the expense of the full run getting slower.
+          unit.testFlags = lib.optionals pkgs.stdenv.hostPlatform.isDarwin ["-j" "1"];
         };
 
         packages.cardano-wallet.components.tests = {
