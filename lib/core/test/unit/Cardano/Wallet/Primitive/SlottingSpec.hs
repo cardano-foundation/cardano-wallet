@@ -9,12 +9,8 @@ module Cardano.Wallet.Primitive.SlottingSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..), nullTracer )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Gen
@@ -57,20 +53,14 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Monad.Trans.Except
     ( runExceptT )
-import Data.Either
-    ( isLeft, isRight )
 import Data.Functor.Identity
     ( runIdentity )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time
     ( UTCTime )
 import Data.Time.Clock
     ( getCurrentTime )
-import Data.Word
-    ( Word32 )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), mkSlotLength )
 import Ouroboros.Consensus.Config.SecurityParam

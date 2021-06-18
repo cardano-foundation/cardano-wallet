@@ -8,7 +8,7 @@ module Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap (..) )

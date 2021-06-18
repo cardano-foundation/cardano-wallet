@@ -2,7 +2,7 @@ module Cardano.Wallet.Primitive.Types.AddressSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..), addressParity, genAddress )

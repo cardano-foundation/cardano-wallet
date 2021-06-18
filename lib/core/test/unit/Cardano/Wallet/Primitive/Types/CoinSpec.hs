@@ -4,7 +4,7 @@ module Cardano.Wallet.Primitive.Types.CoinSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )

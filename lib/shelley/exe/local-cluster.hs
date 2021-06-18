@@ -9,12 +9,8 @@
 
 module Main where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Plugin
     ( loadPlugin )
 import Cardano.CLI
@@ -25,8 +21,6 @@ import Cardano.CLI
     , getPrometheusURL
     , withLoggingNamed
     )
-import Cardano.Startup
-    ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
 import Cardano.Wallet.Api.Types
     ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
@@ -60,18 +54,8 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , walletMinSeverityFromEnv
     , withCluster
     )
-import Control.Arrow
-    ( first )
-import Control.Monad
-    ( void, when )
-import Control.Tracer
-    ( contramap, traceWith )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
+import Cardano.Wallet.Startup
+    ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
 import System.Directory
     ( createDirectory )
 import System.FilePath

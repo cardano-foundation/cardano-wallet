@@ -17,7 +17,7 @@ module Control.Concurrent.Concierge
     )
     where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Control.Monad.Class.MonadFork
     ( MonadThread, ThreadId, myThreadId )
@@ -33,8 +33,6 @@ import Control.Monad.Class.MonadSTM
     )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow, bracket )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
 import Data.Map.Strict
     ( Map )
 
@@ -74,15 +72,15 @@ atomicallyWithLifted
     :: (Ord lock, MonadSTM m, MonadThread m, MonadThrow n)
     => (forall b. m b -> n b)
     -> Concierge m lock -> lock -> n a -> n a
-atomicallyWithLifted lift Concierge{locks} lock action =
+atomicallyWithLifted liftn Concierge{locks} lock action =
     bracket acquire (const release) (const action)
   where
-    acquire = lift $ do
+    acquire = liftn $ do
         tid <- myThreadId
         atomically $ do
             ls <- readTVar locks
             case Map.lookup lock ls of
                 Just _  -> retry
                 Nothing -> writeTVar locks $ Map.insert lock tid ls
-    release = lift $
+    release = liftn $
         atomically $ modifyTVar locks $ Map.delete lock

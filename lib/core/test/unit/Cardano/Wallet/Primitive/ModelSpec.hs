@@ -15,7 +15,7 @@ module Cardano.Wallet.Primitive.ModelSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
@@ -93,40 +93,20 @@ import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Cardano.Wallet.Util
     ( ShowFmt (..), invariant )
-import Control.DeepSeq
-    ( NFData (..) )
 import Control.Monad
-    ( foldM, guard )
+    ( foldM )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, execState, runState, state )
-import Data.Foldable
-    ( fold )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( ($>) )
-import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
     ( elemIndex )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes, isJust )
+    ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set, (\\) )
-import Data.Traversable
-    ( for )
-import Data.Word
-    ( Word32, Word64 )
-import Fmt
-    ( Buildable, blockListF, pretty )
-import GHC.Generics
-    ( Generic )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
 import Test.Hspec.Extra
@@ -453,8 +433,8 @@ prop_availableUTxO makeProperty =
             "result /= mempty && result == utxo" $
         cover 5 (result /= mempty && result /= utxo)
             "result /= mempty && result /= utxo" $
-        cover 5 (balance result /= TokenBundle.empty)
-            "balance result /= TokenBundle.empty" $
+        cover 5 (balance result /= mempty)
+            "balance result /= ∅" $
         property $ makeProperty pendingTxSet wallet result
       where
         pendingTxSet = Set.fromList pendingTxs
@@ -1837,7 +1817,7 @@ prop_applyTxToUTxO_balance tx u =
             balance (u `excluding` Set.fromList (collateralInputs tx))
         else
             balance (u `excluding` Set.fromList (inputs tx))
-                `TokenBundle.add` balance (utxoFromTx tx)
+                <> balance (utxoFromTx tx)
 
 prop_applyTxToUTxO_entries :: Tx -> UTxO -> Property
 prop_applyTxToUTxO_entries tx u =

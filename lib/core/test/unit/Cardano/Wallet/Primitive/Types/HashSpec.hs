@@ -10,16 +10,12 @@ module Cardano.Wallet.Primitive.Types.HashSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text.Class
-    ( TextDecodingError (..), fromText )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck

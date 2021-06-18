@@ -34,7 +34,6 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
       UTxOIndex
 
     -- * Construction
-    , empty
     , singleton
     , fromSequence
     , fromUTxO
@@ -86,8 +85,8 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
 
     ) where
 
-import Prelude hiding
-    ( filter, lookup, null )
+import Cardano.Wallet.Prelude hiding
+    ( filter, fold, lookup, null, toList )
 
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
@@ -97,32 +96,18 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Control.DeepSeq
-    ( NFData )
 import Control.Monad.Extra
     ( firstJustM )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
-import Data.Bifunctor
-    ( bimap )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( over, view )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( isJust )
 import Data.Set
     ( Set )
 import Data.Set.Strict.NonEmptySet
     ( NonEmptySet )
-import GHC.Generics
-    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -178,25 +163,26 @@ data UTxOIndex = UTxOIndex
 
 instance NFData UTxOIndex
 
+instance Semigroup UTxOIndex where
+    a <> b = fromSequence (toList a <> toList b)
+
+instance Monoid UTxOIndex where
+    mempty = UTxOIndex
+        { assetsAll = mempty
+        , assetsSingleton = mempty
+        , coins = mempty
+        , balance = mempty
+        , utxo = mempty
+        }
+
 --------------------------------------------------------------------------------
 -- Construction
 --------------------------------------------------------------------------------
 
--- | An index with no entries.
---
-empty :: UTxOIndex
-empty = UTxOIndex
-    { assetsAll = Map.empty
-    , assetsSingleton = Map.empty
-    , coins = Set.empty
-    , balance = TokenBundle.empty
-    , utxo = Map.empty
-    }
-
 -- | Creates a singleton index from the specified input and output.
 --
 singleton :: TxIn -> TxOut -> UTxOIndex
-singleton i o = insertUnsafe i o empty
+singleton i o = insertUnsafe i o mempty
 
 -- | Constructs an index from a sequence of entries.
 --
@@ -208,7 +194,7 @@ singleton i o = insertUnsafe i o empty
 -- and all others will be ignored.
 --
 fromSequence :: Foldable f => f (TxIn, TxOut) -> UTxOIndex
-fromSequence = flip insertMany empty
+fromSequence = flip insertMany mempty
 
 -- | Constructs an index from an ordinary 'UTxO' set.
 --
@@ -216,7 +202,7 @@ fromSequence = flip insertMany empty
 -- index from scratch, and therefore should only be used sparingly.
 --
 fromUTxO :: UTxO -> UTxOIndex
-fromUTxO = Map.foldlWithKey' (\u i o -> insertUnsafe i o u) empty . unUTxO
+fromUTxO = Map.foldlWithKey' (\u i o -> insertUnsafe i o u) mempty . unUTxO
 
 --------------------------------------------------------------------------------
 -- Deconstruction
@@ -483,7 +469,7 @@ entriesWithAssetOnly a =
 --
 insertUnsafe :: TxIn -> TxOut -> UTxOIndex -> UTxOIndex
 insertUnsafe i o u = u
-    & over #balance (`TokenBundle.add` view #tokens o)
+    & over #balance (<> view #tokens o)
     & over #utxo (Map.insert i o)
     & case categorizeTxOut o of
         IsCoin ->

@@ -24,7 +24,7 @@ module Control.Monad.Random.Extra
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Control.Applicative
     ( Applicative (..) )
@@ -36,16 +36,10 @@ import Data.Aeson.Extra
     ( parseBoundedIntegral )
 import Data.Bits
     ( (.|.) )
-import Data.Coerce
-    ( coerce )
 import Data.WideWord.Word128
     ( Word128 (..) )
-import Data.Word
-    ( Word64 )
 import Data.Word.Odd
     ( Lit, OddWord )
-import GHC.Generics
-    ( Generic )
 import Quiet
     ( Quiet (..) )
 import System.Random

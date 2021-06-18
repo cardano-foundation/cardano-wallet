@@ -7,7 +7,7 @@ module Cardano.Wallet.Primitive.SyncProgressSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient
@@ -33,10 +33,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.DeepSeq
     ( deepseq )
-import Control.Monad
-    ( forM_ )
-import Data.Either
-    ( isRight )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Quantity

@@ -4,7 +4,31 @@
 
 module Cardano.Wallet.Primitive.CollateralSpec where
 
-import Prelude
+import Cardano.Wallet.Prelude
+    ( Applicative (pure, (<*>))
+    , Bool (..)
+    , Either (Left, Right)
+    , Eq ((/=))
+    , Int
+    , Maybe (..)
+    , Monad ((>>))
+    , Semigroup ((<>))
+    , Show (show)
+    , String
+    , const
+    , either
+    , guard
+    , isJust
+    , isNothing
+    , maybe
+    , not
+    , ($)
+    , (&)
+    , (&&)
+    , (.)
+    , (<$>)
+    , (||)
+    )
 
 import Cardano.Wallet.Primitive.Collateral
     ( AddressType (..)
@@ -29,15 +53,13 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode )
 import Control.Monad
-    ( guard, replicateM_ )
+    ( replicateM_ )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
-import Data.Function
-    ( (&) )
 import Data.Maybe
-    ( fromJust, isJust, isNothing )
+    ( fromJust )
 import Numeric
     ( showHex )
 import Test.Hspec

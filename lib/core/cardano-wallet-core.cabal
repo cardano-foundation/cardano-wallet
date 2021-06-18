@@ -1,3 +1,4 @@
+cabal-version:       3.0
 name:                cardano-wallet-core
 version:             2022.1.18
 synopsis:            The Wallet Backend for a Cardano node.
@@ -5,35 +6,41 @@ description:         Please see README.md
 homepage:            https://github.com/input-output-hk/cardano-wallet
 author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
-copyright:           2018-2020 IOHK
+copyright:           2018-2021 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
 extra-source-files:  specifications/api/swagger.yaml
-cabal-version:       >=1.10
 
 flag release
     description: Enable optimization and `-Werror`
     default: False
     manual: True
 
-library
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
-      -fwarn-redundant-constraints
+common project-config
+  default-language:     Haskell2010
+  default-extensions:   NoImplicitPrelude
+                        OverloadedStrings
+
+  ghc-options:          -Wall
+                        -Wcompat
+                        -Wredundant-constraints
+                        -Wincomplete-record-updates
+                        -Wpartial-fields
+                        -Wunused-packages
+
   if (flag(release))
-    ghc-options: -O2 -Werror
+    ghc-options:       -O2 -Werror
+
+  build-depends: base >= 4.14 && < 4.15
+
+common exe
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -with-rtsopts=-T
+
+library
+  import: project-config
   build-depends:
       aeson
-    , async
-    , base
-    , base16-bytestring
     , bech32
     , bech32-th
     , binary
@@ -42,14 +49,8 @@ library
     , cardano-api
     , cardano-binary
     , cardano-crypto
-    , cardano-crypto-class
-    , cardano-crypto-test
-    , cardano-numeric
-    , cardano-ledger-core
-    , cardano-ledger-byron-test
-    , cardano-ledger-shelley-test
-    , cardano-ledger-shelley
-    , cardano-ledger-alonzo
+    , cardano-wallet-base
+    , cardano-wallet-numeric
     , cardano-slotting
     , cborg
     , containers
@@ -71,11 +72,7 @@ library
     , fmt
     , foldl
     , generic-lens
-    , generic-arbitrary
-    , generics-sop
     , hashable
-    , hedgehog
-    , hedgehog-quickcheck
     , http-api-data
     , http-client
     , http-client-tls
@@ -89,7 +86,6 @@ library
     , memory
     , MonadRandom
     , monad-logger
-    , mtl
     , network
     , network-uri
     , nothunks
@@ -100,10 +96,7 @@ library
     , path-pieces
     , persistent >=2.13 && <2.14
     , persistent-sqlite >=2.13 && <2.14
-    , persistent-template >=2.12 && <2.13
-    , plutus-ledger-api
     , pretty-simple
-    , profunctors
     , quiet
     , random
     , random-shuffle
@@ -120,13 +113,12 @@ library
     , statistics
     , stm
     , streaming-commons
-    , strict-containers
     , strict-non-empty-containers
     , strict-stm
     , string-interpolate
     , template-haskell
     , text
-    , text-class
+    , cardano-wallet-text-class
     , time
     , tls
     , tracer-transformers
@@ -144,17 +136,6 @@ library
     , x509-store
     , x509-validation
     , Win32-network
-    -- TODO:
-    --
-    -- Move all test-related code out of the main library and into a dedicated
-    -- testing library.
-    --
-    -- The following imports are currently necessary to define generators and
-    -- shrinkers that can be imported by both the `cardano-wallet-core` and
-    -- `cardano-wallet` libraries:
-    --
-    , QuickCheck
-    , cardano-wallet-test-utils
   hs-source-dirs:
       src
   exposed-modules:
@@ -176,7 +157,6 @@ library
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Server.Tls
       Cardano.Wallet.Api.Types
-      Cardano.Wallet.Compat
       Cardano.Wallet.DB
       Cardano.Wallet.DB.Checkpoints
       Cardano.Wallet.DB.MVar
@@ -189,9 +169,11 @@ library
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.Logging
       Cardano.Wallet.Network
+      Cardano.Wallet.Network.Client
       Cardano.Wallet.Network.Ports
       Cardano.Wallet.Orphans
       Cardano.Wallet.TokenMetadata
+      Cardano.Wallet.Prelude
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Byron
       Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -249,17 +231,48 @@ library
       Network.Ntp
       Network.Wai.Middleware.ServerError
       Network.Wai.Middleware.Logging
-      Ouroboros.Network.Client.Wallet
-      UnliftIO.Compat
-        -- TODO:
-        --
-        -- Move all test-related code out of the main library and into a
-        -- dedicated testing library.
-        --
-        -- The following modules define QC generators and shrinkers that can
-        -- be used by both `cardano-wallet-core` and `cardano-wallet`:
-        --
+  other-modules:
+      Paths_cardano_wallet_core
+
+library test-bench-shared
+  import: project-config
+  visibility: public
+  build-depends:
+      cardano-wallet-core
+    , cardano-wallet-test-utils
+    , cardano-wallet-text-class
+    , QuickCheck
+    , aeson
+    , bytestring
+    , cardano-addresses
+    , cardano-api
+    , cardano-binary
+    , cardano-crypto-class
+    , cardano-crypto-test
+    , cardano-ledger-byron-test
+    , cardano-ledger-shelley
+    , cardano-ledger-shelley-test
+    , cardano-ledger-core
+    , cborg
+    , containers
+    , extra
+    , generic-arbitrary
+    , generics-sop
+    , hedgehog-quickcheck
+    , memory
+    , network
+    , plutus-ledger-api
+    , strict-containers
+    , text
+    , time
+    , unordered-containers
+  hs-source-dirs:
+      test-common
+  exposed-modules:
+      Cardano.Wallet.DummyTarget.Primitive.Types
+      Cardano.Wallet.Gen
       Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
+      Cardano.Wallet.Primitive.Types.Gen
       Cardano.Wallet.Primitive.Types.Address.Gen
       Cardano.Wallet.Primitive.Types.Coin.Gen
       Cardano.Wallet.Primitive.Types.RewardAccount.Gen
@@ -271,29 +284,17 @@ library
       Cardano.Wallet.Primitive.Types.UTxO.Gen
       Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
       Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
-      Cardano.Wallet.Gen
-        -- TODO:
-        --
-        -- Use cardano-api:gen to import these generators from cardano-api
+      -- TODO: Use cardano-api:gen to import these generators from cardano-api
       Cardano.Api.Gen
-  other-modules:
-      Paths_cardano_wallet_core
 
 test-suite unit
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
+  import: project-config, exe
   ghc-options:
-      -threaded -rtsopts
-      -Wall
       "-with-rtsopts=-M2G"
       "-with-rtsopts=-N4"
-  if (flag(release))
-    ghc-options: -O2 -Werror
   build-depends:
-      base
+      cardano-wallet-base
+    , cardano-wallet-core:test-bench-shared
     , aeson
     , aeson-qq
     , base58-bytestring
@@ -301,18 +302,16 @@ test-suite unit
     , bytestring
     , cardano-addresses
     , cardano-api
-    , cardano-binary
     , cardano-crypto
-    , cardano-crypto-class
-    , cardano-numeric
+    , cardano-wallet-numeric
     , cardano-ledger-byron
     , cardano-ledger-byron-test
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-ledger-shelley-test
     , cardano-wallet-core
-    , cardano-wallet-launcher
     , cardano-wallet-test-utils
+    , cardano-wallet-text-class
     , cardano-sl-x509
     , cardano-slotting
     , cborg
@@ -331,11 +330,9 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , generics-sop
-    , hedgehog
     , hedgehog-quickcheck
     , hspec >= 2.8.2
     , hspec-core >= 2.8.2
-    , hspec-hedgehog
     , http-api-data
     , http-client
     , http-client-tls
@@ -353,15 +350,13 @@ test-suite unit
     , network-uri
     , nothunks
     , persistent
-    , plutus-ledger-api
-    , pretty-simple
     , regex-pcre-builtin
     , OddWord
     , ouroboros-consensus
+    , pretty-simple
     , QuickCheck
     , quickcheck-classes
     , quickcheck-state-machine >= 0.6.0
-    , quiet
     , random
     , retry
     , safe
@@ -372,11 +367,11 @@ test-suite unit
     , splitmix
     , strict-non-empty-containers
     , openapi3 >= 3.0.0.1 && < 3.2.0
+    , plutus-ledger-api
     , servant-openapi3
     , string-qq
     , temporary
     , text
-    , text-class
     , tls
     , time
     , transformers
@@ -395,7 +390,6 @@ test-suite unit
   type:
       exitcode-stdio-1.0
   hs-source-dirs:
-      test-common
       test/unit
       test/data
   main-is:
@@ -420,7 +414,6 @@ test-suite unit
       Cardano.Wallet.DB.SqliteSpec
       Cardano.Wallet.DB.Sqlite.TypesSpec
       Cardano.Wallet.DB.StateMachine
-      Cardano.Wallet.DummyTarget.Primitive.Types
       Cardano.Wallet.Network.PortsSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
@@ -472,23 +465,14 @@ test-suite unit
       Spec
 
 benchmark db
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import: project-config, exe
   build-depends:
-      base
+      cardano-wallet-base
+    , cardano-wallet-core:test-bench-shared
     , bytestring
     , cardano-addresses
     , cardano-crypto
     , cardano-wallet-core
-    , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , containers
     , contra-tracer
@@ -502,7 +486,7 @@ benchmark db
     , memory
     , random
     , text
-    , text-class
+    , cardano-wallet-text-class
     , time
     , transformers
     , unliftio
@@ -510,8 +494,5 @@ benchmark db
      exitcode-stdio-1.0
   hs-source-dirs:
       bench
-      test-common
   main-is:
       db-bench.hs
-  other-modules:
-      Cardano.Wallet.DummyTarget.Primitive.Types

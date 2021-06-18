@@ -11,10 +11,8 @@ module Network.Wai.Middleware.ServerError
     ( handleRawError
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Control.Monad
-    ( guard )
 import Data.ByteString.Lazy
     ( ByteString )
 import Network.HTTP.Types.Status

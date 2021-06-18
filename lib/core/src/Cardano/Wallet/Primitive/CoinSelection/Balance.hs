@@ -115,15 +115,15 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
 
     -- * Utility functions
     , distance
-    , mapMaybe
+    , mapMaybeNE
     , balanceMissing
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
-import Cardano.Numeric.Util
+import Cardano.Wallet.Numeric
     ( padCoalesce )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -151,26 +151,16 @@ import Control.Monad.Extra
     ( andM )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
-import Data.Bifunctor
-    ( first )
 import Data.Either.Extra
     ( maybeToEither )
-import Data.Function
-    ( (&) )
 import Data.Functor.Identity
     ( Identity (..) )
-import Data.Generics.Internal.VL.Lens
-    ( over, view )
 import Data.Generics.Labels
     ()
 import Data.IntCast
     ( intCast )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Ord
     ( comparing )
 import Data.Semigroup
@@ -178,13 +168,7 @@ import Data.Semigroup
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..), Builder, blockMapF, nameF, unlinesF )
-import GHC.Generics
-    ( Generic )
-import GHC.Stack
-    ( HasCallStack )
-import Numeric.Natural
-    ( Natural )
+    ( Builder, blockMapF, nameF, unlinesF )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -322,13 +306,13 @@ computeBalanceInOut params =
   where
     balanceIn =
         TokenBundle.fromTokenMap (view #assetsToMint params)
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin (view #extraCoinSource params)
     balanceOut =
         TokenBundle.fromTokenMap (view #assetsToBurn params)
-        `TokenBundle.add`
+        <>
         TokenBundle.fromCoin (view #extraCoinSink params)
-        `TokenBundle.add`
+        <>
         F.foldMap (view #tokens) (view #outputsToCover params)
 
 computeDeficitInOut
@@ -529,20 +513,13 @@ selectionDeltaAllAssets result
     | otherwise =
         SelectionDeficit $ TokenBundle.difference balanceOut balanceIn
   where
-    balanceIn =
-        TokenBundle.fromTokenMap assetsToMint
-        `TokenBundle.add`
-        TokenBundle.fromCoin extraCoinSource
-        `TokenBundle.add`
-        F.foldMap (view #tokens . snd) inputsSelected
-    balanceOut =
-        TokenBundle.fromTokenMap assetsToBurn
-        `TokenBundle.add`
-        TokenBundle.fromCoin extraCoinSink
-        `TokenBundle.add`
-        F.foldMap (view #tokens) outputsCovered
-        `TokenBundle.add`
-        F.fold changeGenerated
+    balanceIn = TokenBundle.fromTokenMap assetsToMint
+        <> TokenBundle.fromCoin extraCoinSource
+        <> F.foldMap (view #tokens . snd) inputsSelected
+    balanceOut = TokenBundle.fromTokenMap assetsToBurn
+        <> TokenBundle.fromCoin extraCoinSink
+        <> F.foldMap (view #tokens) outputsCovered
+        <> F.fold changeGenerated
     SelectionResult
         { assetsToMint
         , assetsToBurn
@@ -583,7 +560,7 @@ selectionHasValidSurplus constraints selection =
     -- None of the non-ada assets can have a surplus.
     surplusHasNoNonAdaAssets :: TokenBundle -> Bool
     surplusHasNoNonAdaAssets surplus =
-        view #tokens surplus == TokenMap.empty
+        view #tokens surplus == mempty
 
     -- The surplus must not be less than the minimum cost.
     surplusNotBelowMinimumCost :: TokenBundle -> Bool
@@ -819,7 +796,7 @@ performSelectionEmpty performSelectionFn constraints params =
     minCoin :: Coin
     minCoin = max
         (Coin 1)
-        (view #computeMinimumAdaQuantity constraints TokenMap.empty)
+        (view #computeMinimumAdaQuantity constraints mempty)
 
 performSelectionNonEmpty
     :: forall m. (HasCallStack, MonadRandom m)
@@ -893,7 +870,7 @@ performSelectionNonEmpty constraints params
 
     insufficientMinCoinValues :: [InsufficientMinCoinValueError]
     insufficientMinCoinValues =
-        mapMaybe mkInsufficientMinCoinValueError outputsToCover
+        mapMaybeNE mkInsufficientMinCoinValueError outputsToCover
       where
         mkInsufficientMinCoinValueError
             :: TxOut
@@ -1260,7 +1237,7 @@ runSelectionStep
     => SelectionLens m state state'
     -> state
     -> m (Maybe state')
-runSelectionStep lens s
+runSelectionStep selectionLens s
     | currentQuantity s < minimumQuantity =
         selectQuantity s
     | otherwise =
@@ -1271,7 +1248,7 @@ runSelectionStep lens s
         , updatedQuantity
         , minimumQuantity
         , selectQuantity
-        } = lens
+        } = selectionLens
 
     requireImprovement :: state' -> Maybe state'
     requireImprovement s'
@@ -1461,9 +1438,8 @@ makeChange criteria
     -- original set of user-specified outputs ('outputsToCover').
     changeForUserSpecifiedAssets :: NonEmpty TokenMap
     changeForUserSpecifiedAssets = F.foldr
-        (NE.zipWith (<>)
-            . makeChangeForUserSpecifiedAsset outputMaps)
-        (TokenMap.empty <$ outputMaps)
+        (NE.zipWith (<>) . makeChangeForUserSpecifiedAsset outputMaps)
+        (mempty <$ outputMaps)
         excessAssets
 
     -- Change for non-user-specified assets: assets that were not present
@@ -1742,7 +1718,7 @@ makeChangeForNonUserSpecifiedAssets
 makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
     F.foldr
         (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
-        (TokenMap.empty <$ n)
+        (mempty <$ n)
         (Map.toList nonUserSpecifiedAssetQuantities)
 
 -- | Constructs a list of ada change outputs based on the given distribution.
@@ -2169,8 +2145,8 @@ distance a b
     | a < b = b - a
     | otherwise = 0
 
-mapMaybe :: (a -> Maybe b) -> NonEmpty a -> [b]
-mapMaybe predicate (x :| xs) = go (x:xs)
+mapMaybeNE :: (a -> Maybe b) -> NonEmpty a -> [b]
+mapMaybeNE predicate (x :| xs) = go (x:xs)
   where
     go   []   = []
     go (a:as) =

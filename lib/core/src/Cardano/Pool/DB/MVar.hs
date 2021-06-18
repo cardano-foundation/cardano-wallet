@@ -15,7 +15,7 @@ module Cardano.Pool.DB.MVar
     ( newDBLayer
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..) )
@@ -61,20 +61,14 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Control.DeepSeq
     ( deepseq )
-import Control.Monad
-    ( void )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Monad.Trans.State.Strict
     ( runStateT )
-import Data.Either
-    ( fromRight )
 import Data.Functor.Identity
     ( Identity )
 import Data.Tuple
     ( swap )
-import UnliftIO.Exception
-    ( Exception, throwIO )
 import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar )
 

@@ -11,7 +11,7 @@ module Cardano.Wallet.Primitive.AddressDiscoverySpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
@@ -38,10 +38,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( mkRndState )
 import Control.Monad
     ( replicateM )
-import Data.Maybe
-    ( isJust, isNothing )
-import Data.Proxy
-    ( Proxy (..) )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra

@@ -13,7 +13,7 @@
 module Cardano.Wallet.Primitive.CoinSelectionSpec
     where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
     ( ComputeMinimumCollateralParams (..)
@@ -80,24 +80,10 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     ( genUTxOSelection, shrinkUTxOSelection )
-import Control.Monad
-    ( forM_ )
 import Control.Monad.Trans.Except
     ( runExceptT )
-import Data.Either
-    ( isRight )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( (<&>) )
-import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
 import Generics.SOP
     ( NP (..) )
-import GHC.Generics
-    ( Generic )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra

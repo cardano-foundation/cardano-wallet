@@ -36,7 +36,7 @@ module Cardano.Wallet.Primitive.Migration.Planning
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Migration.Selection
     ( RewardWithdrawal (..), Selection (..), SelectionError (..) )
@@ -48,16 +48,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..), TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Data.Either
-    ( isRight )
-import Data.Functor
-    ( (<&>) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Generics.Labels
     ()
-import GHC.Generics
-    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

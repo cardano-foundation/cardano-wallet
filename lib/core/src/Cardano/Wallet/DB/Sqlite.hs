@@ -15,6 +15,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
 
 {- HLINT ignore "Redundant flip" -}
 {- HLINT ignore "Redundant ^." -}
@@ -49,14 +50,10 @@ module Cardano.Wallet.DB.Sqlite
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , SqliteContext (..)
@@ -132,26 +129,12 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
-import Control.Monad
-    ( forM, unless, void, when, (<=<) )
 import Control.Monad.Extra
     ( concatMapM )
-import Control.Monad.IO.Class
-    ( MonadIO (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
-import Control.Tracer
-    ( Tracer, contramap, traceWith )
-import Data.Coerce
-    ( coerce )
 import Data.DBVar
     ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
-import Data.Either
-    ( isRight )
-import Data.Functor
-    ( (<&>) )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.List
     ( nub, sortOn, unzip4 )
 import Data.List.Split
@@ -159,19 +142,11 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, isJust )
+    ( catMaybes )
 import Data.Ord
     ( Down (..) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..), fromText )
-import Data.Word
-    ( Word32 )
 import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Sql
@@ -202,16 +177,12 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
-import Fmt
-    ( pretty, (+|), (|+) )
-import GHC.Generics
-    ( Generic )
 import System.Directory
     ( doesFileExist, listDirectory )
 import System.FilePath
     ( (</>) )
 import UnliftIO.Exception
-    ( Exception, bracket, throwIO )
+    ( bracket )
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 

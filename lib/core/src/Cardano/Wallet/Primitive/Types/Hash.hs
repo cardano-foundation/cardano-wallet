@@ -20,12 +20,10 @@ module Cardano.Wallet.Primitive.Types.Hash
     , mockHash
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Util
     ( mapFirst )
-import Control.DeepSeq
-    ( NFData (..) )
 import Crypto.Hash
     ( Blake2b_256, hash )
 import Data.ByteArray
@@ -36,16 +34,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Hashable
     ( Hashable )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Fmt
-    ( Buildable (..), prefixF )
-import GHC.Generics
-    ( Generic )
+    ( prefixF )
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
 import NoThunks.Class

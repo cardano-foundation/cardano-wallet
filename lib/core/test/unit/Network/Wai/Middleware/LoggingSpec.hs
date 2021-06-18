@@ -10,38 +10,16 @@ module Network.Wai.Middleware.LoggingSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..) )
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.Wallet.Api.Server
     ( Listen (..), withListeningSocket )
-import Control.Monad
-    ( forM_, void, when )
-import Control.Monad.IO.Class
-    ( liftIO )
-import Control.Tracer
-    ( Tracer )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.ByteString
     ( ByteString )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( ($>), (<&>) )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( toText )
-import GHC.Generics
-    ( Generic )
 import Network.HTTP.Client
     ( Manager
     , Request
@@ -97,7 +75,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( onException, throwString )
+    ( onException )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, readMVar, tryPutMVar )
 import UnliftIO.STM
@@ -377,9 +355,9 @@ start
     -> Tracer IO ApiLog
     -> Socket
     -> IO ()
-start logSettings warpSettings trace socket = do
+start logSettings warpSettings tr socket = do
     runSettingsSocket warpSettings socket
-        $ withApiLogger trace logSettings
+        $ withApiLogger tr logSettings
         application
   where
     application :: Application

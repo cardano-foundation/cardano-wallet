@@ -17,7 +17,7 @@ module Cardano.Wallet.DB.MVar
     ( newDBLayer
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
@@ -68,14 +68,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Functor.Identity
     ( Identity (..) )
-import UnliftIO.Exception
-    ( Exception, throwIO )
 import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar, withMVar )
 

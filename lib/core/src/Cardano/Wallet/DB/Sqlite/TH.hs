@@ -25,7 +25,7 @@
 
 module Cardano.Wallet.DB.Sqlite.TH where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Script
     ( Cosigner, Script )
@@ -37,16 +37,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType )
 import Data.Quantity
     ( Percentage (..) )
-import Data.Text
-    ( Text )
 import Data.Time.Clock
     ( UTCTime )
-import Data.Word
-    ( Word16, Word32, Word64, Word8 )
 import Database.Persist.TH
     ( mkMigrate, mkPersist, persistLowerCase, share )
-import GHC.Generics
-    ( Generic (..) )
 import System.Random
     ( StdGen )
 

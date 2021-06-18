@@ -26,7 +26,7 @@ module Cardano.Wallet.TokenMetadata.MockServer
     , assetIdFromSubject
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( TokenMetadataServer (..) )
@@ -54,8 +54,6 @@ import Cardano.Wallet.TokenMetadata
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -66,16 +64,8 @@ import Data.Aeson
     )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertToBase )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.HashSet
     ( HashSet )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import GHC.TypeLits
     ( KnownSymbol )
 import Network.URI
@@ -96,8 +86,6 @@ import Servant.Server
     ( Handler (..), Server, serve )
 import UnliftIO.Async
     ( race )
-import UnliftIO.Exception
-    ( throwString )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 

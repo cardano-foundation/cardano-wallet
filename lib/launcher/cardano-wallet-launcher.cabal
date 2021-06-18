@@ -1,3 +1,4 @@
+cabal-version:       3.0
 name:                cardano-wallet-launcher
 version:             2022.1.18
 synopsis:            Utilities for a building commands launcher
@@ -8,39 +9,44 @@ copyright:           2018-2020 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
-cabal-version:       >=1.10
 
 flag release
     description: Enable optimization and `-Werror`
     default: False
     manual: True
 
-library
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
-      -fwarn-redundant-constraints
+common base
+  build-depends: base >= 4.14 && < 4.15
+               , cardano-wallet-base
+
+common project-config
+  default-language:     Haskell2010
+  default-extensions:   NoImplicitPrelude
+                        OverloadedStrings
+
+  ghc-options:          -Wall
+                        -Wcompat
+                        -Wredundant-constraints
+                        -Wincomplete-record-updates
+                        -Wpartial-fields
+                        -Wunused-packages
+
   if (flag(release))
-    ghc-options:
-      -Werror
+    ghc-options:       -O2 -Werror
+
+common exe
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -with-rtsopts=-T
+
+library
+  import: base, project-config
   build-depends:
-      base
-    , bytestring
-    , code-page
-    , contra-tracer
+      contra-tracer
     , either
-    , extra
     , filepath
     , fmt
     , iohk-monitoring
     , process
     , text
-    , text-class
     , unliftio
     , unliftio-core
   hs-source-dirs:
@@ -48,31 +54,11 @@ library
   exposed-modules:
       Cardano.Launcher
     , Cardano.Launcher.Node
-    , Cardano.Startup
-  if os(windows)
-    build-depends: Win32
-    other-modules: Cardano.Startup.Windows
-    cpp-options:   -DWINDOWS
-  else
-    build-depends: unix
-    other-modules: Cardano.Startup.POSIX
 
 test-suite unit
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded
-      -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import: base, project-config, exe
   build-depends:
-      base
-    , bytestring
-    , cardano-wallet-launcher
+      cardano-wallet-launcher
     , cardano-wallet-test-utils
     , contra-tracer
     , fmt
@@ -83,7 +69,6 @@ test-suite unit
     , process
     , retry
     , text
-    , text-class
     , time
     , unliftio
   build-tool-depends:
@@ -96,6 +81,5 @@ test-suite unit
       launcher-unit-test.hs
   other-modules:
       Cardano.LauncherSpec
-    , Cardano.StartupSpec
   if os(windows)
     cpp-options:   -DWINDOWS

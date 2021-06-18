@@ -26,20 +26,14 @@ module Cardano.Wallet.Network.Ports
     , randomUnusedTCPPorts
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Control.Monad
     ( filterM )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Data.List
     ( isInfixOf, sort )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Streaming.Network
     ( bindRandomPortTCP )
-import Data.Word
-    ( Word8 )
 import Foreign.C.Error
     ( Errno (..), eCONNREFUSED )
 import GHC.IO.Exception
@@ -61,7 +55,7 @@ import Safe
 import System.Random.Shuffle
     ( shuffleM )
 import UnliftIO.Exception
-    ( bracket, throwIO, try )
+    ( bracket, try )
 
 -- | Find a TCPv4 port which is likely to be free for listening on
 -- @localhost@. This binds a socket, receives an OS-assigned port, then closes

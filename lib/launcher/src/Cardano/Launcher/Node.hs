@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -18,20 +19,14 @@ module Cardano.Launcher.Node
     , isWindows
     ) where
 
-import Prelude
+import Cardano.Wallet.Base
 
 import Cardano.Launcher
     ( LauncherLog, ProcessHasExited, withBackendCreateProcess )
-import Control.Tracer
-    ( Tracer (..) )
-import Data.Bifunctor
-    ( first )
 import Data.List
     ( isPrefixOf )
 import Data.Maybe
     ( maybeToList )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
 import System.Environment
     ( getEnvironment )
 import System.FilePath
@@ -40,8 +35,6 @@ import System.Info
     ( os )
 import UnliftIO.Process
     ( CreateProcess (..), proc )
-
-import qualified Data.Text as T
 
 -- | Parameters for connecting to the node.
 newtype CardanoNodeConn = CardanoNodeConn FilePath
@@ -72,11 +65,8 @@ isValidWindowsPipeName name = slashPipe `isPrefixOf` name
   where
     slashPipe = "\\\\.\\pipe\\"
 
-instance ToText CardanoNodeConn where
-    toText = T.pack . nodeSocketFile
-
-instance FromText CardanoNodeConn where
-    fromText = first TextDecodingError . cardanoNodeConn . T.unpack
+instance Buildable CardanoNodeConn where
+    build = build . nodeSocketFile
 
 newtype NodePort = NodePort { unNodePort :: Int }
     deriving (Show, Eq)

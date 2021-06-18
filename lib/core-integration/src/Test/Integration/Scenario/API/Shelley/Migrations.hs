@@ -14,7 +14,7 @@ module Test.Integration.Scenario.API.Shelley.Migrations
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
@@ -47,23 +47,11 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
 import Control.Monad
-    ( forM_, replicateM_, void, when )
-import Control.Monad.IO.Class
-    ( liftIO )
+    ( replicateM_ )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( (<&>) )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
-import Data.Proxy
-    ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted

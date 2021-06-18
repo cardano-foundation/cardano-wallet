@@ -22,7 +22,7 @@ get_cabal_version() {
 }
 
 list_sources() {
-  git ls-files 'lib/**/*.hs' | grep -v Main.hs
+  git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v extra/Plutus
 }
 
 # usage: query_plan_json PACKAGE COMP:NAME KEY

@@ -119,7 +119,7 @@ module Cardano.Wallet.Api.Link
     , Discriminate
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddressInspectData (..)
@@ -145,24 +145,12 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId, nullTokenName )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Generics.Product.Typed
     ( HasType, typed )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import GHC.Stack
-    ( HasCallStack )
 import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Types.Method
     ( Method )
-import Numeric.Natural
-    ( Natural )
 import Servant.API
     ( (:>)
     , Capture

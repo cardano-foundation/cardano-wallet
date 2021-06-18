@@ -26,7 +26,7 @@ make_ghci() {
 :set -package pretty-simple
 :set -interactive-print=Text.Pretty.Simple.pPrint
 
-import Prelude
+import Cardano.Wallet.Prelude
 import System.Environment (setEnv, getEnv)
 import System.Directory (getCurrentDirectory)
 

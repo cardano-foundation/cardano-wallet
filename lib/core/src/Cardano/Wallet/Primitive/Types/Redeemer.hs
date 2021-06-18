@@ -13,7 +13,7 @@ module Cardano.Wallet.Primitive.Types.Redeemer
     , redeemerData
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Api
     ( StakeAddress, serialiseToBech32 )
@@ -23,10 +23,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn )
 import Data.ByteString
     ( ByteString )
-import Fmt
-    ( Buildable (..) )
-import GHC.Generics
-    ( Generic )
 
 data Redeemer
     = RedeemerSpending ByteString TxIn

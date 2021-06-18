@@ -5,7 +5,7 @@
 
 module Cardano.Wallet.Shelley.LaunchSpec (spec) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Shelley.Launch
     ( nodeSocketOption )

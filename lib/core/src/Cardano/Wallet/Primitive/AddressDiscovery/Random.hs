@@ -43,7 +43,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     , RndAnyState (..)
     , mkRndAnyState
     ) where
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
@@ -73,28 +73,16 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Control.Arrow
-    ( second )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad
-    ( join )
 import Data.Digest.CRC32
     ( crc32 )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map
     ( Map )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Set
     ( Set )
-import Data.Word
-    ( Word32 )
 import Fmt
-    ( Buildable (..), blockMapF', indentF, tupleF )
-import GHC.Generics
-    ( Generic )
+    ( blockMapF', indentF, tupleF )
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
 import System.Random

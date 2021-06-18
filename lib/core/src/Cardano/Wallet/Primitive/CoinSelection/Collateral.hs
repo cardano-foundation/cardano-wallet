@@ -61,30 +61,24 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
     )
     where
 
+import Cardano.Wallet.Prelude
+
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn )
-import Data.Function
-    ( (&) )
 import Data.IntCast
     ( intCast, intCastMaybe )
-import Data.List.NonEmpty
-    ( NonEmpty )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( listToMaybe, mapMaybe )
+    ( listToMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Semigroup
     ( sconcat )
 import Data.Set
     ( Set )
-import GHC.Generics
-    ( Generic )
-
-import Prelude
 
 import qualified Data.Foldable as F
 import qualified Data.List as L

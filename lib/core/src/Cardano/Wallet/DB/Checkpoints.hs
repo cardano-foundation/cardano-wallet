@@ -12,31 +12,25 @@
 module Cardano.Wallet.DB.Checkpoints
     ( getPoint
 
-    -- * Checkpoints  
+    -- * Checkpoints
     , Checkpoints
     , checkpoints
     , loadCheckpoints
     , fromGenesis
     , getLatest
     , findNearestPoint
-    
+
     -- * Delta types
     , DeltaCheckpoints (..)
     , DeltaMap (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Data.Delta
     ( Delta (..) )
-import Data.Generics.Internal.VL.Lens
-    ( over, view )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromMaybe )
-import GHC.Generics
-    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -108,7 +102,7 @@ fromGenesis a = Checkpoints $ Map.singleton W.Origin a
 
 -- | Get the checkpoint with the largest 'SlotNo'.
 getLatest :: Checkpoints a -> (W.Slot, a)
-getLatest = from . Map.lookupMax . view #checkpoints 
+getLatest = from . Map.lookupMax . view #checkpoints
   where
     from = fromMaybe (error "getLatest: there should always be at least a genesis checkpoint")
 

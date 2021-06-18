@@ -10,7 +10,7 @@ module Cardano.Wallet.Primitive.Types.TokenQuantitySpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
@@ -18,12 +18,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text.Class
-    ( ToText (..) )
-import Data.Typeable
-    ( Typeable )
 import System.FilePath
     ( (</>) )
 import Test.Hspec
@@ -193,8 +187,7 @@ prop_add_difference x y =
 -- JSON serialization
 --------------------------------------------------------------------------------
 
-testJson
-    :: (Arbitrary a, ToJSON a, FromJSON a, Typeable a) => Proxy a -> Spec
+testJson :: (Arbitrary a, ToJSON a, FromJSON a, Typeable a) => Proxy a -> Spec
 testJson = JsonRoundtrip.jsonRoundtripAndGolden testJsonDataDirectory
 
 testJsonDataDirectory :: FilePath

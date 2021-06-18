@@ -13,7 +13,7 @@ module Test.Integration.Scenario.API.Byron.Transactions
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAsset (..)
@@ -42,22 +42,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
-import Control.Monad
-    ( forM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Bifunctor
-    ( bimap )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text.Class
-    ( fromText )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
@@ -112,7 +100,6 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -159,10 +146,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
-                [ expectField (#assets . #available . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
+                [ expectField (#assets . #available) (`shouldNotBe` mempty)
+                , expectField (#assets . #total) (`shouldNotBe` mempty)
                 ]
 
     describe "BYRON_TRANS_ASSETS_CREATE_02 - Multi-asset transaction with too little ADA" $
@@ -213,10 +198,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
-                [ expectField (#assets . #available . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
-                , expectField (#assets . #total . #getApiT)
-                    (`shouldNotBe` TokenMap.empty)
+                [ expectField (#assets . #available) (`shouldNotBe` mempty)
+                , expectField (#assets . #total) (`shouldNotBe` mempty)
                 ]
 
     describe "BYRON_TRANS_ASSETS_LIST_01 - Asset list present" $

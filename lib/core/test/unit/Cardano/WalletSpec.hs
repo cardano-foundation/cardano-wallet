@@ -17,7 +17,7 @@ module Cardano.WalletSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, xpubToBytes )
@@ -137,12 +137,8 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer (..), Withdrawal (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Cardano.Wallet.Util
-    ( HasCallStack )
-import Control.DeepSeq
-    ( NFData (..) )
 import Control.Monad
-    ( forM_, replicateM, void )
+    ( replicateM )
 import Control.Monad.Class.MonadTime
     ( DiffTime
     , MonadMonotonicTime (..)
@@ -152,9 +148,7 @@ import Control.Monad.Class.MonadTime
     , diffTime
     )
 import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO (..), wrappedWithRunInIO )
-import Control.Monad.Trans.Class
-    ( lift )
+    ( wrappedWithRunInIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, runExceptT )
 import Control.Monad.Trans.Maybe
@@ -163,44 +157,26 @@ import Control.Monad.Trans.Reader
     ( ReaderT (..), ask )
 import Control.Monad.Trans.State.Strict
     ( State, StateT (..), evalState, get, put, state )
-import Control.Tracer
-    ( Tracer (..), nullTracer )
 import Crypto.Hash
     ( hash )
-import Data.Bifunctor
-    ( second )
 import Data.ByteString
     ( ByteString )
-import Data.Coerce
-    ( coerce )
-import Data.Either
-    ( isLeft, isRight )
-import Data.Function
-    ( on )
 import Data.Generics.Internal.VL
-    ( iso, set, view, (^.) )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
+    ( iso )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe )
+    ( catMaybes )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
-import Data.Word
-    ( Word64 )
 import Data.Word.Odd
     ( Word31 )
-import GHC.Generics
-    ( Generic )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy, xit )
 import Test.Hspec.Extra
@@ -663,7 +639,7 @@ prop_estimateFee (NonEmpty coins) =
         = W.ErrSelectAssetsSelectionError
         $ SelectionBalanceError
         $ Balance.BalanceInsufficient
-        $ Balance.BalanceInsufficientError TokenBundle.empty TokenBundle.empty
+        $ Balance.BalanceInsufficientError mempty mempty
 
     runSelection
         :: ExceptT W.ErrSelectAssets (State Int) Coin

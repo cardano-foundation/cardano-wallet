@@ -68,7 +68,7 @@ module Cardano.Wallet.DB.Model
     , mCheckWallet
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, utxo )
@@ -110,32 +110,18 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Control.DeepSeq
-    ( NFData )
-import Control.Monad
-    ( when )
-import Data.Bifunctor
-    ( first )
-import Data.Function
-    ( (&) )
 import Data.Functor.Identity
     ( Identity (..) )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.List
     ( sort, sortOn )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, mapMaybe )
+    ( catMaybes )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Word
-    ( Word32 )
-import GHC.Generics
-    ( Generic )
 
 import qualified Data.Map.Strict as Map
 

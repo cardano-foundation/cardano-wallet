@@ -29,7 +29,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Icarus
     , minSeedLengthBytes
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Crypto.Wallet
     ( DerivationScheme (..)
@@ -79,11 +79,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Util
     ( invariant )
 import Control.Arrow
-    ( first, left )
-import Control.DeepSeq
-    ( NFData (..) )
-import Control.Monad
-    ( (<=<) )
+    ( left )
 import Crypto.Error
     ( eitherCryptoError )
 import Crypto.Hash
@@ -92,22 +88,10 @@ import Crypto.Hash.Algorithms
     ( SHA256 (..), SHA512 (..) )
 import Crypto.MAC.HMAC
     ( HMAC, hmac )
-import Data.Bifunctor
-    ( bimap )
 import Data.Bits
     ( clearBit, setBit, testBit )
 import Data.ByteString
     ( ByteString )
-import Data.Coerce
-    ( coerce )
-import Data.Function
-    ( (&) )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
-import GHC.Generics
-    ( Generic )
 import GHC.TypeLits
     ( KnownNat )
 

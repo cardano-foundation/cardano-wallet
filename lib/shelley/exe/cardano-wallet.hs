@@ -8,6 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -23,10 +24,8 @@
 
 module Main where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Plugin
     ( loadPlugin )
 import Cardano.BM.Trace
@@ -65,12 +64,6 @@ import Cardano.CLI
     )
 import Cardano.Launcher.Node
     ( CardanoNodeConn )
-import Cardano.Startup
-    ( ShutdownHandlerLog
-    , installSignalHandlers
-    , withShutdownHandler
-    , withUtf8Encoding
-    )
 import Cardano.Wallet.Api.Client
     ( addressClient
     , networkClient
@@ -103,24 +96,20 @@ import Cardano.Wallet.Shelley.Launch
     , nodeSocketOption
     , parseGenesisData
     )
+import Cardano.Wallet.Startup
+    ( ShutdownHandlerLog (..)
+    , installSignalHandlers
+    , withShutdownHandler
+    , withUtf8Encoding
+    )
 import Cardano.Wallet.Version
     ( GitRevision, Version, showFullVersion )
 import Control.Applicative
     ( Const (..), optional )
 import Control.Exception.Base
     ( AsyncException (..) )
-import Control.Monad
-    ( void, when )
 import Control.Monad.Trans.Except
     ( runExceptT )
-import Control.Tracer
-    ( contramap )
-import Data.Bifunctor
-    ( second )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Network.URI
     ( URI )
 import Options.Applicative
@@ -295,7 +284,7 @@ instance ToText MainLog where
         MsgSigInt ->
             "Interrupted by user."
         MsgShutdownHandler msg' ->
-            toText msg'
+            fmt $ build msg'
         MsgFailedToParseGenesis hint -> T.unwords
             [ "Failed to parse Byron genesis configuration. You may want to check"
             , "the filepath given via --genesis and make sure it points to a "
@@ -344,3 +333,10 @@ tracerSeveritiesOption = Tracers
         <> value def
         <> metavar "SEVERITY"
         <> internal
+
+instance HasPrivacyAnnotation ShutdownHandlerLog
+instance HasSeverityAnnotation ShutdownHandlerLog where
+    getSeverityAnnotation = \case
+        MsgShutdownHandlerEnabled _ -> Debug
+        MsgShutdownEOF -> Notice
+        MsgShutdownError _ -> Error

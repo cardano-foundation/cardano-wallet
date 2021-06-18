@@ -6,7 +6,7 @@ module Cardano.Wallet.Primitive.Types.TxSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..), mockSealedTx, sealedTxFromBytes )
@@ -14,8 +14,6 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
     ()
 import Data.ByteString
     ( ByteString, pack )
-import Data.Either
-    ( isLeft )
 import Test.Hspec
     ( Spec, describe )
 import Test.Hspec.Extra

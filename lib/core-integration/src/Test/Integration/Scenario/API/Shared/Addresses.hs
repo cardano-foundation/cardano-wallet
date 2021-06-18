@@ -17,7 +17,7 @@ module Test.Integration.Scenario.API.Shared.Addresses
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress
@@ -33,14 +33,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Control.Monad
-    ( forM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Text
-    ( Text )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra

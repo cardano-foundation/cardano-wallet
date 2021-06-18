@@ -17,7 +17,7 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyNetworkLayer
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )

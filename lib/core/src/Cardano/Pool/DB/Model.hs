@@ -70,7 +70,7 @@ module Cardano.Pool.DB.Model
     , mReadLastMetadataGC
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Pool.DB
     ( determinePoolLifeCycleStatus )
@@ -94,22 +94,12 @@ import Cardano.Wallet.Primitive.Types
     , defaultInternalState
     , defaultSettings
     )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.State.Strict
     ( StateT )
-import Data.Bifunctor
-    ( first )
-import Data.Foldable
-    ( fold )
-import Data.Function
-    ( (&) )
 import Data.Functor.Const
     ( Const (..) )
 import Data.Functor.Identity
     ( Identity (..) )
-import Data.Generics.Internal.VL.Lens
-    ( over, view )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -120,10 +110,6 @@ import Data.Set
     ( Set )
 import Data.Time.Clock.POSIX
     ( POSIXTime )
-import Data.Word
-    ( Word64 )
-import GHC.Generics
-    ( Generic )
 import System.Random
     ( StdGen, newStdGen )
 

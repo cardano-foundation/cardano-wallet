@@ -15,7 +15,7 @@ module Cardano.Wallet.LatencyBenchShared
   , fmtTitle
   ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.BM.Backend.Switchboard
     ( effectuate )
@@ -23,20 +23,16 @@ import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
 import Cardano.BM.Data.LogItem
     ( LOContent (..), LOMeta (..), LogObject (..) )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Control.Monad
     ( replicateM_ )
-import Data.Maybe
-    ( mapMaybe )
 import Data.Time
     ( NominalDiffTime )
 import Data.Time.Clock
     ( diffUTCTime )
 import Fmt
-    ( Builder, build, fixedF, fmt, fmtLn, indentF, padLeftF, (+|), (|+) )
+    ( Builder, fixedF, fmtLn, indentF, padLeftF )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..), HandlerLog (..) )
 import UnliftIO.Exception

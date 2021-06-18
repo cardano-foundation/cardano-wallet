@@ -41,7 +41,7 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Crypto.Hash
     ( hashFromBytes, hashToBytes )
@@ -67,20 +67,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
 import Data.ByteString.Short
     ( toShort )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Generics.Labels
     ()
 import Data.IntCast
     ( intCast )
-import Fmt
-    ( pretty )
-import GHC.Stack
-    ( HasCallStack )
-import Numeric.Natural
-    ( Natural )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto )
 

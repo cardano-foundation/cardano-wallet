@@ -11,7 +11,7 @@ module Crypto.Hash.Utils
     , blake2b224
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Crypto.Hash
     ( hash )

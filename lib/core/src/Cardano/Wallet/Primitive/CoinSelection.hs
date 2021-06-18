@@ -77,7 +77,7 @@ module Cardano.Wallet.Primitive.CoinSelection
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
@@ -99,40 +99,22 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
-import Control.Monad
-    ( (<=<) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Random.Extra
     ( NonRandom (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, withExceptT )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( (<&>) )
-import Data.Generics.Internal.VL.Lens
-    ( over, set, view, (^.) )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( isNothing, mapMaybe )
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
     ( All (..), mtimesDefault )
 import Fmt
-    ( Buildable (..), genericF )
-import GHC.Generics
-    ( Generic )
-import GHC.Stack
-    ( HasCallStack )
-import Numeric.Natural
-    ( Natural )
+    ( genericF )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral

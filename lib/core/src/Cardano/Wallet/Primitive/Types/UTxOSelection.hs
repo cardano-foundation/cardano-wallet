@@ -80,7 +80,8 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude hiding
+    ( empty )
 
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
@@ -91,23 +92,11 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Control.Monad
-    ( ap, (<=<) )
-import Data.Bool
-    ( bool )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( over )
+    ( ap )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Tuple
     ( swap )
-import GHC.Generics
-    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
@@ -181,7 +170,7 @@ instance IsUTxOSelection UTxOSelectionNonEmpty where
 -- | A completely empty selection with no selected or leftover UTxOs.
 --
 empty :: UTxOSelection
-empty = fromIndex UTxOIndex.empty
+empty = fromIndex mempty
 
 -- | Creates a selection where none of the UTxOs are selected.
 --
@@ -190,7 +179,7 @@ empty = fromIndex UTxOIndex.empty
 fromIndex :: UTxOIndex -> UTxOSelection
 fromIndex i = UTxOSelection State
     { leftover = i
-    , selected = UTxOIndex.empty
+    , selected = mempty
     }
 
 -- | Creates a selection from an index and a filter.

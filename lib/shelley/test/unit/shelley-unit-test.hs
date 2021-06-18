@@ -1,8 +1,8 @@
 module Main where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.Startup
+import Cardano.Wallet.Startup
     ( withUtf8Encoding )
 import Test.Hspec.Extra
     ( hspecMain )

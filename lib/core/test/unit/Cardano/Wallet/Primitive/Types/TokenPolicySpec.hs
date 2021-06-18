@@ -3,7 +3,7 @@ module Cardano.Wallet.Primitive.Types.TokenPolicySpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
@@ -17,8 +17,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Data.ByteString
     ( ByteString )
-import Data.Text
-    ( Text )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, shouldBe )
 import Test.Hspec.Extra

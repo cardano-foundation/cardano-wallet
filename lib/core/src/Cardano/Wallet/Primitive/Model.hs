@@ -56,7 +56,7 @@ module Cardano.Wallet.Primitive.Model
     , discoverAddresses
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
@@ -92,24 +92,14 @@ import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, state )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
-import Data.Maybe
-    ( isJust )
 import Data.Quantity
-    ( Quantity )
+    ( Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Word
-    ( Word32 )
 import Fmt
-    ( Buildable (..), indentF )
-import GHC.Generics
-    ( Generic )
+    ( indentF )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -426,7 +416,7 @@ spendTx tx !u =
 -- | Construct a 'UTxO' corresponding to a given transaction.
 --
 -- It is important for the transaction outputs to be ordered correctly,
--- as their index within this ordering determines how 
+-- as their index within this ordering determines how
 -- they are referenced as transaction inputs in subsequent blocks.
 --
 -- > balance (utxoFromTx tx) = foldMap tokens (outputs tx)
@@ -463,7 +453,7 @@ discoverAddresses block s0 = s2
     -- NOTE: Only outputs and withdrawals can potentially
     -- result in the extension of the address pool and
     -- the learning of new addresses.
-    -- 
+    --
     -- Inputs and collateral are forced to use existing addresses.
     discoverTx s tx = discoverWithdrawals (discoverOutputs s tx) tx
     discoverOutputs s tx =

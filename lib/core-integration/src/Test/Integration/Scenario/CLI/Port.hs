@@ -8,14 +8,10 @@ module Test.Integration.Scenario.CLI.Port
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.CLI
     ( Port (..), getPort )
-import Control.Monad
-    ( forM_, void )
-import Data.Generics.Internal.VL.Lens
-    ( over )
 import Data.Generics.Product.Typed
     ( HasType, typed )
 import System.Command

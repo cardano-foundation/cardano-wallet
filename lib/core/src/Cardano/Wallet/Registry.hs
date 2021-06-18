@@ -32,41 +32,23 @@ module Cardano.Wallet.Registry
     , traceAfterThread
     ) where
 
-import Prelude hiding
-    ( log, lookup )
+import Cardano.Wallet.Prelude hiding
+    ( empty, log, lookup )
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet
     ( HasLogger, logger )
 import Cardano.Wallet.Logging
     ( LoggedException (..) )
-import Control.Monad
-    ( void )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
-import Control.Tracer
-    ( Tracer, contramap, traceWith )
 import Data.Foldable
     ( traverse_ )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType )
-import Data.Kind
-    ( Type )
 import Data.Map.Strict
     ( Map )
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-import Data.Text.Class
-    ( ToText (..) )
-import GHC.Generics
-    ( Generic )
 import UnliftIO.Concurrent
     ( ThreadId, forkFinally, killThread )
 import UnliftIO.Exception

@@ -8,7 +8,7 @@ module Cardano.Pool.DB.MVarSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Pool.DB.Properties
     ( properties )

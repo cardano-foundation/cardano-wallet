@@ -3,7 +3,8 @@ module Control.Concurrent.ConciergeSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude hiding
+    ( say )
 
 import Control.Concurrent.Concierge
     ( atomicallyWithLifted, newConcierge )
@@ -15,8 +16,6 @@ import Control.Monad.Class.MonadTimer
     ( threadDelay )
 import Control.Monad.IOSim
     ( IOSim, runSimTrace, selectTraceEventsSay )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, catchE, runExceptT, throwE )
 import Test.Hspec

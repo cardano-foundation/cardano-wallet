@@ -13,7 +13,7 @@ module Cardano.Wallet.DB.MVarSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.DB.Properties
     ( properties )
@@ -29,8 +29,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
-import Control.DeepSeq
-    ( NFData )
 import Test.Hspec
     ( Spec, before, describe )
 import Test.QuickCheck

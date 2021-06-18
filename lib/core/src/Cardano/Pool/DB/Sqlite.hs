@@ -33,7 +33,7 @@ module Cardano.Pool.DB.Sqlite
     , createViews
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.DB.Sqlite
     ( DBField (..)
@@ -74,24 +74,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
-import Control.Monad
-    ( forM, forM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
-    ( Tracer (..), contramap, natTracer, traceWith )
+    ( natTracer )
 import Data.Either
     ( partitionEithers, rights )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( (<&>) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
-import Data.List
-    ( foldl' )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -100,12 +88,8 @@ import Data.Ratio
     ( denominator, numerator, (%) )
 import Data.String.Interpolate
     ( i )
-import Data.Text
-    ( Text )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
-import Data.Word
-    ( Word64, Word8 )
 import Database.Persist.Sql
     ( Entity (..)
     , Filter
@@ -138,7 +122,7 @@ import System.FilePath
 import System.Random
     ( newStdGen )
 import UnliftIO.Exception
-    ( bracket, catch, throwIO )
+    ( bracket, catch )
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W

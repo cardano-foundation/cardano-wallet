@@ -41,37 +41,21 @@ module Cardano.Wallet.Primitive.Types.Coin
 
     ) where
 
-import Prelude hiding
+import Cardano.Wallet.Prelude hiding
     ( fromIntegral, subtract, toInteger )
 
-import Cardano.Numeric.Util
+import Cardano.Wallet.Numeric
     ( equipartitionNatural, partitionNatural )
-import Control.DeepSeq
-    ( NFData (..) )
 import Data.Bits
     ( Bits )
 import Data.Hashable
     ( Hashable )
 import Data.IntCast
     ( intCast, intCastMaybe )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text.Class
-    ( FromText (..), ToText (..) )
-import Data.Word
-    ( Word64 )
 import Fmt
-    ( Buildable (..), fixedF )
-import GHC.Generics
-    ( Generic )
-import GHC.Stack
-    ( HasCallStack )
-import Numeric.Natural
-    ( Natural )
+    ( fixedF )
 import Quiet
     ( Quiet (..) )
 

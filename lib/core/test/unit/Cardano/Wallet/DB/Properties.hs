@@ -20,7 +20,7 @@ module Cardano.Wallet.DB.Properties
     ( properties
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.DB
     ( DBLayer (..)
@@ -601,7 +601,7 @@ prop_getTxAfterPutInvalidWalletId db@DBLayer{..}
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
-    :: (Buildable (f a), Eq (f a), GenState s)
+    :: (Buildable (f a), Eq (f a) )
     => (  DBLayer IO s ShelleyKey
        -> WalletId
        -> a
@@ -617,7 +617,7 @@ prop_putBeforeInit
     -> (WalletId, a)
         -- ^ Property arguments
     -> Property
-prop_putBeforeInit putOp readOp empty db (wid, a) =
+prop_putBeforeInit putOp readOp nul db (wid, a) =
     monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)
@@ -627,7 +627,7 @@ prop_putBeforeInit putOp readOp empty db (wid, a) =
                 fail "expected put operation to fail but it succeeded!"
             Left err ->
                 err `shouldBe` ErrNoSuchWallet wid
-        (ShowFmt <$> readOp db wid) `shouldReturn` (ShowFmt empty)
+        (ShowFmt <$> readOp db wid) `shouldReturn` (ShowFmt nul)
 
 -- | Modifying one resource leaves the other untouched
 prop_isolation
@@ -635,7 +635,6 @@ prop_isolation
        , Buildable (g c), Eq (g c)
        , Buildable (h d), Eq (h d)
        , GenState s
-       , Show s
        )
     => (  DBLayer IO s ShelleyKey
        -> WalletId
@@ -691,7 +690,7 @@ prop_readAfterDelete
     -> DBLayer IO s ShelleyKey
     -> ShowFmt WalletId
     -> Property
-prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt wid) =
+prop_readAfterDelete readOp nul db@DBLayer{..} (ShowFmt wid) =
     monadicIO (setup >> prop)
   where
     setup = do
@@ -701,7 +700,7 @@ prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt wid) =
             initializeWallet wid cp0 meta mempty gp
     prop = liftIO $ do
         atomically $ unsafeRunExceptT $ removeWallet wid
-        (ShowFmt <$> readOp db wid) `shouldReturn` ShowFmt empty
+        (ShowFmt <$> readOp db wid) `shouldReturn` ShowFmt nul
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut

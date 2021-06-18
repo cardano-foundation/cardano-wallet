@@ -117,7 +117,7 @@ module Cardano.Wallet.Api.Server
     , WalletEngineLog (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
@@ -125,8 +125,6 @@ import Cardano.Address.Script
     ( Cosigner (..), ScriptTemplate (..), ValidationLevel (..) )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
-import Cardano.BM.Tracing
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -306,8 +304,6 @@ import Cardano.Wallet.Api.Types
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
-import Cardano.Wallet.Compat
-    ( (^?) )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
@@ -473,81 +469,42 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
     ( invariant )
-import Control.Arrow
-    ( second )
-import Control.DeepSeq
-    ( NFData )
 import Control.Error.Util
     ( failWith )
 import Control.Monad
-    ( forM, forever, join, void, when, (>=>) )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( forever )
 import Control.Monad.Trans.Except
     ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), exceptToMaybeT )
-import Control.Tracer
-    ( Tracer, contramap )
 import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Aeson
     ( (.=) )
 import Data.ByteString
     ( ByteString )
-import Data.Coerce
-    ( coerce )
-import Data.Either.Extra
-    ( eitherToMaybe )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( (<&>) )
 import Data.Functor.Identity
     ( Identity (..) )
-import Data.Generics.Internal.VL.Lens
-    ( Lens', view, (.~), (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
     ( isInfixOf, isPrefixOf, isSubsequenceOf, sortOn, (\\) )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes
-    , fromJust
-    , fromMaybe
-    , isJust
-    , isNothing
-    , mapMaybe
-    , maybeToList
-    )
-import Data.Proxy
-    ( Proxy (..) )
+    ( catMaybes, fromJust, maybeToList )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Streaming.Network
     ( HostPreference, bindPortTCP, bindRandomPortTCP )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..), ToText (..) )
 import Data.Time
     ( UTCTime )
 import Data.Type.Equality
     ( (:~:) (..), type (==), testEquality )
-import Data.Word
-    ( Word32 )
 import Fmt
-    ( blockListF, indentF, listF, pretty )
-import GHC.Generics
-    ( Generic )
-import GHC.Stack
-    ( HasCallStack )
+    ( indentF, listF )
 import Network.HTTP.Media.RenderHeader
     ( renderHeader )
 import Network.HTTP.Types.Header
@@ -564,8 +521,6 @@ import Network.Wai.Middleware.Logging
     ( ApiLog (..), newApiLoggerSettings, obfuscateKeys, withApiLogger )
 import Network.Wai.Middleware.ServerError
     ( handleRawError )
-import Numeric.Natural
-    ( Natural )
 import Servant
     ( Application
     , JSON
@@ -592,13 +547,13 @@ import System.IO.Error
 import System.Random
     ( getStdRandom, random )
 import Type.Reflection
-    ( Typeable, typeRep )
+    ( typeRep )
 import UnliftIO.Async
     ( race_ )
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
+    ( IOException, bracket, tryAnyDeep, tryJust )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
@@ -1223,7 +1178,7 @@ mkLegacyWallet ctx wid cp meta pending progress = do
         :: WorkerCtx ctx
         -> Handler (Either ErrWithRootKey ())
     matchEmptyPassphrase wrk = liftIO $ runExceptT $
-        W.withRootKey @_ @s @k wrk wid mempty Prelude.id (\_ _ -> pure ())
+        W.withRootKey @_ @s @k wrk wid mempty idFunc (\_ _ -> pure ())
 
 postRandomWallet
     :: forall ctx s k n.
@@ -1965,7 +1920,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 }
-                (const Prelude.id)
+                (const idFunc)
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
@@ -2536,7 +2491,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 }
-                (const Prelude.id)
+                (const idFunc)
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
@@ -2651,7 +2606,7 @@ quitStakePool ctx (ApiT wid) body = do
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 }
-                (const Prelude.id)
+                (const idFunc)
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
@@ -3750,10 +3705,6 @@ data ErrCreateWallet
 data ErrTemporarilyDisabled = ErrTemporarilyDisabled
     deriving (Eq, Show)
 
--- | Small helper to easy show things to Text
-showT :: Show a => a -> Text
-showT = T.pack . show
-
 instance IsServerError ErrCurrentEpoch where
     toServerError = \case
         ErrUnableToDetermineCurrentEpoch ->
@@ -3877,7 +3828,7 @@ instance IsServerError ErrSignTx where
             apiError err500 KeyNotFoundForAddress $ mconcat
                 [ "I couldn't sign the given transaction because I "
                 , "could not resolve the address of a transaction input "
-                , "that I should be tracking: ", showT txin, "."
+                , "that I should be tracking: ", showText txin, "."
                 ]
         ErrSignTxUnimplemented ->
             apiError err501 NotImplemented
@@ -4338,7 +4289,7 @@ instance IsServerError (Balance.SelectionError) where
                 , "because I need to select additional inputs and "
                 , "doing so will make the transaction too big. Try "
                 , "sending a smaller amount. I had already selected "
-                , showT (length $ view #inputsSelected e), " inputs."
+                , showText (length $ view #inputsSelected e), " inputs."
                 ]
         Balance.InsufficientMinCoinValues xs ->
             apiError err403 UtxoTooSmall $ mconcat

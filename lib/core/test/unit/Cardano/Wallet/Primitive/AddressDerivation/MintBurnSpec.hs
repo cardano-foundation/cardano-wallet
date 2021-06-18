@@ -8,7 +8,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.MintBurnSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xprvToBytes )
@@ -34,10 +34,6 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex, unsafeMkMnemonic, unsafeXPrv )
-import Data.Function
-    ( (&) )
-import Data.Text
-    ( Text )
 import GHC.TypeNats
     ( KnownNat )
 import Test.Hspec

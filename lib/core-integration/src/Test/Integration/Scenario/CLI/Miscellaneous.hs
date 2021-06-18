@@ -7,12 +7,10 @@ module Test.Integration.Scenario.CLI.Miscellaneous
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Version
     ( showVersionAsDate, version )
-import Control.Monad
-    ( forM_ )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit

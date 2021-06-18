@@ -18,7 +18,7 @@ module Cardano.Pool.DB.Arbitrary
     , isValidSinglePoolCertificateSequence
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Gen
     ( genPercentage, genSlotNo, shrinkSlotNo )
@@ -50,28 +50,16 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, shrinkTxOutCoin )
-import Control.Arrow
-    ( second )
 import Control.Monad
     ( foldM, replicateM )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.Maybe
     ( fromJust )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Word
-    ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
-import GHC.Generics
-    ( Generic )
 import Network.URI
     ( URI, parseURI )
 import Test.QuickCheck

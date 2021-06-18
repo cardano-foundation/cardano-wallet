@@ -13,7 +13,7 @@ module Test.Integration.Scenario.API.Byron.TransactionsNew
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
@@ -33,20 +33,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Control.Monad
-    ( forM_ )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
-import Data.Proxy
-    ( Proxy )
-import Data.Text
-    ( Text )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted

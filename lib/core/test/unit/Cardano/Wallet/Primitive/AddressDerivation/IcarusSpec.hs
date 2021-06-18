@@ -12,7 +12,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )

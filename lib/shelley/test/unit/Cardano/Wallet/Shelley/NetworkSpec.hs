@@ -6,12 +6,10 @@
 
 module Cardano.Wallet.Shelley.NetworkSpec (spec) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Trace
-    ( nullTracer, traceInTVarIO )
+    ( traceInTVarIO )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -27,15 +25,13 @@ import Cardano.Wallet.Shelley.Launch.Cluster
 import Cardano.Wallet.Shelley.Network
     ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
 import Control.Monad
-    ( replicateM, unless, void )
-import Control.Tracer
-    ( Tracer, contramap )
+    ( replicateM )
 import Data.Map
     ( Map )
 import Data.Set
     ( Set )
 import Fmt
-    ( build, fmt, indentF )
+    ( indentF )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -69,7 +65,7 @@ spec = do
 
 concurrentConnectionSpec :: Spec
 concurrentConnectionSpec = describe "NetworkLayer regression test #1708" $ do
-    traceSpec $ it "Parallel local socket connections" $ \tr ->
+    traceSpec toText $ it "Parallel local socket connections" $ \tr ->
         withTestNode nullTracer $ \np sock vData -> do
             let sTol = SyncTolerance 60
             tasks <- replicateM 10 $ async $

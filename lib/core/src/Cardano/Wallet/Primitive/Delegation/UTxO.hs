@@ -2,7 +2,7 @@ module Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )

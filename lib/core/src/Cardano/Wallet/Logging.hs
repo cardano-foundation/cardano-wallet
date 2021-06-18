@@ -43,33 +43,35 @@ module Cardano.Wallet.Logging
       -- * Tracer conversions
     , unliftIOTracer
     , flatContramapTracer
+
+      -- * Re-exports from iohk-monitoring
+    , Trace
+
+      -- * Re-exports from contra-tracer
+    , Tracer (..)
+    , contramap
+    , contramapM
+    , natTracer
+    , nullTracer
+    , traceWith
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.BM.Data.LogItem
     ( LOContent (..), LogObject (..), LoggerName, mkLOMeta )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
-    , Transformable (..)
-    )
+    ( Transformable (..) )
 import Cardano.BM.Trace
     ( Trace )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad
-    ( when )
 import Control.Monad.Catch
     ( MonadMask )
-import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Tracer
-    ( Tracer (..), contramap, natTracer, nullTracer, traceWith )
+    ( contramapM, natTracer )
 import Control.Tracer.Transformers.ObserveOutcome
     ( Outcome (..)
     , OutcomeFidelity (..)
@@ -78,12 +80,6 @@ import Control.Tracer.Transformers.ObserveOutcome
     )
 import Data.Aeson
     ( ToJSON (..), Value (Null), object, (.=) )
-import Data.Functor
-    ( ($>) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Time.Clock
     ( DiffTime )
 import Data.Time.Clock.System
@@ -91,11 +87,9 @@ import Data.Time.Clock.System
 import Data.Time.Clock.TAI
     ( AbsoluteTime, diffAbsoluteTime )
 import Fmt
-    ( Buildable (..), Builder, blockListF, blockMapF, nameF )
+    ( Builder, blockMapF, nameF )
 import GHC.Exts
     ( IsList (..) )
-import GHC.Generics
-    ( Generic )
 import UnliftIO.Exception
     ( Exception (..)
     , SomeException (..)
@@ -203,9 +197,9 @@ formatResultMsgWith
     -> BracketLog' (Either e r)
     -- ^ Logging around function.
     -> Builder
-formatResultMsgWith err fmt title params b = nameF (build title) $ blockListF
+formatResultMsgWith err format title params b = nameF (build title) $ blockListF
     [ nameF "inputs" (blockMapF params)
-    , buildBracketLog (either err fmt) b
+    , buildBracketLog (either err format) b
     ]
 
 -- | A good default mapping of message severities for 'traceResult'.

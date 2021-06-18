@@ -8,7 +8,7 @@
 module Cardano.Wallet.Primitive.Migration.PlanningSpec
     where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Migration.Planning
     ( CategorizedUTxO (..)
@@ -39,16 +39,12 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Control.Monad
     ( replicateM )
-import Data.Either
-    ( isLeft, isRight )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Generics.Labels
     ()
 import Data.Set
     ( Set )
 import Fmt
-    ( padLeftF, pretty )
+    ( padLeftF )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck

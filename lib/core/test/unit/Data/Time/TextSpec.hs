@@ -2,16 +2,12 @@ module Data.Time.TextSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Control.Monad
-    ( forM_ )
 import Data.List
     ( (\\) )
 import Data.Maybe
-    ( isJust, maybeToList )
-import Data.Text
-    ( Text )
+    ( maybeToList )
 import Data.Time.Text
     ( TimeFormat (..)
     , iso8601

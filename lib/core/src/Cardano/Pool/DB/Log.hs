@@ -11,24 +11,14 @@ module Cardano.Pool.DB.Log
     , ParseFailure (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBLog (..) )
 import Cardano.Wallet.Logging
     ( BracketLog )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo, PoolId, PoolRetirementCertificate )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..), toText )
-import Fmt
-    ( pretty )
 
 import qualified Data.Text as T
 

@@ -17,32 +17,18 @@ module Cardano.Wallet.Primitive.SyncProgress
     , syncProgress
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, interpretQuery, slotToRelTime )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..) )
-import Control.DeepSeq
-    ( NFData (..) )
-import Data.Bifunctor
-    ( bimap )
-import Data.Either
-    ( fromRight )
 import Data.Quantity
     ( Percentage (..), Quantity (..), mkPercentage )
 import Data.Ratio
     ( (%) )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime )
-import Fmt
-    ( Buildable, build )
-import GHC.Generics
-    ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 import NoThunks.Class
     ( NoThunks (..) )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types

@@ -309,6 +309,7 @@ haskell-nix: haskell-nix.stackProject' [
               # Make sure that libsodium DLLs for all windows executables,
               # and add shell completions for main executables.
               packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
+              packages.cardano-wallet-base.components.tests.unit.postInstall = libSodiumPostInstall;
               packages.cardano-wallet-core.components.tests.unit.postInstall = libSodiumPostInstall;
               packages.cardano-wallet-cli.components.tests.unit.postInstall = libSodiumPostInstall;
               packages.cardano-wallet-launcher.components.tests.unit.postInstall = libSodiumPostInstall;
@@ -397,6 +398,7 @@ haskell-nix: haskell-nix.stackProject' [
               packages.cardano-wallet.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-cli.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
+              packages.cardano-wallet-base.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
 

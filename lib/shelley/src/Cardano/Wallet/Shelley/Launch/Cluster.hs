@@ -70,7 +70,7 @@ module Cardano.Wallet.Shelley.Launch.Cluster
     , ClusterLog (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
@@ -82,10 +82,6 @@ import Cardano.BM.Data.Output
     , ScribeKind (..)
     , ScribePrivacy (..)
     )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Chain.Genesis
     ( readGenesisData )
 import Cardano.CLI
@@ -101,8 +97,6 @@ import Cardano.Launcher.Node
     )
 import Cardano.Pool.Metadata
     ( SMASHPoolId (..) )
-import Cardano.Startup
-    ( restrictFileMode )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
@@ -134,6 +128,8 @@ import Cardano.Wallet.Shelley.Compatibility
     ( StandardShelley )
 import Cardano.Wallet.Shelley.Launch
     ( TempDirLog (..), envFromText, isEnvSet, lookupEnvNonEmpty )
+import Cardano.Wallet.Startup
+    ( restrictFileMode )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode, unsafeFromHex, unsafeRunExceptT )
 import Cardano.Wallet.Util
@@ -141,19 +137,15 @@ import Cardano.Wallet.Util
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Control.Monad
-    ( forM, forM_, liftM2, replicateM, replicateM_, unless, void, when, (>=>) )
+    ( liftM2, replicateM, replicateM_ )
 import Control.Monad.Trans.Except
     ( withExceptT )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, retrying )
-import Control.Tracer
-    ( Tracer (..), contramap, traceWith )
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
     ( FromJSON (..), object, toJSON, (.:), (.=) )
-import Data.Bifunctor
-    ( bimap )
 import Data.Bits
     ( (.|.) )
 import Data.ByteArray.Encoding
@@ -164,18 +156,10 @@ import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
 import Data.Char
     ( toLower )
-import Data.Either
-    ( fromRight, isLeft, isRight )
-import Data.Functor
-    ( ($>), (<&>) )
 import Data.List
     ( intercalate, nub, permutations, sort )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
+    ( catMaybes )
 import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
@@ -213,7 +197,7 @@ import UnliftIO.Chan
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( SomeException, finally, handle, throwIO, throwString )
+    ( SomeException, finally, handle )
 import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar, putMVar, swapMVar, takeMVar )
 
@@ -1582,7 +1566,7 @@ submitTx tr conn name signedTx =
 -- it has waited for too long.
 waitForSocket :: Tracer IO ClusterLog -> CardanoNodeConn -> IO ()
 waitForSocket tr conn = do
-    let msg = "Checking for usable socket file " <> toText conn
+    let msg = "Checking for usable socket file "+|conn|+""
     -- TODO: check whether querying the tip works just as well.
     cliRetry tr msg =<< cliConfigNode tr conn
         ["query", "tip"
@@ -1900,8 +1884,8 @@ instance ToText ClusterLog where
                 , " stake pools are being registered on chain... "
                 , "Can be skipped using NO_POOLS=1."
                 ]
-        MsgLauncher name msg ->
-            T.pack name <> " " <> toText msg
+        MsgLauncher name msg -> fmt $
+            build name <> " " <> build msg
         MsgStartedStaticServer baseUrl fp ->
             "Started a static server for " <> T.pack fp
                 <> " at " <> T.pack baseUrl
@@ -1915,8 +1899,8 @@ instance ToText ClusterLog where
         MsgCLIRetryResult msg code err ->
             "Failed " <> msg <> " with exit code " <>
                 T.pack (show code) <> ":\n" <> indent err
-        MsgSocketIsReady conn ->
-            toText conn <> " is ready."
+        MsgSocketIsReady conn -> fmt $
+            build conn <> " is ready."
         MsgStakeDistribution name st out err -> case st of
             ExitSuccess ->
                 "Stake distribution query for " <> T.pack name <>

@@ -93,7 +93,7 @@ module Cardano.Wallet.Primitive.Types.Tx
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -129,25 +129,17 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Util
-    ( HasCallStack, internalError )
+    ( internalError )
 import Control.DeepSeq
     ( NFData (..), deepseq )
-import Data.Bifunctor
-    ( first )
 import Data.ByteArray
     ( ByteArray, ByteArrayAccess )
 import Data.ByteString
     ( ByteString )
 import Data.Either
     ( partitionEithers )
-import Data.Function
-    ( on, (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -156,39 +148,12 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
-import Data.Word
-    ( Word32, Word64 )
 import Fmt
-    ( Buildable (..)
-    , Builder
-    , blockListF'
-    , blockMapF
-    , hexF
-    , nameF
-    , ordinalF
-    , prefixF
-    , suffixF
-    , tupleF
-    , (+||)
-    , (||+)
-    )
-import GHC.Generics
-    ( Generic )
-import Numeric.Natural
-    ( Natural )
+    ( Builder, blockListF', blockMapF, hexF, nameF, prefixF, suffixF, tupleF )
 import Quiet
     ( Quiet (..) )
 import Text.Pretty.Simple

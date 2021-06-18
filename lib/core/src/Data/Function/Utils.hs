@@ -4,7 +4,7 @@ module Data.Function.Utils
     ( applyN
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 -- | Apply a function 'n' times to the specified input.
 applyN :: Integral n => n -> (a -> a) -> a -> a

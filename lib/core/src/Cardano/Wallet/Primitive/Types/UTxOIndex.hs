@@ -20,7 +20,6 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex
       UTxOIndex
 
     -- * Construction
-    , empty
     , singleton
     , fromSequence
     , fromUTxO

@@ -66,14 +66,12 @@ module Cardano.Wallet.Primitive.Slotting
     , expectAndThrowFailures
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..) )
 import Cardano.Slotting.EpochInfo.API
     ( EpochInfo )
+import Cardano.Wallet.Logging
+    ( natTracer )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types
@@ -88,37 +86,17 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     )
 import Control.Monad
-    ( ap, join, liftM, (>=>) )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
-import Control.Monad.Trans.Class
-    ( lift )
+    ( ap, liftM )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
-import Control.Tracer
-    ( Tracer, contramap, natTracer, nullTracer, traceWith )
-import Data.Coerce
-    ( coerce )
 import Data.Functor.Identity
     ( Identity )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
-import Data.Kind
-    ( Type )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
-import Data.Word
-    ( Word32, Word64 )
 import Fmt
-    ( blockListF', build, fmt, indentF )
+    ( blockListF', indentF )
 import GHC.Stack
-    ( CallStack, HasCallStack, getCallStack, prettySrcLoc )
+    ( CallStack, getCallStack, prettySrcLoc )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), SystemStart (SystemStart), addRelTime )
 import Ouroboros.Consensus.HardFork.History.EpochInfo
@@ -136,8 +114,6 @@ import Ouroboros.Consensus.HardFork.History.Qry
     )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( neverForksSummary )
-import UnliftIO.Exception
-    ( throwIO )
 
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Data.Text as T

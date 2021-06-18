@@ -30,7 +30,7 @@ module Cardano.Wallet.Version
     , showFullVersion
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Version.TH
     ( gitRevFromGit )
@@ -38,14 +38,12 @@ import Data.FileEmbed
     ( dummySpaceWith )
 import Data.String
     ( fromString )
-import Data.Text
-    ( Text )
 import Data.Text.Encoding
     ( decodeLatin1 )
 import Data.Version
     ( Version (..), showVersion )
 import Fmt
-    ( build, fmt, padLeftF )
+    ( padLeftF )
 import Paths_cardano_wallet_core
     ( version )
 

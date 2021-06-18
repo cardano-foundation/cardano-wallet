@@ -43,7 +43,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Byron
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Crypto.Wallet
     ( DerivationScheme (DerivationScheme1)
@@ -82,8 +82,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Util
     ( invariant )
-import Control.DeepSeq
-    ( NFData )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -94,12 +92,6 @@ import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
-import Data.Kind
-    ( Type )
-import Data.Proxy
-    ( Proxy (..) )
-import GHC.Generics
-    ( Generic )
 import GHC.TypeLits
     ( KnownNat )
 

@@ -32,18 +32,12 @@ module Cardano.Wallet.Util
     , parseURI
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Control.DeepSeq
-    ( NFData (..) )
 import Control.Error.Util
     ( (??) )
 import Control.Exception
     ( ErrorCall, displayException )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
     ( runExceptT, throwE )
 import Control.Monad.Trans.State.Strict
@@ -54,18 +48,8 @@ import Data.Functor.Identity
     ( runIdentity )
 import Data.List
     ( isPrefixOf )
-import Data.Maybe
-    ( fromMaybe, isNothing )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( TextDecodingError (..) )
 import Fmt
-    ( Buildable (..), Builder, fmt, (+|) )
-import GHC.Generics
-    ( Generic )
-import GHC.Stack
-    ( HasCallStack )
+    ( Builder )
 import Network.URI
     ( URI (..), parseAbsoluteURI, uriQuery, uriScheme, uriToString )
 import UnliftIO.Exception

@@ -11,7 +11,7 @@ module Test.Integration.Scenario.CLI.Shelley.Transactions
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.CLI
     ( Port )
@@ -29,34 +29,16 @@ import Cardano.Wallet.Primitive.Types
     ( SortOrder (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
-import Control.Monad
-    ( forM_, join )
-import Control.Monad.IO.Class
-    ( MonadIO )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.Generics.Product.Typed
     ( typed )
 import Data.List.Extra
     ( enumerate )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( showT )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
-import GHC.Stack
-    ( HasCallStack )
-import Numeric.Natural
-    ( Natural )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -110,8 +92,6 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
-import UnliftIO.Exception
-    ( throwString )
 
 import qualified Data.Map as Map
 import qualified Data.Text as T

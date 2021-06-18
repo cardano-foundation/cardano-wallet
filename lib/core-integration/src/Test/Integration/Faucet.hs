@@ -42,7 +42,7 @@ module Test.Integration.Faucet
     , genRewardAccounts
     ) where
 
-import Prelude hiding
+import Cardano.Wallet.Prelude hiding
     ( appendFile )
 
 import Cardano.Address.Derivation
@@ -82,17 +82,13 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeFromText, unsafeMkMnemonic )
 import Control.Monad
-    ( forM, forM_, replicateM )
-import Data.Bifunctor
-    ( first )
+    ( replicateM )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, encodeBase58 )
-import Data.Text
-    ( Text )
 import GHC.TypeLits
     ( Nat, Symbol )
 import UnliftIO.MVar
@@ -2245,7 +2241,7 @@ maryIntegrationTestAssets tips = maMnemonics >>= take 3
         , (UnsafeTokenName "banana", TokenQuantity 66_000_000)
         , (UnsafeTokenName "cherry", TokenQuantity 67_000_000)
         ]
-    combined p = simple p `TokenBundle.add` fruit p
+    combined p = simple p <> fruit p
 
 -- | Create @n@ unique SeaHorse tokens for each provided `Address`.
 --

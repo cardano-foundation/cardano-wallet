@@ -13,7 +13,7 @@ module Data.Aeson.Extra
     ( parseBoundedIntegral
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Data.Aeson
     ( Value (Number) )

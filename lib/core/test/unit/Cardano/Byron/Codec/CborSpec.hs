@@ -11,7 +11,7 @@ module Cardano.Byron.Codec.CborSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath
@@ -42,10 +42,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
 import Data.ByteString
     ( ByteString )
-import Data.Text
-    ( Text )
-import Data.Word
-    ( Word32, Word64 )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.Hspec.Extra

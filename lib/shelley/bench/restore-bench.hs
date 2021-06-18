@@ -43,16 +43,12 @@
 
 module Main where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Trace
-    ( Trace, nullTracer )
+    ( Trace )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
 import Cardano.Wallet
@@ -148,68 +144,32 @@ import Cardano.Wallet.Transaction
     ( defaultTransactionCtx )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage, unsafeRunExceptT )
-import Control.Arrow
-    ( first )
-import Control.DeepSeq
-    ( NFData )
-import Control.Monad
-    ( forM, forM_, void )
-import Control.Monad.IO.Class
-    ( MonadIO (..) )
 import Control.Monad.Trans.Except
     ( runExceptT, withExceptT )
-import Control.Tracer
-    ( Tracer (..), traceWith )
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
-import Data.List
-    ( foldl' )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Time.Clock.POSIX
     ( POSIXTime, getCurrentTime, utcTimeToPOSIXSeconds )
 import Fmt
-    ( Buildable
-    , blockListF'
-    , build
-    , genericF
-    , nameF
-    , pretty
-    , (+|)
-    , (+||)
-    , (|+)
-    , (||+)
-    )
-import GHC.Generics
-    ( Generic )
+    ( blockListF', genericF, nameF )
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
 import Numeric
     ( fromRat, showFFloat )
-import Say
-    ( sayErr )
 import System.Exit
     ( exitWith )
 import System.FilePath
     ( (</>) )
 import System.IO
     ( IOMode (..), hFlush, withFile )
-import Type.Reflection
-    ( Typeable )
 import UnliftIO.Concurrent
     ( forkIO, threadDelay )
 import UnliftIO.Exception
-    ( evaluate, throwString )
+    ( evaluate )
 import UnliftIO.Temporary
     ( withSystemTempFile )
 
@@ -588,7 +548,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
 
 {- HLINT ignore bench_restoration "Use camelCase" -}
 bench_restoration
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) s results.
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type) s results.
         ( IsOurs s Address
         , IsOurs s RewardAccount
         , IsOwned s k

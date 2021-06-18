@@ -9,7 +9,7 @@ module Cardano.Wallet.Version.TH
     ( gitRevFromGit
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Language.Haskell.TH
     ( Exp (..), Lit (..), Q, runIO )

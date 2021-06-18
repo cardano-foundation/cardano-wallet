@@ -13,7 +13,7 @@ module Test.Integration.Scenario.API.Byron.Addresses
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Mnemonic
     ( Mnemonic )
@@ -37,12 +37,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( purposeBIP44 )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Control.Monad
-    ( forM_ )
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Generics.Product.Positions
     ( position )
 import Test.Hspec

@@ -10,10 +10,9 @@ module Cardano.Wallet.RegistrySpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude hiding
+    ( empty )
 
-import Cardano.BM.Trace
-    ( nullTracer )
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..) )
 import Cardano.Wallet.Registry
@@ -28,15 +27,9 @@ import Cardano.Wallet.Registry
 import Control.Exception.Base
     ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
-    ( replicateM, void )
-import Control.Tracer
-    ( Tracer )
+    ( replicateM )
 import Crypto.Hash
     ( hash )
-import Data.Text
-    ( Text )
-import GHC.Generics
-    ( Generic )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
 import Test.Hspec.Extra
@@ -50,7 +43,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay, throwTo )
 import UnliftIO.Exception
-    ( SomeException (..), throwIO )
+    ( SomeException (..) )
 import UnliftIO.MVar
     ( modifyMVar_
     , newEmptyMVar

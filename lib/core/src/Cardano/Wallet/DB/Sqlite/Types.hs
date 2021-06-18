@@ -22,7 +22,7 @@
 
 module Cardano.Wallet.DB.Sqlite.Types where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Script
     ( Cosigner, Script, ScriptHash (..) )
@@ -82,49 +82,28 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Control.Arrow
     ( left )
-import Control.Monad
-    ( (<=<), (>=>) )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), Value (..), withText )
 import Data.Aeson.Types
     ( Parser )
-import Data.Bifunctor
-    ( bimap, first )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Maybe
-    ( fromMaybe, mapMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextMaybe
-    , getTextDecodingError
-    )
 import Data.Text.Encoding
     ( decodeUtf8, encodeUtf8 )
 import Data.Time.Clock.POSIX
     ( POSIXTime, posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import Data.Time.Format
     ( defaultTimeLocale, formatTime, iso8601DateFormat, parseTimeM )
-import Data.Word
-    ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
 import Database.Persist.Sqlite
     ( PersistField (..), PersistFieldSql (..), PersistValue (..) )
 import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )
-import GHC.Generics
-    ( Generic )
 import Network.URI
     ( parseAbsoluteURI )
 import System.Random.Internal
@@ -332,7 +311,7 @@ hashOfNoParent :: Hash "BlockHeader"
 hashOfNoParent = Hash . BS.pack $ replicate 32 0
 
 fromMaybeHash :: Maybe (Hash "BlockHeader") -> BlockId
-fromMaybeHash = BlockId . fromMaybe hashOfNoParent 
+fromMaybeHash = BlockId . fromMaybe hashOfNoParent
 
 toMaybeHash :: BlockId -> Maybe (Hash "BlockHeader")
 toMaybeHash (BlockId h) = if h == hashOfNoParent then Nothing else Just h

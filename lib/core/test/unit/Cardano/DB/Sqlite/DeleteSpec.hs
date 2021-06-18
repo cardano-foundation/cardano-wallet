@@ -6,14 +6,12 @@
 
 module Cardano.DB.Sqlite.DeleteSpec (spec) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.DB.Sqlite.Delete
     ( newRefCount, waitForFree', withRef )
 import Control.Retry
     ( RetryPolicy, constantDelay, limitRetries )
-import Control.Tracer
-    ( nullTracer )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
 import UnliftIO.Async

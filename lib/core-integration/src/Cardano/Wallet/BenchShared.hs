@@ -26,16 +26,14 @@ module Cardano.Wallet.BenchShared
     , Time
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Setup
     ( setupTrace_ )
 import Cardano.BM.Trace
-    ( Trace, nullTracer )
+    ( Trace )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , CardanoNodeConn
@@ -43,32 +41,20 @@ import Cardano.Launcher.Node
     , cardanoNodeConn
     , withCardanoNode
     )
-import Cardano.Startup
-    ( installSignalHandlers )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network.Ports
     ( getRandomPort )
+import Cardano.Wallet.Startup
+    ( installSignalHandlers )
 import Control.DeepSeq
-    ( NFData, rnf )
-import Control.Monad
-    ( forM )
+    ( rnf )
 import Criterion.Measurement
     ( getTime, initializeTime, secs )
 import Data.Aeson
     ( ToJSON (..) )
-import Data.Functor
-    ( (<&>) )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Fmt
-    ( Buildable (..), nameF, pretty )
-import GHC.Generics
-    ( Generic )
+    ( nameF )
 import Options.Applicative
     ( HasValue
     , Mod
@@ -89,8 +75,6 @@ import Options.Applicative
     , switch
     , value
     )
-import Say
-    ( sayErr )
 import System.Directory
     ( createDirectoryIfMissing )
 import System.Environment
@@ -134,11 +118,11 @@ execBenchWithNode networkConfig action = withNoBuffering $ do
             pure ExitSuccess
         Nothing -> do
             res <- withNetworkConfiguration args $ \nodeConfig ->
-                withCardanoNode (trMessageText tr) nodeConfig $
+                withCardanoNode (contramap showText $ trMessageText tr) nodeConfig $
                     action tr (networkConfig args)
             case res of
                 Left exited -> do
-                    sayErr $ "FAIL: cardano-node exited with status " <> toText exited
+                    sayErr $ "FAIL: cardano-node exited with status "+|exited|+"."
                     pure $ ExitFailure 1
                 Right _ -> pure ExitSuccess
 

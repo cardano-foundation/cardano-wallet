@@ -8,7 +8,7 @@
 
 module Cardano.Api.GenSpec (spec) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Api
     ( AddressInEra (..)
@@ -95,21 +95,18 @@ import Data.Char
     ( isAlphaNum, isDigit, isLower, isUpper )
 import Data.Foldable
     ( traverse_ )
-import Data.Function
-    ( (&) )
 import Data.Int
     ( Int32 )
+import Data.List
+    ( (\\) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromJust )
 import Data.Ratio
     ( denominator, numerator )
-import Data.Word
-    ( Word16, Word32 )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
+    ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary
     , Property
@@ -125,8 +122,6 @@ import Test.QuickCheck
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import Data.List
-    ( (\\) )
 import qualified Data.Map.Strict as Map
 import qualified Plutus.V1.Ledger.Api as Plutus
 

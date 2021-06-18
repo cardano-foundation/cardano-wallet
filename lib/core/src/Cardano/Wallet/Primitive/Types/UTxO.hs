@@ -47,8 +47,8 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , toList
     ) where
 
-import Prelude hiding
-    ( filter, lookup, null )
+import Cardano.Wallet.Prelude hiding
+    ( empty, filter, lookup, null, toList )
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
@@ -56,28 +56,14 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..), txOutCoin )
-import Control.DeepSeq
-    ( NFData (..) )
-import Data.Bifunctor
-    ( bimap, first )
 import Data.Functor.Identity
     ( runIdentity )
-import Data.Generics.Internal.VL.Lens
-    ( view )
-import Data.Kind
-    ( Type )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Set
     ( Set )
-import Data.Word
-    ( Word64 )
 import Fmt
-    ( Buildable (..), blockListF', blockMapF, padRightF, tupleF )
-import GHC.Generics
-    ( Generic )
+    ( blockListF', blockMapF, padRightF, tupleF )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB

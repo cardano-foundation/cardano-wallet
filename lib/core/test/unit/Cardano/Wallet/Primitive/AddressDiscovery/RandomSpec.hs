@@ -13,7 +13,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
@@ -45,20 +45,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..), findUnusedPath, mkRndState )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Control.Monad
-    ( forM_ )
 import Data.ByteArray.Encoding
     ( Base (..), convertFromBase )
 import Data.ByteString
     ( ByteString )
-import Data.Function
-    ( (&) )
 import Data.List
     ( find )
-import Data.Maybe
-    ( isJust, isNothing )
-import Data.Word
-    ( Word32 )
 import System.Random
     ( mkStdGen )
 import Test.Hspec

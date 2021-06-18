@@ -28,7 +28,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     , replaceCosignersWithVerKeys
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Script
     ( Cosigner, KeyHash, Script (..), ScriptTemplate (..), toScriptHash )
@@ -42,16 +42,12 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Util
     ( invariant )
-import Control.DeepSeq
-    ( NFData (..) )
 import Data.Maybe
-    ( fromJust, isJust )
+    ( fromJust )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
-import GHC.Generics
-    ( Generic )
 import Type.Reflection
-    ( Typeable, typeRep )
+    ( typeRep )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA

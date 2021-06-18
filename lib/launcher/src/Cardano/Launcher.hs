@@ -25,43 +25,20 @@ module Cardano.Launcher
     , LauncherLog(..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Base
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Startup
+import Cardano.Wallet.Startup
     ( killProcess )
-import Control.Monad
-    ( join, void )
-import Control.Monad.IO.Class
-    ( liftIO )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
-import Control.Tracer
-    ( Tracer, contramap, traceWith )
 import Data.Either.Combinators
     ( leftToMaybe )
 import Data.List
     ( isPrefixOf )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Fmt
-    ( Buildable (..)
-    , Builder
-    , blockListF'
-    , fmt
-    , indentF
-    , (+|)
-    , (+||)
-    , (|+)
-    , (||+)
-    )
-import GHC.Generics
-    ( Generic )
+    ( Builder, blockListF', indentF )
 import System.Exit
     ( ExitCode (..) )
 import System.IO
@@ -73,14 +50,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( forkIO, forkIOWithUnmask, killThread, threadDelay )
 import UnliftIO.Exception
-    ( Exception
-    , IOException
-    , bracket
-    , bracket_
-    , finally
-    , onException
-    , tryJust
-    )
+    ( IOException, bracket, bracket_, finally, onException, tryJust )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, readMVar )
 import UnliftIO.Process
@@ -335,21 +305,21 @@ instance HasSeverityAnnotation WaitForProcessLog where
         MsgWaitAfter _ -> Debug
         MsgWaitCancelled -> Debug
 
-instance ToText ProcessHasExited where
-    toText (ProcessHasExited name code) =
+instance Buildable ProcessHasExited where
+    build (ProcessHasExited name code) =
         "Child process "+|name|+" exited with "+|statusText code|+""
-    toText (ProcessDidNotStart name _e) =
+    build (ProcessDidNotStart name _e) =
         "Could not start "+|name|+""
 
-instance ToText LauncherLog where
-    toText ll = fmt $ case ll of
+instance Buildable LauncherLog where
+    build ll = case ll of
         MsgLauncherStart cmd args ->
             "Starting process "+|buildCommand cmd args|+""
         WithProcessInfo name pid msg ->
-            "["+|name|+"."+|pid|+"] "+|toText msg|+""
+            "["+|name|+"."+|pid|+"] "+|msg|+""
         MsgLauncherFinish Nothing ->
             "Action finished"
-        MsgLauncherFinish (Just exited) -> build $ toText exited
+        MsgLauncherFinish (Just exited) -> build exited
         MsgLauncherCleanup ->
             "Begin process cleanup"
         MsgLauncherCleanupTimedOut t ->
@@ -357,18 +327,18 @@ instance ToText LauncherLog where
         MsgLauncherCleanupFinished ->
             "Process cleanup finished"
 
-instance ToText LaunchedProcessLog where
-    toText = \case
+instance Buildable LaunchedProcessLog where
+    build = \case
         MsgLauncherStarted -> "Process started"
         MsgLauncherAction -> "Running withBackend action"
-        MsgLauncherWait msg -> toText msg
+        MsgLauncherWait msg -> build msg
         MsgLauncherActionDone -> "withBackend action done. Terminating child process"
 
-instance ToText WaitForProcessLog where
-    toText = \case
+instance Buildable WaitForProcessLog where
+    build = \case
         MsgWaitBefore ->
             "Waiting for process to exit"
-        MsgWaitAfter status -> fmt $
+        MsgWaitAfter status ->
             "Process exited with "+|statusText status|+""
         MsgWaitCancelled ->
             "There was an exception waiting for the process"

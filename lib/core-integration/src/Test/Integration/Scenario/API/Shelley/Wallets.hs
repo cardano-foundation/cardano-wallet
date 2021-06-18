@@ -14,7 +14,7 @@ module Test.Integration.Scenario.API.Shelley.Wallets
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
@@ -53,10 +53,6 @@ import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeXPub )
-import Control.Monad
-    ( forM, forM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Aeson
@@ -65,18 +61,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Word
-    ( Word32 )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted

@@ -24,7 +24,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     , derivePolicyPrivateKey
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )

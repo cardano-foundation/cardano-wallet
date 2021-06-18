@@ -13,20 +13,14 @@
 
 module Main where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.BM.Data.LogItem
     ( LogObject )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( contramap, nullTracer )
 import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.CLI
     ( Port (..) )
-import Cardano.Startup
-    ( withUtf8Encoding )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiAsset (..)
@@ -74,22 +68,14 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , walletListenFromEnv
     , withCluster
     )
+import Cardano.Wallet.Startup
+    ( withUtf8Encoding )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
-import Control.Arrow
-    ( first )
 import Control.Monad
     ( replicateM, replicateM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Data.Aeson
     ( Value )
-import Data.Bifunctor
-    ( bimap )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
-import Data.Proxy
-    ( Proxy (..) )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -98,8 +84,6 @@ import Network.HTTP.Client
     )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..) )
-import Numeric.Natural
-    ( Natural )
 import System.Directory
     ( createDirectory )
 import System.FilePath
@@ -436,7 +420,6 @@ withShelleyServer tracers action = do
                 , _manager = manager
                 , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                 , _faucet = faucet
-                , _feeEstimator = \_ -> error "feeEstimator not available"
                 , _networkParameters = np
                 , _poolGarbageCollectionEvents =
                     error "poolGarbageCollectionEvents not available"

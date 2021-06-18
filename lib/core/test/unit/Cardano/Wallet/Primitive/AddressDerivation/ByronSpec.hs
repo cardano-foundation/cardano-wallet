@@ -11,7 +11,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
@@ -30,14 +30,10 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic, unsafeXPrv )
-import Control.Monad
-    ( (<=<) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
-import Data.Text
-    ( Text )
 import Test.Hspec
     ( Expectation, Spec, describe, it, shouldBe )
 import Test.Hspec.Extra

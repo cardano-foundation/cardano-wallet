@@ -4,7 +4,7 @@ module Data.Vector.ShuffleSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Data.Vector.Shuffle
     ( mkSeed, shuffle, shuffleWith )

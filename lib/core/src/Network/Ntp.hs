@@ -19,22 +19,12 @@ module Network.Ntp
     , NtpClient (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock (..), ApiNtpStatus (..), NtpSyncingStatus (..) )
-import Control.Tracer
-    ( Tracer )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Network.NTP.Client
     ( IPVersion (..)
     , NtpClient (..)

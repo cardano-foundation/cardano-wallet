@@ -13,7 +13,7 @@ module Cardano.Wallet.Primitive.TypesSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
@@ -128,39 +128,25 @@ import Cardano.Wallet.Unsafe
 import Cardano.Wallet.Util
     ( ShowFmt (..) )
 import Control.Monad
-    ( forM_, replicateM )
+    ( replicateM )
 import Crypto.Hash
     ( hash )
-import Data.Either
-    ( isRight )
-import Data.Function
-    ( (&) )
 import Data.Function.Utils
     ( applyN )
 import Data.IntCast
     ( intCast )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing )
-import Data.Proxy
-    ( Proxy (..) )
+    ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set, (\\) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( TextDecodingError (..), fromText, toText )
 import Data.Time
     ( Day (ModifiedJulianDay), UTCTime, toModifiedJulianDay, utctDay )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
-import Data.Word
-    ( Word32 )
 import Data.Word.Odd
     ( Word31 )
-import Fmt
-    ( pretty )
 import Test.Hspec
     ( Spec
     , anyErrorCall
@@ -984,7 +970,7 @@ prop_2_6_1 (u, v) =
     -- a v' that has no overlap with u.
     v' = v `excluding` dom u
     cond = not (u `isSubsetOf` mempty || v' `isSubsetOf` mempty)
-    prop = balance (u <> v') === balance u `TokenBundle.add` balance v'
+    prop = balance (u <> v') === balance u <> balance v'
 
 prop_2_6_2 :: (Set TxIn, UTxO) -> Property
 prop_2_6_2 (ins, u) =

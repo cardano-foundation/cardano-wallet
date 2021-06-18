@@ -42,7 +42,7 @@ module Cardano.Wallet.Api.Client
     , networkClient
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api
     ( Addresses
@@ -102,24 +102,12 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, SerialisedTx (..), unsafeSealedTxFromBytes )
-import Control.Monad
-    ( void )
-import Data.Coerce
-    ( coerce )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.Generics.Labels
     ()
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
 import Servant
     ( (:<|>) (..), (:>), NoContent )
 import Servant.Client
     ( ClientM, client )
-import UnliftIO.Exception
-    ( throwString )
 
 import qualified Data.Aeson as Aeson
 

@@ -36,7 +36,7 @@ module Cardano.Wallet.Primitive.Delegation.State
     )
     where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Crypto.Wallet
     ( XPub )
@@ -59,12 +59,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..), TxOut (..) )
-import Control.DeepSeq
-    ( NFData )
 import Data.Maybe
     ( maybeToList )
-import GHC.Generics
-    ( Generic )
 import Quiet
     ( Quiet (..) )
 

@@ -33,12 +33,8 @@ module Cardano.Wallet.Shelley.Pools
     )
     where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
 import Cardano.Pool.Metadata
@@ -109,53 +105,33 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Monad
-    ( forM, forM_, forever, void, when )
-import Control.Monad.IO.Class
-    ( liftIO )
+    ( forever )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.State
     ( State, evalState, state )
 import Control.Retry
     ( RetryStatus (..), constantDelay, retrying )
-import Control.Tracer
-    ( Tracer, contramap, traceWith )
-import Data.Bifunctor
-    ( first )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.List
     ( nub, (\\) )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map
     ( Map )
 import Data.Map.Merge.Strict
     ( dropMissing, traverseMissing, zipWithAMatched, zipWithMatched )
-import Data.Maybe
-    ( fromMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Time.Clock.POSIX
     ( getPOSIXTime, posixDayLength )
 import Data.Tuple.Extra
     ( dupe )
 import Data.Void
     ( Void )
-import Data.Word
-    ( Word64 )
 import Fmt
-    ( fixedF, pretty )
-import GHC.Generics
-    ( Generic )
+    ( fixedF )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random

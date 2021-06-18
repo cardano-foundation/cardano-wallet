@@ -165,7 +165,7 @@ module Cardano.Wallet.Primitive.Types
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo (..), WithOrigin (..) )
@@ -185,8 +185,6 @@ import Control.Arrow
     ( left, right )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad
-    ( when, (<=<), (>=>) )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
@@ -205,73 +203,36 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Generics.Internal.VL.Lens
-    ( set, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Int
     ( Int32 )
-import Data.Kind
-    ( Type )
 import Data.List
     ( intercalate )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( isJust, isNothing )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Scientific
     ( fromRationalRepetendLimited )
 import Data.String
     ( fromString )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Time.Clock.POSIX
     ( POSIXTime )
 import Data.Time.Format
     ( defaultTimeLocale, formatTime )
-import Data.Word
-    ( Word16, Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
 import Fmt
-    ( Buildable (..)
-    , blockListF
-    , blockListF'
-    , indentF
-    , listF'
-    , mapF
-    , prefixF
-    , pretty
-    , suffixF
-    )
-import GHC.Generics
-    ( Generic )
-import GHC.Stack
-    ( HasCallStack )
+    ( blockListF', indentF, listF', mapF, prefixF, suffixF )
 import GHC.TypeLits
     ( KnownNat, natVal )
 import Network.URI
     ( URI (..), uriToString )
 import NoThunks.Class
     ( NoThunks )
-import Numeric.Natural
-    ( Natural )
-import Test.QuickCheck
-    ( Arbitrary (..), oneof )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -1235,22 +1196,6 @@ newtype TokenBundleMaxSize = TokenBundleMaxSize
     deriving (Eq, Generic, Show)
 
 instance NFData TokenBundleMaxSize
-
-instance Arbitrary TokenBundleMaxSize where
-    arbitrary = TokenBundleMaxSize . TxSize <$>
-        oneof
-          -- Generate values close to the mainnet value of 4000 (and guard
-          -- against underflow)
-          [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
-
-          -- Generate more extreme values (both small and large)
-          , fromIntegral <$> arbitrary @Word64
-          ]
-    shrink (TokenBundleMaxSize (TxSize s)) =
-        map (TokenBundleMaxSize . TxSize . fromIntegral)
-        . shrink @Word64 -- Safe w.r.t the generator, despite TxSize wrapping a
-                         -- Natural
-        $ fromIntegral s
 
 -- | Parameters that relate to the construction of __transactions__.
 --

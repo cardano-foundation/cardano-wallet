@@ -4,10 +4,9 @@
 module Test.Integration.Framework.Context
     ( Context (..)
     , PoolGarbageCollectionEvent (..)
-    , TxDescription (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.CLI
     ( Port (..) )
@@ -19,22 +18,14 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Transaction
-    ( DelegationAction )
 import Data.ByteString
     ( ByteString )
 import Data.IORef
     ( IORef )
-import Data.Text
-    ( Text )
-import GHC.Generics
-    ( Generic )
 import Network.HTTP.Client
     ( Manager )
 import Network.URI
     ( URI )
-import Numeric.Natural
-    ( Natural )
 import Test.Integration.Faucet
     ( Faucet )
 
@@ -57,8 +48,6 @@ data Context = Context
         :: (ByteString, Coin)
         -> IO ()
         -- ^ A function to inject rewards into some stake address.
-    , _feeEstimator :: TxDescription -> (Natural, Natural)
-        -- ^ A fee estimator.
     , _networkParameters :: NetworkParameters
         -- ^ Blockchain parameters for the underlying chain.
     , _poolGarbageCollectionEvents
@@ -92,16 +81,3 @@ data PoolGarbageCollectionEvent = PoolGarbageCollectionEvent
         -- ^ The pools that were removed from the database.
     }
     deriving (Eq, Show)
-
--- | Describe a transaction in terms of its inputs and outputs.
-data TxDescription
-    = DelegDescription DelegationAction
-    | PaymentDescription
-        { nInputs
-            :: Int
-        , nOutputs
-            :: Int
-        , nChanges
-            :: Int
-        }
-    deriving Show

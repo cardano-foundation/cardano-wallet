@@ -28,14 +28,8 @@ module Data.Quantity
     , percentageToDouble
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Control.Arrow
-    ( left )
-import Control.DeepSeq
-    ( NFData )
-import Control.Monad
-    ( unless )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -50,18 +44,10 @@ import Data.Aeson.Types
     ( Parser )
 import Data.Hashable
     ( Hashable )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Scientific
     ( FPFormat (Fixed), Scientific (..), formatScientific )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
     ( rational )
-import Fmt
-    ( Buildable (..), fmt )
-import GHC.Generics
-    ( Generic )
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
 import NoThunks.Class
@@ -190,9 +176,9 @@ instance ToText Percentage where
 
 instance FromText Percentage where
     fromText txt = do
-        (p, u) <- left (const err) $ rational txt
+        (p, u) <- first (const err) $ rational txt
         unless (u == "%") $ Left err
-        left (const err) . mkPercentage $ (p / 100)
+        first (const err) . mkPercentage $ (p / 100)
       where
         err = TextDecodingError
             "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"

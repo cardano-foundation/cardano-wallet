@@ -11,7 +11,7 @@ module Test.Integration.Scenario.API.Byron.CoinSelections
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
@@ -30,10 +30,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( purposeBIP44 )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
-import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec

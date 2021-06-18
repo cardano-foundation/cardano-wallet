@@ -11,7 +11,7 @@ module Test.Integration.Scenario.CLI.Byron.Wallets
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, ApiUtxoStatistics, DecodeAddress )
@@ -19,18 +19,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
-import Control.Monad
-    ( forM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
-import Data.Maybe
-    ( isJust )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import System.Command

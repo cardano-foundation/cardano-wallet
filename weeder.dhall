@@ -3,7 +3,7 @@
   , "^Restore\\.main\$"
   , "^Latency\\.main\$"
   , "^Paths_.*"
-  , "^Cardano.Startup.Windows\\..*\$"
+  , "^Cardano.Wallet.Startup.Windows\\..*\$"
   , "^Cardano\\.CLI\\.(getDataDir|requireFilePath|stateDirOption)\$"
   , "^Cardano\\.CLI\\.cmdByronWalletCreate"
   , "^Cardano\\.Wallet\\.Api\\.Client\\.byron(Address|Transaction|Wallet)Client\$"

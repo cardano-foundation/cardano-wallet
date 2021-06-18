@@ -35,14 +35,12 @@ module Cardano.Wallet.Network
     , updateStats
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Api
     ( AnyCardanoEra )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Logging
+    ( contramapM )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -67,28 +65,14 @@ import Control.Monad.Class.MonadSTM.Strict
     ( StrictTMVar, newTMVarIO, putTMVar, takeTMVar )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
-import Control.Tracer
-    ( Tracer, contramapM, traceWith )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map
     ( Map )
 import Data.Set
     ( Set )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime, diffUTCTime, getCurrentTime )
-import Fmt
-    ( pretty )
-import GHC.Generics
-    ( Generic )
 import NoThunks.Class
     ( AllowThunksIn (..), NoThunks (..) )
-import Numeric.Natural
-    ( Natural )
 import Safe
     ( headMay )
 import UnliftIO.Async
@@ -540,11 +524,11 @@ withFollowStatsMonitoring tr calcSyncProgress act = do
         loop var delay'
 
     -- | Delay from launch to the first status update
-    startupDelay = 5 * second
+    startupDelay = 5 * seconds
     -- | Delay between status updates when restored
-    restoredDelay = 5 * minute
+    restoredDelay = 5 * minutes
     -- | Delay between status updates when not restored
-    syncingDelay = 30 * second
+    syncingDelay = 30 * seconds
 
-    second = 1000*1000
-    minute = 60 * second
+    seconds = 1000*1000
+    minutes = 60 * seconds

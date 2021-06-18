@@ -65,7 +65,7 @@ jobs:
           name: cardano-wallet-tests-win64
       - run: '.\\cardano-wallet-cli-test-unit.exe --color'
 
-  text-class-test-unit:
+  cardano-wallet-text-class-test-unit:
     name: 'test-class:unit'
     needs: setup
     runs-on: windows-2016
@@ -73,7 +73,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: cardano-wallet-tests-win64
-      - run: '.\\text-class-test-unit.exe --color'
+      - run: '.\\cardano-wallet-text-class-test-unit.exe --color'
 
   cardano-wallet-launcher-test-unit:
     name: 'cardano-wallet-launcher:unit'
@@ -106,7 +106,7 @@ jobs:
       - cardano-wallet-core-test-unit
       - cardano-wallet-test-unit
       - cardano-wallet-cli-test-unit
-      - text-class-test-unit
+      - cardano-wallet-text-class-test-unit
       - cardano-wallet-launcher-test-unit
       - cardano-wallet-test-integration
     steps:

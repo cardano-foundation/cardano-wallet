@@ -14,7 +14,7 @@ module Test.Integration.Scenario.API.Byron.Migrations
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy )
@@ -43,26 +43,10 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
-import Control.Monad
-    ( forM_, void, when )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Functor
-    ( (<&>) )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
-import Data.Maybe
-    ( mapMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Word
-    ( Word64 )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra

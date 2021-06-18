@@ -26,6 +26,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
+{-# OPTIONS_GHC -Wno-partial-fields #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -244,7 +246,7 @@ module Cardano.Wallet.Api.Types
     , Base (Base16, Base64)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
@@ -348,13 +350,9 @@ import Codec.Binary.Bech32.TH
 import "cardano-addresses" Codec.Binary.Encoding
     ( AbstractEncoding (..), detectEncoding, encode, fromBase16 )
 import Control.Applicative
-    ( optional, (<|>) )
+    ( optional )
 import Control.Arrow
     ( left )
-import Control.DeepSeq
-    ( NFData (..) )
-import Control.Monad
-    ( guard, when, (<=<), (>=>) )
 import Data.Aeson.Types
     ( FromJSON (..)
     , Parser
@@ -379,8 +377,6 @@ import Data.Aeson.Types
     , (.:?)
     , (.=)
     )
-import Data.Bifunctor
-    ( bimap, first )
 import Data.ByteArray
     ( ByteArray, ByteArrayAccess )
 import Data.ByteArray.Encoding
@@ -392,59 +388,33 @@ import Data.Data
 import Data.Either.Combinators
     ( maybeToRight )
 import Data.Either.Extra
-    ( eitherToMaybe, maybeToEither )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( maybeToEither )
 import Data.Hashable
     ( Hashable )
-import Data.Kind
-    ( Type )
 import Data.List
     ( intercalate )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
 import Data.String
     ( IsString )
 import Data.Text
-    ( Text, split )
-import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
+    ( split )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
-import Data.Traversable
-    ( for )
 import Data.Typeable
-    ( Typeable, typeRep )
-import Data.Word
-    ( Word16, Word32, Word64 )
+    ( typeRep )
 import Data.Word.Odd
     ( Word31 )
-import Fmt
-    ( pretty )
 import GHC.Generics
-    ( Generic, Rep )
+    ( Rep )
 import GHC.TypeLits
     ( Nat, Symbol )
-import Numeric.Natural
-    ( Natural )
 import Quiet
     ( Quiet (..) )
 import Servant.API
@@ -457,7 +427,6 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Codec.Binary.Bech32 as Bech32
@@ -1093,7 +1062,7 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
             MinimumUTxOValue c ->
                 c
             MinimumUTxOValueCostPerWord _perWord ->
-                txOutputMinimumAdaQuantity txConstraints TokenMap.empty
+                txOutputMinimumAdaQuantity txConstraints mempty
         , eras = apiEras
         , maximumCollateralInputCount =
             view #maximumCollateralInputCount pp

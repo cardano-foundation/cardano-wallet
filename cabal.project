@@ -41,17 +41,7 @@
 index-state: 2022-01-01T00:00:00Z
 with-compiler: ghc-8.10.7
 
-packages:
-    lib/dbvar/
-  , lib/core/
-  , lib/core-integration/
-  , lib/cli/
-  , lib/launcher/
-  , lib/numeric/
-  , lib/text-class/
-  , lib/test-utils/
-  , lib/shelley/
-  , lib/strict-non-empty-containers/
+packages: lib/*/*.cabal
 
 -- Using a fork until our patches can be merged upstream
 source-repository-package
@@ -292,7 +282,7 @@ package cardano-wallet-text-class
   tests: True
   ghc-options: -fwrite-ide-info
 
-package cardano-numeric
+package cardano-wallet-numeric
   tests: True
   ghc-options: -fwrite-ide-info
 

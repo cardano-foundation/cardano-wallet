@@ -12,7 +12,7 @@
 module Cardano.Wallet.Primitive.Migration.SelectionSpec
     where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Migration.Selection
     ( RewardWithdrawal (..)
@@ -55,26 +55,10 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Either
-    ( isRight )
-import Data.Either.Extra
-    ( eitherToMaybe )
-import Data.Functor
-    ( (<&>) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Semigroup
     ( mtimesDefault, stimes )
-import Data.Word
-    ( Word8 )
-import Fmt
-    ( pretty )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck

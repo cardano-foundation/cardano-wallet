@@ -7,7 +7,7 @@ module Test.Integration.Scenario.API.Network
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
@@ -21,14 +21,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
-import Control.Monad
-    ( when )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec

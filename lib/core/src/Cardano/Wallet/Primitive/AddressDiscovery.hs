@@ -30,7 +30,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , coinTypeAda
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
@@ -43,10 +43,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Data.Kind
-    ( Type )
-import Data.List.NonEmpty
-    ( NonEmpty )
 
 -- | Checks whether or not a given entity belongs to us.
 --

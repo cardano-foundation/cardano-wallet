@@ -39,7 +39,7 @@ module Cardano.Wallet.Shelley.Network
     , NetworkLayerLog (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -53,10 +53,6 @@ import Cardano.Api
     , SlotNo (..)
     , connectToLocalNode
     )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Launcher.Node
     ( CardanoNodeConn, nodeSocketFile )
 import Cardano.Wallet.Byron.Compatibility
@@ -72,6 +68,16 @@ import Cardano.Wallet.Network
     , mapChainFollower
     , mapChainSyncLog
     , withFollowStatsMonitoring
+    )
+import Cardano.Wallet.Network.Client
+    ( LSQ (..)
+    , LocalStateQueryCmd (..)
+    , LocalTxSubmissionCmd (..)
+    , chainSyncFollowTip
+    , chainSyncWithBlocks
+    , localStateQuery
+    , localTxSubmission
+    , send
     )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
@@ -109,7 +115,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Control.Applicative
     ( liftA3 )
 import Control.Monad
-    ( forever, guard, unless, void, when, (>=>) )
+    ( forever )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync )
 import Control.Monad.Class.MonadST
@@ -139,8 +145,6 @@ import Control.Monad.Class.MonadThrow
     ( MonadThrow )
 import Control.Monad.Class.MonadTimer
     ( MonadTimer, threadDelay )
-import Control.Monad.IO.Unlift
-    ( MonadIO, MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE )
 import Control.Retry
@@ -151,36 +155,24 @@ import Control.Retry
     , fibonacciBackoff
     , recoveringDynamic
     )
-import Control.Tracer
-    ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.ByteString.Lazy
     ( ByteString )
-import Data.Function
-    ( (&) )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.List
     ( isInfixOf )
 import Data.Map
     ( Map, (!) )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage )
 import Data.Set
     ( Set )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Time.Clock
     ( DiffTime )
 import Data.Void
     ( Void )
 import Fmt
-    ( Buildable (..), fmt, hexF, listF, mapF, pretty, (+|), (|+) )
-import GHC.Stack
-    ( HasCallStack )
+    ( hexF, listF, mapF )
 import Network.Mux
     ( MuxError (..), MuxErrorType (..), WithMuxBearer (..) )
 import Ouroboros.Consensus.Cardano
@@ -211,16 +203,6 @@ import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..), getCompactGenesis )
 import Ouroboros.Network.Block
     ( Point, Tip (..) )
-import Ouroboros.Network.Client.Wallet
-    ( LSQ (..)
-    , LocalStateQueryCmd (..)
-    , LocalTxSubmissionCmd (..)
-    , chainSyncFollowTip
-    , chainSyncWithBlocks
-    , localStateQuery
-    , localTxSubmission
-    , send
-    )
 import Ouroboros.Network.Driver.Simple
     ( TraceSendRecv, runPeer, runPipelinedPeer )
 import Ouroboros.Network.Mux
@@ -595,7 +577,7 @@ type NetworkClient m = NodeToClientVersion -> OuroborosApplication
 mkWalletClient
     :: forall m block
     . ( block ~ CardanoBlock (StandardCrypto)
-      , MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
+      , MonadThrow m, MonadIO m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m (ChainSyncLog block (Point block))
     -> ChainFollower m (Point block) (Tip block) block
     -> CodecConfig block

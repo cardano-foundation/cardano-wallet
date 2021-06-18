@@ -23,22 +23,10 @@ module Network.Wai.Middleware.Logging
     , RequestId (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.LogItem
-    ( PrivacyAnnotation (..) )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Tracing
     ( ToObject )
-import Control.Applicative
-    ( (<|>) )
-import Control.Arrow
-    ( second )
-import Control.Tracer
-    ( Tracer, contramap, traceWith )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), Value (..) )
 import Data.ByteString
@@ -47,14 +35,8 @@ import Data.ByteString.Builder
     ( Builder )
 import Data.IORef
     ( IORef, atomicModifyIORef, modifyIORef, newIORef, readIORef )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime, diffUTCTime, getCurrentTime )
-import GHC.Generics
-    ( Generic )
 import Network.HTTP.Types.Status
     ( Status (..) )
 import Network.Wai

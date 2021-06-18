@@ -7,7 +7,7 @@ module Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn )
@@ -42,7 +42,6 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
@@ -197,7 +196,7 @@ prop_fromIndexPair_isValid (u1, u2) =
 prop_fromIndex_toIndexPair :: UTxOIndex -> Property
 prop_fromIndex_toIndexPair u =
     UTxOSelection.toIndexPair (UTxOSelection.fromIndex u)
-    === (u, UTxOIndex.empty)
+    === (u, mempty)
 
 prop_fromIndexFiltered_toIndexPair :: (TxIn -> Bool) -> UTxOIndex -> Property
 prop_fromIndexFiltered_toIndexPair f u =
@@ -255,22 +254,18 @@ prop_isNonEmpty_selectedList s =
     === not (null (UTxOSelection.selectedList s))
 
 prop_leftoverBalance_selectedBalance :: UTxOSelection -> Property
-prop_leftoverBalance_selectedBalance s =
-    checkCoverage_UTxOSelection s $
-    (UTxOSelection.leftoverBalance s <> UTxOSelection.selectedBalance s)
+prop_leftoverBalance_selectedBalance s = checkCoverage_UTxOSelection s $
+    UTxOSelection.leftoverBalance s <> UTxOSelection.selectedBalance s
     ===
-    TokenBundle.add
-        (UTxOIndex.balance (UTxOSelection.leftoverIndex s))
-        (UTxOIndex.balance (UTxOSelection.selectedIndex s))
+    UTxOIndex.balance (UTxOSelection.leftoverIndex s)
+    <> UTxOIndex.balance (UTxOSelection.selectedIndex s)
 
 prop_leftoverSize_selectedSize :: UTxOSelection -> Property
-prop_leftoverSize_selectedSize s =
-    checkCoverage_UTxOSelection s $
-    (UTxOSelection.leftoverSize s + UTxOSelection.selectedSize s)
+prop_leftoverSize_selectedSize s = checkCoverage_UTxOSelection s $
+    UTxOSelection.leftoverSize s + UTxOSelection.selectedSize s
     ===
-    (+)
-        (UTxOIndex.size (UTxOSelection.leftoverIndex s))
-        (UTxOIndex.size (UTxOSelection.selectedIndex s))
+    UTxOIndex.size (UTxOSelection.leftoverIndex s)
+    + UTxOIndex.size (UTxOSelection.selectedIndex s)
 
 --------------------------------------------------------------------------------
 -- Modification
@@ -389,7 +384,7 @@ isValidSelectionNonEmpty s =
     isValidSelection s
     && UTxOSelection.isNonEmpty s
     && UTxOSelection.selectedSize s > 0
-    && UTxOSelection.selectedIndex s /= UTxOIndex.empty
+    && UTxOSelection.selectedIndex s /= mempty
     && not (null (UTxOSelection.selectedList s))
 
 --------------------------------------------------------------------------------

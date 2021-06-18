@@ -13,30 +13,16 @@ module Cardano.Wallet.Primitive.Types.Address
     , AddressState (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Control.DeepSeq
-    ( NFData (..) )
-import Data.Bifunctor
-    ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Hashable
     ( Hashable )
-import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
 import Fmt
-    ( Buildable (..), prefixF, suffixF )
-import GHC.Generics
-    ( Generic )
+    ( prefixF, suffixF )
 import Quiet
     ( Quiet (..) )
 

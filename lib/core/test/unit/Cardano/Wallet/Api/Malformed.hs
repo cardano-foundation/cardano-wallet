@@ -47,7 +47,7 @@ module Cardano.Wallet.Api.Malformed
     , malformed
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddressData
@@ -94,20 +94,12 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx, SerialisedTx )
-import Control.Arrow
-    ( first )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.ByteString.Lazy
     ( ByteString )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.String
     ( IsString )
-import Data.Text
-    ( Text )
-import Data.Typeable
-    ( Typeable )
 import GHC.TypeLits
     ( Symbol )
 import Servant
@@ -124,13 +116,13 @@ import qualified Data.Text as T
 newtype ExpectedError = ExpectedError String
     deriving newtype (IsString)
 
-newtype PathParam (t :: *) = PathParam Text
+newtype PathParam (t :: Type) = PathParam Text
     deriving (Typeable)
 
-newtype BodyParam (t :: *) = BodyParam ByteString
+newtype BodyParam (t :: Type) = BodyParam ByteString
     deriving (Typeable)
 
-newtype Header (headerName :: Symbol) (contentType :: *) =
+newtype Header (headerName :: Symbol) (contentType :: Type) =
     Header BS.ByteString
     deriving (Typeable)
 

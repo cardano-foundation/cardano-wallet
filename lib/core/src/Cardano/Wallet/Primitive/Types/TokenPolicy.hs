@@ -36,42 +36,26 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
     , validateMetadataLogo
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
-import Control.DeepSeq
-    ( NFData )
-import Control.Monad
-    ( (>=>) )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
     ( Blake2b_160 )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
-import Data.Bifunctor
-    ( first )
 import Data.ByteArray
     ( convert )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Function
-    ( (&) )
 import Data.Hashable
     ( Hashable )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
-import Fmt
-    ( Buildable (..) )
-import GHC.Generics
-    ( Generic )
 import Network.URI
     ( URI, parseAbsoluteURI, uriScheme )
 import Quiet

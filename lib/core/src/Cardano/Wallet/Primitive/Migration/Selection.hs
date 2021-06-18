@@ -54,7 +54,7 @@ module Cardano.Wallet.Primitive.Migration.Selection
 
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -70,22 +70,12 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
     )
-import Control.Monad
-    ( (>=>) )
-import Data.Bifunctor
-    ( first )
 import Data.Either.Extra
-    ( eitherToMaybe, maybeToEither )
-import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( maybeToEither )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes, listToMaybe )
-import GHC.Generics
-    ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle

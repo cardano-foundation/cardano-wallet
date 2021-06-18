@@ -9,7 +9,7 @@ module Test.Integration.Scenario.CLI.Shelley.HWWallets
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress
@@ -27,18 +27,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Control.Monad
-    ( forM_ )
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text.Class
-    ( ToText (..) )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit

@@ -11,7 +11,7 @@ module Test.Integration.Scenario.API.Shelley.Settings
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiStakePool
@@ -32,14 +32,6 @@ import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), Settings )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Data.Either
-    ( fromRight )
-import Data.Generics.Internal.VL.Lens
-    ( view )
-import Data.Maybe
-    ( isJust, isNothing )
-import Data.Text.Class
-    ( fromText )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra

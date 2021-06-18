@@ -7,7 +7,7 @@ module Cardano.LauncherSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Base
 
 import Cardano.BM.Configuration.Model
     ( setMinSeverity )
@@ -32,22 +32,12 @@ import Cardano.Launcher
     )
 import Control.Monad
     ( forever )
-import Control.Monad.IO.Class
-    ( MonadIO (..) )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, recoverAll )
-import Control.Tracer
-    ( Tracer (..), nullTracer, traceWith )
-import Data.Maybe
-    ( isJust )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
+import Data.Text.Lazy.Builder
+    ( toLazyText )
 import Data.Time.Clock
     ( diffUTCTime, getCurrentTime )
-import Fmt
-    ( pretty )
 import System.Exit
     ( ExitCode (..) )
 import System.Info
@@ -80,6 +70,8 @@ import UnliftIO.MVar
     )
 import UnliftIO.Process
     ( ProcessHandle, getProcessExitCode )
+
+import qualified Data.Text.Lazy as TL
 
 {- HLINT ignore spec "Use head" -}
 
@@ -269,11 +261,11 @@ withTestLogging action =
         shutdown sb
 
 trMessageText
-    :: (MonadIO m, ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
+    :: (MonadIO m, Buildable a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
     => Tracer m (LoggerName, LogObject Text)
     -> Tracer m a
 trMessageText tr = Tracer $ \arg -> do
-   let msg = toText arg
+   let msg = TL.toStrict $ toLazyText $ build arg
        tracer = if msg == mempty then nullTracer else tr
    meta <- mkLOMeta (getSeverityAnnotation arg) (getPrivacyAnnotation arg)
    traceWith tracer (mempty, LogObject mempty meta (LogMessage msg))

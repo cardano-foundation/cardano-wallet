@@ -83,7 +83,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , preparePassphrase
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey )
@@ -97,10 +97,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Control.DeepSeq
-    ( NFData )
-import Control.Monad
-    ( unless, (>=>) )
 import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
@@ -115,36 +111,10 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Coerce
-    ( coerce )
-import Data.Kind
-    ( Type )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Scientific
     ( Scientific, toBoundedInteger )
 import Data.String
     ( fromString )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( CaseStyle (..)
-    , FromText (..)
-    , TextDecodingError (..)
-    , ToText (..)
-    , fromTextToBoundedEnum
-    , toTextFromBoundedEnum
-    )
-import Data.Typeable
-    ( Typeable )
-import Data.Word
-    ( Word32 )
-import Fmt
-    ( Buildable (..) )
-import GHC.Generics
-    ( Generic )
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
 import Quiet

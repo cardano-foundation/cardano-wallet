@@ -8,16 +8,10 @@ module Data.QuantitySpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
-import Control.Monad
-    ( forM_ )
-import Data.Either
-    ( isRight )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( MkPercentageError (..)
     , Percentage (..)
@@ -27,8 +21,6 @@ import Data.Quantity
     )
 import Data.Ratio
     ( (%) )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra

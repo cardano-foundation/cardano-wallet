@@ -17,7 +17,7 @@ module Test.Integration.Scenario.API.Shared.Wallets
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Script
     ( Cosigner (..), ScriptTemplate (..) )
@@ -36,32 +36,20 @@ import Cardano.Wallet.Api.Types
     , KeyFormat (..)
     , WalletStyle (..)
     )
-import Cardano.Wallet.Compat
-    ( (^?) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Passphrase (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
-import Control.Monad
-    ( forM )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Aeson
     ( ToJSON (..), Value (String) )
 import Data.Either.Combinators
     ( swapEither )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted

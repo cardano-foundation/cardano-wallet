@@ -12,7 +12,7 @@ module Test.Integration.Scenario.API.Shelley.Addresses
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( AnyAddress
@@ -35,20 +35,12 @@ import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxStatus (..) )
-import Control.Monad
-    ( forM, forM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Aeson
     ( ToJSON (..), object, (.=) )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted

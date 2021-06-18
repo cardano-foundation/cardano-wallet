@@ -21,7 +21,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
--- We intentionally specify the constraint  (k == SharedKey) ~ 'False  
+-- We intentionally specify the constraint  (k == SharedKey) ~ 'False
 -- in some exports.
 
 -- |
@@ -73,7 +73,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqAnyState
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( xpubPublicKey )
@@ -117,44 +117,20 @@ import Cardano.Wallet.Util
     ( invariant )
 import Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
-import Control.Applicative
-    ( (<|>) )
 import Control.DeepSeq
-    ( NFData (..), deepseq )
-import Control.Monad
-    ( unless )
-import Data.Bifunctor
-    ( first )
+    ( deepseq )
 import Data.Digest.CRC32
     ( crc32 )
-import Data.Kind
-    ( Type )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
     ( decimal )
 import Data.Type.Equality
     ( (:~:) (..), type (==), testEquality )
-import Data.Word
-    ( Word32 )
 import Fmt
-    ( Buildable (..), blockListF', hexF, indentF, prefixF, suffixF )
-import GHC.Generics
-    ( Generic )
-import GHC.Stack
-    ( HasCallStack )
+    ( blockListF', hexF, indentF, prefixF, suffixF )
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
 import Type.Reflection
-    ( Typeable, typeRep )
+    ( typeRep )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.List as L
@@ -609,7 +585,7 @@ instance
     -- See also: 'nextChangeIndex'
     type ArgGenChange (SeqState n k) =
         (k 'AddressK XPub -> k 'AddressK XPub -> Address)
-    
+
     genChange mkAddress st =
         (addr, st{ pendingChangeIxs = pending' })
       where
@@ -626,7 +602,7 @@ instance
     isOwned st (rootPrv, pwd) addrRaw =
         case paymentKeyFingerprint addrRaw of
             Left _ -> Nothing
-            Right addr -> 
+            Right addr ->
                 let
                     xPrv1 = lookupAndDeriveXPrv addr (internalPool st)
                     xPrv2 = lookupAndDeriveXPrv addr (externalPool st)
@@ -644,7 +620,7 @@ instance
             -> Maybe (k 'AddressK XPrv)
         lookupAndDeriveXPrv addr (SeqAddressPool pool) =
                 deriveAddressPrivateKey pwd accountPrv (role @c)
-            <$> AddressPool.lookup addr pool 
+            <$> AddressPool.lookup addr pool
 
 instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
     compareDiscovery (SeqState !s1 !s2 _ _ _ _) a1 a2 =

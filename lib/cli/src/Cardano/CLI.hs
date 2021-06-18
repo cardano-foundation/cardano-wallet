@@ -97,7 +97,7 @@ module Cardano.CLI
     , ekgEnabled
     ) where
 
-import Prelude hiding
+import Cardano.Wallet.Prelude hiding
     ( getLine )
 
 import Cardano.BM.Backend.Switchboard
@@ -111,7 +111,7 @@ import Cardano.BM.Data.Configuration
 import Cardano.BM.Data.Counter
     ( Counter (..), nameCounter )
 import Cardano.BM.Data.LogItem
-    ( LOContent (..), LoggerName, PrivacyAnnotation (..), mkLOMeta )
+    ( LOContent (..), LoggerName, mkLOMeta )
 import Cardano.BM.Data.Output
     ( ScribeDefinition (..)
     , ScribeFormat (..)
@@ -119,8 +119,6 @@ import Cardano.BM.Data.Output
     , ScribeKind (..)
     , ScribePrivacy (..)
     )
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Data.SubTrace
     ( SubTrace (..) )
 import Cardano.BM.Setup
@@ -194,43 +192,23 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative
-    ( optional, some, (<|>) )
-import Control.Arrow
-    ( first, left )
+    ( optional )
 import Control.Monad
-    ( forM_, forever, join, unless, void, when )
-import Control.Monad.IO.Class
-    ( MonadIO )
+    ( forever )
 import Data.Aeson
     ( ToJSON (..), (.:), (.=) )
-import Data.Bifunctor
-    ( bimap )
 import Data.Char
     ( toLower )
-import Data.Coerce
-    ( coerce )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
-import Data.Maybe
-    ( fromMaybe, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.String
     ( IsString )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
 import Data.Time.Clock
     ( NominalDiffTime )
 import Data.Void
     ( Void )
-import Fmt
-    ( Buildable, pretty )
-import GHC.Generics
-    ( Generic )
 import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Client
@@ -465,7 +443,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
             wSeed <- do
                 let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
                 let parser = mkSomeMnemonic @(AllowedMnemonics 'Random) . T.words
-                fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
+                fst <$> getLine @SomeMnemonic (T.pack prompt) (first show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
                 RandomWalletFromMnemonic $ ByronWalletPostData
@@ -477,7 +455,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
             wSeed <- do
                 let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
                 let parser = mkSomeMnemonic @(AllowedMnemonics 'Icarus) . T.words
-                fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
+                fst <$> getLine @SomeMnemonic (T.pack prompt) (first show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
                 SomeIcarusWallet $ ByronWalletPostData
@@ -489,7 +467,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
             wSeed <- do
                 let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
                 let parser = mkSomeMnemonic @(AllowedMnemonics 'Trezor) . T.words
-                fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
+                fst <$> getLine @SomeMnemonic (T.pack prompt) (first show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
                 SomeTrezorWallet $ ByronWalletPostData
@@ -501,7 +479,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
             wSeed <- do
                 let prompt = "Please enter " ++ fmtAllowedWords wStyle ++ " : "
                 let parser = mkSomeMnemonic @(AllowedMnemonics 'Ledger) . T.words
-                fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
+                fst <$> getLine @SomeMnemonic (T.pack prompt) (first show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
                 SomeLedgerWallet $ ByronWalletPostData
@@ -531,7 +509,7 @@ cmdWalletCreateFromMnemonic mkClient =
         wSeed <- do
             let prompt = "Please enter a 15–24 word recovery phrase: "
             let parser = mkSomeMnemonic @'[15,18,21,24] . T.words
-            fst <$> getLine @SomeMnemonic prompt (left show . parser)
+            fst <$> getLine @SomeMnemonic prompt (first show . parser)
         wSndFactor <- do
             let prompt =
                     "(Enter a blank line if you do not wish to use a second " <>
@@ -539,7 +517,7 @@ cmdWalletCreateFromMnemonic mkClient =
                     "Please enter a 9–12 word second factor: "
             let parser =
                     optionalE (mkSomeMnemonic @'[9,12]) . T.words
-            fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
+            fst <$> getLine @(Maybe SomeMnemonic) prompt (first show . parser)
         wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
         runClient wPort Aeson.encodePretty $ postWallet mkClient $
             WalletOrAccountPostData $ Left $ WalletPostData
@@ -1475,7 +1453,7 @@ argumentT = argument (eitherReader fromTextS)
 
 -- | Like 'fromText', but stringly-typed.
 fromTextS :: FromText a => String -> Either String a
-fromTextS = left getTextDecodingError . fromText . T.pack
+fromTextS = first getTextDecodingError . fromText . T.pack
 
 runClient
     :: forall a. ()
@@ -1675,13 +1653,13 @@ initTracer loggerName outputs = do
   where
     -- https://github.com/input-output-hk/cardano-node/blob/f7d57e30c47028ba2aeb306a4f21b47bb41dec01/cardano-node/src/Cardano/Node/Configuration/Logging.hs#L224
     startCapturingMetrics :: Trace IO Text -> IO ()
-    startCapturingMetrics trace0 = do
-      let trace = appendName "metrics" trace0
+    startCapturingMetrics tr' = do
+      let tr = appendName "metrics" tr'
           counters = [Obs.MemoryStats, Obs.ProcessStats
             , Obs.NetStats, Obs.IOStats, Obs.GhcRtsStats, Obs.SysStats]
       _ <- Async.async $ forever $ do
         cts <- readCounters (ObservableTraceSelf counters)
-        traceCounters trace cts
+        traceCounters tr cts
         threadDelay 30_000_000   -- 30 seconds
       pure ()
      where

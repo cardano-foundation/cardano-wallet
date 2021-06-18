@@ -52,7 +52,7 @@ module Cardano.Wallet.Shelley.Transaction
     , txConstraints
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
@@ -172,44 +172,24 @@ import Cardano.Wallet.Util
     ( modifyM )
 import Codec.Serialise
     ( deserialiseOrFail )
-import Control.Arrow
-    ( left, second )
-import Control.Monad
-    ( forM, guard )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Monad.Trans.State.Strict
     ( StateT (..), execStateT, get, modify' )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( ($>) )
 import Data.Functor.Identity
     ( runIdentity )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.IntCast
     ( intCast )
-import Data.Kind
-    ( Type )
-import Data.Map.Strict
+import Data.Map
     ( Map, (!) )
-import Data.Maybe
-    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Type.Equality
     ( type (==) )
-import Data.Word
-    ( Word16, Word64, Word8 )
-import GHC.Generics
-    ( Generic )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -943,8 +923,8 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
         let costs = toCostModelsAsArray (Alonzo._costmdls pparams)
         let systemStart = getSystemStart ti
 
-        epochInfo <- hoistEpochInfo (left ErrAssignRedeemersPastHorizon . runIdentity . runExceptT)
-            <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
+        epochInfo <- hoistEpochInfo (first ErrAssignRedeemersPastHorizon . runIdentity . runExceptT)
+            <$> first ErrAssignRedeemersPastHorizon (toEpochInfo ti)
 
         res <- evaluateTransactionExecutionUnits
                 pparams
@@ -963,7 +943,7 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
             :: Show scriptFailure
             => Map Alonzo.RdmrPtr (Either scriptFailure a)
             -> Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a)
-        hoistScriptFailure = Map.mapWithKey $ \ptr -> left $ \e ->
+        hoistScriptFailure = Map.mapWithKey $ \ptr -> first $ \e ->
             ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
 
     -- | Change execution units for each redeemers in the transaction to what
@@ -1021,7 +1001,7 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
                 }
 
 txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
-txConstraints protocolParams witnessTag = TxConstraints
+txConstraints pparams witnessTag = TxConstraints
     { txBaseCost
     , txBaseSize
     , txInputCost
@@ -1036,62 +1016,50 @@ txConstraints protocolParams witnessTag = TxConstraints
     , txMaximumSize
     }
   where
-    txBaseCost =
-        estimateTxCost protocolParams empty
+    txBaseCost = estimateTxCost pparams skel
 
-    txBaseSize =
-        estimateTxSize empty
+    txBaseSize = estimateTxSize skel
 
-    txInputCost =
-        marginalCostOf empty {txInputCount = 1}
+    txInputCost = marginalCostOf skel {txInputCount = 1}
 
-    txInputSize =
-        marginalSizeOf empty {txInputCount = 1}
+    txInputSize = marginalSizeOf skel {txInputCount = 1}
 
-    txOutputCost bundle =
-        marginalCostOf empty {txOutputs = [mkTxOut bundle]}
+    txOutputCost bundle = marginalCostOf skel {txOutputs = [mkTxOut bundle]}
 
-    txOutputSize bundle =
-        marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
+    txOutputSize bundle = marginalSizeOf skel {txOutputs = [mkTxOut bundle]}
 
-    txOutputMaximumSize = (<>)
-        (txOutputSize mempty)
-        (view
-            (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize)
-            protocolParams)
+    txParams = pparams ^. #txParameters
+
+    txOutputMaximumSize = txOutputSize mempty
+        <> (txParams ^. #getTokenBundleMaxSize . #unTokenBundleMaxSize)
 
     txOutputMaximumTokenQuantity =
         TokenQuantity $ fromIntegral $ maxBound @Word64
 
     txOutputMinimumAdaQuantity =
-        computeMinimumAdaQuantity (minimumUTxOvalue protocolParams)
+        computeMinimumAdaQuantity (minimumUTxOvalue pparams)
 
     txRewardWithdrawalCost c =
-        marginalCostOf empty {txRewardWithdrawal = c}
+        marginalCostOf skel {txRewardWithdrawal = c}
 
     txRewardWithdrawalSize c =
-        marginalSizeOf empty {txRewardWithdrawal = c}
+        marginalSizeOf skel {txRewardWithdrawal = c}
 
-    txMaximumSize = protocolParams
-        & view (#txParameters . #getTxMaxSize)
-        & getQuantity
-        & fromIntegral
-        & TxSize
+    txMaximumSize = TxSize . fromIntegral $
+        txParams ^. #getTxMaxSize . #getQuantity
 
-    empty :: TxSkeleton
-    empty = emptyTxSkeleton witnessTag
+    skel :: TxSkeleton
+    skel = emptyTxSkeleton witnessTag
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
     marginalCostOf :: TxSkeleton -> Coin
-    marginalCostOf =
-        Coin.distance txBaseCost . estimateTxCost protocolParams
+    marginalCostOf = Coin.distance txBaseCost . estimateTxCost pparams
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
     marginalSizeOf :: TxSkeleton -> TxSize
-    marginalSizeOf =
-        txSizeDistance txBaseSize . estimateTxSize
+    marginalSizeOf = txSizeDistance txBaseSize . estimateTxSize
 
     -- Constructs a real transaction output from a token bundle.
     mkTxOut :: TokenBundle -> TxOut
@@ -1659,7 +1627,7 @@ mkUnsignedTx
     -> Cardano.Lovelace
     -> Either ErrMkTransaction (Cardano.TxBody era)
 mkUnsignedTx era ttl cs md wdrls certs fees =
-    left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
+    first toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
     { Cardano.txIns =
         (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
         . toCardanoTxIn

@@ -41,7 +41,7 @@ module Cardano.Wallet.Byron.Compatibility
     , protocolParametersFromUpdateState
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Binary
     ( serialize' )
@@ -70,16 +70,10 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Crypto.Hash.Utils
     ( blake2b256 )
-import Data.Coerce
-    ( coerce )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
-import Data.Word
-    ( Word16, Word32 )
-import Numeric.Natural
-    ( Natural )
 import Ouroboros.Consensus.Block.Abstract
     ( headerPrevHash )
 import Ouroboros.Consensus.Byron.Ledger

@@ -33,7 +33,7 @@ module Cardano.Wallet.Primitive.Collateral
     , putAddressType
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -41,8 +41,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
-import Data.Word
-    ( Word8 )
 import Data.Word.Odd
     ( Word4 )
 

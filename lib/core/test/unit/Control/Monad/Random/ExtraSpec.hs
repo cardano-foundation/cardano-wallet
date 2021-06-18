@@ -7,16 +7,12 @@
 module Control.Monad.Random.ExtraSpec
     where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Control.Monad.Random.Extra
     ( StdGenSeed (..), stdGenFromSeed, stdGenToSeed )
 import Data.Aeson
     ( FromJSON, ToJSON )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Typeable
-    ( Typeable )
 import System.FilePath
     ( (</>) )
 import System.Random

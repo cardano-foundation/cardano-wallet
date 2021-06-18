@@ -1,3 +1,4 @@
+cabal-version:       3.0
 name:                cardano-wallet-test-utils
 version:             2022.1.18
 synopsis:            Shared utilities for writing unit and property tests.
@@ -9,35 +10,42 @@ copyright:           2018-2020 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
-cabal-version:       >=1.10
 
 flag release
     description: Enable optimization and `-Werror`
     default: False
     manual: True
 
-library
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
+common base { build-depends: base >= 4.14 && < 4.15 }
+
+common project-config
+  default-language:     Haskell2010
+  default-extensions:   NoImplicitPrelude
+                        OverloadedStrings
+
+  ghc-options:          -Wall
+                        -Wcompat
+                        -Wredundant-constraints
+                        -Wincomplete-record-updates
+                        -Wpartial-fields
+                        -Wunused-packages
+
   if (flag(release))
-    ghc-options:
-      -Werror
+    ghc-options:       -O2 -Werror
+
+common exe
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -with-rtsopts=-T
+
+library
+  import: base, project-config
   build-depends:
-      base
-    , aeson
+      aeson
     , containers
     , contra-tracer
     , filepath
     , file-embed
     , formatting
     , hspec
-    , directory
     , either
     , fmt
     , generics-sop
@@ -56,7 +64,6 @@ library
     , say
     , template-haskell
     , text
-    , text-class
     , time
     , unliftio
     , unliftio-core
@@ -83,19 +90,9 @@ library
       Test.Utils.Trace
 
 test-suite unit
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import: base, project-config, exe
   build-depends:
-      base
-    , cardano-wallet-test-utils
+      cardano-wallet-test-utils
     , containers
     , extra
     , fmt

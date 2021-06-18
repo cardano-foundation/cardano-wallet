@@ -3,10 +3,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# LANGUAGE TypeFamilies #-}
 -- |
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
@@ -21,7 +21,7 @@ module Cardano.Wallet.DB.Sqlite.AddressBook
     )
   where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
@@ -36,8 +36,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Data.Generics.Internal.VL
     ( Iso', iso, withIso )
-import Data.Kind
-    ( Type )
 import Data.Map.Strict
     ( Map )
 import Data.Type.Equality

@@ -13,7 +13,7 @@ module Cardano.CLISpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.CLI
     ( Port (..)
@@ -46,14 +46,8 @@ import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), toText )
 import Options.Applicative
     ( ParserInfo
     , ParserPrefs
@@ -71,14 +65,7 @@ import System.FilePath
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
 import Test.Hspec
-    ( HasCallStack
-    , Spec
-    , describe
-    , expectationFailure
-    , it
-    , shouldBe
-    , shouldSatisfy
-    )
+    ( Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy )
 import Test.Hspec.Goldens
     ( Settings (..), textGolden )
 import Test.QuickCheck

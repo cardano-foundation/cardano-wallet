@@ -37,7 +37,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     , toRewardAccountRaw
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Crypto.Wallet
     ( DerivationScheme (..)
@@ -94,10 +94,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Util
     ( invariant )
-import Control.DeepSeq
-    ( NFData (..) )
-import Control.Monad
-    ( guard, (<=<) )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -110,12 +106,6 @@ import Data.Binary.Put
     ( putByteString, putWord8, runPut )
 import Data.ByteString
     ( ByteString )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
-import GHC.Generics
-    ( Generic )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS

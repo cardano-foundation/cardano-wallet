@@ -22,7 +22,6 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , AssetId (..)
 
     -- * Construction
-    , empty
     , fromFlatList
     , fromNestedList
     , fromNestedMap
@@ -63,7 +62,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
 
     ) where
 
-import Prelude hiding
+import Cardano.Wallet.Prelude hiding
     ( subtract )
 
 import Algebra.PartialOrd
@@ -76,18 +75,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Control.DeepSeq
-    ( NFData )
-import Control.Monad
-    ( guard )
-import Data.Bifunctor
-    ( first )
-import Data.Functor
-    ( ($>) )
 import Data.Hashable
     ( Hashable )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Map.Strict.NonEmptyMap
@@ -95,9 +84,7 @@ import Data.Map.Strict.NonEmptyMap
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..), Builder, blockMapF )
-import GHC.Generics
-    ( Generic )
+    ( Builder, blockMapF )
 import GHC.TypeLits
     ( ErrorMessage (..), TypeError )
 
@@ -144,7 +131,7 @@ instance Semigroup TokenBundle where
     (<>) = add
 
 instance Monoid TokenBundle where
-    mempty = empty
+    mempty = TokenBundle (Coin 0) mempty
 
 --------------------------------------------------------------------------------
 -- Text serialization
@@ -174,11 +161,6 @@ buildMap = blockMapF . fmap (first $ id @String)
 --------------------------------------------------------------------------------
 -- Construction
 --------------------------------------------------------------------------------
-
--- | The empty token bundle.
---
-empty :: TokenBundle
-empty = TokenBundle (Coin 0) mempty
 
 -- | Creates a token bundle from a coin and a flat list of token quantities.
 --
@@ -264,7 +246,7 @@ setCoin b c = b { coin = c }
 --
 add :: TokenBundle -> TokenBundle -> TokenBundle
 add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
-    TokenBundle (Coin $ c1 + c2) (TokenMap.add m1 m2)
+    TokenBundle (Coin $ c1 + c2) (m1 <> m2)
 
 -- | Subtracts the second token bundle from the first.
 --

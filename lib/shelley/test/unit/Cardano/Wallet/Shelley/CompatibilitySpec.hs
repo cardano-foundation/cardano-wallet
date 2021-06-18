@@ -14,7 +14,7 @@ module Cardano.Wallet.Shelley.CompatibilitySpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
@@ -60,6 +60,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Gen
+    ()
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -101,28 +103,12 @@ import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Codec.Binary.Encoding
     ( fromBase16 )
-import Control.Monad
-    ( forM_ )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, encodeBase58 )
-import Data.Either
-    ( isLeft, isRight )
-import Data.Function
-    ( (&) )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Ratio
     ( Ratio, (%) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( toText )
-import Data.Word
-    ( Word16, Word32, Word64 )
 import GHC.TypeLits
     ( natVal )
 import Ouroboros.Network.Block
@@ -409,8 +395,7 @@ prop_assessTokenBundleSize_enlarge
     -> Property
 prop_assessTokenBundleSize_enlarge b1' b2' =
     assess b1 == TokenBundleSizeExceedsLimit ==> conjoin
-        [ assess (b1 `TokenBundle.add` b2)
-            === TokenBundleSizeExceedsLimit
+        [ assess (b1 <> b2) === TokenBundleSizeExceedsLimit
         , assess (b1 `TokenBundle.setCoin` txOutMaxCoin)
             === TokenBundleSizeExceedsLimit
         ]

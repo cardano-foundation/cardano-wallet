@@ -4,7 +4,7 @@
 module Cardano.Wallet.Primitive.MigrationSpec
     where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Migration
     ( RewardWithdrawal (..), createPlan )
@@ -27,10 +27,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Monad
     ( replicateM )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Generics.Labels
     ()
 import Test.Hspec

@@ -1,3 +1,4 @@
+cabal-version:       3.0
 name:                cardano-wallet-core-integration
 version:             2022.1.18
 synopsis:            Core integration test library.
@@ -9,33 +10,40 @@ copyright:           2018-2020 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
-cabal-version:       >=1.10
+extra-source-files:  extra/Plutus/*.hs extra/Plutus/README.md
 
 flag release
     description: Enable optimization and `-Werror`
     default: False
     manual: True
 
-extra-source-files:
-    extra/Plutus/*.hs
+common base
+  build-depends: base >= 4.14 && < 4.15
+               , cardano-wallet-base
+
+common project-config
+  default-language:     Haskell2010
+  default-extensions:   NoImplicitPrelude
+                        OverloadedStrings
+
+  ghc-options:          -Wall
+                        -Wcompat
+                        -Wincomplete-record-updates
+                        -Wpartial-fields
+                        -Wunused-packages
+
+  if (flag(release))
+    ghc-options:       -O2 -Werror
+
+common exe
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -with-rtsopts=-T
 
 library
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
-  if (flag(release))
-    ghc-options:
-      -Werror
+  import: base, project-config
   build-depends:
       HUnit
     , aeson
     , aeson-qq
-    , base
     , base16-bytestring
     , base58-bytestring
     , bech32
@@ -86,7 +94,7 @@ library
     , string-interpolate
     , template-haskell
     , text
-    , text-class
+    , cardano-wallet-text-class
     , time
     , unliftio
     , unliftio-core

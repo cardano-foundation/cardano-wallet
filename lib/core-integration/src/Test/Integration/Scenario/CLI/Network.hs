@@ -8,7 +8,7 @@ module Test.Integration.Scenario.CLI.Network
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.CLI
     ( Port (..) )
@@ -20,16 +20,10 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..) )
-import Control.Monad
-    ( when )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
 import Data.Generics.Product.Typed
     ( typed )
 import Data.Maybe
     ( fromJust )
-import Data.Proxy
-    ( Proxy (..) )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit

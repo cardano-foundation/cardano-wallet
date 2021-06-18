@@ -15,7 +15,7 @@ module Test.Integration.Scenario.API.Shelley.CoinSelections
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Mnemonic
     ( mnemonicToText )
@@ -50,18 +50,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( txOutMaxTokenQuantity )
-import Control.Monad
-    ( forM_ )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
-import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
-import Data.Maybe
-    ( isJust )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text.Class
-    ( toText )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra

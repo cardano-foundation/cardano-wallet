@@ -42,14 +42,12 @@ module Cardano.Wallet.Shelley
     , ApplicationLog (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), filterSeverity )
+    ( filterSeverity )
 import Cardano.BM.Trace
-    ( Trace, appendName, nullTracer )
+    ( Trace, appendName )
 import Cardano.Launcher.Node
     ( CardanoNodeConn )
 import Cardano.Pool.DB
@@ -92,7 +90,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Shared
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
@@ -149,22 +147,8 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
     ( Const (..) )
-import Control.Monad
-    ( forM_, void )
-import Control.Tracer
-    ( Tracer, contramap, traceWith )
-import Data.Function
-    ( (&) )
 import Data.Maybe
-    ( fromJust, fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
-import GHC.Generics
-    ( Generic )
+    ( fromJust )
 import Network.Ntp
     ( NtpClient (..), NtpTrace, withWalletNtpClient )
 import Network.Socket
@@ -181,8 +165,6 @@ import System.Exit
     ( ExitCode (..) )
 import System.IOManager
     ( withIOManager )
-import Type.Reflection
-    ( Typeable )
 import UnliftIO.Concurrent
     ( forkFinally, forkIOWithUnmask, killThread )
 import UnliftIO.MVar
@@ -471,7 +453,7 @@ data ApplicationLog
 instance ToText ApplicationLog where
     toText = \case
         MsgStarting conn ->
-            "Wallet backend server starting. Using " <> toText conn <> "."
+            "Wallet backend server starting. Using "+|conn|+"."
         MsgNetworkName network ->
             "Node is Haskell Node on " <> network <> "."
         MsgServerStartupError startupErr -> case startupErr of

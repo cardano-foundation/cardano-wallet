@@ -10,24 +10,16 @@ module Data.Vector.Shuffle
     , shuffleWith
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Control.Monad
-    ( forM_ )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.State.Strict
     ( evalStateT, state )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
     ( MD5 )
-import Data.Text
-    ( Text )
 import Data.Vector.Mutable
     ( IOVector )
-import Data.Word
-    ( Word8 )
 import System.Random
     ( RandomGen, newStdGen, randomR )
 

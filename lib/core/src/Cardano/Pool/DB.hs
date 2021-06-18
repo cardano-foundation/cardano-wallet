@@ -21,7 +21,7 @@ module Cardano.Pool.DB
     , ErrPointAlreadyExists (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
@@ -37,20 +37,14 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
     )
-import Control.Monad.IO.Class
-    ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock.POSIX
     ( POSIXTime )
-import Data.Word
-    ( Word64 )
 import System.Random
     ( StdGen )
 

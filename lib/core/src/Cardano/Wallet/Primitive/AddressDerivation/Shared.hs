@@ -29,7 +29,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shared
     , purposeCIP1854
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( xpubPublicKey )
@@ -66,8 +66,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Control.Monad
-    ( (<=<) )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -78,8 +76,6 @@ import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.ByteString
     ( ByteString )
-import Data.Proxy
-    ( Proxy (..) )
 
 import qualified Data.ByteString as BS
 

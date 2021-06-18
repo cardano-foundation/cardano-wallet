@@ -14,12 +14,8 @@
 
 module Main where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Plugin
     ( loadPlugin )
 import Cardano.BM.Trace
@@ -34,11 +30,6 @@ import Cardano.CLI
     )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
-import Cardano.Startup
-    ( installSignalHandlersNoLogging
-    , setDefaultFilePermissions
-    , withUtf8Encoding
-    )
 import Cardano.Wallet.Api.Types
     ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
@@ -81,28 +72,17 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , withCluster
     , withSMASH
     )
+import Cardano.Wallet.Startup
+    ( installSignalHandlersNoLogging
+    , setDefaultFilePermissions
+    , withUtf8Encoding
+    )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic, withMetadataServer )
-import Control.Arrow
-    ( first )
-import Control.Monad
-    ( when )
-import Control.Monad.IO.Class
-    ( liftIO )
-import Control.Tracer
-    ( Tracer (..), contramap, traceWith )
 import Data.Either.Combinators
     ( whenLeft )
 import Data.IORef
     ( IORef, atomicModifyIORef', newIORef )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..) )
 import Network.HTTP.Client
     ( defaultManagerSettings
     , managerResponseTimeout
@@ -135,7 +115,7 @@ import Test.Utils.Paths
 import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
-    ( SomeException, isAsyncException, throwIO, withException )
+    ( SomeException, isAsyncException, withException )
 import UnliftIO.MVar
     ( newEmptyMVar, newMVar, putMVar, takeMVar, withMVar )
 
@@ -270,7 +250,6 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _manager = (baseUrl, manager)
                     , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
-                    , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = era

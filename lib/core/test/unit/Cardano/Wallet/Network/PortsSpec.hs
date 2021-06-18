@@ -2,7 +2,7 @@ module Cardano.Wallet.Network.PortsSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Network.Ports
     ( getRandomPort, isPortOpen, simpleSockAddr )

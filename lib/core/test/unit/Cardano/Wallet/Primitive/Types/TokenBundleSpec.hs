@@ -6,12 +6,12 @@ module Cardano.Wallet.Primitive.Types.TokenBundleSpec
     ( spec
     ) where
 
-import Prelude hiding
+import Cardano.Wallet.Prelude hiding
     ( subtract )
 
 import Algebra.PartialOrd
     ( leq )
-import Cardano.Numeric.Util
+import Cardano.Wallet.Numeric
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..), add, difference, isCoin, subtract, unsafeSubtract )

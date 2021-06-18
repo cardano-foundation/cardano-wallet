@@ -16,7 +16,7 @@ module Cardano.Wallet.DB.Sqlite.Migration
     )
     where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.DB.Sqlite
     ( DBField (..)
@@ -32,22 +32,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
-import Control.Monad
-    ( forM_, void, when )
-import Control.Tracer
-    ( Tracer, traceWith )
-import Data.Functor
-    ( (<&>) )
-import Data.Maybe
-    ( mapMaybe )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( ToText (..), fromText )
-import Data.Word
-    ( Word16 )
 import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Types

@@ -21,7 +21,7 @@
 --
 module Cardano.Wallet.Primitive.CoinSelection.CollateralSpec where
 
-import Prelude hiding
+import Cardano.Wallet.Prelude hiding
     ( sequence )
 
 import Cardano.Wallet.Primitive.CoinSelection.Collateral
@@ -48,27 +48,15 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive, shrinkCoinPositive )
 import Control.Monad
-    ( forM_, replicateM )
-import Data.Either
-    ( isLeft, isRight )
-import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( replicateM )
 import Data.Generics.Labels
     ()
 import Data.IntCast
     ( intCast )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Set
     ( Set )
-import Data.Word
-    ( Word64 )
-import GHC.Generics
-    ( Generic )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra

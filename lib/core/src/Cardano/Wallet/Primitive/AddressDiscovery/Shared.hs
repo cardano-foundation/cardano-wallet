@@ -46,7 +46,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , liftDelegationAddress
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Script
     ( Cosigner (..)
@@ -99,28 +99,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Control.Arrow
-    ( first )
-import Control.DeepSeq
-    ( NFData )
-import Control.Monad
-    ( unless )
-import Data.Either
-    ( isRight )
 import Data.Either.Combinators
     ( mapLeft )
-import Data.Kind
-    ( Type )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
-import GHC.Generics
-    ( Generic )
-import Type.Reflection
-    ( Typeable )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
@@ -491,7 +471,7 @@ decoratePath st ix = NE.fromList
     , DerivationIndex $ getIndex accIx
     , DerivationIndex $ getIndex utxoExternal
     , DerivationIndex $ getIndex ix
-    ] 
+    ]
   where
     DerivationPrefix (purpose, coinType, accIx) = derivationPrefix st
 

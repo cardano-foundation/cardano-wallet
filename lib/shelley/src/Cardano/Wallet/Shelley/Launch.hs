@@ -33,12 +33,8 @@ module Cardano.Wallet.Shelley.Launch
     , TempDirLog (..)
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Chain.Genesis
     ( GenesisData (..), readGenesisData )
 import Cardano.CLI
@@ -55,26 +51,12 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..), NetworkParameters (..), ProtocolMagic (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), withExceptT )
-import Control.Tracer
-    ( Tracer (..), contramap )
-import Data.Bifunctor
-    ( first )
-import Data.Maybe
-    ( isJust )
-import Data.Proxy
-    ( Proxy (..) )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError, ToText (..) )
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
-    ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
+    ( Parser, eitherReader, flag', help, long, metavar, option )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -312,8 +294,8 @@ instance ToText ClusterLog where
                 , " stake pools are being registered on chain... "
                 , "Can be skipped using NO_POOLS=1."
                 ]
-        MsgLauncher name msg ->
-            T.pack name <> " " <> toText msg
+        MsgLauncher name msg -> fmt $
+           build name <> " " <> build msg
         MsgStartedStaticServer baseUrl fp ->
             "Started a static server for " <> T.pack fp
                 <> " at " <> T.pack baseUrl
@@ -327,8 +309,8 @@ instance ToText ClusterLog where
         MsgCLIRetryResult msg code err ->
             "Failed " <> msg <> " with exit code " <>
                 T.pack (show code) <> ":\n" <> indent err
-        MsgSocketIsReady conn ->
-            toText conn <> " is ready."
+        MsgSocketIsReady conn -> fmt $
+            build conn <> " is ready."
         MsgStakeDistribution name st out err -> case st of
             ExitSuccess ->
                 "Stake distribution query for " <> T.pack name <>

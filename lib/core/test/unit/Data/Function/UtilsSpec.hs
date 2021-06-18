@@ -4,7 +4,7 @@ module Data.Function.UtilsSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Data.Function.Utils
     ( applyN )

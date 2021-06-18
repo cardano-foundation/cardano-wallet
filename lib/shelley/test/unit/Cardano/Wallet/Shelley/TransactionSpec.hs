@@ -27,7 +27,7 @@ module Cardano.Wallet.Shelley.TransactionSpec
     , balanceTransactionSpec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, toXPub, xprvFromBytes, xprvToBytes, xpubPublicKey )
@@ -59,10 +59,6 @@ import Cardano.Api.Gen
     )
 import Cardano.Api.Shelley
     ( selectLovelace )
-import Cardano.BM.Data.Tracer
-    ( nullTracer )
-import Cardano.BM.Tracer
-    ( Tracer )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing), Wdrl (..) )
 import Cardano.Mnemonic
@@ -220,36 +216,26 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Control.Arrow
-    ( first )
 import Control.Monad
-    ( forM, forM_, replicateM )
-import Control.Monad.Random
-    ( MonadRandom (..), Random (randomR, randomRs), random, randoms )
+    ( replicateM )
+import Control.Monad.Random.Class
+    ( MonadRandom (..) )
+import Control.Monad.Random.Strict
+    ( random, randomR, randomRs, randoms )
 import Control.Monad.Trans.Except
     ( except, runExceptT )
 import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.ByteString
     ( ByteString )
-import Data.Either
-    ( isRight )
-import Data.Function
-    ( on, (&) )
 import Data.Functor.Identity
     ( runIdentity )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.List
     ( nub )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
-import Data.Map.Strict
+import Data.Map
     ( Map )
 import Data.Maybe
-    ( fromJust, isJust )
-import Data.Proxy
-    ( Proxy (..) )
+    ( fromJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Semigroup
@@ -259,13 +245,9 @@ import Data.Set
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Typeable
-    ( Typeable, typeRep )
-import Data.Word
-    ( Word16, Word64, Word8 )
+    ( typeRep )
 import Fmt
-    ( Buildable (..), fmt, nameF, pretty, (+||), (||+) )
-import GHC.Generics
-    ( Generic )
+    ( nameF )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import System.Directory
@@ -353,7 +335,6 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
@@ -1483,8 +1464,8 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
         , outputs = []
         , change = outs
         -- TODO: [ADP-346]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
+        , assetsToMint = mempty
+        , assetsToBurn = mempty
         }
 
 prop_sealedTxByronRoundtrip
@@ -1520,8 +1501,8 @@ makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
         , outputs = []
         , change = outs
         -- TODO: [ADP-346]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
+        , assetsToMint = mempty
+        , assetsToBurn = mempty
         }
 
 encodingFromTheFuture :: AnyShelleyBasedEra -> AnyCardanoEra -> Bool

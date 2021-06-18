@@ -6,7 +6,7 @@ module Cardano.Wallet.Api.Server.TlsSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Server
     ( Listen (..), TlsConfiguration (..), withListeningSocket )
@@ -18,16 +18,10 @@ import Cardano.X509.Configuration
     , fromConfiguration
     , genCertificate
     )
-import Control.Monad
-    ( unless )
-import Control.Tracer
-    ( nullTracer )
 import Data.ByteString.Lazy
     ( ByteString )
 import Data.Default
     ( def )
-import Data.Function
-    ( (&) )
 import Data.X509
     ( CertificateChain (..) )
 import Data.X509.CertificateStore

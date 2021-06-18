@@ -21,24 +21,18 @@
 
 module Cardano.Pool.DB.Sqlite.TH where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings' )
-import Data.Text
-    ( Text )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Clock.POSIX
     ( POSIXTime )
-import Data.Word
-    ( Word32, Word64, Word8 )
 import Database.Persist.TH
     ( mkMigrate, mkPersist, persistLowerCase, share )
-import GHC.Generics
-    ( Generic (..) )
 import System.Random
     ( StdGen )
 

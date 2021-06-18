@@ -40,7 +40,7 @@ module Cardano.Wallet.Unsafe
     , unsafeMkSomeMnemonicFromEntropy
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
@@ -64,8 +64,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Util
     ( internalError )
-import Control.Monad
-    ( (>=>) )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.Binary.Get
@@ -76,22 +74,12 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( isHexDigit )
-import Data.Either
-    ( fromRight )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Percentage, mkPercentage )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( FromText (..) )
 import Data.Typeable
-    ( Typeable, typeRep )
+    ( typeRep )
 import Fmt
-    ( Buildable, Builder, build, (+||), (|+), (||+) )
-import GHC.Stack
-    ( HasCallStack )
+    ( Builder )
 import GHC.TypeLits
     ( natVal )
 

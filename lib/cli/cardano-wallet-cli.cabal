@@ -1,3 +1,4 @@
+cabal-version:       3.0
 name:                cardano-wallet-cli
 version:             2022.1.18
 synopsis:            Utilities for a building Command-Line Interfaces
@@ -8,31 +9,37 @@ copyright:           2018-2020 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
-cabal-version:       >=1.10
 
 flag release
     description: Enable optimization and `-Werror`
     default: False
     manual: True
 
-library
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
-      -fwarn-redundant-constraints
+common project-config
+  default-language:     Haskell2010
+  default-extensions:   NoImplicitPrelude
+                        OverloadedStrings
+
+  ghc-options:          -Wall
+                        -Wcompat
+                        -Wincomplete-record-updates
+                        -Wpartial-fields
+                        -Wunused-packages
+
   if (flag(release))
-    ghc-options:
-      -Werror
+    ghc-options:       -O2 -Werror
+
+  build-depends: base >= 4.14 && < 4.15
+
+common exe
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -with-rtsopts=-T
+
+library
+  import: project-config
   build-depends:
       aeson
     , aeson-pretty
     , ansi-terminal
-    , base
     , bytestring
     , cardano-addresses
     , cardano-addresses-cli
@@ -46,7 +53,7 @@ library
     , servant-client
     , servant-client-core
     , text
-    , text-class
+    , cardano-wallet-text-class
     , time
     , unliftio
   hs-source-dirs:
@@ -55,19 +62,9 @@ library
       Cardano.CLI
 
 test-suite unit
-  default-language:
-      Haskell2010
-  default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
-    ghc-options: -O2 -Werror
+  import: project-config, exe
   build-depends:
-      base
-    , cardano-wallet-cli
+      cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-test-utils
     , containers
@@ -76,7 +73,7 @@ test-suite unit
     , optparse-applicative
     , QuickCheck
     , text
-    , text-class
+    , cardano-wallet-text-class
     , unliftio
   build-tool-depends:
       hspec-discover:hspec-discover

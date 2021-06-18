@@ -12,7 +12,7 @@ module Cardano.Wallet.Primitive.AddressDerivationSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
@@ -51,12 +51,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Monad
     ( replicateM )
-import Control.Monad.IO.Class
-    ( liftIO )
-import Data.Either
-    ( isRight )
-import Data.Proxy
-    ( Proxy (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra

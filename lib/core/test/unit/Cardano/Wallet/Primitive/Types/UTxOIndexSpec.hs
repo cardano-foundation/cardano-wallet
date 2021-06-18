@@ -11,7 +11,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndexSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
@@ -29,18 +29,10 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     ( InvariantStatus (..), SelectionFilter (..), UTxOIndex, checkInvariant )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
-import Data.Maybe
-    ( isJust, isNothing )
 import Data.Ratio
     ( (%) )
-import Data.Word
-    ( Word8 )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
@@ -66,7 +58,7 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Classes
-    ( eqLaws )
+    ( eqLaws, monoidLaws, semigroupLaws )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -86,6 +78,8 @@ spec =
     parallel $ describe "Class instances obey laws" $ do
         testLawsMany @UTxOIndex
             [ eqLaws
+            , monoidLaws
+            , semigroupLaws
             ]
 
     parallel $ describe
@@ -197,7 +191,7 @@ prop_shrink_invariant :: UTxOIndex -> Property
 prop_shrink_invariant = conjoin . fmap invariantHolds . shrink
 
 prop_empty_invariant :: Property
-prop_empty_invariant = invariantHolds UTxOIndex.empty
+prop_empty_invariant = invariantHolds mempty
 
 prop_singleton_invariant :: TxIn -> TxOut -> Property
 prop_singleton_invariant i o = invariantHolds $ UTxOIndex.singleton i o
@@ -226,7 +220,7 @@ prop_selectRandom_invariant i f = monadicIO $ do
 
 prop_empty_toList :: Property
 prop_empty_toList =
-    UTxOIndex.toList UTxOIndex.empty === []
+    UTxOIndex.toList mempty === []
 
 prop_singleton_toList :: TxIn -> TxOut -> Property
 prop_singleton_toList i o =
@@ -290,7 +284,7 @@ prop_insert_balance i o u =
         "input is not already a member of the index" $
     UTxOIndex.balance (UTxOIndex.insert i o u) === expected
   where
-    expected = view #tokens o `TokenBundle.add` case UTxOIndex.lookup i u of
+    expected = view #tokens o <> case UTxOIndex.lookup i u of
         Nothing ->
             UTxOIndex.balance u
         Just o' ->
@@ -420,7 +414,7 @@ prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
 --
 prop_selectRandom_empty :: SelectionFilter -> Property
 prop_selectRandom_empty f = monadicIO $ do
-    result <- run $ UTxOIndex.selectRandom UTxOIndex.empty f
+    result <- run $ UTxOIndex.selectRandom mempty f
     assert $ isNothing result
 
 -- | Attempt to select a random entry from a singleton index with entry 'e'.
@@ -435,17 +429,17 @@ prop_selectRandom_singleton selectionFilter i o = monadicIO $ do
     index = UTxOIndex.singleton i o
     expected = case selectionFilter of
         Any ->
-            Just ((i, o), UTxOIndex.empty)
+            Just ((i, o), mempty)
         WithAdaOnly | txOutIsAdaOnly o ->
-            Just ((i, o), UTxOIndex.empty)
+            Just ((i, o), mempty)
         WithAdaOnly ->
             Nothing
         WithAsset a | txOutHasAsset o a ->
-            Just ((i, o), UTxOIndex.empty)
+            Just ((i, o), mempty)
         WithAsset _ ->
             Nothing
         WithAssetOnly a | txOutHasAssetOnly o a ->
-            Just ((i, o), UTxOIndex.empty)
+            Just ((i, o), mempty)
         WithAssetOnly _ ->
             Nothing
 
@@ -660,7 +654,7 @@ prop_selectRandomSetMember_singleton i = monadicIO $ do
 prop_selectRandomSetMember_coversRangeUniformly :: Word8 -> Word8 -> Property
 prop_selectRandomSetMember_coversRangeUniformly i j =
     withMaxSuccess 100_000 $ checkCoverageWith confidence $ monadicIO $ do
-        Just selected <- run $ UTxOIndex.selectRandomSetMember set
+        Just selected <- run $ UTxOIndex.selectRandomSetMember range
         monitor $ cover 90 (elementCount > 1)
             "set has more than 1 element"
         monitor $ cover 50 (elementCount > 10)
@@ -686,7 +680,7 @@ prop_selectRandomSetMember_coversRangeUniformly i j =
             ]
         assert $ fromIntegral smallest % 1 <= midpoint
         assert $ fromIntegral greatest % 1 >= midpoint
-        assert $ selected `Set.member` set
+        assert $ selected `Set.member` range
   where
     confidence = stdConfidence {tolerance = 0.99}
     elementCount = greatest - smallest + 1
@@ -695,7 +689,7 @@ prop_selectRandomSetMember_coversRangeUniformly i j =
     inUpperHalf r = fromIntegral r % 1 >= midpoint
     midpoint :: Rational
     midpoint = (fromIntegral smallest + fromIntegral greatest) % 2
-    set = Set.fromList [smallest .. greatest]
+    range = Set.fromList [smallest .. greatest]
     showKeyValuePair (key, value) = key <> ": " <> value <> "\n"
     smallest = min i j
 

@@ -35,7 +35,7 @@ module Cardano.Wallet.DB.SqliteSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.BM.Configuration.Static
     ( defaultConfigTesting )
@@ -286,10 +286,7 @@ spec = parallel $ do
 
 stateMachineSpec
     :: forall k s.
-        ( WalletKey k
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
-        , PersistAddressBook s
+        ( PersistAddressBook s
         , TestConstraints s k
         , Typeable s
         )
@@ -344,7 +341,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
             length msgs `shouldBe` count * 2
 
 withLoggingDB
-    :: (Show s, PersistAddressBook s)
+    :: PersistAddressBook s
     => SpecWith (IO [DBLog], DBLayer IO s ShelleyKey)
     -> Spec
 withLoggingDB = around f . beforeWith clean
@@ -766,12 +763,12 @@ withTestDBFile
     -> IO a
 withTestDBFile action expectations = do
     logConfig <- defaultConfigTesting
-    trace <- setupTrace (Right logConfig) "connectionSpec"
+    tr <- setupTrace (Right logConfig) "connectionSpec"
     withSystemTempFile "spec.db" $ \fp h -> do
         hClose h
         removeFile fp
         withDBLayer
-            (trMessageText trace)
+            (trMessageText tr)
             defaultFieldValues
             fp
             ti
@@ -1025,10 +1022,6 @@ testMigrationTxMetaFee
     :: forall k s.
         ( s ~ SeqState 'Mainnet k
         , k ~ ShelleyKey
-        , WalletKey k
-        , PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
         )
     => String
     -> Int
@@ -1082,10 +1075,6 @@ testMigrationCleanupCheckpoints
     :: forall k s.
         ( s ~ SeqState 'Mainnet k
         , k ~ ShelleyKey
-        , WalletKey k
-        , PersistAddressBook s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
         )
     => String
     -> GenesisParameters
@@ -1124,8 +1113,6 @@ testMigrationRole
         , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , PaymentAddress 'Mainnet k
-        , GetPurpose k
-        , Show s
         )
     => String
     -> IO ()
@@ -1156,7 +1143,6 @@ testMigrationSeqStateDerivationPrefix
         , WalletKey k
         , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
-        , Show s
         )
     => String
     -> ( Index 'Hardened 'PurposeK

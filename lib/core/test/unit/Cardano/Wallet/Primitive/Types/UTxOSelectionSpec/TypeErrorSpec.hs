@@ -8,7 +8,7 @@ module Cardano.Wallet.Primitive.Types.UTxOSelectionSpec.TypeErrorSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection (..), UTxOSelectionNonEmpty (..) )

@@ -8,7 +8,7 @@ module Cardano.Wallet.Shelley.Compatibility.LedgerSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( MinimumUTxOValue (..) )
@@ -36,16 +36,8 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxOutTokenBundle, shrinkTxOutCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..), computeMinimumAdaQuantityInternal )
-import Data.Bifunctor
-    ( second )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Typeable
-    ( Typeable, typeRep )
-import Data.Word
-    ( Word64 )
-import Fmt
-    ( pretty )
+    ( typeRep )
 import Test.Hspec
     ( Spec, describe, it, parallel )
 import Test.Hspec.Core.QuickCheck
@@ -208,7 +200,7 @@ unit_computeMinimumAdaQuantity_fixedSizeBundle bundle expectation =
 
 unit_computeMinimumAdaQuantity_emptyBundle :: Property
 unit_computeMinimumAdaQuantity_emptyBundle =
-    unit_computeMinimumAdaQuantity_fixedSizeBundle TokenBundle.empty $
+    unit_computeMinimumAdaQuantity_fixedSizeBundle mempty $
         Coin 1000000
 
 unit_computeMinimumAdaQuantity_fixedSizeBundle_8

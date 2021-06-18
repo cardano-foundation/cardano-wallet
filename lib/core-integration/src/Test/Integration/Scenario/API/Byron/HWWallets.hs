@@ -12,7 +12,7 @@ module Test.Integration.Scenario.API.Byron.HWWallets
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Mnemonic
     ( Mnemonic
@@ -47,20 +47,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Control.Monad
-    ( forM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Generics.Internal.VL.Lens
-    ( (^.) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Test.Hspec
     ( SpecWith, describe, pendingWith, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra

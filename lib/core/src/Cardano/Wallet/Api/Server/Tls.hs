@@ -12,7 +12,7 @@ module Cardano.Wallet.Api.Server.Tls
     , requireClientAuth
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Data.Default
     ( Default (..) )

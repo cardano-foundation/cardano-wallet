@@ -9,7 +9,7 @@ module Data.Time.Utils
     , utcTimeSucc
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Data.Time
     ( UTCTime, addUTCTime )

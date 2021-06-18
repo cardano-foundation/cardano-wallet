@@ -7,7 +7,7 @@ module Cardano.Wallet.Primitive.Types.UTxOSpec
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -23,8 +23,6 @@ import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Data.Functor.Identity
     ( runIdentity )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra

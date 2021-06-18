@@ -15,7 +15,7 @@ module Cardano.Pool.DB.Properties
     ( properties
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Pool.DB
     ( DBLayer (..)
@@ -57,40 +57,24 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Control.Arrow
-    ( second )
 import Control.Monad
-    ( forM, forM_, replicateM, unless, void )
-import Control.Monad.IO.Class
-    ( liftIO )
+    ( replicateM )
 import Control.Monad.Trans.Except
     ( runExceptT )
-import Data.Bifunctor
-    ( bimap )
-import Data.Function
-    ( on, (&) )
 import Data.Functor.Identity
     ( runIdentity )
-import Data.Generics.Internal.VL.Lens
-    ( set, view )
 import Data.List.Extra
     ( nubOrd, nubSortOn )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing, listToMaybe, mapMaybe )
+    ( catMaybes, listToMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text.Class
-    ( toText )
 import Data.Time.Clock.POSIX
     ( POSIXTime )
-import Data.Word
-    ( Word64 )
-import Fmt
-    ( pretty )
 import Test.Hspec
     ( Expectation
     , SpecWith

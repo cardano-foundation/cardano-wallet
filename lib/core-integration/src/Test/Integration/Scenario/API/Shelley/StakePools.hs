@@ -13,7 +13,7 @@ module Test.Integration.Scenario.API.Shelley.StakePools
     ( spec
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
@@ -33,10 +33,6 @@ import Cardano.Wallet.Api.Types
     , HealthCheckSMASH (..)
     , WalletStyle (..)
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
     ( FeePolicy (..)
     , PoolId (..)
@@ -52,36 +48,20 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
-import Control.Monad
-    ( forM_ )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.IORef
     ( readIORef )
 import Data.List
     ( find, sortOn )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe, isJust, isNothing, listToMaybe, mapMaybe )
+    ( listToMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Text
-    ( Text )
-import Data.Text.Class
-    ( showT, toText )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
@@ -157,7 +137,6 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n ShelleyKey
     ) => SpecWith Context
 spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake = request @[ApiStakePool] ctx
@@ -233,7 +212,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         eventually "Wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shelley src
-                    (getFromResponse Prelude.id rJoin))
+                    (getFromResponse idFunc rJoin))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -296,7 +275,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         expectResponseCode HTTP.status202 r1
         eventually "Wallet has not consumed rewards" $ do
           let linkSrc = Link.getTransaction @'Shelley
-                  src (getFromResponse Prelude.id r1)
+                  src (getFromResponse idFunc r1)
           request @(ApiTransaction n) ctx linkSrc Default Empty
               >>= flip verify
                   [ expectField
@@ -371,7 +350,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         eventually "There's at least one outgoing transaction with a withdrawal" $ do
             rWithdrawal <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shelley src
-                    (getFromResponse Prelude.id rTx))
+                    (getFromResponse idFunc rTx))
                 Default Empty
             verify rWithdrawal
                 [ expectResponseCode HTTP.status200
@@ -401,7 +380,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Incoming)
             ]
-        let txid = getFromResponse Prelude.id rq
+        let txid = getFromResponse idFunc rq
         let quitFeeAmt = getFromResponse #amount rq
 
         eventually "Certificates are inserted after quiting a pool" $ do
@@ -466,7 +445,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         nonRetiredPoolIds <- eventually "One of the pools should retire." $ do
             response <- listPools ctx arbitraryStake
             verify response [ expectListSize 3 ]
-            getFromResponse Prelude.id response
+            getFromResponse idFunc response
                 & fmap (view (#id . #getApiT))
                 & Set.fromList
                 & pure
@@ -662,7 +641,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
                 verify response [ expectListSize 3 ]
 
-                pure $ getFromResponse Prelude.id response
+                pure $ getFromResponse idFunc response
 
             let reportError = error $ unlines
                     [ "Unable to find a non-retiring pool ID."
@@ -704,7 +683,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
                 verify response [ expectListSize 3 ]
 
-                pure $ getFromResponse Prelude.id response
+                pure $ getFromResponse idFunc response
             let reportError = error $ unlines
                     [ "Unable to find a retiring pool ID."
                     , "Test cluster pools:"
@@ -737,7 +716,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 eventually "One of the pools should retire." $ do
                     response <- listPools ctx arbitraryStake
                     verify response [ expectListSize 3 ]
-                    getFromResponse Prelude.id response
+                    getFromResponse idFunc response
                         & fmap (view (#id . #getApiT))
                         & Set.fromList
                         & pure
@@ -1004,7 +983,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 expectResponseCode HTTP.status200 response
 
                 let actualRetirementEpochs =
-                        getFromResponse Prelude.id response
+                        getFromResponse idFunc response
                         & fmap getRetirementEpoch
                         & Set.fromList
                 actualRetirementEpochs `shouldBe` expectedRetirementEpochs
@@ -1014,7 +993,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 r <- listPools ctx arbitraryStake
                 expectResponseCode HTTP.status200 r
                 let oneMillionAda = 1_000_000_000_000
-                let pools' = either (error . show) Prelude.id $ snd r
+                let pools' = either (error . show) idFunc $ snd r
 
                 -- To ignore the ordering of the pools, we use Set.
                 setOf pools' (view #cost)
@@ -1049,7 +1028,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 r <- listPools ctx arbitraryStake
                 verify r
                     [ expectListSize 3
-                    , expectField Prelude.id $ \pools' -> do
+                    , expectField idFunc $ \pools' -> do
                         let metadataActual = Set.fromList $
                                 mapMaybe (fmap getApiT . view #metadata) pools'
                         metadataActual
@@ -1182,7 +1161,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 r <- listPools ctx arbitraryStake
                 verify r
                     [ expectListSize 3
-                    , expectField Prelude.id $ \pools' -> do
+                    , expectField idFunc $ \pools' -> do
                         let metadataActual = Set.fromList $
                                 mapMaybe (fmap getApiT . view #metadata) pools'
                             delistedPools = filter (\pool -> Delisted `elem` flags pool)
@@ -1201,7 +1180,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 r <- listPools ctx arbitraryStake
                 verify r
                     [ expectListSize 3
-                    , expectField Prelude.id $ \pools' -> do
+                    , expectField idFunc $ \pools' -> do
                         let metadataActual = Set.fromList $
                                 mapMaybe (fmap getApiT . view #metadata) pools'
                             delistedPools = filter (\pool -> Delisted `elem` flags pool)

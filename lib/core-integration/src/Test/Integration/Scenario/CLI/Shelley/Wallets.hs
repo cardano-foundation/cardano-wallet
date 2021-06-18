@@ -12,7 +12,7 @@ module Test.Integration.Scenario.CLI.Shelley.Wallets
     , walletNamesInvalid
     ) where
 
-import Prelude
+import Cardano.Wallet.Prelude
 
 import Cardano.CLI
     ( Port )
@@ -34,28 +34,12 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( getWalletName, walletNameMaxLength, walletNameMinLength )
-import Control.Monad
-    ( forM_ )
-import Control.Monad.IO.Class
-    ( MonadIO )
-import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
-import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
 import Data.Generics.Product.Typed
     ( typed )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
-import Data.Word
-    ( Word32 )
-import Numeric.Natural
-    ( Natural )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
