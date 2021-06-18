@@ -4775,29 +4775,6 @@ paths:
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
 
-  /wallets/{walletId}/transactions/fee:
-    post:
-      operationId: postTransactionConstructFee
-      tags: ["Transactions"]
-      summary: Estimate Fee
-      description: |
-        <p align="right">status: <strong>unstable</strong></p>
-
-        Estimate fee for the transaction. The estimate is made by
-        assembling multiple transactions and analyzing the
-        distribution of their fees. The estimated_max is the highest
-        fee observed, and the estimated_min is the fee which is lower
-        than at least 90% of the fees observed.
-
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiConstructTransactionData
-      responses: *responsesPostTransactionFee
-
   /wallets/{walletId}/transactions/construct:
     post:
       operationId: postTransactionConstruct
