@@ -208,6 +208,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiNullStakeKey (..)
     , ApiOurStakeKey (..)
+    , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyDataWithPurpose (..)
@@ -1922,11 +1923,56 @@ postTransactionFee ctx (ApiT wid) body = do
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
 constructTransaction
-    :: ctx
+    :: forall ctx s k n.
+        ( ctx ~ ApiLayer s k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , GenChange s
+        , HardDerivation k
+        , HasNetworkLayer IO ctx
+        , IsOwned s k
+        , Typeable n
+        , Typeable s
+        , WalletKey k
+        )
+    => ctx
+    -> ArgGenChange s
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructTransaction _ctx (ApiT _wid) _body = undefined
+constructTransaction ctx genChange (ApiT wid) body = do
+    let toAddressAmount (ApiPaymentAddresses content) = addressAmountToTxOut <$> content
+        toAddressAmount (ApiPaymentAll _) = undefined
+    let outs = toAddressAmount <$> body ^. #payments
+    let md = body ^? #metadata . traverse . #getApiT
+    let mTTL = Nothing
+
+    (wdrl, mkRwdAcct) <-
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
+
+    ttl <- liftIO $ W.getTxExpiry ti mTTL
+    let txCtx = defaultTransactionCtx
+            { txWithdrawal = wdrl
+            , txMetadata = md
+            , txTimeToLive = ttl
+            }
+
+    (_apiSelection, _fee) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        let transform = \s sel ->
+                W.assignChangeAddresses genChange sel s
+                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+        w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        utx <- liftHandler
+            $ W.selectAssets  @_ @s @k wrk w txCtx outs transform
+
+        let getFee = const (selectionDelta TokenBundle.getCoin)
+        (FeeEstimation estMin _) <- liftHandler $ W.estimateFee $ W.selectAssets @_ @s @k wrk w txCtx outs getFee
+
+        pure (mkApiCoinSelection [] Nothing md utx, estMin)
+
+    undefined
+  where
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
 
 joinStakePool
     :: forall ctx s n k.
