@@ -1942,11 +1942,10 @@ constructTransaction
 constructTransaction ctx genChange (ApiT wid) body = do
     let toAddressAmount (ApiPaymentAddresses content) = addressAmountToTxOut <$> content
         toAddressAmount (ApiPaymentAll _) = undefined
-    let outs = toAddressAmount <$> body ^. #payments
     let md = body ^? #metadata . traverse . #getApiT
     let mTTL = Nothing
 
-    (wdrl, mkRwdAcct) <-
+    (wdrl, _mkRwdAcct) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
     ttl <- liftIO $ W.getTxExpiry ti mTTL
@@ -1956,18 +1955,26 @@ constructTransaction ctx genChange (ApiT wid) body = do
             , txTimeToLive = ttl
             }
 
-    (_apiSelection, _fee) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        let transform = \s sel ->
-                W.assignChangeAddresses genChange sel s
-                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+    let transform = \s sel ->
+            W.assignChangeAddresses genChange sel s
+            & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+
+    (_apiSelection, _fee ) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        utx <- liftHandler
-            $ W.selectAssets  @_ @s @k wrk w txCtx outs transform
-
         let getFee = const (selectionDelta TokenBundle.getCoin)
-        (FeeEstimation estMin _) <- liftHandler $ W.estimateFee $ W.selectAssets @_ @s @k wrk w txCtx outs getFee
+        case (body ^. #payments) of
+            Nothing -> do
+                utx <- liftHandler
+                    $ W.selectAssetsNoOutputs @_ @s @k wrk wid w txCtx transform
+                (FeeEstimation estMin _) <- liftHandler $ W.estimateFee $ W.selectAssetsNoOutputs @_ @s @k wrk wid w txCtx getFee
+                pure (mkApiCoinSelection [] Nothing md utx, estMin)
 
-        pure (mkApiCoinSelection [] Nothing md utx, estMin)
+            Just nonemptyPayments -> do
+                let outs = toAddressAmount nonemptyPayments
+                utx <- liftHandler
+                    $ W.selectAssets  @_ @s @k wrk w txCtx outs transform
+                (FeeEstimation estMin _) <- liftHandler $ W.estimateFee $ W.selectAssets @_ @s @k wrk w txCtx outs getFee
+                pure (mkApiCoinSelection [] Nothing md utx, estMin)
 
     undefined
   where
