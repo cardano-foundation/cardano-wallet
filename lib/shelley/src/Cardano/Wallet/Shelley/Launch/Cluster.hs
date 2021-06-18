@@ -513,11 +513,12 @@ withCluster
     -- ^ Temporary directory to create config files in.
     -> LocalClusterConfig
     -- ^ The configurations of pools to spawn.
+    -> (RunningNode -> IO ())
+    -- ^ Setup action to run using the BFT node.
     -> (RunningNode -> IO a)
-    -- ^ Action to run once we have transitioned to the Allegra era and cluster
-    -- nodes (stake pools and bft) are running.
+    -- ^ Action to run once when the stake pools are setup.
     -> IO a
-withCluster tr dir LocalClusterConfig{..} onClusterStart =
+withCluster tr dir LocalClusterConfig{..} onSetup onClusterStart =
     bracketTracer' tr "withCluster" $ do
         traceWith tr $ MsgStartingCluster dir
         resetGlobals
@@ -529,6 +530,8 @@ withCluster tr dir LocalClusterConfig{..} onClusterStart =
                 (head $ rotate ports) cfgNodeLogging
         withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
             waitForSocket tr bftSocket
+
+            onSetup $ RunningNode bftSocket block0 params
 
             (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
             tx <- signTx tr dir rawTx [faucetPrv]
