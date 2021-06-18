@@ -35,7 +35,7 @@ import Test.Hspec
     ( Spec, before, describe )
 import Test.QuickCheck
     ( Arbitrary (..) )
-import Test.Utils.Darwin
+import Test.Utils.Platform
     ( pendingOnMacOS )
 
 import qualified Cardano.Wallet.DB.MVar as MVar

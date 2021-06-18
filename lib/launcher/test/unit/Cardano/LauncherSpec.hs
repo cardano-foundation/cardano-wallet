@@ -61,7 +61,7 @@ import Test.Hspec
     , shouldReturn
     , shouldSatisfy
     )
-import Test.Utils.Windows
+import Test.Utils.Platform
     ( isWindows, pendingOnWine, skipOnWindows )
 import UnliftIO.Async
     ( async, race_, waitAnyCancel )

@@ -96,7 +96,7 @@ import Test.QuickCheck
     ( Arbitrary (..), choose, counterexample, property, withMaxSuccess )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor )
-import Test.Utils.Darwin
+import Test.Utils.Platform
     ( pendingOnMacOS )
 import UnliftIO.Async
     ( Async, async, cancel, mapConcurrently, replicateConcurrently_ )

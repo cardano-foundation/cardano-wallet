@@ -29,10 +29,10 @@ import Test.Hspec.Core.Spec
     ( ResultStatus (..) )
 import Test.Hspec.Expectations
     ( Expectation, HasCallStack )
+import Test.Utils.Platform
+    ( nullFileName, pendingOnWindows )
 import Test.Utils.Trace
     ( captureLogging )
-import Test.Utils.Windows
-    ( nullFileName, pendingOnWindows )
 import UnliftIO.Async
     ( race )
 import UnliftIO.Concurrent

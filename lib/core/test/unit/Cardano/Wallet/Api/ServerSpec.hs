@@ -81,7 +81,7 @@ import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
 import Test.QuickCheck.Property
     ( counterexample, property )
-import Test.Utils.Windows
+import Test.Utils.Platform
     ( skipOnWindows )
 import UnliftIO.Async
     ( concurrently_, race_ )

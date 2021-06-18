@@ -13,7 +13,7 @@ import Options.Applicative
     ( ParserResult (..), defaultPrefs, execParserPure, info )
 import Test.Hspec
     ( Spec, describe, it, shouldSatisfy )
-import Test.Utils.Windows
+import Test.Utils.Platform
     ( isWindows )
 
 spec :: Spec

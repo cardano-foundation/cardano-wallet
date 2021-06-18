@@ -57,17 +57,16 @@ library
   exposed-modules:
       Test.Hspec.Extra
       Test.QuickCheck.Extra
-      Test.Utils.Darwin
       Test.Utils.FilePath
       Test.Utils.Laws
       Test.Utils.Laws.PartialOrd
       Test.Utils.Paths
       Test.Utils.Roundtrip
       Test.Utils.Resource
+      Test.Utils.Platform
       Test.Utils.StaticServer
       Test.Utils.Time
       Test.Utils.Trace
-      Test.Utils.Windows
 
 test-suite unit
   default-language:
