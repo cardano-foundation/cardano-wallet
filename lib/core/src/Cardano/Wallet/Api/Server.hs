@@ -2084,7 +2084,7 @@ listStakeKeys'
         -- ^ The wallet's UTxO
     -> (Address -> Maybe RewardAccount)
         -- ^ Lookup the `RewardAccount` of an `Address`.
-    -> (Set RewardAccount -> m (Map RewardAccount (Maybe Coin)))
+    -> (Set RewardAccount -> m (Map RewardAccount Coin))
         -- ^ A way to fetch the rewards of any set of `RewardAccount`s.
         --
         -- This allows:
