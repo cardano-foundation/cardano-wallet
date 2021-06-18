@@ -1009,7 +1009,7 @@ x-derivationPath: &derivationPath
   items: *derivationSegment
 
 x-transactionOutputs: &transactionOutputs
-  description: A list of target outputs
+  description: A list of target outputs with amount specified
   type: array
   minItems: 0
   items:
@@ -1021,6 +1021,14 @@ x-transactionOutputs: &transactionOutputs
       address: *addressId
       amount: *amount
       assets: *walletAssets
+
+x-transactionNoAmountOutputs: &transactionNoAmountOutputs
+  description: A list of target outputs without amounts specified
+  type: array
+  minItems: 0
+  items:
+    type: string
+    <<: *addressId
 
 x-delegationAction: &delegationAction
   description: |
@@ -2675,10 +2683,17 @@ components:
         invalid_before: *validityBound
         invalid_hereafter: *validityBound
 
+    ApiPaymentDestination: &ApiPaymentDestination
+      oneOf:
+        - title: outputs with specified amounts
+          <<: *transactionOutputs
+        - title: outputs without amounts
+          <<: *transactionNoAmountOutputs
+
     ApiConstructTransactionData: &ApiConstructTransactionData
       type: object
       properties:
-        payments: *transactionOutputs
+        payments: *ApiPaymentDestination
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
         mint: *transactionMint

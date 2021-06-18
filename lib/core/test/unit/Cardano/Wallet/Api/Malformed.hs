@@ -1260,21 +1260,8 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
             , ("{\"payments : [], \"random\"}", msgJsonInvalid)
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases ++
-            [ -- passphrase
-              ( [aesonQQ|
-                { "payments": [
-                    {
-                        "address": #{addrPlaceholder},
-                        "amount": {
-                            "quantity": 42000000,
-                            "unit": "lovelace"
-                        }
-                    }
-                   ]
-                }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiConstructTransactionData(ApiConstructTransactionData) failed, key 'delegation' not found"
-              )
-            , ( [aesonQQ|
+            [
+             ( [aesonQQ|
                { "payments": [
                    {
                        "address": #{addrPlaceholder},
@@ -1284,9 +1271,9 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                        }
                    }
                   ],
-                  "delegation": [{"action" : "join"}]
+                  "delegations": [{"action" : "join"}]
                }|]
-               , "Error in $.delegation: delegation is too long: expected at most 255 characters"
+               , "Error in $.delegations[0]: key 'stake_key_index' not found"
               )
             ]
 

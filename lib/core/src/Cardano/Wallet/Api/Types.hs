@@ -2492,14 +2492,14 @@ instance EncodeAddress t => ToJSON (ApiConstructTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance ToJSON ApiValidityBound where
-    toJSON ApiValidityBoundUnspecified = String "not_specified"
+    toJSON ApiValidityBoundUnspecified = String "unspecified"
     toJSON (ApiValidityBoundAsTimeFromNow from) = toJSON from
     toJSON (ApiValidityBoundAsSlot sl) = toJSON sl
 instance FromJSON ApiValidityBound where
     parseJSON obj = processString obj <|> processObject obj
       where
         processString = withText "ApiValidityBound string" $ \str ->
-            if str == "not_specified" then
+            if str == "unspecified" then
                 pure ApiValidityBoundUnspecified
             else
                 fail "invalid string of ApiValidityBound"

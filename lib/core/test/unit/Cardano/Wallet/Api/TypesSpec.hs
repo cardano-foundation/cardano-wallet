@@ -1035,7 +1035,7 @@ spec = parallel $ do
                     , withdrawal = withdrawal (x :: ApiConstructTransactionData ('Testnet 0))
                     , metadata = metadata (x :: ApiConstructTransactionData ('Testnet 0))
                     , mint = mint (x :: ApiConstructTransactionData ('Testnet 0))
-                    , delegation = delegation (x :: ApiConstructTransactionData ('Testnet 0))
+                    , delegations = delegations (x :: ApiConstructTransactionData ('Testnet 0))
                     , validityInterval = validityInterval (x :: ApiConstructTransactionData ('Testnet 0))
                     }
             in
@@ -1911,6 +1911,7 @@ instance Arbitrary (ApiConstructTransaction t) where
     arbitrary = ApiConstructTransaction
         <$> arbitrary
         <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary StakeKeyIndex where
     arbitrary = StakeKeyIndex <$> arbitrary
@@ -2471,7 +2472,9 @@ instance ToSchema ApiNullStakeKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNullStakeKey"
 
 instance ToSchema (ApiConstructTransactionData t) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiConstructTransactionData"
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        declareSchemaForDefinition "ApiConstructTransactionData"
 
 instance ToSchema (ApiConstructTransaction t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiConstructTransaction"
