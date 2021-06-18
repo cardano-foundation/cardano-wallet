@@ -2792,9 +2792,11 @@ components:
 
     ApiMintBurnOperation: &ApiMintBurnOperation
       type: object
-      properties:
-        mint: *ApiMintData
-        burn: *ApiBurnData
+      oneOf:
+        - properties:
+            mint: *ApiMintData
+        - properties:
+            burn: *ApiBurnData
 
     ApiMintBurnData: &ApiMintBurnData
       type: object
