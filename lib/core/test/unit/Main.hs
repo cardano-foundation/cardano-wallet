@@ -18,6 +18,6 @@ main = withLineBuffering $ withUtf8Encoding $ do
     hspecWith defaultConfig Spec.spec
   where
     monitor = do
-        putStrLn "I'm alive! Hydra, please don't stop me."
-        threadDelay $ 10 * 1000000
+        putStrLn "*** 5s"
+        threadDelay $ 5 * 1000000
         monitor
