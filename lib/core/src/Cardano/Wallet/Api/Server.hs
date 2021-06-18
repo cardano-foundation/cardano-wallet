@@ -3663,11 +3663,10 @@ instance HasSeverityAnnotation WalletEngineLog where
         MsgSubmitSealedTx msg -> getSeverityAnnotation msg
 
 mintToken
-    :: forall ctx s n
+    :: forall ctx n
      . ctx
-    -> ArgGenChange s
     -> ApiT WalletId
     -> Api.PostMintBurnAssetData n
     -> Handler (ApiMintBurnTransaction n)
-mintToken _ctx _genChange (ApiT _wid) _body =
+mintToken _ctx (ApiT _wid) _body =
     error "Minting is not supported - this is just a stub"

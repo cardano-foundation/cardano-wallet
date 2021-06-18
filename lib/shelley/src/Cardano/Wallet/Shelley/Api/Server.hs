@@ -265,7 +265,7 @@ server byron icarus shelley multisig spl ntp =
 
     assets :: Server (Assets n)
     assets =
-        mintToken shelley undefined
+        mintToken shelley
         :<|> listAssets shelley
         :<|> getAsset shelley
         :<|> getAssetDefault shelley
