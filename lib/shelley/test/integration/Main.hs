@@ -115,8 +115,6 @@ import System.Environment
     ( setEnv )
 import System.FilePath
     ( (</>) )
-import System.IO
-    ( BufferMode (..), hSetBuffering, stderr, stdout )
 import Test.Hspec
     ( hspec )
 import Test.Hspec.Core.Spec
@@ -134,6 +132,8 @@ import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Utils.Paths
     ( getTestData, inNixBuild )
+import Test.Utils.Startup
+    ( withLineBuffering )
 import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
@@ -223,16 +223,14 @@ withTestsSetup :: (FilePath -> (Tracer IO TestsLog, Tracers IO) -> IO a) -> IO a
 withTestsSetup action = do
     -- Handle SIGTERM properly
     installSignalHandlersNoLogging
-    -- Flush test output as soon as a line is printed
-    hSetBuffering stdout LineBuffering
-    hSetBuffering stderr LineBuffering
     -- Stop cardano-cli complaining about file permissions
     setDefaultFilePermissions
     -- Enables small test-specific workarounds, like timing out faster if wallet
     -- deletion fails.
     setEnv "CARDANO_WALLET_TEST_INTEGRATION" "1"
-    -- Set UTF-8, regardless of user locale
-    withUtf8Encoding $
+    -- Flush test output as soon as a line is printed.
+    -- Set UTF-8, regardless of user locale.
+    withLineBuffering $ withUtf8Encoding $
         -- This temporary directory will contain logs, and all other data
         -- produced by the integration tests.
         withSystemTempDir stdoutTextTracer "test" $ \testDir ->

@@ -39,10 +39,10 @@ import Test.Hspec
     )
 import Test.HUnit.Lang
     ( HUnitFailure (..), assertFailure, formatFailureReason )
+import Test.Utils.Platform
+    ( isWindows )
 import Test.Utils.Resource
     ( unBracket )
-import Test.Utils.Windows
-    ( isWindows )
 import UnliftIO.Async
     ( race )
 import UnliftIO.Concurrent

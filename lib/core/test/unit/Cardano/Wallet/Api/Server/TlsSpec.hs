@@ -78,7 +78,7 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldThrow )
 import Test.Utils.Paths
     ( getTestData )
-import Test.Utils.Windows
+import Test.Utils.Platform
     ( pendingOnWine )
 import UnliftIO.Async
     ( async, link )

@@ -14,7 +14,7 @@ import System.FilePath.Windows
     ( makeValid )
 import Test.QuickCheck
     ( Arbitrary (..), elements, listOf1, scale )
-import Test.Utils.Windows
+import Test.Utils.Platform
     ( isWindows )
 
 -- | A file or directory name. The 'Arbitrary' instance will generate values
