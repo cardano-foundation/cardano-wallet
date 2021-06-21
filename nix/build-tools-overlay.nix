@@ -28,7 +28,7 @@
 ######################################################################
 
 let
-  index-state = "2021-03-11T00:00:00Z";
+  index-state = "2021-06-18T00:00:00Z";
   tools = {
     cabal-cache.version             = "1.0.2.1";
     cabal-install.exe               = "cabal";
