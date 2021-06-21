@@ -113,12 +113,15 @@ module Cardano.Wallet
     , selectAssetsNoOutputs
     , assignChangeAddresses
     , assignChangeAddressesAndUpdateDb
+    , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
     , signTransaction
+    , constructUnsignedTransaction
     , ErrSelectAssets(..)
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotWorth (..)
+    , ErrConstructTx (..)
 
     -- ** Migration
     , createMigrationPlan
@@ -1278,6 +1281,26 @@ assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
   where
     db = ctx ^. dbLayer @IO @s @k
 
+assignChangeAddressesWithoutDbUpdate
+    :: forall ctx s k.
+        ( GenChange s
+        , HasDBLayer IO s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> SelectionResult TokenBundle
+    -> ExceptT ErrConstructTx IO (SelectionResult TxOut)
+assignChangeAddressesWithoutDbUpdate ctx wid generateChange selection =
+    db & \DBLayer{..} -> mapExceptT atomically $ do
+        cp <- withExceptT ErrConstructTxNoSuchWallet $
+            withNoSuchWallet wid $ readCheckpoint wid
+        let (selectionUpdated, _) =
+                assignChangeAddresses generateChange selection (getState cp)
+        pure selectionUpdated
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
 selectionToUnsignedTx
     :: forall s input output change withdrawal.
         ( IsOurs s Address
@@ -1559,6 +1582,39 @@ signTransaction ctx wid mkRwdAcct pwd txCtx sel =
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
+
+
+-- | Construct an unsigned transaction from a given selection.
+constructUnsignedTransaction
+    :: forall ctx s k.
+        ( HasTransactionLayer k ctx
+        , HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
+        )
+    => ctx
+    -> WalletId
+    -> ( (k 'RootK XPrv, Passphrase "encryption") ->
+         (         XPrv, Passphrase "encryption")
+       )
+       -- ^ Reward account derived from the root key (or somewhere else).
+    -> Passphrase "raw"
+    -> TransactionCtx
+    -> SelectionResult TxOut
+    -> ExceptT ErrConstructTx IO ByteString
+constructUnsignedTransaction ctx wid mkRwdAcct pwd txCtx sel =
+    db & \DBLayer{..} -> do
+    era <- liftIO $ currentNodeEra nl
+    withRootKey @_ @s ctx wid pwd ErrConstructTxWithRootKey $ \xprv scheme -> do
+        let pwdP = preparePassphrase scheme pwd
+        mapExceptT atomically $ do
+            pp <- liftIO $ currentProtocolParameters nl
+            let rewardAcnt = mkRwdAcct (xprv, pwdP)
+            withExceptT ErrConstructTxMkTx $ ExceptT $ pure $
+                mkUnsignedTransaction tl era (fst rewardAcnt) pp txCtx sel
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    tl = ctx ^. transactionLayer @k
+    nl = ctx ^. networkLayer
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.
@@ -2493,6 +2549,14 @@ data ErrSignPayment
     | ErrSignPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSignPaymentWithRootKey ErrWithRootKey
     | ErrSignPaymentIncorrectTTL PastHorizonException
+    deriving (Show, Eq)
+
+-- | Errors that can occur when constructing an unsigned transaction.
+data ErrConstructTx
+    = ErrConstructTxMkTx ErrMkTx
+    | ErrConstructTxNoSuchWallet ErrNoSuchWallet
+    | ErrConstructTxWithRootKey ErrWithRootKey
+    | ErrConstructTxIncorrectTTL PastHorizonException
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction to the network.

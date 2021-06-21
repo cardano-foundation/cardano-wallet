@@ -888,6 +888,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , mint :: !(Maybe (ApiT W.TokenMap))
     , delegations :: !(Maybe [ApiMultiDelegationAction])
     , validityInterval :: !(Maybe ApiValidityInterval)
+    , passphrase :: !(ApiT (Passphrase "lenient"))
     } deriving (Eq, Generic, Show)
     deriving anyclass NFData
 

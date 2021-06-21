@@ -2692,7 +2692,12 @@ components:
 
     ApiConstructTransactionData: &ApiConstructTransactionData
       type: object
+      required:
+        - passphrase
       properties:
+        passphrase:
+          <<: *lenientPassphrase
+          description: The wallet's master passphrase.
         payments: *ApiPaymentDestination
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
