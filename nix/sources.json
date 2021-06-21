@@ -1,4 +1,16 @@
 {
+    "hackage": {
+        "branch": "master",
+        "description": "Automatically generated Nix expressions for Hackage",
+        "homepage": "",
+        "owner": "input-output-hk",
+        "repo": "hackage.nix",
+        "rev": "21939e742646f66f080640bedcb00f1f3054bf67",
+        "sha256": "1l2dxmvbi9r1drpyv5z670l16r8hcn1bigj4xxzcds7k4srn3l08",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/hackage.nix/archive/21939e742646f66f080640bedcb00f1f3054bf67.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "haskell.nix": {
         "branch": "master",
         "description": "Alternative Haskell Infrastructure for Nixpkgs",
