@@ -6,6 +6,8 @@
         "command" = (((hackage.command)."0.1.1").revisions).default;
         "markov-chain-usage-model" = (((hackage.markov-chain-usage-model)."0.0.0").revisions).default;
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.7.0").revisions).default;
+        "hspec" = (((hackage.hspec)."2.8.2").revisions).default;
+        "hspec-core" = (((hackage.hspec-core)."2.8.2").revisions).default;
         "base16-bytestring" = (((hackage.base16-bytestring)."1.0.1.0").revisions).default;
         "bech32" = (((hackage.bech32)."1.1.0").revisions).default;
         "bech32-th" = (((hackage.bech32-th)."1.0.2").revisions).default;
@@ -104,10 +106,10 @@
           "cardano-crypto-praos" = {
             flags = { "external-libsodium-vrf" = lib.mkOverride 900 false; };
             };
-          "zip" = { flags = { "disable-bzip2" = lib.mkOverride 900 true; }; };
           "cryptonite" = {
             flags = { "support_rdrand" = lib.mkOverride 900 false; };
             };
+          "zip" = { flags = { "disable-bzip2" = lib.mkOverride 900 true; }; };
           };
         })
     { packages = {}; }
