@@ -29,7 +29,7 @@
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."casing" or (errorHandler.buildDepError "casing"))
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
-          (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
+          (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))

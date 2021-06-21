@@ -73,7 +73,7 @@ import Data.Semigroup
 import Data.Word
     ( Word8 )
 import Fmt
-    ( Builder, build, indentF, pretty )
+    ( indentF, pretty, (+|), (|+) )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -104,8 +104,8 @@ import Test.QuickCheck
     , withMaxSuccess
     , (.&&.)
     )
-import Text.Pretty.Simple
-    ( pShow )
+import Test.Utils.Pretty
+    ( pShowBuilder )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -117,7 +117,6 @@ import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
-import qualified Data.Text.Lazy as TL
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Migration.SelectionSpec" $
@@ -1063,15 +1062,7 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
 -- On failure, uses pretty-printing to show the contents of the variable.
 --
 report :: (Show a, Testable prop) => a -> String -> prop -> Property
-report a name = counterexample
-    $ pretty $ mconcat
-    [ buildPretty name
-    , build @String ":\n"
-    , indentF 4 (buildPretty a)
-    ]
-  where
-    buildPretty :: Show b => b -> Builder
-    buildPretty = build . TL.unpack . pShow
+report a name = counterexample (""+|name|+":\n"+|indentF 4 (pShowBuilder a)|+"")
 
 -- | Adds a named condition to a property.
 --
@@ -1081,10 +1072,7 @@ verify :: Bool -> String -> Property -> Property
 verify condition conditionTitle =
     (.&&.) (counterexample counterexampleText $ property condition)
   where
-    counterexampleText = mconcat
-        [ "Condition violated: "
-        , TL.unpack (pShow conditionTitle)
-        ]
+    counterexampleText = "Condition violated: " <> conditionTitle
 
 -- | Tests a collection of properties defined with 'verify'.
 --
@@ -1107,17 +1095,3 @@ matchRight f result = case result of
 
 scaleCoin :: Coin -> Int -> Coin
 scaleCoin (Coin c) s = Coin $ c * fromIntegral s
-
---------------------------------------------------------------------------------
--- Pretty-printing
---------------------------------------------------------------------------------
-
-newtype Pretty a = Pretty { unPretty :: a }
-    deriving Eq
-
-instance Arbitrary a => Arbitrary (Pretty a) where
-    arbitrary = Pretty <$> arbitrary
-    shrink (Pretty a) = Pretty <$> shrink a
-
-instance Show a => Show (Pretty a) where
-    show (Pretty a) = TL.unpack $ pShow a
