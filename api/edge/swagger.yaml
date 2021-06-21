@@ -2218,7 +2218,7 @@ components:
       properties:
         passphrase:
           <<: *lenientPassphrase
-          description: The source Byron wallet's master passphrase.
+          description: The source wallet's master passphrase.
 
     ApiWalletMigrationPlanPostData: &ApiWalletMigrationPlanPostData
       type: object
@@ -4814,7 +4814,7 @@ paths:
         > ⚠️  Disclaimer ⚠️
         >
         > This endpoint historically use to take a stake pool id as a path parameter.
-        > However, retiring from delegation is ubiquitous and not tight to a particular
+        > However, retiring from delegation is ubiquitous and not tied to a particular
         > stake pool. For backward-compatibility reasons, sending stake pool ids as path
         > parameter will still be accepted by the server but new integrations are
         > encouraged to provide a placeholder asterisk `*` instead.
