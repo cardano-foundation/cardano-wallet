@@ -594,8 +594,10 @@ genSelectionCriteria genUTxOIndex = do
           )
         ]
     extraCoinSource <- oneof [ pure Nothing, Just <$> genCoinSmall ]
-    assetsToBurn <- TokenMap.fromFlatList <$> sublistOf (availableTokensToBurn utxoAvailable outputsToCover)
-    assetsToMint <- TokenMap.fromFlatList <$> sublistOf (allSpentOrBurntTokens outputsToCover assetsToBurn)
+    assetsToBurn <- TokenMap.fromFlatList <$>
+        sublistOf (availableTokensToBurn utxoAvailable outputsToCover)
+    assetsToMint <- TokenMap.fromFlatList <$>
+        sublistOf (allSpentOrBurntTokens outputsToCover assetsToBurn)
     pure $ SelectionCriteria
         { outputsToCover
         , utxoAvailable
@@ -608,20 +610,30 @@ genSelectionCriteria genUTxOIndex = do
   where
     -- We look at a UTxO and remove from it the outputs we need to cover,
     -- whatever is leftover we can choose to burn.
-    availableTokensToBurn :: UTxOIndex -> NonEmpty TxOut -> [(AssetId, TokenQuantity)]
+    availableTokensToBurn
+        :: UTxOIndex
+        -> NonEmpty TxOut
+        -> [(AssetId, TokenQuantity)]
     availableTokensToBurn index outputsToCover =
       let
-        (TokenBundle _ availableTokens) = UTxOIndex.balance index `TokenBundle.difference` F.foldMap (view #tokens) outputsToCover
+          (TokenBundle _ availableTokens) =
+              UTxOIndex.balance index
+                  `TokenBundle.difference`
+                      F.foldMap (view #tokens) outputsToCover
       in
         TokenMap.toFlatList availableTokens
 
     -- If a token is spent or burnt, it is typically satisfied by the UTxO.
     -- However, we can choose to instead mint those tokens and have the mint
     -- operation satisfy those outputs.
-    allSpentOrBurntTokens :: NonEmpty TxOut -> TokenMap -> [(AssetId, TokenQuantity)]
+    allSpentOrBurntTokens
+        :: NonEmpty TxOut
+        -> TokenMap
+        -> [(AssetId, TokenQuantity)]
     allSpentOrBurntTokens outputsToCover burntTokens =
       let
-        (TokenBundle _ requestedTokens) = F.foldMap (view #tokens) outputsToCover
+          (TokenBundle _ requestedTokens) =
+              F.foldMap (view #tokens) outputsToCover
       in
         TokenMap.toFlatList $ burntTokens <> requestedTokens
 
@@ -631,15 +643,21 @@ balanceSufficient :: SelectionCriteria -> Bool
 balanceSufficient criteria =
     balanceRequired `leq` balanceAvailable
   where
-    SelectionCriteria {outputsToCover, utxoAvailable, extraCoinSource, assetsToMint, assetsToBurn}
-        = criteria
+    SelectionCriteria
+        { outputsToCover
+        , utxoAvailable
+        , extraCoinSource
+        , assetsToMint
+        , assetsToBurn
+        } = criteria
     balanceRequired =
       F.foldMap (view #tokens) outputsToCover
-        `TokenBundle.add`
-          TokenBundle.fromTokenMap assetsToBurn
-    balanceAvailable = fullBalance utxoAvailable extraCoinSource
-        `TokenBundle.add`
-          TokenBundle.fromTokenMap assetsToMint
+          `TokenBundle.add`
+              TokenBundle.fromTokenMap assetsToBurn
+    balanceAvailable =
+        fullBalance utxoAvailable extraCoinSource
+            `TokenBundle.add`
+                TokenBundle.fromTokenMap assetsToMint
 
 prop_performSelection_small
     :: MinCoinValueFor
@@ -748,13 +766,13 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     onSuccess result = do
         let
           totalInputValue =
-            balanceSelected
-              `TokenBundle.add`
-                TokenBundle.fromTokenMap assetsToMint
+              balanceSelected
+                  `TokenBundle.add`
+                      TokenBundle.fromTokenMap assetsToMint
           totalOutputValue =
             (F.foldMap (view #tokens) outputsCovered)
-              `TokenBundle.add` balanceChange
-              `TokenBundle.add` TokenBundle.fromTokenMap assetsToBurn
+                `TokenBundle.add` balanceChange
+                `TokenBundle.add` TokenBundle.fromTokenMap assetsToBurn
         monitor $ counterexample $ unlines
             [ "available balance:"
             , pretty (Flat balanceAvailable)
@@ -795,9 +813,9 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         absoluteMinCoinValue = mkMinCoinValueFor minCoinValueFor TokenMap.empty
         delta :: TokenBundle
         delta =
-          balanceSelected
-            `TokenBundle.unsafeSubtract`
-              (balanceRequired `TokenBundle.add` balanceChange)
+            balanceSelected
+                `TokenBundle.unsafeSubtract`
+                    (balanceRequired `TokenBundle.add` balanceChange)
         maximumExpectedDelta =
             expectedCost `addCoin`
             (absoluteMinCoinValue `multiplyCoin`
@@ -838,7 +856,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             onUnableToConstructChange e
 
     onBalanceInsufficient e = do
-        let balanceAvailable' = TokenBundle.add (balanceMissing e) balanceAvailable
+        let balanceAvailable' =
+                TokenBundle.add (balanceMissing e) balanceAvailable
         monitor $ counterexample $ unlines
             [ "available balance:"
             , pretty (Flat balanceAvailable)
@@ -884,9 +903,15 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
           , "values minted but not spent or burnt:"
           , pretty (Flat $ outputsMissing e)
           ]
-        assert $ TokenBundle.fromTokenMap errorMintedValues `leq` (requestedOutputs `TokenBundle.add` TokenBundle.fromTokenMap errorBurntValues)
+        assert $ TokenBundle.fromTokenMap errorMintedValues
+            `leq` (requestedOutputs
+                       `TokenBundle.add`
+                       TokenBundle.fromTokenMap errorBurntValues)
       where
-        OutputsInsufficientError errorMintedValues errorBurntValues requestedOutputs = e
+        OutputsInsufficientError
+          errorMintedValues
+          errorBurntValues
+          requestedOutputs = e
 
     onInsufficientMinCoinValues es = do
         monitor $ counterexample $ unlines
@@ -921,10 +946,10 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
 
     balanceRequired  =
       F.foldMap (view #tokens) outputsToCover
-        `TokenBundle.add`
-          (TokenBundle.fromTokenMap assetsToBurn)
-        `TokenBundle.unsafeSubtract`
-          (TokenBundle.fromTokenMap assetsToMint)
+          `TokenBundle.add`
+              (TokenBundle.fromTokenMap assetsToBurn)
+          `TokenBundle.unsafeSubtract`
+              (TokenBundle.fromTokenMap assetsToMint)
     balanceAvailable = fullBalance utxoAvailable extraCoinSource
 
 --------------------------------------------------------------------------------
@@ -1716,10 +1741,12 @@ isValidMakeChangeData p = (&&)
   where
     totalInputValue =
         F.fold (inputBundles p)
-        `TokenBundle.add` (F.foldMap TokenBundle.fromCoin (view #extraCoinSource p))
+        `TokenBundle.add` (F.foldMap
+                           TokenBundle.fromCoin
+                           (view #extraCoinSource p))
         `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
-      F.fold (outputBundles p)
+        F.fold (outputBundles p)
         `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToBurn p)
     totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
 
@@ -1732,9 +1759,11 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     outputBundles <- genTokenBundles outputBundleCount
 
     -- Tokens in the input but not the output can be burned
-    assetsToBurn <- TokenMap.fromFlatList <$> sublistOf (difference' inputBundles outputBundles)
+    assetsToBurn <- TokenMap.fromFlatList <$>
+        sublistOf (difference' inputBundles outputBundles)
     -- Tokens in the output but not the input can be minted
-    assetsToMint <- TokenMap.fromFlatList <$> sublistOf (difference' outputBundles inputBundles)
+    assetsToMint <- TokenMap.fromFlatList <$>
+        sublistOf (difference' outputBundles inputBundles)
 
     MakeChangeCriteria
         <$> arbitrary
@@ -1752,10 +1781,14 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
         <$> genTokenBundleSmallRangePositive
         <*> replicateM count genTokenBundleSmallRangePositive
 
-    difference' :: NonEmpty TokenBundle -> NonEmpty TokenBundle -> [(AssetId, TokenQuantity)]
+    difference'
+        :: NonEmpty TokenBundle
+        -> NonEmpty TokenBundle
+        -> [(AssetId, TokenQuantity)]
     difference' a b =
       let
-        (TokenBundle _ availableTokens) = F.fold a `TokenBundle.difference` F.fold b
+        (TokenBundle _ availableTokens) =
+            F.fold a `TokenBundle.difference` F.fold b
       in
         TokenMap.toFlatList availableTokens
 
@@ -1916,8 +1949,13 @@ prop_makeChange_success_delta p change =
         ]
     totalInputValue =
         F.fold (inputBundles p)
-        `TokenBundle.add` maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p)
-        `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToMint p)
+        `TokenBundle.add`
+            maybe
+                TokenBundle.empty
+                TokenBundle.fromCoin
+                (view #extraCoinSource p)
+        `TokenBundle.add`
+            TokenBundle.fromTokenMap (view #assetsToMint p)
     totalInputCoin =
         TokenBundle.getCoin totalInputValue
     totalOutputValue =
@@ -1974,8 +2012,12 @@ prop_makeChange_fail_costTooBig p =
   where
     totalInputValue = 
         F.fold (inputBundles p)
-          `TokenBundle.add` maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p)
-          `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToMint p)
+            `TokenBundle.add`
+                maybe
+                    TokenBundle.empty
+                    TokenBundle.fromCoin
+                    (view #extraCoinSource p)
+            `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
           `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToBurn p)
@@ -2023,11 +2065,16 @@ prop_makeChange_fail_minValueTooBig p =
   where
     totalInputValue = 
         F.fold (inputBundles p)
-          `TokenBundle.add` maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p)
-          `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToMint p)
+            `TokenBundle.add`
+                maybe
+                    TokenBundle.empty
+                    TokenBundle.fromCoin
+                    (view #extraCoinSource p)
+            `TokenBundle.add`
+                TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
-          `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToBurn p)
+            `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToBurn p)
 
 unit_makeChange
     :: [Expectation]
@@ -2574,7 +2621,7 @@ prop_makeChangeForNonUserSpecifiedAssets_sum n assetQuantities mint burn =
     sumActual :: TokenMap
     sumActual =
         F.fold
-          $ makeChangeForNonUserSpecifiedAssets n assetQuantityMap mint burn
+            $ makeChangeForNonUserSpecifiedAssets n assetQuantityMap mint burn
 
     sumExpected :: TokenMap
     sumExpected =
@@ -3201,7 +3248,9 @@ prop_mapMaybe_oracle xs fn =
 -- the value of the minted tokens exactly. i.e. The value of the change maps
 -- after calling this function is equivalent of just adding the value to the
 -- change maps.
-prop_addMintValueToChangeMaps_value :: (AssetId, TokenQuantity) -> NonEmpty TokenMap -> Property
+prop_addMintValueToChangeMaps_value
+    :: (AssetId, TokenQuantity)
+    -> NonEmpty TokenMap -> Property
 prop_addMintValueToChangeMaps_value (assetId, qty) changeMaps =
     F.fold changeMaps <> TokenMap.singleton assetId qty
     ===
@@ -3209,7 +3258,10 @@ prop_addMintValueToChangeMaps_value (assetId, qty) changeMaps =
 
 -- Add a mint value to the change maps does not change their length (length is
 -- determined entirely by the number of outputs to cover).
-prop_addMintValueToChangeMaps_length :: (AssetId, TokenQuantity) -> NonEmpty TokenMap -> Property
+prop_addMintValueToChangeMaps_length
+    :: (AssetId, TokenQuantity)
+    -> NonEmpty TokenMap
+    -> Property
 prop_addMintValueToChangeMaps_length mint changeMaps =
     NE.length changeMaps
     ===
@@ -3217,8 +3269,12 @@ prop_addMintValueToChangeMaps_length mint changeMaps =
 
 -- Adding a mint value to the change maps preserves the ascending partial order
 -- of the change maps.
-prop_addMintValueToChangeMaps_order :: (AssetId, TokenQuantity) -> NonEmpty () -> Map AssetId (NonEmpty TokenQuantity) -> Property
-prop_addMintValueToChangeMaps_order mint numChangeMaps nonUserSpecifiedAssetQuantities = 
+prop_addMintValueToChangeMaps_order
+    :: (AssetId, TokenQuantity)
+    -> NonEmpty ()
+    -> Map AssetId (NonEmpty TokenQuantity)
+    -> Property
+prop_addMintValueToChangeMaps_order mint numChangeMaps nonUserQtys = 
     let
       -- We can only maintain ascending partial order if there already is
       -- ascending partial order. Random data provided by an arbitrary instance
@@ -3230,7 +3286,7 @@ prop_addMintValueToChangeMaps_order mint numChangeMaps nonUserSpecifiedAssetQuan
       changeMaps =
           makeChangeForNonUserSpecifiedAssets
           numChangeMaps
-          nonUserSpecifiedAssetQuantities
+          nonUserQtys
           TokenMap.empty
           TokenMap.empty
     in
@@ -3252,7 +3308,10 @@ prop_addMintValuesToChangeMaps mints changeMaps =
 -- the value of the burnt tokens exactly. i.e. The value of the change maps
 -- after calling this function is equivalent of just removing the burnt value
 -- from the change maps.
-prop_removeBurnValueFromChangeMaps_value :: (AssetId, TokenQuantity) -> NonEmpty TokenMap -> Property
+prop_removeBurnValueFromChangeMaps_value
+    :: (AssetId, TokenQuantity)
+    -> NonEmpty TokenMap
+    -> Property
 prop_removeBurnValueFromChangeMaps_value (assetId, qty) changeMaps =
     F.fold changeMaps `TokenMap.difference` TokenMap.singleton assetId qty
     ===
@@ -3260,7 +3319,10 @@ prop_removeBurnValueFromChangeMaps_value (assetId, qty) changeMaps =
 
 -- Removing a burnt value from the change maps does not change their length
 -- (length is determined entirely by the number of outputs to cover).
-prop_removeBurnValueFromChangeMaps_length :: (AssetId, TokenQuantity) -> NonEmpty TokenMap -> Property
+prop_removeBurnValueFromChangeMaps_length
+    :: (AssetId, TokenQuantity)
+    -> NonEmpty TokenMap
+    -> Property
 prop_removeBurnValueFromChangeMaps_length burn changeMaps =
     NE.length changeMaps
     ===
@@ -3268,8 +3330,12 @@ prop_removeBurnValueFromChangeMaps_length burn changeMaps =
 
 -- Removing a burnt value from the change maps preserves the ascending partial
 -- order of the change maps.
-prop_removeBurnValueFromChangeMaps_order :: (AssetId, TokenQuantity) -> NonEmpty () -> Map AssetId (NonEmpty TokenQuantity) -> Property
-prop_removeBurnValueFromChangeMaps_order burn numChangeMaps nonUserSpecifiedAssetQuantities =
+prop_removeBurnValueFromChangeMaps_order
+    :: (AssetId, TokenQuantity)
+    -> NonEmpty ()
+    -> Map AssetId (NonEmpty TokenQuantity)
+    -> Property
+prop_removeBurnValueFromChangeMaps_order burn numChangeMaps nonUserQtys =
     let
       -- We can only maintain ascending partial order if there already is
       -- ascending partial order. Random data provided by an arbitrary instance
@@ -3281,7 +3347,7 @@ prop_removeBurnValueFromChangeMaps_order burn numChangeMaps nonUserSpecifiedAsse
       changeMaps =
           makeChangeForNonUserSpecifiedAssets
           numChangeMaps
-          nonUserSpecifiedAssetQuantities
+          nonUserQtys
           TokenMap.empty
           TokenMap.empty
     in

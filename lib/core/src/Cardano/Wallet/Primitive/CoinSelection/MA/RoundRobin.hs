@@ -322,8 +322,8 @@ outputsMissing (OutputsInsufficientError mint burn out) =
     -- but not present in "mint" will simply be zeroed out, which is
     -- the behaviour we want for this error report.
     TokenBundle.fromTokenMap mint
-      `TokenBundle.difference`
-        (out `TokenBundle.add` TokenBundle.fromTokenMap burn)
+        `TokenBundle.difference`
+            (out `TokenBundle.add` TokenBundle.fromTokenMap burn)
 
 -- | Indicates that the balance of inputs actually selected was insufficient to
 --   cover the balance of 'outputsToCover'.
@@ -463,8 +463,8 @@ performSelection
 performSelection minCoinFor costFor bundleSizeAssessor criteria
     -- Is the minted value all spent or burnt?
     | not (TokenBundle.fromTokenMap assetsToMint
-           `leq` (requestedOutputs
-                  `TokenBundle.add` TokenBundle.fromTokenMap assetsToBurn)) =
+        `leq` (requestedOutputs
+             `TokenBundle.add` TokenBundle.fromTokenMap assetsToBurn)) =
         pure $ Left $ OutputsInsufficient $ OutputsInsufficientError
             { assetsToMint, assetsToBurn, requestedOutputs }
 
@@ -513,11 +513,11 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         -- of course, we need to satisfy the outputs the caller asked for
         requestedOutputs
         -- we must also find assets to burn
-          `TokenBundle.add`
-            TokenBundle.fromTokenMap assetsToBurn
+            `TokenBundle.add`
+                TokenBundle.fromTokenMap assetsToBurn
         -- but assets minted reduce the quantity of assets we have to select
-          `TokenBundle.unsafeSubtract`
-            TokenBundle.fromTokenMap assetsToMint
+            `TokenBundle.unsafeSubtract`
+                TokenBundle.fromTokenMap assetsToMint
 
     insufficientMinCoinValues :: [InsufficientMinCoinValueError]
     insufficientMinCoinValues =
@@ -1181,10 +1181,10 @@ makeChange criteria
     changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
     changeForNonUserSpecifiedAssets =
         makeChangeForNonUserSpecifiedAssets
-          outputMaps
-          nonUserSpecifiedAssetQuantities
-          (removeAssetIds userSpecifiedAssetIds assetsToMint)
-          (removeAssetIds userSpecifiedAssetIds assetsToBurn)
+            outputMaps
+            nonUserSpecifiedAssetQuantities
+            (removeAssetIds userSpecifiedAssetIds assetsToMint)
+            (removeAssetIds userSpecifiedAssetIds assetsToBurn)
 
     removeAssetIds :: Set AssetId -> TokenMap -> TokenMap
     removeAssetIds as = TokenMap.filter (not . (`Set.member` as))
@@ -1220,14 +1220,14 @@ makeChange criteria
     totalInputValue :: TokenBundle
     totalInputValue =
       F.fold inputBundles
-      `TokenBundle.add` F.foldMap TokenBundle.fromCoin extraCoinSource
-      -- Mints represent extra inputs from "the void"
-      `TokenBundle.add` TokenBundle.fromTokenMap assetsToMint
+          `TokenBundle.add` F.foldMap TokenBundle.fromCoin extraCoinSource
+          -- Mints represent extra inputs from "the void"
+          `TokenBundle.add` TokenBundle.fromTokenMap assetsToMint
 
     totalOutputValue :: TokenBundle
     totalOutputValue = F.fold outputBundles
-      -- Burns represent extra outputs to "the void"
-      `TokenBundle.add` TokenBundle.fromTokenMap assetsToBurn
+        -- Burns represent extra outputs to "the void"
+        `TokenBundle.add` TokenBundle.fromTokenMap assetsToBurn
 
     -- Identifiers of all user-specified assets: assets that were included in
     -- the original set of outputs.
@@ -1614,9 +1614,9 @@ addMintValuesToChangeMaps
   -> NonEmpty TokenMap
 addMintValuesToChangeMaps mints =
     F.foldr
-      (\mint -> (addMintValueToChangeMaps mint .))
-      id
-      (TokenMap.toFlatList mints)
+        (\mint -> (addMintValueToChangeMaps mint .))
+        id
+        (TokenMap.toFlatList mints)
 
 -- | Remove a burnt value from the change map. This function presumes that
 -- the change map is partially-ordered in ascending order (i.e. the largest
@@ -1664,7 +1664,7 @@ removeBurnValueFromChangeMaps (assetId, assetQty) =
               x :| (y : rest) ->
                   let
                       xs :: NonEmpty TokenMap
-                      xs    = y :| rest
+                      xs = y :| rest
 
                       burnt :: TokenMap
                       burnt = x `TokenMap.difference` toBurn
@@ -1686,9 +1686,9 @@ removeBurnValuesFromChangeMaps
   -> NonEmpty TokenMap
 removeBurnValuesFromChangeMaps burns =
     F.foldr
-      (\burn -> (removeBurnValueFromChangeMaps burn .))
-      id
-      (TokenMap.toFlatList burns)
+        (\burn -> (removeBurnValueFromChangeMaps burn .))
+        id
+        (TokenMap.toFlatList burns)
 
 
 --------------------------------------------------------------------------------
@@ -1802,7 +1802,8 @@ fullBalance index extraSource
         TokenBundle.empty
     | otherwise =
         (view #balance index)
-          `TokenBundle.add` (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
+            `TokenBundle.add`
+                (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
 
 --------------------------------------------------------------------------------
 -- Utility types

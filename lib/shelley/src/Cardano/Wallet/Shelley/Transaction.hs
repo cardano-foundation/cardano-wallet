@@ -462,7 +462,13 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
                 }
     | otherwise =
         pure SelectionCriteria
-            {outputsToCover, utxoAvailable, selectionLimit, extraCoinSource, assetsToMint, assetsToBurn}
+            { outputsToCover
+            , utxoAvailable
+            , selectionLimit
+            , extraCoinSource
+            , assetsToMint
+            , assetsToBurn
+            }
   where
     -- The complete list of token bundles whose serialized lengths are greater
     -- than the limit of what is allowed in a transaction output:
