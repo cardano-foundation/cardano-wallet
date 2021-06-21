@@ -247,6 +247,33 @@ instance TxWitnessTagFor IcarusKey where
 instance TxWitnessTagFor ByronKey where
     txWitnessTagFor = TxWitnessByronUTxO Byron
 
+_constructUnsignedTx
+    :: forall era.
+        ( EraConstraints era
+        )
+    => Cardano.NetworkId
+    -> TxPayload era
+    -> SlotNo
+    -- ^ Slot at which the transaction will expire.
+    -> XPrv
+    -- ^ Reward account
+    -> Coin
+    -- ^ An optional withdrawal amount, can be zero
+    -> SelectionResult TxOut
+    -- ^ Finalized asset selection
+    -> Coin
+    -- ^ Explicit fee amount
+    -> ShelleyBasedEra era
+    -> Either ErrMkTx ByteString
+_constructUnsignedTx networkId payload ttl rewardAcnt wdrl cs fees era = do
+    let TxPayload md certs _ = payload
+    let wdrls = mkWithdrawals
+            networkId
+            (toRewardAccountRaw . toXPub $ rewardAcnt)
+            wdrl
+
+    serialiseToCBOR <$> mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
+
 mkTx
     :: forall k era.
         ( TxWitnessTagFor k
