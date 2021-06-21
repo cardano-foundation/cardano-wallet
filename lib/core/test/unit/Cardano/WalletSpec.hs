@@ -1294,6 +1294,8 @@ dummyTransactionLayer = TransactionLayer
         let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
         return (tx, fakeBinary)
 
+    , mkUnsignedTransaction =
+        error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
     , initSelectionCriteria =
         error "dummyTransactionLayer: initSelectionCriteria not implemented"
     , calcMinimumCost =

@@ -1,0 +1,996 @@
+{
+    "seed": -5155102017148256822,
+    "samples": [
+        {
+            "withdrawal": "self",
+            "delegations": [
+                {
+                    "action": "quit",
+                    "stake_key_index": "2269"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1wvn7gm3s7tch3rs6nvpdd82dw4quhvv2nppdyfr0g280jhvrtfy",
+                    "stake_key_index": "10497"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1amp9jugygpkhtsng3j2u7v45g73whk259fhg27ccl7jfkyg47y0",
+                    "stake_key_index": "31166"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1yehge2v7wgk0jxscvtkv5s6eunmznx3uj0aggmymgxkmxxzte02",
+                    "stake_key_index": "23260"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "15578"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "26985"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "17606"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1mud59xmv08hz268fysp280zs0atapkhmpz5jwzctfjfuu5uxut0",
+                    "stake_key_index": "25540"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "2300"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "9544"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "17668"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1awvaayt6anmdnrdrrr5yzr8vwxx3af2kv0fjckx2vm8tz7y6qu3",
+                    "stake_key_index": "13691"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1scw6drhgnmgkq3pyluqvpqt3vqfxvu5u5wrrhdvkpp0qjnhqxn9",
+                    "stake_key_index": "6302"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "746"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "7658"
+                }
+            ],
+            "mint": [],
+            "payments": [
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>"
+            ]
+        },
+        {
+            "withdrawal": "self",
+            "metadata": {
+                "19": {
+                    "map": [
+                        {
+                            "k": {
+                                "string": ""
+                            },
+                            "v": {
+                                "map": [
+                                    {
+                                        "k": {
+                                            "string": ""
+                                        },
+                                        "v": {
+                                            "string": ""
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "k": {
+                                "string": "_𦺧"
+                            },
+                            "v": {
+                                "int": 2
+                            }
+                        }
+                    ]
+                }
+            },
+            "mint": [
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 10,
+                    "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                },
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 5,
+                    "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                },
+                {
+                    "asset_name": "546f6b656e42",
+                    "quantity": 9,
+                    "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                }
+            ]
+        },
+        {
+            "delegations": [
+                {
+                    "action": "join",
+                    "pool": "pool1wt2j67da59lsy0at2y3zh82h9umsxckwlwq98w23w7ufsy3xh5g",
+                    "stake_key_index": "11231"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "31922"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "12251"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1j6lymf57uk6vp0hwfv892cy4ye2kn933rvcny5vcxjwc6shn3jd",
+                    "stake_key_index": "23363"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1tazjvq0f676s8xvhw2952r0tx3pyyg4hcgjud4kk762jvm75e4u",
+                    "stake_key_index": "14458"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1wcp7phu3ee5qvp0cn82lthmnxcvtmvmdh9sez8ya9s25vze7nz9",
+                    "stake_key_index": "20283"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1amr25s7g0tlk39tjsgskawrjqu4q5dqkqh7skkk7c09ag30ac3f",
+                    "stake_key_index": "12814"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "29779"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1qyu48mcgyh3gqaksqcpr3nuqnk06p5re7pchvqnw94v2ylxadmn",
+                    "stake_key_index": "21493"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool195v28akc5tjq27c55y2np3p0e4mn3l3c70qgmhjl5x59u59pzqd",
+                    "stake_key_index": "4754"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "15542"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "8626"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "21394"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "4122"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1e0ssn3qyn852cfmf9xzg6w3ruq4veulsaqmfl8g95x3tjez7t9y",
+                    "stake_key_index": "21849"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1hlfnkmkr925pukpcl9yv09n3jn64k9kvap25pkvtfr6360kynmp",
+                    "stake_key_index": "4125"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool14ykq4lthva57nhweptxmj3p6es9ed9x6q6arkhe0pp2t72f7vhq",
+                    "stake_key_index": "17596"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "28003"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "25322"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1dlzvejva7hwgvd49673p4zccpf6f7qjgfaykgwjjqzsl58z60rk",
+                    "stake_key_index": "13135"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1u93wf7yuve6rat7wqhd98nep5ext4rkfksyuu8wf8xllcckaekk",
+                    "stake_key_index": "23115"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "23020"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "13512"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "30704"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1uv8vl2utg66s9q3pyw46wmmxxc9pg6hklvad67wy63p4q2rnpvd",
+                    "stake_key_index": "8711"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "29349"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool18q4d3kflgs3cd6uu46ea2eaagaruzucww3m5ne4uq6mw2x3hgxj",
+                    "stake_key_index": "15814"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1q34dfk35fz4qczd575hr2k8xdfh9g4rkr924c0gmfpwq6q9g37l",
+                    "stake_key_index": "10519"
+                }
+            ],
+            "metadata": {
+                "4": {
+                    "string": ""
+                }
+            },
+            "mint": [],
+            "payments": [
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>"
+            ]
+        },
+        {
+            "delegations": [
+                {
+                    "action": "join",
+                    "pool": "pool17yuvg00r70zrsvdjfl5hqsvzm2g0c3fcdrgqhmxk2uz2ush2wzw",
+                    "stake_key_index": "32330"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool17umt4yztepzveja8w22k5dajkkp2x9famp89uzt67k995dzejyp",
+                    "stake_key_index": "30655"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1mwtey2pewwx7ev9wt30yc9kh02xhhcu3hl8a445m02wlqu3k8tk",
+                    "stake_key_index": "14445"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool13ccav50qn64fpnshv07emarzddqaxlweuqrugmjppv95xwyarp6",
+                    "stake_key_index": "29660"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1y85rfkp92j2gnfrv4daxk623q8y56jjt025fl4pu4qqculpam3r",
+                    "stake_key_index": "30373"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1yk2yg4nuj8nhpqd8auzd4c3rmmketqk92r55wnumajvfzw49us0",
+                    "stake_key_index": "13561"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "4798"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "12706"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1sxqlys48vz04p4q4phngzcn7qewnzdpxnu3px44l65xgvd4zlw8",
+                    "stake_key_index": "31388"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "12228"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1cpfaypns5l3hwxag33yaar028ge5avymvtl3wktthpzjcd09ry8",
+                    "stake_key_index": "15904"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "2976"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool18ewftc7gnf0gz0mwqrh9nn9w0l9wxvtcr00d78f2lxkexn7yl9g",
+                    "stake_key_index": "15376"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "19355"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "6452"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1q6ze96xccp5c2zevee04dexfjfhcfumwe3gzvcgafr5d68y7duq",
+                    "stake_key_index": "2030"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "24812"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1me6xkqjh2qj68s2drnxupaf8834whgjjlrhgwuyz0ll6v6jrdf6",
+                    "stake_key_index": "31612"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool12mr0lszs0232uecnxe6j68re8x9qcsry6jvawup69mamudvu9h8",
+                    "stake_key_index": "7031"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "7413"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "25444"
+                }
+            ],
+            "mint": [
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 7,
+                    "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                },
+                {
+                    "asset_name": "546f6b656e43",
+                    "quantity": 5,
+                    "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                }
+            ],
+            "payments": [
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>"
+            ]
+        },
+        {
+            "withdrawal": "self",
+            "delegations": [
+                {
+                    "action": "join",
+                    "pool": "pool1kh5lmrudgxu2ev5z6yfjt6cf6lmzq4dkhtndm9w0dq9956qms3m",
+                    "stake_key_index": "14989"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "6467"
+                }
+            ],
+            "metadata": {
+                "24": {
+                    "int": 0
+                }
+            },
+            "mint": [],
+            "payments": [
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>"
+            ]
+        },
+        {
+            "delegations": [
+                {
+                    "action": "join",
+                    "pool": "pool1kt0lapjme5swunzg3yjmtshky0fnpl23wdke9lstwec2kcfgjk8",
+                    "stake_key_index": "22089"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1nnx7e85x3h4d95as4l720y5gkrkcxv5643ydsahzt8lk2qadzr4",
+                    "stake_key_index": "26609"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "944"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1cvz8n8m5nmzghmdpapwtyw2m06vlc8wdjnlx6fh360e46424h8s",
+                    "stake_key_index": "18541"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1xxgzcpv4ktannq6d2jvgmcxus8f8lzulx3smmzjspw5qk36nuqw",
+                    "stake_key_index": "31251"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "25282"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1m5fsqe7l6scvp9wxqj3v90a90kc28dkdphdp2z5scvueu9y0xv2",
+                    "stake_key_index": "31954"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1zd9tx622472sqafa99ffhxxa9t0tlvu300fvuk3gq8awy2khmsa",
+                    "stake_key_index": "7389"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1njx55tyfpw6zcqk82vapmchy0ley63qzy97da3qkrughkmgnlhm",
+                    "stake_key_index": "19411"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1vh7as7jftj2r9daq4f4cnzspc067u0pa73uu0qugppp2c4kl9vv",
+                    "stake_key_index": "23146"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "17538"
+                }
+            ],
+            "metadata": {
+                "9": {
+                    "bytes": "565026b4604001075e0a563671a679603d150d0c624f20366d1f0b0d0b2f225b23703a8a"
+                }
+            },
+            "payments": [
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>"
+            ]
+        },
+        {
+            "withdrawal": "self",
+            "delegations": [
+                {
+                    "action": "quit",
+                    "stake_key_index": "7784"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1c4af5aaf8ve769zcmkdahlgexd4sdfkhl6w9wmcmwukfyr0p7n0",
+                    "stake_key_index": "19077"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "24838"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1jx8m304wynvg6mt2u2frkzu5k02ulutlg479jct58nx2kaddcpj",
+                    "stake_key_index": "32245"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "31190"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool13qx6y677t6sr36m365xzudpqq4axjdu4g06rwcynhvy4qnfxvxm",
+                    "stake_key_index": "29283"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1l93wxx70shcplxnpdpzr857j6x8fkar250ydnu4qrk086x3rzhr",
+                    "stake_key_index": "14795"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool15tqu6wjshpam3qsfvvwg90cwc4ardsg8n5ekt0ygcfxvwex4x02",
+                    "stake_key_index": "8918"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool10lx52ag09fxt4hdrqgcjghaj2thzyqnsvqgfys32hhhp7j4v4fa",
+                    "stake_key_index": "29843"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "25471"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool19fh6xjqtweacy0tjfae4f3upzm4npdmwznaag5ul5qhhy5sr9t7",
+                    "stake_key_index": "10207"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "10171"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "4441"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1z3cug6fwn3vntl3xwwcua33nnt3daphtnyejcqj0kl5n7nv6ht8",
+                    "stake_key_index": "27084"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "12368"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1mp0lyykwune2get4sajkp6wadeppecm0a9vlxyvnmxanj9ymuv9",
+                    "stake_key_index": "6241"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "28462"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1vnfva03pls2wuh0meep26lwqs6q57uu69hhgz83apqkagzm48nr",
+                    "stake_key_index": "4585"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "6512"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool18c6w9xgqjkaa226mkhjwq80cd39ukaqfl6ph2mn3z3jcst2aa6x",
+                    "stake_key_index": "19654"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "24986"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool132hsj70r97gwvuqsk04gugnl63gjpnv88hyv2rtl3vpaulfw7uv",
+                    "stake_key_index": "4800"
+                }
+            ],
+            "metadata": {
+                "25": {
+                    "map": []
+                }
+            },
+            "mint": [
+                {
+                    "asset_name": "546f6b656e44",
+                    "quantity": 10,
+                    "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                {
+                    "asset_name": "546f6b656e43",
+                    "quantity": 1,
+                    "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                },
+                {
+                    "asset_name": "546f6b656e44",
+                    "quantity": 1,
+                    "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                },
+                {
+                    "asset_name": "546f6b656e44",
+                    "quantity": 6,
+                    "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                }
+            ],
+            "payments": [
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>"
+            ]
+        },
+        {
+            "delegations": [
+                {
+                    "action": "join",
+                    "pool": "pool15q803u6gm9c3ur3erpg7dm0y0kta67v3e8g62lafnhpcv8tfyjr",
+                    "stake_key_index": "22134"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1g20ygkyeq2jjv2fxn807eg6jr5qftnzzhjz4l39l7f8xulhcl2z",
+                    "stake_key_index": "6216"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool12xdgc5dlmzlkcru425x89r37rewhd048strerx0uqxxpy9cx9rl",
+                    "stake_key_index": "27083"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "21755"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1p0ul9h5xt3pc0ek7p5ky3amcg205e0nnre9npgrq2lrrq74m5qc",
+                    "stake_key_index": "15567"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1xmcy79xdz5pvn0kshka93s2s4pplwdzxlneqncug8aphu7rv932",
+                    "stake_key_index": "4525"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool169y57gf0sz0v3fr4yy6sfxrv0kv3r222autdwzwscl7nyttzw8j",
+                    "stake_key_index": "13070"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1f3yjspr72laza3zdtp5dxntdywkd43m64d39r3mhq7k9c0vl79l",
+                    "stake_key_index": "27983"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool10xgtlp0ngvgya0ryzgl28k7ja0mpduxjrprpjwujs694xcf55st",
+                    "stake_key_index": "2425"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "4474"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "13864"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1h5k4kc083ezpsw5yqgfxpwasqgljzyv3wrgvy6nqsyfqku3wh33",
+                    "stake_key_index": "20597"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1nkl4xhuurw4ekz2qzdneequ8y92xgvkx3rac97d6vnemklny45n",
+                    "stake_key_index": "22518"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1kvlpjjmk49jhtrh2h6a3qy48ez08yzrtx0eeasas6yf7kskqqmz",
+                    "stake_key_index": "11419"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1k25euywt0pe33qlvwx34nf5sxncf4ct9eu8063arxuaj2z3t6kg",
+                    "stake_key_index": "30950"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1k58txmzcqwh46nmgv0uu7mukqd3fm288ytsdp9e4xtj6ua90e54",
+                    "stake_key_index": "30379"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1jvcfddgyeeeu6ta3xptatfanwdmcae5ju7wtt0z2er7cjzfmtca",
+                    "stake_key_index": "20437"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "23014"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1pjzr9u0vjzz4hp0vl0qp4szm7l5de3fseqrtvphpsq9yk250uh9",
+                    "stake_key_index": "8848"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "1637"
+                }
+            ],
+            "metadata": {
+                "25": {
+                    "string": ""
+                }
+            },
+            "mint": [
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 7,
+                    "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                {
+                    "asset_name": "546f6b656e43",
+                    "quantity": 8,
+                    "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                {
+                    "asset_name": "546f6b656e41",
+                    "quantity": 4,
+                    "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                },
+                {
+                    "asset_name": "546f6b656e42",
+                    "quantity": 9,
+                    "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                }
+            ],
+            "payments": [
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>",
+                "<addr>"
+            ]
+        },
+        {
+            "withdrawal": "self",
+            "delegations": [
+                {
+                    "action": "quit",
+                    "stake_key_index": "19144"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "13364"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "17196"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "7273"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "19742"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "6657"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool10v2tmghvcc2xt46vv2y5n8s7ke0m8487nd4kewtz0c38zxav2ap",
+                    "stake_key_index": "16430"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool167nsurleqwser9ex5uy0x5g5q3q3l2fp7ec79pegkwwn57ykyyr",
+                    "stake_key_index": "1736"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1t4843ed2hkqfkvax79qjjvyrzpmxfzzz73dtq53z05lak005wns",
+                    "stake_key_index": "15566"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1w02td2ytp30jd0rkdw97qru6lxf5wg0gnzykztdj3sra740mkx4",
+                    "stake_key_index": "12616"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "22410"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1nn5lw4wu74h9chrl8nxuwkngnvftcvucrslag8tzrkajq72ypmp",
+                    "stake_key_index": "2849"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool1uwxhlyd073a62lp958nn2t7e9ed89a2wap7rxchqqhx4um33ktf",
+                    "stake_key_index": "7451"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "15486"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "1255"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "27814"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "4080"
+                }
+            ],
+            "mint": [
+                {
+                    "asset_name": "546f6b656e43",
+                    "quantity": 4,
+                    "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                }
+            ]
+        },
+        {
+            "withdrawal": "self",
+            "delegations": [
+                {
+                    "action": "quit",
+                    "stake_key_index": "15094"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool134m2tv00dcw866ey32cdq89a2f84s74tlrawfehuf5ds28spth3",
+                    "stake_key_index": "19716"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "5712"
+                },
+                {
+                    "action": "join",
+                    "pool": "pool16j2rwwl5qucnuar7tmspvs9whp0cs5ll0caa5uazjkxf7dqznax",
+                    "stake_key_index": "23286"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "24953"
+                },
+                {
+                    "action": "quit",
+                    "stake_key_index": "3216"
+                }
+            ],
+            "metadata": {
+                "10": {
+                    "list": [
+                        {
+                            "int": 2
+                        },
+                        {
+                            "bytes": "4bca285740"
+                        }
+                    ]
+                }
+            },
+            "mint": []
+        }
+    ]
+}
