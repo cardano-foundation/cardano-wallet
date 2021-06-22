@@ -79,6 +79,7 @@ module Cardano.Wallet.Api.Link
     , getTransactionFee
     , deleteTransaction
     , getTransaction
+    , createUnsignedTransaction
 
       -- * StakePools
     , listStakePools
@@ -632,6 +633,21 @@ getTransaction w t = discriminate @style
     wid = w ^. typed @(ApiT WalletId)
     tid = ApiTxId (t ^. typed @(ApiT (Hash "Tx")))
     mkURL mk = mk wid tid
+
+createUnsignedTransaction
+    :: forall style w.
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
+        , Discriminate style
+        )
+    => w
+    -> (Method, Text)
+createUnsignedTransaction w = discriminate @style
+    (endpoint @(Api.ConstructTransaction Net) (wid &))
+    (notSupported "Byron")
+    (notSupported "Shared")
+  where
+    wid = w ^. typed @(ApiT WalletId)
 
 --
 -- Stake Pools

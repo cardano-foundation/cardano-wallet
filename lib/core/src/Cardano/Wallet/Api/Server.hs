@@ -1945,7 +1945,8 @@ constructTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructTransaction ctx genChange (ApiT wid) body = do
-    let toAddressAmount (ApiPaymentAddresses content) = addressAmountToTxOut <$> content
+    let toAddressAmount (ApiPaymentAddresses content) =
+            addressAmountToTxOut <$> content
         toAddressAmount (ApiPaymentAll _) = undefined -- this will be tackled when migration is supported
     let md = body ^? #metadata . traverse . #getApiT
     let pwd = coerce $ body ^. #passphrase . #getApiT
@@ -1959,6 +1960,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
             { txWithdrawal = wdrl
             , txMetadata = md
             , txTimeToLive = ttl
+            --, txDelegationAction -- this will be tackled when delegations are supported
             }
 
     let transform = \s sel ->
