@@ -1261,7 +1261,20 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases ++
             [
-             ( [aesonQQ|
+              ( [aesonQQ|
+                { "payments": [
+                    {
+                        "address": #{addrPlaceholder},
+                        "amount": {
+                            "quantity": 42000000,
+                            "unit": "lovelace"
+                        }
+                    }
+                   ]
+                }|]
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiConstructTransactionData(ApiConstructTransactionData) failed, key 'passphrase' not found"
+              )
+            , ( [aesonQQ|
                { "payments": [
                    {
                        "address": #{addrPlaceholder},
@@ -1271,6 +1284,21 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                        }
                    }
                   ],
+                  "passphrase": #{nameTooLong}
+               }|]
+               , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
+              )
+            , ( [aesonQQ|
+               { "payments": [
+                   {
+                       "address": #{addrPlaceholder},
+                       "amount": {
+                           "quantity": 42000000,
+                           "unit": "lovelace"
+                       }
+                   }
+                  ],
+                  "passphrase": "123456Passphrase",
                   "delegations": [{"action" : "join"}]
                }|]
                , "Error in $.delegations[0]: key 'stake_key_index' not found"
