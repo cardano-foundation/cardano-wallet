@@ -227,23 +227,23 @@ newtype Delay = Delay Int deriving Show
 
 data WorkerTest ctx res = WorkerTest
     { _workerBefore :: WorkerCtx ctx -> WalletId -> IO ()
-        -- | A task to execute before the main worker's task. See 'workerBefore'
+        -- ^ A task to execute before the main worker's task. See 'workerBefore'
 
     , _workerMain :: WorkerCtx ctx -> WalletId -> IO ()
-        -- | A main task to execute, see 'workerMain'
+        -- ^ A main task to execute, see 'workerMain'
 
     , _workerAcquire :: (res -> IO ()) -> IO ()
-        -- | How the worker acquires its resource
+        -- ^ How the worker acquires its resource
 
     , _workerConcurrently :: Worker WalletId res -> IO ()
-        -- | An action to perform after the worker has been created,
+        -- ^ An action to perform after the worker has been created,
         -- concurrently in the main thread.
 
     , _workerAssertion :: WorkerResult -> IO ()
-        -- | Assertion to run after the wallet has exited
+        -- ^ Assertion to run after the wallet has exited
 
     , _workerTimeout :: Int
-        -- | Timeout in us after which the worker is killed
+        -- ^ Timeout in us after which the worker is killed
     }
 
 -- | A default setup to make above tests less noisy.

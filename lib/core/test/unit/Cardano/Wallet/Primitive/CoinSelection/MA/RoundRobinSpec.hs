@@ -1072,7 +1072,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
         case mUpdatedState of
             Nothing -> do
                 -- This should never happen: we should always be able to select
-                -- *something* that matches.
+                -- _something_ that matches.
                 monitor $ counterexample "Error: unable to select any entry"
                 assert False
             Just SelectionState {selected} -> do
@@ -1104,7 +1104,7 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
         case mUpdatedState of
             Nothing -> do
                 -- This should never happen: we should always be able to select
-                -- *something* that matches.
+                -- _something_ that matches.
                 monitor $ counterexample "Error: unable to select any entry"
                 assert False
             Just SelectionState {selected} -> do
