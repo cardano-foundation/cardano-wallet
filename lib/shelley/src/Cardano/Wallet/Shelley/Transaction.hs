@@ -5,6 +5,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -48,6 +49,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
+import Cardano.Address.Script
+    ( KeyHash, Script (..) )
 import Cardano.Api
     ( AnyCardanoEra (..)
     , ByronEra
@@ -716,6 +719,12 @@ data TxSkeleton = TxSkeleton
     , txInputCount :: !Int
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
+    , txScripts :: [Script KeyHash]
+    , txMintBurnAssets :: [AssetId]
+    -- ^ Assets that have been both minted and burned, or minted or burned
+    -- multiple times, will appear multiple times in this list, once for each
+    -- mint or burn. For example if the caller "mints 3" of asset id "A", and
+    -- "burns 3" of asset id "A", "A" will appear twice in the list.
     }
     deriving (Eq, Show)
 
@@ -732,6 +741,8 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txInputCount = 0
     , txOutputs = []
     , txChange = []
+    , txScripts = []
+    , txMintBurnAssets = []
     }
 
 -- | Constructs a transaction skeleton from wallet primitive types.
@@ -752,6 +763,9 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txInputCount = view #skeletonInputCount skeleton
     , txOutputs = view #skeletonOutputs skeleton
     , txChange = view #skeletonChange skeleton
+    -- Until we actually support minting and burning, leave these as empty.
+    , txScripts = []
+    , txMintBurnAssets = []
     }
 
 -- | Estimates the final cost of a transaction based on its skeleton.
@@ -772,6 +786,7 @@ estimateTxCost pp skeleton =
 -- for many of its calculations. The following document is used as a reference:
 --
 -- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
+-- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley-ma/shelley-ma-test/cddl-files/shelley-ma.cddl
 --
 estimateTxSize :: TxSkeleton -> TxSize
 estimateTxSize skeleton =
@@ -785,6 +800,8 @@ estimateTxSize skeleton =
         , txInputCount
         , txOutputs
         , txChange
+        , txScripts
+        , txMintBurnAssets
         } = skeleton
 
     numberOf_Inputs
@@ -796,6 +813,27 @@ estimateTxSize skeleton =
     numberOf_Withdrawals
         = if txRewardWithdrawal > Coin 0 then 1 else 0
 
+    -- Total number of signatures the scripts require
+    numberOf_ScriptVkeyWitnesses
+        = sumVia scriptRequiredKeySigs txScripts
+
+    scriptRequiredKeySigs :: Num num => Script KeyHash -> num
+    scriptRequiredKeySigs = \case
+        RequireSignatureOf _ ->
+            1
+        RequireAllOf ss      ->
+            sumVia scriptRequiredKeySigs ss
+        RequireAnyOf ss      ->
+            sumVia scriptRequiredKeySigs ss
+        ActiveFromSlot _     ->
+            0
+        ActiveUntilSlot _    ->
+            0
+        RequireSomeOf _ ss   ->
+            -- We don't know how many the user will sign with, so we just assume
+            -- the worst case of "signs with all".
+            sumVia scriptRequiredKeySigs ss
+
     numberOf_VkeyWitnesses
         = case txWitnessTag of
             TxWitnessByronUTxO{} -> 0
@@ -803,6 +841,7 @@ estimateTxSize skeleton =
                 numberOf_Inputs
                 + numberOf_Withdrawals
                 + numberOf_CertificateSignatures
+                + numberOf_ScriptVkeyWitnesses
 
     numberOf_BootstrapWitnesses
         = case txWitnessTag of
@@ -829,6 +868,8 @@ estimateTxSize skeleton =
     --   , ? 5 : withdrawals
     --   , ? 6 : update
     --   , ? 7 : metadata_hash
+    --   , ? 8 : uint ; validity interval start
+    --   , ? 9 : mint
     --   }
     sizeOf_TransactionBody
         = sizeOf_SmallMap
@@ -840,6 +881,8 @@ estimateTxSize skeleton =
         + sizeOf_Withdrawals
         + sizeOf_Update
         + sizeOf_MetadataHash
+        + sizeOf_ValidityIntervalStart
+        + sumVia sizeOf_Mint txMintBurnAssets
       where
         -- 0 => set<transaction_input>
         sizeOf_Inputs
@@ -898,6 +941,15 @@ estimateTxSize skeleton =
         sizeOf_MetadataHash
             = maybe 0 (const (sizeOf_SmallUInt + sizeOf_Hash32)) txMetadata
 
+        -- ?8 => uint ; validity interval start
+        sizeOf_ValidityIntervalStart
+            = sizeOf_UInt
+
+        -- ?9 => mint = multiasset<int64>
+        -- mint = multiasset<int64>
+        sizeOf_Mint AssetId{tokenName}
+          = sizeOf_MultiAsset sizeOf_Int64 tokenName
+
     -- For metadata, we can't choose a reasonable upper bound, so it's easier to
     -- measure the serialize data since we have it anyway. When it's "empty",
     -- metadata are represented by a special "null byte" in CBOR `F6`.
@@ -922,8 +974,7 @@ estimateTxSize skeleton =
         + sizeOf_Address address
         + sizeOf_SmallArray
         + sizeOf_Coin (TokenBundle.getCoin tokens)
-        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0
-            (TokenBundle.getAssets tokens)
+        + sumVia sizeOf_NativeAsset (TokenBundle.getAssets tokens)
 
     -- transaction_output =
     --   [address, amount : value]
@@ -934,7 +985,7 @@ estimateTxSize skeleton =
         + sizeOf_ChangeAddress
         + sizeOf_SmallArray
         + sizeOf_LargeUInt
-        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0 xs
+        + sumVia sizeOf_NativeAsset xs
 
     -- stake_registration =
     --   (0, stake_credential)
@@ -980,15 +1031,22 @@ estimateTxSize skeleton =
             TxWitnessByronUTxO{} -> 85
             TxWitnessShelleyUTxO -> 59
 
+    -- value = coin / [coin,multiasset<uint>]
+    -- We consider "native asset" to just be the "multiasset<uint>" part of the
+    -- above, hence why we don't also include the size of the coin. Where this
+    -- is used, the size of the coin and array are are added too.
+    sizeOf_NativeAsset AssetId{tokenName}
+        = sizeOf_MultiAsset sizeOf_LargeUInt tokenName
+
     -- multiasset<a> = { * policy_id => { * asset_name => a } }
     -- policy_id = scripthash
     -- asset_name = bytes .size (0..32)
-    sizeOf_NativeAsset AssetId{tokenName}
-        = sizeOf_SmallMap -- NOTE: Assuming < 23 policies per output
-        + sizeOf_Hash28
-        + sizeOf_SmallMap -- NOTE: Assuming < 23 assets per policy
-        + sizeOf_AssetName tokenName
-        + sizeOf_LargeUInt
+    sizeOf_MultiAsset sizeOf_a name
+      = sizeOf_SmallMap -- NOTE: Assuming < 23 policies per output
+      + sizeOf_Hash28
+      + sizeOf_SmallMap -- NOTE: Assuming < 23 assets per policy
+      + sizeOf_AssetName name
+      + sizeOf_a
 
     -- asset_name = bytes .size (0..32)
     sizeOf_AssetName name
@@ -1020,7 +1078,7 @@ estimateTxSize skeleton =
     sizeOf_WitnessSet
         = sizeOf_SmallMap
         + sizeOf_VKeyWitnesses
-        + sizeOf_MultisigScript
+        + sizeOf_NativeScripts txScripts
         + sizeOf_BootstrapWitnesses
       where
         -- ?0 => [* vkeywitness ]
@@ -1029,9 +1087,13 @@ estimateTxSize skeleton =
                 then sizeOf_Array + sizeOf_SmallUInt else 0)
             + sizeOf_VKeyWitness * numberOf_VkeyWitnesses
 
-        -- ?1 => [* multisig_script ]
-        sizeOf_MultisigScript
+        -- ?1 => [* native_script ]
+        sizeOf_NativeScripts []
             = 0
+        sizeOf_NativeScripts ss
+            = sizeOf_Array
+            + sizeOf_SmallUInt
+            + sumVia sizeOf_NativeScript ss
 
         -- ?2 => [* bootstrap_witness ]
         sizeOf_BootstrapWitnesses
@@ -1065,6 +1127,26 @@ estimateTxSize skeleton =
         sizeOf_ChainCode  = 34
         sizeOf_Attributes = 45 -- NOTE: could be smaller by ~34 for Icarus
 
+    -- native_script =
+    --   [ script_pubkey      = (0, addr_keyhash)
+    --   // script_all        = (1, [ * native_script ])
+    --   // script_any        = (2, [ * native_script ])
+    --   // script_n_of_k     = (3, n: uint, [ * native_script ])
+    --   // invalid_before    = (4, uint)
+    --      ; Timelock validity intervals are half-open intervals [a, b).
+    --      ; This field specifies the left (included) endpoint a.
+    --   // invalid_hereafter = (5, uint)
+    --      ; Timelock validity intervals are half-open intervals [a, b).
+    --      ; This field specifies the right (excluded) endpoint b.
+    --   ]
+    sizeOf_NativeScript = \case
+        RequireSignatureOf _ -> sizeOf_SmallUInt + sizeOf_Hash28
+        RequireAllOf ss      -> sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+        RequireAnyOf ss      -> sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+        RequireSomeOf _ ss   -> sizeOf_SmallUInt + sizeOf_UInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+        ActiveFromSlot _     -> sizeOf_SmallUInt + sizeOf_UInt
+        ActiveUntilSlot _    -> sizeOf_SmallUInt + sizeOf_UInt
+
     -- A Blake2b-224 hash, resulting in a 28-byte digest wrapped in CBOR, so
     -- with 2 bytes overhead (length <255, but length > 23)
     sizeOf_Hash28
@@ -1096,6 +1178,13 @@ estimateTxSize skeleton =
     sizeOf_UInt = 5
     sizeOf_LargeUInt = 9
 
+    -- A CBOR Int which is less than 23 in value fits on a single byte. Beyond,
+    -- the first byte is used to encode the number of bytes necessary to encode
+    -- the number, followed by the number itself. In this case, 8 bytes are used
+    -- to encode an int64, plus one byte to encode the number of bytes
+    -- necessary.
+    sizeOf_Int64 = 9
+
     -- A CBOR array with less than 23 elements, fits on a single byte, followed
     -- by each key-value pair (encoded as two concatenated CBOR elements).
     sizeOf_SmallMap = 1
@@ -1108,6 +1197,11 @@ estimateTxSize skeleton =
     -- have up to 65536 elements.
     sizeOf_SmallArray = 1
     sizeOf_Array = 3
+
+-- Small helper function for summing values. Given a list of values, get the sum
+-- of the values, after the given function has been applied to each value.
+sumVia :: (Foldable t, Num m) => (a -> m) -> t a -> m
+sumVia f = F.foldl' (\t -> (t +) . f) 0
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))

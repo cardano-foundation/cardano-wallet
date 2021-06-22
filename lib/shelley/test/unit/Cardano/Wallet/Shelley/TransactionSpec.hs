@@ -21,8 +21,17 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, xprvFromBytes, xprvToBytes )
+import Cardano.Address.Script
+    ( KeyHash (..)
+    , KeyRole (Delegation, Payment)
+    , Script
+    , foldScript
+    , serializeScript
+    )
 import Cardano.Wallet
     ( ErrSelectAssets (..), FeeEstimation (..), estimateFee )
+import Cardano.Wallet.Gen
+    ( genScript )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..)
     , Passphrase (..)
@@ -58,12 +67,16 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( AssetId, TokenBundle, tokenName )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genFixedSizeTokenBundle
     , genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
     )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (UnsafeTokenName), TokenPolicyId, unTokenName )
+import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+    ( genTokenPolicyIdSmallRange, shrinkTokenPolicyIdSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..)
     , TxIn (..)
@@ -122,7 +135,7 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Data.Semigroup
-    ( mtimesDefault )
+    ( Sum (Sum), getSum, mtimesDefault )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
@@ -150,6 +163,7 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
+    , vector
     , vectorOf
     , withMaxSuccess
     , within
@@ -184,7 +198,7 @@ spec = do
         prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
     estimateMaxInputsTests @ShelleyKey
-        [(1,115),(5,106),(10,101),(20,85),(50,32)]
+        [(1,114),(5,106),(10,101),(20,85),(50,32)]
     estimateMaxInputsTests @ByronKey
         [(1,73),(5,67),(10,63),(20,52),(50,14)]
     estimateMaxInputsTests @IcarusKey
@@ -201,6 +215,12 @@ spec = do
             minFee :: TransactionCtx -> Integer
             minFee ctx = coinToInteger $ calcMinimumCost testTxLayer pp ctx sel
               where sel = emptySkeleton
+
+            minFeeSkeleton :: TxSkeleton -> Integer
+            minFeeSkeleton = coinToInteger . estimateTxCost pp
+
+            estimateTxSize' :: TxSkeleton -> Integer
+            estimateTxSize' = fromIntegral . unTxSize . estimateTxSize
 
         let (dummyAcct, dummyPath) =
                 (RewardAccount mempty, DerivationIndex 0 :| [])
@@ -239,6 +259,112 @@ spec = do
                 & counterexample ("cost of metadata: " <> show marginalCost)
                 & counterexample ("cost with: " <> show costWith)
                 & counterexample ("cost without: " <> show costWithout)
+
+        it "minting incurs fees" $ property $ \assets ->
+            let
+                costWith =
+                    minFeeSkeleton $ emptyTxSkeleton { txMintBurnAssets = assets }
+                costWithout =
+                    minFeeSkeleton emptyTxSkeleton
+
+                marginalCost :: Integer
+                marginalCost = costWith - costWithout
+            in
+                (if null assets
+                    then property $ marginalCost == 0
+                    else property $ marginalCost > 0
+                )
+                & classify (null assets) "null minting assets"
+                & counterexample ("marginal cost: " <> show marginalCost)
+                & counterexample ("cost with: " <> show costWith)
+                & counterexample ("cost without: " <> show costWithout)
+
+        it "scripts incur fees" $ property $ \scripts ->
+            let
+                costWith =
+                    minFeeSkeleton $ emptyTxSkeleton { txScripts = scripts }
+                costWithout =
+                    minFeeSkeleton emptyTxSkeleton
+
+                marginalCost :: Integer
+                marginalCost = costWith - costWithout
+            in
+                (if null scripts
+                    then property $ marginalCost == 0
+                    else property $ marginalCost > 0
+                )
+                & classify (null scripts) "null scripts"
+                & counterexample ("marginal cost: " <> show marginalCost)
+                & counterexample ("cost with: " <> show costWith)
+                & counterexample ("cost without: " <> show costWithout)
+
+        it "increasing mint increases tx size at least proportianally to asset names"
+            $ property $ \mints ->
+            let
+                assetNameLength = BS.length . unTokenName . tokenName
+
+                lengthAssetNames = fromIntegral . getSum $
+                    F.foldMap (Sum . assetNameLength) mints
+
+                sizeWith =
+                    estimateTxSize' $ emptyTxSkeleton { txMintBurnAssets = mints }
+                sizeWithout =
+                    estimateTxSize' emptyTxSkeleton
+
+                marginalSize :: Integer 
+                marginalSize = sizeWith - sizeWithout
+            in
+                -- Larger asset names means more bytes in the tx which should
+                -- mean a more expensive tx. Adding the mints should increase
+                -- the marginal size at least as much as the size of the asset
+                -- names.
+                property (marginalSize >= lengthAssetNames)
+                & classify (null mints) "null minting assets"
+                & counterexample
+                    ("asset names length: " <> show lengthAssetNames)
+                & counterexample ("marginal size: " <> show marginalSize)
+                & counterexample ("size with: " <> show sizeWith)
+                & counterexample ("size without: " <> show sizeWithout)
+
+        it "increasing scripts increases fee at least proportionate to size of CBOR script"
+            $ property $ \scripts ->
+            let
+                -- Number of signatures required in the script
+                numWitnesses = sum $ (foldScript (const (+ 1)) 0) <$> scripts
+                sizeWitness  =    1 -- small array
+                               + 34 -- vkey
+                               + 66 -- signature
+
+                -- Total size (in bytes) of the scripts when serialized
+                scriptLengths = fromIntegral . getSum $
+                    F.foldMap (Sum . BS.length . serializeScript ) scripts
+
+                sizeWith =
+                    estimateTxSize' $ emptyTxSkeleton { txScripts = scripts }
+                sizeWithout =
+                    estimateTxSize' emptyTxSkeleton
+
+                marginalSize :: Integer
+                marginalSize = sizeWith - sizeWithout
+            in
+                -- The entire script must be serialized when it is included in
+                -- the transaction. Ensure that the marginal size increases at
+                -- least as much as the size of the CBOR serialized scripts.
+                --
+                -- Additionally, each 'required signature' in the script means
+                -- the tx will need to be witnessed by those vkeys (in the worst
+                -- case).
+                property
+                  (marginalSize >= scriptLengths + numWitnesses * sizeWitness)
+                & classify (null scripts) "no scripts"
+                & classify (scriptLengths == 0) "zero script lengths"
+                & classify (numWitnesses == 0) "no witnesses"
+                & counterexample ("script lengths: " <> show scriptLengths)
+                & counterexample
+                    ("witness size: " <> show (numWitnesses * sizeWitness))
+                & counterexample ("marginal size: " <> show marginalSize)
+                & counterexample ("size with: " <> show sizeWith)
+                & counterexample ("size without: " <> show sizeWithout)
 
     it "regression #1740 - fee estimation at the boundaries" $ do
         let requiredCost = Coin 166029
@@ -944,3 +1070,30 @@ prop_txConstraints_txOutputMaximumSize (Blind (Large bundle)) =
     simulatedSize = txOutputSize mockTxConstraints bundle
     simulatedSizeMax :: TxSize
     simulatedSizeMax = txOutputMaximumSize mockTxConstraints
+
+instance Arbitrary AssetId where
+    arbitrary =
+        TokenBundle.AssetId
+        <$> arbitrary
+        -- In the calculation of the size of the Tx, the minting of assets
+        -- increases the size of the Tx by both a constant factor per asset
+        -- plus a variable factor (the size of the asset name). In a typical
+        -- setting, the constant factor dominantes (it's about 40 bytes per
+        -- asset, whereas the size of an asset name has a maximum of 32 bytes).
+        -- So we create a generator here that forces the variable factor to
+        -- dominate so we can test the sanity of the estimation algorithm.
+        <*> (UnsafeTokenName . BS.pack <$> vector 128)
+
+instance Arbitrary TokenPolicyId where
+    arbitrary = genTokenPolicyIdSmallRange
+    shrink = shrinkTokenPolicyIdSmallRange
+
+instance Arbitrary (Script KeyHash) where
+    arbitrary = do
+        keyHashes <- vectorOf 10 arbitrary
+        genScript keyHashes
+
+instance Arbitrary KeyHash where
+    arbitrary = do
+        cred <- oneof [pure Payment, pure Delegation]
+        KeyHash cred . BS.pack <$> vectorOf 28 arbitrary

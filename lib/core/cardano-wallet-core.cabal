@@ -231,6 +231,7 @@ library
       Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
       Cardano.Wallet.Primitive.Types.Tx.Gen
       Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+      Cardano.Wallet.Gen
   other-modules:
       Paths_cardano_wallet_core
 
@@ -356,7 +357,6 @@ test-suite unit
       Cardano.Wallet.DB.Sqlite.TypesSpec
       Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DummyTarget.Primitive.Types
-      Cardano.Wallet.Gen
       Cardano.Wallet.Network.BlockHeadersSpec
       Cardano.Wallet.Network.PortsSpec
       Cardano.Wallet.NetworkSpec
