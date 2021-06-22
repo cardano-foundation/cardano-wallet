@@ -34,8 +34,6 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>), (<&>) )
-import Data.Maybe
-    ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -46,6 +44,7 @@ import GHC.Generics
     ( Generic )
 import Network.HTTP.Client
     ( Manager
+    , Request
     , RequestBody (..)
     , defaultManagerSettings
     , httpLbs
@@ -60,12 +59,11 @@ import Network.HTTP.Types.Header
 import Network.Socket
     ( Socket )
 import Network.Wai.Handler.Warp
-    ( runSettingsSocket, setBeforeMainLoop )
+    ( Port, runSettingsSocket, setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..)
     , ApiLoggerSettings
     , HandlerLog (..)
-    , RequestId (..)
     , newApiLoggerSettings
     , obfuscateKeys
     , withApiLogger
@@ -93,31 +91,24 @@ import Servant.Server
 import Test.Hspec
     ( Spec, after, before, describe, it, shouldBe, shouldContain )
 import Test.QuickCheck
-    ( Arbitrary (..), choose, counterexample, property, withMaxSuccess )
-import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor )
-import Test.Utils.Platform
-    ( pendingOnMacOS )
+    ( Arbitrary (..), choose )
 import UnliftIO.Async
-    ( Async, async, cancel, mapConcurrently, replicateConcurrently_ )
+    ( Async, async, cancel )
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( bracket )
+    ( onException, throwString )
 import UnliftIO.MVar
-    ( newEmptyMVar, putMVar, readMVar )
+    ( newEmptyMVar, putMVar, readMVar, tryPutMVar )
 import UnliftIO.STM
     ( TVar, newTVarIO, readTVarIO )
 
 import qualified Data.Aeson as Aeson
-import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
 spec :: Spec
-spec = before (pendingOnMacOS "#2472 regular timeouts in macOS hydra builds")
-    $ describe "Logging Middleware" $ do
-
+spec = describe "Logging Middleware" $ do
     before setup $ after tearDown $ do
         it "GET, 200, no query" $ \ctx -> do
             get ctx "/get"
@@ -217,72 +208,39 @@ spec = before (pendingOnMacOS "#2472 regular timeouts in macOS hydra builds")
                 , (Debug, "")
                 , (Debug, "LogRequestFinish")
                 ]
-
-    it "different request ids" $
-        property $ \(NumberOfRequests n) -> monadicIO $ do
-            entries <- withSetup $ \ctx -> do
-                replicateConcurrently_ n (get ctx "/get")
-                takeLogs ctx
-            let getReqId (ApiLog (RequestId rid) _) = rid
-            let uniqueReqIds = L.nubBy (\l1 l2 -> getReqId l1 == getReqId l2)
-            let numUniqueReqIds = length (uniqueReqIds entries)
-            monitor $ counterexample $ unlines $
-                [ "Number of log entries: " ++ show (length entries)
-                , "Number of unique req ids: " ++ show numUniqueReqIds
-                , ""
-                , "All the logs:" ] ++ map show entries
-            assert $ numUniqueReqIds == n
-
-    it "correct time measures" $ withMaxSuccess 10 $
-        property $ \(NumberOfRequests n, RandomIndex i) -> monadicIO $ do
-            entries <- withSetup $ \ctx -> do
-                let reqs = mconcat
-                        [ replicate i (get ctx "/get")
-                        , [ get ctx "/long" ]
-                        , replicate (n - i) (get ctx "/get")
-                        ]
-                void $ mapConcurrently id reqs
-                waitForServerToComplete
-                takeLogs ctx
-            let index = mapMaybe captureTime entries
-            let numLongReqs = length $ filter (> (200*ms)) index
-            monitor $ counterexample $ unlines
-                [ "Number of log entries: " ++ show (length entries)
-                , "Number of long requests: " ++ show numLongReqs
-                ]
-            assert $ numLongReqs == 1
   where
     setup :: IO Context
     setup = do
-        let listen = ListenOnRandomPort
         tvar <- newTVarIO []
+        let tr = traceInTVarIO tvar
         mvar <- newEmptyMVar
-        mngr <- newManager defaultManagerSettings
-        handle <- async $ withListeningSocket "127.0.0.1" listen $ \case
-            Right (p, socket) -> do
-                logSettings <- newApiLoggerSettings
-                    <&> obfuscateKeys (\r -> r `seq` ["sensitive"])
-                let warpSettings = Warp.defaultSettings
-                        & setBeforeMainLoop (putMVar mvar p)
-                start logSettings warpSettings (traceInTVarIO tvar) socket
-            Left e -> error (show e)
-        p <- readMVar mvar
-        return $ Context
-            { logs = tvar
-            , manager = mngr
-            , port = p
-            , server = handle
-            }
+        task <- async
+            (run tr (putMVar mvar) `onException` tryPutMVar mvar (Left Nothing))
+        Context tvar
+            <$> newManager defaultManagerSettings
+            <*> (readMVar mvar >>= either bomb (pure . id))
+            <*> pure task
+
+    run tr cb = withListeningSocket "127.0.0.1" ListenOnRandomPort $ \case
+        Right (p, socket) -> do
+            logSettings <- newApiLoggerSettings
+                <&> obfuscateKeys (`seq` ["sensitive"])
+            let warpSettings = Warp.defaultSettings &
+                    setBeforeMainLoop (cb (Right p))
+            start logSettings warpSettings tr socket
+        Left e -> cb (Left (Just e))
+
+    bomb err = throwString $ case err of
+        Just e -> "Error setting up warp server: " ++ show e
+        Nothing -> "Some error when starting the warp server"
 
     tearDown :: Context -> IO ()
     tearDown = cancel . server
 
-    withSetup = liftIO . bracket setup tearDown
-
 data Context = Context
     { logs :: TVar [ApiLog]
     , manager :: Manager
-    , port :: Int
+    , port :: Port
     , server :: Async ()
     }
 
@@ -299,20 +257,24 @@ waitForServerToComplete = threadDelay 500_000
                                 Test Helpers
 -------------------------------------------------------------------------------}
 
+baseRequest :: Context -> String -> IO Request
+baseRequest ctx path = parseRequest $
+    "http://localhost:" <> show (port ctx) <> path
+
 get :: Context -> String -> IO ()
 get ctx path = do
-    req <- parseRequest ("http://localhost:" <> show (port ctx) <> path)
+    req <- baseRequest ctx path
     void $ httpLbs req (manager ctx)
 
 delete :: Context -> String -> IO ()
 delete ctx path = do
-    req <- parseRequest ("http://localhost:" <> show (port ctx) <> path)
+    req <- baseRequest ctx path
     void $ httpLbs (req { method = "DELETE" }) (manager ctx)
 
 post :: ToJSON a => Context -> String -> a -> IO ()
 post ctx path json = do
     let body = RequestBodyLBS $ Aeson.encode json
-    req <- parseRequest ("http://localhost:" <> show (port ctx) <> path)
+    req <- baseRequest ctx path
     void $ httpLbs (req
         { method = "POST"
         , requestBody = body
@@ -321,7 +283,7 @@ post ctx path json = do
 
 postIlled :: Context -> String -> ByteString -> IO ()
 postIlled ctx path body = do
-    req <- parseRequest ("http://localhost:" <> show (port ctx) <> path)
+    req <- baseRequest ctx path
     void $ httpLbs (req
         { method = "POST"
         , requestBody = RequestBodyBS body
@@ -355,17 +317,6 @@ logMessage (ApiLog _ theMsg) = case theMsg of
     LogRequestFinish -> Just "LogRequestFinish"
     LogResponse _ _ Nothing -> Nothing
     _ -> Just (toText theMsg)
-
--- | Extract the execution time, in microseconds, from a log request.
--- Returns 'Nothing' if the log line doesn't contain any time indication.
-captureTime :: ApiLog -> Maybe Int
-captureTime (ApiLog _ theMsg) = case theMsg of
-    LogResponse time _ _ ->
-        Just $ round $ toMicro $ realToFrac @_ @Double time
-    _ ->
-        Nothing
-  where
-    toMicro = (* 1000000)
 
 -- | Number of microsecond in one millisecond
 ms :: Int
