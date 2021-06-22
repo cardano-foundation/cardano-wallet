@@ -20,7 +20,8 @@ module Test.Integration.Scenario.API.Shelley.TransactionsNew
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiConstructTransaction
+    ( ApiCoinSelectionInput (..)
+    , ApiConstructTransaction
     , ApiFee (..)
     , ApiWallet
     , DecodeAddress
@@ -59,6 +60,7 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , fixturePassphrase
     , fixtureWalletWith
+    , getFromResponse
     , json
     , listAddresses
     , minUTxOValue
@@ -68,6 +70,7 @@ import Test.Integration.Framework.DSL
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n.
@@ -94,6 +97,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             , expectField (#fee . #getQuantity) (`shouldBe` feeMin)
             ]
+
+        let filterInitialAmt =
+                filter (\(ApiCoinSelectionInput _ _ _ _ amt' _) -> amt' == Quantity initialAmt)
+        let coinSelInputs = filterInitialAmt $ NE.toList $
+                getFromResponse (#coinSelection . #inputs) rTx
+        length coinSelInputs `shouldBe` 1
+
+        -- now we should sign it and send it in two steps
   where
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
