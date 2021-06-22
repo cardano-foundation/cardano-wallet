@@ -33,7 +33,7 @@ let
     cabal-cache.version             = "1.0.2.1";
     cabal-install.exe               = "cabal";
     cabal-install.version           = "3.4.0.0";
-    haskell-language-server.version = "1.0.0.0";
+    haskell-language-server.version = "1.2.0.0";
     hoogle.version                  = "5.0.18";
     hlint.version                   = "3.2.1";
     lentil.version                  = "1.3.2.0";
