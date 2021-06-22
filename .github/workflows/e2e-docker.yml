@@ -50,7 +50,7 @@ jobs:
       uses: actions/cache@v2.1.4
       with:
         path: ~/node-db-nightly-docker
-        key: ${{ runner.os }}-docker-node-cache-v2
+        key: ${{ runner.os }}-docker-node-cache-v2-${{ env.NETWORK }}
 
     - name: Set up cardano-wallet and cardano-node
       run: |

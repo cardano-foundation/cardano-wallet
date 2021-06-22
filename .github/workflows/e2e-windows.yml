@@ -25,8 +25,8 @@ jobs:
       id: cache
       uses: actions/cache@v2.1.4
       with:
-        path: test/e2e/state/node_db
-        key: ${{ runner.os }}-node-cache-v2
+        path: test/e2e/state/node_db/${{ env.NETWORK }}
+        key: ${{ runner.os }}-node-cache-v2-${{ env.NETWORK }}
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
