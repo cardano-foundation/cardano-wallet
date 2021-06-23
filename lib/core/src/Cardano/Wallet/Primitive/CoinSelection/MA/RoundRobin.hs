@@ -1641,49 +1641,22 @@ removeBurnValueFromChangeMaps
     :: (AssetId, TokenQuantity)
     -> NonEmpty TokenMap
     -> NonEmpty TokenMap
-removeBurnValueFromChangeMaps (assetId, assetQty) =
-    burnWithGas assetQty
+removeBurnValueFromChangeMaps (assetId, assetQty) maps =
+    NE.fromList $ burn assetQty (NE.toList maps) []
   where
-      -- Subtract two token quantities, clamping negative values to zero.
-      subtract' :: TokenQuantity -> TokenQuantity -> TokenQuantity
-      subtract' x y =
-          fromMaybe TokenQuantity.zero (x `TokenQuantity.subtract` y)
-
-      burnWithGas
-          :: TokenQuantity
-          -> NonEmpty TokenMap
-          -> NonEmpty TokenMap
-      -- No need to burn anything
-      burnWithGas (TokenQuantity 0) = id
-      -- Must burn some still
-      burnWithGas gas =
-          let
-              toBurn = TokenMap.singleton assetId gas
-          in \case
-              -- We only have one element left to burn, try and burn the
-              -- entire gas qty from it
-              x :| [] ->
-                  (x `TokenMap.difference` toBurn) :| []
-              -- We have a few entries left to burn, burn what we can then
-              -- possibly continue burning
-              x :| (y : rest) ->
-                  let
-                      xs :: NonEmpty TokenMap
-                      xs = y :| rest
-
-                      burnt :: TokenMap
-                      burnt = x `TokenMap.difference` toBurn
-
-                      burnMore :: NonEmpty TokenMap
-                      burnMore = case (x `TokenMap.getQuantity` assetId) of
-                          -- Not enough, continue burning
-                          qty | qty < gas ->
-                              burnWithGas (gas `subtract'` qty) xs
-                          -- Burnt all the gas, don't burn any more
-                          _qty ->
-                              xs
-                  in
-                      burnt `NE.cons` burnMore
+    burn :: TokenQuantity -> [TokenMap] -> [TokenMap] -> [TokenMap]
+    burn _ [] alreadyProcessed =
+        reverse alreadyProcessed
+    burn gas (this : rest) alreadyProcessed
+        | TokenMap.getQuantity this assetId >= gas =
+            reverse alreadyProcessed <> (thisReduced : rest)
+        | otherwise =
+            burn gasReduced rest (thisReduced : alreadyProcessed)
+      where
+        gasReduced = gas
+            `TokenQuantity.difference` TokenMap.getQuantity this assetId
+        thisReduced = TokenMap.adjustQuantity this assetId
+            (`TokenQuantity.difference` gas)
 
 -- | Plural of @removeBurnValuesFromChangeMaps@, remove a series of burn values
 -- from the change maps.
