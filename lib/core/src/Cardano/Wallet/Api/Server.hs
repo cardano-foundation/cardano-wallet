@@ -342,7 +342,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionResult (..)
     , UnableToConstructChangeError (..)
     , balanceMissing
-    , outputsMissing
+    , missingOutputAssets
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Delegation.UTxO
@@ -3564,7 +3564,7 @@ instance IsServerError ErrSelectAssets where
                         [ "I can't process this transaction because some "
                         , "minted values were not spent or burned. These "
                         , "are the values that should be spent or burned: "
-                        , pretty . Flat $ outputsMissing e
+                        , pretty . Flat $ missingOutputAssets e
                         ]
                 UnableToConstructChange e ->
                     apiError err403 CannotCoverFee $ mconcat
