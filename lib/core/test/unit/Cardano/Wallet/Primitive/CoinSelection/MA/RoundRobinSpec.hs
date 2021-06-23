@@ -20,7 +20,6 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
-import Data.Monoid (Sum(Sum), getSum)
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
@@ -40,7 +39,6 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , UnableToConstructChangeError (..)
     , addMintValueToChangeMaps
     , addMintValuesToChangeMaps
-    , reduceTokenQuantities
     , assetSelectionLens
     , assignCoinsToChangeMaps
     , balanceMissing
@@ -57,6 +55,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , missingOutputAssets
     , performSelection
     , prepareOutputsWith
+    , reduceTokenQuantities
     , removeBurnValueFromChangeMaps
     , removeBurnValuesFromChangeMaps
     , runRoundRobin
@@ -138,6 +137,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
+import Data.Monoid
+    ( Sum (Sum), getSum )
 import Data.Set
     ( Set )
 import Data.Tuple
