@@ -1608,10 +1608,15 @@ addMintValueToChangeMaps (assetId, assetQty) = \case
         in
           x `NE.cons` addMintValueToChangeMaps (assetId, assetQty) xs
 
+-- | Plural of @addMintValueToChangeMaps@, add a series of mint values to the
+-- change maps.
 addMintValuesToChangeMaps
   :: TokenMap
+  -- ^ Series of values to mint
   -> NonEmpty TokenMap
+  -- ^ Change maps
   -> NonEmpty TokenMap
+  -- ^ Change maps with minted values
 addMintValuesToChangeMaps mints =
     F.foldr
         (\mint -> (addMintValueToChangeMaps mint .))
@@ -1680,10 +1685,15 @@ removeBurnValueFromChangeMaps (assetId, assetQty) =
                   in
                       burnt `NE.cons` burnMore
 
+-- | Plural of @removeBurnValuesFromChangeMaps@, remove a series of burn values
+-- from the change maps.
 removeBurnValuesFromChangeMaps
   :: TokenMap
+  -- ^ Series of values to burn
   -> NonEmpty TokenMap
+  -- ^ Change maps
   -> NonEmpty TokenMap
+  -- ^ Change maps with burned values removed
 removeBurnValuesFromChangeMaps burns =
     F.foldr
         (\burn -> (removeBurnValueFromChangeMaps burn .))
