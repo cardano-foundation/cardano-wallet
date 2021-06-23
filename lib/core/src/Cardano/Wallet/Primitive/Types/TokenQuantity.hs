@@ -16,6 +16,7 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
     , subtract
     , pred
     , succ
+    , difference
 
       -- * Partitioning
     , equipartition
@@ -134,6 +135,10 @@ pred (TokenQuantity q) = TokenQuantity $ Prelude.pred q
 
 succ :: TokenQuantity -> TokenQuantity
 succ (TokenQuantity q) = TokenQuantity $ Prelude.succ q
+
+-- | Substract two token quantities, clamping negative values to zero.
+difference :: TokenQuantity -> TokenQuantity -> TokenQuantity
+difference x y = fromMaybe zero $ subtract x y
 
 --------------------------------------------------------------------------------
 -- Partitioning
