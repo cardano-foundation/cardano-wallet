@@ -25,7 +25,7 @@ Each proposal should start with a section justifying the standard with rational 
     -   [Prefer named constants over magic numbers](#prefer-named-constants-over-magic-numbers)
     -   [Avoid wildcards when pattern-matching on sum types](#avoid-wildcards-when-pattern-matching-on-sum-types)
     -   [Prefer pattern-matching to equality testing on sum types.](#prefer-pattern-matching-to-equality-testing-on-sum-types)
-    -   [Be aware of the user\'s locale](#be-aware-of-the-users-locale)
+    -   [Be aware of the user's locale](#be-aware-of-the-users-locale)
 -   [QuickCheck](#quickcheck)
     -   [See your property fail](#see-your-property-fail)
     -   [Define properties as separate functions](#define-properties-as-separate-functions)
@@ -34,6 +34,11 @@ Each proposal should start with a section justifying the standard with rational 
     -   [Write properties to assert the validity of complex generators (and shrinkers)](#write-properties-to-assert-the-validity-of-complex-generators-and-shrinkers)
     -   [Use `checkCoverage` to measure coverage requirements](#use-checkcoverage-to-measure-coverage-requirements)
     -   [Avoid `liftIO` in monadic properties](#avoid-liftio-in-monadic-properties)
+    -   [Be careful with generators of recursive data types](#be-careful-with-generators-of-recursive-data-types)
+    -   [Write fast shrinkers](#write-fast-shrinkers)
+    -   [Shrink multiple values together](#shrink-multiple-values-together)
+    -   [Generate numbers with an appropriate range and distribution](#generate-numbers-with-an-appropriate-range-and-distribution)
+    -   [Use the `size` parameter](#use-the-size-parameter)
 -   [Testing](#testing)
     -   [Test files are separated and self-contained](#test-files-are-separated-and-self-contained)
     -   [Unit test files names match their corresponding module](#unit-test-files-names-match-their-corresponding-module)
@@ -1020,6 +1025,8 @@ property (bs' === Just expected)
 Quickcheck provides good tooling for labelling (see [label](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:label) and classifying (see [classify](https://hackage.haskell.org/package/QuickCheck-2.13.2/docs/Test-QuickCheck.html#v:classify))
 inputs or results of a property. These should be used in properties dealing with several classes of values.
 
+See also: [QuickCheck paper - section 2.4 Monitoring test data](https://users.cs.northwestern.edu/~robby/courses/395-495-2009-fall/quick.pdf).
+
 > **Why**
 >
 > It is quite common for properties to deal with different class of values and for us developers to get a false sense of
@@ -1238,6 +1245,68 @@ prop_createWalletTwice db (key@(PrimaryKey wid), cp, meta) =
         runExceptT (createWallet db key cp meta mempty) `shouldReturn` Left err
 ```
 </details>
+
+## Be careful with generators of recursive data types
+
+Recursive data types such as trees can grow in size exponentially with
+each recursion step. Therefore, a poorly-written `Arbitrary` instance
+may cause tests to take a very long time to run, or to exhaust the
+heap.
+
+Make sure you reduce the `size` parameter as the data structure's
+depth increases.
+
+For more information, see [QuickCheck Manual - Generating Recursive Data Types](http://www.cse.chalmers.se/~rjmh/QuickCheck/manual_body.html#16).
+
+## Write fast shrinkers
+
+When shrinking, you don't obviously don't need to produce every
+possible smaller version of a data structure. If your `Arbitrary`
+instance yields too many options from `shrink`, the shrink tree will
+be large, and therefore your shrinker will be slow.
+
+Here is an example of a "fast" shrinker from the QuickCheck source:
+
+```haskell
+-- | Shrink a list of values given a shrinking function for individual values.
+shrinkList :: (a -> [a]) -> [a] -> [[a]]
+shrinkList shr xs = concat [ removes k n xs | k <- takeWhile (>0) (iterate (`div`2) n) ]
+                 ++ shrinkOne xs
+```
+
+## Shrink multiple values together
+
+When shrinking data, you want to try and avoid local minima or "dead
+ends" in the shrink tree. These prevent QuickCheck from finding a
+truly minimal counterexample for your test failure.
+
+The easiest way to do this for two values is to pack them into a tuple
+and use the `instance Arbitrary (a, b)` from QuickCheck. There are
+other combinators available to help, see [Haddock -
+Test.QuickCheck.Arbitrary.shrink](http://hackage.haskell.org/package/QuickCheck-2.14.2/docs/Test-QuickCheck-Arbitrary.html#v:shrink).
+
+Also see [Begriffs: The Design and Use Of Checkcheck - Test case
+distribution and shrinking](https://begriffs.com/posts/2017-01-14-design-use-quickcheck.html#test-case-distribution-and-shrinking), which is a nice reference.
+
+## Generate numbers with an appropriate range and distribution
+
+When generating numbers, integers particularly, a uniform distribution is not necessarily the most efficient random distribution for finding bugs.
+
+In fact, they can often cause excessively large examples.
+
+You want to be testing around the boundaries. See [Quickcheck Manual](http://www.cse.chalmers.se/~rjmh/QuickCheck/manual_body.html#8) for more information.
+
+This might seem like an obvious thing to do, but it's quite possible
+to accidentally use a uniform random distribution for your
+numbers. For example, in older versions of QuickCheck, `Word64` had a
+uniform distribution but `Int` did not.
+
+## Use the `size` parameter
+
+It's not necessary to create "big" and "small" generator
+variants. That is what the `size` parameter should be used for.
+See [`sized`](https://hackage.haskell.org/package/QuickCheck-2.14.2/docs/Test-QuickCheck.html#v:sized)
+and [`scale`](https://hackage.haskell.org/package/QuickCheck-2.14.2/docs/Test-QuickCheck.html#v:scale) for a starting point.
 
 # Testing
 
