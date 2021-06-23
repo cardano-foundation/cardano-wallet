@@ -545,8 +545,7 @@ difference :: TokenMap -> TokenMap -> TokenMap
 difference m1 m2 = L.foldl' reduce m1 (toFlatList m2)
   where
     reduce :: TokenMap -> (AssetId, TokenQuantity) -> TokenMap
-    reduce m (a, q) = adjustQuantity m a
-        (fromMaybe TokenQuantity.zero . (`TokenQuantity.subtract` q))
+    reduce m (a, q) = adjustQuantity m a (`TokenQuantity.difference` q)
 
 --------------------------------------------------------------------------------
 -- Tests
