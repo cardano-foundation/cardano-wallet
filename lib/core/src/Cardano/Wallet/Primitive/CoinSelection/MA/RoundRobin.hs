@@ -1673,12 +1673,12 @@ reduceTokenQuantities toBurn quantities =
 -- | Plural of @removeBurnValuesFromChangeMaps@, remove a series of burn values
 -- from the change maps.
 removeBurnValuesFromChangeMaps
-  :: TokenMap
-  -- ^ Series of values to burn
-  -> NonEmpty TokenMap
-  -- ^ Change maps
-  -> NonEmpty TokenMap
-  -- ^ Change maps with burned values removed
+    :: TokenMap
+    -- ^ Series of values to burn
+    -> NonEmpty TokenMap
+    -- ^ Change maps
+    -> NonEmpty TokenMap
+    -- ^ Change maps with burned values removed
 removeBurnValuesFromChangeMaps burns =
     F.foldr
         (\burn -> (removeBurnValueFromChangeMaps burn .))
