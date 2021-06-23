@@ -20,6 +20,7 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Data.Monoid (Sum(Sum), getSum)
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
@@ -39,6 +40,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , UnableToConstructChangeError (..)
     , addMintValueToChangeMaps
     , addMintValuesToChangeMaps
+    , reduceTokenQuantities
     , assetSelectionLens
     , assignCoinsToChangeMaps
     , balanceMissing
@@ -430,6 +432,13 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_removeBurnValueFromChangeMaps_order
         it "prop_removeBurnValuesFromChangeMaps" $
             property prop_removeBurnValuesFromChangeMaps
+
+        it "prop_reduceTokenQuantities_value" $
+            property prop_reduceTokenQuantities_value
+        it "prop_reduceTokenQuantities_length" $
+            property prop_reduceTokenQuantities_length
+        it "prop_reduceTokenQuantities_order" $
+            property prop_reduceTokenQuantities_order
 
 --------------------------------------------------------------------------------
 -- Coverage
@@ -3279,7 +3288,7 @@ prop_addMintValueToChangeMaps_order mint numChangeMaps nonUserQtys =
       -- isn't guaranteed to be in ascending partial order, and we can't easily
       -- "sort it". One quick way to get ascending partial order is to make the
       -- change maps ourself. Presuming of course
-      -- "makeChangeForNonUserSpecifiedAssets" is correctly implemeneted, which
+      -- "makeChangeForNonUserSpecifiedAssets" is correctly implemented, which
       -- other tests should confirm.
       changeMaps =
           makeChangeForNonUserSpecifiedAssets
@@ -3340,7 +3349,7 @@ prop_removeBurnValueFromChangeMaps_order burn numChangeMaps nonUserQtys =
       -- isn't guaranteed to be in ascending partial order, and we can't easily
       -- "sort it". One quick way to get ascending partial order is to make the
       -- change maps ourself. Presuming of course
-      -- "makeChangeForNonUserSpecifiedAssets" is correctly implemeneted, which
+      -- "makeChangeForNonUserSpecifiedAssets" is correctly implemented, which
       -- other tests should confirm.
       changeMaps =
           makeChangeForNonUserSpecifiedAssets
@@ -3362,6 +3371,59 @@ prop_removeBurnValuesFromChangeMaps burns changeMaps =
     F.foldr removeBurnValueFromChangeMaps changeMaps (TokenMap.toFlatList burns)
     ===
     removeBurnValuesFromChangeMaps burns changeMaps
+
+-- reduceTokenQuantities reduces the total value of the token quantity list by
+-- the amount it was asked to.
+prop_reduceTokenQuantities_value
+    :: TokenQuantity -> NonEmpty TokenQuantity -> Property
+prop_reduceTokenQuantities_value reduceQty qtys =
+    qtyListSum qtys `TokenQuantity.difference` reduceQty
+    ===
+    qtyListSum (reduceTokenQuantities reduceQty qtys)
+    where
+        qtyListSum :: Foldable t => t TokenQuantity -> TokenQuantity
+        qtyListSum = TokenQuantity . getSum . F.foldMap (Sum . unTokenQuantity)
+
+-- The length of the token quantity list is preserved when reducing quantities.
+prop_reduceTokenQuantities_length
+    :: TokenQuantity -> NonEmpty TokenQuantity -> Property
+prop_reduceTokenQuantities_length reduceQty qtys =
+    NE.length qtys
+    ===
+    NE.length (reduceTokenQuantities reduceQty qtys)
+
+-- If the token quantity list is in ascending order, "reduceTokenQuantities"
+-- preserves the order of the list.
+prop_reduceTokenQuantities_order
+    :: (AssetId, TokenQuantity)
+    -> NonEmpty ()
+    -> Map AssetId (NonEmpty TokenQuantity)
+    -> Property
+prop_reduceTokenQuantities_order (assetId, reduceQty) numChangeMaps nonUserQtys =
+    let
+      -- We can only maintain order if there already is order. Random data
+      -- provided by an arbitrary instance isn't guaranteed to be in ascending
+      -- order, and we can't easily "sort it". One quick way to get ascending
+      -- order is to make the change maps ourself. Presuming of course
+      -- "makeChangeForNonUserSpecifiedAssets" is correctly implemented, which
+      -- other tests should confirm.
+      changeMaps =
+          makeChangeForNonUserSpecifiedAssets
+          numChangeMaps
+          nonUserQtys
+          TokenMap.empty
+          TokenMap.empty
+
+      tokenQtys = fmap (`TokenMap.getQuantity` assetId) changeMaps
+
+      inOrder :: Ord a => NonEmpty a -> Bool
+      inOrder (_ :| [])       = True
+      inOrder (x :| (y : xs)) = x <= y && inOrder (y :| xs)
+
+    in
+      inOrder (reduceTokenQuantities reduceQty tokenQtys)
+      ===
+      True
 
 --------------------------------------------------------------------------------
 -- Utility functions
