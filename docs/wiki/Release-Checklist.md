@@ -67,8 +67,8 @@
 
 - [ ] Open a pull request to submit the modified files. Get it merged.
 
-- [ ] Trigger a release build on CI (Travis) and wait for the build
-  artifacts to be published on github
+- [ ] Trigger a release build on CI (GitHub Actions) and wait for the
+  build artifacts to be published on the GitHub release page.
 
   ```shell
   $ git push origin refs/tags/vYYYY-MM-DD
