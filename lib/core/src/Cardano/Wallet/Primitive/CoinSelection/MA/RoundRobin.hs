@@ -94,7 +94,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , distance
     , mapMaybe
     , balanceMissing
-    , outputsMissing
+    , missingOutputAssets
     ) where
 
 import Prelude
@@ -308,22 +308,22 @@ data OutputsInsufficientError = OutputsInsufficientError
     , assetsToBurn
         :: !TokenMap
       -- ^ The values to burn
-    , requestedOutputs
-        :: !TokenBundle
+    , requestedAssetOutputs
+        :: !TokenMap
       -- ^ The outputs the requester asked to be covered
     } deriving (Generic, Eq, Show)
 
 -- | Calculate the minted values not present in the burns or outputs
 -- from a @OutputsInsufficientError@.
-outputsMissing :: OutputsInsufficientError -> TokenBundle
-outputsMissing (OutputsInsufficientError mint burn out) =
+missingOutputAssets :: OutputsInsufficientError -> TokenMap
+missingOutputAssets (OutputsInsufficientError mint burn out) =
     -- We use difference, which will show us the quantities in "mint"
     -- that are not in "out + burn". Any amount present in "out + burn",
     -- but not present in "mint" will simply be zeroed out, which is
     -- the behaviour we want for this error report.
-    TokenBundle.fromTokenMap mint
-        `TokenBundle.difference`
-            (out `TokenBundle.add` TokenBundle.fromTokenMap burn)
+    mint
+        `TokenMap.difference`
+            (out `TokenMap.add` burn)
 
 -- | Indicates that the balance of inputs actually selected was insufficient to
 --   cover the balance of 'outputsToCover'.
@@ -462,11 +462,13 @@ performSelection
     -> m (Either SelectionError (SelectionResult TokenBundle))
 performSelection minCoinFor costFor bundleSizeAssessor criteria
     -- Is the minted value all spent or burnt?
-    | not (TokenBundle.fromTokenMap assetsToMint
-        `leq` (requestedOutputs
-             `TokenBundle.add` TokenBundle.fromTokenMap assetsToBurn)) =
+    | not (assetsToMint `leq` (TokenBundle.tokens requestedOutputs
+                                  `TokenMap.add` assetsToBurn)) =
         pure $ Left $ OutputsInsufficient $ OutputsInsufficientError
-            { assetsToMint, assetsToBurn, requestedOutputs }
+            { assetsToMint
+            , assetsToBurn
+            , requestedAssetOutputs = TokenBundle.tokens requestedOutputs
+            }
 
     -- Do we have enough available balance?
     | not (balanceRequired `leq` balanceAvailable) =

@@ -52,7 +52,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAssets
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
-    , outputsMissing
+    , missingOutputAssets
     , performSelection
     , prepareOutputsWith
     , removeBurnValueFromChangeMaps
@@ -898,20 +898,18 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
           , pretty (Flat errorMintedValues)
           , "burnt values:"
           , pretty (Flat errorBurntValues)
-          , "requested outputsToCover:"
-          , pretty (Flat requestedOutputs)
+          , "requested assets to cover:"
+          , pretty (Flat requestedAssetOutputs)
           , "values minted but not spent or burnt:"
-          , pretty (Flat $ outputsMissing e)
+          , pretty (Flat $ missingOutputAssets e)
           ]
-        assert $ TokenBundle.fromTokenMap errorMintedValues
-            `leq` (requestedOutputs
-                       `TokenBundle.add`
-                       TokenBundle.fromTokenMap errorBurntValues)
+        assert $ errorMintedValues
+            `leq` (requestedAssetOutputs `TokenMap.add` errorBurntValues)
       where
         OutputsInsufficientError
           errorMintedValues
           errorBurntValues
-          requestedOutputs = e
+          requestedAssetOutputs = e
 
     onInsufficientMinCoinValues es = do
         monitor $ counterexample $ unlines
