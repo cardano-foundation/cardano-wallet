@@ -297,7 +297,7 @@ data SelectionError
 -- value is not a subset (`leq`) of the value of the requested outputs plus the
 -- burned value.
 --
--- We introuduced this error because it does not make sense for a user to mint a
+-- We introduced this error because it does not make sense for a user to mint a
 -- token and then not send it anywhere. It is possible to just send it to a
 -- change address, but we have decided against that for now, and require the
 -- caller to explicitly specify a place to send the minted tokens.
@@ -1502,11 +1502,9 @@ makeChangeForCoin = flip Coin.unsafePartition
 -- the number of outputs the user requested. If the user sends value to five
 -- different outputs, we should output five change bundles.
 --
--- However, we also want to mint and burn tokens. We consider minting and
--- burning values "non-user-specified outputs" because they aren't
--- explicitly included in the outputs the user specified ("outputs to
--- cover"). Minted tokens add to the amount of change we need to give and
--- burnt tokens remove from the amount of change we need to give.
+-- However, we also want to mint and burn tokens. Minted tokens add to the
+-- amount of change we need to give and burnt tokens remove from the amount of
+-- change we need to give.
 --
 -- It is also important to note that the change bundle calcualation requires
 -- that the change for user-specified and non-user-specified assets have the
