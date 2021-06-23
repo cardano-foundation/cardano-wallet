@@ -276,8 +276,8 @@ test-suite unit
     , foldl
     , generic-arbitrary
     , generic-lens
-    , hspec
-    , hspec-core
+    , hspec >= 2.8.2
+    , hspec-core >= 2.8.2
     , http-api-data
     , http-client
     , http-client-tls
