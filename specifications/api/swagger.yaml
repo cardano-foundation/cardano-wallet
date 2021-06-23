@@ -3311,7 +3311,7 @@ x-errSharedWalletScriptTemplateInvalid: &errSharedWalletScriptTemplateInvalid
       type: string
       enum: ['shared_wallet_script_template_invalid']
 
-x-errMintedNotSpent: &errMintedNotSpent
+x-errTokensMintedButNotSpentOrBurned: &errTokensMintedButNotSpentOrBurned
   <<: *responsesErr
   title: funds_minted_were_not_spent
   properties:
@@ -3867,7 +3867,7 @@ x-responsesMintToken: &responsesMintToken
             - <<: *errTransactionIsTooBig
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
-            - <<: *errMintedNotSpent
+            - <<: *errTokensMintedButNotSpentOrBurned
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
