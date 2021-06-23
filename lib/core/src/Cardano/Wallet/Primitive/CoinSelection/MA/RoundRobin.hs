@@ -70,6 +70,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , addMintValuesToChangeMaps
     , removeBurnValueFromChangeMaps
     , removeBurnValuesFromChangeMaps
+    , reduceTokenQuantities
 
     -- * Splitting bundles
     , splitBundleIfAssetCountExcessive
@@ -1638,25 +1639,36 @@ addMintValuesToChangeMaps mints =
 -- 2. length is conserved
 -- 3. order is preserved (i.e., the result is in ascending partial order).
 removeBurnValueFromChangeMaps
-    :: (AssetId, TokenQuantity)
-    -> NonEmpty TokenMap
-    -> NonEmpty TokenMap
-removeBurnValueFromChangeMaps (assetId, assetQty) maps =
-    NE.fromList $ burn assetQty (NE.toList maps) []
+    :: (AssetId, TokenQuantity) -> NonEmpty TokenMap -> NonEmpty TokenMap
+removeBurnValueFromChangeMaps (assetId, assetQty) maps = maps
+    & fmap (`TokenMap.getQuantity` assetId)
+    & reduceTokenQuantities assetQty
+    & NE.zipWith (`TokenMap.setQuantity` assetId) maps
+
+-- | Given a token quantity, removes that amount from the list of token
+-- quantites. It starts removal from the first token quantity, and only
+-- continues on to the next if it still needs to remove more to satisfy the
+-- request. This continues until the request is satisfied.
+--
+-- Quantities fully reduced remain in the list, but as a zero quantity. If the
+-- list is in ascending order, the order of the list is preserved, and if the
+-- list does not have enough token quantity to satisfy the request, the function
+-- will remove as much as it can then stop (i.e. it will create a list of zero
+-- token quantities).
+--
+-- This captures the burning change algorithm.
+reduceTokenQuantities
+    :: TokenQuantity -> NonEmpty TokenQuantity -> NonEmpty TokenQuantity
+reduceTokenQuantities toBurn quantities =
+    NE.fromList $ burn toBurn (NE.toList quantities) []
   where
-    burn :: TokenQuantity -> [TokenMap] -> [TokenMap] -> [TokenMap]
-    burn _ [] alreadyProcessed =
-        reverse alreadyProcessed
-    burn gas (this : rest) alreadyProcessed
-        | TokenMap.getQuantity this assetId >= gas =
-            reverse alreadyProcessed <> (thisReduced : rest)
-        | otherwise =
-            burn gasReduced rest (thisReduced : alreadyProcessed)
+    burn _ [      ] ys = reverse ys
+    burn b (x : xs) ys
+        | x >= b = reverse ys <> (x' : xs)
+        | otherwise = burn b' xs (x' : ys)
       where
-        gasReduced = gas
-            `TokenQuantity.difference` TokenMap.getQuantity this assetId
-        thisReduced = TokenMap.adjustQuantity this assetId
-            (`TokenQuantity.difference` gas)
+        b' = b `TokenQuantity.difference` x
+        x' = x `TokenQuantity.difference` b
 
 -- | Plural of @removeBurnValuesFromChangeMaps@, remove a series of burn values
 -- from the change maps.
