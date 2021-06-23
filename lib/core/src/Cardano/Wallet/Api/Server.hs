@@ -3692,7 +3692,7 @@ instance IsServerError ErrSelectAssets where
                         , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
                         ]
                 OutputsInsufficient e ->
-                    apiError err403 MintedNotSpent $ mconcat
+                    apiError err403 TokensMintedButNotSpentOrBurned $ mconcat
                         [ "I can't process this transaction because some "
                         , "minted values were not spent or burned. These "
                         , "are the values that should be spent or burned: "
