@@ -1222,10 +1222,10 @@ makeChange criteria
 
     totalInputValue :: TokenBundle
     totalInputValue =
-      F.fold inputBundles
-          `TokenBundle.add` F.foldMap TokenBundle.fromCoin extraCoinSource
-          -- Mints represent extra inputs from "the void"
-          `TokenBundle.add` TokenBundle.fromTokenMap assetsToMint
+        F.fold inputBundles
+            <> F.foldMap TokenBundle.fromCoin extraCoinSource
+            -- Mints represent extra inputs from "the void"
+            <> TokenBundle.fromTokenMap assetsToMint
 
     totalOutputValue :: TokenBundle
     totalOutputValue = F.fold outputBundles
