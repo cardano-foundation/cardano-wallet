@@ -1598,16 +1598,13 @@ addMintValueToChangeMaps
     :: (AssetId, TokenQuantity)
     -> NonEmpty TokenMap
     -> NonEmpty TokenMap
-addMintValueToChangeMaps (assetId, assetQty) = \case
-    -- This is the largest element, add mint value here
-    (x :| []) ->
-        TokenMap.add (TokenMap.singleton assetId assetQty) x :| []
-    -- There is a larget element, recurse to end of list
-    (x :| (y : rest)) ->
-        let
-            xs = y :| rest
-        in
-          x `NE.cons` addMintValueToChangeMaps (assetId, assetQty) xs
+addMintValueToChangeMaps (assetId, assetQty) =
+    -- The largest element is the last element in an ascending order list
+    modifyLast $ \m -> TokenMap.adjustQuantity m assetId (<> assetQty)
+
+    where
+        modifyLast f xs = case NE.reverse xs of
+            (y :| ys) -> NE.reverse (f y :| ys)
 
 -- | Plural of @addMintValueToChangeMaps@, add a series of mint values to the
 -- change maps.
