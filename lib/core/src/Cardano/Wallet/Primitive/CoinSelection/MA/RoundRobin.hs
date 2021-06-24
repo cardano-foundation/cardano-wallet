@@ -309,7 +309,7 @@ data OutputsInsufficientError = OutputsInsufficientError
     , assetsToBurn
         :: !TokenMap
       -- ^ The values to burn
-    , requestedAssetOutputs
+    , requestedOutputAssets
         :: !TokenMap
       -- ^ The outputs the requester asked to be covered
     } deriving (Generic, Eq, Show)
@@ -468,7 +468,7 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         pure $ Left $ OutputsInsufficient $ OutputsInsufficientError
             { assetsToMint
             , assetsToBurn
-            , requestedAssetOutputs = TokenBundle.tokens requestedOutputs
+            , requestedOutputAssets = TokenBundle.tokens requestedOutputs
             }
 
     -- Do we have enough available balance?

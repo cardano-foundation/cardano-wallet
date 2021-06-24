@@ -909,17 +909,17 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
           , "burnt values:"
           , pretty (Flat errorBurntValues)
           , "requested assets to cover:"
-          , pretty (Flat requestedAssetOutputs)
+          , pretty (Flat requestedOutputAssets)
           , "values minted but not spent or burnt:"
           , pretty (Flat $ missingOutputAssets e)
           ]
         assert $ errorMintedValues
-            `leq` (requestedAssetOutputs `TokenMap.add` errorBurntValues)
+            `leq` (requestedOutputAssets `TokenMap.add` errorBurntValues)
       where
         OutputsInsufficientError
           errorMintedValues
           errorBurntValues
-          requestedAssetOutputs = e
+          requestedOutputAssets = e
 
     onInsufficientMinCoinValues es = do
         monitor $ counterexample $ unlines
