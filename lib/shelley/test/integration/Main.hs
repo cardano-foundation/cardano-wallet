@@ -115,12 +115,12 @@ import System.Environment
     ( setEnv )
 import System.FilePath
     ( (</>) )
-import Test.Hspec
-    ( hspec )
+import Test.Hspec.Core.Runner
+    ( defaultConfig, hspecWith )
 import Test.Hspec.Core.Spec
     ( Spec, SpecWith, describe, parallel, sequential )
 import Test.Hspec.Extra
-    ( aroundAll )
+    ( aroundAll, configWithExecutionTimes )
 import Test.Integration.Faucet
     ( genRewardAccounts
     , maryIntegrationTestAssets
@@ -174,7 +174,7 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
-    hspec $ do
+    hspecWith (configWithExecutionTimes defaultConfig) $ do
         describe "No backend required" $
             parallelIf (not nix) $ describe "Miscellaneous CLI tests"
                 MiscellaneousCLI.spec
