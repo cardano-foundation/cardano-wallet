@@ -242,6 +242,7 @@ test-suite unit
       Cardano.Wallet.Shelley.LaunchSpec
       Cardano.Wallet.Shelley.NetworkSpec
       Cardano.Wallet.Shelley.TransactionSpec
+      Spec
 
 test-suite integration
   default-language:

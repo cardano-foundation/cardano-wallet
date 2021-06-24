@@ -11,6 +11,7 @@
 
 module Test.Hspec.Extra
     ( aroundAll
+    , configWithExecutionTimes
     , it
     , itWithCustomTimeout
     , flakyBecauseOf
@@ -37,6 +38,8 @@ import Test.Hspec
     , pendingWith
     , specify
     )
+import Test.Hspec.Core.Runner
+    ( Config (..) )
 import Test.HUnit.Lang
     ( HUnitFailure (..), assertFailure, formatFailureReason )
 import Test.Utils.Platform
@@ -66,6 +69,19 @@ aroundAll
     -> Spec
 aroundAll acquire =
     beforeAll (unBracket acquire) . afterAll snd . beforeWith fst
+
+-- | Add execution timing information to test output.
+--
+configWithExecutionTimes :: Config -> Config
+configWithExecutionTimes config = config
+    { configPrintCpuTime = True
+      -- Prints the total elapsed CPU time for the entire test suite.
+    , configPrintSlowItems = Just 10
+      -- Prints a list of the slowest tests in descending order of
+      -- elapsed CPU time.
+    , configTimes = True
+      -- Appends the elapsed CPU time to the end of each individual test.
+    }
 
 -- | A drop-in replacement for 'it' that'll automatically retry a scenario once
 -- if it fails, to cope with potentially flaky tests, if the environment
