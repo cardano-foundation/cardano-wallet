@@ -1947,10 +1947,11 @@ constructTransaction
 constructTransaction ctx genChange (ApiT wid) body = do
     let toAddressAmount (ApiPaymentAddresses content) =
             addressAmountToTxOut <$> content
-        toAddressAmount (ApiPaymentAll _) = undefined -- this will be tackled when migration is supported
+        toAddressAmount (ApiPaymentAll _) =
+            error "TODO: this will be tackled when migration is supported"
     let md = body ^? #metadata . traverse . #getApiT
     let pwd = coerce $ body ^. #passphrase . #getApiT
-    let mTTL = Nothing --this will be tackled when transaction validity is supported
+    let mTTL = Nothing --TODO: this will be tackled when transaction validity is supported
 
     (wdrl, mkRwdAcct) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
@@ -1960,7 +1961,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
             { txWithdrawal = wdrl
             , txMetadata = md
             , txTimeToLive = ttl
-            --, txDelegationAction -- this will be tackled when delegations are supported
+            --, txDelegationAction --TODO: this will be tackled when delegations are supported
             }
 
     let transform = \s sel ->
@@ -1998,11 +1999,16 @@ constructTransaction ctx genChange (ApiT wid) body = do
 
         pure (mkApiCoinSelection [] Nothing md sel', fee, blob)
 
-    let txSerialized = ApiSerialisedTransaction (ApiBytesT $ convertToBase Base64 blob)
-    pure $ ApiConstructTransaction txSerialized apiSelection (Quantity $ fromIntegral fee)
+    pure $ mkApiConstructTransaction blob apiSelection fee
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
+    mkApiConstructTransaction blob apiSelection fee = ApiConstructTransaction
+        { serializedTransaction =
+                ApiSerialisedTransaction (ApiBytesT $ convertToBase Base64 blob)
+        , coinSelection = apiSelection
+        , fee = Quantity $ fromIntegral fee
+        }
 
 joinStakePool
     :: forall ctx s n k.

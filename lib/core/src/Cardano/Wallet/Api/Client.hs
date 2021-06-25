@@ -331,7 +331,7 @@ byronTransactionClient =
         , postExternalTransaction = _postExternalTransaction
         , deleteTransaction = _deleteTransaction
         , getTransaction = _getTransaction
-        , constructTransaction = undefined
+        , constructTransaction = error "TODO should be supported in the final version of Transaction Workflow."
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API
