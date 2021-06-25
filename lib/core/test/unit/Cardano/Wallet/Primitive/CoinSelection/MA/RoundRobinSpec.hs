@@ -661,13 +661,11 @@ balanceSufficient criteria =
         , assetsToBurn
         } = criteria
     balanceRequired =
-      F.foldMap (view #tokens) outputsToCover
-          `TokenBundle.add`
-              TokenBundle.fromTokenMap assetsToBurn
+        F.foldMap (view #tokens) outputsToCover
+            <> TokenBundle.fromTokenMap assetsToBurn
     balanceAvailable =
         fullBalance utxoAvailable extraCoinSource
-            `TokenBundle.add`
-                TokenBundle.fromTokenMap assetsToMint
+            <> TokenBundle.fromTokenMap assetsToMint
 
 prop_performSelection_small
     :: MinCoinValueFor
@@ -776,13 +774,11 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     onSuccess result = do
         let
           totalInputValue =
-              balanceSelected
-                  `TokenBundle.add`
-                      TokenBundle.fromTokenMap assetsToMint
+              balanceSelected <> TokenBundle.fromTokenMap assetsToMint
           totalOutputValue =
-            (F.foldMap (view #tokens) outputsCovered)
-                `TokenBundle.add` balanceChange
-                `TokenBundle.add` TokenBundle.fromTokenMap assetsToBurn
+              F.foldMap (view #tokens) outputsCovered
+                  <> balanceChange
+                  <> TokenBundle.fromTokenMap assetsToBurn
         monitor $ counterexample $ unlines
             [ "available balance:"
             , pretty (Flat balanceAvailable)
@@ -1749,13 +1745,11 @@ isValidMakeChangeData p = (&&)
   where
     totalInputValue =
         F.fold (inputBundles p)
-        `TokenBundle.add` (F.foldMap
-                           TokenBundle.fromCoin
-                           (view #extraCoinSource p))
-        `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToMint p)
+            <> (F.foldMap TokenBundle.fromCoin (view #extraCoinSource p))
+            <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
-        `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToBurn p)
+            <> TokenBundle.fromTokenMap (view #assetsToBurn p)
     totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
 
 genMakeChangeData :: Gen MakeChangeData
@@ -1957,18 +1951,13 @@ prop_makeChange_success_delta p change =
         ]
     totalInputValue =
         F.fold (inputBundles p)
-        `TokenBundle.add`
-            maybe
-                TokenBundle.empty
-                TokenBundle.fromCoin
-                (view #extraCoinSource p)
-        `TokenBundle.add`
-            TokenBundle.fromTokenMap (view #assetsToMint p)
+            <> F.foldMap TokenBundle.fromCoin (view #extraCoinSource p)
+            <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalInputCoin =
         TokenBundle.getCoin totalInputValue
     totalOutputValue =
         F.fold (outputBundles p)
-        `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToBurn p)
+            <> TokenBundle.fromTokenMap (view #assetsToBurn p)
     totalOutputCoin =
         TokenBundle.getCoin totalOutputValue
     totalChangeCoin =
@@ -2020,15 +2009,11 @@ prop_makeChange_fail_costTooBig p =
   where
     totalInputValue =
         F.fold (inputBundles p)
-            `TokenBundle.add`
-                maybe
-                    TokenBundle.empty
-                    TokenBundle.fromCoin
-                    (view #extraCoinSource p)
-            `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToMint p)
+            <> F.foldMap TokenBundle.fromCoin (view #extraCoinSource p)
+            <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
-          `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToBurn p)
+            <> TokenBundle.fromTokenMap (view #assetsToBurn p)
 
 -- The 'makeChange' function will fail if there is not enough ada to assign
 -- to all the generated change outputs. Indeed, each output must include a
@@ -2073,16 +2058,11 @@ prop_makeChange_fail_minValueTooBig p =
   where
     totalInputValue =
         F.fold (inputBundles p)
-            `TokenBundle.add`
-                maybe
-                    TokenBundle.empty
-                    TokenBundle.fromCoin
-                    (view #extraCoinSource p)
-            `TokenBundle.add`
-                TokenBundle.fromTokenMap (view #assetsToMint p)
+            <> F.foldMap TokenBundle.fromCoin (view #extraCoinSource p)
+            <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
-            `TokenBundle.add` TokenBundle.fromTokenMap (view #assetsToBurn p)
+            <> TokenBundle.fromTokenMap (view #assetsToBurn p)
 
 unit_makeChange
     :: [Expectation]
