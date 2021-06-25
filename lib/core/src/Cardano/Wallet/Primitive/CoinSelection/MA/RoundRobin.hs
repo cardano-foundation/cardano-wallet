@@ -1129,10 +1129,22 @@ makeChange criteria
         -- asset count:
         & NE.zipWith (\m1 (m2, c) -> (m1 <> m2, c))
             changeForNonUserSpecifiedAssets
+        -- Process minted and burned tokens:
+        & withWeightedTokenMaps
+            (addMintValuesToChangeMaps assetsToMint)
+        & withWeightedTokenMaps
+            (removeBurnValuesFromChangeMaps assetsToBurn)
         -- Finally, if there are any maps that are oversized (in any way), then
         -- split these maps up along with their corresponding output coins:
         & splitOversizedMaps
       where
+        withWeightedTokenMaps
+            :: (NonEmpty TokenMap -> NonEmpty TokenMap)
+            -> NonEmpty (TokenMap, a)
+            -> NonEmpty (TokenMap, a)
+        withWeightedTokenMaps f maps =
+            NE.zip (f (fst <$> maps)) (snd <$> maps)
+
         splitOversizedMaps
             :: NonEmpty (TokenMap, Coin) -> NonEmpty (TokenMap, Coin)
         splitOversizedMaps =
@@ -1186,11 +1198,6 @@ makeChange criteria
         makeChangeForNonUserSpecifiedAssets
             outputMaps
             nonUserSpecifiedAssetQuantities
-            (removeAssetIds userSpecifiedAssetIds assetsToMint)
-            (removeAssetIds userSpecifiedAssetIds assetsToBurn)
-
-    removeAssetIds :: Set AssetId -> TokenMap -> TokenMap
-    removeAssetIds as = TokenMap.filter (not . (`Set.member` as))
 
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
@@ -1457,23 +1464,13 @@ makeChangeForNonUserSpecifiedAssets
         -- ^ Determines the number of change maps to create.
     -> Map AssetId (NonEmpty TokenQuantity)
         -- ^ A map of asset quantities to distribute.
-    -> TokenMap
-        -- ^ A map of non-user-specified assets to mint.
-    -> TokenMap
-        -- ^ A map of non-user-specified assets to burn.
     -> NonEmpty TokenMap
         -- ^ The resultant change maps.
-makeChangeForNonUserSpecifiedAssets
-  n
-  nonUserSpecifiedAssetQuantities
-  nonUserSpecifiedMintQuantities
-  nonUserSpecifiedBurnQuantities =
+makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
     F.foldr
         (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
         (TokenMap.empty <$ n)
         (Map.toList nonUserSpecifiedAssetQuantities)
-    & addMintValuesToChangeMaps nonUserSpecifiedMintQuantities
-    & removeBurnValuesFromChangeMaps nonUserSpecifiedBurnQuantities
 
 -- | Constructs a list of ada change outputs based on the given distribution.
 --
