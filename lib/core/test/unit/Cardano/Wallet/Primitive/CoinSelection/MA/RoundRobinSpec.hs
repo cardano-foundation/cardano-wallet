@@ -2018,7 +2018,7 @@ prop_makeChange_fail_costTooBig p =
         deltaCoin < view #requiredCost p
             & counterexample ("delta: " <> pretty deltaCoin)
   where
-    totalInputValue = 
+    totalInputValue =
         F.fold (inputBundles p)
             `TokenBundle.add`
                 maybe
@@ -2071,7 +2071,7 @@ prop_makeChange_fail_minValueTooBig p =
             totalMinCoinDeposit = F.foldr addCoin (Coin 0)
                 (minCoinValueFor . view #tokens <$> change)
   where
-    totalInputValue = 
+    totalInputValue =
         F.fold (inputBundles p)
             `TokenBundle.add`
                 maybe
@@ -3279,35 +3279,23 @@ prop_addMintValueToChangeMaps_length mint changeMaps =
 -- of the change maps.
 prop_addMintValueToChangeMaps_order
     :: (AssetId, TokenQuantity)
-    -> NonEmpty ()
-    -> Map AssetId (NonEmpty TokenQuantity)
+    -> NonEmpty TokenMap
     -> Property
-prop_addMintValueToChangeMaps_order mint numChangeMaps nonUserQtys = 
-    let
-      -- We can only maintain ascending partial order if there already is
-      -- ascending partial order. Random data provided by an arbitrary instance
-      -- isn't guaranteed to be in ascending partial order, and we can't easily
-      -- "sort it". One quick way to get ascending partial order is to make the
-      -- change maps ourself. Presuming of course
-      -- "makeChangeForNonUserSpecifiedAssets" is correctly implemented, which
-      -- other tests should confirm.
-      changeMaps =
-          makeChangeForNonUserSpecifiedAssets
-          numChangeMaps
-          nonUserQtys
-          TokenMap.empty
-          TokenMap.empty
-    in
-      inAscendingPartialOrder (addMintValueToChangeMaps mint changeMaps)
-      ===
-      True
+prop_addMintValueToChangeMaps_order mint changeMapDiffs =
+    property
+        $ inAscendingPartialOrder
+        $ addMintValueToChangeMaps mint changeMaps
+
+    where
+        -- A list of change maps already in ascending partial order
+        changeMaps = NE.scanl (<>) TokenMap.empty changeMapDiffs
 
 -- The plural of this function is equivalent to calling the singular multiple
 -- times. This is an important property because we only test the properties on
 -- the singular, but use the plural in our code. If the plural is equivalent to
 -- the singular, the properties tested on the singular will hold for the plural.
 prop_addMintValuesToChangeMaps :: TokenMap -> NonEmpty TokenMap -> Property
-prop_addMintValuesToChangeMaps mints changeMaps = 
+prop_addMintValuesToChangeMaps mints changeMaps =
     F.foldr addMintValueToChangeMaps changeMaps (TokenMap.toFlatList mints)
     ===
     addMintValuesToChangeMaps mints changeMaps
@@ -3340,28 +3328,16 @@ prop_removeBurnValueFromChangeMaps_length burn changeMaps =
 -- order of the change maps.
 prop_removeBurnValueFromChangeMaps_order
     :: (AssetId, TokenQuantity)
-    -> NonEmpty ()
-    -> Map AssetId (NonEmpty TokenQuantity)
+    -> NonEmpty TokenMap
     -> Property
-prop_removeBurnValueFromChangeMaps_order burn numChangeMaps nonUserQtys =
-    let
-      -- We can only maintain ascending partial order if there already is
-      -- ascending partial order. Random data provided by an arbitrary instance
-      -- isn't guaranteed to be in ascending partial order, and we can't easily
-      -- "sort it". One quick way to get ascending partial order is to make the
-      -- change maps ourself. Presuming of course
-      -- "makeChangeForNonUserSpecifiedAssets" is correctly implemented, which
-      -- other tests should confirm.
-      changeMaps =
-          makeChangeForNonUserSpecifiedAssets
-          numChangeMaps
-          nonUserQtys
-          TokenMap.empty
-          TokenMap.empty
-    in
-      inAscendingPartialOrder (removeBurnValueFromChangeMaps burn changeMaps)
-      ===
-      True
+prop_removeBurnValueFromChangeMaps_order burn changeMapDiffs =
+    property
+        $ inAscendingPartialOrder
+        $ removeBurnValueFromChangeMaps burn changeMaps
+
+    where
+        -- A list of change maps already in ascending partial order
+        changeMaps = NE.scanl (<>) TokenMap.empty changeMapDiffs
 
 -- The plural of this function is equivalent to calling the singular multiple
 -- times. This is an important property because we only test the properties on
@@ -3396,35 +3372,19 @@ prop_reduceTokenQuantities_length reduceQty qtys =
 -- If the token quantity list is in ascending order, "reduceTokenQuantities"
 -- preserves the order of the list.
 prop_reduceTokenQuantities_order
-    :: (AssetId, TokenQuantity)
-    -> NonEmpty ()
-    -> Map AssetId (NonEmpty TokenQuantity)
+    :: TokenQuantity
+    -> NonEmpty TokenQuantity
     -> Property
-prop_reduceTokenQuantities_order (assetId, reduceQty) numChangeMaps nonUserQtys =
-    let
-      -- We can only maintain order if there already is order. Random data
-      -- provided by an arbitrary instance isn't guaranteed to be in ascending
-      -- order, and we can't easily "sort it". One quick way to get ascending
-      -- order is to make the change maps ourself. Presuming of course
-      -- "makeChangeForNonUserSpecifiedAssets" is correctly implemented, which
-      -- other tests should confirm.
-      changeMaps =
-          makeChangeForNonUserSpecifiedAssets
-          numChangeMaps
-          nonUserQtys
-          TokenMap.empty
-          TokenMap.empty
+prop_reduceTokenQuantities_order reduceQty qtyDiffs =
+    property
+        $ inAscendingOrder
+        $ reduceTokenQuantities reduceQty qtys
+  where
+    -- Returns 'True' if (and only if) the given list is in ascending order.
+    inAscendingOrder xs = NE.sort xs == xs
 
-      tokenQtys = fmap (`TokenMap.getQuantity` assetId) changeMaps
-
-      inOrder :: Ord a => NonEmpty a -> Bool
-      inOrder (_ :| [])       = True
-      inOrder (x :| (y : xs)) = x <= y && inOrder (y :| xs)
-
-    in
-      inOrder (reduceTokenQuantities reduceQty tokenQtys)
-      ===
-      True
+    -- A list of quantities already in ascending order.
+    qtys = NE.scanl (<>) TokenQuantity.zero qtyDiffs
 
 --------------------------------------------------------------------------------
 -- Utility functions
