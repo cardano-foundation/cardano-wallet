@@ -1186,11 +1186,13 @@ makeChange criteria
         makeChangeForNonUserSpecifiedAssets
             outputMaps
             nonUserSpecifiedAssetQuantities
+        & addMintValuesToChangeMaps
             (removeAssetIds userSpecifiedAssetIds assetsToMint)
+        & removeBurnValuesFromChangeMaps
             (removeAssetIds userSpecifiedAssetIds assetsToBurn)
-
-    removeAssetIds :: Set AssetId -> TokenMap -> TokenMap
-    removeAssetIds as = TokenMap.filter (not . (`Set.member` as))
+      where
+        removeAssetIds :: Set AssetId -> TokenMap -> TokenMap
+        removeAssetIds as = TokenMap.filter (not . (`Set.member` as))
 
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
@@ -1450,30 +1452,18 @@ makeChangeForNonUserSpecifiedAsset n (asset, quantities) =
 -- The resultant list is sorted into ascending order when maps are compared
 -- with the `leq` function.
 --
--- This function operates on the precondition that the assets to burn are
--- `leq` than the (asset quantities to distribute + assets to mint).
 makeChangeForNonUserSpecifiedAssets
     :: NonEmpty a
         -- ^ Determines the number of change maps to create.
     -> Map AssetId (NonEmpty TokenQuantity)
         -- ^ A map of asset quantities to distribute.
-    -> TokenMap
-        -- ^ A map of non-user-specified assets to mint.
-    -> TokenMap
-        -- ^ A map of non-user-specified assets to burn.
     -> NonEmpty TokenMap
         -- ^ The resultant change maps.
-makeChangeForNonUserSpecifiedAssets
-  n
-  nonUserSpecifiedAssetQuantities
-  nonUserSpecifiedMintQuantities
-  nonUserSpecifiedBurnQuantities =
+makeChangeForNonUserSpecifiedAssets n nonUserSpecifiedAssetQuantities =
     F.foldr
         (NE.zipWith (<>) . makeChangeForNonUserSpecifiedAsset n)
         (TokenMap.empty <$ n)
         (Map.toList nonUserSpecifiedAssetQuantities)
-    & addMintValuesToChangeMaps nonUserSpecifiedMintQuantities
-    & removeBurnValuesFromChangeMaps nonUserSpecifiedBurnQuantities
 
 -- | Constructs a list of ada change outputs based on the given distribution.
 --

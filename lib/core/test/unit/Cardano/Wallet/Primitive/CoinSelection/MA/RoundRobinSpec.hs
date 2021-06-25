@@ -2558,10 +2558,8 @@ checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap prop =
 prop_makeChangeForNonUserSpecifiedAssets_length
     :: NonEmpty ()
     -> NonEmpty (AssetId, NonEmpty TokenQuantity)
-    -> TokenMap
-    -> TokenMap
     -> Property
-prop_makeChangeForNonUserSpecifiedAssets_length n assetQuantities mint burn =
+prop_makeChangeForNonUserSpecifiedAssets_length n assetQuantities =
     checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
     lengthActual === lengthExpected
   where
@@ -2570,7 +2568,7 @@ prop_makeChangeForNonUserSpecifiedAssets_length n assetQuantities mint burn =
 
     lengthActual :: Int
     lengthActual = length
-        (makeChangeForNonUserSpecifiedAssets n assetQuantityMap mint burn)
+        (makeChangeForNonUserSpecifiedAssets n assetQuantityMap)
 
     lengthExpected :: Int
     lengthExpected = length n
@@ -2578,10 +2576,8 @@ prop_makeChangeForNonUserSpecifiedAssets_length n assetQuantities mint burn =
 prop_makeChangeForNonUserSpecifiedAssets_order
     :: NonEmpty ()
     -> NonEmpty (AssetId, NonEmpty TokenQuantity)
-    -> TokenMap
-    -> TokenMap
     -> Property
-prop_makeChangeForNonUserSpecifiedAssets_order n assetQuantities mint burn =
+prop_makeChangeForNonUserSpecifiedAssets_order n assetQuantities =
     checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
     property $ inAscendingPartialOrder result
   where
@@ -2589,15 +2585,13 @@ prop_makeChangeForNonUserSpecifiedAssets_order n assetQuantities mint burn =
     assetQuantityMap = Map.fromList (F.toList assetQuantities)
 
     result :: NonEmpty TokenMap
-    result = makeChangeForNonUserSpecifiedAssets n assetQuantityMap mint burn
+    result = makeChangeForNonUserSpecifiedAssets n assetQuantityMap
 
 prop_makeChangeForNonUserSpecifiedAssets_sum
     :: NonEmpty ()
     -> NonEmpty (AssetId, NonEmpty TokenQuantity)
-    -> TokenMap
-    -> TokenMap
     -> Property
-prop_makeChangeForNonUserSpecifiedAssets_sum n assetQuantities mint burn =
+prop_makeChangeForNonUserSpecifiedAssets_sum n assetQuantities =
     checkCoverageFor_makeChangeForNonUserSpecifiedAssets n assetQuantityMap $
     sumActual === sumExpected
   where
@@ -2606,20 +2600,11 @@ prop_makeChangeForNonUserSpecifiedAssets_sum n assetQuantities mint burn =
 
     sumActual :: TokenMap
     sumActual =
-        F.fold
-            $ makeChangeForNonUserSpecifiedAssets n assetQuantityMap mint burn
+        F.fold $ makeChangeForNonUserSpecifiedAssets n assetQuantityMap
 
     sumExpected :: TokenMap
     sumExpected =
         TokenMap.fromFlatList (Map.toList $ F.fold <$> assetQuantityMap)
-        `TokenMap.add` mint
-        -- makeChangeForNonUserSpecifiedAssets presumes we've performed a valid
-        -- selection, and that the burns are `leq` (assetQuantities + mints).
-        -- Because these values are randomly generated, this is not guaranteed
-        -- when called here. When burns > (assetQuantities + mints), the
-        -- function just clamps the result to zero, which we do here too (with
-        -- TokenMap.difference).
-        `TokenMap.difference` burn
 
 data TestDataForMakeChangeForNonUserSpecifiedAssets =
     TestDataForMakeChangeForNonUserSpecifiedAssets
@@ -2627,10 +2612,6 @@ data TestDataForMakeChangeForNonUserSpecifiedAssets =
             :: NonEmpty ()
         , nonUserSpecifiedAssetQuantities
             :: Map AssetId (NonEmpty TokenQuantity)
-        , assetsToMint
-            :: TokenMap
-        , assetsToBurn
-            :: TokenMap
         , expectedResult
             :: NonEmpty TokenMap
         }
@@ -2644,8 +2625,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             makeChangeForNonUserSpecifiedAssets
                 (view #changeMapCount test)
                 (view #nonUserSpecifiedAssetQuantities test)
-                (view #assetsToMint test)
-                (view #assetsToBurn test)
                 ===
                 (view #expectedResult test)
   where
@@ -2666,18 +2645,7 @@ unit_makeChangeForNonUserSpecifiedAssets =
         . fmap (TokenMap.fromFlatList . fmap (uncurry mockAssetQuantity))
 
     tests :: [TestDataForMakeChangeForNonUserSpecifiedAssets]
-    tests = [ test1
-            , test2
-            , test3
-            , test4
-            , test5
-            , test6
-            , test7
-            , test8
-            , test9
-            , test10
-            , test11
-            ]
+    tests = [test1, test2, test3, test4, test5, test6, test7, test8]
 
     test1 = TestDataForMakeChangeForNonUserSpecifiedAssets
         { changeMapCount = mkChangeMapCount
@@ -2686,8 +2654,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             [ ("A", [1])
             , ("B", [3, 2, 1])
             ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
         , expectedResult = mkExpectedResult
             [ [("A", 1), ("B", 6)] ]
         }
@@ -2699,8 +2665,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             [ ("A", [1])
             , ("B", [3, 2, 1])
             ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
         , expectedResult = mkExpectedResult
             [ [          ("B", 3)]
             , [("A", 1), ("B", 3)]
@@ -2714,8 +2678,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             [ ("A", [1])
             , ("B", [3, 2, 1])
             ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
         , expectedResult = mkExpectedResult
             [ [          ("B", 1)]
             , [          ("B", 2)]
@@ -2730,8 +2692,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             [ ("A", [1])
             , ("B", [3, 2, 1])
             ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
         , expectedResult = mkExpectedResult
             [ [                  ]
             , [          ("B", 1)]
@@ -2747,8 +2707,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             [ ("A", [4, 1, 3, 2])
             , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
             ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
         , expectedResult = mkExpectedResult
             [ [("A", 10), ("B", 45)] ]
         }
@@ -2760,8 +2718,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             [ ("A", [4, 1, 3, 2])
             , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
             ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
         , expectedResult = mkExpectedResult
             [ [("A", 4), ("B", 18)]
             , [("A", 6), ("B", 27)]
@@ -2775,8 +2731,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             [ ("A", [4, 1, 3, 2])
             , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
             ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
         , expectedResult = mkExpectedResult
             [ [("A", 1), ("B",  9)]
             , [("A", 2), ("B",  9)]
@@ -2792,8 +2746,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             [ ("A", [4, 1, 3, 2])
             , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
             ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.empty
         , expectedResult = mkExpectedResult
             [ [          ("B",  1)]
             , [          ("B",  2)]
@@ -2804,73 +2756,6 @@ unit_makeChangeForNonUserSpecifiedAssets =
             , [("A", 2), ("B",  7)]
             , [("A", 3), ("B",  8)]
             , [("A", 4), ("B",  9)]
-            ]
-        }
-
-    -- Burn all change, still preserves number of output bundles
-    test9 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            9
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [4, 1, 3, 2])
-            , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
-            ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.fromFlatList
-            [ mockAssetQuantity "A" 10
-            , mockAssetQuantity "B" 45
-            ]
-        , expectedResult = mkExpectedResult
-            [ []
-            , []
-            , []
-            , []
-            , []
-            , []
-            , []
-            , []
-            , []
-            ]
-        }
-
-    -- Mints are added to the largest bundle
-    test10 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            3
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [1, 3, 2])
-            , ("B", [1, 2, 3])
-            ]
-        , assetsToMint = TokenMap.fromFlatList
-            [ mockAssetQuantity "B" 2
-            , mockAssetQuantity "C" 10
-            ]
-        , assetsToBurn = TokenMap.empty
-        , expectedResult = mkExpectedResult
-            [ [("A", 1), ("B",  1)           ]
-            , [("A", 2), ("B",  2)           ]
-            , [("A", 3), ("B",  5), ("C", 10)]
-            ]
-        }
-
-    -- Burns removed from smallest bundles first
-    test11 = TestDataForMakeChangeForNonUserSpecifiedAssets
-        { changeMapCount = mkChangeMapCount
-            4
-        , nonUserSpecifiedAssetQuantities = mkNonUserSpecifiedAssetQuantities
-            [ ("A", [2, 3, 2])
-            , ("B", [1, 2, 3, 4])
-            ]
-        , assetsToMint = TokenMap.empty
-        , assetsToBurn = TokenMap.fromFlatList
-            [ mockAssetQuantity "A" 1
-            , mockAssetQuantity "B" 4
-            ]
-        , expectedResult = mkExpectedResult
-            [ [                   ]
-            , [("A", 1)           ]
-            , [("A", 2), ("B",  2)]
-            , [("A", 3), ("B",  4)]
             ]
         }
 
