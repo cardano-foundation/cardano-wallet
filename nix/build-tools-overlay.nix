@@ -34,9 +34,9 @@ let
     cabal-install.exe               = "cabal";
     cabal-install.version           = "3.4.0.0";
     haskell-language-server.version = "1.2.0.0";
-    hoogle.version                  = "5.0.18";
-    hlint.version                   = "3.2.1";
-    lentil.version                  = "1.3.2.0";
+    hoogle.version                  = "5.0.18.1";
+    hlint.version                   = "3.3.1";
+    lentil.version                  = "1.5.2.0";
     stylish-haskell.version         = "0.11.0.3";
     weeder.version                  = "2.1.3";
   };
