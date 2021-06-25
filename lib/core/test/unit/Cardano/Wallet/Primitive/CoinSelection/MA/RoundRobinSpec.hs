@@ -137,8 +137,6 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
-import Data.Monoid
-    ( Sum (Sum), getSum )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -3334,12 +3332,9 @@ prop_removeBurnValuesFromChangeMaps burns changeMaps =
 prop_reduceTokenQuantities_value
     :: TokenQuantity -> NonEmpty TokenQuantity -> Property
 prop_reduceTokenQuantities_value reduceQty qtys =
-    qtyListSum qtys `TokenQuantity.difference` reduceQty
+    F.fold qtys `TokenQuantity.difference` reduceQty
     ===
-    qtyListSum (reduceTokenQuantities reduceQty qtys)
-    where
-        qtyListSum :: Foldable t => t TokenQuantity -> TokenQuantity
-        qtyListSum = TokenQuantity . getSum . F.foldMap (Sum . unTokenQuantity)
+    F.fold (reduceTokenQuantities reduceQty qtys)
 
 -- The length of the token quantity list is preserved when reducing quantities.
 prop_reduceTokenQuantities_length
