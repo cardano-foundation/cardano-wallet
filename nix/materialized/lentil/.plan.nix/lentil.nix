@@ -11,9 +11,9 @@
     flags = { developer = false; };
     package = {
       specVersion = "1.24";
-      identifier = { name = "lentil"; version = "1.3.2.0"; };
+      identifier = { name = "lentil"; version = "1.5.2.0"; };
       license = "GPL-3.0-only";
-      copyright = "© 2015-2020 Francesco Ariis et al. (check authors.txt)";
+      copyright = "© 2015-2021 Francesco Ariis et al. (check authors.txt)";
       maintainer = "Francesco Ariis <fa-ml@ariis.it>";
       author = "Francesco Ariis <fa-ml@ariis.it> et al.\n(check authors.txt)";
       homepage = "http://www.ariis.it/static/articles/lentil/page.html";
@@ -29,6 +29,7 @@
       extraSrcFiles = [
         "stack.yaml"
         "test/test-files/lang-comm/clang.c"
+        "test/test-files/lang-comm/forth.fs"
         "test/test-files/lang-comm/haskell.hs"
         "test/test-files/lang-comm/javascript.js"
         "test/test-files/lang-comm/out.blocks"
@@ -46,10 +47,10 @@
         "test/test-files/lang-comm/standard-ml.sml"
         "test/test-files/lang-comm/rst.rst"
         "test/test-files/lang-comm/org-mode.org"
+        "test/test-files/lang-comm/yaml.yml"
         "test/test-files/lang-comm/text.txt"
         "test/test-files/specific/contiguous.c"
         "test/test-files/specific/cont-custom.c"
-        "test/test-files/specific/uppercase.C"
         "test/test-files/specific/xyz.xyz"
         "test/test-files/specific/custom-fwords.c"
         "test/test-files/test-proj/base-case/fold-a/foo1.hs"
@@ -60,6 +61,10 @@
         "test/test-files/test-proj/dot-folders/foo1.hs"
         "test/test-files/test-proj/dot-folders/.alfa/foo1.hs"
         "test/test-files/test-proj/dot-folders/_beta/foo1.hs"
+        "test/test-files/test-proj/upper/prova1.cpp"
+        "test/test-files/test-proj/upper/prova2.cPp"
+        "test/test-files/test-proj/upper/prova3.Cpp"
+        "test/test-files/test-proj/upper/prova.F"
         ];
       extraTmpFiles = [];
       extraDocFiles = [
