@@ -164,6 +164,7 @@ import Test.QuickCheck
     , Gen
     , Positive (..)
     , Property
+    , classify
     , applyFun
     , arbitraryBoundedEnum
     , arbitrarySizedNatural
@@ -625,8 +626,8 @@ genSelectionCriteria genUTxOIndex = do
     availableTokensToBurn index outputsToCover =
       let
           (TokenBundle _ availableTokens) =
-              UTxOIndex.balance index
-                  `TokenBundle.difference`
+              -- UTxOIndex.balance index
+              --     `TokenBundle.difference`
                       F.foldMap (view #tokens) outputsToCover
       in
         TokenMap.toFlatList availableTokens
@@ -672,6 +673,8 @@ prop_performSelection_small
     -> Property
 prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     checkCoverage $
+    classify (burntAndUserSpecifiedAsset)
+        "assetsToBurn are in user-specified outputs" $
     cover 30 (balanceSufficient criteria)
         "balance sufficient" $
     cover 25 (not $ balanceSufficient criteria)
@@ -720,6 +723,14 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     selectionInsufficient = \case
         Left (SelectionInsufficient _) -> True
         _ -> False
+
+    SelectionCriteria
+        { outputsToCover = x
+        , assetsToBurn = y
+        } = criteria
+
+    burntAndUserSpecifiedAsset =
+      y `TokenMap.difference` (F.foldMap (view #tokens . view #tokens) x) /= y
 
 prop_performSelection_large
     :: MinCoinValueFor
@@ -1760,7 +1771,7 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
 
     -- Tokens in the input but not the output can be burned
     assetsToBurn <- TokenMap.fromFlatList <$>
-        sublistOf (difference' inputBundles outputBundles)
+        sublistOf (TokenMap.toFlatList $ view (#tokens) $ F.fold outputBundles)
     -- Tokens in the output but not the input can be minted
     assetsToMint <- TokenMap.fromFlatList <$>
         sublistOf (difference' outputBundles inputBundles)
