@@ -255,7 +255,7 @@ constructUnsignedTx
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
     -> SlotNo
     -- ^ Slot at which the transaction will expire.
-    -> XPrv
+    -> RewardAccount
     -- ^ Reward account
     -> Coin
     -- ^ An optional withdrawal amount, can be zero
@@ -266,11 +266,7 @@ constructUnsignedTx
     -> ShelleyBasedEra era
     -> Either ErrMkTx ByteString
 constructUnsignedTx networkId (md, certs) ttl rewardAcnt wdrl cs fees era = do
-    let wdrls = mkWithdrawals
-            networkId
-            (toRewardAccountRaw . toXPub $ rewardAcnt)
-            wdrl
-
+    let wdrls = mkWithdrawals networkId rewardAcnt wdrl
     serialiseToCBOR <$> mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
 
 mkTx
@@ -366,20 +362,20 @@ newTransactionLayer networkId = TransactionLayer
                                 delta
                     mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
 
-    , mkUnsignedTransaction = \era stakeCreds pp ctx selection -> do
+    , mkUnsignedTransaction = \era stakeXPub pp ctx selection -> do
         let ttl   = txTimeToLive ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
+        let rewardAcct = toRewardAccountRaw stakeXPub
         case view #txDelegationAction ctx of
             Nothing -> do
                 withShelleyBasedEra era $ do
                     let md = view #txMetadata ctx
                     let fees = delta
-                    constructUnsignedTx networkId (md, []) ttl stakeCreds wdrl selection fees
+                    constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl selection fees
 
             Just action -> do
                 withShelleyBasedEra era $ do
-                    let stakeXPub = toXPub stakeCreds
                     let certs = mkDelegationCertificates action stakeXPub
                     let payload = (view #txMetadata ctx, certs)
                     let fees = case action of
@@ -387,7 +383,7 @@ newTransactionLayer networkId = TransactionLayer
                                 unsafeSubtractCoin selection delta (stakeKeyDeposit pp)
                             _ ->
                                 delta
-                    constructUnsignedTx networkId payload ttl stakeCreds wdrl selection fees
+                    constructUnsignedTx networkId payload ttl rewardAcct wdrl selection fees
 
     , initSelectionCriteria = _initSelectionCriteria @k
 

@@ -1608,9 +1608,9 @@ constructUnsignedTransaction ctx wid mkRwdAcct pwd txCtx sel =
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
             pp <- liftIO $ currentProtocolParameters nl
-            let rewardAcnt = mkRwdAcct (xprv, pwdP)
+            let rewardAcct = toXPub $ fst $ mkRwdAcct (xprv, pwdP)
             withExceptT ErrConstructTxMkTx $ ExceptT $ pure $
-                mkUnsignedTransaction tl era (fst rewardAcnt) pp txCtx sel
+                mkUnsignedTransaction tl era rewardAcct pp txCtx sel
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k

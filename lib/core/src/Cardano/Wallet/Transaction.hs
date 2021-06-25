@@ -38,7 +38,7 @@ module Cardano.Wallet.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -103,8 +103,8 @@ data TransactionLayer k = TransactionLayer
     , mkUnsignedTransaction
         :: AnyCardanoEra
             -- Era for which the transaction should be created.
-        -> XPrv
-            -- Reward account
+        -> XPub
+            -- Reward account public key
         -> ProtocolParameters
             -- Current protocol parameters
         -> TransactionCtx
