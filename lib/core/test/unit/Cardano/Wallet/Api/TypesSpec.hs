@@ -113,6 +113,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
+    , ApiStakeKeyIndex (..)
     , ApiStakeKeys
     , ApiStakePool (..)
     , ApiStakePoolFlag (..)
@@ -159,7 +160,6 @@ import Cardano.Wallet.Api.Types
     , PostTransactionFeeData (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
-    , StakeKeyIndex (..)
     , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -1915,8 +1915,8 @@ instance Arbitrary (ApiConstructTransaction t) where
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary StakeKeyIndex where
-    arbitrary = StakeKeyIndex <$> arbitrary
+instance Arbitrary ApiStakeKeyIndex where
+    arbitrary = ApiStakeKeyIndex <$> arbitrary
 
 instance Arbitrary (ApiPaymentDestination t) where
     arbitrary = oneof

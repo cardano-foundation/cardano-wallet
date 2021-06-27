@@ -1127,16 +1127,29 @@ x-multiDelegationAction: &multiDelegationAction
     A delegation action for a given stake key denoted by its soft index.
     Pool id is only required for "join".
     Stake key index are required for both actions.
-  type: object
-  required:
-    - action
-    - stake_key_index
-  properties:
-    action:
-      type: string
-      enum: ["quit", "join"]
-    pool: *stakePoolId
-    stake_key_index: *derivationSegment
+  oneOf:
+    - type: object
+      required:
+        - join
+      properties:
+        join:
+          type: object
+          required:
+            - pool
+            - stake_key_index
+          properties:
+            pool: *stakePoolId
+            stake_key_index: *derivationSegment
+    - type: object
+      required:
+        - quit
+      properties:
+        quit:
+          type: object
+          required:
+            - stake_key_index
+          properties:
+            stake_key_index: *derivationSegment
 
 x-transactionDelegations: &transactionDelegations
   description: A list of staking actions (joining, rejoining or leaving from stake pools).

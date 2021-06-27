@@ -146,7 +146,7 @@ module Cardano.Wallet.Api.Types
     , ApiMultiDelegationAction (..)
     , ApiSerialisedTransaction (..)
     , ApiBytesT (..)
-    , StakeKeyIndex (..)
+    , ApiStakeKeyIndex (..)
     , ApiPaymentDestination (..)
     , ApiValidityInterval (..)
     , ApiValidityBound
@@ -866,16 +866,16 @@ data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransactio
       deriving anyclass NFData
 
 -- | Index of the stake key.
-newtype StakeKeyIndex = StakeKeyIndex (ApiT DerivationIndex)
+newtype ApiStakeKeyIndex = ApiStakeKeyIndex (ApiT DerivationIndex)
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
 -- | Stake pool delegation certificates.
 data ApiMultiDelegationAction
-    = Joining !(ApiT PoolId) !StakeKeyIndex
+    = Joining !(ApiT PoolId) !ApiStakeKeyIndex
     -- ^ Delegate given staking index to a pool, possibly registering the stake
     -- key at the same time.
-    | Leaving !StakeKeyIndex
+    | Leaving !ApiStakeKeyIndex
     -- ^ Undelegate the given staking index from its pool.
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -886,7 +886,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , mint :: !(Maybe (ApiT W.TokenMap))
-    , delegations :: !(Maybe [ApiMultiDelegationAction])
+    , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
     , passphrase :: !(ApiT (Passphrase "lenient"))
     } deriving (Eq, Generic, Show)
@@ -1986,28 +1986,34 @@ instance FromJSON ApiDelegationAction where
 instance ToJSON ApiDelegationAction where
     toJSON = genericToJSON apiDelegationActionOptions
 
-instance ToJSON StakeKeyIndex where
-    toJSON (StakeKeyIndex ix) = toJSON ix
-instance FromJSON StakeKeyIndex where
-    parseJSON val = StakeKeyIndex <$> parseJSON val
+instance ToJSON ApiStakeKeyIndex where
+    toJSON (ApiStakeKeyIndex ix) = toJSON ix
+instance FromJSON ApiStakeKeyIndex where
+    parseJSON val = ApiStakeKeyIndex <$> parseJSON val
 
 instance ToJSON ApiMultiDelegationAction where
     toJSON (Joining poolId stakeKey) =
-        object [ "action" .= String "join"
-               , "pool" .= toJSON poolId
-               , "stake_key_index" .= toJSON stakeKey]
+        object [ "join" .=
+                   object [
+                         "pool" .= toJSON poolId
+                       , "stake_key_index" .= toJSON stakeKey
+                       ]
+               ]
     toJSON (Leaving stakeKey) =
-        object [ "action" .= String "quit"
-               , "stake_key_index" .= toJSON stakeKey]
+        object [ "quit" .= object [ "stake_key_index" .= toJSON stakeKey ] ]
 instance FromJSON ApiMultiDelegationAction where
     parseJSON = withObject "ApiMultiDelegationAction" $ \o -> do
-        p <- o .:? "pool"
-        ix <- o .: "stake_key_index"
-        case (p :: Maybe (ApiT PoolId)) of
-            Just poolId -> do
+        actionJoin <- o .:? "join"
+        actionQuit <- o .:? "quit"
+        case (actionJoin, actionQuit) of
+            (Just joinObj, Nothing) -> do
+                poolId <- joinObj .: "pool"
+                ix <- joinObj .: "stake_key_index"
                 pure $ Joining poolId ix
-            Nothing ->
+            (Nothing, Just quitObj) -> do
+                ix <- quitObj .: "stake_key_index"
                 pure $ Leaving ix
+            _ -> fail "ApiMultiDelegationAction needs 'join' or 'quit' field"
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
