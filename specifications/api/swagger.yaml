@@ -4793,11 +4793,11 @@ paths:
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
 
-  /wallets/{walletId}/transactions/construct:
+  /wallets/{walletId}/transactions-construct:
     post:
       operationId: postTransactionConstruct
       tags: ["Transactions"]
-      summary: Create
+      summary: Construct
       description: |
         <p align="right">status: <strong>unstable</strong></p>
 

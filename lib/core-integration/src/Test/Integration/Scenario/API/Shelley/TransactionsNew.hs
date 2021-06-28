@@ -55,6 +55,7 @@ import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
     , Payload (..)
+    , emptyWallet
     , expectField
     , expectResponseCode
     , expectSuccess
@@ -83,7 +84,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01x - Single Output Transaction" $ \ctx -> runResourceT $ do
         let initialAmt = 3*minUTxOValue
         wa <- fixtureWalletWith @n ctx [initialAmt]
-        wb <- fixtureWalletWith @n ctx [initialAmt]
+        wb <- emptyWallet ctx
         let amt = (minUTxOValue :: Natural)
 
         payload <- liftIO $ mkTxPayload ctx wb amt fixturePassphrase

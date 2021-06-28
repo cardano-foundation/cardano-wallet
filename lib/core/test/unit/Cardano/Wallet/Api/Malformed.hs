@@ -1299,9 +1299,24 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                    }
                   ],
                   "passphrase": "123456Passphrase",
-                  "delegations": [{"action" : "join"}]
+                  "delegations": [{"joins" : {}}]
                }|]
-               , "Error in $.delegations[0]: key 'stake_key_index' not found"
+               , "Error in $.delegations[0]: ApiMultiDelegationAction needs 'join' or 'quit' field"
+              )
+            , ( [aesonQQ|
+               { "payments": [
+                   {
+                       "address": #{addrPlaceholder},
+                       "amount": {
+                           "quantity": 42000000,
+                           "unit": "lovelace"
+                       }
+                   }
+                  ],
+                  "passphrase": "123456Passphrase",
+                  "delegations": [{"join" : {}}]
+               }|]
+               , "Error in $.delegations[0]: key 'pool' not found"
               )
             ]
 

@@ -543,8 +543,7 @@ type DeleteTransaction = "wallets"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionConstruct
 type ConstructTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> "transactions"
-    :> "construct"
+    :> "transactions-construct"
     :> ReqBody '[JSON] (ApiConstructTransactionDataT n)
     :> PostAccepted '[JSON] (ApiConstructTransactionT n)
 

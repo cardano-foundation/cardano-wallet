@@ -1,0 +1,61 @@
+{
+    "seed": 1141849365143262792,
+    "samples": [
+        {
+            "join": {
+                "pool": "pool15rqmqrr3x74vkkv7hcyvjdjxe78tmqg7mrsw9pd0vlljscr6xkn",
+                "stake_key_index": "16048"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool1ck0cwjptj2euuwfjz8hf5umu865jx90rfcadmraat36v2qn5zzf",
+                "stake_key_index": "25532"
+            }
+        },
+        {
+            "quit": {
+                "stake_key_index": "27579"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool19qk2l6ztrhzwf77dsqgn4lcte595eus3j0f8wy876l9hvlfyvr9",
+                "stake_key_index": "12187"
+            }
+        },
+        {
+            "quit": {
+                "stake_key_index": "17129"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool1a3hzmtvfmc50pvcupllrjt2emtnvy37pz6kt5kf0g6rc2yztffj",
+                "stake_key_index": "10154"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool1vug6slnrnm7ulzarh3m4wgp8msawsyphxrr4m6jnqdfmqfma5qh",
+                "stake_key_index": "13426"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool1hld608uyk73sczd3uhy0wt6437v3frdz39lsc85q78l87x6x0v7",
+                "stake_key_index": "27658"
+            }
+        },
+        {
+            "quit": {
+                "stake_key_index": "30721"
+            }
+        },
+        {
+            "quit": {
+                "stake_key_index": "21665"
+            }
+        }
+    ]
+}
