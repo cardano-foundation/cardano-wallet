@@ -4829,7 +4829,7 @@ paths:
                   title: "redemption"
       responses: *responsesPostTransactionFee
 
-  /wallets/{walletId}/transactions/sign:
+  /wallets/{walletId}/transactions-sign:
     post:
       operationId: postSignTransaction
       tags: ["Transactions New"]
@@ -5488,7 +5488,7 @@ paths:
             schema: *ApiPostTransactionFeeDataByron
       responses: *responsesPostTransactionFee
 
-  /byron-wallets/{walletId}/transactions/sign:
+  /byron-wallets/{walletId}/transactions-sign:
     post:
       operationId: postSignByronTransaction
       tags: ["Transactions New"]

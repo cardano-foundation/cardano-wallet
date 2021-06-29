@@ -512,8 +512,7 @@ type Transactions n =
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postSignTransaction
 type SignTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> "transactions"
-    :> "sign"
+    :> "transactions-sign"
     :> ReqBody '[JSON] PostSignTransactionData
     :> PostAccepted '[JSON, OctetStream] ApiSignedTransaction
 
@@ -827,8 +826,7 @@ type ByronTransactions n =
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postSignByronTransaction
 type SignByronTransaction n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
-    :> "transactions"
-    :> "sign"
+    :> "transactions-sign"
     :> ReqBody '[JSON] PostSignTransactionData
     :> PostAccepted '[JSON, OctetStream] ApiSignedTransaction
 
