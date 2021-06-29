@@ -1648,11 +1648,8 @@ addMintValuesToChangeMaps
     -- ^ Change maps
     -> NonEmpty TokenMap
     -- ^ Change maps with minted values
-addMintValuesToChangeMaps mints =
-    F.foldr
-        (\mint -> (addMintValueToChangeMaps mint .))
-        id
-        (TokenMap.toFlatList mints)
+addMintValuesToChangeMaps =
+    flip (F.foldr addMintValueToChangeMaps) . TokenMap.toFlatList
 
 -- | Removes a burned asset quantity from a list of change maps.
 --
@@ -1765,11 +1762,8 @@ removeBurnValuesFromChangeMaps
     -- ^ Change maps
     -> NonEmpty TokenMap
     -- ^ Change maps with burned values removed
-removeBurnValuesFromChangeMaps burns =
-    F.foldr
-        (\burn -> (removeBurnValueFromChangeMaps burn .))
-        id
-        (TokenMap.toFlatList burns)
+removeBurnValuesFromChangeMaps =
+    flip (F.foldr removeBurnValueFromChangeMaps) . TokenMap.toFlatList
 
 --------------------------------------------------------------------------------
 -- Splitting bundles
