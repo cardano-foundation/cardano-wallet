@@ -614,7 +614,6 @@ genSelectionCriteria genUTxOIndex = do
         , assetsToMint
         , assetsToBurn
         }
-
   where
     -- We look at a UTxO and remove from it the outputs we need to cover,
     -- whatever is leftover we can choose to burn.
@@ -622,14 +621,11 @@ genSelectionCriteria genUTxOIndex = do
         :: UTxOIndex
         -> NonEmpty TxOut
         -> [(AssetId, TokenQuantity)]
-    availableTokensToBurn index outputsToCover =
-      let
-          (TokenBundle _ availableTokens) =
-              UTxOIndex.balance index
-                  `TokenBundle.difference`
-                      F.foldMap (view #tokens) outputsToCover
-      in
-        TokenMap.toFlatList availableTokens
+    availableTokensToBurn index outputsToCover
+        = TokenMap.toFlatList
+        $ TokenMap.difference
+            (view #tokens $ UTxOIndex.balance index)
+            (F.foldMap (view (#tokens . #tokens)) outputsToCover)
 
     -- If a token is spent or burnt, it is typically satisfied by the UTxO.
     -- However, we can choose to instead mint those tokens and have the mint
@@ -638,14 +634,11 @@ genSelectionCriteria genUTxOIndex = do
         :: NonEmpty TxOut
         -> TokenMap
         -> [(AssetId, TokenQuantity)]
-    allSpentOrBurntTokens outputsToCover burntTokens =
-      let
-          (TokenBundle _ requestedTokens) =
-              F.foldMap (view #tokens) outputsToCover
-      in
-        TokenMap.toFlatList $ burntTokens <> requestedTokens
-
-
+    allSpentOrBurntTokens outputsToCover burnedTokens
+        = TokenMap.toFlatList
+        $ TokenMap.add
+            (burnedTokens)
+            (F.foldMap (view (#tokens. #tokens)) outputsToCover)
 
 balanceSufficient :: SelectionCriteria -> Bool
 balanceSufficient criteria =
@@ -1774,7 +1767,6 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
         <*> pure outputBundles
         <*> pure assetsToMint
         <*> pure assetsToBurn
-
   where
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
@@ -1785,12 +1777,11 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
         :: NonEmpty TokenBundle
         -> NonEmpty TokenBundle
         -> [(AssetId, TokenQuantity)]
-    difference' a b =
-      let
-        (TokenBundle _ availableTokens) =
-            F.fold a `TokenBundle.difference` F.fold b
-      in
-        TokenMap.toFlatList availableTokens
+    difference' a b
+        = TokenMap.toFlatList
+        $ TokenMap.difference
+            (F.foldMap (view #tokens) a)
+            (F.foldMap (view #tokens) b)
 
 makeChangeWith
     :: MakeChangeData
