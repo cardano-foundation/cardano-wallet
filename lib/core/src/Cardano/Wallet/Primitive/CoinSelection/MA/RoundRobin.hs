@@ -516,11 +516,11 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         -- of course, we need to satisfy the outputs the caller asked for
         requestedOutputs
         -- we must also find assets to burn
-            `TokenBundle.add`
-                TokenBundle.fromTokenMap assetsToBurn
+        `TokenBundle.add`
+            TokenBundle.fromTokenMap assetsToBurn
         -- but assets minted reduce the quantity of assets we have to select
-            `TokenBundle.unsafeSubtract`
-                TokenBundle.fromTokenMap assetsToMint
+        `TokenBundle.unsafeSubtract`
+            TokenBundle.fromTokenMap assetsToMint
 
     insufficientMinCoinValues :: [InsufficientMinCoinValueError]
     insufficientMinCoinValues =
@@ -1601,20 +1601,19 @@ addMintValueToChangeMaps
 addMintValueToChangeMaps (assetId, assetQty) =
     -- The largest element is the last element in an ascending order list
     modifyLast $ \m -> TokenMap.adjustQuantity m assetId (<> assetQty)
-
-    where
-        modifyLast f xs = case NE.reverse xs of
-            (y :| ys) -> NE.reverse (f y :| ys)
+  where
+    modifyLast f xs = case NE.reverse xs of
+        (y :| ys) -> NE.reverse (f y :| ys)
 
 -- | Plural of @addMintValueToChangeMaps@, add a series of mint values to the
 -- change maps.
 addMintValuesToChangeMaps
-  :: TokenMap
-  -- ^ Series of values to mint
-  -> NonEmpty TokenMap
-  -- ^ Change maps
-  -> NonEmpty TokenMap
-  -- ^ Change maps with minted values
+    :: TokenMap
+    -- ^ Series of values to mint
+    -> NonEmpty TokenMap
+    -- ^ Change maps
+    -> NonEmpty TokenMap
+    -- ^ Change maps with minted values
 addMintValuesToChangeMaps mints =
     F.foldr
         (\mint -> (addMintValueToChangeMaps mint .))
