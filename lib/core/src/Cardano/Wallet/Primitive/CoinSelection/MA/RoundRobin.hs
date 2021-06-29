@@ -184,11 +184,18 @@ data SelectionCriteria = SelectionCriteria
         -- ^ An optional extra source of ada.
     , assetsToMint
         :: !TokenMap
-        -- ^ When a token is minted, it provides an extra source of tokens.
+        -- ^ Assets to mint: these provide input value to a transaction.
+        --
+        -- By minting tokens, we generally decrease the burden of the selection
+        -- algorithm, allowing it to select fewer UTxO entries in order to
+        -- cover the required outputs.
     , assetsToBurn
         :: !TokenMap
-        -- ^ When a token is burned, the selection algorithm must find
-        -- inputs to satisfy the burn.
+        -- ^ Assets to burn: these consume output value from a transaction.
+        --
+        -- By burning tokens, we generally increase the burden of the selection
+        -- algorithm, requiring it to select more UTxO entries in order to
+        -- cover the burn.
     }
     deriving (Eq, Show)
 
@@ -294,33 +301,38 @@ data SelectionError
         UnableToConstructChangeError
     deriving (Generic, Eq, Show)
 
--- | Indicates that the minted value is not spent or burned. That is, the minted
--- value is not a subset (`leq`) of the value of the requested outputs plus the
--- burned value.
+-- | Indicates that a portion of the minted assets were not spent or burned.
 --
--- We introduced this error because it does not make sense for a user to mint a
--- token and then not send it anywhere. It is possible to just send it to a
--- change address, but we have decided against that for now, and require the
--- caller to explicitly specify a place to send the minted tokens.
+-- This situation occurs if the following inequality does not hold:
+--
+-- >>> assetsToMint `leq` (assetsToBurn <> requestedOutputAssets)
+--
+-- The existence of this error reflects a deliberate design choice: all minted
+-- assets must either be explicitly spent or explicitly burned by the caller.
+-- In future, we could revise this design to allow excess minted assets (those
+-- that are neither spent nor burned) to be returned to the wallet as change.
+--
 data OutputsInsufficientError = OutputsInsufficientError
     { assetsToMint
         :: !TokenMap
-      -- ^ The values to mint
+      -- ^ The assets to mint
     , assetsToBurn
         :: !TokenMap
-      -- ^ The values to burn
+      -- ^ The assets to burn
     , requestedOutputAssets
         :: !TokenMap
-      -- ^ The outputs the requester asked to be covered
+      -- ^ The complete set of assets found within the user-specified outputs
     } deriving (Generic, Eq, Show)
 
--- | Calculate the minted values not present in the burns or outputs
--- from a @OutputsInsufficientError@.
+-- | Computes the portion of minted assets that are not spent or burned.
+--
 missingOutputAssets :: OutputsInsufficientError -> TokenMap
 missingOutputAssets (OutputsInsufficientError mint burn out) =
-    -- We use difference, which will show us the quantities in "mint"
-    -- that are not in "out + burn". Any amount present in "out + burn",
-    -- but not present in "mint" will simply be zeroed out, which is
+    -- We use 'difference' which will show us the quantities in 'assetsToMint'
+    -- that are not in 'assetsToBurn <> requestedOutputAssets'.
+    --
+    -- Any asset quantity present in 'assetsToBurn <> requestedOutputAssets'
+    -- but not present in 'assetsToMint' will simply be zeroed out, which is
     -- the behaviour we want for this error report.
     mint
         `TokenMap.difference`
@@ -418,26 +430,26 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 -- Returns 'BalanceInsufficient' if the total balance of 'utxoAvailable' is not
 -- strictly greater than or equal to the total balance of 'outputsToCover'.
 --
--- Returns 'OutputsInsufficientError' if the 'minted' values are not a
--- subset of the 'outputsToCover' plus the 'burned' values. That is,
--- the minted values are not spent or burned.
+-- Returns 'OutputsInsufficientError' if the 'minted' values are not a subset
+-- of the 'outputsToCover' plus the 'burned' values. That is, the minted values
+-- are not spent or burned.
 --
 -- Provided that the total balance of 'utxoAvailable' is sufficient to cover
 -- the total balance of 'outputsToCover', this function guarantees to return
 -- an 'inputsSelected' value that satisfies:
 --
---    ADA asset balance:
+--    ada asset balance:
 --      balance inputsSelected + balance extraAdaSource
 --      > balance outputsToCover + balance changeGenerated
---    non-ADA asset balance:
+--    non-ada asset balance:
 --      balance inputsSelected + balance minted
 --      == balance outputsToCover
 --       + balance burned
 --       + balance changeGenerated
 --
--- Note that the ADA asset balance equation is an inequality because of the
--- existence of a fee, and the non-ADA asset balance is an equality because fees
--- are paid in ADA.
+-- Note that the ada asset balance equation is an inequality because of the
+-- existence of a fee, and the non-ada asset balance is an equality because
+-- fees are paid in ada.
 --
 -- Finally, this function guarantees that:
 --
@@ -471,7 +483,7 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
             , requestedOutputAssets = TokenBundle.tokens requestedOutputs
             }
 
-    -- Do we have enough available balance?
+    -- Is the total available balance sufficient?
     | not (balanceRequired `leq` balanceAvailable) =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             { balanceAvailable, balanceRequired }
@@ -603,9 +615,10 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
     -- Eventually it returns just a final selection, or 'Nothing' if no more
     -- ada-only inputs are available.
     --
-    -- This function also takes a list of tokens that are to be
-    -- burned, and hence although an input will be consumed for them,
-    -- this function won't make an associated output for them.
+    -- This function also takes a set of tokens that are to be burned, and
+    -- hence although one or more inputs will be consumed for them, this
+    -- function won't make associated outputs for them.
+    --
     makeChangeRepeatedly
         :: SelectionState
         -> m (Either SelectionError (SelectionResult TokenBundle))
@@ -1034,9 +1047,9 @@ data MakeChangeCriteria minCoinFor bundleSizeAssessor = MakeChangeCriteria
     , outputBundles :: NonEmpty TokenBundle
         -- ^ Token bundles of original outputs.
     , assetsToMint :: TokenMap
-        -- ^ Minted tokens provide an additional source of tokens.
+        -- ^ Assets to mint: these provide input value to a transaction.
     , assetsToBurn :: TokenMap
-        -- ^ Burned tokens consume an input but produce no output.
+        -- ^ Assets to burn: these consume output value from a transaction.
     } deriving (Eq, Generic, Show)
 
 -- | Indicates 'True' if and only if a token bundle exceeds the maximum size
@@ -1485,105 +1498,129 @@ makeChangeForCoin
     -> NonEmpty Coin
 makeChangeForCoin = flip Coin.unsafePartition
 
+--------------------------------------------------------------------------------
+-- Minting and burning
+--------------------------------------------------------------------------------
+
 -- Once we know how much change to give, grouping the change into bundles is a
--- somewhat complicated topic. We want to bundle the change such that it
--- provides, as much as possible, useful sets of funds that are likely to be
--- consumed by the user in future, where larger values are considered more
--- "useful". A key property is that the number of change bundles should reflect
--- the number of outputs the user requested. If the user sends value to five
--- different outputs, we should output five change bundles.
+-- somewhat complicated topic.
 --
--- However, we also want to mint and burn tokens. Minted tokens add to the
--- amount of change we need to give and burnt tokens remove from the amount of
--- change we need to give.
+-- We want to create change outputs with, as far as possible, values that are
+-- likely to be useful to the user in future, where values that more closely
+-- approximate the user-specified outputs are considered more "useful".
 --
--- It is also important to note that the change bundle calcualation requires
+-- A key property is that the number of change outputs should reflect the
+-- number of outputs specified by the user. For example, if the user sends
+-- value to five distinct outputs, we should create five distinct change
+-- outputs.
+--
+-- However, we also want to mint and burn tokens. In general, minting tokens
+-- requires us to add value to the change outputs and burning tokens requires
+-- us to remove value from the change outputs.
+--
+-- It's also important to note that the change bundle calcualation requires
 -- that the change for user-specified and non-user-specified assets have the
 -- following properties:
---   1. They share the same length
---   2. They're partially ordered in ascending order
 --
--- For example, given the following "non-user-specified asset
--- quantities":
---     [ ("A", [4, 1, 3, 2])
---     , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
---     ]
+--    1. The lists share the same length;
+--    2. The lists are in ascending partial order.
+--
+-- For example, given the following non-user-specified asset quantities:
+--
+--    [ ("A", [4, 1, 3, 2])
+--    , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+--    ]
 --
 -- If the user requests 5 outputs in their transaction,
--- "changeForNonUserSpecifiedAssets" will generate:
+-- 'makeChangeForNonUserSpecifiedAssets' will generate:
 --
--- [ [          ("B", 7)  ]
--- [ [("A", 1), ("B", 8)  ]
--- [ [("A", 2), ("B", 9)  ]
--- [ [("A", 3), ("B", 9)  ]
--- [ [("A", 4), ("B", 12) ]
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 4), ("B", 12) ]
 --
--- i.e. it generates change bundles that satisfy our desired
+-- That is to say, it generates change bundles that satisfy the following
 -- properties:
 --
---   1. The number of change bundles matches the number of outputs
---      the user originally requested
---   2. Those changes are split in such a way to maximize the
---      number of large change bundles
+--    1.  The number of change bundles matches the number of outputs
+--        the user originally requested;
+--    2.  The change bundles are split in such a way to maximize the
+--        number of large change bundles.
 --
--- You can see that when there aren't enough input bundles to fit
--- an input in each change bundle, we pad a change bundle with
--- zero.
---
--- Additionally, the change function maintains the property that
--- the change bundles are partially ordered in ascending order,
--- you can see that each successive change bundle is a subset of
--- the last. This property is used by "changeMapOutputCoinPairs"
--- so it's important it's maintained.
+-- The change function maintains the property that the change bundles are in
+-- ascending partial order, such that each change bundle is a subset of the
+-- next. This property is required by 'changeMapOutputCoinPairs', so it's
+-- important it's maintained.
 --
 -- The following two functions work by modifying the change bundles for
--- non-user-specified assets by adding minted tokens to the largest change
--- bundle:
+-- non-user-specified assets.
 --
--- [ [          ("B", 7)  ]
--- [ [("A", 1), ("B", 8)  ]
--- [ [("A", 2), ("B", 9)  ]
--- [ [("A", 3), ("B", 9)  ]
--- [ [("A", 4), ("B", 12) ] <-- add mint tokens here
+-- We add minted tokens to the largest change bundle:
 --
--- And to remove burnt tokens from the smallest change bundles
--- until all required burnt tokens are removed:
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 4), ("B", 12) ] <-- add minted tokens here
 --
--- [ [          ("B", 7)  ] <-- start removing burnt tokens here
--- [ [("A", 1), ("B", 8)  ]  <-- if need to burn more, remove here
--- [ [("A", 2), ("B", 9)  ]    <-- and so on...
--- [ [("A", 3), ("B", 9)  ]
--- [ [("A", 4), ("B", 12) ]
+-- We remove burned tokens from the smallest change bundles, until all burned
+-- tokens are removed:
+--
+--    [ [          ("B", 7)  ] <-- start removing burned tokens from here
+--    [ [("A", 1), ("B", 8)  ] <-- if we must burn more, remove from here
+--    [ [("A", 2), ("B", 9)  ] <-- if we must burn more, remove from here
+--    [ [("A", 3), ("B", 9)  ] <-- and so on, until we've removed everything.
+--    [ [("A", 4), ("B", 12) ]
 --
 -- The solution for minting maintains the properties we desire, namely:
---   1. The number of change bundles matches the number of
---      "outputs to cover" (we are not changing the number of bundles).
---   2. The change bundles are partially ordered in ascending order (by
---      adding to the largest bundle we trivially maintain ordering).
---   3. The change bundles are split in such a way to maximize the
---      number of large change bundles. By adding to the largest, we are
---      only increasing the "usefulness" of that bundle.
+--
+--    1.  The number of change bundles matches the number of
+--        "outputs to cover" (we are not changing the number of bundles).
+--    2.  The change bundles are in ascending partial order (by adding to the
+--        largest bundle we trivially maintain ordering).
+--    3.  The change bundles are split in such a way to maximize the
+--        number of large change bundles.
 --
 -- The solution for burning maintains the same properties:
---   1. The number of change bundles is not changed, in the case we burn a
---      change bundle completely, we just leave it as an empty entry
---      (effectively "pad with zeros").
---   2. By removing from the smallest bundle, we maintain the ascending partial
---      ordering of the change bundles.
---   3. By removing from the smallest bundles, we remove the "least useful"
---      bundles, maximizing the overall usefulness of our bundles.
-
--- | Adds a minted value to the change map. This function presumes that the
--- change map is partially-ordered in ascending order (i.e. the largest
--- element is at the end of the list).
 --
--- Properties:
--- 1. wrt to the total value of assets in the changeMaps, calling this
--- function is the same as adding the mint value from the change maps:
---    F.fold changeMaps <> TokenMap.singleton assetId qty
---          == F.fold (f (assetId, qty) changeMaps)
--- 2. length is conserved
--- 3. order is preserved (i.e., the result is in ascending partial order).
+--    1.  The number of change bundles is not changed, in the case we burn a
+--        change bundle completely, we just leave it as an empty entry
+--        (effectively "pad with zeros").
+--    2.  By removing from the smallest bundle, we maintain the ascending
+--        partial order of the change bundles.
+--    3.  By removing from the smallest bundles, we remove the "least useful"
+--        bundles, maximizing the overall usefulness of our bundles.
+
+-- | Adds a minted asset quantity to a list of change maps.
+--
+-- This function always adds the given quantity to the final change map in the
+-- given list.
+--
+-- Example:
+--
+-- Suppose we have the following list of change maps:
+--
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 4), ("B", 12) ]
+--
+-- If we add 4 tokens of asset "A", we obtain the following result:
+--
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 8), ("B", 12) ] -- Increased by 4
+--
+-- Provided that the specified change maps are in ascending partial order, this
+-- function guarantees that the resulting change maps will also be in ascending
+-- partial order.
+--
+-- The length of the given list is preserved in the output list.
+--
 addMintValueToChangeMaps
     :: (AssetId, TokenQuantity)
     -> NonEmpty TokenMap
@@ -1595,11 +1632,13 @@ addMintValueToChangeMaps (assetId, assetQty) =
     modifyLast f xs = case NE.reverse xs of
         (y :| ys) -> NE.reverse (f y :| ys)
 
--- | Plural of @addMintValueToChangeMaps@, add a series of mint values to the
--- change maps.
+-- | Adds minted values for multiple assets to a list of change maps.
+--
+-- Plural of @addMintValueToChangeMaps@.
+--
 addMintValuesToChangeMaps
     :: TokenMap
-    -- ^ Series of values to mint
+    -- ^ Map of minted values
     -> NonEmpty TokenMap
     -- ^ Change maps
     -> NonEmpty TokenMap
@@ -1610,43 +1649,97 @@ addMintValuesToChangeMaps mints =
         id
         (TokenMap.toFlatList mints)
 
--- | Remove a burnt value from the change map. This function presumes that
--- the change map is partially-ordered in ascending order (i.e. the largest
--- element is at the end of the list). This function operates under the
--- precondition that a valid selection has been performed, and so assumes
--- that there is enough asset quantity in the change map to satisfy the
--- burn. If there is not, it will burn as much as it can.
+-- | Removes a burned asset quantity from a list of change maps.
 --
--- Properties:
--- 1. wrt to the total value of assets in the changeMaps, calling this
--- function is the same as removing the burnt value from the change maps:
---   F.fold changeMaps `TokenMap.difference` TokenMap.singleton assetId qty
---          == F.fold (f (assetId, qty) changeMaps)
--- 2. length is conserved
--- 3. order is preserved (i.e., the result is in ascending partial order).
+-- For a given asset 'a' and reduction target 't', this function traverses the
+-- given list from left to right, reducing the quantity of asset 'a' in each
+-- change map until the reduction target 't' has been met, or until the list
+-- is exhausted.
+--
+-- For each change map 'm' under consideration:
+--
+--    - if the quantity 'q' of asset 'a' in map 'm' is less than or equal to
+--      the remaining required reduction 'r', it will be replaced with a zero
+--      (effectively eliminating asset 'a' from the map).
+--
+--    - if the quantity 'q' of asset 'a' in map 'm' is greater than the
+--      remaining required reduction 'r', it will be replaced with the
+--      absolute difference between 'q' and 'r'.
+--
+-- If the total quantity of the given asset in the given change maps is greater
+-- than the specified reduction target, the total reduction will be equal to
+-- the specified reduction target. Otherwise, the given asset will be
+-- completely eliminated from all change maps.
+--
+-- Example:
+--
+-- Suppose we have the following list of change maps:
+--
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 4), ("B", 12) ]
+--
+-- If our target is to reduce the quantity of asset "A" by 4, then we should
+-- obtain the following result:
+--
+--    [ [          ("B",  7) ] -- Unable to reduce (already 0)
+--    [ [          ("B",  8) ] -- Reduced by 1 (and eliminated from map)
+--    [ [          ("B",  9) ] -- Reduced by 2 (and eliminated from map)
+--    [ [("A", 2), ("B",  9) ] -- Reduced by 1
+--    [ [("A", 4), ("B", 12) ]
+--
+-- Provided that the specified change maps are in ascending partial order, this
+-- function guarantees that the resulting change maps will also be in ascending
+-- partial order.
+--
+-- The length of the given list is preserved in the output list.
+--
 removeBurnValueFromChangeMaps
-    :: (AssetId, TokenQuantity) -> NonEmpty TokenMap -> NonEmpty TokenMap
+    :: (AssetId, TokenQuantity)
+    -- ^ Asset quantity reduction target
+    -> NonEmpty TokenMap
+    -- ^ Change maps with quantities of the given asset to be reduced
+    -> NonEmpty TokenMap
+    -- ^ Change maps with reduced quantities of the given asset
 removeBurnValueFromChangeMaps (assetId, assetQty) maps = maps
     & fmap (`TokenMap.getQuantity` assetId)
     & reduceTokenQuantities assetQty
     & NE.zipWith (`TokenMap.setQuantity` assetId) maps
 
--- | Given a token quantity, removes that amount from the list of token
--- quantites. It starts removal from the first token quantity, and only
--- continues on to the next if it still needs to remove more to satisfy the
--- request. This continues until the request is satisfied.
+-- | Reduces the total value of the given list of token quantities by the given
+--   reduction target.
 --
--- Quantities fully reduced remain in the list, but as a zero quantity. If the
--- list is in ascending order, the order of the list is preserved, and if the
--- list does not have enough token quantity to satisfy the request, the function
--- will remove as much as it can then stop (i.e. it will create a list of zero
--- token quantities).
+-- This function traverses the given list of quantities from left to right,
+-- reducing each quantity in turn until the total reduction is equal to the
+-- given reduction target, or until the list is exhausted.
 --
--- This captures the burning change algorithm.
+-- For each quantity 'q' under consideration:
+--
+--    - if 'q' is less than or equal to the remaining required reduction 'r',
+--      it will be replaced with a zero.
+--
+--    - if 'q' is greater than the remaining required reduction 'r', it will
+--      be replaced with the absolute difference between 'q' and 'r'.
+--
+-- If the total value in the list is less than the reduction target, the
+-- result will be a list of zeros.
+--
+-- Provided the given list is in ascending order, the resulting list is also
+-- guaranteed to be in ascending order.
+--
+-- The length of the given list is preserved in the output.
+--
 reduceTokenQuantities
-    :: TokenQuantity -> NonEmpty TokenQuantity -> NonEmpty TokenQuantity
-reduceTokenQuantities toBurn quantities =
-    NE.fromList $ burn toBurn (NE.toList quantities) []
+    :: TokenQuantity
+    -- ^ Reduction target
+    -> NonEmpty TokenQuantity
+    -- ^ List of quantities to reduce
+    -> NonEmpty TokenQuantity
+    -- ^ The list of reduced quantities
+reduceTokenQuantities reductionTarget quantities =
+    NE.fromList $ burn reductionTarget (NE.toList quantities) []
   where
     burn _ [      ] ys = reverse ys
     burn b (x : xs) ys
@@ -1656,11 +1749,13 @@ reduceTokenQuantities toBurn quantities =
         b' = b `TokenQuantity.difference` x
         x' = x `TokenQuantity.difference` b
 
--- | Plural of @removeBurnValuesFromChangeMaps@, remove a series of burn values
--- from the change maps.
+-- | Removes burned values for multiple assets from a list of change maps.
+--
+-- Plural of @removeBurnValueFromChangeMaps@.
+--
 removeBurnValuesFromChangeMaps
     :: TokenMap
-    -- ^ Series of values to burn
+    -- ^ Map of burned values
     -> NonEmpty TokenMap
     -- ^ Change maps
     -> NonEmpty TokenMap
