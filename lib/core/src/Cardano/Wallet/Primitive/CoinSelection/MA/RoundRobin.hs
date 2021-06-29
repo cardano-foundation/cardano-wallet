@@ -1875,9 +1875,7 @@ fullBalance index extraSource
     | UTxOIndex.null index =
         TokenBundle.empty
     | otherwise =
-        (view #balance index)
-            `TokenBundle.add`
-                (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
+        view #balance index <> F.foldMap TokenBundle.fromCoin extraSource
 
 --------------------------------------------------------------------------------
 -- Utility types
