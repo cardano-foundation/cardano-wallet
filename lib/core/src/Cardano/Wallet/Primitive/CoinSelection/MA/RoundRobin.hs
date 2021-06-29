@@ -327,16 +327,22 @@ data OutputsInsufficientError = OutputsInsufficientError
 -- | Computes the portion of minted assets that are not spent or burned.
 --
 missingOutputAssets :: OutputsInsufficientError -> TokenMap
-missingOutputAssets (OutputsInsufficientError mint burn out) =
+missingOutputAssets e =
     -- We use 'difference' which will show us the quantities in 'assetsToMint'
     -- that are not in 'assetsToBurn <> requestedOutputAssets'.
     --
     -- Any asset quantity present in 'assetsToBurn <> requestedOutputAssets'
     -- but not present in 'assetsToMint' will simply be zeroed out, which is
     -- the behaviour we want for this error report.
-    mint
-        `TokenMap.difference`
-            (out `TokenMap.add` burn)
+    --
+    assetsToMint `TokenMap.difference`
+        (assetsToBurn `TokenMap.add` requestedOutputAssets)
+  where
+    OutputsInsufficientError
+        { assetsToMint
+        , assetsToBurn
+        , requestedOutputAssets
+        } = e
 
 -- | Indicates that the balance of inputs actually selected was insufficient to
 --   cover the balance of 'outputsToCover'.
