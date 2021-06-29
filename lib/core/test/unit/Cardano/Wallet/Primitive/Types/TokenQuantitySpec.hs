@@ -33,7 +33,14 @@ import Test.Hspec.Core.QuickCheck
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, counterexample, property, (===), (==>) )
+    ( Arbitrary (..)
+    , Property
+    , conjoin
+    , counterexample
+    , property
+    , (===)
+    , (==>)
+    )
 import Test.QuickCheck.Classes
     ( eqLaws
     , monoidLaws
@@ -86,6 +93,8 @@ spec =
             property prop_difference_leq
         it "prop_difference_add ((x - y) + y >= x)" $
             property prop_difference_add
+        it "prop_add_difference ((x + y) - y = x)" $
+            property prop_add_difference
 
     parallel $ describe "JSON serialization" $ do
 
@@ -144,6 +153,13 @@ prop_difference_add x y =
         counterexample ("(x - y) + y = " <> show yAndDelta) $
         counterexample ("x is not <= " <> show yAndDelta) $
         property $ x <= yAndDelta
+
+prop_add_difference :: TokenQuantity -> TokenQuantity -> Property
+prop_add_difference x y =
+    conjoin
+        [ (x `TokenQuantity.add` y) `TokenQuantity.difference` y === x
+        , (x `TokenQuantity.add` y) `TokenQuantity.difference` x === y
+        ]
 
 --------------------------------------------------------------------------------
 -- JSON serialization
