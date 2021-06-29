@@ -1203,12 +1203,13 @@ makeChange criteria
             outputMaps
             nonUserSpecifiedAssetQuantities
         & addMintValuesToChangeMaps
-            (removeAssetIds userSpecifiedAssetIds assetsToMint)
+            (removeUserSpecifiedAssetIds assetsToMint)
         & removeBurnValuesFromChangeMaps
-            (removeAssetIds userSpecifiedAssetIds assetsToBurn)
+            (removeUserSpecifiedAssetIds assetsToBurn)
       where
-        removeAssetIds :: Set AssetId -> TokenMap -> TokenMap
-        removeAssetIds as = TokenMap.filter (not . (`Set.member` as))
+        removeUserSpecifiedAssetIds :: TokenMap -> TokenMap
+        removeUserSpecifiedAssetIds =
+            TokenMap.filter (`Set.notMember` userSpecifiedAssetIds)
 
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
