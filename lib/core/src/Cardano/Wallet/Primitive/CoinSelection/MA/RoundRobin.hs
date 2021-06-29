@@ -481,13 +481,9 @@ performSelection
     -> m (Either SelectionError (SelectionResult TokenBundle))
 performSelection minCoinFor costFor bundleSizeAssessor criteria
     -- Is the minted value all spent or burnt?
-    | not (assetsToMint `leq` (TokenBundle.tokens requestedOutputs
-                                  `TokenMap.add` assetsToBurn)) =
+    | not (assetsToMint `leq` (assetsToBurn <> requestedOutputAssets)) =
         pure $ Left $ OutputsInsufficient $ OutputsInsufficientError
-            { assetsToMint
-            , assetsToBurn
-            , requestedOutputAssets = TokenBundle.tokens requestedOutputs
-            }
+            {assetsToMint, assetsToBurn, requestedOutputAssets}
 
     -- Is the total available balance sufficient?
     | not (balanceRequired `leq` balanceAvailable) =
@@ -521,6 +517,7 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         } = criteria
 
     requestedOutputs = F.foldMap (view #tokens) outputsToCover
+    requestedOutputAssets = view #tokens requestedOutputs
 
     mkInputsSelected :: UTxOIndex -> NonEmpty (TxIn, TxOut)
     mkInputsSelected =
