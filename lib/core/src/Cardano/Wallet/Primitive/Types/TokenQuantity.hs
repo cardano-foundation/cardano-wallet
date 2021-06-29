@@ -136,7 +136,10 @@ pred (TokenQuantity q) = TokenQuantity $ Prelude.pred q
 succ :: TokenQuantity -> TokenQuantity
 succ (TokenQuantity q) = TokenQuantity $ Prelude.succ q
 
--- | Substract two token quantities, clamping negative values to zero.
+-- | Subtracts the second token quantity from the first.
+--
+-- Returns 'zero' if the first quantity is less than the second quantity.
+--
 difference :: TokenQuantity -> TokenQuantity -> TokenQuantity
 difference x y = fromMaybe zero $ subtract x y
 
