@@ -1247,9 +1247,10 @@ makeChange criteria
             <> TokenBundle.fromTokenMap assetsToMint
 
     totalOutputValue :: TokenBundle
-    totalOutputValue = F.fold outputBundles
-        -- Burns represent extra outputs to "the void"
-        `TokenBundle.add` TokenBundle.fromTokenMap assetsToBurn
+    totalOutputValue =
+        F.fold outputBundles
+            -- Burns represent extra outputs to "the void"
+            <> TokenBundle.fromTokenMap assetsToBurn
 
     -- Identifiers of all user-specified assets: assets that were included in
     -- the original set of outputs.
