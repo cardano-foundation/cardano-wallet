@@ -490,7 +490,7 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             { balanceAvailable, balanceRequired }
 
-    -- Are the values of the outputs too small?
+    -- Are the minimum ada quantities of the outputs too small?
     | not (null insufficientMinCoinValues) =
         pure $ Left $ InsufficientMinCoinValues $
             NE.fromList insufficientMinCoinValues
