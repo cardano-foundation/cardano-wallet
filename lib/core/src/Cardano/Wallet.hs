@@ -116,7 +116,7 @@ module Cardano.Wallet
     , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
     , signTransaction
-    , constructUnsignedTransaction
+    , constructTransaction
     , ErrSelectAssets(..)
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
@@ -1585,7 +1585,7 @@ signTransaction ctx wid mkRwdAcct pwd txCtx sel =
 
 
 -- | Construct an unsigned transaction from a given selection.
-constructUnsignedTransaction
+constructTransaction
     :: forall ctx s k.
         ( HasTransactionLayer k ctx
         , HasDBLayer IO s k ctx
@@ -1601,7 +1601,7 @@ constructUnsignedTransaction
     -> TransactionCtx
     -> SelectionResult TxOut
     -> ExceptT ErrConstructTx IO ByteString
-constructUnsignedTransaction ctx wid mkRwdAcct pwd txCtx sel =
+constructTransaction ctx wid mkRwdAcct pwd txCtx sel =
     db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrConstructTxWithRootKey $ \xprv scheme -> do

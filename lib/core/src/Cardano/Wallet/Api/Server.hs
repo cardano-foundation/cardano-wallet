@@ -1995,7 +1995,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                 pure (sel, sel', estMin)
 
         blob <- liftHandler
-            $ W.constructUnsignedTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel
+            $ W.constructTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel
 
         pure (mkApiCoinSelection [] Nothing md sel', fee, blob)
 
