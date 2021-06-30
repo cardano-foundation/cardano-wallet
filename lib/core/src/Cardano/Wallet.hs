@@ -2557,6 +2557,8 @@ data ErrConstructTx
     | ErrConstructTxNoSuchWallet ErrNoSuchWallet
     | ErrConstructTxWithRootKey ErrWithRootKey
     | ErrConstructTxIncorrectTTL PastHorizonException
+    | ErrConstructTxNotImplemented String
+      -- ^ Temporary error constructor.
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction to the network.

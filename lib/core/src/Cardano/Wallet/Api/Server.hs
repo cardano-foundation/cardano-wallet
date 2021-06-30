@@ -1945,10 +1945,6 @@ constructTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructTransaction ctx genChange (ApiT wid) body = do
-    let toAddressAmount (ApiPaymentAddresses content) =
-            addressAmountToTxOut <$> content
-        toAddressAmount (ApiPaymentAll _) =
-            error "TODO: this will be tackled when migration is supported"
     let md = body ^? #metadata . traverse . #getApiT
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let mTTL = Nothing --TODO: this will be tackled when transaction validity is supported
@@ -1983,8 +1979,8 @@ constructTransaction ctx genChange (ApiT wid) body = do
                     $ W.selectAssetsNoOutputs @_ @s @k wrk wid w txCtx transform
                 pure (sel, sel', estMin)
 
-            Just nonemptyPayments -> do
-                let outs = toAddressAmount nonemptyPayments
+            Just (ApiPaymentAddresses content) -> do
+                let outs = addressAmountToTxOut <$> content
                 utx <- liftHandler
                     $ W.selectAssets  @_ @s @k wrk w txCtx outs (const Prelude.id)
                 (FeeEstimation estMin _) <- liftHandler $ W.estimateFee $ W.selectAssets @_ @s @k wrk w txCtx outs getFee
@@ -1993,6 +1989,8 @@ constructTransaction ctx genChange (ApiT wid) body = do
                 sel' <- liftHandler
                     $ W.selectAssetsNoOutputs @_ @s @k wrk wid w txCtx transform
                 pure (sel, sel', estMin)
+            Just (ApiPaymentAll _) -> do
+                liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-909"
 
         blob <- liftHandler
             $ W.constructTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel
@@ -3131,14 +3129,6 @@ data ErrTemporarilyDisabled = ErrTemporarilyDisabled
 showT :: Show a => a -> Text
 showT = T.pack . show
 
-instance IsServerError ErrTemporarilyDisabled where
-    toServerError = \case
-        ErrTemporarilyDisabled ->
-            apiError err501 NotImplemented $ mconcat
-                [ "This endpoint is temporarily disabled. It'll be made "
-                , "accessible again in future releases."
-                ]
-
 instance IsServerError ErrCurrentEpoch where
     toServerError = \case
         ErrUnableToDetermineCurrentEpoch ->
@@ -3274,6 +3264,9 @@ instance IsServerError ErrConstructTx where
             }
         ErrConstructTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
         ErrConstructTxIncorrectTTL e -> toServerError e
+        ErrConstructTxNotImplemented _ ->
+            apiError err501 NotImplemented
+                "This feature is not yet implemented."
 
 instance IsServerError ErrDecodeSignedTx where
     toServerError = \case
