@@ -108,7 +108,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( SomeException, bracket, handle )
+    ( SomeException, bracket, handleSyncOrAsync )
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -378,26 +378,33 @@ follow'
     -- ^ Getter on the abstract 'block' type
     -> IO FollowExit
 follow' nl tr cps yield header =
-    bracket (initCursor nl cps) (destroyCursor nl) (sleep 0 False)
+    bracket
+        (initCursor nl cps)
+        (destroyCursor nl)
+        (handleExceptions . sleep 0 False)
   where
     innerTr = contramap MsgFollowLog tr
     delay0 :: Int
     delay0 = 500*1000 -- 500ms
 
+    handleExceptions :: IO FollowExit -> IO FollowExit
+    handleExceptions =
+        -- Node disconnections are seen as async exceptions from here. By
+        -- catching them, `follow` will try to establish a new connection
+        -- depending on the `FollowExceptionRecovery`.
+        handleSyncOrAsync (traceException *> const (pure FollowFailure))
+      where
+        traceException :: SomeException -> IO ()
+        traceException e = do
+            traceWith tr $ MsgUnhandledException $ T.pack $ show e
+
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
     sleep :: Int -> Bool -> Cursor -> IO FollowExit
-    sleep delay hasRolledForward cursor = handle exitOnAnyException $ do
-        when (delay > 0) (threadDelay delay)
-        step hasRolledForward cursor
-      where
-        -- Any unhandled synchronous exception should be logged and cause the
-        -- chain follower to exit.
-        exitOnAnyException :: SomeException -> IO FollowExit
-        exitOnAnyException e = do
-            traceWith tr $ MsgUnhandledException $ T.pack $ show e
-            pure FollowFailure
+    sleep delay hasRolledForward cursor = do
+            when (delay > 0) (threadDelay delay)
+            step hasRolledForward cursor
 
     step :: Bool -> Cursor -> IO FollowExit
     step hasRolledForward cursor = nextBlocks nl cursor >>= \case

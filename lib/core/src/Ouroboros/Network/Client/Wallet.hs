@@ -62,6 +62,7 @@ import Control.Monad.Class.MonadSTM
     , atomically
     , isEmptyTQueue
     , newEmptyTMVarIO
+    , peekTQueue
     , putTMVar
     , readTQueue
     , takeTMVar
@@ -504,7 +505,7 @@ localStateQuery queue =
         :: LocalStateQueryCmd block m
         -> m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
     clientStAcquired (SomeLSQ cmd respond) = pure $ go cmd $ \res -> do
-        LSQ.SendMsgRelease (respond res >> clientStIdle)
+        LSQ.SendMsgRelease (respond res >> finalizeCmd >> clientStIdle)
             -- We /could/ read all LocalStateQueryCmds from the TQueue, and run
             -- them against the same tip, if re-acquiring takes a long time. As
             -- of Jan 2021, it seems like queries themselves take significantly
@@ -523,8 +524,21 @@ localStateQuery queue =
           go (LSQBind ma f) cont = go ma $ \a -> do
               go (f a) $ \b -> cont b
 
+    -- | Note that we for LSQ and TxSubmission use peekTQueue when starting the
+    -- request, and only remove the command from the queue after we have
+    -- responded.
+    --
+    -- If the connection to the node drops, this makes cancelled commands
+    -- automatically retry on reconnection.
+    --
+    -- IMPORTANT: callers must also `finalizeCmd`, because of the above.
     awaitNextCmd :: m (LocalStateQueryCmd block m)
-    awaitNextCmd = atomically $ readTQueue queue
+    awaitNextCmd = atomically $ peekTQueue queue
+
+    finalizeCmd :: m ()
+    finalizeCmd = atomically $ tryReadTQueue queue >>= \case
+        Just _ -> return ()
+        Nothing -> error "finalizeCmd: queue is not empty"
 
 -- | Monad for composing local state queries for the node /tip/.
 --
@@ -595,9 +609,14 @@ localTxSubmission queue =
   where
     clientStIdle
         :: m (LocalTxClientStIdle tx err m Void)
-    clientStIdle = atomically (readTQueue queue) <&> \case
+    clientStIdle = atomically (peekTQueue queue) <&> \case
         CmdSubmitTx tx respond ->
-            SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)
+            SendMsgSubmitTx tx $ \res -> do
+                respond res
+                -- Same note about peekTQueue from `localStateQuery` applies
+                -- here.
+                _processedCmd <- atomically (readTQueue queue)
+                clientStIdle
 
 --------------------------------------------------------------------------------
 --

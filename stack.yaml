@@ -25,6 +25,7 @@ extra-deps:
 - quickcheck-state-machine-0.7.0
 - hspec-2.8.2
 - hspec-core-2.8.2
+- unliftio-0.2.17 # Need newer for handleSyncOrAsync
 
 # cardano-addresses-3.5.0
 - git: https://github.com/input-output-hk/cardano-addresses
