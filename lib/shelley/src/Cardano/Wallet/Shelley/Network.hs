@@ -490,7 +490,7 @@ withNetworkLayerBase tr net np conn versionData tol action = do
                 stakeDistr
 
         mres <- bracketQuery "stakePoolsSummary" tr $
-            queue `send` (SomeLSQ qry )
+            queue `send` (SomeLSQ qry)
 
         -- The result will be Nothing if query occurs during the byron era
         traceWith tr $ MsgFetchStakePoolsData mres

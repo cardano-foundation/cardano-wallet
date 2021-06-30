@@ -61,6 +61,7 @@ import Control.Monad.Class.MonadSTM
     , atomically
     , isEmptyTQueue
     , newEmptyTMVarIO
+    , peekTQueue
     , putTMVar
     , readTQueue
     , takeTMVar
@@ -443,7 +444,7 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
 --
 -- LocalStateQuery
 
----- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
+-- | Type of commands that are stored in a queue for local state queries.
 data LocalStateQueryCmd block m = forall a. SomeLSQ
     (LSQ block m a)
     (a -> m ())
@@ -504,12 +505,28 @@ localStateQuery queue =
     clientStAcquired
         :: LocalStateQueryCmd block m
         -> m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
-    clientStAcquired (SomeLSQ cmd respond) = pure $ go cmd $ \res -> do
-        LSQ.SendMsgRelease (respond res >> clientStIdle)
-            -- We /could/ read all LocalStateQueryCmds from the TQueue, and run
-            -- them against the same tip, if re-acquiring takes a long time. As
-            -- of Jan 2021, it seems like queries themselves take significantly
-            -- longer than the acquiring.
+    clientStAcquired (SomeLSQ cmd respond) = pure $ go cmd $ \res ->
+        -- We currently release the handle to the node state after
+        -- each query in the queue. This allows the node to release
+        -- resources (such as a stake distribution snapshot) after
+        -- each query.
+        -- 
+        -- However, we /could/ read all LocalStateQueryCmds from the TQueue,
+        -- and run them against the same tip, if re-acquiring takes a long time.
+        -- As of Jan 2021, it seems like queries themselves take significantly
+        -- longer than the acquiring.
+        LSQ.SendMsgRelease $ do
+            -- In order to remove the query from the queue as soon as possible,
+            -- @respond@ should return quickly and not throw any synchronous
+            -- exception.
+            -- In practice, we only use the 'send' helper here, so that works.
+            --
+            -- (Asynchronous exceptions are fine, as the connection to the node
+            -- will not attempt to recover from that, and it doesn't matter
+            -- whether a command is left in the queue or not.)
+            respond res
+            finalizeCmd
+            clientStIdle
       where
           go
               :: forall a. LSQ block m a
@@ -517,18 +534,34 @@ localStateQuery queue =
               -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
           go (LSQPure a) cont = cont a
           go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry)
-            -- NOTE: We only need to support queries of the type `BlockQuery`
-            -- type.
+            -- We only need to support queries of the type `BlockQuery`.
             $ LSQ.ClientStQuerying $ \res -> do
                   pure $ cont res
                   -- It would be nice to trace the time it takes to run the
                   -- queries. We don't have a good opportunity to run IO after a
                   -- point is acquired, but before the query is send, however.
+                  -- Heinrich: Actually, this can be done by adding a 'Tracer m'
+                  -- to the scope and using it here. However, I believe that we
+                  -- already have sufficiently good logging of execution times
+                  -- in Cardano.Wallet.Shelley.Network .
           go (LSQBind ma f) cont = go ma $ \a -> do
               go (f a) $ \b -> cont b
 
+    -- | Note that we for LSQ and TxSubmission use peekTQueue when starting the
+    -- request, and only remove the command from the queue after we have
+    -- processed the response from the node.
+    --
+    -- If the connection to the node drops, this makes cancelled commands
+    -- automatically retry on reconnection.
+    --
+    -- IMPORTANT: callers must also `finalizeCmd`, because of the above.
     awaitNextCmd :: m (LocalStateQueryCmd block m)
-    awaitNextCmd = atomically $ readTQueue queue
+    awaitNextCmd = atomically $ peekTQueue queue
+
+    finalizeCmd :: m ()
+    finalizeCmd = atomically $ tryReadTQueue queue >>= \case
+        Just _ -> return ()
+        Nothing -> error "finalizeCmd: queue is not empty"
 
 -- | Monad for composing local state queries for the node /tip/.
 --
@@ -557,7 +590,7 @@ instance Monad (LSQ block m) where
 -- LocalTxSubmission
 
 
--- | Sending command to the localTxSubmission client. See also 'ChainSyncCmd'.
+-- | Type of commands that are stored in a queue for localTxSubmission.
 data LocalTxSubmissionCmd tx err (m :: Type -> Type)
     = CmdSubmitTx tx (SubmitResult err -> m ())
 
@@ -591,31 +624,29 @@ localTxSubmission
 localTxSubmission queue = LocalTxSubmissionClient clientStIdle
   where
     clientStIdle
-        :: m (LocalTxClientStIdle tx err m ())
-    clientStIdle = atomically (readTQueue queue) <&> \case
+        :: m (LocalTxClientStIdle tx err m Void)
+    clientStIdle = atomically (peekTQueue queue) <&> \case
         CmdSubmitTx tx respond ->
-            SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)
+            SendMsgSubmitTx tx $ \res -> do
+                respond res
+                -- Same note about peekTQueue from `localStateQuery` applies
+                -- here.
+                _processedCmd <- atomically (readTQueue queue)
+                clientStIdle
 
---------------------------------------------------------------------------------
---
--- Helpers
+{-------------------------------------------------------------------------------
+    Helpers
+-------------------------------------------------------------------------------}
 
-flush :: (MonadSTM m) => TQueue m a -> m ()
-flush queue =
-    atomically $ dropUntil isNothing queue
-  where
-    dropUntil predicate q = do
-        done <- predicate <$> tryReadTQueue q
-        unless done $ dropUntil predicate q
-
--- | Helper function to easily send commands to the node's client and read
--- responses back.
+-- | Helper function to send commands to the node via a 'TQueue'
+-- and receive results.
 --
--- >>> queue `send` CmdNextBlocks
--- RollForward cursor nodeTip blocks
---
--- >>> queue `send` CmdNextBlocks
--- AwaitReply
+-- One of the main purposes of this functions is to handle an existentially
+-- quantified type.
+-- In typical use, the @cmd m@ involves existential quantification over
+-- the type @a@, so that the 'TQueue' has elements with a monomorphic type.
+-- However, the type signature of `send` allows us to retrive this particular
+-- type @a@ for later use again.
 send
     :: MonadSTM m
     => TQueue m (cmd m)
