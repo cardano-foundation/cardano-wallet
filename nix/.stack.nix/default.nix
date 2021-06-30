@@ -8,6 +8,7 @@
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.7.0").revisions).default;
         "hspec" = (((hackage.hspec)."2.8.2").revisions).default;
         "hspec-core" = (((hackage.hspec-core)."2.8.2").revisions).default;
+        "unliftio" = (((hackage.unliftio)."0.2.17").revisions).default;
         "base16-bytestring" = (((hackage.base16-bytestring)."1.0.1.0").revisions).default;
         "bech32" = (((hackage.bech32)."1.1.0").revisions).default;
         "bech32-th" = (((hackage.bech32-th)."1.0.2").revisions).default;
