@@ -125,26 +125,19 @@ import qualified Data.Set as Set
 --  - Known & used addresses, via address discovery state
 --  - Blockchain parameters
 --
--- The 'Wallet' is parameterized over two types:
+-- The 'Wallet' is parameterized over a single type:
 --
--- - @s@: A _state_ used to keep track of known addresses. The business logic
---   doesn't know how to answer the question 'Is this address ours?', so we
+-- - @s@ is a /state/ used to keep track of known addresses. The business logic
+--   doesn't know how to answer the question \"Is this address ours?\", so we
 --   expect this state to be able to answer that for us.
---
--- - @t@: A target backend. This makes the wallet fairly agnostic to the type
---   of binary representation used by the underlying target network and it
---   allows us to re-use the same logic to provide a wallet backend for multiple
---   backends (for instance, Byron or Shelley) which may have divergence in
---   their binary formats. For the sake of this module, we only care about one
---   particular super-power, and its the ability to compute transaction id
---   (which is intrinsically linked to the transaction's binary format).
+--   Typically, this state will be an instance of the 'IsOurs' class,
+--   e.g. @'IsOurs' s 'Address'@.
 --
 -- A few examples to make it concrete:
 --
 -- @
--- Wallet RndState Byron
--- Wallet SeqState Shelley
--- Wallet SeqState Bitcoin
+-- Wallet (RndState k n)
+-- Wallet (SeqState n ShelleyKey)
 -- @
 data Wallet s = Wallet
     { -- | Unspent tx outputs belonging to this wallet
