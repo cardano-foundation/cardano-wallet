@@ -1598,10 +1598,7 @@ deriving instance Ord a => Ord (ApiT a)
 newtype ApiMnemonicT (sizes :: [Nat]) =
     ApiMnemonicT { getApiMnemonicT :: SomeMnemonic }
     deriving (Generic, Show, Eq)
-
--- TODO: add instance NFData SomeMnemonic in cardano-addresses
-instance NFData (ApiMnemonicT sizes) where
-    rnf = rnf . show . getApiMnemonicT
+    deriving newtype NFData
 
 -- | A stake key belonging to the current wallet.
 data ApiOurStakeKey n = ApiOurStakeKey
