@@ -95,7 +95,6 @@ source-repository-package
             plugins/backend-ekg
             plugins/backend-monitoring
             plugins/backend-trace-forwarder
-            plugins/scribe-systemd
             tracer-transformers
 
 source-repository-package
@@ -144,6 +143,14 @@ constraints:
   -- choose versions that work with base >= 4.12
   , hjsonpointer >= 1.5.0
   , hjsonschema >= 1.10.0
+
+-- ----------------------------------------------------------------
+-- Flags for dependencies
+
+package cardano-config
+  flags: -systemd
+package cardano-node
+  flags: -systemd
 
 -- -------------------------------------------------------------------------
 -- Enable specific tests in this repo
