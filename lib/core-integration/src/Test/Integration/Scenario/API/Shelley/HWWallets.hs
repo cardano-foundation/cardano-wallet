@@ -19,6 +19,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
+    , ApiCoinSelection (..)
     , ApiCoinSelectionOutput (..)
     , ApiFee
     , ApiTransaction
@@ -33,20 +34,28 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Monoid
+    ( Sum (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
@@ -85,6 +94,7 @@ import Test.Integration.Framework.TestData
     ( errMsg403NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Foldable as F
 import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
@@ -379,3 +389,64 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
  where
      restoredWalletName :: Text
      restoredWalletName = "Wallet from pub key"
+
+computeApiCoinSelectionFee :: ApiCoinSelection n -> Coin
+computeApiCoinSelectionFee selection
+    | feeIsValid =
+        Coin $ fromIntegral fee
+    | otherwise =
+        error $ unlines
+            [ "Unable to compute fee of ApiCoinSelection:"
+            , "fee:"
+            , show fee
+            , "balanceOfInputs:"
+            , show balanceOfInputs
+            , "balanceOfOutputs:"
+            , show balanceOfOutputs
+            , "balanceOfChange:"
+            , show balanceOfChange
+            , "balanceOfRewardWithdrawals"
+            , show balanceOfRewardWithdrawals
+            , "balanceOfDeposits"
+            , show balanceOfDeposits
+            ]
+  where
+    fee :: Integer
+    fee
+        = balanceOfInputs
+        + balanceOfRewardWithdrawals
+        - balanceOfOutputs
+        - balanceOfChange
+        - balanceOfDeposits
+    feeIsValid :: Bool
+    feeIsValid = (&&)
+        (fee >= fromIntegral (unCoin (minBound :: Coin)))
+        (fee <= fromIntegral (unCoin (maxBound :: Coin)))
+    balanceOfInputs
+        = selection
+        & view #inputs
+        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & getSum
+    balanceOfOutputs
+        = selection
+        & view #outputs
+        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & getSum
+    balanceOfChange
+        = selection
+        & view #change
+        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & getSum
+    balanceOfRewardWithdrawals
+        = selection
+        & view #withdrawals
+        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & getSum
+    balanceOfDeposits
+        = selection
+        & view #deposits
+        & F.foldMap (Sum . quantityToInteger)
+        & getSum
+
+quantityToInteger :: Quantity "lovelace" Natural -> Integer
+quantityToInteger (Quantity n) = fromIntegral n
