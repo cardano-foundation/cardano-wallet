@@ -39,7 +39,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..) )
+    ( TxMetadata (..), TxMetadataValue (..) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -99,13 +99,19 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
+    ( errMsg403NoRootKey
+    , payloadWith
+    , txMetadata_ADP_1005
+    , updateNamePayload
+    , updatePassPayload
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.Foldable as F
 import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as Map
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n.
@@ -318,12 +324,34 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             expectResponseCode HTTP.status200 rt
             expectListSize 0 rt
 
-        describe "Can create a coin selection" $
-            mapM_ spec_selectCoins
-                [ ( "without metadata"
-                  , Nothing
-                  , Quantity 130_500
-                  )
+        describe "Can create a coin selection" $ do
+
+            let testCasesWithoutMetadata =
+                    [ ( "without metadata"
+                      , Nothing
+                      , Quantity 130_500
+                      )
+                    ]
+            let testCasesWithMetadata =
+                    -- Note: the transaction fees expected for each of the
+                    -- following test cases can be compared directly with the
+                    -- fees expected in TRANSMETA_CREATE_01.
+                    --
+                    -- Provided that the coin selection criteria are exactly
+                    -- the same, then the transaction fees should be identical.
+                    --
+                    [ ( "simple textual metadata"
+                      , Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
+                      , Quantity 134_700
+                      )
+                    , ( "metadata from ADP-1005"
+                      , Just txMetadata_ADP_1005
+                      , Quantity 152_300
+                      )
+                    ]
+            mapM_ spec_selectCoins $ mconcat
+                [ testCasesWithoutMetadata
+                , testCasesWithMetadata
                 ]
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do
