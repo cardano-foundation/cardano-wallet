@@ -1025,9 +1025,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         mapM_ spec_TRANSMETA_CREATE_01
             [ ( "simple textual metadata"
               , TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
+              , Quantity 134_700
               )
             , ( "metadata from ADP-1005"
               , txMetadata_ADP_1005
+              , Quantity 152_300
               )
             ]
 
@@ -2173,8 +2175,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
   where
-    spec_TRANSMETA_CREATE_01 :: (String, TxMetadata) -> SpecWith Context
-    spec_TRANSMETA_CREATE_01 (testName, txMetadata) =
+    spec_TRANSMETA_CREATE_01
+        :: (String, TxMetadata, Quantity "lovelace" Natural)
+        -> SpecWith Context
+    spec_TRANSMETA_CREATE_01 (testName, txMetadata, expectedFee) =
         it testName $ \ctx -> runResourceT $ do
 
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -2193,6 +2197,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField
                 (#metadata . #getApiTxMetadata)
                 (`shouldBe` Just (ApiT txMetadata))
+            , expectField
+                (#fee) (`shouldBe` expectedFee)
             ]
 
         eventually "metadata is confirmed in transaction list" $ do
