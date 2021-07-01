@@ -162,6 +162,7 @@ import Test.Integration.Framework.TestData
     , errMsg404NoAsset
     , errMsg404NoWallet
     , steveToken
+    , txMetadata_ADP_1005
     )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
@@ -2359,38 +2360,3 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     oneMillionAda :: Natural
     oneMillionAda = 1_000 * oneThousandAda
-
---------------------------------------------------------------------------------
--- Constants
---------------------------------------------------------------------------------
-
--- | Transaction metadata for ADP-1005.
---
--- See https://jira.iohk.io/browse/ADP-1005
---
-txMetadata_ADP_1005 :: TxMetadata -- [(Word64, TxMetadataValue)]
-txMetadata_ADP_1005 = TxMetadata $ Map.fromList
-    [ ( 61284
-      , TxMetaMap
-        [ ( TxMetaNumber 1
-          , TxMetaBytes "\SUB#f\DC3X\DC3\231\219\130\243\SYN\v\226+Ac\221\247'\US)\128h-!\246\193F\172\190\202b"
-          )
-        , ( TxMetaNumber 2
-          , TxMetaBytes "#\229\194\DC3\211l\GSO\177C\128t~\150\ESCy\145K1GW \166O6\196D\166\219\225\SYN$"
-          )
-        , ( TxMetaNumber 3
-          , TxMetaBytes "\224\208\133\DC2\188\ESCA\nM\219D\141\148\182\253\ETXV\NULF\158D\233\ETXq\228\142\134\SOH5"
-          )
-        , ( TxMetaNumber 4
-          , TxMetaNumber 29562467
-          )
-        ]
-      )
-    , ( 61285
-      , TxMetaMap
-        [ ( TxMetaNumber 1
-          , TxMetaBytes ",\SOHv\243R\134\242\ACK}\222\DEL\230\219x\155l]\190\134\162\203>\208\217\132\138\175\225\225\187\229\149\176u?\211AP\235\255\171\211\157\&4\GS\255t\DEL\184m\234\144\nj\153\174\164\155y\137o\155_\b"
-          )
-        ]
-      )
-    ]
