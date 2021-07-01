@@ -1273,7 +1273,7 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                   ],
                   "delegations": [{"joins" : {}}]
                }|]
-               , "Error in $.delegations[0]: ApiMultiDelegationAction needs 'join' or 'quit' field"
+               , "Error in $.delegations[0]: ApiMultiDelegationAction needs either 'join' or 'quit', but not both"
               )
             , ( [aesonQQ|
                { "payments": [

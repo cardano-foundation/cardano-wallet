@@ -1,60 +1,61 @@
 {
-    "seed": 1141849365143262792,
+    "seed": 1936845305661287512,
     "samples": [
         {
             "join": {
-                "pool": "pool15rqmqrr3x74vkkv7hcyvjdjxe78tmqg7mrsw9pd0vlljscr6xkn",
-                "stake_key_index": "16048"
-            }
-        },
-        {
-            "join": {
-                "pool": "pool1ck0cwjptj2euuwfjz8hf5umu865jx90rfcadmraat36v2qn5zzf",
-                "stake_key_index": "25532"
+                "pool": "pool1k74gntstwjn9skldv7xw4d036yh2h593jfx4837k93teu6njstt",
+                "stake_key_index": "8858"
             }
         },
         {
             "quit": {
-                "stake_key_index": "27579"
+                "stake_key_index": "968"
             }
         },
         {
             "join": {
-                "pool": "pool19qk2l6ztrhzwf77dsqgn4lcte595eus3j0f8wy876l9hvlfyvr9",
-                "stake_key_index": "12187"
+                "pool": "pool1sv3lrsknvm9nhhg2wxkpprjgame50d6ae2ea5t8g5xd2cffvqgh",
+                "stake_key_index": "14374"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool1xptyeldr7fjw9kprsm04q3cdx7mffp0vdlhg2he9e83gqjxgmf6",
+                "stake_key_index": "25619"
             }
         },
         {
             "quit": {
-                "stake_key_index": "17129"
+                "stake_key_index": "3315"
             }
         },
         {
             "join": {
-                "pool": "pool1a3hzmtvfmc50pvcupllrjt2emtnvy37pz6kt5kf0g6rc2yztffj",
-                "stake_key_index": "10154"
+                "pool": "pool15l8sch8pdc6a3zdn929ftlw34rsz6yq4lpgsd34r0s99gf6h4ln",
+                "stake_key_index": "8222"
             }
         },
         {
             "join": {
-                "pool": "pool1vug6slnrnm7ulzarh3m4wgp8msawsyphxrr4m6jnqdfmqfma5qh",
-                "stake_key_index": "13426"
+                "pool": "pool1878f293r4u9dg3fdpsrjmfdtkk92d99yafwxkc45guzhv2uy9fw",
+                "stake_key_index": "17222"
             }
         },
         {
             "join": {
-                "pool": "pool1hld608uyk73sczd3uhy0wt6437v3frdz39lsc85q78l87x6x0v7",
-                "stake_key_index": "27658"
+                "pool": "pool19kpy427ae6qpsw56h2j9tmqga259gvuzwum4eu6rhrqtxww2hw9",
+                "stake_key_index": "31303"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool16wppumk5ckqghkhlaf398ppchkgw0mfzsm09e0rfqtnaj5fs886",
+                "stake_key_index": "17812"
             }
         },
         {
             "quit": {
-                "stake_key_index": "30721"
-            }
-        },
-        {
-            "quit": {
-                "stake_key_index": "21665"
+                "stake_key_index": "2416"
             }
         }
     ]

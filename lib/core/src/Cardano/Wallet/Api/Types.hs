@@ -1989,18 +1989,15 @@ instance ToJSON ApiMultiDelegationAction where
     toJSON (Leaving stakeKey) =
         object [ "quit" .= object [ "stake_key_index" .= toJSON stakeKey ] ]
 instance FromJSON ApiMultiDelegationAction where
-    parseJSON = withObject "ApiMultiDelegationAction" $ \o -> do
-        actionJoin <- o .:? "join"
-        actionQuit <- o .:? "quit"
+    parseJSON = withObject "ApiMultiDelegationAction" $ \obj -> do
+        actionJoin <- obj .:? "join"
+        actionQuit <- obj .:? "quit"
         case (actionJoin, actionQuit) of
-            (Just joinObj, Nothing) -> do
-                poolId <- joinObj .: "pool"
-                ix <- joinObj .: "stake_key_index"
-                pure $ Joining poolId ix
-            (Nothing, Just quitObj) -> do
-                ix <- quitObj .: "stake_key_index"
-                pure $ Leaving ix
-            _ -> fail "ApiMultiDelegationAction needs 'join' or 'quit' field"
+            (Just o, Nothing) ->
+                Joining <$> o .: "pool" <*> o .: "stake_key_index"
+            (Nothing, Just o) ->
+                Leaving <$> o .: "stake_key_index"
+            _ -> fail "ApiMultiDelegationAction needs either 'join' or 'quit', but not both"
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -2486,14 +2483,14 @@ instance EncodeAddress t => ToJSON (ApiConstructTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance ToJSON ApiValidityBound where
-    toJSON ApiValidityBoundUnspecified = String "unspecified"
+    toJSON ApiValidityBoundUnspecified = Aeson.Null
     toJSON (ApiValidityBoundAsTimeFromNow from) = toJSON from
     toJSON (ApiValidityBoundAsSlot sl) = toJSON sl
 instance FromJSON ApiValidityBound where
-    parseJSON obj = processString obj <|> processObject obj
+    parseJSON obj = processNull <|> processObject obj
       where
-        processString = withText "ApiValidityBound string" $ \str ->
-            if str == "unspecified" then
+        processNull =
+            if obj == Aeson.Null then
                 pure ApiValidityBoundUnspecified
             else
                 fail "invalid string of ApiValidityBound"

@@ -331,7 +331,7 @@ byronTransactionClient =
         , postExternalTransaction = _postExternalTransaction
         , deleteTransaction = _deleteTransaction
         , getTransaction = _getTransaction
-        , constructTransaction = error "TODO should be supported in the final version of Transaction Workflow."
+        , constructTransaction = error "TODO ADP-909 implement new transaction API for all wallet types."
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API

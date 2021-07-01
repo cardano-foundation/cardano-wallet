@@ -2550,7 +2550,8 @@ data ErrSignPayment
 
 -- | Errors that can occur when constructing an unsigned transaction.
 data ErrConstructTx
-    = ErrConstructTxMkTx ErrMkTx
+    = ErrConstructTxWrongPayload
+    | ErrConstructTxMkTx ErrMkTx
     | ErrConstructTxNoSuchWallet ErrNoSuchWallet
     | ErrConstructTxReadRewardAccount ErrReadRewardAccount
     | ErrConstructTxIncorrectTTL PastHorizonException

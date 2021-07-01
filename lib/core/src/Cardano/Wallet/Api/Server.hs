@@ -481,7 +481,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, mapMaybe, maybeToList )
+    ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1945,6 +1945,14 @@ constructTransaction
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructTransaction ctx genChange (ApiT wid) body = do
+    let isNoPayload =
+            isNothing (body ^. #payments) &&
+            isNothing (body ^. #withdrawal) &&
+            isNothing (body ^. #metadata) &&
+            isNothing (body ^. #mint) &&
+            isNothing (body ^. #delegations)
+    when isNoPayload $
+        liftHandler $ throwE ErrConstructTxWrongPayload
     let md = body ^? #metadata . traverse . #getApiT
     let mTTL = Nothing --TODO: this will be tackled when transaction validity is supported
 
@@ -3253,6 +3261,12 @@ instance IsServerError ErrSignPayment where
 
 instance IsServerError ErrConstructTx where
     toServerError = \case
+        ErrConstructTxWrongPayload ->
+            apiError err403 CreatedInvalidTransaction $ mconcat
+            [ "It looks like I've created an empty transaction "
+            , "that does not have any payments, withdrawals, delegations, "
+            , "metadata nor minting. Include at least one of them."
+            ]
         ErrConstructTxMkTx e -> toServerError e
         ErrConstructTxNoSuchWallet e -> (toServerError e)
             { errHTTPCode = 404

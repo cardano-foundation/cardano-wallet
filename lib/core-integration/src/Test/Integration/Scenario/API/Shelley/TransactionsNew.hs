@@ -41,8 +41,6 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -59,7 +57,6 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , expectSuccess
-    , fixturePassphrase
     , fixtureWalletWith
     , getFromResponse
     , json
@@ -81,13 +78,25 @@ spec :: forall n.
     , PaymentAddress n IcarusKey
     ) => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
+    it "TRANS_NEW_CREATE_01x - No payload" $ \ctx -> runResourceT $ do
+        let initialAmt = 3*minUTxOValue
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        let emptyPayload = Json [json|{}|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default emptyPayload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            ]
+
     it "TRANS_NEW_CREATE_01x - Single Output Transaction" $ \ctx -> runResourceT $ do
         let initialAmt = 3*minUTxOValue
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
         let amt = (minUTxOValue :: Natural)
 
-        payload <- liftIO $ mkTxPayload ctx wb amt fixturePassphrase
+        payload <- liftIO $ mkTxPayload ctx wb amt
 
         (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wa) payload
@@ -113,9 +122,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         => Context
         -> ApiWallet
         -> Natural
-        -> Text
         -> m Payload
-    mkTxPayload ctx wDest amt passphrase = do
+    mkTxPayload ctx wDest amt = do
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
         return $ Json [json|{
