@@ -1853,12 +1853,9 @@ instance Arbitrary AssetDecimals where
 
 instance Arbitrary AssetMetadata where
     -- TODO: We should add a proper arbitrary instance
-    arbitrary = AssetMetadata
-        <$> (pure "asset")
-        <*> (pure "An asset")
-        <*> (oneof [pure Nothing, pure $ Just "AST"])
-        <*> genMaybe (pure $ AssetURL $ fromJust $
-                parseURI "https://asset.url")
+    arbitrary = AssetMetadata "asset" "An asset"
+        <$> (oneof [pure Nothing, pure $ Just "AST"])
+        <*> genMaybe (pure $ AssetURL $ fromJust $ parseURI "https://asset.url")
         <*> genLogo
         <*> arbitrary
       where

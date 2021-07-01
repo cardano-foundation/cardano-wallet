@@ -762,8 +762,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let txId =  getTxId txJson
 
         eventually "Tx is in ledger" $ do
-            (fromStdout <$> listTransactionsViaCLI ctx [wSrcId])
-                >>= expectValidJSON (Proxy @([ApiTransaction n]))
+            listTransactionsViaCLI ctx [wSrcId]
+                >>= expectValidJSON (Proxy @([ApiTransaction n])) . fromStdout
                 >>= flip verify
                     [ expectCliListField 0
                         (#direction . #getApiT) (`shouldBe` Outgoing)

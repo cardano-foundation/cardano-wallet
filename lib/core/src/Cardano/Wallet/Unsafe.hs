@@ -62,6 +62,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( isHexDigit )
+import Data.Either
+    ( fromRight )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -228,6 +230,6 @@ unsafeBech32Decode txt = case Bech32.decodeLenient txt of
         ++ " because " ++ msg
 
 unsafeMkPercentage :: HasCallStack => Rational -> Percentage
-unsafeMkPercentage r = either (const bomb) id $ mkPercentage r
+unsafeMkPercentage r = fromRight bomb $ mkPercentage r
   where
     bomb = error $ "unsafeMkPercentage: " ++ show r ++ " is out of bounds."

@@ -148,7 +148,7 @@ import Crypto.Hash.Utils
 import Data.Aeson
     ( FromJSON (..), object, toJSON, (.:), (.=) )
 import Data.Bifunctor
-    ( first, second )
+    ( bimap )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -158,9 +158,7 @@ import Data.ByteString.Base58
 import Data.Char
     ( toLower )
 import Data.Either
-    ( isLeft, isRight )
-import Data.Function
-    ( (&) )
+    ( fromRight, isLeft, isRight )
 import Data.Functor
     ( ($>), (<&>) )
 import Data.List
@@ -299,23 +297,23 @@ newtype PreserveInitialFundsOrdering =
     PreserveInitialFundsOrdering [TxOut]
     deriving (Show)
 
+{- HLINT ignore "Use concatMap" -}
 instance FromJSON PreserveInitialFundsOrdering where
-    parseJSON source = do
-        initialFunds <- flip (Aeson.withObject "ByronGenesis") source $ \obj ->
-            obj .: "nonAvvmBalances"
-        let outs = mconcat (Map.toList <$> initialFunds)
-                & map (first unsafeMkAddress)
-                & map (second unsafeMkLovelace)
-                & map (Byron.fromTxOut . uncurry Legacy.TxOut)
-        pure $ PreserveInitialFundsOrdering outs
+    parseJSON = Aeson.withObject "ByronGenesis" $ \obj -> do
+        initialFunds <- obj .: "nonAvvmBalances"
+
+        pure $ PreserveInitialFundsOrdering $ concat $
+            map (map mkOut . Map.toList) initialFunds
       where
+        mkOut = Byron.fromTxOut . uncurry Legacy.TxOut .
+            bimap unsafeMkAddress unsafeMkLovelace
         unsafeMkAddress =
-            either bomb id . Byron.decodeAddressBase58
+            fromRight bomb . Byron.decodeAddressBase58
           where
             bomb = error "PreserveInitialFundsOrdering: address not valid base58"
 
         unsafeMkLovelace =
-            either bomb id . Byron.mkLovelace . read
+            fromRight bomb . Byron.mkLovelace . read
           where
             bomb = error "PreserveInitialFundsOrdering: invalid lovelace value"
 
