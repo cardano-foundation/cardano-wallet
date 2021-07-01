@@ -231,13 +231,7 @@ import Cardano.Wallet.Logging
     , unliftIOTracer
     )
 import Cardano.Wallet.Network
-    ( ErrPostTx (..)
-    , FollowAction (..)
-    , FollowExceptionRecovery (..)
-    , FollowLog (..)
-    , NetworkLayer (..)
-    , follow
-    )
+    ( ChainFollower (..), ErrPostTx (..), FollowLog (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -532,7 +526,7 @@ import Statistics.Quantile
 import Type.Reflection
     ( Typeable, typeRep )
 import UnliftIO.Exception
-    ( Exception )
+    ( Exception, throwIO )
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
@@ -896,18 +890,25 @@ restoreWallet
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
-    let readCps = liftIO $ atomically $ listCheckpoints wid
-    let forward bs h innerTr = run $ do
-            restoreBlocks @ctx @s @k ctx innerTr wid bs h
-    let backward = runExceptT . rollbackBlocks @ctx @s @k ctx wid
-    liftIO $ follow nw tr readCps forward backward RetryOnExceptions (view #header)
+    liftIO $ chainSync nw tr' $ ChainFollower
+        { readLocalTip =
+            liftIO $ atomically $ listCheckpoints wid
+        , rollForward = \tip blocks -> throwInIO $
+            restoreBlocks @ctx @s @k
+                ctx (contramap MsgFollowLog tr') wid blocks tip
+        , rollBackward =
+            throwInIO . rollbackBlocks @ctx @s @k ctx wid
+        }
+    --liftIO $ follow nw tr readCps forward backward RetryOnExceptions (view #header)
   where
     db = ctx ^. dbLayer @IO @s @k
-    nw = ctx ^. networkLayer
-    tr = contramap MsgFollow (ctx ^. logger @_ @WalletWorkerLog)
+    nw = ctx ^. networkLayer @IO
+    tr' = contramap MsgFollow (ctx ^. logger @WalletWorkerLog)
 
-    run :: ExceptT ErrNoSuchWallet IO () -> IO (FollowAction ErrNoSuchWallet)
-    run = fmap (either ExitWith (const Continue)) . runExceptT
+    throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
+    throwInIO x = runExceptT x >>= \case
+        Right a -> pure a
+        Left e -> throwIO e
 
 -- | Rewind the UTxO snapshots, transaction history and other information to a
 -- the earliest point in the past that is before or is the point of rollback.

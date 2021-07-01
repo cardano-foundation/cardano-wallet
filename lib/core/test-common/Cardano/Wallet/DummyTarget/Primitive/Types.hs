@@ -164,10 +164,7 @@ mkTxId ins outs wdrls md = mockHash (ins, outs, wdrls, md)
 
 dummyNetworkLayer :: NetworkLayer m a
 dummyNetworkLayer = NetworkLayer
-    { nextBlocks = error "nextBlocks: not implemented"
-    , initCursor = error "initCursor: not implemented"
-    , destroyCursor = error "destroyCursor: not implemented"
-    , cursorSlotNo = error "cursorSlotNo: not implemented"
+    { chainSync = error "chainSync: not implemented"
     , currentNodeEra = error "currentNodeEra: not implemented"
     , currentNodeTip = error "currentNodeTip: not implemented"
     , watchNodeTip = error "watchNodeTip: not implemented"

@@ -18,19 +18,18 @@ module Cardano.Wallet.Network
     (
     -- * Interface
       NetworkLayer (..)
-    , NextBlocksResult (..)
-    , mapCursor
-    , Cursor
-    , follow
-    , FollowAction (..)
-    , FollowExit (..)
-    , FollowExceptionRecovery (..)
 
     -- * Errors
     , ErrPostTx (..)
 
-    -- * Logging
+    -- * Chain following
+    , ChainFollower (..)
+    , mapChainFollower
     , FollowLog (..)
+    , ChainSyncLog (..)
+    , mapChainSyncLog
+    , withFollowStatsMonitoring
+    , addFollowerLogging
 
     -- * Logging (for testing)
     , FollowStats (..)
@@ -46,7 +45,7 @@ import Cardano.Api
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), contramap )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -64,8 +63,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx )
-import Control.Monad
-    ( when )
 import Control.Monad.Class.MonadSTM
     ( atomically )
 import Control.Monad.Class.MonadSTM.Strict
@@ -74,8 +71,6 @@ import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
     ( Tracer, contramapM, traceWith )
-import Data.Functor
-    ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -96,47 +91,31 @@ import GHC.Generics
     ( Generic )
 import NoThunks.Class
     ( AllowThunksIn (..), NoThunks (..) )
+import Numeric.Natural
+    ( Natural )
 import Safe
     ( lastMay )
 import UnliftIO.Async
     ( race_ )
 import UnliftIO.Concurrent
     ( threadDelay )
-import UnliftIO.Exception
-    ( SomeException, bracket, handleSyncOrAsync )
 
 import qualified Cardano.Api.Shelley as Node
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 
+{-------------------------------------------------------------------------------
+    ChainSync
+-------------------------------------------------------------------------------}
+-- | Interface for network capabilities.
 data NetworkLayer m block = NetworkLayer
-    { nextBlocks
-        :: Cursor
-        -> IO (NextBlocksResult Cursor block)
-        -- ^ Starting from the given 'Cursor', fetches a contiguous sequence of
-        -- blocks from the node, if they are available. An updated cursor will
-        -- be returned with a 'RollFoward' result.
-        --
-        -- Blocks are returned in ascending slot order, without skipping blocks.
-        --
-        -- If the node does not have any blocks after the specified cursor
-        -- point, it will return 'AwaitReply'.
-        --
-        -- If the node has adopted an alternate fork of the chain, it will
-        -- return 'RollBackward' with a new cursor.
-
-    , initCursor
-        :: [BlockHeader] -> m Cursor
-        -- ^ Creates a cursor from the given block header so that 'nextBlocks'
-        -- can be used to fetch blocks.
-
-    , destroyCursor
-        :: Cursor -> m ()
-        -- ^ Cleanup network connection once we're done with them.
-
-    , cursorSlotNo
-        :: Cursor -> SlotNo
-        -- ^ Get the slot corresponding to a cursor.
+    { chainSync
+        :: forall msg. Tracer IO (FollowLog msg)
+        -> ChainFollower m
+            BlockHeader
+            BlockHeader
+            block
+        -> m ()
 
     , currentNodeTip
         :: m BlockHeader
@@ -199,11 +178,81 @@ data NetworkLayer m block = NetworkLayer
 
 instance Functor m => Functor (NetworkLayer m) where
     fmap f nl = nl
-        { nextBlocks = fmap (fmap f) . nextBlocks nl
+        { chainSync = \tr follower ->
+            chainSync nl tr (mapChainFollower id id id f follower)
         }
 
+-- | A collection of callbacks to use with the 'chainSync' function.
+data ChainFollower m point tip block = ChainFollower
+    { readLocalTip :: m [point]
+        -- ^ Callback for reading the local tip. Used to negotiate the
+        -- intersection with the node.
+        --
+        -- A response of [] is interpreted as `Origin` -- i.e. the chain will be
+        -- served from genesis.
+        --
+        -- TODO: Could be named readCheckpoints?
+    , rollForward :: tip -> NonEmpty block -> m ()
+        -- ^ Callback for rolling forward.
+        --
+        -- Implementors _may_ delete old checkpoints while rolling forward.
+
+    , rollBackward :: SlotNo -> m SlotNo
+        -- ^ Roll back to the requested slot, or further, and return the point
+        -- actually rolled back to.
+        --
+        -- TODO: `SlotNo` cannot represent the genesis point `Origin`.
+        --
+        -- __Example 1:__
+        --
+        -- If the follower stores checkpoints for all blocks, we can always roll
+        -- back to the requested point exactly.
+        --
+        -- @
+        -- -- If
+        -- knownSlots follower `shouldReturn` [0,1,2,3]
+        -- let requested = SlotNo 2
+        -- -- Then
+        -- actual <- rollBackward follower requested
+        -- knownSlots follower shouldReturn` [0,1,2]
+        -- actual `shouldBe` SlotNo 2
+        -- @
+        --
+        -- Note that the slotNos are unlikely to be consecutive in real life,
+        -- but this doesn't matter, as ouroboros-network asks us to rollback to
+        -- points, corresponding to blocks.
+        --
+        -- __Example 2:__
+        --
+        -- @
+        -- -- If
+        -- knownSlots follower `shouldReturn` [0,9,10]
+        -- let requested = SlotNo 2
+        -- -- Then
+        -- actual <- rollBackward follower requested
+        -- knownSlots follower shouldReturn` [0]
+        -- actual `shouldBe` SlotNo 0
+        -- @
+        --
+    }
+
+mapChainFollower
+    :: Functor m
+    => (point1 -> point2) -- ^ Covariant
+    -> (tip2 -> tip1) -- ^ Contravariant
+    -> (block2 -> block1) -- ^ Contravariant
+    -> ChainFollower m point1 tip1 block1
+    -> ChainFollower m point2 tip2 block2
+mapChainFollower fpoint ftip fblock cf =
+    ChainFollower
+        { readLocalTip = map fpoint <$> readLocalTip cf
+        , rollForward = \t bs -> rollForward cf (ftip t) (fmap fblock bs)
+        , rollBackward = rollBackward cf
+        }
+
+
 {-------------------------------------------------------------------------------
-                                  Errors
+    Errors
 -------------------------------------------------------------------------------}
 
 -- | Error while trying to send a transaction
@@ -215,245 +264,53 @@ instance ToText ErrPostTx where
         ErrPostTxValidationError msg -> msg
 
 {-------------------------------------------------------------------------------
-                                Chain Sync
+    Logging
 -------------------------------------------------------------------------------}
 
---- | A cursor is local state kept by the chain consumer to use as the starting
---- position for 'nextBlocks'. The actual type is opaque and determined by the
---- backend target.
-data family Cursor
 
--- | The result of 'nextBlocks', which is instructions for what the chain
--- consumer should do next.
-data NextBlocksResult cursor block
-    = RollForward cursor BlockHeader [block]
-        -- ^ Apply the given contiguous non-empty sequence of blocks. Use the
-        -- updated cursor to get the next batch. The given block header is the
-        -- current tip of the node.
-    | RollBackward cursor
-        -- ^ The chain consumer must roll back its state, then use the cursor to
-        -- get the next batch of blocks.
+-- | Low-level logs for chain-sync
+data ChainSyncLog block point
+    = MsgChainRollForward block point
+    | MsgChainRollBackward point Int
+    | MsgTipDistance Natural
+    deriving (Show, Eq, Generic)
 
-instance Functor (NextBlocksResult cursor) where
-    fmap f = \case
-        RollForward cur bh bs -> RollForward cur bh (fmap f bs)
-        RollBackward cur -> RollBackward cur
+mapChainSyncLog
+    :: (b1 -> b2)
+    -> (p1 -> p2)
+    -> ChainSyncLog b1 p1
+    -> ChainSyncLog b2 p2
+mapChainSyncLog f g = \case
+    MsgChainRollForward block point -> MsgChainRollForward (f block) (g point)
+    MsgChainRollBackward point n -> MsgChainRollBackward (g point) n
+    MsgTipDistance d -> MsgTipDistance d
 
-mapCursor :: (a -> b) -> NextBlocksResult a block -> NextBlocksResult b block
-mapCursor fn = \case
-    RollForward cur bh bs -> RollForward (fn cur) bh bs
-    RollBackward cur -> RollBackward (fn cur)
+instance (ToText block, ToText point)
+    => ToText (ChainSyncLog block point) where
+    toText = \case
+        MsgChainRollForward b tip ->
+            "ChainSync roll forward: " <> toText b <> " tip is " <> toText tip
+        MsgChainRollBackward b 0 ->
+            "ChainSync roll backward: " <> toText b
+        MsgChainRollBackward b bufferSize -> mconcat
+            [ "ChainSync roll backward: "
+            , toText b
+            , ", handled inside buffer with remaining length "
+            , toText bufferSize
+            ]
+        MsgTipDistance d -> "Tip distance: " <> toText d
 
--- | @FollowAction@ enables the callback of @follow@ to signal if the
--- chain-following should @ExitWith@, @Continue@, or if the current callback
--- should be forgotten and retried (@Retry@).
-data FollowAction err
-    = ExitWith err
-      -- ^ Stop following the chain.
-    | Continue
-      -- ^ Continue following the chain.
-    deriving (Eq, Show, Functor)
+instance HasPrivacyAnnotation (ChainSyncLog block point)
 
--- | Possibly scenarios that would cause 'follow' to exit so that client code
--- can decide what to do.
-data FollowExit
-    = FollowRollback SlotNo
-    | FollowFailure
-    | FollowDone
-    deriving (Eq, Show)
-
-data FollowExceptionRecovery
-    = RetryOnExceptions
-    | AbortOnExceptions
-
--- | Subscribe to a blockchain and get called with new block (in order)!
---
--- Exits when the node switches to a different chain with the greatest known
--- common tip between the follower and the node. This makes it easier for client
--- to re-start following from a different point if they have, for instance,
--- rolled back to a point further in the past. If this occurs, clients will need
--- to restart the chain follower from a known list of headers, re-initializing
--- the cursor.
---
--- Exits with 'Nothing' in case of error.
-follow
-    :: forall block msg e. (Show e)
-    => NetworkLayer IO block
-    -- ^ The @NetworkLayer@ used to poll for new blocks.
-    -> Tracer IO (FollowLog msg)
-    -- ^ Logger trace
-    -> IO [BlockHeader]
-    -- ^ A way to get a list of known tips to start from.
-    -- Blocks /after/ the tip will be yielded.
-    -> (NE.NonEmpty block
-        -> BlockHeader
-        -> Tracer IO msg
-        -> IO (FollowAction e))
-    -- ^ Callback with blocks and the current tip of the /node/.
-    -- @follow@ stops polling and terminates if the callback errors.
-    -> (SlotNo -> IO (Either e SlotNo))
-    -- ^ Callback with blocks and the current tip of the /node/.
-    -- @follow@ stops polling and terminates if the callback errors.
-    -> FollowExceptionRecovery
-    -- ^ Whether to recover from exceptions or not.
-    -> (block -> BlockHeader)
-    -- ^ Getter on the abstract 'block' type
-    -> IO ()
-follow nl tr' readCursor forward' backward recovery header =
-    withFollowStatsMonitoring tr' (syncProgress nl) $ \tr -> do
-        loop tr True
-  where
-    loop tr firstTime = do
-        cursor <- readCursor
-        when firstTime $ traceWith tr $ MsgStartFollowing cursor
-
-        -- Trace the sync progress based on the last "local checkpoint".
-        --
-        -- It appears that @forward@ doesn't get called if we are already
-        -- in-sync. So if we want the @LogState@ to update, we need to trace
-        -- something here.
-        case lastMay cursor of
-            Just c -> traceWith tr . MsgFollowerTip $ Just c
-            Nothing -> traceWith tr . MsgFollowerTip $ Nothing
-
-        let forward blocks tip innerTr = do
-                res <- forward' blocks tip innerTr
-                traceWith tr . MsgFollowerTip . Just $ header $ NE.last blocks
-                return res
-
-        (follow' nl tr cursor forward header) >>= \act -> do
-            case act of
-                FollowFailure ->
-                    -- NOTE: follow' is tracing the error, so we don't have to
-                    -- here
-                    case recovery of
-                        RetryOnExceptions -> loop tr False
-                        AbortOnExceptions -> return ()
-                FollowRollback requestedSlot -> do
-                    -- NOTE: follow' is tracing MsgWillRollback
-                    backward requestedSlot >>= \case
-                        Left e -> do
-                            traceWith tr $ MsgFailedRollingBack $ T.pack (show e)
-                        Right actualSlot -> do
-                            traceWith tr $ MsgDidRollback requestedSlot actualSlot
-                    loop tr False
-                FollowDone ->
-                    -- TODO: Pool used to log MsgHaltMonitoring
-                    return ()
-
--- | A new, more convenient, wrapping @follow@ function was added above.
---
--- This is the old one. It was kept for now to minimise changes and potential
--- mistakes, as it is pretty intricate.
-follow'
-    :: forall block msg e. (Show e)
-    => NetworkLayer IO block
-    -- ^ The @NetworkLayer@ used to poll for new blocks.
-    -> Tracer IO (FollowLog msg)
-    -- ^ Logger trace
-    -> [BlockHeader]
-    -- ^ A list of known tips to start from.
-    -- Blocks /after/ the tip will be yielded.
-    -> (NE.NonEmpty block
-        -> BlockHeader
-        -> Tracer IO msg
-        -> IO (FollowAction e))
-    -- ^ Callback with blocks and the current tip of the /node/.
-    -- @follow@ stops polling and terminates if the callback errors.
-    -> (block -> BlockHeader)
-    -- ^ Getter on the abstract 'block' type
-    -> IO FollowExit
-follow' nl tr cps yield header =
-    bracket
-        (initCursor nl cps)
-        (destroyCursor nl)
-        (handleExceptions . sleep 0 False)
-  where
-    innerTr = contramap MsgFollowLog tr
-    delay0 :: Int
-    delay0 = 500*1000 -- 500ms
-
-    handleExceptions :: IO FollowExit -> IO FollowExit
-    handleExceptions =
-        -- Node disconnections are seen as async exceptions from here. By
-        -- catching them, `follow` will try to establish a new connection
-        -- depending on the `FollowExceptionRecovery`.
-        handleSyncOrAsync (traceException *> const (pure FollowFailure))
-      where
-        traceException :: SomeException -> IO ()
-        traceException e = do
-            traceWith tr $ MsgUnhandledException $ T.pack $ show e
-
-    -- | Wait a short delay before querying for blocks again. We also take this
-    -- opportunity to refresh the chain tip as it has probably increased in
-    -- order to refine our syncing status.
-    sleep :: Int -> Bool -> Cursor -> IO FollowExit
-    sleep delay hasRolledForward cursor = do
-            when (delay > 0) (threadDelay delay)
-            step hasRolledForward cursor
-
-    step :: Bool -> Cursor -> IO FollowExit
-    step hasRolledForward cursor = nextBlocks nl cursor >>= \case
-        RollForward cursor' _ [] -> do
-            -- FIXME Make RollForward return NE
-            -- This case seems to never happen.
-            sleep delay0 hasRolledForward cursor'
-
-        RollForward cursor' tip (blockFirst : blocksRest) -> do
-            let blocks = blockFirst :| blocksRest
-            traceWith tr $ MsgApplyBlocks tip (header <$> blocks)
-            action <- yield blocks tip innerTr
-            traceWith tr $ MsgFollowAction (fmap show action)
-            continueWith cursor' True action
-
-        RollBackward cursor' ->
-            -- After negotiating a tip, the node asks us to rollback to the
-            -- intersection. We may have to rollback to our /current/ tip.
-            --
-            -- This would do nothing, but @follow@ handles rollback by exiting
-            -- such that a new negotiation is required, leading to an infinite
-            -- loop.
-            --
-            -- So this becomes a bit intricate:
-
-            case (cursorSlotNo nl cursor', cps, hasRolledForward) of
-                (sl, [], False) -> do
-                    -- The following started from @Origin@.
-                    -- This is the initial rollback.
-                    -- We can infer that we are asked to rollback to Origin, and
-                    -- we can ignore it.
-                    traceWith tr $ MsgWillIgnoreRollback sl "initial rollback, \
-                        \cps=[]"
-                    step hasRolledForward cursor'
-                (sl, _:_, False) | sl == slotNo (last cps) -> do
-                    traceWith tr $ MsgWillIgnoreRollback sl "initial rollback, \
-                        \rollback point equals the last checkpoint"
-                    step hasRolledForward cursor'
-                (sl, _, _) -> do
-                    traceWith tr $ MsgWillRollback sl
-                    destroyCursor nl cursor' $> FollowRollback sl
-            -- Some alternative solutions would be to:
-            -- 1. Make sure we have a @BlockHeader@/@SlotNo@ for @Origin@
-            -- 2. Stop forcing @follow@ to quit on rollback
-    continueWith
-        :: Cursor
-        -> Bool
-        -> FollowAction e
-        -> IO FollowExit
-    continueWith cursor' hrf = \case
-        ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
-            return FollowDone
-        Continue ->
-            step hrf cursor'
-
-{-------------------------------------------------------------------------------
-                                    Logging
--------------------------------------------------------------------------------}
+instance HasSeverityAnnotation (ChainSyncLog block point) where
+    getSeverityAnnotation = \case
+        MsgChainRollForward{} -> Debug
+        MsgChainRollBackward{} -> Debug
+        MsgTipDistance{} -> Debug
 
 data FollowLog msg
     = MsgStartFollowing [BlockHeader]
     | MsgHaltMonitoring
-    | MsgFollowAction (FollowAction String)
     | MsgUnhandledException Text
     | MsgFollowerTip (Maybe BlockHeader)
     | MsgFollowStats (FollowStats LogState)
@@ -463,6 +320,7 @@ data FollowLog msg
     | MsgDidRollback SlotNo SlotNo
     | MsgFailedRollingBack Text -- Reason
     | MsgWillIgnoreRollback SlotNo Text -- Reason
+    | MsgChainSync (ChainSyncLog Text Text)
     deriving (Show, Eq, Generic)
 
 instance ToText msg => ToText (FollowLog msg) where
@@ -475,9 +333,6 @@ instance ToText msg => ToText (FollowLog msg) where
             ]
         MsgHaltMonitoring ->
             "Stopping following as requested."
-        MsgFollowAction action -> case action of
-            ExitWith e -> "Failed to roll forward: " <> T.pack e
-            _ -> T.pack $ "Follower says " <> show action
         MsgUnhandledException err ->
             "Unexpected error following the chain: " <> err
         MsgFollowerTip p -> "Tip" <> pretty p
@@ -506,6 +361,7 @@ instance ToText msg => ToText (FollowLog msg) where
         MsgFailedRollingBack reason -> "Failed rolling back: " <>
             reason
         MsgFollowLog msg -> toText msg
+        MsgChainSync msg -> toText msg
 
 instance HasPrivacyAnnotation (FollowLog msg)
 instance HasSeverityAnnotation msg => HasSeverityAnnotation (FollowLog msg) where
@@ -514,8 +370,6 @@ instance HasSeverityAnnotation msg => HasSeverityAnnotation (FollowLog msg) wher
         MsgHaltMonitoring -> Info
         MsgFollowStats s -> getSeverityAnnotation s
         MsgFollowerTip _ -> Debug
-        MsgFollowAction (ExitWith _) -> Error
-        MsgFollowAction _ -> Debug
         MsgUnhandledException _ -> Error
         MsgApplyBlocks _ _ -> Debug
         MsgFollowLog msg -> getSeverityAnnotation msg
@@ -523,6 +377,8 @@ instance HasSeverityAnnotation msg => HasSeverityAnnotation (FollowLog msg) wher
         MsgDidRollback _ _ -> Debug
         MsgFailedRollingBack _ -> Error
         MsgWillIgnoreRollback _ _ -> Debug
+        MsgChainSync msg -> getSeverityAnnotation msg
+
 
 --
 -- Log aggregation
@@ -676,6 +532,24 @@ explainedSeverityAnnotation s
 instance HasSeverityAnnotation (FollowStats LogState) where
     getSeverityAnnotation = fst . explainedSeverityAnnotation
 
+addFollowerLogging
+    :: Monad m
+    => Tracer m (FollowLog msg)
+    -> ChainFollower m point BlockHeader block
+    -> ChainFollower m point BlockHeader block
+addFollowerLogging tr cf = ChainFollower
+    { readLocalTip = do
+        readLocalTip cf
+    , rollForward = \tip blocks -> do
+        traceWith tr $ MsgApplyBlocks tip (fromBlock <$> blocks)
+        traceWith tr $ MsgFollowerTip (Just tip)
+        rollForward cf tip blocks
+    , rollBackward = \slot -> do
+        slot' <- rollBackward cf slot
+        traceWith tr $ MsgDidRollback slot slot'
+        return slot'
+    }
+
 -- | Starts a new thread for monitoring health and statistics from
 -- the returned @FollowLog msg@.
 withFollowStatsMonitoring
@@ -691,6 +565,7 @@ withFollowStatsMonitoring tr calcSyncProgress act = do
                 s <- takeTMVar var
                 putTMVar var $! updateStats msg s
             pure msg
+    traceWith tr' $ MsgFollowerTip Nothing
     race_
         (act tr')
         (loop var startupDelay)
