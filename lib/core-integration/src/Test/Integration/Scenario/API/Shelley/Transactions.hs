@@ -1021,76 +1021,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField #expiresAt (`shouldSatisfy` isJust)
             ]
 
-    it "TRANSMETA_CREATE_01 - Transaction with metadata" $ \ctx -> runResourceT $ do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (minUTxOValue :: Natural)
-
-        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
-
-        let txMeta = [json|{ "1": { "string": "hello" } }|]
-        let expected = TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
-        let payload = addTxMetadata txMeta basePayload
-
-        ra <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wa) Default payload
-
-        verify ra
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField
-                (#metadata . #getApiTxMetadata)
-                (`shouldBe` Just (ApiT expected))
+    describe "TRANSMETA_CREATE_01 - Transaction with metadata" $
+        mapM_ spec_TRANSMETA_CREATE_01
+            [ ( "simple textual metadata"
+              , TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
+              )
             ]
-
-        eventually "metadata is confirmed in transaction list" $ do
-            -- on src wallet
-            let linkSrcList = Link.listTransactions @'Shelley wa
-            rla <- request @([ApiTransaction n]) ctx linkSrcList Default Empty
-            verify rla
-                [ expectResponseCode HTTP.status200
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0
-                    (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT expected))
-                ]
-            -- on dst wallet
-            let linkDstList = Link.listTransactions @'Shelley wb
-            rlb <- request @([ApiTransaction n]) ctx linkDstList Default Empty
-            verify rlb
-                [ expectResponseCode HTTP.status200
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 0 (#direction . #getApiT) (`shouldBe` Incoming)
-                , expectListField 0
-                    (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT expected))
-                ]
-
-        let txid = getFromResponse #id ra
-        eventually "metadata is confirmed in transaction get" $ do
-          -- on src wallet
-            let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
-            rg1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
-            verify rg1
-                [ expectResponseCode HTTP.status200
-                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField
-                    (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT expected))
-                ]
-          -- on dst wallet
-            let linkDst = Link.getTransaction @'Shelley wb (ApiTxId txid)
-            rg2 <- request @(ApiTransaction n) ctx linkDst Default Empty
-            verify rg2
-                [ expectResponseCode HTTP.status200
-                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
-                , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField
-                    (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT expected))
-                ]
 
     it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
@@ -2234,6 +2170,85 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
   where
+    spec_TRANSMETA_CREATE_01 :: (String, TxMetadata) -> SpecWith Context
+    spec_TRANSMETA_CREATE_01 (testName, txMetadata) =
+        it testName $ \ctx -> runResourceT $ do
+
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = (minUTxOValue :: Natural)
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+        let payload = addTxMetadata (Aeson.toJSON (ApiT txMetadata)) basePayload
+
+        ra <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        verify ra
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField
+                (#metadata . #getApiTxMetadata)
+                (`shouldBe` Just (ApiT txMetadata))
+            ]
+
+        eventually "metadata is confirmed in transaction list" $ do
+            -- on src wallet
+            let linkSrcList = Link.listTransactions @'Shelley wa
+            rla <- request @([ApiTransaction n]) ctx linkSrcList Default Empty
+            verify rla
+                [ expectResponseCode HTTP.status200
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 0
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` Just (ApiT txMetadata))
+                ]
+            -- on dst wallet
+            let linkDstList = Link.listTransactions @'Shelley wb
+            rlb <- request @([ApiTransaction n]) ctx linkDstList Default Empty
+            verify rlb
+                [ expectResponseCode HTTP.status200
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 0
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` Just (ApiT txMetadata))
+                ]
+
+        let txid = getFromResponse #id ra
+        eventually "metadata is confirmed in transaction get" $ do
+          -- on src wallet
+            let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
+            rg1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify rg1
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` Just (ApiT txMetadata))
+                ]
+          -- on dst wallet
+            let linkDst = Link.getTransaction @'Shelley wb (ApiTxId txid)
+            rg2 <- request @(ApiTransaction n) ctx linkDst Default Empty
+            verify rg2
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` Just (ApiT txMetadata))
+                ]
+
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> runResourceT $ do
             w <- eWallet ctx
