@@ -4240,8 +4240,6 @@ x-responsesPostSignTransaction: &responsesPostSignTransaction
     content:
       application/json:
         schema: *ApiSignedTransaction
-      application/octet-stream:
-        schema: *signedTransactionBlob
 
 x-responsesPostSignedTransaction: &responsesPostSignedTransaction
   <<: *responsesErr400
@@ -5720,8 +5718,6 @@ paths:
         content:
           application/json:
             schema: *ApiSerialisedTransaction
-          application/octet-stream:
-            schema: *signedTransactionBlob
       responses: *responsesPostSignedTransaction
 
   /proxy/transactions:
