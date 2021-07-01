@@ -37,6 +37,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxMetadata (..) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -55,6 +57,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -310,40 +314,13 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             expectResponseCode HTTP.status200 rt
             expectListSize 0 rt
 
-        it "Can get coin selection" $ \ctx -> runResourceT $ do
-            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
-            let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request
-                @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode HTTP.status204 r
-            source <- restoreWalletFromPubKey
-                @ApiWallet @'Shelley ctx pubKey restoredWalletName
-            target <- emptyWallet ctx
-            let paymentCount = 1
-            targetAddresses <- take paymentCount .
-                fmap (view #id) <$> listAddresses @n ctx target
-            let targetAmounts = take paymentCount $
-                    Quantity <$> [minUTxOValue ..]
-            let targetAssets = repeat mempty
-            let payments = NE.fromList $ map ($ mempty) $
-                    zipWith AddressAmount targetAddresses targetAmounts
-            let outputs = zipWith3 ApiCoinSelectionOutput
-                    targetAddresses targetAmounts targetAssets
-            coinSelectionResponse <-
-                selectCoins @n @'Shelley ctx source payments
-            verify coinSelectionResponse
-                [ expectResponseCode HTTP.status200
-                , expectField #inputs
-                    (`shouldSatisfy` (not . null))
-                , expectField #outputs
-                    (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
-                , expectField #change
-                    (`shouldSatisfy` (not . null))
+        describe "Can create a coin selection" $
+            mapM_ spec_selectCoins
+                [ ( "without metadata"
+                  , Nothing
+                  , Quantity 130_500
+                  )
                 ]
-            let apiCoinSelection =
-                    getFromResponse Prelude.id coinSelectionResponse
-            let fee = computeApiCoinSelectionFee apiCoinSelection
-            fee `shouldBe` (Coin 130_500)
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do
         it "Can get wallet" $ \ctx -> runResourceT $ do
@@ -391,10 +368,48 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                     (#name . #getApiT . #getWalletName)
                     (`shouldBe` restoredWalletName)
                 ]
+  where
+    spec_selectCoins
+        :: (String, Maybe TxMetadata, Quantity "lovelace" Word64)
+        -> SpecWith Context
+    spec_selectCoins (testName, _mTxMetadata, Quantity expectedFee) =
+        it testName $ \ctx -> runResourceT $ do
+            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
+            let pubKey = pubKeyFromMnemonics mnemonics
+            r <- request
+                @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            expectResponseCode HTTP.status204 r
+            source <- restoreWalletFromPubKey
+                @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            target <- emptyWallet ctx
+            let paymentCount = 1
+            targetAddresses <- take paymentCount .
+                fmap (view #id) <$> listAddresses @n ctx target
+            let targetAmounts = take paymentCount $
+                    Quantity <$> [minUTxOValue ..]
+            let targetAssets = repeat mempty
+            let payments = NE.fromList $ map ($ mempty) $
+                    zipWith AddressAmount targetAddresses targetAmounts
+            let outputs = zipWith3 ApiCoinSelectionOutput
+                    targetAddresses targetAmounts targetAssets
+            coinSelectionResponse <-
+                selectCoins @n @'Shelley ctx source payments
+            verify coinSelectionResponse
+                [ expectResponseCode HTTP.status200
+                , expectField #inputs
+                    (`shouldSatisfy` (not . null))
+                , expectField #outputs
+                    (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
+                , expectField #change
+                    (`shouldSatisfy` (not . null))
+                ]
+            let apiCoinSelection =
+                    getFromResponse Prelude.id coinSelectionResponse
+            let fee = computeApiCoinSelectionFee apiCoinSelection
+            fee `shouldBe` Coin expectedFee
 
- where
-     restoredWalletName :: Text
-     restoredWalletName = "Wallet from pub key"
+    restoredWalletName :: Text
+    restoredWalletName = "Wallet from pub key"
 
 computeApiCoinSelectionFee :: ApiCoinSelection n -> Coin
 computeApiCoinSelectionFee selection
