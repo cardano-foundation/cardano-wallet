@@ -23,6 +23,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionOutput (..)
     , ApiFee
+    , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
@@ -45,6 +46,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Aeson
+    ( (.=) )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -90,7 +93,7 @@ import Test.Integration.Framework.DSL
     , pubKeyFromMnemonics
     , request
     , restoreWalletFromPubKey
-    , selectCoins
+    , selectCoinsWith
     , unsafeResponse
     , verify
     , walletId
@@ -99,6 +102,7 @@ import Test.Integration.Framework.TestData
     ( errMsg403NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Aeson as Aeson
 import qualified Data.Foldable as F
 import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
@@ -372,7 +376,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
     spec_selectCoins
         :: (String, Maybe TxMetadata, Quantity "lovelace" Word64)
         -> SpecWith Context
-    spec_selectCoins (testName, _mTxMetadata, Quantity expectedFee) =
+    spec_selectCoins (testName, mTxMetadata, Quantity expectedFee) =
         it testName $ \ctx -> runResourceT $ do
             (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
             let pubKey = pubKeyFromMnemonics mnemonics
@@ -392,8 +396,13 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                     zipWith AddressAmount targetAddresses targetAmounts
             let outputs = zipWith3 ApiCoinSelectionOutput
                     targetAddresses targetAmounts targetAssets
+            let addTxMetadata = case mTxMetadata of
+                    Nothing -> id
+                    Just txMetadata -> \(Json (Aeson.Object o)) -> Json
+                        $ Aeson.Object
+                        $ o <> ("metadata" .= (Aeson.toJSON (ApiT txMetadata)))
             coinSelectionResponse <-
-                selectCoins @n @'Shelley ctx source payments
+                selectCoinsWith @n @'Shelley ctx source payments addTxMetadata
             verify coinSelectionResponse
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs
