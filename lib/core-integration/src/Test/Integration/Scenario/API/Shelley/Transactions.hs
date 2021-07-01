@@ -1026,6 +1026,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             [ ( "simple textual metadata"
               , TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
               )
+            , ( "metadata from ADP-1005"
+              , txMetadata_ADP_1005
+              )
             ]
 
     it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> runResourceT $ do
