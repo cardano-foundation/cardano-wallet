@@ -2704,13 +2704,9 @@ components:
           <<: *transactionNoAmountOutputs
 
     ApiConstructTransactionData: &ApiConstructTransactionData
+      description: At least one field needs to be choosen
       type: object
-      required:
-        - passphrase
       properties:
-        passphrase:
-          <<: *lenientPassphrase
-          description: The wallet's master passphrase.
         payments: *ApiPaymentDestination
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata

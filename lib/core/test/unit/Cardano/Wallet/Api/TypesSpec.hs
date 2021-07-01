@@ -1037,7 +1037,6 @@ spec = parallel $ do
                     , mint = mint (x :: ApiConstructTransactionData ('Testnet 0))
                     , delegations = delegations (x :: ApiConstructTransactionData ('Testnet 0))
                     , validityInterval = validityInterval (x :: ApiConstructTransactionData ('Testnet 0))
-                    , passphrase = passphrase (x :: ApiConstructTransactionData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1902,12 +1901,11 @@ instance Arbitrary ApiSerialisedTransaction where
 instance Arbitrary (ApiConstructTransactionData t) where
     arbitrary = ApiConstructTransactionData
         <$> arbitrary
-        <*> elements [Just SelfWithdrawal, Nothing]
+        <*> elements [Just SelfWithdrawal]
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> pure Nothing
-        <*> arbitrary
 
 instance Arbitrary (ApiConstructTransaction t) where
     arbitrary = ApiConstructTransaction

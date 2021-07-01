@@ -1576,7 +1576,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         utx <- liftHandler
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx transform
-        (_, path) <- liftHandler
+        (_, _, path) <- liftHandler
             $ W.readRewardAccount @_ @s @k @n wrk wid
 
         let deposits = maybeToList deposit
@@ -1610,7 +1610,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
         wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         utx <- liftHandler
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx transform
-        (_, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        (_, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
 
         pure $ mkApiCoinSelection [] (Just (action, path)) Nothing utx
 
@@ -1946,10 +1946,9 @@ constructTransaction
     -> Handler (ApiConstructTransaction n)
 constructTransaction ctx genChange (ApiT wid) body = do
     let md = body ^? #metadata . traverse . #getApiT
-    let pwd = coerce $ body ^. #passphrase . #getApiT
     let mTTL = Nothing --TODO: this will be tackled when transaction validity is supported
 
-    (wdrl, mkRwdAcct) <-
+    (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
     ttl <- liftIO $ W.getTxExpiry ti mTTL
@@ -1993,7 +1992,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                 liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-909"
 
         blob <- liftHandler
-            $ W.constructTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel
+            $ W.constructTransaction @_ @s @k @n wrk wid txCtx sel
 
         pure (mkApiCoinSelection [] Nothing md sel', fee, blob)
 
@@ -2247,7 +2246,8 @@ listStakeKeys lookupStakeRef ctx (ApiT wid) = do
             (wal, meta, pending) <- W.readWallet @_ @s @k wrk wid
             let utxo = availableUTxO @s pending wal
 
-            mourAccount <- fmap (fmap fst . eitherToMaybe)
+            let takeFst (a,_,_) = a
+            mourAccount <- fmap (fmap takeFst . eitherToMaybe)
                 <$> liftIO . runExceptT $ W.readRewardAccount @_ @s @k @n wrk wid
             ourApiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
                 (unsafeExtendSafeZone (timeInterpreter $ ctx ^. networkLayer))
@@ -2657,7 +2657,7 @@ mkRewardAccountBuilder ctx wid withdrawal = do
                 pure (NoWithdrawal, selfRewardCredentials)
 
             (Just Refl, Just SelfWithdrawal) -> do
-                (acct, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+                (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                 wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
                 (, selfRewardCredentials) . WithdrawalSelf acct path
                     <$> liftIO (W.readNextWithdrawal @_ @k wrk wdrl)
@@ -3258,11 +3258,7 @@ instance IsServerError ErrConstructTx where
             { errHTTPCode = 404
             , errReasonPhrase = errReasonPhrase err404
             }
-        ErrConstructTxWithRootKey e@ErrWithRootKeyNoRootKey{} -> (toServerError e)
-            { errHTTPCode = 403
-            , errReasonPhrase = errReasonPhrase err403
-            }
-        ErrConstructTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
+        ErrConstructTxReadRewardAccount e -> toServerError e
         ErrConstructTxIncorrectTTL e -> toServerError e
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented

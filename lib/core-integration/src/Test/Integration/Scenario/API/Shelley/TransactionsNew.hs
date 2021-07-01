@@ -125,6 +125,5 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         "quantity": #{amt},
                         "unit": "lovelace"
                     }
-                }],
-                "passphrase": #{passphrase}
+                }]
             }|]

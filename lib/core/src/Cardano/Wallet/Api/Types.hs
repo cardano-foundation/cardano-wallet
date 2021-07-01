@@ -888,18 +888,8 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , mint :: !(Maybe (ApiT W.TokenMap))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
-    , passphrase :: !(ApiT (Passphrase "lenient"))
     } deriving (Eq, Generic, Show)
     deriving anyclass NFData
-
-{--
--- | New transaction API version of 'AddressAmount'.
-data AddressValue addr = AddressValue
-    { address :: !addr
-    , value :: !(ApiT W.TokenBundle)
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
---}
 
 data ApiPaymentDestination (n :: NetworkDiscriminant)
     = ApiPaymentAddresses !(NonEmpty (AddressAmount (ApiAddressIdT n)))
