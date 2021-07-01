@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -98,7 +99,6 @@ import qualified Data.Foldable as F
 import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
-
 
 spec :: forall n.
     ( DecodeAddress n
@@ -319,7 +319,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             source <- restoreWalletFromPubKey
                 @ApiWallet @'Shelley ctx pubKey restoredWalletName
             target <- emptyWallet ctx
-            let paymentCount = 4
+            let paymentCount = 1
             targetAddresses <- take paymentCount .
                 fmap (view #id) <$> listAddresses @n ctx target
             let targetAmounts = take paymentCount $
@@ -329,7 +329,9 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                     zipWith AddressAmount targetAddresses targetAmounts
             let outputs = zipWith3 ApiCoinSelectionOutput
                     targetAddresses targetAmounts targetAssets
-            selectCoins @n @'Shelley ctx source payments >>= flip verify
+            coinSelectionResponse <-
+                selectCoins @n @'Shelley ctx source payments
+            verify coinSelectionResponse
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs
                     (`shouldSatisfy` (not . null))
@@ -338,6 +340,10 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 , expectField #change
                     (`shouldSatisfy` (not . null))
                 ]
+            let apiCoinSelection =
+                    getFromResponse Prelude.id coinSelectionResponse
+            let fee = computeApiCoinSelectionFee apiCoinSelection
+            fee `shouldBe` (Coin 130_500)
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do
         it "Can get wallet" $ \ctx -> runResourceT $ do
