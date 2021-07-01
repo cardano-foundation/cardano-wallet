@@ -81,9 +81,9 @@ library
     , ouroboros-consensus
     , ouroboros-network
     , path-pieces
-    , persistent
-    , persistent-sqlite
-    , persistent-template
+    , persistent ==2.11.0.4
+    , persistent-sqlite ==2.11.1.0
+    , persistent-template ==2.9.1.0
     , pretty-simple
     , profunctors
     , quiet
@@ -309,7 +309,7 @@ test-suite unit
     , servant-server
     , should-not-typecheck
     , strict-non-empty-containers
-    , openapi3 >= 3.0.0.1
+    , openapi3 >= 3.0.0.1 && < 3.1.0
     , servant-openapi3
     , string-qq
     , temporary

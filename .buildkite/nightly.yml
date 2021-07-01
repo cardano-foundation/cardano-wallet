@@ -11,6 +11,7 @@ steps:
     agents:
       system: x86_64-linux
       queue: benchmark
+    if: 'build.env("step") == null || build.env("step") =~ /restore-mainnet/'
 
 # Temporary disabled due to timing out (#2221)
 #  - label: 'Restore benchmark - cardano testnet'
@@ -21,6 +22,7 @@ steps:
 #    agents:
 #      system: x86_64-linux
 #      queue: benchmark
+#    if: 'build.env("step") == null || build.env("step") =~ /restore-testnet/'
 
   - label: 'Database benchmark'
     command: "./.buildkite/bench-db.sh"
@@ -28,6 +30,7 @@ steps:
     agents:
       system: x86_64-linux
       queue: benchmark
+    if: 'build.env("step") == null || build.env("step") =~ /bench-db/'
 
   - label: 'Latency benchmark'
     command: "./.buildkite/bench-latency.sh"
@@ -35,6 +38,7 @@ steps:
     agents:
       system: x86_64-linux
       queue: benchmark
+    if: 'build.env("step") == null || build.env("step") =~ /bench-latency/'
 
   # TODO: ADP-549 Port migrations test to shelley
   # - label: 'Database Migrations Test'
@@ -45,6 +49,7 @@ steps:
   #   timeout_in_minutes: 60
   #   agents:
   #     system: x86_64-linux
+  #   if: 'build.env("step") == null || build.env("step") =~ /migration-tests/'
 
   - label: 'Full cabal build'
     command: 'nix-shell nix/cabal-shell.nix --arg withCabalCache true --run "scripts/buildkite/cabal-ci.sh build"'
@@ -53,6 +58,7 @@ steps:
       CABAL_STORE_DIR: "/build/cardano-wallet.store"
     agents:
       system: x86_64-linux
+    if: 'build.env("step") == null || build.env("step") =~ /cabal/'
 
   - wait
 
@@ -60,3 +66,4 @@ steps:
     command: "./.buildkite/push-branch.sh linux-tests-pass windows-tests-pass all-tests-pass"
     agents:
       system: x86_64-linux
+    if: 'build.env("step") == null'
