@@ -197,7 +197,7 @@ import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 -- Designed to allow us to have /one/ @mkTx@ which doesn't care whether we
 -- include certificates or not.
 data TxPayload era = TxPayload
-    { _metadata :: Maybe Cardano.TxMetadata
+    { _metadata ::  Maybe Cardano.TxMetadata
       -- ^ User or application-defined metadata to be included in the
       -- transaction.
 
@@ -246,6 +246,28 @@ instance TxWitnessTagFor IcarusKey where
 
 instance TxWitnessTagFor ByronKey where
     txWitnessTagFor = TxWitnessByronUTxO Byron
+
+constructUnsignedTx
+    :: forall era.
+        ( EraConstraints era
+        )
+    => Cardano.NetworkId
+    -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
+    -> SlotNo
+    -- ^ Slot at which the transaction will expire.
+    -> RewardAccount
+    -- ^ Reward account
+    -> Coin
+    -- ^ An optional withdrawal amount, can be zero
+    -> SelectionResult TxOut
+    -- ^ Finalized asset selection
+    -> Coin
+    -- ^ Explicit fee amount
+    -> ShelleyBasedEra era
+    -> Either ErrMkTx ByteString
+constructUnsignedTx networkId (md, certs) ttl rewardAcnt wdrl cs fees era = do
+    let wdrls = mkWithdrawals networkId rewardAcnt wdrl
+    serialiseToCBOR <$> mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
 
 mkTx
     :: forall k era.
@@ -339,6 +361,29 @@ newTransactionLayer networkId = TransactionLayer
                             _ ->
                                 delta
                     mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
+
+    , mkUnsignedTransaction = \era stakeXPub pp ctx selection -> do
+        let ttl   = txTimeToLive ctx
+        let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
+        let delta = selectionDelta txOutCoin selection
+        let rewardAcct = toRewardAccountRaw stakeXPub
+        case view #txDelegationAction ctx of
+            Nothing -> do
+                withShelleyBasedEra era $ do
+                    let md = view #txMetadata ctx
+                    let fees = delta
+                    constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl selection fees
+
+            Just action -> do
+                withShelleyBasedEra era $ do
+                    let certs = mkDelegationCertificates action stakeXPub
+                    let payload = (view #txMetadata ctx, certs)
+                    let fees = case action of
+                            RegisterKeyAndJoin{} ->
+                                unsafeSubtractCoin selection delta (stakeKeyDeposit pp)
+                            _ ->
+                                delta
+                    constructUnsignedTx networkId payload ttl rewardAcct wdrl selection fees
 
     , initSelectionCriteria = _initSelectionCriteria @k
 

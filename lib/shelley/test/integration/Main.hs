@@ -162,6 +162,7 @@ import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
 import qualified Test.Integration.Scenario.API.Shelley.Settings as Settings
 import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
+import qualified Test.Integration.Scenario.API.Shelley.TransactionsNew as TransactionsNew
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
@@ -193,6 +194,7 @@ main = withTestsSetup $ \testDir tracers -> do
                     Migrations.spec @n
                     ByronMigrations.spec @n
                     Transactions.spec @n
+                    TransactionsNew.spec @n
                     Network.spec
                     Network_.spec
                     StakePools.spec @n

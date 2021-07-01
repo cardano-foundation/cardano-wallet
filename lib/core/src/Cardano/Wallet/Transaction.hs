@@ -38,7 +38,7 @@ module Cardano.Wallet.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -99,6 +99,26 @@ data TransactionLayer k = TransactionLayer
         --
         -- This expects as a first argument a mean to compute or lookup private
         -- key corresponding to a particular address.
+
+    , mkUnsignedTransaction
+        :: AnyCardanoEra
+            -- Era for which the transaction should be created.
+        -> XPub
+            -- Reward account public key
+        -> ProtocolParameters
+            -- Current protocol parameters
+        -> TransactionCtx
+            -- An additional context about the transaction
+        -> SelectionResult TxOut
+            -- A balanced coin selection where all change addresses have been
+            -- assigned.
+        -> Either ErrMkTx ByteString
+        -- ^ Construct a standard unsigned transaction
+        --
+        -- " Standard " here refers to the fact that we do not deal with redemption,
+        -- multisignature transactions, etc.
+        --
+        -- The function returns CBOR-ed transaction body to be signed in another step.
 
     , initSelectionCriteria
         :: ProtocolParameters

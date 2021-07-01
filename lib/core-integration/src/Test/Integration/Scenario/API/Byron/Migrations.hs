@@ -22,6 +22,7 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiT (..)
     , ApiTransaction
+    , ApiTxInput (source)
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletMigrationPlan (..)
@@ -588,7 +589,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         inputBalance = fromIntegral
             . sum
             . fmap (view (#amount . #getQuantity))
-            . mapMaybe ApiTypes.source
+            . mapMaybe source
             . view #inputs
         outputBalance = fromIntegral
             . sum

@@ -113,12 +113,15 @@ module Cardano.Wallet
     , selectAssetsNoOutputs
     , assignChangeAddresses
     , assignChangeAddressesAndUpdateDb
+    , assignChangeAddressesWithoutDbUpdate
     , selectionToUnsignedTx
     , signTransaction
+    , constructTransaction
     , ErrSelectAssets(..)
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotWorth (..)
+    , ErrConstructTx (..)
 
     -- ** Migration
     , createMigrationPlan
@@ -1030,7 +1033,7 @@ readRewardAccount
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrReadRewardAccount IO (RewardAccount, NonEmpty DerivationIndex)
+    -> ExceptT ErrReadRewardAccount IO (RewardAccount, XPub, NonEmpty DerivationIndex)
 readRewardAccount ctx wid = db & \DBLayer{..} -> do
     cp <- withExceptT ErrReadRewardAccountNoSuchWallet
         $ mapExceptT atomically
@@ -1041,9 +1044,10 @@ readRewardAccount ctx wid = db & \DBLayer{..} -> do
             throwE ErrReadRewardAccountNotAShelleyWallet
         Just Refl -> do
             let s = getState cp
-            let acct = toRewardAccount   $ Seq.rewardAccountKey s
+            let xpub = Seq.rewardAccountKey s
+            let acct = toRewardAccount xpub
             let path = stakeDerivationPath $ Seq.derivationPrefix s
-            pure (acct, path)
+            pure (acct, getRawKey xpub, path)
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -1079,7 +1083,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
-            (acct, _) <- withExceptT ErrFetchRewardsReadRewardAccount $
+            (acct, _, _) <- withExceptT ErrFetchRewardsReadRewardAccount $
                 readRewardAccount @ctx @s @k @n ctx wid
             queryRewardBalance @ctx ctx acct
          traceWith tr $ MsgRewardBalanceResult query
@@ -1274,6 +1278,26 @@ assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
                 assignChangeAddresses generateChange selection (getState cp)
         withExceptT ErrSignPaymentNoSuchWallet $
             putCheckpoint wid (updateState stateUpdated cp)
+        pure selectionUpdated
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
+assignChangeAddressesWithoutDbUpdate
+    :: forall ctx s k.
+        ( GenChange s
+        , HasDBLayer IO s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ArgGenChange s
+    -> SelectionResult TokenBundle
+    -> ExceptT ErrConstructTx IO (SelectionResult TxOut)
+assignChangeAddressesWithoutDbUpdate ctx wid generateChange selection =
+    db & \DBLayer{..} -> mapExceptT atomically $ do
+        cp <- withExceptT ErrConstructTxNoSuchWallet $
+            withNoSuchWallet wid $ readCheckpoint wid
+        let (selectionUpdated, _) =
+                assignChangeAddresses generateChange selection (getState cp)
         pure selectionUpdated
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -1559,6 +1583,35 @@ signTransaction ctx wid mkRwdAcct pwd txCtx sel =
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
+
+
+-- | Construct an unsigned transaction from a given selection.
+constructTransaction
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( HasTransactionLayer k ctx
+        , HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> WalletId
+    -> TransactionCtx
+    -> SelectionResult TxOut
+    -> ExceptT ErrConstructTx IO ByteString
+constructTransaction ctx wid txCtx sel =
+    db & \DBLayer{..} -> do
+    era <- liftIO $ currentNodeEra nl
+    (_, xpub, _) <- withExceptT ErrConstructTxReadRewardAccount $
+        readRewardAccount @ctx @s @k @n ctx wid
+    mapExceptT atomically $ do
+        pp <- liftIO $ currentProtocolParameters nl
+        withExceptT ErrConstructTxMkTx $ ExceptT $ pure $
+            mkUnsignedTransaction tl era xpub pp txCtx sel
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    tl = ctx ^. transactionLayer @k
+    nl = ctx ^. networkLayer
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.
@@ -2493,6 +2546,17 @@ data ErrSignPayment
     | ErrSignPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSignPaymentWithRootKey ErrWithRootKey
     | ErrSignPaymentIncorrectTTL PastHorizonException
+    deriving (Show, Eq)
+
+-- | Errors that can occur when constructing an unsigned transaction.
+data ErrConstructTx
+    = ErrConstructTxWrongPayload
+    | ErrConstructTxMkTx ErrMkTx
+    | ErrConstructTxNoSuchWallet ErrNoSuchWallet
+    | ErrConstructTxReadRewardAccount ErrReadRewardAccount
+    | ErrConstructTxIncorrectTTL PastHorizonException
+    | ErrConstructTxNotImplemented String
+      -- ^ Temporary error constructor.
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction to the network.

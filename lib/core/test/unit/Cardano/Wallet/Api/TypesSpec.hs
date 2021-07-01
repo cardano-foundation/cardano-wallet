@@ -66,12 +66,15 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
+    , ApiBytesT (..)
     , ApiCertificate (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
+    , ApiConstructTransaction (..)
+    , ApiConstructTransactionData (..)
     , ApiCredential (..)
     , ApiDelegationAction (..)
     , ApiEpochInfo (..)
@@ -84,12 +87,14 @@ import Cardano.Wallet.Api.Types
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , ApiMnemonicT (..)
+    , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNtpStatus (..)
     , ApiNullStakeKey
     , ApiOurStakeKey
+    , ApiPaymentDestination (..)
     , ApiPendingSharedWallet (..)
     , ApiPostAccountKeyData
     , ApiPostAccountKeyDataWithPurpose
@@ -100,6 +105,7 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
+    , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
@@ -107,6 +113,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
+    , ApiStakeKeyIndex (..)
     , ApiStakeKeys
     , ApiStakePool (..)
     , ApiStakePoolFlag (..)
@@ -242,7 +249,13 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , mkTokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxIn (..), TxMetadata (..), TxOut (..), TxStatus (..) )
+    ( Direction (..)
+    , SerialisedTx (..)
+    , TxIn (..)
+    , TxMetadata (..)
+    , TxOut (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( HistogramBar (..)
     , UTxO (..)
@@ -266,6 +279,8 @@ import Data.Aeson
     ( FromJSON (..), Result (..), fromJSON, withObject, (.:?), (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.ByteArray.Encoding
+    ( Base (Base64), convertToBase )
 import Data.Char
     ( toLower )
 import Data.Data
@@ -455,8 +470,12 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiTxId
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShelley
             jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyShared
+            jsonRoundtripAndGolden $ Proxy @(ApiPaymentDestination ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiConstructTransactionData ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiConstructTransaction ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @ApiMultiDelegationAction
             jsonRoundtripAndGolden $ Proxy @WalletPostData
             jsonRoundtripAndGolden $ Proxy @AccountPostData
             jsonRoundtripAndGolden $ Proxy @WalletOrAccountPostData
@@ -1009,6 +1028,18 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiConstructTransactionData" $ property $ \x ->
+            let
+                x' = ApiConstructTransactionData
+                    { payments = payments (x :: ApiConstructTransactionData ('Testnet 0))
+                    , withdrawal = withdrawal (x :: ApiConstructTransactionData ('Testnet 0))
+                    , metadata = metadata (x :: ApiConstructTransactionData ('Testnet 0))
+                    , mint = mint (x :: ApiConstructTransactionData ('Testnet 0))
+                    , delegations = delegations (x :: ApiConstructTransactionData ('Testnet 0))
+                    , validityInterval = validityInterval (x :: ApiConstructTransactionData ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiPutAddressesData" $ property $ \x ->
             let
                 x' = ApiPutAddressesData
@@ -1212,6 +1243,10 @@ instance Arbitrary (ApiSelectCoinsPayments n) where
     shrink = genericShrink
 
 instance Arbitrary ApiDelegationAction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiMultiDelegationAction where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1857,6 +1892,35 @@ instance Arbitrary (PostTransactionData t) where
         <*> arbitrary
         <*> arbitrary
 
+instance Arbitrary ApiSerialisedTransaction where
+    arbitrary = do
+        num <- choose (25, 150)
+        bytes <- BS.pack <$> replicateM num arbitrary
+        pure $ ApiSerialisedTransaction (ApiBytesT $ SerialisedTx $ convertToBase Base64 bytes)
+
+instance Arbitrary (ApiConstructTransactionData t) where
+    arbitrary = ApiConstructTransactionData
+        <$> arbitrary
+        <*> elements [Just SelfWithdrawal]
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> pure Nothing
+
+instance Arbitrary (ApiConstructTransaction t) where
+    arbitrary = ApiConstructTransaction
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary ApiStakeKeyIndex where
+    arbitrary = ApiStakeKeyIndex <$> arbitrary
+
+instance Arbitrary (ApiPaymentDestination t) where
+    arbitrary = oneof
+        [ ApiPaymentAddresses <$> arbitrary
+        , ApiPaymentAll <$> arbitrary]
+
 instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -2406,6 +2470,17 @@ instance ToSchema (ApiForeignStakeKey n) where
 
 instance ToSchema ApiNullStakeKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNullStakeKey"
+
+instance ToSchema (ApiConstructTransactionData t) where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        declareSchemaForDefinition "ApiConstructTransactionData"
+
+instance ToSchema (ApiConstructTransaction t) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiConstructTransaction"
+
+instance ToSchema ApiMultiDelegationAction where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiMultiDelegationAction"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.

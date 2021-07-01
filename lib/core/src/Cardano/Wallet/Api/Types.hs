@@ -24,6 +24,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -140,6 +141,15 @@ module Cardano.Wallet.Api.Types
     , KeyFormat (..)
     , ApiPostAccountKeyData (..)
     , ApiPostAccountKeyDataWithPurpose (..)
+    , ApiConstructTransaction (..)
+    , ApiConstructTransactionData (..)
+    , ApiMultiDelegationAction (..)
+    , ApiSerialisedTransaction (..)
+    , ApiBytesT (..)
+    , ApiStakeKeyIndex (..)
+    , ApiPaymentDestination (..)
+    , ApiValidityInterval (..)
+    , ApiValidityBound
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -185,6 +195,8 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiSelectCoinsDataT
     , ApiTransactionT
+    , ApiConstructTransactionT
+    , ApiConstructTransactionDataT
     , PostTransactionDataT
     , PostTransactionFeeDataT
     , ApiWalletMigrationPlanPostDataT
@@ -196,6 +208,7 @@ module Cardano.Wallet.Api.Types
 
     -- * Others
     , defaultRecordTypeOptions
+    , strictRecordTypeOptions
     , HealthStatusSMASH (..)
     , HealthCheckSMASH (..)
     , ApiHealthCheck (..)
@@ -270,7 +283,13 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxIn (..), TxMetadata, TxStatus (..), txMetadataIsNull )
+    ( Direction (..)
+    , SerialisedTx (..)
+    , TxIn (..)
+    , TxMetadata
+    , TxStatus (..)
+    , txMetadataIsNull
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata
@@ -286,7 +305,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.DeepSeq
-    ( NFData )
+    ( NFData (..) )
 import Control.Monad
     ( guard, when, (>=>) )
 import Data.Aeson.Types
@@ -302,6 +321,7 @@ import Data.Aeson.Types
     , object
     , omitNothingFields
     , prependFailure
+    , rejectUnknownFields
     , sumEncoding
     , tagSingleConstructors
     , withObject
@@ -313,6 +333,8 @@ import Data.Aeson.Types
     )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteArray
+    ( ByteArray, ByteArrayAccess )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.ByteString
@@ -362,7 +384,7 @@ import Data.Time.Text
 import Data.Traversable
     ( for )
 import Data.Typeable
-    ( Typeable )
+    ( Typeable, typeRep )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Data.Word.Odd
@@ -384,6 +406,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Codec.Binary.Bech32 as Bech32
@@ -823,6 +846,80 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
+-- | Polymorphic wrapper for byte arrays, parameterised by the desired string
+-- encoding.
+newtype ApiBytesT (base :: Base) bs = ApiBytesT { getApiBytesT :: bs }
+    deriving (Generic, Show, Eq, Functor)
+    deriving newtype (Semigroup, Monoid, Hashable)
+    deriving anyclass NFData
+
+newtype ApiSerialisedTransaction
+    = ApiSerialisedTransaction (ApiBytesT 'Base64 SerialisedTx)
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
+    { serializedTransaction :: !ApiSerialisedTransaction
+    , coinSelection :: !(ApiCoinSelection n)
+    , fee :: !(Quantity "lovelace" Natural)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+-- | Index of the stake key.
+newtype ApiStakeKeyIndex = ApiStakeKeyIndex (ApiT DerivationIndex)
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+-- | Stake pool delegation certificates.
+data ApiMultiDelegationAction
+    = Joining !(ApiT PoolId) !ApiStakeKeyIndex
+    -- ^ Delegate given staking index to a pool, possibly registering the stake
+    -- key at the same time.
+    | Leaving !ApiStakeKeyIndex
+    -- ^ Undelegate the given staking index from its pool.
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+-- | Input parameters for transaction construction.
+data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransactionData
+    { payments :: !(Maybe (ApiPaymentDestination n))
+    , withdrawal :: !(Maybe ApiWithdrawalPostData)
+    , metadata :: !(Maybe (ApiT TxMetadata))
+    , mint :: !(Maybe (ApiT W.TokenMap))
+    , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
+    , validityInterval :: !(Maybe ApiValidityInterval)
+    } deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiPaymentDestination (n :: NetworkDiscriminant)
+    = ApiPaymentAddresses !(NonEmpty (AddressAmount (ApiAddressIdT n)))
+    -- ^ Pay amounts to one or more addresses.
+    | ApiPaymentAll !(NonEmpty  (ApiT Address, Proxy n))
+    -- ^ Migrate all money to one or more addresses.
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+-- | Times where transactions are valid.
+data ApiValidityInterval = ApiValidityInterval
+    { invalidBefore :: !ApiValidityBound
+    -- ^ Tx is not valid before this time. Defaults to genesis.
+    , invalidHereafter :: !ApiValidityBound
+    -- ^ Tx is not valid at this time and after. Defaults to now + 2 hours.
+    } deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+-- | One side of the validity interval.
+data ApiValidityBound
+    = ApiValidityBoundUnspecified
+    -- ^ Use the default.
+    | ApiValidityBoundAsTimeFromNow !(Quantity "second" NominalDiffTime)
+    -- ^ Time from transaction construction (not submission).
+    | ApiValidityBoundAsSlot !(Quantity "slot" Word64)
+    -- ^ Absolute slot number.
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+-- | Legacy transaction API.
 data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "lenient"))
@@ -949,6 +1046,7 @@ data ApiWithdrawalPostData
     = SelfWithdrawal
     | ExternalWithdrawal (ApiMnemonicT '[15,18,21,24])
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
@@ -1490,6 +1588,7 @@ deriving instance Ord a => Ord (ApiT a)
 newtype ApiMnemonicT (sizes :: [Nat]) =
     ApiMnemonicT { getApiMnemonicT :: SomeMnemonic }
     deriving (Generic, Show, Eq)
+    deriving newtype NFData
 
 -- | A stake key belonging to the current wallet.
 data ApiOurStakeKey n = ApiOurStakeKey
@@ -1873,6 +1972,32 @@ instance FromJSON ApiDelegationAction where
     parseJSON = genericParseJSON apiDelegationActionOptions
 instance ToJSON ApiDelegationAction where
     toJSON = genericToJSON apiDelegationActionOptions
+
+instance ToJSON ApiStakeKeyIndex where
+    toJSON (ApiStakeKeyIndex ix) = toJSON ix
+instance FromJSON ApiStakeKeyIndex where
+    parseJSON val = ApiStakeKeyIndex <$> parseJSON val
+
+instance ToJSON ApiMultiDelegationAction where
+    toJSON (Joining poolId stakeKey) =
+        object [ "join" .=
+                   object [
+                         "pool" .= toJSON poolId
+                       , "stake_key_index" .= toJSON stakeKey
+                       ]
+               ]
+    toJSON (Leaving stakeKey) =
+        object [ "quit" .= object [ "stake_key_index" .= toJSON stakeKey ] ]
+instance FromJSON ApiMultiDelegationAction where
+    parseJSON = withObject "ApiMultiDelegationAction" $ \obj -> do
+        actionJoin <- obj .:? "join"
+        actionQuit <- obj .:? "quit"
+        case (actionJoin, actionQuit) of
+            (Just o, Nothing) ->
+                Joining <$> o .: "pool" <*> o .: "stake_key_index"
+            (Nothing, Just o) ->
+                Leaving <$> o .: "stake_key_index"
+            _ -> fail "ApiMultiDelegationAction needs either 'join' or 'quit', but not both"
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -2342,6 +2467,52 @@ instance DecodeAddress t => FromJSON (PostTransactionData t) where
 instance EncodeAddress t => ToJSON (PostTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance DecodeAddress t => FromJSON (ApiPaymentDestination t) where
+    parseJSON obj = parseAll <|> parseAddrs
+      where
+        parseAll = ApiPaymentAll <$> parseJSON obj
+        parseAddrs = ApiPaymentAddresses <$> parseJSON obj
+
+instance EncodeAddress t => ToJSON (ApiPaymentDestination t) where
+    toJSON (ApiPaymentAddresses addrs) = toJSON addrs
+    toJSON (ApiPaymentAll addrs) = toJSON addrs
+
+instance DecodeAddress t => FromJSON (ApiConstructTransactionData t) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress t => ToJSON (ApiConstructTransactionData t) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance ToJSON ApiValidityBound where
+    toJSON ApiValidityBoundUnspecified = Aeson.Null
+    toJSON (ApiValidityBoundAsTimeFromNow from) = toJSON from
+    toJSON (ApiValidityBoundAsSlot sl) = toJSON sl
+instance FromJSON ApiValidityBound where
+    parseJSON obj = processNull <|> processObject obj
+      where
+        processNull =
+            if obj == Aeson.Null then
+                pure ApiValidityBoundUnspecified
+            else
+                fail "invalid string of ApiValidityBound"
+        processObject = withObject "ApiValidityBound object" $ \o -> do
+            unit <- o .:? "unit"
+            case unit of
+                Just (String unitType) -> case unitType of
+                    "second" -> ApiValidityBoundAsTimeFromNow <$> parseJSON obj
+                    "slot" -> ApiValidityBoundAsSlot <$> parseJSON obj
+                    _ -> fail "ApiValidityBound string must have either 'second' or 'slot' unit."
+                _ -> fail "ApiValidityBound string must have 'unit' field."
+
+instance ToJSON ApiValidityInterval where
+    toJSON = genericToJSON defaultRecordTypeOptions
+instance FromJSON ApiValidityInterval where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+
+instance (DecodeAddress t, DecodeStakeAddress t) => FromJSON (ApiConstructTransaction t) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance (EncodeAddress t, EncodeStakeAddress t) => ToJSON (ApiConstructTransaction t) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance FromJSON ApiWithdrawalPostData where
     parseJSON obj =
         parseSelfWithdrawal <|> fmap ExternalWithdrawal (parseJSON obj)
@@ -2358,6 +2529,19 @@ instance DecodeAddress t => FromJSON (PostTransactionFeeData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress t => ToJSON (PostTransactionFeeData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance (HasBase base, ByteArray bs) => FromJSON (ApiBytesT base bs) where
+    parseJSON = withText (show (typeRep (Proxy @base)) ++ " ByteString") $
+        eitherToParser . first ShowFmt . fromText @(ApiBytesT base bs)
+
+instance (HasBase base, ByteArrayAccess bs) => ToJSON (ApiBytesT base bs) where
+    toJSON = String . toText @(ApiBytesT base bs)
+
+instance FromJSON ApiSerialisedTransaction where
+    parseJSON v = ApiSerialisedTransaction <$> parseJSON v
+
+instance ToJSON ApiSerialisedTransaction where
+    toJSON (ApiSerialisedTransaction tx) = toJSON tx
 
 -- Note: These custom JSON instances are for compatibility with the existing API
 -- schema. At some point, we can switch to the generic instances.
@@ -2419,6 +2603,28 @@ instance FromJSON a => FromJSON (AddressAmount a) where
       where
         validateCoin q
             | isValidCoin (coinFromQuantity q) = pure q
+            | otherwise = fail $
+                "invalid coin value: value has to be lower than or equal to "
+                <> show (unCoin maxBound) <> " lovelace."
+
+instance ToJSON (ApiT W.TokenBundle) where
+    -- TODO: consider other structures
+    toJSON (ApiT (W.TokenBundle c ts)) = object
+        [ "amount" .= coinToQuantity @Word c
+        , "assets" .= toJSON (ApiT ts)
+        ]
+
+instance FromJSON (ApiT W.TokenBundle) where
+    -- TODO: reject unknown fields
+    parseJSON = withObject "Value " $ \v ->
+        prependFailure "parsing Value failed, " $
+        fmap ApiT $ W.TokenBundle
+            <$> (v .: "amount" >>= validateCoin)
+            <*> fmap getApiT (v .: "assets" .!= mempty)
+      where
+        validateCoin :: Quantity "lovelace" Word64 -> Aeson.Parser Coin
+        validateCoin (coinFromQuantity -> c)
+            | isValidCoin c = pure c
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (unCoin maxBound) <> " lovelace."
@@ -2797,6 +3003,27 @@ instance FromJSON ApiAddressInspect where
                              FromText/ToText instances
 -------------------------------------------------------------------------------}
 
+instance (HasBase b, ByteArray bs) => FromText (ApiBytesT b bs) where
+    fromText = fmap ApiBytesT . fromTextBytes (baseFor @b)
+instance (HasBase b, ByteArrayAccess bs) => ToText (ApiBytesT b bs) where
+    toText = toTextBytes (baseFor @b) . getApiBytesT
+
+class Typeable a => HasBase a where
+    baseFor :: Base
+instance HasBase 'Base16 where
+    baseFor = Base16
+instance HasBase 'Base64 where
+    baseFor = Base64
+
+fromTextBytes :: ByteArray bs => Base -> Text -> Either TextDecodingError bs
+fromTextBytes base = first (const errMsg) . convertFromBase base . T.encodeUtf8
+  where
+    errMsg = TextDecodingError $ mconcat
+        [ "Parse error. Expecting ", show base, "-encoded format." ]
+
+toTextBytes :: ByteArrayAccess bs => Base -> bs -> Text
+toTextBytes base = T.decodeLatin1 . convertToBase base
+
 instance FromText (AddressAmount Text) where
     fromText text = do
         let err = Left . TextDecodingError $ "Parse error. Expecting format \
@@ -2848,6 +3075,18 @@ instance FromText (ApiT Cosigner) where
 {-------------------------------------------------------------------------------
                              HTTPApiData instances
 -------------------------------------------------------------------------------}
+
+instance MimeUnrender OctetStream (ApiBytesT base ByteString) where
+    mimeUnrender _ = pure . ApiBytesT . BL.toStrict
+
+instance MimeRender OctetStream (ApiBytesT base ByteString) where
+   mimeRender _ = BL.fromStrict . getApiBytesT
+
+instance MimeUnrender OctetStream (ApiBytesT base SerialisedTx) where
+    mimeUnrender _ = pure . ApiBytesT . SerialisedTx . BL.toStrict
+
+instance MimeRender OctetStream (ApiBytesT base SerialisedTx) where
+   mimeRender _ = BL.fromStrict . view #payload . getApiBytesT
 
 instance FromText a => FromHttpApiData (ApiT a) where
     parseUrlPiece = bimap pretty ApiT . fromText
@@ -2910,6 +3149,11 @@ defaultRecordTypeOptions :: Aeson.Options
 defaultRecordTypeOptions = Aeson.defaultOptions
     { fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
     , omitNothingFields = True
+    }
+
+strictRecordTypeOptions :: Aeson.Options
+strictRecordTypeOptions = defaultRecordTypeOptions
+    { rejectUnknownFields = True
     }
 
 taggedSumTypeOptions :: Aeson.Options -> TaggedObjectOptions -> Aeson.Options
@@ -2995,7 +3239,9 @@ type family ApiAddressIdT (n :: k) :: Type
 type family ApiCoinSelectionT (n :: k) :: Type
 type family ApiSelectCoinsDataT (n :: k) :: Type
 type family ApiTransactionT (n :: k) :: Type
+type family ApiConstructTransactionT (n :: k) :: Type
 type family PostTransactionDataT (n :: k) :: Type
+type family ApiConstructTransactionDataT (n :: k) :: Type
 type family PostTransactionFeeDataT (n :: k) :: Type
 type family ApiWalletMigrationPlanPostDataT (n :: k) :: Type
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
@@ -3022,8 +3268,14 @@ type instance ApiSelectCoinsDataT (n :: NetworkDiscriminant) =
 type instance ApiTransactionT (n :: NetworkDiscriminant) =
     ApiTransaction n
 
+type instance ApiConstructTransactionT (n :: NetworkDiscriminant) =
+    ApiConstructTransaction n
+
 type instance PostTransactionDataT (n :: NetworkDiscriminant) =
     PostTransactionData n
+
+type instance ApiConstructTransactionDataT (n :: NetworkDiscriminant) =
+    ApiConstructTransactionData n
 
 type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeData n

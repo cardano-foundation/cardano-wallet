@@ -52,6 +52,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiAddressData
     , ApiAddressInspectData
+    , ApiConstructTransactionData
     , ApiMaintenanceActionPostData
     , ApiPoolId
     , ApiPostAccountKeyData
@@ -1249,6 +1250,46 @@ instance Malformed (BodyParam (PostTransactionFeeData ('Testnet pm))) where
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
+
+instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiConstructTransactionData(ApiConstructTransactionData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiConstructTransactionData(ApiConstructTransactionData) failed, expected Object, but encountered String")
+            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases ++
+            [
+             ( [aesonQQ|
+               { "payments": [
+                   {
+                       "address": #{addrPlaceholder},
+                       "amount": {
+                           "quantity": 42000000,
+                           "unit": "lovelace"
+                       }
+                   }
+                  ],
+                  "delegations": [{"joins" : {}}]
+               }|]
+               , "Error in $.delegations[0]: ApiMultiDelegationAction needs either 'join' or 'quit', but not both"
+              )
+            , ( [aesonQQ|
+               { "payments": [
+                   {
+                       "address": #{addrPlaceholder},
+                       "amount": {
+                           "quantity": 42000000,
+                           "unit": "lovelace"
+                       }
+                   }
+                  ],
+                  "delegations": [{"join" : {}}]
+               }|]
+               , "Error in $.delegations[0]: key 'pool' not found"
+              )
+            ]
 
 instance Malformed (BodyParam (ApiWalletMigrationPlanPostData ('Testnet pm))) where
     malformed = jsonValid ++ jsonInvalid

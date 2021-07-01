@@ -992,8 +992,24 @@ x-transactionInputs: &transactionInputs
         type: integer
         minimum: 0
 
+x-derivationSegment: &derivationSegment
+  description: |
+    An individual segment within a derivation path.
+
+    The `H` suffix indicates a _Hardened_ child private key, which
+    means that children of this key cannot be derived from the public
+    key. Indices without a `H` suffix are called _Soft_.
+  type: string
+  example: 1852H
+
+x-derivationPath: &derivationPath
+  description: A path for deriving a child key from a parent key.
+  type: array
+  minItems: 1
+  items: *derivationSegment
+
 x-transactionOutputs: &transactionOutputs
-  description: A list of target outputs
+  description: A list of target outputs with amount specified
   type: array
   minItems: 0
   items:
@@ -1005,6 +1021,14 @@ x-transactionOutputs: &transactionOutputs
       address: *addressId
       amount: *amount
       assets: *walletAssets
+
+x-transactionNoAmountOutputs: &transactionNoAmountOutputs
+  description: A list of target outputs without amounts specified
+  type: array
+  minItems: 0
+  items:
+    type: string
+    <<: *addressId
 
 x-delegationAction: &delegationAction
   description: |
@@ -1019,6 +1043,10 @@ x-delegationAction: &delegationAction
       type: string
       enum: ["quit", "join"]
     pool: *stakePoolId
+
+x-delegationTarget: &delegationTarget
+  <<: *stakePoolId
+  description: A unique Stake-Pool identifier (present only if status = `delegating`)
 
 x-rewardAccountPath: &rewardAccountPath
   type: array
@@ -1088,6 +1116,48 @@ x-transactionWithdrawals: &transactionWithdrawals
       stake_address: *stakeAddress
       amount: *amount
 
+x-softIndex: &softIndex
+  type: integer
+  minimum: 0
+  maximum: 2147483647
+  description: A soft derivation index.
+
+x-multiDelegationAction: &multiDelegationAction
+  description: |
+    A delegation action for a given stake key denoted by its soft index.
+    Pool id is only required for "join".
+    Stake key index are required for both actions.
+  oneOf:
+    - type: object
+      required:
+        - join
+      properties:
+        join:
+          type: object
+          required:
+            - pool
+            - stake_key_index
+          properties:
+            pool: *stakePoolId
+            stake_key_index: *derivationSegment
+    - type: object
+      required:
+        - quit
+      properties:
+        quit:
+          type: object
+          required:
+            - stake_key_index
+          properties:
+            stake_key_index: *derivationSegment
+
+x-transactionDelegations: &transactionDelegations
+  description: A list of staking actions (joining, rejoining or leaving from stake pools).
+  type: array
+  minItems: 0
+  items:
+    <<: *multiDelegationAction
+
 x-transactionMint: &transactionMint
   description: |
     <p>status: <strong>⚠ under development</strong></p>
@@ -1103,22 +1173,6 @@ x-transactionMint: &transactionMint
   type: array
   minItems: 0
   items: *assetMint
-
-x-derivationSegment: &derivationSegment
-  description: |
-    An individual segment within a derivation path.
-
-    The `H` suffix indicates a _Hardened_ child private key, which
-    means that children of this key cannot be derived from the public
-    key. Indices without a `H` suffix are called _Soft_.
-  type: string
-  example: 1852H
-
-x-derivationPath: &derivationPath
-  description: A path for deriving a child key from a parent key.
-  type: array
-  minItems: 1
-  items: *derivationSegment
 
 x-transactionChange: &transactionChange
   description: A list of transaction change outputs.
@@ -1173,6 +1227,11 @@ x-transactionResolvedWithdrawals: &transactionResolvedWithdrawals
       stake_address: *stakeAddress
       derivation_path: *derivationPath
       amount: *amount
+
+x-serializedTransaction: &serializedTransaction
+  description: CBOR transaction data, base64-encoded.
+  type: string
+  format: base64
 
 x-signedTransactionBlob: &signedTransactionBlob
   description: Signed transaction message binary blob.
@@ -1290,6 +1349,20 @@ x-transactionTTL: &transactionTTL
 
   <<: *numberOfSeconds
 
+x-unspecified: &unspecified
+  type: string
+  enum:
+    - uspecified
+
+x-validityBound: &validityBound
+  oneOf:
+    - <<: *numberOfSeconds
+      title: number of seconds
+    - <<: *numberOfSlots
+      title: number of slots
+    - <<: *unspecified
+      title: unspecified
+
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
     Apparent performance of the stake pool over past epochs. This indicator is computed
@@ -1311,7 +1384,6 @@ x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   type: number
   minimum: 0
   example: 0.5053763440860215
-
 
 x-stakePoolMetadata: &stakePoolMetadata
   description: |
@@ -1492,10 +1564,6 @@ x-delegationStatus: &delegationStatus
   enum:
     - not_delegating
     - delegating
-
-x-delegationTarget: &delegationTarget
-  <<: *stakePoolId
-  description: A unique Stake-Pool identifier (present only if status = `delegating`)
 
 x-addressIndex: &addressIndex
   type: number
@@ -1875,6 +1943,24 @@ components:
         - id
       properties:
         id: *transactionId
+
+    ApiSerialisedTransaction: &ApiSerialisedTransaction
+      <<: *serializedTransaction
+      description: |
+        An transaction can be posted fully encoded, or separated into
+        a body and witness set, each of these being individually
+        encoded.
+
+    ApiConstructTransaction: &ApiConstructTransaction
+      type: object
+      required:
+        - serialized_transaction
+        - coin_selection
+        - fee
+      properties:
+        serialized_transaction: *ApiSerialisedTransaction
+        coin_selection: *ApiCoinSelection
+        fee: *amount
 
     ApiTransaction: &ApiTransaction
       type: object
@@ -2601,6 +2687,33 @@ components:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
 
+    ApiValidityInterval: &ApiValidityInterval
+      type: object
+      required:
+        - invalid_before
+        - invalid_hereafter
+      properties:
+        invalid_before: *validityBound
+        invalid_hereafter: *validityBound
+
+    ApiPaymentDestination: &ApiPaymentDestination
+      oneOf:
+        - title: outputs with specified amounts
+          <<: *transactionOutputs
+        - title: outputs without amounts
+          <<: *transactionNoAmountOutputs
+
+    ApiConstructTransactionData: &ApiConstructTransactionData
+      description: At least one field needs to be choosen
+      type: object
+      properties:
+        payments: *ApiPaymentDestination
+        withdrawal: *transactionWithdrawalRequestSelf
+        metadata: *transactionMetadata
+        mint: *transactionMint
+        delegations: *transactionDelegations
+        validity_interval: *ApiValidityInterval
+
     CredentialValue: *CredentialValue
 
     ScriptValue: *ScriptValue
@@ -2683,13 +2796,6 @@ components:
           title: icarus/trezor/ledger (from xpub)
         - <<: *ApiByronWalletRandomXPrvPostData
           title: random (from xprv)
-
-    softIndex: &softIndex
-      type: integer
-      minimum: 0
-      maximum: 2147483647
-      description: |
-        A soft derivation index.
 
     ApiOurStakeKey: &ApiOurStakeKey
       type: object
@@ -4011,6 +4117,35 @@ x-responsesPostTransaction: &responsesPostTransaction
       application/json:
         schema: *ApiTransaction
 
+x-responsesConstructTransaction: &responsesConstructTransaction
+  400:
+    description: Bad Request
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errBadRequest
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errAlreadyWithdrawing
+            - <<: *errUtxoTooSmall
+            - <<: *errCannotCoverFee
+            - <<: *errNotEnoughMoney
+            - <<: *errTransactionIsTooBig
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiConstructTransaction
+
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
   <<: *responsesErr406
@@ -4653,6 +4788,24 @@ paths:
         - *parametersWalletId
         - *parametersTransactionId
       responses: *responsesDeleteTransaction
+
+  /wallets/{walletId}/transactions-construct:
+    post:
+      operationId: postTransactionConstruct
+      tags: ["Transactions"]
+      summary: Construct
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Create a transaction to be signed from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiConstructTransactionData
+      responses: *responsesConstructTransaction
 
   /wallets/{walletId}/addresses:
     get:
