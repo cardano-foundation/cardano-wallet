@@ -92,6 +92,7 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
+    , computeApiCoinSelectionFee
     , isValidDerivationPath
     , isValidRandomDerivationPath
     , genMnemonics
@@ -354,6 +355,8 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
     ( fromJust, fromMaybe )
+import Data.Monoid
+    ( Sum (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -442,6 +445,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -674,6 +678,74 @@ defaultTxTTL = 7200
 --
 -- Helpers
 --
+
+-- | Computes the effective fee for an `ApiCoinSelection` value.
+--
+-- The `ApiCoinSelection` type doesn't include a field to indicate the fee.
+--
+-- This function computes the effective fee by subtracting the total output
+-- value from the total input value.
+--
+computeApiCoinSelectionFee :: ApiCoinSelection n -> Coin
+computeApiCoinSelectionFee selection
+    | feeIsValid =
+        Coin $ fromIntegral fee
+    | otherwise =
+        error $ unlines
+            [ "Unable to compute fee of ApiCoinSelection:"
+            , "fee:"
+            , show fee
+            , "balanceOfInputs:"
+            , show balanceOfInputs
+            , "balanceOfOutputs:"
+            , show balanceOfOutputs
+            , "balanceOfChange:"
+            , show balanceOfChange
+            , "balanceOfRewardWithdrawals"
+            , show balanceOfRewardWithdrawals
+            , "balanceOfDeposits"
+            , show balanceOfDeposits
+            ]
+  where
+    fee :: Integer
+    fee
+        = balanceOfInputs
+        + balanceOfRewardWithdrawals
+        - balanceOfOutputs
+        - balanceOfChange
+        - balanceOfDeposits
+    feeIsValid :: Bool
+    feeIsValid = (&&)
+        (fee >= fromIntegral (unCoin (minBound :: Coin)))
+        (fee <= fromIntegral (unCoin (maxBound :: Coin)))
+    balanceOfInputs
+        = selection
+        & view #inputs
+        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & getSum
+    balanceOfOutputs
+        = selection
+        & view #outputs
+        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & getSum
+    balanceOfChange
+        = selection
+        & view #change
+        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & getSum
+    balanceOfRewardWithdrawals
+        = selection
+        & view #withdrawals
+        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & getSum
+    balanceOfDeposits
+        = selection
+        & view #deposits
+        & F.foldMap (Sum . quantityToInteger)
+        & getSum
+    quantityToInteger :: Quantity "lovelace" Natural -> Integer
+    quantityToInteger (Quantity n) = fromIntegral n
+
 isValidDerivationPath
     :: Index 'Hardened 'PurposeK
     -> NonEmpty (ApiT DerivationIndex)

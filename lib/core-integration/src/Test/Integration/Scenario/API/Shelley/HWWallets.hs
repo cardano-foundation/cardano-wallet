@@ -74,6 +74,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , computeApiCoinSelectionFee
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -447,64 +448,3 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
     restoredWalletName :: Text
     restoredWalletName = "Wallet from pub key"
-
-computeApiCoinSelectionFee :: ApiCoinSelection n -> Coin
-computeApiCoinSelectionFee selection
-    | feeIsValid =
-        Coin $ fromIntegral fee
-    | otherwise =
-        error $ unlines
-            [ "Unable to compute fee of ApiCoinSelection:"
-            , "fee:"
-            , show fee
-            , "balanceOfInputs:"
-            , show balanceOfInputs
-            , "balanceOfOutputs:"
-            , show balanceOfOutputs
-            , "balanceOfChange:"
-            , show balanceOfChange
-            , "balanceOfRewardWithdrawals"
-            , show balanceOfRewardWithdrawals
-            , "balanceOfDeposits"
-            , show balanceOfDeposits
-            ]
-  where
-    fee :: Integer
-    fee
-        = balanceOfInputs
-        + balanceOfRewardWithdrawals
-        - balanceOfOutputs
-        - balanceOfChange
-        - balanceOfDeposits
-    feeIsValid :: Bool
-    feeIsValid = (&&)
-        (fee >= fromIntegral (unCoin (minBound :: Coin)))
-        (fee <= fromIntegral (unCoin (maxBound :: Coin)))
-    balanceOfInputs
-        = selection
-        & view #inputs
-        & F.foldMap (Sum . quantityToInteger . view #amount)
-        & getSum
-    balanceOfOutputs
-        = selection
-        & view #outputs
-        & F.foldMap (Sum . quantityToInteger . view #amount)
-        & getSum
-    balanceOfChange
-        = selection
-        & view #change
-        & F.foldMap (Sum . quantityToInteger . view #amount)
-        & getSum
-    balanceOfRewardWithdrawals
-        = selection
-        & view #withdrawals
-        & F.foldMap (Sum . quantityToInteger . view #amount)
-        & getSum
-    balanceOfDeposits
-        = selection
-        & view #deposits
-        & F.foldMap (Sum . quantityToInteger)
-        & getSum
-
-quantityToInteger :: Quantity "lovelace" Natural -> Integer
-quantityToInteger (Quantity n) = fromIntegral n
