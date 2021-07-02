@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -18,12 +17,8 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
-    , ApiAddress
-    , ApiCoinSelection (..)
-    , ApiCoinSelectionOutput (..)
+    ( ApiAddress
     , ApiFee
-    , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
@@ -36,45 +31,30 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..), TxMetadataValue (..) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Aeson
-    ( (.=) )
-import Data.Function
-    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.Monoid
-    ( Sum (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Word
-    ( Word64 )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldSatisfy )
+    ( shouldBe, shouldContain )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , computeApiCoinSelectionFee
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -94,25 +74,14 @@ import Test.Integration.Framework.DSL
     , pubKeyFromMnemonics
     , request
     , restoreWalletFromPubKey
-    , selectCoinsWith
     , unsafeResponse
     , verify
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403NoRootKey
-    , payloadWith
-    , txMetadata_ADP_1005
-    , updateNamePayload
-    , updatePassPayload
-    )
+    ( errMsg403NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.Aeson as Aeson
-import qualified Data.Foldable as F
-import qualified Data.HashSet as Set
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as Map
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n.
@@ -325,35 +294,9 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             expectResponseCode HTTP.status200 rt
             expectListSize 0 rt
 
-        describe "Can create a coin selection" $ do
-
-            let testCasesWithoutMetadata =
-                    [ ( "without metadata"
-                      , Nothing
-                      , Quantity 130_500
-                      )
-                    ]
-            let testCasesWithMetadata =
-                    -- Note: the transaction fees expected for each of the
-                    -- following test cases can be compared directly with the
-                    -- fees expected in TRANSMETA_CREATE_01.
-                    --
-                    -- Provided that the coin selection criteria are exactly
-                    -- the same, then the transaction fees should be identical.
-                    --
-                    [ ( "simple textual metadata"
-                      , Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
-                      , Quantity 134_700
-                      )
-                    , ( "metadata from ADP-1005"
-                      , Just txMetadata_ADP_1005
-                      , Quantity 152_300
-                      )
-                    ]
-            mapM_ spec_selectCoins $ mconcat
-                [ testCasesWithoutMetadata
-                , testCasesWithMetadata
-                ]
+        it "Can create a coin selection" $
+            pure (pure ())
+            -- This is covered in Integration.Scenario.API.Shelley.Transactions.
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do
         it "Can get wallet" $ \ctx -> runResourceT $ do
@@ -402,49 +345,5 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                     (`shouldBe` restoredWalletName)
                 ]
   where
-    spec_selectCoins
-        :: (String, Maybe TxMetadata, Quantity "lovelace" Word64)
-        -> SpecWith Context
-    spec_selectCoins (testName, mTxMetadata, Quantity expectedFee) =
-        it testName $ \ctx -> runResourceT $ do
-            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
-            let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request
-                @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode HTTP.status204 r
-            source <- restoreWalletFromPubKey
-                @ApiWallet @'Shelley ctx pubKey restoredWalletName
-            target <- emptyWallet ctx
-            let paymentCount = 1
-            targetAddresses <- take paymentCount .
-                fmap (view #id) <$> listAddresses @n ctx target
-            let targetAmounts = take paymentCount $
-                    Quantity <$> [minUTxOValue ..]
-            let targetAssets = repeat mempty
-            let payments = NE.fromList $ map ($ mempty) $
-                    zipWith AddressAmount targetAddresses targetAmounts
-            let outputs = zipWith3 ApiCoinSelectionOutput
-                    targetAddresses targetAmounts targetAssets
-            let addTxMetadata = case mTxMetadata of
-                    Nothing -> id
-                    Just txMetadata -> \(Json (Aeson.Object o)) -> Json
-                        $ Aeson.Object
-                        $ o <> ("metadata" .= (Aeson.toJSON (ApiT txMetadata)))
-            coinSelectionResponse <-
-                selectCoinsWith @n @'Shelley ctx source payments addTxMetadata
-            verify coinSelectionResponse
-                [ expectResponseCode HTTP.status200
-                , expectField #inputs
-                    (`shouldSatisfy` (not . null))
-                , expectField #outputs
-                    (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
-                , expectField #change
-                    (`shouldSatisfy` (not . null))
-                ]
-            let apiCoinSelection =
-                    getFromResponse Prelude.id coinSelectionResponse
-            let fee = computeApiCoinSelectionFee apiCoinSelection
-            fee `shouldBe` Coin expectedFee
-
     restoredWalletName :: Text
     restoredWalletName = "Wallet from pub key"
