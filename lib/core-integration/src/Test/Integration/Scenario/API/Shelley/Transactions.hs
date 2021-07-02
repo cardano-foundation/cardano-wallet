@@ -24,6 +24,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAsset (..)
+    , ApiCoinSelectionOutput (..)
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction
@@ -100,6 +101,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
+    , computeApiCoinSelectionFee
     , counterexample
     , defaultTxTTL
     , emptyRandomWallet
@@ -132,6 +134,7 @@ import Test.Integration.Framework.DSL
     , postTx
     , request
     , rewardWallet
+    , selectCoinsWith
     , toQueryString
     , unsafeGetTransactionTime
     , unsafeRequest
@@ -173,6 +176,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.HashSet as Set
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -2185,6 +2190,41 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = (minUTxOValue :: Natural)
 
+        -- First, perform a dry-run selection using the 'selectCoins' endpoint.
+        -- This will allow us to confirm that the 'selectCoins' endpoint
+        -- produces a selection whose fee is identical to the selection
+        -- produced by the 'postTransaction' endpoint.
+        let paymentCount = 1
+        targetAddresses <- take paymentCount .
+            fmap (view #id) <$> listAddresses @n ctx wb
+        let targetAmounts = take paymentCount $
+                Quantity <$> [minUTxOValue ..]
+        let targetAssets = repeat mempty
+        let payments = NE.fromList $ map ($ mempty) $
+                zipWith AddressAmount targetAddresses targetAmounts
+        let outputs = zipWith3 ApiCoinSelectionOutput
+                targetAddresses targetAmounts targetAssets
+        let addTxMetadata' = \(Json (Aeson.Object o)) -> Json
+                $ Aeson.Object
+                $ o <> ("metadata" .= (Aeson.toJSON (ApiT txMetadata)))
+        coinSelectionResponse <-
+            selectCoinsWith @n @'Shelley ctx wa payments addTxMetadata'
+        verify coinSelectionResponse
+            [ expectResponseCode HTTP.status200
+            , expectField #inputs
+                (`shouldSatisfy` (not . null))
+            , expectField #outputs
+                (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
+            , expectField #change
+                (`shouldSatisfy` (not . null))
+            ]
+        let apiCoinSelection = getFromResponse Prelude.id coinSelectionResponse
+        let fee = computeApiCoinSelectionFee apiCoinSelection
+        Quantity (fromIntegral (unCoin (fee))) `shouldBe` expectedFee
+
+        -- Next, actually create a transaction and submit it to the network.
+        -- This transaction should have a fee that is identical to the fee
+        -- of the dry-run coin selection produced in the previous step.
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
         let payload = addTxMetadata (Aeson.toJSON (ApiT txMetadata)) basePayload
 
