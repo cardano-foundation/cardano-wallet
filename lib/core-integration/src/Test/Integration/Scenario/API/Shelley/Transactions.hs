@@ -1060,6 +1060,17 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectedFee =
                     Quantity 152_300
                 }
+            , CreateTransactionWithMetadataTest
+                { testName =
+                    "transaction with metadata from ADP-1005 (2 outputs)"
+                , txOutputAdaQuantities =
+                    -- The exact ada quantities recorded in ADP-1005:
+                    [1_000_000, 498_283_127]
+                , txMetadata =
+                      Just txMetadata_ADP_1005
+                , expectedFee =
+                    Quantity 165_900
+                }
             ]
 
     it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> runResourceT $ do
