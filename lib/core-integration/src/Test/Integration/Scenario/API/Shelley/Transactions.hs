@@ -1027,14 +1027,18 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField #expiresAt (`shouldSatisfy` isJust)
             ]
 
-    describe "TRANSMETA_CREATE_01 - Transaction with metadata" $
+    describe "TRANSMETA_CREATE_01 - Including metadata within transactions" $
         mapM_ spec_TRANSMETA_CREATE_01
-            [ ( "simple textual metadata"
-              , TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
+            [ ( "transaction without any metadata"
+              , Nothing
+              , Quantity 130_500
+              )
+            , ( "transaction with simple textual metadata"
+              , Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
               , Quantity 134_700
               )
-            , ( "metadata from ADP-1005"
-              , txMetadata_ADP_1005
+            , ( "transaction with metadata from ADP-1005"
+              , Just txMetadata_ADP_1005
               , Quantity 152_300
               )
             ]
@@ -2182,10 +2186,15 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
   where
     spec_TRANSMETA_CREATE_01
-        :: (String, TxMetadata, Quantity "lovelace" Natural)
+        :: (String, Maybe TxMetadata, Quantity "lovelace" Natural)
         -> SpecWith Context
-    spec_TRANSMETA_CREATE_01 (testName, txMetadata, expectedFee) =
+    spec_TRANSMETA_CREATE_01 (testName, mTxMetadata, expectedFee) =
         it testName $ \ctx -> runResourceT $ do
+
+        let maybeAddTxMetadata = maybe
+                (Prelude.id)
+                (addTxMetadata . Aeson.toJSON . ApiT)
+                (mTxMetadata)
 
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = (minUTxOValue :: Natural)
@@ -2204,11 +2213,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 zipWith AddressAmount targetAddresses targetAmounts
         let outputs = zipWith3 ApiCoinSelectionOutput
                 targetAddresses targetAmounts targetAssets
-        let addTxMetadata' = \(Json (Aeson.Object o)) -> Json
-                $ Aeson.Object
-                $ o <> ("metadata" .= (Aeson.toJSON (ApiT txMetadata)))
         coinSelectionResponse <-
-            selectCoinsWith @n @'Shelley ctx wa payments addTxMetadata'
+            selectCoinsWith @n @'Shelley ctx wa payments maybeAddTxMetadata
         verify coinSelectionResponse
             [ expectResponseCode HTTP.status200
             , expectField #inputs
@@ -2226,18 +2232,16 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- This transaction should have a fee that is identical to the fee
         -- of the dry-run coin selection produced in the previous step.
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
-        let payload = addTxMetadata (Aeson.toJSON (ApiT txMetadata)) basePayload
-
+        let payload = maybeAddTxMetadata basePayload
         ra <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wa) Default payload
-
         verify ra
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField
                 (#metadata . #getApiTxMetadata)
-                (`shouldBe` Just (ApiT txMetadata))
+                (`shouldBe` fmap ApiT mTxMetadata)
             , expectField
                 (#fee) (`shouldBe` expectedFee)
             ]
@@ -2254,7 +2258,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectListField 0
                     (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT txMetadata))
+                    (`shouldBe` fmap ApiT mTxMetadata)
                 ]
             -- on dst wallet
             let linkDstList = Link.listTransactions @'Shelley wb
@@ -2267,7 +2271,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectListField 0
                     (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT txMetadata))
+                    (`shouldBe` fmap ApiT mTxMetadata)
                 ]
 
         let txid = getFromResponse #id ra
@@ -2283,7 +2287,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField
                     (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT txMetadata))
+                    (`shouldBe` fmap ApiT mTxMetadata)
                 ]
           -- on dst wallet
             let linkDst = Link.getTransaction @'Shelley wb (ApiTxId txid)
@@ -2296,7 +2300,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField
                     (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT txMetadata))
+                    (`shouldBe` fmap ApiT mTxMetadata)
                 ]
 
     txDeleteNotExistsingTxIdTest eWallet resource =
