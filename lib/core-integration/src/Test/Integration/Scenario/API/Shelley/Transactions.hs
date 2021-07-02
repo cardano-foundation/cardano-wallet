@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -1028,19 +1029,31 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
     describe "TRANSMETA_CREATE_01 - Including metadata within transactions" $
-        mapM_ spec_TRANSMETA_CREATE_01
-            [ ( "transaction without any metadata"
-              , Nothing
-              , Quantity 130_500
-              )
-            , ( "transaction with simple textual metadata"
-              , Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
-              , Quantity 134_700
-              )
-            , ( "transaction with metadata from ADP-1005"
-              , Just txMetadata_ADP_1005
-              , Quantity 152_300
-              )
+        mapM_ spec_createTransactionWithMetadata
+            [ CreateTransactionWithMetadataTest
+                { testName =
+                    "transaction without any metadata"
+                , txMetadata =
+                    Nothing
+                , expectedFee =
+                    Quantity 130_500
+                }
+            , CreateTransactionWithMetadataTest
+                { testName =
+                    "transaction with simple textual metadata"
+                , txMetadata =
+                    Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
+                , expectedFee =
+                    Quantity 134_700
+                }
+            , CreateTransactionWithMetadataTest
+                { testName =
+                    "transaction with metadata from ADP-1005"
+                , txMetadata =
+                      Just txMetadata_ADP_1005
+                , expectedFee =
+                    Quantity 152_300
+                }
             ]
 
     it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> runResourceT $ do
@@ -2185,16 +2198,21 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
   where
-    spec_TRANSMETA_CREATE_01
-        :: (String, Maybe TxMetadata, Quantity "lovelace" Natural)
+    spec_createTransactionWithMetadata
+        :: CreateTransactionWithMetadataTest
         -> SpecWith Context
-    spec_TRANSMETA_CREATE_01 (testName, mTxMetadata, expectedFee) =
-        it testName $ \ctx -> runResourceT $ do
+    spec_createTransactionWithMetadata testData =
+        let CreateTransactionWithMetadataTest
+                { testName
+                , txMetadata
+                , expectedFee
+                } = testData
+        in it testName $ \ctx -> runResourceT $ do
 
         let maybeAddTxMetadata = maybe
                 (Prelude.id)
                 (addTxMetadata . Aeson.toJSON . ApiT)
-                (mTxMetadata)
+                (txMetadata)
 
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = (minUTxOValue :: Natural)
@@ -2241,7 +2259,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField
                 (#metadata . #getApiTxMetadata)
-                (`shouldBe` fmap ApiT mTxMetadata)
+                (`shouldBe` fmap ApiT txMetadata)
             , expectField
                 (#fee) (`shouldBe` expectedFee)
             ]
@@ -2258,7 +2276,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectListField 0
                     (#metadata . #getApiTxMetadata)
-                    (`shouldBe` fmap ApiT mTxMetadata)
+                    (`shouldBe` fmap ApiT txMetadata)
                 ]
             -- on dst wallet
             let linkDstList = Link.listTransactions @'Shelley wb
@@ -2271,7 +2289,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectListField 0
                     (#metadata . #getApiTxMetadata)
-                    (`shouldBe` fmap ApiT mTxMetadata)
+                    (`shouldBe` fmap ApiT txMetadata)
                 ]
 
         let txid = getFromResponse #id ra
@@ -2287,7 +2305,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField
                     (#metadata . #getApiTxMetadata)
-                    (`shouldBe` fmap ApiT mTxMetadata)
+                    (`shouldBe` fmap ApiT txMetadata)
                 ]
           -- on dst wallet
             let linkDst = Link.getTransaction @'Shelley wb (ApiTxId txid)
@@ -2300,7 +2318,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField
                     (#metadata . #getApiTxMetadata)
-                    (`shouldBe` fmap ApiT mTxMetadata)
+                    (`shouldBe` fmap ApiT txMetadata)
                 ]
 
     txDeleteNotExistsingTxIdTest eWallet resource =
@@ -2404,3 +2422,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     oneMillionAda :: Natural
     oneMillionAda = 1_000 * oneThousandAda
+
+data CreateTransactionWithMetadataTest = CreateTransactionWithMetadataTest
+    { testName
+        :: String
+    , txMetadata
+        :: Maybe TxMetadata
+    , expectedFee
+        :: Quantity "lovelace" Natural
+    }
