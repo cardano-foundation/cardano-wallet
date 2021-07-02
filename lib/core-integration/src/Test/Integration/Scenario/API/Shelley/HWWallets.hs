@@ -17,9 +17,7 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
-    , ApiAddress
-    , ApiCoinSelectionOutput (..)
+    ( ApiAddress
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
@@ -50,7 +48,7 @@ import Data.Text
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldSatisfy )
+    ( shouldBe, shouldContain )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -76,7 +74,6 @@ import Test.Integration.Framework.DSL
     , pubKeyFromMnemonics
     , request
     , restoreWalletFromPubKey
-    , selectCoins
     , unsafeResponse
     , verify
     , walletId
@@ -85,10 +82,7 @@ import Test.Integration.Framework.TestData
     ( errMsg403NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.HashSet as Set
-import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
-
 
 spec :: forall n.
     ( DecodeAddress n
@@ -300,34 +294,9 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             expectResponseCode HTTP.status200 rt
             expectListSize 0 rt
 
-        it "Can get coin selection" $ \ctx -> runResourceT $ do
-            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
-            let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request
-                @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode HTTP.status204 r
-            source <- restoreWalletFromPubKey
-                @ApiWallet @'Shelley ctx pubKey restoredWalletName
-            target <- emptyWallet ctx
-            let paymentCount = 4
-            targetAddresses <- take paymentCount .
-                fmap (view #id) <$> listAddresses @n ctx target
-            let targetAmounts = take paymentCount $
-                    Quantity <$> [minUTxOValue ..]
-            let targetAssets = repeat mempty
-            let payments = NE.fromList $ map ($ mempty) $
-                    zipWith AddressAmount targetAddresses targetAmounts
-            let outputs = zipWith3 ApiCoinSelectionOutput
-                    targetAddresses targetAmounts targetAssets
-            selectCoins @n @'Shelley ctx source payments >>= flip verify
-                [ expectResponseCode HTTP.status200
-                , expectField #inputs
-                    (`shouldSatisfy` (not . null))
-                , expectField #outputs
-                    (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
-                , expectField #change
-                    (`shouldSatisfy` (not . null))
-                ]
+        it "Can create a coin selection" $
+            pure (pure ())
+            -- This is covered in Integration.Scenario.API.Shelley.Transactions.
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do
         it "Can get wallet" $ \ctx -> runResourceT $ do
@@ -375,7 +344,6 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                     (#name . #getApiT . #getWalletName)
                     (`shouldBe` restoredWalletName)
                 ]
-
- where
-     restoredWalletName :: Text
-     restoredWalletName = "Wallet from pub key"
+  where
+    restoredWalletName :: Text
+    restoredWalletName = "Wallet from pub key"

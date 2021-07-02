@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -24,6 +25,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAsset (..)
+    , ApiCoinSelectionOutput (..)
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction
@@ -100,6 +102,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
+    , computeApiCoinSelectionFee
     , counterexample
     , defaultTxTTL
     , emptyRandomWallet
@@ -132,6 +135,7 @@ import Test.Integration.Framework.DSL
     , postTx
     , request
     , rewardWallet
+    , selectCoinsWith
     , toQueryString
     , unsafeGetTransactionTime
     , unsafeRequest
@@ -162,6 +166,7 @@ import Test.Integration.Framework.TestData
     , errMsg404NoAsset
     , errMsg404NoWallet
     , steveToken
+    , txMetadata_ADP_1005
     )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
@@ -172,6 +177,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.HashSet as Set
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -1021,76 +1028,50 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField #expiresAt (`shouldSatisfy` isJust)
             ]
 
-    it "TRANSMETA_CREATE_01 - Transaction with metadata" $ \ctx -> runResourceT $ do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (minUTxOValue :: Natural)
-
-        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
-
-        let txMeta = [json|{ "1": { "string": "hello" } }|]
-        let expected = TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
-        let payload = addTxMetadata txMeta basePayload
-
-        ra <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wa) Default payload
-
-        verify ra
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField
-                (#metadata . #getApiTxMetadata)
-                (`shouldBe` Just (ApiT expected))
+    describe "TRANSMETA_CREATE_01 - Including metadata within transactions" $
+        mapM_ spec_createTransactionWithMetadata
+            [ CreateTransactionWithMetadataTest
+                { testName =
+                    "transaction without any metadata (1 output)"
+                , txOutputAdaQuantities =
+                    [minUTxOValue]
+                , txMetadata =
+                    Nothing
+                , expectedFee =
+                    Quantity 130_500
+                }
+            , CreateTransactionWithMetadataTest
+                { testName =
+                    "transaction with simple textual metadata (1 output)"
+                , txOutputAdaQuantities =
+                    [minUTxOValue]
+                , txMetadata =
+                    Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
+                , expectedFee =
+                    Quantity 134_700
+                }
+            , CreateTransactionWithMetadataTest
+                { testName =
+                    "transaction with metadata from ADP-1005 (1 output)"
+                , txOutputAdaQuantities =
+                    [minUTxOValue]
+                , txMetadata =
+                      Just txMetadata_ADP_1005
+                , expectedFee =
+                    Quantity 152_300
+                }
+            , CreateTransactionWithMetadataTest
+                { testName =
+                    "transaction with metadata from ADP-1005 (2 outputs)"
+                , txOutputAdaQuantities =
+                    -- The exact ada quantities recorded in ADP-1005:
+                    [1_000_000, 498_283_127]
+                , txMetadata =
+                      Just txMetadata_ADP_1005
+                , expectedFee =
+                    Quantity 165_900
+                }
             ]
-
-        eventually "metadata is confirmed in transaction list" $ do
-            -- on src wallet
-            let linkSrcList = Link.listTransactions @'Shelley wa
-            rla <- request @([ApiTransaction n]) ctx linkSrcList Default Empty
-            verify rla
-                [ expectResponseCode HTTP.status200
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0
-                    (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT expected))
-                ]
-            -- on dst wallet
-            let linkDstList = Link.listTransactions @'Shelley wb
-            rlb <- request @([ApiTransaction n]) ctx linkDstList Default Empty
-            verify rlb
-                [ expectResponseCode HTTP.status200
-                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
-                , expectListField 0 (#direction . #getApiT) (`shouldBe` Incoming)
-                , expectListField 0
-                    (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT expected))
-                ]
-
-        let txid = getFromResponse #id ra
-        eventually "metadata is confirmed in transaction get" $ do
-          -- on src wallet
-            let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
-            rg1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
-            verify rg1
-                [ expectResponseCode HTTP.status200
-                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField
-                    (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT expected))
-                ]
-          -- on dst wallet
-            let linkDst = Link.getTransaction @'Shelley wb (ApiTxId txid)
-            rg2 <- request @(ApiTransaction n) ctx linkDst Default Empty
-            verify rg2
-                [ expectResponseCode HTTP.status200
-                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
-                , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField
-                    (#metadata . #getApiTxMetadata)
-                    (`shouldBe` Just (ApiT expected))
-                ]
 
     it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
@@ -2234,6 +2215,136 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
   where
+    spec_createTransactionWithMetadata
+        :: CreateTransactionWithMetadataTest
+        -> SpecWith Context
+    spec_createTransactionWithMetadata testData =
+        let CreateTransactionWithMetadataTest
+                { testName
+                , txOutputAdaQuantities
+                , txMetadata
+                , expectedFee
+                } = testData
+        in it testName $ \ctx -> runResourceT $ do
+
+        let maybeAddTxMetadata = maybe
+                (Prelude.id)
+                (addTxMetadata . Aeson.toJSON . ApiT)
+                (txMetadata)
+
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+
+        let paymentCount = length txOutputAdaQuantities
+        targetAddresses <- take paymentCount .
+            fmap (view #id) <$> listAddresses @n ctx wb
+        let targetAssets = repeat mempty
+        let payments = NE.fromList $ map ($ mempty) $ zipWith
+                (AddressAmount)
+                (targetAddresses)
+                (Quantity <$> txOutputAdaQuantities)
+        let outputs = zipWith3
+                ApiCoinSelectionOutput
+                (targetAddresses)
+                (Quantity <$> txOutputAdaQuantities)
+                (targetAssets)
+
+        -- First, perform a dry-run selection using the 'selectCoins' endpoint.
+        -- This will allow us to confirm that the 'selectCoins' endpoint
+        -- produces a selection whose fee is identical to the selection
+        -- produced by the 'postTransaction' endpoint.
+        coinSelectionResponse <-
+            selectCoinsWith @n @'Shelley ctx wa payments maybeAddTxMetadata
+        verify coinSelectionResponse
+            [ expectResponseCode HTTP.status200
+            , expectField #inputs
+                (`shouldSatisfy` (not . null))
+            , expectField #outputs
+                (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
+            , expectField #change
+                (`shouldSatisfy` (not . null))
+            ]
+        let apiCoinSelection = getFromResponse Prelude.id coinSelectionResponse
+        let fee = computeApiCoinSelectionFee apiCoinSelection
+        Quantity (fromIntegral (unCoin (fee))) `shouldBe` expectedFee
+
+        -- Next, actually create a transaction and submit it to the network.
+        -- This transaction should have a fee that is identical to the fee
+        -- of the dry-run coin selection produced in the previous step.
+        let payload = Json [json|
+                { "payments": #{payments}
+                , "passphrase": #{fixturePassphrase}
+                , "metadata": #{ApiT <$> txMetadata}
+                }|]
+        ra <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+        verify ra
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField
+                (#metadata . #getApiTxMetadata)
+                (`shouldBe` fmap ApiT txMetadata)
+            , expectField
+                (#fee) (`shouldBe` expectedFee)
+            ]
+
+        eventually "metadata is confirmed in transaction list" $ do
+            -- on src wallet
+            let linkSrcList = Link.listTransactions @'Shelley wa
+            rla <- request @([ApiTransaction n]) ctx linkSrcList Default Empty
+            verify rla
+                [ expectResponseCode HTTP.status200
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 0
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` fmap ApiT txMetadata)
+                ]
+            -- on dst wallet
+            let linkDstList = Link.listTransactions @'Shelley wb
+            rlb <- request @([ApiTransaction n]) ctx linkDstList Default Empty
+            verify rlb
+                [ expectResponseCode HTTP.status200
+                , expectListField 0
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectListField 0
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` fmap ApiT txMetadata)
+                ]
+
+        let txid = getFromResponse #id ra
+        eventually "metadata is confirmed in transaction get" $ do
+          -- on src wallet
+            let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
+            rg1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify rg1
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` fmap ApiT txMetadata)
+                ]
+          -- on dst wallet
+            let linkDst = Link.getTransaction @'Shelley wb (ApiTxId txid)
+            rg2 <- request @(ApiTransaction n) ctx linkDst Default Empty
+            verify rg2
+                [ expectResponseCode HTTP.status200
+                , expectField
+                    (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField
+                    (#metadata . #getApiTxMetadata)
+                    (`shouldBe` fmap ApiT txMetadata)
+                ]
+
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> runResourceT $ do
             w <- eWallet ctx
@@ -2335,3 +2446,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     oneMillionAda :: Natural
     oneMillionAda = 1_000 * oneThousandAda
+
+data CreateTransactionWithMetadataTest = CreateTransactionWithMetadataTest
+    { testName
+        :: String
+    , txOutputAdaQuantities
+        :: [Natural]
+    , txMetadata
+        :: Maybe TxMetadata
+    , expectedFee
+        :: Quantity "lovelace" Natural
+    }
