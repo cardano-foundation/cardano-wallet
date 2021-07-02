@@ -1032,7 +1032,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         mapM_ spec_createTransactionWithMetadata
             [ CreateTransactionWithMetadataTest
                 { testName =
-                    "transaction without any metadata"
+                    "transaction without any metadata (1 output)"
+                , txOutputAdaQuantities =
+                    [minUTxOValue]
                 , txMetadata =
                     Nothing
                 , expectedFee =
@@ -1040,7 +1042,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
-                    "transaction with simple textual metadata"
+                    "transaction with simple textual metadata (1 output)"
+                , txOutputAdaQuantities =
+                    [minUTxOValue]
                 , txMetadata =
                     Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
                 , expectedFee =
@@ -1048,7 +1052,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
-                    "transaction with metadata from ADP-1005"
+                    "transaction with metadata from ADP-1005 (1 output)"
+                , txOutputAdaQuantities =
+                    [minUTxOValue]
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
@@ -2204,6 +2210,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     spec_createTransactionWithMetadata testData =
         let CreateTransactionWithMetadataTest
                 { testName
+                , txOutputAdaQuantities
                 , txMetadata
                 , expectedFee
                 } = testData
@@ -2215,22 +2222,25 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (txMetadata)
 
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (minUTxOValue :: Natural)
+
+        let paymentCount = length txOutputAdaQuantities
+        targetAddresses <- take paymentCount .
+            fmap (view #id) <$> listAddresses @n ctx wb
+        let targetAssets = repeat mempty
+        let payments = NE.fromList $ map ($ mempty) $ zipWith
+                (AddressAmount)
+                (targetAddresses)
+                (Quantity <$> txOutputAdaQuantities)
+        let outputs = zipWith3
+                ApiCoinSelectionOutput
+                (targetAddresses)
+                (Quantity <$> txOutputAdaQuantities)
+                (targetAssets)
 
         -- First, perform a dry-run selection using the 'selectCoins' endpoint.
         -- This will allow us to confirm that the 'selectCoins' endpoint
         -- produces a selection whose fee is identical to the selection
         -- produced by the 'postTransaction' endpoint.
-        let paymentCount = 1
-        targetAddresses <- take paymentCount .
-            fmap (view #id) <$> listAddresses @n ctx wb
-        let targetAmounts = take paymentCount $
-                Quantity <$> [minUTxOValue ..]
-        let targetAssets = repeat mempty
-        let payments = NE.fromList $ map ($ mempty) $
-                zipWith AddressAmount targetAddresses targetAmounts
-        let outputs = zipWith3 ApiCoinSelectionOutput
-                targetAddresses targetAmounts targetAssets
         coinSelectionResponse <-
             selectCoinsWith @n @'Shelley ctx wa payments maybeAddTxMetadata
         verify coinSelectionResponse
@@ -2249,8 +2259,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- Next, actually create a transaction and submit it to the network.
         -- This transaction should have a fee that is identical to the fee
         -- of the dry-run coin selection produced in the previous step.
-        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
-        let payload = maybeAddTxMetadata basePayload
+        let payload = Json [json|
+                { "payments": #{payments}
+                , "passphrase": #{fixturePassphrase}
+                , "metadata": #{ApiT <$> txMetadata}
+                }|]
         ra <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wa) Default payload
         verify ra
@@ -2426,6 +2439,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 data CreateTransactionWithMetadataTest = CreateTransactionWithMetadataTest
     { testName
         :: String
+    , txOutputAdaQuantities
+        :: [Natural]
     , txMetadata
         :: Maybe TxMetadata
     , expectedFee
