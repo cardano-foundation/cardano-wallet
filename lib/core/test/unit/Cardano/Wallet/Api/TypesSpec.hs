@@ -106,12 +106,12 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
     , ApiSerialisedTransaction (..)
-    , ApiSerialisedTransactionParts (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPostDataFromAccountPubX (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
+    , ApiSignTransactionPostData (..)
     , ApiSignedTransaction (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
@@ -158,7 +158,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
-    , PostSignTransactionData (..)
     , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
     , SettingsPutData (..)
@@ -481,7 +480,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiConstructTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiConstructTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiMultiDelegationAction
-            jsonRoundtripAndGolden $ Proxy @PostSignTransactionData
+            jsonRoundtripAndGolden $ Proxy @ApiSignTransactionPostData
             jsonRoundtripAndGolden $ Proxy @ApiSignedTransaction
             jsonRoundtripAndGolden $ Proxy @(PostTransactionOldData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeOldData ('Testnet 0))
@@ -988,11 +987,11 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "PostSignTransactionData" $ property $ \x ->
+        it "ApiSignTransactionPostData" $ property $ \x ->
             let
-                x' = PostSignTransactionData
-                    { transaction = transaction (x :: PostSignTransactionData)
-                    , passphrase = passphrase (x :: PostSignTransactionData)
+                x' = ApiSignTransactionPostData
+                    { transaction = transaction (x :: ApiSignTransactionPostData)
+                    , passphrase = passphrase (x :: ApiSignTransactionPostData)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1019,20 +1018,12 @@ spec = parallel $ do
                 x' === x .&&. show x' === show x
         it "ApiSerialisedTransaction" $ property $ \x ->
             let
-                x' = case x of
-                    ApiSerialisedTransaction t -> ApiSerialisedTransaction t
-                    ApiSerialisedTransactionParts t -> ApiSerialisedTransactionParts t
+                x' = ApiSerialisedTransaction
+                    { transaction = transaction (x :: ApiSerialisedTransaction)
+                    }
              in
                 x' === x .&&. show x' === show x
 
-        it "ApiSerialisedTransactionParts" $ property $ \x ->
-            let
-                x' = ApiSerialisedTransactionParts'
-                    { body = body (x :: ApiSerialisedTransactionParts)
-                    , witnesses = witnesses (x :: ApiSerialisedTransactionParts)
-                    }
-            in
-                x' === x .&&. show x' === show x
         it "ApiTransaction" $ property $ \x ->
             let
                 x' = ApiTransaction
@@ -1905,8 +1896,8 @@ instance Arbitrary a => Arbitrary (AddressAmount a) where
     arbitrary = applyArbitrary3 AddressAmount
     shrink _ = []
 
-instance Arbitrary PostSignTransactionData where
-    arbitrary = PostSignTransactionData <$> arbitrary <*> arbitrary
+instance Arbitrary ApiSignTransactionPostData where
+    arbitrary = ApiSignTransactionPostData <$> arbitrary <*> arbitrary
 
 instance Arbitrary (PostTransactionOldData t) where
     arbitrary = PostTransactionOldData
@@ -1975,10 +1966,6 @@ instance Arbitrary ApiSignedTransaction where
     shrink = genericShrink
 
 instance Arbitrary ApiSerialisedTransaction where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
-
-instance Arbitrary ApiSerialisedTransactionParts where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -2387,8 +2374,8 @@ instance ToSchema ByronWalletPutPassphraseData where
 instance ToSchema ApiTxMetadata where
     declareNamedSchema _ = declareSchemaForDefinition "TransactionMetadataValue"
 
-instance ToSchema PostSignTransactionData where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiPostSignTransactionData"
+instance ToSchema ApiSignTransactionPostData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSignTransactionPostData"
 
 instance ToSchema ApiSignedTransaction where
     -- fixme: tests don't seem to like allOf

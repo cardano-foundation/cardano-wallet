@@ -364,6 +364,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus
     , SealedTx (..)
+    , SerialisedTx (..)
     , SerialisedTxParts (..)
     , TransactionInfo (..)
     , Tx
@@ -1635,7 +1636,7 @@ constructTransaction
     -> WalletId
     -> TransactionCtx
     -> SelectionResult TxOut
-    -> ExceptT ErrConstructTx IO ByteString
+    -> ExceptT ErrConstructTx IO SerialisedTx
 constructTransaction ctx wid txCtx sel =
     db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl

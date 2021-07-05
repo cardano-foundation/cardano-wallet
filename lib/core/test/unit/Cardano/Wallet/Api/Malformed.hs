@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsData
     , ApiSharedWalletPatchData
     , ApiSharedWalletPostData
+    , ApiSignTransactionPostData
     , ApiSlotReference
     , ApiT (..)
     , ApiTxId
@@ -72,7 +73,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletSignData
     , Base (Base64)
     , ByronWalletPutPassphraseData
-    , PostSignTransactionData
     , PostTransactionFeeOldData
     , PostTransactionOldData
     , SettingsPutData (..)
@@ -1205,23 +1205,23 @@ instance Malformed (BodyParam (ApiSelectCoinsData ('Testnet pm))) where
               )
             ]
 
-instance Malformed (BodyParam PostSignTransactionData) where
+instance Malformed (BodyParam ApiSignTransactionPostData) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.PostSignTransactionData(PostSignTransactionData) failed, expected Object, but encountered Number")
-            , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.PostSignTransactionData(PostSignTransactionData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, expected Object, but encountered Number")
+            , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, expected Object, but encountered String")
             , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
-            , ("{\"transaction\": \"lah\", \"passphase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing ApiSerialisedTransactionParts failed, expected Object, but encountered String")
-            , ("{\"transaction\": 1020344, \"passphase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing ApiSerialisedTransactionParts failed, expected Object, but encountered Number")
-            , ("{\"transaction\": { \"body\": 1020344 }, \"passphase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
+            , ("{\"transaction\": \"lah\", \"passphase\": \"Secure Passphrase\"}", "Error in $.transaction: Parse error. Expecting Base64-encoded format.")
+            , ("{\"transaction\": 1020344, \"passphase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
+            , ("{\"transaction\": { \"body\": 1020344 }, \"passphase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ -- passphrase
               ( [aesonQQ|
                 { "transaction": "cafecafe"
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.PostSignTransactionData(PostSignTransactionData) failed, key 'passphrase' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, key 'passphrase' not found"
               )
             , ( [aesonQQ|
                { "transaction": "cafecafe",
@@ -1233,7 +1233,7 @@ instance Malformed (BodyParam PostSignTransactionData) where
                { "transaction": { "witnesses": [] },
                   "passphrase": #{wPassphrase}
                }|]
-               , "Error in $.transaction: key 'body' not found"
+               , "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object"
               )
             ]
 

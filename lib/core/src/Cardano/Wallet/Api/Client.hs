@@ -52,8 +52,8 @@ import Cardano.Wallet.Api
     , Network
     , PostData
     , Proxy_
+    , ShelleyTransactions
     , StakePools
-    , Transactions
     , Wallets
     )
 import Cardano.Wallet.Api.Types
@@ -74,6 +74,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
+    , ApiSignTransactionPostData
     , ApiSignedTransaction (..)
     , ApiStakeKeysT
     , ApiT (..)
@@ -86,7 +87,6 @@ import Cardano.Wallet.Api.Types
     , Base (Base64)
     , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
-    , PostSignTransactionData
     , PostTransactionFeeOldDataT
     , PostTransactionOldDataT
     , WalletPutData (..)
@@ -162,9 +162,9 @@ data TransactionClient = TransactionClient
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
         -> ClientM [ApiTransactionT Aeson.Value]
-    , postSignTransaction
+    , signTransaction
         :: ApiT WalletId
-        -> PostSignTransactionData
+        -> ApiSignTransactionPostData
         -> ClientM ApiSignedTransaction
     , postTransaction
         :: ApiT WalletId
@@ -297,21 +297,21 @@ transactionClient
     :: TransactionClient
 transactionClient =
     let
-        _postSignTransaction
-            :<|> _postTransaction
+        _constructTransaction
+            :<|> _signTransaction
             :<|> _listTransactions
-            :<|> _postTransactionFee
-            :<|> _deleteTransaction
             :<|> _getTransaction
-            :<|> _constructTransaction
-            = client (Proxy @("v2" :> (Transactions Aeson.Value)))
+            :<|> _deleteTransaction
+            :<|> _postTransaction
+            :<|> _postTransactionFee
+            = client (Proxy @("v2" :> (ShelleyTransactions Aeson.Value)))
 
         _postExternalTransaction
             = client (Proxy @("v2" :> Proxy_))
     in
         TransactionClient
             { listTransactions = (`_listTransactions` Nothing)
-            , postSignTransaction = _postSignTransaction
+            , signTransaction = _signTransaction
             , postTransaction = _postTransaction
             , postTransactionFee = _postTransactionFee
             , postExternalTransaction = _postExternalTransaction
@@ -325,12 +325,13 @@ byronTransactionClient
     :: TransactionClient
 byronTransactionClient =
     let
-        _postSignTransaction
-            :<|> _postTransaction
+        _constructTransaction
+            :<|> _signTransaction
             :<|> _listTransactions
-            :<|> _postTransactionFee
-            :<|> _deleteTransaction
             :<|> _getTransaction
+            :<|> _deleteTransaction
+            :<|> _postTransaction
+            :<|> _postTransactionFee
             = client (Proxy @("v2" :> (ByronTransactions Aeson.Value)))
 
         _postExternalTransaction
@@ -338,13 +339,13 @@ byronTransactionClient =
 
     in TransactionClient
         { listTransactions = _listTransactions
-        , postSignTransaction = _postSignTransaction
+        , signTransaction = _signTransaction
         , postTransaction = _postTransaction
         , postTransactionFee = _postTransactionFee
         , postExternalTransaction = _postExternalTransaction
         , deleteTransaction = _deleteTransaction
         , getTransaction = _getTransaction
-        , constructTransaction = error "TODO ADP-909 implement new transaction API for all wallet types."
+        , constructTransaction = _constructTransaction
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API

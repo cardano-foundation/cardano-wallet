@@ -67,7 +67,7 @@ module Cardano.Wallet.Api.Server
     , postRandomAddress
     , postRandomWallet
     , postRandomWalletFromXPrv
-    , postSignTransaction
+    , signTransaction
     , postTransactionOld
     , postTransactionFeeOld
     , postTrezorWallet
@@ -219,13 +219,12 @@ import Cardano.Wallet.Api.Types
     , ApiPutAddressesData (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsPayments
-    , ApiSerialisedTransaction (..)
-    , ApiSerialisedTransactionParts (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPostDataFromAccountPubX (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
+    , ApiSignTransactionPostData (..)
     , ApiSignedTransaction
     , ApiSlotId (..)
     , ApiSlotReference (..)
@@ -260,7 +259,6 @@ import Cardano.Wallet.Api.Types
     , KeyFormat (..)
     , KnownDiscovery (..)
     , MinWithdrawal (..)
-    , PostSignTransactionData (..)
     , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
     , VerificationKeyHashing (..)
@@ -461,8 +459,6 @@ import Data.Aeson
     ( (.=) )
 import Data.Bifunctor
     ( first )
-import Data.ByteArray.Encoding
-    ( Base (Base64), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -1783,7 +1779,7 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
                                     Transactions
 -------------------------------------------------------------------------------}
 
-postSignTransaction
+signTransaction
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
         , IsOwned s k
@@ -1791,13 +1787,12 @@ postSignTransaction
         )
     => ctx
     -> ApiT WalletId
-    -> PostSignTransactionData
+    -> ApiSignTransactionPostData
     -> Handler ApiSignedTransaction
-postSignTransaction ctx (ApiT wid) body = do
+signTransaction ctx (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
-    let txBody = case body ^. #transaction of
-                ApiSerialisedTransaction (ApiBytesT (SerialisedTx bytes)) -> bytes -- TODO: decode tx
-                ApiSerialisedTransactionParts (ApiSerialisedTransactionParts' (ApiBytesT bytes) _wits) -> bytes
+    -- TODO: decode tx
+    let txBody = body ^. #transaction . #getApiBytesT . #payload
 
     -- (_, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
     let stubRwdAcct = first getRawKey
@@ -1807,7 +1802,7 @@ postSignTransaction ctx (ApiT wid) body = do
 
     -- fullTx <- liftIO . W.joinSerialisedTxParts @_ @k ctx tx
     pure $ Api.ApiSignedTransaction
-        { payload = mempty -- TODO: join parts
+        { transaction = mempty -- TODO: join parts
         , body = ApiBytesT txBody
         , witnesses = []
         }
@@ -2005,7 +2000,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
             W.assignChangeAddresses genChange sel s
             & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
 
-    (apiSelection, fee, blob ) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         let getFee = const (selectionDelta TokenBundle.getCoin)
         (sel, sel', fee) <- case (body ^. #payments) of
@@ -2033,21 +2028,17 @@ constructTransaction ctx genChange (ApiT wid) body = do
             Just (ApiPaymentAll _) -> do
                 liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-909"
 
-        blob <- liftHandler
+        tx <- liftHandler
             $ W.constructTransaction @_ @s @k @n wrk wid txCtx sel
 
-        pure (mkApiCoinSelection [] Nothing md sel', fee, blob)
-
-    pure $ mkApiConstructTransaction blob apiSelection fee
+        pure $ ApiConstructTransaction
+            { transaction = ApiBytesT tx
+            , coinSelection = mkApiCoinSelection [] Nothing md sel'
+            , fee = Quantity $ fromIntegral fee
+            }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
-    mkApiConstructTransaction blob apiSelection fee = ApiConstructTransaction
-        { serializedTransaction =
-                ApiSerialisedTransaction (ApiBytesT $ convertToBase Base64 blob)
-        , coinSelection = apiSelection
-        , fee = Quantity $ fromIntegral fee
-        }
 
 joinStakePool
     :: forall ctx s n k.

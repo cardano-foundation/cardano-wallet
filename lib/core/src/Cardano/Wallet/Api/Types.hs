@@ -87,11 +87,10 @@ module Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , SettingsPutData (..)
     , WalletPutPassphraseData (..)
-    , PostSignTransactionData (..)
+    , ApiSignTransactionPostData (..)
     , PostTransactionOldData (..)
     , PostTransactionFeeOldData (..)
     , ApiSerialisedTransaction (..)
-    , ApiSerialisedTransactionParts (..)
     , ApiSignedTransaction (..)
     , ApiTransaction (..)
     , ApiWithdrawalPostData (..)
@@ -847,7 +846,7 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
     } deriving (Eq, Generic, Show)
 
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
-    { serializedTransaction :: !ApiSerialisedTransaction
+    { transaction :: !(ApiBytesT 'Base64 SerialisedTx)
     , coinSelection :: !(ApiCoinSelection n)
     , fee :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
@@ -907,8 +906,8 @@ data ApiValidityBound
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data PostSignTransactionData = PostSignTransactionData
-    { transaction :: !ApiSerialisedTransaction
+data ApiSignTransactionPostData = ApiSignTransactionPostData
+    { transaction :: !(ApiBytesT 'Base64 SerialisedTx)
     , passphrase :: !(ApiT (Passphrase "lenient"))
     } deriving (Eq, Generic, Show)
 
@@ -931,21 +930,16 @@ data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOl
 
 type ApiBase64 = ApiBytesT 'Base64 ByteString
 
-data ApiSerialisedTransaction
-    = ApiSerialisedTransaction (ApiBytesT 'Base64 SerialisedTx)
-    | ApiSerialisedTransactionParts ApiSerialisedTransactionParts
-    deriving (Eq, Generic, Show, NFData)
-
-data ApiSerialisedTransactionParts = ApiSerialisedTransactionParts'
-    { body :: ApiBase64
-    , witnesses :: [ApiBase64]
-    } deriving (Eq, Generic, Show, NFData)
+newtype ApiSerialisedTransaction = ApiSerialisedTransaction
+    { transaction :: ApiBytesT 'Base64 SerialisedTx
+    } deriving stock (Eq, Generic, Show)
+    deriving newtype NFData
 
 data ApiSignedTransaction = ApiSignedTransaction
-    { payload :: ApiBase64
+    { transaction :: ApiBytesT 'Base64 SerialisedTx
     , body :: ApiBase64
     , witnesses :: [ApiBase64]
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, NFData)
 
 data ApiFee = ApiFee
     { estimatedMin :: !(Quantity "lovelace" Natural)
@@ -2490,32 +2484,19 @@ instance (HasBase base, ByteArrayAccess bs) => ToJSON (ApiBytesT base bs) where
     toJSON = String . toText @(ApiBytesT base bs)
 
 instance FromJSON ApiSerialisedTransaction where
-    parseJSON v = (ApiSerialisedTransaction <$> parseJSON v)
-        <|> (ApiSerialisedTransactionParts <$> parseJSON v)
+    parseJSON = genericParseJSON defaultRecordTypeOptions
 
 instance ToJSON ApiSerialisedTransaction where
-    toJSON (ApiSerialisedTransaction tx) = toJSON tx
-    toJSON (ApiSerialisedTransactionParts txParts) = toJSON txParts
-
-instance FromJSON ApiSerialisedTransactionParts where
-    parseJSON = withObject "ApiSerialisedTransactionParts" $ \o ->
-        ApiSerialisedTransactionParts'
-            <$> (o .: "body" >>= parseJSON)
-            <*> (o .:? "witnesses" .!= [] >>= mapM parseJSON)
-instance ToJSON ApiSerialisedTransactionParts where
-    toJSON (ApiSerialisedTransactionParts' b ws) = object
-        [ "body" .= b
-        , "witnesses" .= ws
-        ]
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiSignedTransaction where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiSignedTransaction where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON PostSignTransactionData where
+instance FromJSON ApiSignTransactionPostData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON PostSignTransactionData where
+instance ToJSON ApiSignTransactionPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress t => FromJSON (PostTransactionOldData t) where
@@ -3051,15 +3032,6 @@ instance (HasBase b, ByteArray bs) => FromText (ApiBytesT b bs) where
 instance (HasBase b, ByteArrayAccess bs) => ToText (ApiBytesT b bs) where
     toText = toTextBytes (baseFor @b) . getApiBytesT
 
--- instance ByteArray bs => FromText (ApiBytesT Base16 bs) where
---     fromText = fmap ApiBytesT . fromTextBytes Base16
--- instance ByteArrayAccess bs => ToText (ApiBytesT Base16 bs) where
---     toText = toTextBytes Base16 . getApiBytesT
--- instance ByteArray bs => FromText (ApiBytesT Base64 bs) where
---     fromText = fmap ApiBytesT . fromTextBytes Base64
--- instance ByteArrayAccess bs => ToText (ApiBytesT Base64 bs) where
---     toText = toTextBytes Base64 . getApiBytesT
-
 class Typeable a => HasBase a where
     baseFor :: Base
 instance HasBase 'Base16 where
@@ -3139,7 +3111,7 @@ instance ToText a => ToHttpApiData (ApiT a) where
     toUrlPiece = toText . getApiT
 
 instance MimeRender OctetStream ApiSignedTransaction where
-   mimeRender ct = mimeRender ct . view #payload
+   mimeRender ct = mimeRender ct . view #transaction
 
 instance FromHttpApiData ApiTxId where
     parseUrlPiece txt = case fromText txt of

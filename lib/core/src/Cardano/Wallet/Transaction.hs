@@ -59,6 +59,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
+    , SerialisedTx (..)
     , TokenBundleSizeAssessor
     , Tx (..)
     , TxConstraints
@@ -112,7 +113,7 @@ data TransactionLayer k = TransactionLayer
         -> SelectionResult TxOut
             -- A balanced coin selection where all change addresses have been
             -- assigned.
-        -> Either ErrMkTx ByteString
+        -> Either ErrMkTx SerialisedTx
         -- ^ Construct a standard unsigned transaction
         --
         -- " Standard " here refers to the fact that we do not deal with redemption,
