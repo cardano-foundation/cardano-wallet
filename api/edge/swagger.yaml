@@ -1228,7 +1228,7 @@ x-transactionResolvedWithdrawals: &transactionResolvedWithdrawals
       derivation_path: *derivationPath
       amount: *amount
 
-x-serializedTransaction: &serializedTransaction
+x-serialisedTransaction: &serialisedTransaction
   description: CBOR transaction data, base64-encoded.
   type: string
   format: base64
@@ -1238,18 +1238,28 @@ x-signedTransactionBlob: &signedTransactionBlob
   type: string
   format: binary
 
+x-transactionBodyBlob: &transactionBodyBlob
+  description: CBOR-encoded transaction body
+  type: string
+  format: binary
+
 x-transactionStatus: &transactionStatus
   description: |
     Current transaction status.
 
       ```
-             *---------*          *-----------*
-             |         |---------->  EXPIRED  |
-             |         |  (ttl)   *-----------*
-      -------> PENDING |
-             |         <----------------*
-             |         |                |
-             *---------*            (rollback)
+           *-----------*
+      ---> |  PENDING  |----------------*
+           *-----------*                |
+                 |                      |
+                 V                      V
+           *-----------*          *-----------*
+           |           |---------->  EXPIRED  |
+           |           |  (ttl)   *-----------*
+           | SUBMITTED |
+           |           <----------------*
+           |           |                |
+           *-----------*           (rollback)
                   |                     |
              (in ledger)          *-----------*
                   |               |           |
@@ -1260,6 +1270,7 @@ x-transactionStatus: &transactionStatus
   type: string
   enum:
     - pending
+    - submitted
     - in_ledger
     - expired
 
@@ -1945,20 +1956,21 @@ components:
         id: *transactionId
 
     ApiSerialisedTransaction: &ApiSerialisedTransaction
-      <<: *serializedTransaction
       description: |
-        An transaction can be posted fully encoded, or separated into
-        a body and witness set, each of these being individually
-        encoded.
+        An encoded transaction.
+      required:
+        - transaction
+      properties:
+        transaction: *serialisedTransaction
 
     ApiConstructTransaction: &ApiConstructTransaction
       type: object
       required:
-        - serialized_transaction
+        - transaction
         - coin_selection
         - fee
       properties:
-        serialized_transaction: *ApiSerialisedTransaction
+        transaction: *serialisedTransaction
         coin_selection: *ApiCoinSelection
         fee: *amount
 
@@ -2001,6 +2013,30 @@ components:
         mint: *transactionMint
         status: *transactionStatus
         metadata: *transactionMetadata
+
+    x-txBody: &txBody
+      oneOf:
+        - <<: *serialisedTransaction
+          title: Serialized transaction body
+
+    x-txWits: &txWitnesses
+      type: array
+      items: *serialisedTransaction
+      title: Serialized transaction witnesses
+
+    ApiSignedTransaction: &ApiSignedTransaction
+      description: |
+        The result of signing a transaction. Both the encoded
+        transaction, and individually encoded body and witness set are
+        included in the response.
+      type: object
+      required:
+        - transaction
+        - body
+      properties:
+        transaction: *serialisedTransaction
+        body: *txBody
+        witnesses: *txWitnesses
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
@@ -2615,6 +2651,18 @@ components:
           <<: *walletPassphrase
           description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
 
+    ApiSignTransactionPostData: &ApiSignTransactionPostData
+      type: object
+      required:
+        - passphrase
+        - transaction
+      properties:
+        passphrase:
+          <<: *lenientPassphrase
+          description: The wallet's master passphrase.
+        transaction: *serialisedTransaction
+
+    # ADP-908 Deprecated
     ApiPostTransactionDataByron: &ApiPostTransactionDataByron
       type: object
       required:
@@ -2626,6 +2674,7 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
 
+    # ADP-908 Deprecated
     ApiPostTransactionData: &ApiPostTransactionData
       type: object
       required:
@@ -2640,6 +2689,7 @@ components:
         metadata: *transactionMetadata
         time_to_live: *transactionTTL
 
+    # ADP-908 Deprecated
     ApiPostRedemptionData: &ApiPostRedemptionData
       type: object
       required:
@@ -2653,6 +2703,7 @@ components:
         payments: *transactionOutputs
         withdrawal: *transactionRedemptionRequest
 
+    # ADP-910 Deprecated
     ApiPostTransactionFeeDataByron: &ApiPostTransactionFeeDataByron
       type: object
       required:
@@ -2660,6 +2711,7 @@ components:
       properties:
         payments: *transactionOutputs
 
+    # ADP-910 Deprecated
     ApiPostTransactionFeeData: &ApiPostTransactionFeeData
       type: object
       required:
@@ -2670,6 +2722,7 @@ components:
         metadata: *transactionMetadata
         time_to_live: *transactionTTL
 
+    # ADP-910 Deprecated
     ApiPostRedemptionFeeData: &ApiPostRedemptionFeeData
       type: object
       required:
@@ -4086,14 +4139,9 @@ x-responsesGetTransaction: &responsesGetTransaction
       application/json:
         schema: *ApiTransaction
 
+# ADP-908 Deprecated
 x-responsesPostTransaction: &responsesPostTransaction
-  400:
-    description: Bad Request
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errBadRequest
+  <<: *responsesErr400
   403:
     description: Forbidden
     content:
@@ -4145,6 +4193,36 @@ x-responsesConstructTransaction: &responsesConstructTransaction
     content:
       application/json:
         schema: *ApiConstructTransaction
+
+x-responsesSignTransaction: &responsesSignTransaction
+  <<: *responsesErr400
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errNoRootKey
+            - <<: *errWrongEncryptionPassphrase
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiSignedTransaction
+
+x-responsesSubmitTransaction: &responsesSubmitTransaction
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiTxId
 
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
@@ -4696,6 +4774,8 @@ paths:
       operationId: postTransactionFee
       tags: ["Transactions"]
       summary: Estimate Fee
+      # ADP-908 - Deprecated soon
+      deprecated: false
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
@@ -4719,11 +4799,36 @@ paths:
                   title: "redemption"
       responses: *responsesPostTransactionFee
 
+  /wallets/{walletId}/transactions-sign:
+    post:
+      operationId: signTransaction
+      tags: ["Transactions New"]
+      summary: Sign
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Sign a transaction body and return the full transaction. That
+        is, create witnesses using the keys available to this wallet
+        and attach them to the body.
+
+        If a full transaction is passed in the request, then new
+        witnesses will be added to the existing witness set.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSignTransactionPostData
+      responses: *responsesSignTransaction
+
   /wallets/{walletId}/transactions:
     post:
       operationId: postTransaction
       tags: ["Transactions"]
       summary: Create
+      # ADP-908 - Deprecated soon
+      deprecated: false
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
@@ -4791,7 +4896,7 @@ paths:
 
   /wallets/{walletId}/transactions-construct:
     post:
-      operationId: postTransactionConstruct
+      operationId: constructTransaction
       tags: ["Transactions"]
       summary: Construct
       description: |
@@ -4941,8 +5046,9 @@ paths:
     get:
       operationId: getDelegationFee
       tags: ["Stake Pools"]
-
       summary: Estimate Fee
+      # ADP-908 - Deprecated soon
+      deprecated: false
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
@@ -5332,11 +5438,54 @@ paths:
           - *parametersAddressId
         responses: *responsesPutRandomAddress
 
+  /byron-wallets/{walletId}/transactions-construct:
+    post:
+      operationId: constructByronTransaction
+      tags: ["Byron Transactions New"]
+      summary: Construct
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Create a transaction to be signed from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiConstructTransactionData
+      responses: *responsesConstructTransaction
+
+  /byron-wallets/{walletId}/transactions-sign:
+    post:
+      operationId: signByronTransaction
+      tags: ["Byron Transactions New"]
+      summary: Sign
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Sign a transaction body and return the full transaction. That
+        is, create witnesses using the keys available to this wallet
+        and attach them to the body.
+
+        If a full transaction is passed in the request, then new
+        witnesses will be added to the existing witness set.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSignTransactionPostData
+      responses: *responsesSignTransaction
+
   /byron-wallets/{walletId}/payment-fees:
     post:
       operationId: postByronTransactionFee
       tags: ["Byron Transactions"]
       summary: Estimate Fee
+      # ADP-908 - Deprecated soon
+      deprecated: false
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
@@ -5540,14 +5689,16 @@ paths:
   /proxy/transactions:
     post:
       operationId: postExternalTransaction
-      tags: ["Proxy"]
+      tags: ["Transactions"]
       summary: Submit External Transaction
+      # ADP-908 - deprecated soon
+      deprecated: false
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
         Submits a transaction that was created and signed outside of cardano-wallet.
 
-        NOTE: Unlike the postTransaction endpoint, there are no
+        NOTE: Unlike the `submitTransaction` endpoint, there are no
         guarantees that a transaction accepted by this endpoint will
         actually be included in the chain. It's up to the caller to
         retry submission until the transaction is confirmed.
