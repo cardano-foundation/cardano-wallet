@@ -620,10 +620,10 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
                 (getRawKey $ deriveRewardAccount pwdP rootK, pwdP)
         selection' <- unsafeRunExceptT $
             W.assignChangeAddressesAndUpdateDb wl wid () selection
-        (_,_,_,txOld) <- unsafeRunExceptT $ W.signTransaction
+        (_,_,_,txOld) <- unsafeRunExceptT $ W.buildAndSignTransaction
             @_ @_ wl wid credentials (coerce pwd) ctx selection'
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
-        (_,_,_,txNew) <- unsafeRunExceptT $ W.signTransaction
+        (_,_,_,txNew) <- unsafeRunExceptT $ W.buildAndSignTransaction
             @_ @_ wl wid credentials newPwd ctx selection'
         txOld `shouldBe` txNew
   where

@@ -54,8 +54,8 @@ import Cardano.Wallet.Api
     , SharedWalletKeys
     , SharedWallets
     , ShelleyMigrations
+    , ShelleyTransactions
     , StakePools
-    , Transactions
     , WalletKeys
     , Wallets
     )
@@ -100,8 +100,8 @@ import Cardano.Wallet.Api.Server
     , postRandomWallet
     , postRandomWalletFromXPrv
     , postSharedWallet
-    , postTransaction
-    , postTransactionFee
+    , postTransactionFeeOld
+    , postTransactionOld
     , postTrezorWallet
     , postWallet
     , putByronWalletPassphrase
@@ -115,6 +115,7 @@ import Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
+    , signTransaction
     , withLegacyLayer
     , withLegacyLayer'
     )
@@ -230,7 +231,7 @@ server byron icarus shelley multisig spl ntp =
     :<|> assets
     :<|> addresses
     :<|> coinSelections
-    :<|> transactions
+    :<|> shelleyTransactions
     :<|> shelleyMigrations
     :<|> stakePools
     :<|> byronWallets
@@ -298,14 +299,15 @@ server byron icarus shelley multisig spl ntp =
                     selectCoinsForQuit shelley wid
         )
 
-    transactions :: Server (Transactions n)
-    transactions =
-        postTransaction shelley (delegationAddress @n)
+    shelleyTransactions :: Server (ShelleyTransactions n)
+    shelleyTransactions =
+             constructTransaction shelley (delegationAddress @n)
+        :<|> signTransaction shelley
         :<|> listTransactions shelley
-        :<|> postTransactionFee shelley
-        :<|> deleteTransaction shelley
         :<|> getTransaction shelley
-        :<|> constructTransaction shelley (delegationAddress @n)
+        :<|> deleteTransaction shelley
+        :<|> postTransactionOld shelley (delegationAddress @n)
+        :<|> postTransactionFeeOld shelley
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
@@ -436,34 +438,48 @@ server byron icarus shelley multisig spl ntp =
     byronTransactions =
              (\wid tx -> withLegacyLayer wid
                  (byron , do
-                    let pwd = coerce (getApiT $ tx ^. #passphrase)
+                    let pwd = error "fixme: unimplemented"
                     genChange <- rndStateChange byron wid pwd
-                    postTransaction byron genChange wid tx
-
+                    constructTransaction byron genChange wid tx
                  )
                  (icarus, do
                     let genChange k _ = paymentAddress @n k
-                    postTransaction icarus genChange wid tx
+                    constructTransaction icarus genChange wid tx
                  )
              )
-        :<|>
-             (\wid r0 r1 s -> withLegacyLayer wid
+        :<|> (\wid tx ->
+                 withLegacyLayer wid
+                 (byron, signTransaction byron wid tx)
+                 (icarus, signTransaction icarus wid tx)
+             )
+        :<|> (\wid r0 r1 s -> withLegacyLayer wid
                 (byron , listTransactions byron wid Nothing r0 r1 s)
                 (icarus, listTransactions icarus wid Nothing r0 r1 s)
-             )
-        :<|>
-            (\wid tx -> withLegacyLayer wid
-                (byron , postTransactionFee byron wid tx)
-                (icarus, postTransactionFee icarus wid tx)
-            )
-        :<|> (\wid txid -> withLegacyLayer wid
-                (byron , deleteTransaction byron wid txid)
-                (icarus, deleteTransaction icarus wid txid)
              )
         :<|> (\wid txid -> withLegacyLayer wid
                 (byron , getTransaction byron wid txid)
                 (icarus, getTransaction icarus wid txid)
              )
+        :<|> (\wid txid -> withLegacyLayer wid
+                (byron , deleteTransaction byron wid txid)
+                (icarus, deleteTransaction icarus wid txid)
+             )
+        :<|> (\wid tx -> withLegacyLayer wid
+                 (byron , do
+                    let pwd = coerce (getApiT $ tx ^. #passphrase)
+                    genChange <- rndStateChange byron wid pwd
+                    postTransactionOld byron genChange wid tx
+
+                 )
+                 (icarus, do
+                    let genChange k _ = paymentAddress @n k
+                    postTransactionOld icarus genChange wid tx
+                 )
+             )
+       :<|> (\wid tx -> withLegacyLayer wid
+                (byron , postTransactionFeeOld byron wid tx)
+                (icarus, postTransactionFeeOld icarus wid tx)
+            )
 
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =

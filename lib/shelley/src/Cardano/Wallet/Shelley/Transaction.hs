@@ -97,6 +97,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
+    , SerialisedTx (..)
     , TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
     , Tx (..)
@@ -264,10 +265,12 @@ constructUnsignedTx
     -> Coin
     -- ^ Explicit fee amount
     -> ShelleyBasedEra era
-    -> Either ErrMkTx ByteString
-constructUnsignedTx networkId (md, certs) ttl rewardAcnt wdrl cs fees era = do
-    let wdrls = mkWithdrawals networkId rewardAcnt wdrl
-    serialiseToCBOR <$> mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
+    -> Either ErrMkTx SerialisedTx
+constructUnsignedTx networkId (md, certs) ttl rewardAcnt wdrl cs fee era =
+    SerialisedTx . serialiseToCBOR <$> tx
+  where
+    tx = mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fee)
+    wdrls = mkWithdrawals networkId rewardAcnt wdrl
 
 mkTx
     :: forall k era.
