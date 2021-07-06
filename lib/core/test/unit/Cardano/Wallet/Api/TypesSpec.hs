@@ -113,7 +113,6 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
-    , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
@@ -202,6 +201,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     , Role (..)
     , WalletKey (..)
+    , fromHex
     , passphraseMaxLength
     , passphraseMinLength
     )
@@ -268,6 +268,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , SealedTx
     , SerialisedTx (..)
     , SerialisedTxParts (..)
     , TxIn (..)
@@ -275,6 +276,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxScriptValidity (..)
     , TxStatus (..)
+    , unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxScriptValidity, shrinkTxScriptValidity )
@@ -388,8 +390,6 @@ import Test.QuickCheck
     , elements
     , frequency
     , liftArbitrary
-    , liftShrink
-    , liftShrink2
     , listOf
     , oneof
     , property
@@ -1066,13 +1066,6 @@ spec = parallel $ do
                     , timeToLive = timeToLive (x :: PostTransactionFeeOldData ('Testnet 0))
                     }
             in
-                x' === x .&&. show x' === show x
-        it "ApiSerialisedTransaction" $ property $ \x ->
-            let
-                x' = ApiSerialisedTransaction
-                    { transaction = transaction (x :: ApiSerialisedTransaction)
-                    }
-             in
                 x' === x .&&. show x' === show x
 
         it "ApiTransaction" $ property $ \x ->
@@ -2111,44 +2104,73 @@ instance Arbitrary (PostTransactionFeeOldData n) where
         <*> arbitrary
         <*> arbitrary
 
-genSmallBlob :: Gen ByteString
-genSmallBlob = BS.pack <$> Test.QuickCheck.scale (min 32) (listOf arbitrary)
+selectFromPreparedBinaries :: Gen ByteString
+selectFromPreparedBinaries = elements $ toByteString <$>
+    [ "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
+      \a864808018282583901bdd74c3bd086d38939876fcbd56e91dd56fccca9be70b424390443\
+      \67af33d417814e6fa7953195797d73f9b5fb511854b4b0d8b2023959951a002dc6c082583\
+      \9011a2f2f103b895dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcb\
+      \d4d43652bf05c40c346fa794871423b65052d7614c1b0000001748472188021a0001ffb80\
+      \3198d11a1008182582043ea6d45e9abe6e30faff4a9b675abdc49534a6eda9ba96f9368d1\
+      \2d879dfc6758409b898ca143e1b245c9c745c690b8137b724fc63f8a3b852bcd2234cee4e\
+      \68c25cd333e845a224b9cb4600f271d545e35a41d17a16c046aea66ed34a536559f0df6"
+    , "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
+      \a86481301828258390118b8c2b229e68b21c54c68d91944fead4c043e8348368b1ac551c9\
+      \00c93e3edd82798a526ccf85b2a42e04037349ffe185e26a16356dfce61a002dc6c082583\
+      \90110a9b4666ba80e4878491d1ac20465c9893a8df5581dc705770626203d4d23fe6a7acd\
+      \da5a1b41f56100f02bfa270a3c560c4e55cf8312331b0000001748472188021a0001ffb80\
+      \3198d4fa10081825820fc2f860286fc72c1c1e29f1c0a23e9e11771f60e1d26799f71846c\
+      \89f5aa91315840e4dec970d40b749d9bc77996c2f102bd056b5f9ba3fd13745f410d8fc96\
+      \e0aaca4a4b4e1d52d6ce1d92b0d79412e542f2bebfa29f991c09c131b1dfeb2832300f6"
+    , "83a40081825820c03484e3bf981bec7cc5cf4da1a3d9fe4eab83b3f5f7574752a2b8a9b24\
+      \09b2f0001828258390154fe81cb1633e9f2f4446b78f67f00ac19abc4351be6548719118b\
+      \f8c93e3edd82798a526ccf85b2a42e04037349ffe185e26a16356dfce61a000f424082583\
+      \90184f41fa42d8ab05639aeb780ff4b3fe290f11d3439b04303fdfa9488af33d417814e6f\
+      \a7953195797d73f9b5fb511854b4b0d8b2023959951a001c84c8021a0001ffb803198d88a\
+      \10081825820931c2a7343df63fb785aec4b2de688b8290cf634f638f647f22c2e68256919\
+      \6a5840c6e88b52c406131a7b004b76fe24f611b1f5d19964ee2ce3144fff391a725be7a5a\
+      \b3f27389eb75dbe354026d5822f7b71f9deb84cff0126e809bd5690409f00f6"
+    , "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
+      \a8648000184825839014067fb21919c12519843c07d09b4c548e34f7e7c473b352f2751bd\
+      \a42387e650558a9026a0b9623adc92aa411f8fa598ee901db296a51bf51a000f424082583\
+      \90132a432e6d711312ba6c390725ee81cd525c9b5ec5e8bf99772062d6d2387e650558a90\
+      \26a0b9623adc92aa411f8fa598ee901db296a51bf51a000f4240825839011a2f2f103b895\
+      \dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcbd4d43652bf05c40c\
+      \346fa794871423b65052d7614c1b0000000ba42b175482583901c59701fee28ad31559870\
+      \ecd6ea92b143b1ce1b68ccb62f8e8437b3089fc61d21ddfcbd4d43652bf05c40c346fa794\
+      \871423b65052d7614c1b0000000ba42b1754021a000234d803198d16a10081825820c15b9\
+      \90344122b12494a5edd1020d9eb32e34b0f82691f8e31645ddab712ff2b58408e6a29053f\
+      \9f7f04f3de256cc4b30f24b2d5ffe4927c86e9d6310b224afb94f4e5b8eea6573e6fa1404\
+      \07153c12fdf8cf619edff0c7c27aa91ae3acb56041a00f6"
+    ]
+  where
+    toByteString txt =
+        let (Right bs) = fromHex $ T.encodeUtf8 txt
+        in bs
 
-shrinkBlob :: ByteString -> [ByteString]
-shrinkBlob bytes = BS.pack <$> shrink (BS.unpack bytes)
+genWits :: Gen ByteString
+genWits = BS.pack <$> Test.QuickCheck.scale (min 32) (listOf arbitrary)
 
 instance Arbitrary (ApiBytesT base ByteString) where
-    arbitrary = ApiBytesT <$> genSmallBlob
-    shrink (ApiBytesT bs) = ApiBytesT <$> shrinkBlob bs
+    arbitrary = ApiBytesT <$> selectFromPreparedBinaries
 
 instance Arbitrary (ApiBytesT base SerialisedTx) where
     arbitrary = ApiBytesT <$> arbitrary
-    shrink (ApiBytesT a) = ApiBytesT <$> shrink a
 
 instance Arbitrary ApiSignedTransaction where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiSerialisedTransaction where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+instance Arbitrary SealedTx where
+    arbitrary = unsafeSealedTxFromBytes <$> selectFromPreparedBinaries
 
 instance Arbitrary SerialisedTx where
-    arbitrary = SerialisedTx <$> genSmallBlob
-    shrink (SerialisedTx bs) = SerialisedTx <$> shrinkBlob bs
+    arbitrary = SerialisedTx <$> selectFromPreparedBinaries
 
 instance Arbitrary SerialisedTxParts where
     arbitrary = SerialisedTxParts
-        <$> genSmallBlob
-        <*> genSmallBlob
-        <*> listOf genSmallBlob
-    shrink (SerialisedTxParts tx bs ws) =
-        [ SerialisedTxParts tx' bs' ws'
-        | ((tx', bs'), ws') <- liftShrink2
-            (liftShrink2 shrinkBlob shrinkBlob)
-            (liftShrink shrinkBlob)
-            ((tx, bs), ws)
-        ]
+        <$> selectFromPreparedBinaries
+        <*> listOf genWits
 
 instance Arbitrary TxMetadata where
     arbitrary = genNestedTxMetadata
@@ -2558,9 +2580,6 @@ instance ToSchema ApiSignTransactionPostData where
 instance ToSchema ApiSignedTransaction where
     -- fixme: tests don't seem to like allOf
     declareNamedSchema _ = declareSchemaForDefinition "ApiSignedTransaction"
-
-instance ToSchema ApiSerialisedTransaction where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTransaction"
 
 instance ToSchema (ApiBytesT 'Base64 SerialisedTx) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTx"

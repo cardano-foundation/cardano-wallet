@@ -854,8 +854,7 @@ instance ToText DerivationIndex where
 -------------------------------------------------------------------------------}
 
 -- | Records the complete set of parameters currently in use by the network
---   that are relevant to the wallet.
---
+-- that are relevant to the wallet.
 data NetworkParameters = NetworkParameters
     { genesisParameters :: GenesisParameters
        -- ^ See 'GenesisParameters'.
@@ -875,7 +874,6 @@ instance Buildable NetworkParameters where
 -- At present, these values cannot be changed through the update system.
 --
 -- They can only be changed through a soft or hard fork.
---
 data GenesisParameters = GenesisParameters
     { getGenesisBlockHash :: Hash "Genesis"
         -- ^ Hash of the very first block
@@ -917,7 +915,7 @@ data SlottingParameters = SlottingParameters
 instance NFData SlottingParameters
 
 -- | In Byron, this stability window is equal to 2k slots, where _k_ is the
---  'getSecurityParameter'
+-- 'getSecurityParameter'
 stabilityWindowByron :: SlottingParameters -> Quantity "block" Word64
 stabilityWindowByron sp = Quantity (2 * k)
   where

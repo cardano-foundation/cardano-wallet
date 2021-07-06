@@ -34,7 +34,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , ShelleyEra
     , AllegraEra
     , CardanoBlock
-    , NetworkId
+    , NetworkId(..)
 
     , NodeToClientVersionData
     , StandardCrypto
@@ -42,6 +42,9 @@ module Cardano.Wallet.Shelley.Compatibility
 
       -- * Protocol Parameters
     , nodeToClientVersions
+
+      -- * Node Connection
+    , localNodeConnectInfo
 
       -- * Genesis
     , emptyGenesis
@@ -57,7 +60,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , toMaryTxOut
     , toAlonzoTxOut
     , toCardanoLovelace
-    , sealShelleyTx
     , toStakeKeyRegCert
     , toStakeKeyDeregCert
     , toStakePoolDlgCert
@@ -71,6 +73,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromCardanoValue
     , rewardAccountFromAddress
     , fromShelleyPParams
+    , fromShelleyTxId
     , fromAlonzoPParams
 
       -- ** Assessing sizes of token bundles
@@ -106,6 +109,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromMaryTx
     , fromAlonzoTx
     , fromAlonzoBlock
+    , fromCardanoTx
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -129,17 +133,22 @@ import Cardano.Api
     , AnyCardanoEra (..)
     , AsType (..)
     , CardanoEra (..)
+    , CardanoMode
+    , ConsensusModeParams (CardanoModeParams)
+    , EraInMode (..)
+    , LocalNodeConnectInfo (LocalNodeConnectInfo)
     , MaryEra
     , NetworkId
     , ShelleyEra
+    , TxInMode (..)
     , deserialiseFromRawBytes
     )
 import Cardano.Api.Shelley
     ( ShelleyGenesis (..), fromShelleyMetadata )
-import Cardano.Binary
-    ( fromCBOR, serialize' )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashToBytes )
+import Cardano.Launcher.Node
+    ( CardanoNodeConn, nodeSocketFile )
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe, urlToText )
 import Cardano.Ledger.Era
@@ -167,7 +176,7 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor, unsafeIntToWord, unsafeMkPercentage )
+    ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
     ( internalError, tina )
 import Codec.Binary.Bech32
@@ -227,8 +236,6 @@ import Numeric.Natural
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , CardanoEras
-    , CardanoGenTx
-    , GenTx (..)
     , HardForkBlock (..)
     , StandardAlonzo
     , StandardShelley
@@ -257,7 +264,6 @@ import Ouroboros.Network.Point
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
-    ( Tx (ByronTx) )
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Binary as Binary
 import qualified Cardano.Byron.Codec.Cbor as CBOR
@@ -293,7 +299,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
-import qualified Codec.CBOR.Write as CBOR
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -689,6 +694,19 @@ slottingParametersFromGenesis g =
             Quantity . fromIntegral . sgSecurityParam $ g
         }
 
+-- note: upcasts Word32 -> Word64
+getCardanoEpochSlots :: W.SlottingParameters -> Cardano.EpochSlots
+getCardanoEpochSlots =
+    Cardano.EpochSlots . fromIntegral . W.unEpochLength . W.getEpochLength
+
+localNodeConnectInfo
+    :: W.SlottingParameters
+    -> NetworkId
+    -> CardanoNodeConn
+    -> LocalNodeConnectInfo CardanoMode
+localNodeConnectInfo sp net = LocalNodeConnectInfo params net . nodeSocketFile
+    where params = CardanoModeParams (getCardanoEpochSlots sp)
+
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
     :: forall e crypto. (Era e, e ~ SL.ShelleyEra crypto)
@@ -836,6 +854,31 @@ toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
   where
     safeCast :: Word64 -> Integer
     safeCast = fromIntegral
+
+fromCardanoTx :: Cardano.Tx era -> W.Tx
+fromCardanoTx = \case
+    Cardano.ShelleyTx era tx -> case era of
+        Cardano.ShelleyBasedEraShelley -> getTx $ fromShelleyTx tx
+        Cardano.ShelleyBasedEraAllegra -> getTx $ fromAllegraTx tx
+        Cardano.ShelleyBasedEraMary    -> getTx $ fromMaryTx tx
+        Cardano.ShelleyBasedEraAlonzo  -> getTx $ fromAlonzoTx tx
+    Cardano.ByronTx tx                 -> fromTxAux tx
+  where
+    getTx (txwal, _, _) = txwal
+
+{-
+fromCardanoTx :: Era era => Cardano.Tx era -> W.Tx
+fromCardanoTx (Cardano.Tx tx@(Cardano.TxBody body) keyWits) = W.Tx
+    { txId = W.Hash $ Cardano.serialiseToRawBytes $ Cardano.getTxId tx
+    , fee = case Cardano.txFee body of
+            Cardano.TxFeeImplicit _ -> Nothing
+            Cardano.TxFeeExplicit _ f -> Just $ coinFromLovelace f
+    , resolvedInputs = error "fixme"
+    , outputs = error "fixme"
+    , withdrawals = error "fixme"
+    , metadata = error "fixme"
+    }
+-}
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
@@ -1034,13 +1077,9 @@ fromCardanoValue :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
 fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
   where
     extract value =
-        ( mkCoin $ Cardano.selectLovelace value
+        ( coinFromLovelace $ Cardano.selectLovelace value
         , mkBundle $ Cardano.valueToList value
         )
-
-    -- Lovelace to coin. Quantities from ledger should always fit in Word64.
-    mkCoin :: Cardano.Lovelace -> W.Coin
-    mkCoin = W.Coin . unsafeIntToWord . unQuantity . Cardano.lovelaceToQuantity
 
     -- Do Integer to Natural conversion. Quantities from ledger TxOuts can
     -- never be negative (but unminted values could be negative).
@@ -1059,7 +1098,11 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
     mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
     mkTokenName = W.UnsafeTokenName . Cardano.serialiseToRawBytes
 
-    unQuantity (Cardano.Quantity q) = q
+
+-- | Lovelace to coin. Quantities from ledger should always fit in Word64.
+coinFromLovelace :: Cardano.Lovelace -> W.Coin
+coinFromLovelace = W.Coin . unsafeToWord64 . unq . Cardano.lovelaceToQuantity
+    where unq (Cardano.Quantity q) = q
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
@@ -1154,41 +1197,6 @@ fromUnitInterval x =
   where
     bomb = internalError $
         "fromUnitInterval: encountered invalid parameter value: "+||x||+""
-
--- | SealedTx are the result of rightfully constructed shelley transactions so, it
--- is relatively safe to unserialize them from CBOR.
-unsealShelleyTx
-    :: (HasCallStack, O.ShelleyBasedEra (era c))
-    => (GenTx (ShelleyBlock (era c)) -> CardanoGenTx c)
-    -> W.SealedTx
-    -> CardanoGenTx c
-unsealShelleyTx wrap = wrap
-    . unsafeDeserialiseCbor fromCBOR
-    . BL.fromStrict
-    . W.getSealedTx
-
-sealShelleyTx
-    :: forall era b c. (O.ShelleyBasedEra (Cardano.ShelleyLedgerEra era))
-    => (SL.Core.Tx (Cardano.ShelleyLedgerEra era) -> (W.Tx, b, c))
-    -> Cardano.Tx era
-    -> (W.Tx, W.SealedTx)
-sealShelleyTx fromTx (Cardano.ShelleyTx _era tx) =
-    let
-        -- The Cardano.Tx GADT won't allow the Shelley crypto type param escape,
-        -- so we convert directly to the concrete wallet Tx type:
-        (walletTx, _, _) = fromTx tx
-        sealed = serialize' $ O.mkShelleyTx tx
-    in
-        (walletTx, W.SealedTx sealed)
-
--- Needed to compile, but in principle should never be called.
-sealShelleyTx _ (Cardano.ByronTx txaux) =
-    let
-        tx = fromTxAux txaux
-        inps = fst <$> W.resolvedInputs tx
-        outs = W.outputs tx
-    in
-        (tx, W.SealedTx $ CBOR.toStrictByteString $ CBOR.encodeTx (inps, outs))
 
 toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
 toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash $ toShort h
@@ -1349,6 +1357,26 @@ rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr by
     refToAccount (SL.StakeRefBase cred) = Just $ fromStakeCredential cred
     refToAccount (SL.StakeRefPtr _) = Nothing
     refToAccount SL.StakeRefNull = Nothing
+
+
+-- | Converts 'SealedTx' to something that can be submitted with the
+-- 'Cardano.Api' local tx submission client.
+--
+-- Byron transactions are not supported.
+unsealShelleyTx
+    :: W.SealedTx
+    -> Maybe (TxInMode CardanoMode)
+unsealShelleyTx wtx = case W.cardanoTx wtx of
+    Cardano.InAnyCardanoEra ByronEra _tx -> Nothing
+    Cardano.InAnyCardanoEra ShelleyEra tx ->
+        Just $ TxInMode tx ShelleyEraInCardanoMode
+    Cardano.InAnyCardanoEra AllegraEra tx ->
+        Just $ TxInMode tx AllegraEraInCardanoMode
+    Cardano.InAnyCardanoEra MaryEra tx ->
+        Just $ TxInMode tx MaryEraInCardanoMode
+    Cardano.InAnyCardanoEra AlonzoEra tx ->
+        Just $ TxInMode tx AlonzoEraInCardanoMode
+
 
 {-------------------------------------------------------------------------------
                    Assessing sizes of token bundles

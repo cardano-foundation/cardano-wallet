@@ -157,6 +157,7 @@ import Cardano.Wallet
     , ErrSelectAssets (..)
     , ErrSignMetadataWith (..)
     , ErrSignPayment (..)
+    , ErrSignTx (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
@@ -165,6 +166,7 @@ import Cardano.Wallet
     , ErrWalletNotResponding (..)
     , ErrWithRootKey (..)
     , ErrWithdrawalNotWorth (..)
+    , ErrWitnessTx (..)
     , ErrWrongPassphrase (..)
     , FeeEstimation (..)
     , HasNetworkLayer
@@ -429,6 +431,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , getSerialisedTxParts
     , txOutCoin
     )
 import Cardano.Wallet.Registry
@@ -1807,20 +1810,19 @@ signTransaction
     -> Handler ApiSignedTransaction
 signTransaction ctx (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
-    -- TODO: decode tx
-    let txBody = body ^. #transaction . #getApiBytesT . #payload
+    let tx = body ^. #transaction . #getApiT
 
     -- (_, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
     let stubRwdAcct = first getRawKey
 
-    _tx <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
-        liftHandler $ W.signTransaction @_ @s @k wrk wid stubRwdAcct pwd txBody
+    signed <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
+        liftHandler $ W.signTransaction @_ @s @k wrk wid stubRwdAcct pwd tx
 
-    -- fullTx <- liftIO . W.joinSerialisedTxParts @_ @k ctx tx
+    let W.SerialisedTxParts txBody txWits = getSerialisedTxParts signed
     pure $ Api.ApiSignedTransaction
-        { transaction = mempty -- TODO: join parts
+        { transaction = ApiT signed
         , body = ApiBytesT txBody
-        , witnesses = []
+        , witnesses = ApiBytesT <$> txWits
         }
 
 postTransactionOld
@@ -2059,7 +2061,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                 sel <- liftHandler $
                     W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
                 sel' <- liftHandler
-                    $ W.selectAssetsNoOutputs @_ @s @k wrk wid w txCtx transform
+                    $ W.selectAssets @_ @s @k wrk w txCtx outs transform
                 pure (sel, sel', estMin)
             Just (ApiPaymentAll _) -> do
                 liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-909"
@@ -3410,6 +3412,39 @@ instance IsServerError ErrSignPayment where
             }
         ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
         ErrSignPaymentIncorrectTTL e -> toServerError e
+
+instance IsServerError ErrWitnessTx where
+    toServerError = \case
+        ErrWitnessTxSignTx e -> toServerError e
+        ErrWitnessTxNoSuchWallet e -> (toServerError e)
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
+            }
+        ErrWitnessTxWithRootKey e@ErrWithRootKeyNoRootKey{} -> (toServerError e)
+            { errHTTPCode = 403
+            , errReasonPhrase = errReasonPhrase err403
+            }
+        ErrWitnessTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
+        ErrWitnessTxIncorrectTTL e -> toServerError e
+
+instance IsServerError ErrSignTx where
+    toServerError = \case
+        ErrSignTxKeyNotFoundForAddress addr ->
+            apiError err500 KeyNotFoundForAddress $ mconcat
+                [ "That's embarrassing. I couldn't sign the given transaction: "
+                , "I haven't found the corresponding private key for a known "
+                , "input address I should keep track of: ", showT addr, ". "
+                , "Retrying may work, but something really went wrong..."
+                ]
+        ErrSignTxInvalidSerializedTx hint ->
+            apiError err500 CreatedInvalidTransaction hint
+        ErrSignTxInvalidEra ->
+            apiError err500 CreatedInvalidTransaction $ mconcat
+                [ "Whoops, it seems like I just experienced a hard-fork in the "
+                , "middle of other tasks. This is a pretty rare situation but "
+                , "as a result, I must throw away what I was doing. Please "
+                , "retry your request."
+                ]
 
 instance IsServerError ErrConstructTx where
     toServerError = \case

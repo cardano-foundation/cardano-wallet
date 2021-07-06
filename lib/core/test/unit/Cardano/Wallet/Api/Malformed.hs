@@ -1206,6 +1206,26 @@ instance Malformed (BodyParam (ApiSelectCoinsData ('Testnet pm))) where
               )
             ]
 
+validSealedTxHex :: Text
+validSealedTxHex =
+    "83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8\
+    \64808018282583901bdd74c3bd086d38939876fcbd56e91dd56fccca9be70b42439044367af\
+    \33d417814e6fa7953195797d73f9b5fb511854b4b0d8b2023959951a002dc6c0825839011a2\
+    \f2f103b895dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcbd4d43652\
+    \bf05c40c346fa794871423b65052d7614c1b0000001748472188021a0001ffb803198d11a10\
+    \08182582043ea6d45e9abe6e30faff4a9b675abdc49534a6eda9ba96f9368d12d879dfc6758\
+    \409b898ca143e1b245c9c745c690b8137b724fc63f8a3b852bcd2234cee4e68c25cd333e845\
+    \a224b9cb4600f271d545e35a41d17a16c046aea66ed34a536559f0df6"
+
+validSealedTxBase64 :: Text
+validSealedTxBase64 =
+    "g6QAgYJYIA6qM76HgJNcpafB5iii1UQCRG+WI2yo8XcOB/oiuoZIBgGCglg5AdN9aU0fOcvzGCg\
+    \hgiBMWfpU0WWumFKKz9sAkP12f4NlrhoLgiqgli26Yi8KwFM9VRJyKAyn/BQUGgAtxsCCWDkBGi\
+    \8vEDuJXb5ziKzJzBD5DcStpT9GyEHSrERjB4n8YdId38vU1DZSvwXEDDRvp5SHFCO2UFLXYUwbA\
+    \AAAF0hHIYgCGgAB/7gDGYztoQCBglggqSLojoFI8bublXjiZAcEroaZvdF7ucJu01iBNDwV7EhY\
+    \QHRvn8oF1g+dVzmns3AubULXu0ktw7hTSq5dOTh80XJZXOl2P6epfHn3R6g18136GHGnjgRg2E4\
+    \EpH0K5Jtx8An2"
+
 instance Malformed (BodyParam ApiSignTransactionPostData) where
     malformed = jsonValid ++ jsonInvalid
      where
@@ -1220,12 +1240,17 @@ instance Malformed (BodyParam ApiSignTransactionPostData) where
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ -- passphrase
               ( [aesonQQ|
-                { "transaction": "cafecafe"
+                { "transaction": #{validSealedTxHex}
+                }|]
+              , "Error in $.transaction: Parse error. Expecting Base64-encoded format."
+              )
+            , ( [aesonQQ|
+                { "transaction": #{validSealedTxBase64}
                 }|]
               , "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, key 'passphrase' not found"
               )
             , ( [aesonQQ|
-               { "transaction": "cafecafe",
+               { "transaction": #{validSealedTxBase64},
                   "passphrase": #{nameTooLong}
                }|]
                , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"

@@ -2050,14 +2050,6 @@ components:
       properties:
         id: *transactionId
 
-    ApiSerialisedTransaction: &ApiSerialisedTransaction
-      description: |
-        An encoded transaction.
-      required:
-        - transaction
-      properties:
-        transaction: *serialisedTransaction
-
     ApiConstructTransaction: &ApiConstructTransaction
       type: object
       required:

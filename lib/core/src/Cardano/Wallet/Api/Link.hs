@@ -81,6 +81,7 @@ module Cardano.Wallet.Api.Link
     , deleteTransaction
     , getTransaction
     , createUnsignedTransaction
+    , signTransaction
 
       -- * StakePools
     , listStakePools
@@ -648,6 +649,22 @@ createUnsignedTransaction w = discriminate @style
     (notSupported "Shared") --TODO should be supported in the final version of Transaction Workflow.
   where
     wid = w ^. typed @(ApiT WalletId)
+
+signTransaction
+    :: forall style w.
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
+        , Discriminate style
+        )
+    => w
+    -> (Method, Text)
+signTransaction w = discriminate @style
+    (endpoint @(Api.SignTransaction Net) (wid &))
+    (notSupported "Byron")  --TODO should be supported in the final version of Transaction Workflow.
+    (notSupported "Shared") --TODO should be supported in the final version of Transaction Workflow.
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
 
 --
 -- Stake Pools

@@ -86,7 +86,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress
     , PersistPrivateKey
     , WalletKey
-    , networkDiscriminantVal
+    , networkDiscriminantDesc
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -265,7 +265,7 @@ serveWallet
   block0
   (np, vData)
   beforeMainLoop = do
-    let ntwrk = networkDiscriminantValFromProxy proxy
+    let ntwrk = networkDiscriminantDesc proxy
     traceWith applicationTracer $ MsgStarting conn
     traceWith applicationTracer $ MsgNetworkName ntwrk
     Server.withListeningSocket hostPref listen $ \case
@@ -275,9 +275,9 @@ serveWallet
     poolDatabaseDecorator = fromMaybe Pool.undecoratedDB mPoolDatabaseDecorator
 
     serveApp socket = withIOManager $ \io -> do
-        withNetworkLayer networkTracer np conn vData sTolerance $ \nl -> do
+        let net = networkIdVal proxy
+        withNetworkLayer networkTracer net np conn vData sTolerance $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
-                let net = networkIdVal proxy
                 randomApi <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
                 icarusApi  <- apiLayer (newTransactionLayer net) nl
@@ -300,13 +300,6 @@ serveWallet
                         spl
                         ntpClient
                     pure ExitSuccess
-
-    networkDiscriminantValFromProxy
-        :: forall n. (NetworkDiscriminantVal n)
-        => Proxy n
-        -> Text
-    networkDiscriminantValFromProxy _ =
-        networkDiscriminantVal @n
 
     startServer
         :: forall n.

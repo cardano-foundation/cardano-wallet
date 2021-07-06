@@ -100,7 +100,12 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), NetworkDiscriminant (..), PersistPrivateKey (..), Role (..) )
+    ( Depth (..)
+    , NetworkDiscriminant (..)
+    , PersistPrivateKey (..)
+    , Role (..)
+    , fromHex
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shared
@@ -164,6 +169,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxSize (..)
     , TxStatus
     , inputs
+    , serialisedTx
+    , unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
@@ -181,6 +188,8 @@ import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString, hash )
 import Data.Bifunctor
     ( bimap, first )
+import Data.ByteArray.Encoding
+    ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Foldable
@@ -265,9 +274,12 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Test.QuickCheck as QC
 import qualified Test.StateMachine.Types as QSM
 import qualified Test.StateMachine.Types.Rank2 as Rank2
+
 
 {- HLINT ignore "Unused LANGUAGE pragma" -}
 
@@ -324,14 +336,30 @@ instance MockPrivKey (ByronKey 'RootK) where
     fromMockPrivKey s = (k, Hash (B8.pack s))
       where (k, _) = unsafeDeserializeXPrv (zeroes <> ":", mempty)
 
-newtype MockSealedTx = MockSealedTx { mockSealedTxId :: Hash "Tx" }
+newtype MockSealedTx = MockSealedTx { mockSealedTxId :: ByteString }
     deriving (Show, Eq, Generic, NFData)
 
 unMockSealedTx :: Hash "Tx" -> SealedTx
-unMockSealedTx = SealedTx . getHash
+unMockSealedTx h =
+    let variable = T.take 10 $ T.decodeLatin1 $ convertToBase Base16 $ getHash h
+        -- here we are using valid CBORed Tx which we deplete in witness part by removing 10 characters
+        -- instead of them we insert hash part to get unique and valid values
+        -- this is not very satisfactory solution although at this point could be accepted.
+        [scaffoldingBeg,scaffoldingEnd] =
+            ["83a400818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22b\
+             \a864808018282583901bdd74c3bd086d38939876fcbd56e91dd56fccca9be70b424390443\
+             \67af33d417814e6fa7953195797d73f9b5fb511854b4b0d8b2023959951a002dc6c082583\
+             \9011a2f2f103b895dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcb\
+             \d4d43652bf05c40c346fa794871423b65052d7614c1b0000001748472188021a0001ffb80\
+             \3198d11a1008182582043ea6d45e9abe6e30faff4a9b675abdc49534a6eda9ba96f9368d1\
+             \2d879dfc6758409b898ca143e1b245c9c745c690b8137b724fc63f8a3b852bcd2234cee4e\
+             \68c25cd333e845a224b9cb4600f271d545e35a41d17a16c046aea66ed34","f6"]
+        binaryTxt = scaffoldingBeg <> variable <> scaffoldingEnd
+        (Right bs) = fromHex $ T.encodeUtf8 binaryTxt
+    in unsafeSealedTxFromBytes bs
 
 mockSealedTx :: SealedTx -> MockSealedTx
-mockSealedTx = MockSealedTx . Hash . getSealedTx
+mockSealedTx = MockSealedTx . serialisedTx
 
 {-------------------------------------------------------------------------------
   Language
@@ -1000,7 +1028,7 @@ instance ToExpr TxMeta where
     toExpr = genericToExpr
 
 instance ToExpr SealedTx where
-    toExpr = genericToExpr
+    toExpr _ = toExpr ("fixme: ToExpr SealedTx" :: String)
 
 instance ToExpr MockSealedTx where
     toExpr = genericToExpr

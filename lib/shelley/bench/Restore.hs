@@ -85,6 +85,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey
     , WalletKey
     , digest
+    , networkDiscriminantDesc
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -247,8 +248,7 @@ cardanoRestoreBench tr c socketFile = do
 
     (_, walletTr) <- initBenchmarkLogging "wallet" Notice
 
-    let network = networkDescription networkProxy
-    sayErr $ "Network: " <> network
+    sayErr $ "Network: " <> networkDiscriminantDesc networkProxy
 
     prepareNode (trMessageText tr) networkProxy socketFile np vData
 
@@ -365,9 +365,6 @@ cardanoRestoreBench tr c socketFile = do
         -> Int
         -> RndAnyState n p
     mkRndAnyState' _ _ = mkRndAnyState
-
-    networkDescription :: forall n. (NetworkDiscriminantVal n) => Proxy n -> Text
-    networkDescription _ = networkDiscriminantVal @n
 
 {-------------------------------------------------------------------------------
                                   Benchmarks
@@ -600,7 +597,7 @@ bench_restoration proxy tr wlTr socket np vData benchname wallets traceToDisk ta
     putStrLn $ "*** " ++ T.unpack benchname
     let networkId = networkIdVal proxy
     let tl = newTransactionLayer @k networkId
-    withNetworkLayer (trMessageText wlTr) np socket vData sTol $ \nw' -> do
+    withNetworkLayer (trMessageText wlTr) networkId np socket vData sTol $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
@@ -706,7 +703,7 @@ withBenchDBLayer ti tr action =
     tr' = trMessageText tr
 
 prepareNode
-    :: forall n. (NetworkDiscriminantVal n)
+    :: forall n. (HasNetworkId n, NetworkDiscriminantVal n)
     => Tracer IO (BenchmarkLog n)
     -> Proxy n
     -> CardanoNodeConn
@@ -715,7 +712,8 @@ prepareNode
     -> IO ()
 prepareNode tr proxy socketPath np vData = do
     traceWith tr $ MsgSyncStart proxy
-    sl <- withNetworkLayer nullTracer np socketPath vData sTol $ \nw' -> do
+    let networkId = networkIdVal proxy
+    sl <- withNetworkLayer nullTracer networkId np socketPath vData sTol $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
@@ -828,4 +826,3 @@ showPercentFromPermille =
 
 sTol :: SyncTolerance
 sTol = mkSyncTolerance 3600
-

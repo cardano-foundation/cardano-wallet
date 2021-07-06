@@ -23,8 +23,10 @@ import Cardano.Mnemonic
     ( mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( ApiCoinSelectionInput (..)
+    , ApiCoinSelectionOutput (..)
     , ApiConstructTransaction
     , ApiFee (..)
+    , ApiSignedTransaction
     , ApiStakePool
     , ApiT (..)
     , ApiWallet
@@ -43,12 +45,14 @@ import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Aeson
+    ( ToJSON (..), Value (String) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
     ( isJust )
 import Data.Proxy
-    ( Proxy )
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -73,6 +77,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , expectSuccess
     , fixtureMultiAssetWallet
+    , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
@@ -95,6 +100,7 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -202,45 +208,54 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         --       make sure wa wallet balance is increased by withdrawalAmt - fee
 
     it "TRANS_NEW_CREATE_04a - Single Output Transaction" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
-
+        -- constructing Tx
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
 
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        (destAddr, constrPayload) <- liftIO $ mkTxPayload ctx wb amt
 
         (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
-            (Link.getTransactionFeeOld @'Shelley wa) payload
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
+            (Link.getTransactionFeeOld @'Shelley wa) constrPayload
+        rConstrTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default constrPayload
+        verify rConstrTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             , expectField (#fee . #getQuantity) (`shouldBe` feeMin)
             ]
-
         let filterInitialAmt =
                 filter (\(ApiCoinSelectionInput _ _ _ _ amt' _) -> amt' == Quantity initialAmt)
         let coinSelInputs = filterInitialAmt $ NE.toList $
-                getFromResponse (#coinSelection . #inputs) rTx
+                getFromResponse (#coinSelection . #inputs) rConstrTx
         length coinSelInputs `shouldBe` 1
 
-        -- TODO: now we should sign it and send it in two steps
-        --       make sure it is delivered
-        --       make sure balance is updated accordingly on src and dst wallets
+        let coinSelOutputs = getFromResponse (#coinSelection . #outputs) rConstrTx
+        coinSelOutputs `shouldBe`
+            [ApiCoinSelectionOutput destAddr (Quantity amt) (ApiT W.empty)]
+
+        -- signing tx
+        let (String serializedTx) = toJSON $ getFromResponse #transaction rConstrTx
+        let signPayload = Json [json|{
+              "transaction": #{serializedTx},
+              "passphrase": #{fixturePassphrase}
+          }|]
+        rSignTx <- request @ApiSignedTransaction ctx
+            (Link.signTransaction @'Shelley wa) Default signPayload
+        verify rSignTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        -- and send it in two steps
 
     it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         let amt = minUTxOValue (_mainEra ctx) - 1
 
-        payload <- liftIO $ mkTxPayload ctx wb amt
+        (_,payload) <- liftIO $ mkTxPayload ctx wb amt
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -253,7 +268,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWalletWith @n ctx [minUTxOValue (_mainEra ctx) + 1]
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
+        (_,payload) <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -268,7 +283,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWalletWith @n ctx [srcAmt]
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb reqAmt
+        (_,payload) <- liftIO $ mkTxPayload ctx wb reqAmt
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -281,7 +296,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- emptyWallet ctx
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
+        (_,payload) <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -747,20 +762,19 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         => Context
         -> ApiWallet
         -> Natural
-        -> m Payload
+        -> m ((ApiT Address, Proxy n), Payload)
     mkTxPayload ctx wDest amt = do
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
-        return $ Json [json|{
+        return (destination, Json [json|{
                 "payments": [{
                     "address": #{destination},
                     "amount": {
                         "quantity": #{amt},
                         "unit": "lovelace"
                     }
-                }]
-            }|]
-
+                  }]
+                }|])
     -- Like mkTxPayload, except that assets are included in the payment.
     -- Asset amounts are specified by ((PolicyId Hex, AssetName Hex), amount).
     mkTxPayloadMA

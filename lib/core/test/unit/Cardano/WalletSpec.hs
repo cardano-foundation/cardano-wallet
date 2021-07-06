@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -20,7 +21,7 @@ module Cardano.WalletSpec
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, xpubToBytes )
+    ( XPrv )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.Mnemonic
@@ -67,8 +68,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , Role (..)
     , deriveRewardAccount
+    , fromHex
     , getRawKey
-    , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
@@ -121,6 +122,10 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), TokenPolicyId (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
@@ -133,6 +138,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , isPending
+    , sealedTxFromCardano
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -176,9 +182,11 @@ import Control.Tracer
 import Crypto.Hash
     ( hash )
 import Data.Bifunctor
-    ( second )
+    ( bimap, second )
 import Data.ByteString
     ( ByteString )
+import Data.ByteString.Short
+    ( toShort )
 import Data.Coerce
     ( coerce )
 import Data.Either
@@ -270,6 +278,9 @@ import UnliftIO.Concurrent
     , threadDelay
     )
 
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Byron as Cardano
+import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
@@ -286,6 +297,8 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+
 
 spec :: Spec
 spec = describe "Cardano.WalletSpec" $ parallel $ do
@@ -751,10 +764,8 @@ instance Arbitrary GenTxHistory where
       where
         gen = uniq <$> listOf1 ((,) <$> genTx' <*> genTxMeta)
         uniq = L.nubBy ((==) `on` (view #txId . fst))
-        genTx' = mkTx <$> genTid
+        genTx' = arbitrary
         hasPending = any ((== Pending) . view #status . snd)
-        genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
-        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing Nothing
         genTxMeta = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
@@ -799,7 +810,7 @@ mkLocalTxSubmissionStatus = mapMaybe getStatus . getTxHistory
       where
         i = tx ^. #txId
         sl = txMeta ^. #slotNo
-        st = LocalTxSubmissionStatus i (SealedTx (getHash i)) sl sl
+        st = LocalTxSubmissionStatus i (makeSealedTx tx []) sl sl
 
 instance Arbitrary SlottingParameters where
     arbitrary = mk <$> choose (0.5, 1)
@@ -877,8 +888,7 @@ prop_localTxSubmission tc = monadicIO $ do
     assert (all inPool (resSubmittedTxs res))
 
     --  2. non-pending transactions not retried
-    let mkSealed = SealedTx . getHash . view #txId
-    let nonPending = map (mkSealed . fst)
+    let nonPending = map (flip makeSealedTx [] . fst)
             . filter ((/= Pending) . view #status . snd)
             . getTxHistory $ retryTestTxHistory tc
     assert (all (`notElem` (resSubmittedTxs res)) nonPending)
@@ -1300,19 +1310,18 @@ dummyTransactionLayer = TransactionLayer
                  , metadata = Nothing
                  , scriptValidity = Nothing
                  }
-        wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
-            (xprv, Passphrase pwd) <- withEither
-                (ErrKeyNotFoundForAddress addr) $ keystore addr
-            let sigData = tx ^. #txId . #getHash
-            let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
-            return $ xpubToBytes (getKey $ publicKey xprv) <> sig
+        wits <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
+            (xprv, pwd) <- withEither (ErrKeyNotFoundForAddress addr) $ keystore addr
+            pure (getKey xprv, pwd)
 
-        -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
-        let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
-        return (tx, fakeBinary)
+        -- (tx1, wits1) == (tx2, wits2) <==> fakebinary1 == fakebinary2
+        let validBinary = makeSealedTx tx (NE.toList wits)
+        return (tx, validBinary)
 
     , mkUnsignedTransaction =
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
+    , mkSignedTransaction =
+        error "dummyTransactionLayer: mkSignedTransaction not implemented"
     , calcMinimumCost =
         error "dummyTransactionLayer: calcMinimumCost not implemented"
     , computeSelectionLimit =
@@ -1328,12 +1337,113 @@ dummyTransactionLayer = TransactionLayer
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
 
+
+makeSealedTx :: Tx -> [(XPrv, Passphrase "encryption")] -> SealedTx
+makeSealedTx tx wits =
+        let (Right unsigned) = constructTxBody tx (SlotNo 1000)
+            signed = Cardano.makeSignedTransaction (mkWits unsigned <$> wits) unsigned
+            toSealedTx = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
+        in toSealedTx signed
+ where
+    mkWits body key =
+        Cardano.makeShelleyKeyWitness body (unencrypt key)
+      where
+          unencrypt (xprv, pwd) = Cardano.WitnessPaymentExtendedKey
+              $ Cardano.PaymentExtendedSigningKey
+              $ CC.xPrvChangePass pwd BS.empty xprv
+
+    toMaryTxOut :: TxOut -> Cardano.TxOut Cardano.MaryEra
+    toMaryTxOut (TxOut _ tokens) =
+        Cardano.TxOut
+        addrInEra
+        (Cardano.TxOutValue Cardano.MultiAssetInMaryEra $ toCardanoValue tokens)
+        (error "datumHash unimplemented")
+
+    toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
+    toCardanoValue tb = Cardano.valueFromList $
+        (Cardano.AdaAssetId, coinToQuantity coin) :
+        map (bimap toCardanoAssetId toQuantity) bundle
+      where
+          (coin, bundle) = TokenBundle.toFlatList tb
+          toCardanoAssetId (TokenBundle.AssetId pid name) =
+              Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
+
+          toCardanoPolicyId (UnsafeTokenPolicyId (Hash pid)) = just "PolicyId" $
+              Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid
+          toCardanoAssetName (UnsafeTokenName name) = just "TokenName" $
+              Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
+
+          just :: String -> Maybe a -> a
+          just t = fromMaybe $ error $
+              "toMaryTxOut: Internal error: unable to deserialise " ++ t
+
+          coinToQuantity = fromIntegral . unCoin
+          toQuantity = fromIntegral . unTokenQuantity
+
+    addrInEra =
+        let realisticAddr = "018361eab710eac9b17201e91980678691b68d523012f6de85a87c3c5b4c092c7b23a4b0aca82dc115729563c665b116cddf8910d10e552ef6"
+            (Right addr) = fromHex $ T.encodeUtf8 realisticAddr
+        in maybe
+           (error "addrInEra: malformed address")
+           (Cardano.AddressInEra
+            (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary))
+           (Cardano.deserialiseFromRawBytes Cardano.AsShelleyAddress addr)
+
+    toCardanoTxId :: Hash "Tx" -> Cardano.TxId
+    toCardanoTxId (Hash h) = Cardano.TxId $ Crypto.UnsafeHash $ toShort h
+
+    toCardanoTxIn :: TxIn -> Cardano.TxIn
+    toCardanoTxIn (TxIn tid ix) =
+        Cardano.TxIn (toCardanoTxId tid) (Cardano.TxIx (fromIntegral ix))
+
+    toCardanoLovelace :: Coin -> Cardano.Lovelace
+    toCardanoLovelace (Coin c) = Cardano.Lovelace $ safeCast c
+      where
+          safeCast :: Word64 -> Integer
+          safeCast = fromIntegral
+
+    constructTxBody (Tx _ _ inpsSelected outsCovered _ _) ttl = Cardano.makeTransactionBody $ Cardano.TxBodyContent
+        { Cardano.txIns =
+                (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
+                . toCardanoTxIn
+                . fst <$> F.toList inpsSelected
+
+        , Cardano.txOuts = toMaryTxOut <$> outsCovered
+
+        , Cardano.txWithdrawals = Cardano.TxWithdrawalsNone
+
+        , txInsCollateral = Cardano.TxInsCollateralNone
+
+        , txProtocolParams = Cardano.BuildTxWith Nothing
+
+        , txExtraScriptData = Cardano.BuildTxWith Cardano.TxExtraScriptDataNone
+
+        , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
+
+        , Cardano.txCertificates = Cardano.TxCertificatesNone
+
+        , Cardano.txFee = Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra (toCardanoLovelace (Coin 20000))
+
+        , Cardano.txValidityRange =
+                ( Cardano.TxValidityNoLowerBound
+                , Cardano.TxValidityUpperBound Cardano.ValidityUpperBoundInMaryEra ttl
+                )
+
+        , Cardano.txMetadata = Cardano.TxMetadataNone
+
+        , Cardano.txAuxScripts = Cardano.TxAuxScriptsNone
+
+        , Cardano.txUpdateProposal = Cardano.TxUpdateProposalNone
+
+        , Cardano.txMintValue = Cardano.TxMintNone
+        }
+
 mockNetworkLayer :: Monad m => NetworkLayer m block
 mockNetworkLayer = dummyNetworkLayer
     { currentNodeTip =
         pure dummyTip
     , currentNodeEra =
-        pure (AnyCardanoEra AllegraEra)
+        pure (AnyCardanoEra MaryEra)
     , currentProtocolParameters =
         pure (protocolParameters dummyNetworkParameters)
     , timeInterpreter = dummyTimeInterpreter

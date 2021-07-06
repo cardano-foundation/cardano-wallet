@@ -119,6 +119,7 @@ module Cardano.Wallet
     , constructTransaction
     , ErrSelectAssets(..)
     , ErrSignPayment (..)
+    , ErrWitnessTx (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotWorth (..)
     , ErrConstructTx (..)
@@ -157,6 +158,7 @@ module Cardano.Wallet
     , defaultLocalTxSubmissionConfig
     , runLocalTxSubmissionPool
     , ErrMkTx (..)
+    , ErrSignTx (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
     , ErrRemoveTx (..)
@@ -376,7 +378,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , LocalTxSubmissionStatus
     , SealedTx (..)
     , SerialisedTx (..)
-    , SerialisedTxParts (..)
     , TransactionInfo (..)
     , Tx
     , TxChange (..)
@@ -398,6 +399,8 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
+    , ErrSelectionCriteria (..)
+    , ErrSignTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -510,6 +513,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -1566,7 +1570,6 @@ signTransaction
     :: forall ctx s k.
         ( HasTransactionLayer k ctx
         , HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
         , IsOwned s k
         )
     => ctx
@@ -1574,29 +1577,28 @@ signTransaction
     -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
        -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
-    -> ByteString
-    -> ExceptT ErrSignPayment IO SerialisedTxParts
-signTransaction ctx wid mkRwdAcct pwd txBody = db & \DBLayer{..} -> do
-    era <- liftIO $ currentNodeEra nl
-    let _decoded = decodeSignedTx tl era txBody
-    withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
-        let pwdP = preparePassphrase scheme pwd
-        mapExceptT atomically $ do
-            cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
-                readCheckpoint wid
-
-            -- TODO: ADP-919 implement this
-            let _keyFrom = isOwned (getState cp) (xprv, pwdP)
-            let _rewardAcnt = mkRwdAcct (xprv, pwdP)
-            -- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-            --     witnessTransaction tl rewardAcnt keyFrom txBody
-            let tx = mempty
-            pure $ SerialisedTxParts tx txBody []
+    -> SealedTx
+    -> ExceptT ErrWitnessTx IO SealedTx
+signTransaction ctx wid mkRwdAcct pwd tx = do
+    (cp, _, pending) <- withExceptT
+        ErrWitnessTxNoSuchWallet (readWallet @ctx @s @k ctx wid)
+    let utxo = availableUTxO @s pending cp
+    let getAddrFromTxOut (TxOut addr _) = addr
+    let getAddrFromUTxO txin = getAddrFromTxOut <$> Map.lookup txin (getUTxO utxo)
+    db & \DBLayer{..} -> do
+        withRootKey @_ @s ctx wid pwd ErrWitnessTxWithRootKey $ \xprv scheme -> do
+            let pwdP = preparePassphrase scheme pwd
+            mapExceptT atomically $ do
+                let keyFrom txin = do
+                        addr <- getAddrFromUTxO txin
+                        isOwned (getState cp) (xprv, pwdP) addr
+                let rewardAcnt = mkRwdAcct (xprv, pwdP)
+                withExceptT ErrWitnessTxSignTx $ ExceptT $ pure $
+                    (snd <$> mkSignedTransaction tl rewardAcnt keyFrom tx)
 
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k
-    nl = ctx ^. networkLayer
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --
@@ -1642,7 +1644,6 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> d
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
-
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
@@ -2619,6 +2620,14 @@ data ErrConstructTx
 newtype ErrMintBurnAssets
     = ErrMintBurnNotImplemented T.Text
       -- ^ Temporary error constructor.
+    deriving (Show, Eq)
+
+-- | Errors that can occur when signing a transaction.
+data ErrWitnessTx
+    = ErrWitnessTxSignTx ErrSignTx
+    | ErrWitnessTxNoSuchWallet ErrNoSuchWallet
+    | ErrWitnessTxWithRootKey ErrWithRootKey
+    | ErrWitnessTxIncorrectTTL PastHorizonException
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction to the network.

@@ -1,10 +1,14 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -76,6 +80,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata
     , TxScriptValidity (..)
     , TxStatus (..)
+    , sealedTxFromBytes
     )
 import Control.Arrow
     ( left )
@@ -450,8 +455,8 @@ instance PersistFieldSql TxMetadata where
 -- SealedTx - store the serialised tx as a binary blob
 
 instance PersistField SealedTx where
-    toPersistValue = toPersistValue . getSealedTx
-    fromPersistValue = fmap SealedTx . fromPersistValue
+    toPersistValue = toPersistValue . serialisedTx
+    fromPersistValue = fromPersistValue >=> first (T.pack . show) . sealedTxFromBytes
 
 instance PersistFieldSql SealedTx where
     sqlType _ = sqlType (Proxy @ByteString)

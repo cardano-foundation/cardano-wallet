@@ -61,6 +61,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
     , networkDiscriminantVal
+    , networkDiscriminantDesc
 
     -- * Backends Interoperability
     , PaymentAddress(..)
@@ -662,7 +663,9 @@ instance MonadRandom ((->) (Passphrase "salt")) where
                              Network Discrimination
 -------------------------------------------------------------------------------}
 
--- | Available network options.
+-- | This is a type parameter for addresses which represents the network
+-- information which should encoded into that type of addresses. Available
+-- network options are:
 --
 -- - @Mainnet@: is a shortcut for quickly pointing to mainnet. On Byron and
 --              Shelley, it assumes no discrimination. It has a known magic and
@@ -684,16 +687,22 @@ class NetworkDiscriminantVal (n :: NetworkDiscriminant) where
     networkDiscriminantVal :: Text
 
 instance NetworkDiscriminantVal 'Mainnet where
-    networkDiscriminantVal =
-        "mainnet"
+    networkDiscriminantVal = "mainnet"
 
 instance KnownNat pm => NetworkDiscriminantVal ('Testnet pm) where
-    networkDiscriminantVal =
-        "testnet (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
+    networkDiscriminantVal = "testnet (" <> magic <> ")"
+        where magic = T.pack (show $ natVal $ Proxy @pm)
 
 instance KnownNat pm => NetworkDiscriminantVal ('Staging pm) where
-    networkDiscriminantVal =
-        "staging (" <> T.pack (show $ natVal $ Proxy @pm) <> ")"
+    networkDiscriminantVal = "staging (" <> magic <> ")"
+        where magic = T.pack (show $ natVal $ Proxy @pm)
+
+networkDiscriminantDesc
+    :: forall n. NetworkDiscriminantVal n
+    => Proxy n
+    -> Text
+networkDiscriminantDesc _ = networkDiscriminantVal @n
+
 
 {-------------------------------------------------------------------------------
                      Interface over keys / address types
