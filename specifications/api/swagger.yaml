@@ -4551,6 +4551,7 @@ x-tagGroups:
     - Addresses
     - Coin Selections
     - Transactions
+    - Transactions New
     - Migrations
     - Stake Pools
     - Keys
@@ -4568,6 +4569,7 @@ x-tagGroups:
     - Byron Addresses
     - Byron Coin Selections
     - Byron Transactions
+    - Byron Transactions New
     - Byron Migrations
 
   - name: Miscellaneous
@@ -4897,7 +4899,7 @@ paths:
   /wallets/{walletId}/transactions-construct:
     post:
       operationId: constructTransaction
-      tags: ["Transactions"]
+      tags: ["Transactions New"]
       summary: Construct
       description: |
         <p align="right">status: <strong>unstable</strong></p>
@@ -5689,7 +5691,7 @@ paths:
   /proxy/transactions:
     post:
       operationId: postExternalTransaction
-      tags: ["Transactions"]
+      tags: ["Proxy"]
       summary: Submit External Transaction
       # ADP-908 - deprecated soon
       deprecated: false
