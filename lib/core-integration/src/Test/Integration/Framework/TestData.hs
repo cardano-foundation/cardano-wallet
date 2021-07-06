@@ -36,6 +36,7 @@ module Test.Integration.Framework.TestData
     , updateNamePayload
     , updatePassPayload
     , updateEmptyPassPayload
+    , txMetadata_ADP_1005
 
     -- * Error messages
     , errMsg400WalletIdEncoding
@@ -94,9 +95,7 @@ module Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidUnknownCosigner
     , errMsg403TemplateInvalidDuplicateXPub
     , errMsg403TemplateInvalidScript
-
-    -- * Transaction metadata
-    , txMetadata_ADP_1005
+    , errMsg403InvalidConstructTx
     ) where
 
 import Prelude
@@ -271,6 +270,12 @@ versionLine = "Running as " <> pack (showFullVersion version gitRevision)
 ---
 --- Error messages
 ---
+
+errMsg403InvalidConstructTx :: String
+errMsg403InvalidConstructTx =
+    "It looks like I've created an empty transaction that does not have \
+     \any payments, withdrawals, delegations, metadata nor minting. \
+     \Include at least one of them."
 
 errMsg403MinUTxOValue :: String
 errMsg403MinUTxOValue =
