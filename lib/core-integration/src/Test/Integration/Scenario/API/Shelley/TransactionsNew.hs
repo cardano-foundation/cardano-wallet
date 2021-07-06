@@ -276,6 +276,19 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
 
+    it "TRANS_NEW_CREATE_04d - Not enough money emptyWallet" $ \ctx -> runResourceT $ do
+        wa <- emptyWallet ctx
+        wb <- emptyWallet ctx
+
+        payload <- liftIO $ mkTxPayload ctx wb minUTxOValue
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NotEnoughMoney
+            ]
+
     it "TRANS_NEW_CREATE_04e- Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
 
         liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
@@ -523,11 +536,183 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotDelegating
             ]
 
+    it "TRANS_NEW_VALIDITY_INTERVAL_01a - Validity interval with second" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        wb <- emptyWallet ctx
+        addrs <- listAddresses @n ctx wb
+        let destination = (addrs !! 1) ^. #id
+        let amt = minUTxOValue
+
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "validity_interval": {
+                    "invalid_before": {
+                      "quantity": 0,
+                      "unit": "second"
+                    },
+                    "invalid_hereafter": {
+                      "quantity": 500,
+                      "unit": "second"
+                    }
+                  }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+        -- TODO: sign/submit tx
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_01b - Validity interval with slot" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "validity_interval": {
+                    "invalid_before": {
+                      "quantity": 0,
+                      "unit": "slot"
+                    },
+                    "invalid_hereafter": {
+                      "quantity": 500,
+                      "unit": "slot"
+                    }
+                  }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+        -- TODO: sign/submit tx
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval second should be >= 0" $ \ctx -> runResourceT $ do
+
+        liftIO $ pendingWith "Accepted but should be 403 - to be fixed in ADP-985"
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "validity_interval": {
+                    "invalid_before": {
+                      "quantity": -1,
+                      "unit": "second"
+                    },
+                    "invalid_hereafter": {
+                      "quantity": -1,
+                      "unit": "second"
+                    }
+                  }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            ]
+
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval slot should be >= 0" $ \ctx -> runResourceT $ do
+
+        liftIO $ pendingWith "Returns 400, I think it should be 403 - to be fixed in ADP-985"
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "validity_interval": {
+                    "invalid_before": {
+                      "quantity": -1,
+                      "unit": "slot"
+                    },
+                    "invalid_hereafter": {
+                      "quantity": -1,
+                      "unit": "slot"
+                    }
+                  }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            ]
+
+    it "TRANS_NEW_CREATE_MULTI_TX - Tx including payments, delegation, metadata, withdrawals, validity_interval" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        wb <- emptyWallet ctx
+        addrs <- listAddresses @n ctx wb
+
+        let amt = minUTxOValue :: Natural
+        let destination1 = (addrs !! 1) ^. #id
+        let destination2 = (addrs !! 2) ^. #id
+        pool:_ <- map (view #id) . snd <$> unsafeRequest
+            @[ApiStakePool]
+            ctx (Link.listStakePools arbitraryStake) Empty
+
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination1},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination2},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool},
+                        "stake_key_index": "0H"
+                    }
+                }],
+                "withdrawal": "self",
+                "metadata": { "1": { "string": "hello" } },
+                "validity_interval": {
+                    "invalid_before": {
+                      "quantity": 0,
+                      "unit": "second"
+                    },
+                    "invalid_hereafter": {
+                      "quantity": 500,
+                      "unit": "second"
+                    }
+                  }
+            }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+            -- , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+            -- , expectField (#coinSelection . #deposit) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+            ]
+        -- TODO: now we should sign it and send it in two steps,
+        --       make sure it is delivered
+        --       make sure balance is updated accordingly on src and dst wallets
+        --       make sure delegation cerificates are inserted
+        --       make sure metadata is on chain
   -- TODO:
-  -- join and quit pool
-  -- mint
-  -- validity interval
-  -- everything (payment, delegation, mint, metadata, withdrawal)
+  -- minting
+  -- update with sign / submit tx where applicable
+  -- end to end join pool and get rewards
   where
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
