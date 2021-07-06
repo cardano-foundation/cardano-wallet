@@ -5691,7 +5691,7 @@ paths:
   /proxy/transactions:
     post:
       operationId: postExternalTransaction
-      tags: ["Transactions"]
+      tags: ["Proxy"]
       summary: Submit External Transaction
       # ADP-908 - deprecated soon
       deprecated: false
