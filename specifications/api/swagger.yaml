@@ -1363,7 +1363,7 @@ x-transactionTTL: &transactionTTL
 x-unspecified: &unspecified
   type: string
   enum:
-    - uspecified
+    - unspecified
 
 x-validityBound: &validityBound
   oneOf:
@@ -4801,29 +4801,6 @@ paths:
                   title: "redemption"
       responses: *responsesPostTransactionFee
 
-  /wallets/{walletId}/transactions-sign:
-    post:
-      operationId: signTransaction
-      tags: ["Transactions New"]
-      summary: Sign
-      description: |
-        <p align="right">status: <strong>under development</strong></p>
-
-        Sign a transaction body and return the full transaction. That
-        is, create witnesses using the keys available to this wallet
-        and attach them to the body.
-
-        If a full transaction is passed in the request, then new
-        witnesses will be added to the existing witness set.
-      parameters:
-        - *parametersWalletId
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: *ApiSignTransactionPostData
-      responses: *responsesSignTransaction
-
   /wallets/{walletId}/transactions:
     post:
       operationId: postTransaction
@@ -4913,6 +4890,29 @@ paths:
           application/json:
             schema: *ApiConstructTransactionData
       responses: *responsesConstructTransaction
+
+  /wallets/{walletId}/transactions-sign:
+    post:
+      operationId: signTransaction
+      tags: ["Transactions New"]
+      summary: Sign
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Sign a transaction body and return the full transaction. That
+        is, create witnesses using the keys available to this wallet
+        and attach them to the body.
+
+        If a full transaction is passed in the request, then new
+        witnesses will be added to the existing witness set.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSignTransactionPostData
+      responses: *responsesSignTransaction
 
   /wallets/{walletId}/addresses:
     get:

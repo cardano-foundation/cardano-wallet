@@ -646,6 +646,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status403
             ]
 
+    it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval 'unspecified'" $ \ctx -> runResourceT $ do
+
+        liftIO $ pendingWith 
+          "Currently throws: \
+          \parsing ApiValidityBound object failed, \
+          \expected Object, but encountered String \
+          \- to be fixed in ADP-985"
+
+        wa <- fixtureWallet ctx
+
+        let payload = Json [json|{
+                "withdrawal": "self",
+                "validity_interval": {
+                    "invalid_before": "unspecified",
+                    "invalid_hereafter": "unspecified"
+                  }
+                }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
     it "TRANS_NEW_CREATE_MULTI_TX - Tx including payments, delegation, metadata, withdrawals, validity_interval" $ \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
