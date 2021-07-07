@@ -605,7 +605,7 @@ genSelectionCriteria genUTxOIndex = do
     assetsToBurn <- TokenMap.fromFlatList <$>
         sublistOf (availableTokensToBurn utxoAvailable outputsToCover)
     assetsToMint <- TokenMap.fromFlatList <$>
-        sublistOf (allSpentOrBurntTokens outputsToCover assetsToBurn)
+        sublistOf (allSpentOrBurnedTokens outputsToCover assetsToBurn)
     pure $ SelectionCriteria
         { outputsToCover
         , utxoAvailable
@@ -627,14 +627,14 @@ genSelectionCriteria genUTxOIndex = do
             (view #tokens $ UTxOIndex.balance index)
             (F.foldMap (view (#tokens . #tokens)) outputsToCover)
 
-    -- If a token is spent or burnt, it is typically satisfied by the UTxO.
+    -- If a token is spent or burned, it is typically satisfied by the UTxO.
     -- However, we can choose to instead mint those tokens and have the mint
     -- operation satisfy those outputs.
-    allSpentOrBurntTokens
+    allSpentOrBurnedTokens
         :: NonEmpty TxOut
         -> TokenMap
         -> [(AssetId, TokenQuantity)]
-    allSpentOrBurntTokens outputsToCover burnedTokens
+    allSpentOrBurnedTokens outputsToCover burnedTokens
         = TokenMap.toFlatList
         $ TokenMap.add
             (burnedTokens)
@@ -893,19 +893,19 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         monitor $ counterexample $ unlines
             [ "minted values:"
             , pretty (Flat errorMintedValues)
-            , "burnt values:"
-            , pretty (Flat errorBurntValues)
+            , "burned values:"
+            , pretty (Flat errorBurnedValues)
             , "requested assets to cover:"
             , pretty (Flat requestedOutputAssets)
-            , "values minted but not spent or burnt:"
+            , "values minted but not spent or burned:"
             , pretty (Flat $ missingOutputAssets e)
             ]
         assert $ errorMintedValues
-            `leq` (requestedOutputAssets `TokenMap.add` errorBurntValues)
+            `leq` (requestedOutputAssets `TokenMap.add` errorBurnedValues)
       where
         OutputsInsufficientError
             errorMintedValues
-            errorBurntValues
+            errorBurnedValues
             requestedOutputAssets = e
 
     onInsufficientMinCoinValues es = do
@@ -3154,8 +3154,8 @@ prop_addMintValuesToChangeMaps mints changeMaps =
     addMintValuesToChangeMaps mints changeMaps
 
 -- The total value of the change maps after calling this function decreases by
--- the value of the burnt tokens exactly. i.e. The value of the change maps
--- after calling this function is equivalent of just removing the burnt value
+-- the value of the burned tokens exactly. i.e. The value of the change maps
+-- after calling this function is equivalent of just removing the burned value
 -- from the change maps.
 prop_removeBurnValueFromChangeMaps_value
     :: (AssetId, TokenQuantity)
@@ -3166,7 +3166,7 @@ prop_removeBurnValueFromChangeMaps_value (assetId, qty) changeMaps =
     ===
     F.fold (removeBurnValueFromChangeMaps (assetId, qty) changeMaps)
 
--- Removing a burnt value from the change maps does not change their length
+-- Removing a burned value from the change maps does not change their length
 -- (length is determined entirely by the number of outputs to cover).
 prop_removeBurnValueFromChangeMaps_length
     :: (AssetId, TokenQuantity)
@@ -3177,7 +3177,7 @@ prop_removeBurnValueFromChangeMaps_length burn changeMaps =
     ===
     NE.length (removeBurnValueFromChangeMaps burn changeMaps)
 
--- Removing a burnt value from the change maps preserves the ascending partial
+-- Removing a burned value from the change maps preserves the ascending partial
 -- order of the change maps.
 prop_removeBurnValueFromChangeMaps_order
     :: (AssetId, TokenQuantity)
