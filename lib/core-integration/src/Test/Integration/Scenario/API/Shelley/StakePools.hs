@@ -93,6 +93,7 @@ import Test.Integration.Framework.Context
 import Test.Integration.Framework.DSL
     ( Headers (..)
     , Payload (..)
+    , arbitraryStake
     , bracketSettings
     , delegating
     , delegationFee
@@ -1384,10 +1385,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , homepage = "https://iohk.io"
             }
         ]
-
-    arbitraryStake :: Maybe Coin
-    arbitraryStake = Just $ ada 10_000_000_000
-      where ada = Coin . (1000*1000*)
 
     setOf :: Ord b => [a] -> (a -> b) -> Set b
     setOf xs f = Set.fromList $ map f xs

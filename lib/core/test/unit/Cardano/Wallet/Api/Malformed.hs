@@ -1325,6 +1325,64 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
                }|]
                , "Error in $.delegations[0]: key 'pool' not found"
               )
+            , ( [aesonQQ|
+                {
+                    "metadata": { "1": { "string": "hello" } },
+                    "validity_interval": {
+                        "invalid_before": {
+                          "quantity": 500,
+                          "unit": "second"
+                        }
+                      }
+                    }|]
+               , "Error in $['validity_interval']: parsing Cardano.Wallet.Api.Types.ApiValidityInterval(ApiValidityInterval) failed, key 'invalid_hereafter' not found"
+              )
+            , ( [aesonQQ|
+                {
+                    "metadata": { "1": { "string": "hello" } },
+                    "validity_interval": {
+                        "invalid_hereafter": {
+                          "quantity": 500,
+                          "unit": "second"
+                        }
+                      }
+                    }|]
+               , "Error in $['validity_interval']: parsing Cardano.Wallet.Api.Types.ApiValidityInterval(ApiValidityInterval) failed, key 'invalid_before' not found"
+              )
+            , ( [aesonQQ|
+                  {
+                    "payments": [{
+                        "address": #{addrPlaceholder},
+                        "amount": {
+                            "quantity": 2000000,
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "validity_interval": {
+                        "invalid_before": {
+                          "quantity": 0,
+                          "unit": "slots"
+                        },
+                        "invalid_hereafter": {
+                          "quantity": 500,
+                          "unit": "second"
+                        }
+                      }
+                    }|]
+               , "Error in $['validity_interval']['invalid_before']: ApiValidityBound string must have either 'second' or 'slot' unit."
+              )
+            , ( [aesonQQ|{ "metadata": "hello" }|]
+               , "Error in $.metadata: The JSON metadata top level must be a map (JSON object) from word to value."
+              )
+            , ( [aesonQQ|{ "withdrawal": "slef" }|]
+               , "Error in $.withdrawal: parsing [] failed, expected Array, but encountered String"
+              )
+            , ( [aesonQQ|{ "withdrawal": ["self"] }|]
+               , "Error in $.withdrawal: Invalid number of words: 15, 18, 21 or 24 words are expected."
+              )
+            , ( [aesonQQ|{"withdrawal":["word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,"]}|]
+               , "Error in $.withdrawal: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+              )
             ]
 
 instance Malformed (BodyParam (ApiWalletMigrationPlanPostData ('Testnet pm))) where

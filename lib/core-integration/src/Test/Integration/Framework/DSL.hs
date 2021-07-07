@@ -171,7 +171,8 @@ module Test.Integration.Framework.DSL
     , notDelegating
     , delegating
     , getSlotParams
-
+    , arbitraryStake
+    
     -- * CLI
     , commandName
     , command
@@ -2003,6 +2004,10 @@ getFromResponseList i getter (_, res) = case res of
 
 json :: QuasiQuoter
 json = aesonQQ
+
+arbitraryStake :: Maybe Coin
+arbitraryStake = Just $ ada 10_000_000_000
+  where ada = Coin . (1000*1000*)
 
 joinStakePool
     :: forall n w m.
