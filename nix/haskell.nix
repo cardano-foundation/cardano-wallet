@@ -149,7 +149,7 @@ let
         # set the source tree as its working directory.
         packages.cardano-wallet.components.benchmarks.latency =
           lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
-            build-tools = [ pkgs.makeWrapper ];
+            build-tools = [ pkgs.buildPackages.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/* \
                 --run "cd $src/lib/shelley" \
@@ -162,7 +162,7 @@ let
         # We don't `cd $src` because of that.
         packages.cardano-wallet.components.benchmarks.restore =
           lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
-            build-tools = [ pkgs.makeWrapper ];
+            build-tools = [ pkgs.buildPackages.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/restore \
                 --set CARDANO_NODE_CONFIGS ${pkgs.cardano-node-deployments} \
@@ -180,7 +180,7 @@ let
               cp -Rv ${testData} $out/bin/test/data
             '' + libSodiumPostInstall;
           } else {
-            build-tools = [ pkgs.makeWrapper ];
+            build-tools = [ pkgs.buildPackages.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/local-cluster \
                 --set SHELLEY_TEST_DATA ${testData} \
