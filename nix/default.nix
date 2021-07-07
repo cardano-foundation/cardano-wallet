@@ -12,7 +12,7 @@ let
   sources = import ./sources.nix { inherit pkgs; }
     // sourcesOverride;
   iohkNixMain = import sources.iohk-nix {};
-  haskellNix = (import sources."haskell.nix" {
+  haskellNix = import sources."haskell.nix" {
     inherit system;
     # if niv sources hackage or stackage are present, pass them
     # through to Haskell.nix.
@@ -20,14 +20,14 @@ let
       (if builtins.hasAttr "hackage" sources then { inherit (sources) hackage; } else {}) //
       (if builtins.hasAttr "stackage" sources then { inherit (sources) stackage; } else {})
       // sourcesOverride;
-  });
-  # Use our own nixpkgs if it exists in our sources,
-  # Otherwise, use Haskell.nix default nixpkgs (currently 21.05).
+  };
+  # use our own nixpkgs if it exists in our sources,
+  # otherwise use iohkNix default nixpkgs.
   nixpkgs = if (sources ? nixpkgs)
     then
-      (builtins.trace "Not using Haskell.nix default nixpkgs (use 'niv drop nixpkgs' to use default for better sharing)"
+      (builtins.trace "Not using IOHK default nixpkgs (use 'niv drop nixpkgs' to use default for better sharing)"
       sources.nixpkgs)
-    else haskellNix.sources.nixpkgs;
+    else iohkNixMain.nixpkgs;
 
   # for inclusion in pkgs:
   overlays =
