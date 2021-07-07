@@ -226,6 +226,10 @@ let
 
       # Build fixes for library dependencies
       {
+        # Use our forked libsodium
+        packages.cardano-crypto-praos.components.library.pkgconfig = [ [ pkgs.libsodium-vrf ] ];
+        packages.cardano-crypto-class.components.library.pkgconfig = [ [ pkgs.libsodium-vrf ] ];
+
         # Packages we wish to ignore version bounds of.
         # This is similar to jailbreakCabal, however it
         # does not require any messing with cabal files.
@@ -251,7 +255,7 @@ let
 
       # Musl libc fully static build
       (lib.optionalAttrs stdenv.hostPlatform.isMusl (let
-        staticLibs = with pkgs; [ zlib openssl libffi gmp6 libsodium ];
+        staticLibs = with pkgs; [ zlib openssl libffi gmp6 libsodium-vrf ];
 
         # Module options which add GHC flags and libraries for a fully static build
         fullyStaticOptions = {
@@ -327,7 +331,7 @@ let
   # Make sure that the libsodium DLL is available beside the EXEs of
   # the windows build.
   libSodiumPostInstall = lib.optionalString stdenv.hostPlatform.isWindows ''
-    ln -s ${pkgs.libsodium}/bin/libsodium-23.dll $out/bin
+    ln -s ${pkgs.libsodium-vrf}/bin/libsodium-23.dll $out/bin
   '';
 
   # This exe component postInstall script adds shell completion

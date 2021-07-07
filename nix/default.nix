@@ -36,15 +36,17 @@ let
     haskellNix.nixpkgsArgs.overlays
     # haskell-nix.haskellLib.extra: some useful extra utility functions for haskell.nix
     ++ iohkNixMain.overlays.haskell-nix-extra
-    ++ iohkNixMain.overlays.crypto
     # iohkNix: nix utilities and niv:
     ++ iohkNixMain.overlays.iohkNix
     # our own overlays:
     ++ [
-      (pkgs: _: {
+      (final: prev: {
+        # iohkNix: crypto
+        libsodium-vrf = final.callPackage (sources.iohk-nix + /overlays/crypto/libsodium.nix) {};
+
         # commonLib: iohk-nix utils and our own:
-        commonLib = pkgs.iohkNix
-          // import ./util.nix { inherit (pkgs) lib; }
+        commonLib = final.iohkNix
+          // import ./util.nix { inherit (final) lib; }
           # also expose our sources and overlays
           // { inherit overlays sources; };
       })
