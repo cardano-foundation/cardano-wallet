@@ -665,16 +665,49 @@ prop_performSelection_small
     -> Property
 prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     checkCoverage $
+
+    -- Inspect the balance:
     cover 30 (balanceSufficient criteria)
         "balance sufficient" $
     cover 25 (not $ balanceSufficient criteria)
         "balance insufficient" $
+
+    -- Inspect the UTxO and user-specified outputs:
     cover 5 (utxoHasAtLeastOneAsset)
-        "No assets in UTxO" $
+        "UTxO has at least one assest" $
     cover 5 (not outputsHaveAtLeastOneAsset)
         "No assets to cover" $
     cover 2 (outputsHaveAtLeastOneAsset && not utxoHasAtLeastOneAsset)
         "Assets to cover, but no assets in UTxO" $
+
+    -- Inspect the sets of minted and burned assets:
+    cover 20 (view #assetsToMint criteria /= TokenMap.empty)
+        "Have some assets to mint" $
+    cover 20 (view #assetsToBurn criteria /= TokenMap.empty)
+        "Have some assets to burn" $
+    cover 2 (view #assetsToMint criteria == TokenMap.empty)
+        "Have no assets to mint" $
+    cover 2 (view #assetsToBurn criteria == TokenMap.empty)
+        "Have no assets to burn" $
+
+    -- Inspect the intersection between minted assets and burned assets:
+    cover 2 (someAssetsAreBothMintedAndBurned)
+        "Some assets are both minted and burned" $
+    cover 2 (noAssetsAreBothMintedAndBurned)
+        "No assets are both minted and burned" $
+
+    -- Inspect the intersection between minted assets and spent assets:
+    cover 2 (someAssetsAreBothMintedAndSpent)
+        "Some assets are both minted and spent" $
+    cover 2 (noAssetsAreBothMintedAndSpent)
+        "No assets are both minted and spent" $
+
+    -- Inspect the intersection between spent assets and burned assets:
+    cover 2 (someAssetsAreBothSpentAndBurned)
+        "Some assets are both spent and burned" $
+    cover 2 (noAssetsAreBothSpentAndBurned)
+        "No assets are both spent and burned" $
+
     prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
@@ -682,6 +715,8 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
             "selection limited but sufficient"
         . cover 10 (selectionLimited && selectionInsufficient result)
             "selection limited and insufficient"
+        . cover 2 (outputsInsufficient result)
+            "A portion of the minted assets were not spent or burned"
   where
     utxoHasAtLeastOneAsset = not
         . Set.null
@@ -695,6 +730,11 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
             . F.toList
             . fmap (view #tokens)
             $ outputsToCover criteria
+
+    outputsInsufficient :: PerformSelectionResult -> Bool
+    outputsInsufficient = \case
+        Left (OutputsInsufficient _) -> True
+        _ -> False
 
     selectionLimited :: Bool
     selectionLimited = case selectionLimit criteria of
@@ -713,6 +753,40 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     selectionInsufficient = \case
         Left (SelectionInsufficient _) -> True
         _ -> False
+
+    assetsSpentByUserSpecifiedOutputs :: TokenMap
+    assetsSpentByUserSpecifiedOutputs =
+        F.foldMap (view (#tokens . #tokens)) (outputsToCover criteria)
+
+    someAssetsAreBothMintedAndBurned :: Bool
+    someAssetsAreBothMintedAndBurned
+        = TokenMap.isNotEmpty
+        $ TokenMap.intersection
+            (view #assetsToMint criteria)
+            (view #assetsToBurn criteria)
+
+    someAssetsAreBothMintedAndSpent :: Bool
+    someAssetsAreBothMintedAndSpent
+        = TokenMap.isNotEmpty
+        $ TokenMap.intersection
+            (view #assetsToMint criteria)
+            (assetsSpentByUserSpecifiedOutputs)
+
+    someAssetsAreBothSpentAndBurned :: Bool
+    someAssetsAreBothSpentAndBurned
+        = TokenMap.isNotEmpty
+        $ TokenMap.intersection
+            (assetsSpentByUserSpecifiedOutputs)
+            (view #assetsToBurn criteria)
+
+    noAssetsAreBothMintedAndBurned :: Bool
+    noAssetsAreBothMintedAndBurned = not someAssetsAreBothMintedAndBurned
+
+    noAssetsAreBothMintedAndSpent :: Bool
+    noAssetsAreBothMintedAndSpent = not someAssetsAreBothMintedAndSpent
+
+    noAssetsAreBothSpentAndBurned :: Bool
+    noAssetsAreBothSpentAndBurned = not someAssetsAreBothSpentAndBurned
 
 prop_performSelection_large
     :: MinCoinValueFor

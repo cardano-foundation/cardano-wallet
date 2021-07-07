@@ -197,7 +197,7 @@ data SelectionCriteria = SelectionCriteria
         -- algorithm, requiring it to select more UTxO entries in order to
         -- cover the burn.
     }
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 -- | A skeleton selection that can be used to estimate the cost of a final
 --   selection.
