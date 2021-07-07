@@ -25,9 +25,10 @@ let
   # otherwise use iohkNix default nixpkgs.
   nixpkgs = if (sources ? nixpkgs)
     then
-      (builtins.trace "Not using IOHK default nixpkgs (use 'niv drop nixpkgs' to use default for better sharing)"
+      (builtins.trace "Not using Haskell.nix nixpkgs pin (use 'niv drop nixpkgs' to use default for better sharing)"
       sources.nixpkgs)
-    else iohkNixMain.nixpkgs;
+    # else iohkNixMain.nixpkgs;
+    else haskellNix.sources.nixpkgs-unstable;
 
   # for inclusion in pkgs:
   overlays =
