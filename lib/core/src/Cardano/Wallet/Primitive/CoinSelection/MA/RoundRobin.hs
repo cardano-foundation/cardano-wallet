@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionResult (..)
     , SelectionError (..)
     , BalanceInsufficientError (..)
+    , OutputsInsufficientError (..)
     , SelectionInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
@@ -65,6 +66,11 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAssets
     , assignCoinsToChangeMaps
     , collateNonUserSpecifiedAssetQuantities
+    , addMintValueToChangeMaps
+    , addMintValuesToChangeMaps
+    , removeBurnValueFromChangeMaps
+    , removeBurnValuesFromChangeMaps
+    , reduceTokenQuantities
 
     -- * Splitting bundles
     , splitBundleIfAssetCountExcessive
@@ -89,6 +95,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , distance
     , mapMaybe
     , balanceMissing
+    , missingOutputAssets
     ) where
 
 import Prelude
@@ -175,8 +182,22 @@ data SelectionCriteria = SelectionCriteria
     , extraCoinSource
         :: !(Maybe Coin)
         -- ^ An optional extra source of ada.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Assets to mint: these provide input value to a transaction.
+        --
+        -- By minting tokens, we generally decrease the burden of the selection
+        -- algorithm, allowing it to select fewer UTxO entries in order to
+        -- cover the required outputs.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ Assets to burn: these consume output value from a transaction.
+        --
+        -- By burning tokens, we generally increase the burden of the selection
+        -- algorithm, requiring it to select more UTxO entries in order to
+        -- cover the burn.
     }
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 -- | A skeleton selection that can be used to estimate the cost of a final
 --   selection.
@@ -274,9 +295,54 @@ data SelectionError
         SelectionInsufficientError
     | InsufficientMinCoinValues
         (NonEmpty InsufficientMinCoinValueError)
+    | OutputsInsufficient
+        OutputsInsufficientError
     | UnableToConstructChange
         UnableToConstructChangeError
     deriving (Generic, Eq, Show)
+
+-- | Indicates that a portion of the minted assets were not spent or burned.
+--
+-- This situation occurs if the following inequality does not hold:
+--
+-- >>> assetsToMint `leq` (assetsToBurn <> requestedOutputAssets)
+--
+-- The existence of this error reflects a deliberate design choice: all minted
+-- assets must either be explicitly spent or explicitly burned by the caller.
+-- In future, we could revise this design to allow excess minted assets (those
+-- that are neither spent nor burned) to be returned to the wallet as change.
+--
+data OutputsInsufficientError = OutputsInsufficientError
+    { assetsToMint
+        :: !TokenMap
+      -- ^ The assets to mint
+    , assetsToBurn
+        :: !TokenMap
+      -- ^ The assets to burn
+    , requestedOutputAssets
+        :: !TokenMap
+      -- ^ The complete set of assets found within the user-specified outputs
+    } deriving (Generic, Eq, Show)
+
+-- | Computes the portion of minted assets that are not spent or burned.
+--
+missingOutputAssets :: OutputsInsufficientError -> TokenMap
+missingOutputAssets e =
+    -- We use 'difference' which will show us the quantities in 'assetsToMint'
+    -- that are not in 'assetsToBurn <> requestedOutputAssets'.
+    --
+    -- Any asset quantity present in 'assetsToBurn <> requestedOutputAssets'
+    -- but not present in 'assetsToMint' will simply be zeroed out, which is
+    -- the behaviour we want for this error report.
+    --
+    assetsToMint `TokenMap.difference`
+        (assetsToBurn `TokenMap.add` requestedOutputAssets)
+  where
+    OutputsInsufficientError
+        { assetsToMint
+        , assetsToBurn
+        , requestedOutputAssets
+        } = e
 
 -- | Indicates that the balance of inputs actually selected was insufficient to
 --   cover the balance of 'outputsToCover'.
@@ -370,18 +436,32 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 -- Returns 'BalanceInsufficient' if the total balance of 'utxoAvailable' is not
 -- strictly greater than or equal to the total balance of 'outputsToCover'.
 --
+-- Returns 'OutputsInsufficientError' if the 'minted' values are not a subset
+-- of the 'outputsToCover' plus the 'burned' values. That is, the minted values
+-- are not spent or burned.
+--
 -- Provided that the total balance of 'utxoAvailable' is sufficient to cover
 -- the total balance of 'outputsToCover', this function guarantees to return
 -- an 'inputsSelected' value that satisfies:
 --
---    balance inputsSelected >= balance outputsToCover
---    balance inputsSelected == balance outputsToCover + balance changeGenerated
+--    ada asset balance:
+--      balance inputsSelected + balance extraAdaSource
+--      > balance outputsToCover + balance changeGenerated
+--    non-ada asset balance:
+--      balance inputsSelected + balance minted
+--      == balance outputsToCover
+--       + balance burned
+--       + balance changeGenerated
+--
+-- Note that the ada asset balance equation is an inequality because of the
+-- existence of a fee, and the non-ada asset balance is an equality because
+-- fees are paid in ada.
 --
 -- Finally, this function guarantees that:
 --
 --    inputsSelected ∪ utxoRemaining == utxoAvailable
 --    inputsSelected ∩ utxoRemaining == ∅
---    outputsCovered == outputsToCover
+--    outputsCovered + minted == outputsToCover + burned
 --
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
@@ -400,10 +480,17 @@ performSelection
         -- ^ The selection goal to satisfy.
     -> m (Either SelectionError (SelectionResult TokenBundle))
 performSelection minCoinFor costFor bundleSizeAssessor criteria
+    -- Is the minted value all spent or burnt?
+    | not (assetsToMint `leq` (assetsToBurn <> requestedOutputAssets)) =
+        pure $ Left $ OutputsInsufficient $ OutputsInsufficientError
+            {assetsToMint, assetsToBurn, requestedOutputAssets}
+
+    -- Is the total available balance sufficient?
     | not (balanceRequired `leq` balanceAvailable) =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             { balanceAvailable, balanceRequired }
 
+    -- Are the minimum ada quantities of the outputs too small?
     | not (null insufficientMinCoinValues) =
         pure $ Left $ InsufficientMinCoinValues $
             NE.fromList insufficientMinCoinValues
@@ -414,7 +501,6 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         let balanceSelected = fullBalance (selected state) extraCoinSource
         if balanceRequired `leq` balanceSelected then
             makeChangeRepeatedly state
-
         else
             pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
                 { inputsSelected = UTxOIndex.toList (selected state)
@@ -426,7 +512,12 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         , utxoAvailable
         , selectionLimit
         , extraCoinSource
+        , assetsToMint
+        , assetsToBurn
         } = criteria
+
+    requestedOutputs = F.foldMap (view #tokens) outputsToCover
+    requestedOutputAssets = view #tokens requestedOutputs
 
     mkInputsSelected :: UTxOIndex -> NonEmpty (TxIn, TxOut)
     mkInputsSelected =
@@ -436,7 +527,15 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
     balanceAvailable = fullBalance utxoAvailable extraCoinSource
 
     balanceRequired :: TokenBundle
-    balanceRequired = F.foldMap (view #tokens) outputsToCover
+    balanceRequired =
+        -- of course, we need to satisfy the outputs the caller asked for
+        requestedOutputs
+        -- we must also find assets to burn
+        `TokenBundle.add`
+            TokenBundle.fromTokenMap assetsToBurn
+        -- but assets minted reduce the quantity of assets we have to select
+        `TokenBundle.unsafeSubtract`
+            TokenBundle.fromTokenMap assetsToMint
 
     insufficientMinCoinValues :: [InsufficientMinCoinValueError]
     insufficientMinCoinValues =
@@ -495,6 +594,8 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
             , extraCoinSource
             , inputBundles
             , outputBundles
+            , assetsToMint
+            , assetsToBurn
             }
         )
       where
@@ -516,6 +617,10 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
     --
     -- Eventually it returns just a final selection, or 'Nothing' if no more
     -- ada-only inputs are available.
+    --
+    -- This function also takes a set of tokens that are to be burned, and
+    -- hence although one or more inputs will be consumed for them, this
+    -- function won't make associated outputs for them.
     --
     makeChangeRepeatedly
         :: SelectionState
@@ -565,8 +670,10 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
             , bundleSizeAssessor
             , requiredCost
             , extraCoinSource
-            , inputBundles =  view #tokens . snd <$> inputsSelected
+            , inputBundles = view #tokens . snd <$> inputsSelected
             , outputBundles = view #tokens <$> outputsToCover
+            , assetsToMint
+            , assetsToBurn
             }
 
         mkSelectionResult :: [TokenBundle] -> SelectionResult TokenBundle
@@ -942,6 +1049,10 @@ data MakeChangeCriteria minCoinFor bundleSizeAssessor = MakeChangeCriteria
         -- ^ Token bundles of selected inputs.
     , outputBundles :: NonEmpty TokenBundle
         -- ^ Token bundles of original outputs.
+    , assetsToMint :: TokenMap
+        -- ^ Assets to mint: these provide input value to a transaction.
+    , assetsToBurn :: TokenMap
+        -- ^ Assets to burn: these consume output value from a transaction.
     } deriving (Eq, Generic, Show)
 
 -- | Indicates 'True' if and only if a token bundle exceeds the maximum size
@@ -997,6 +1108,8 @@ makeChange criteria
         , extraCoinSource
         , inputBundles
         , outputBundles
+        , assetsToMint
+        , assetsToBurn
         } = criteria
 
     -- The following subtraction is safe, as we have already checked
@@ -1085,8 +1198,18 @@ makeChange criteria
     -- Change for non-user-specified assets: assets that were not present
     -- in the original set of user-specified outputs ('outputsToCover').
     changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
-    changeForNonUserSpecifiedAssets = makeChangeForNonUserSpecifiedAssets
-        outputMaps nonUserSpecifiedAssetQuantities
+    changeForNonUserSpecifiedAssets =
+        makeChangeForNonUserSpecifiedAssets
+            outputMaps
+            nonUserSpecifiedAssetQuantities
+        & addMintValuesToChangeMaps
+            (removeUserSpecifiedAssetIds assetsToMint)
+        & removeBurnValuesFromChangeMaps
+            (removeUserSpecifiedAssetIds assetsToBurn)
+      where
+        removeUserSpecifiedAssetIds :: TokenMap -> TokenMap
+        removeUserSpecifiedAssetIds =
+            TokenMap.filter (`Set.notMember` userSpecifiedAssetIds)
 
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
@@ -1117,17 +1240,22 @@ makeChange criteria
     outputCoins = view #coin <$> outputBundles
 
     totalInputValue :: TokenBundle
-    totalInputValue = TokenBundle.add
-        (F.fold inputBundles)
-        (maybe TokenBundle.empty TokenBundle.fromCoin extraCoinSource)
+    totalInputValue =
+        F.fold inputBundles
+            <> F.foldMap TokenBundle.fromCoin extraCoinSource
+            -- Mints represent extra inputs from "the void"
+            <> TokenBundle.fromTokenMap assetsToMint
 
     totalOutputValue :: TokenBundle
-    totalOutputValue = F.fold outputBundles
+    totalOutputValue =
+        F.fold outputBundles
+            -- Burns represent extra outputs to "the void"
+            <> TokenBundle.fromTokenMap assetsToBurn
 
     -- Identifiers of all user-specified assets: assets that were included in
     -- the original set of outputs.
     userSpecifiedAssetIds :: Set AssetId
-    userSpecifiedAssetIds = TokenBundle.getAssets totalOutputValue
+    userSpecifiedAssetIds = TokenBundle.getAssets (F.fold outputBundles)
 
     -- Identifiers and quantities of all non-user-specified assets: assets that
     -- were not included in the orginal set of outputs, but that were
@@ -1376,6 +1504,268 @@ makeChangeForCoin
 makeChangeForCoin = flip Coin.unsafePartition
 
 --------------------------------------------------------------------------------
+-- Minting and burning
+--------------------------------------------------------------------------------
+
+-- Once we know how much change to give, grouping the change into bundles is a
+-- somewhat complicated topic.
+--
+-- We want to create change outputs with, as far as possible, values that are
+-- likely to be useful to the user in future, where values that more closely
+-- approximate the user-specified outputs are considered more "useful".
+--
+-- A key property is that the number of change outputs should reflect the
+-- number of outputs specified by the user. For example, if the user sends
+-- value to five distinct outputs, we should create five distinct change
+-- outputs.
+--
+-- However, we also want to mint and burn tokens. In general, minting tokens
+-- requires us to add value to the change outputs and burning tokens requires
+-- us to remove value from the change outputs.
+--
+-- It's also important to note that the change bundle calcualation requires
+-- that the change for user-specified and non-user-specified assets have the
+-- following properties:
+--
+--    1. The lists share the same length;
+--    2. The lists are in ascending partial order.
+--
+-- For example, given the following non-user-specified asset quantities:
+--
+--    [ ("A", [4, 1, 3, 2])
+--    , ("B", [9, 1, 8, 2, 7, 3, 6, 4, 5])
+--    ]
+--
+-- If the user requests 5 outputs in their transaction,
+-- 'makeChangeForNonUserSpecifiedAssets' will generate:
+--
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 4), ("B", 12) ]
+--
+-- That is to say, it generates change bundles that satisfy the following
+-- properties:
+--
+--    1.  The number of change bundles matches the number of outputs
+--        the user originally requested;
+--    2.  The change bundles are split in such a way to maximize the
+--        number of large change bundles.
+--
+-- The change function maintains the property that the change bundles are in
+-- ascending partial order, such that each change bundle is a subset of the
+-- next. This property is required by 'changeMapOutputCoinPairs', so it's
+-- important it's maintained.
+--
+-- The following two functions work by modifying the change bundles for
+-- non-user-specified assets.
+--
+-- We add minted tokens to the largest change bundle:
+--
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 4), ("B", 12) ] <-- add minted tokens here
+--
+-- We remove burned tokens from the smallest change bundles, until all burned
+-- tokens are removed:
+--
+--    [ [          ("B", 7)  ] <-- start removing burned tokens from here
+--    [ [("A", 1), ("B", 8)  ] <-- if we must burn more, remove from here
+--    [ [("A", 2), ("B", 9)  ] <-- if we must burn more, remove from here
+--    [ [("A", 3), ("B", 9)  ] <-- and so on, until we've removed everything.
+--    [ [("A", 4), ("B", 12) ]
+--
+-- The solution for minting maintains the properties we desire, namely:
+--
+--    1.  The number of change bundles matches the number of
+--        "outputs to cover" (we are not changing the number of bundles).
+--    2.  The change bundles are in ascending partial order (by adding to the
+--        largest bundle we trivially maintain ordering).
+--    3.  The change bundles are split in such a way to maximize the
+--        number of large change bundles.
+--
+-- The solution for burning maintains the same properties:
+--
+--    1.  The number of change bundles is not changed, in the case we burn a
+--        change bundle completely, we just leave it as an empty entry
+--        (effectively "pad with zeros").
+--    2.  By removing from the smallest bundle, we maintain the ascending
+--        partial order of the change bundles.
+--    3.  By removing from the smallest bundles, we remove the "least useful"
+--        bundles, maximizing the overall usefulness of our bundles.
+
+-- | Adds a minted asset quantity to a list of change maps.
+--
+-- This function always adds the given quantity to the final change map in the
+-- given list.
+--
+-- Example:
+--
+-- Suppose we have the following list of change maps:
+--
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 4), ("B", 12) ]
+--
+-- If we add 4 tokens of asset "A", we obtain the following result:
+--
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 8), ("B", 12) ] -- Increased by 4
+--
+-- Provided that the specified change maps are in ascending partial order, this
+-- function guarantees that the resulting change maps will also be in ascending
+-- partial order.
+--
+-- The length of the given list is preserved in the output list.
+--
+addMintValueToChangeMaps
+    :: (AssetId, TokenQuantity)
+    -> NonEmpty TokenMap
+    -> NonEmpty TokenMap
+addMintValueToChangeMaps (assetId, assetQty) =
+    -- The largest element is the last element in an ascending order list
+    modifyLast $ \m -> TokenMap.adjustQuantity m assetId (<> assetQty)
+  where
+    modifyLast f xs = case NE.reverse xs of
+        (y :| ys) -> NE.reverse (f y :| ys)
+
+-- | Adds minted values for multiple assets to a list of change maps.
+--
+-- Plural of @addMintValueToChangeMaps@.
+--
+addMintValuesToChangeMaps
+    :: TokenMap
+    -- ^ Map of minted values
+    -> NonEmpty TokenMap
+    -- ^ Change maps
+    -> NonEmpty TokenMap
+    -- ^ Change maps with minted values
+addMintValuesToChangeMaps =
+    flip (F.foldr addMintValueToChangeMaps) . TokenMap.toFlatList
+
+-- | Removes a burned asset quantity from a list of change maps.
+--
+-- For a given asset 'a' and reduction target 't', this function traverses the
+-- given list from left to right, reducing the quantity of asset 'a' in each
+-- change map until the reduction target 't' has been met, or until the list
+-- is exhausted.
+--
+-- For each change map 'm' under consideration:
+--
+--    - if the quantity 'q' of asset 'a' in map 'm' is less than or equal to
+--      the remaining required reduction 'r', it will be replaced with a zero
+--      (effectively eliminating asset 'a' from the map).
+--
+--    - if the quantity 'q' of asset 'a' in map 'm' is greater than the
+--      remaining required reduction 'r', it will be replaced with the
+--      absolute difference between 'q' and 'r'.
+--
+-- If the total quantity of the given asset in the given change maps is greater
+-- than the specified reduction target, the total reduction will be equal to
+-- the specified reduction target. Otherwise, the given asset will be
+-- completely eliminated from all change maps.
+--
+-- Example:
+--
+-- Suppose we have the following list of change maps:
+--
+--    [ [          ("B",  7) ]
+--    [ [("A", 1), ("B",  8) ]
+--    [ [("A", 2), ("B",  9) ]
+--    [ [("A", 3), ("B",  9) ]
+--    [ [("A", 4), ("B", 12) ]
+--
+-- If our target is to reduce the quantity of asset "A" by 4, then we should
+-- obtain the following result:
+--
+--    [ [          ("B",  7) ] -- Unable to reduce (already 0)
+--    [ [          ("B",  8) ] -- Reduced by 1 (and eliminated from map)
+--    [ [          ("B",  9) ] -- Reduced by 2 (and eliminated from map)
+--    [ [("A", 2), ("B",  9) ] -- Reduced by 1
+--    [ [("A", 4), ("B", 12) ]
+--
+-- Provided that the specified change maps are in ascending partial order, this
+-- function guarantees that the resulting change maps will also be in ascending
+-- partial order.
+--
+-- The length of the given list is preserved in the output list.
+--
+removeBurnValueFromChangeMaps
+    :: (AssetId, TokenQuantity)
+    -- ^ Asset quantity reduction target
+    -> NonEmpty TokenMap
+    -- ^ Change maps with quantities of the given asset to be reduced
+    -> NonEmpty TokenMap
+    -- ^ Change maps with reduced quantities of the given asset
+removeBurnValueFromChangeMaps (assetId, assetQty) maps = maps
+    & fmap (`TokenMap.getQuantity` assetId)
+    & reduceTokenQuantities assetQty
+    & NE.zipWith (`TokenMap.setQuantity` assetId) maps
+
+-- | Reduces the total value of the given list of token quantities by the given
+--   reduction target.
+--
+-- This function traverses the given list of quantities from left to right,
+-- reducing each quantity in turn until the total reduction is equal to the
+-- given reduction target, or until the list is exhausted.
+--
+-- For each quantity 'q' under consideration:
+--
+--    - if 'q' is less than or equal to the remaining required reduction 'r',
+--      it will be replaced with a zero.
+--
+--    - if 'q' is greater than the remaining required reduction 'r', it will
+--      be replaced with the absolute difference between 'q' and 'r'.
+--
+-- If the total value in the list is less than the reduction target, the
+-- result will be a list of zeros.
+--
+-- Provided the given list is in ascending order, the resulting list is also
+-- guaranteed to be in ascending order.
+--
+-- The length of the given list is preserved in the output.
+--
+reduceTokenQuantities
+    :: TokenQuantity
+    -- ^ Reduction target
+    -> NonEmpty TokenQuantity
+    -- ^ List of quantities to reduce
+    -> NonEmpty TokenQuantity
+    -- ^ The list of reduced quantities
+reduceTokenQuantities reductionTarget quantities =
+    NE.fromList $ burn reductionTarget (NE.toList quantities) []
+  where
+    burn _ [      ] ys = reverse ys
+    burn b (x : xs) ys
+        | x >= b = reverse ys <> (x' : xs)
+        | otherwise = burn b' xs (x' : ys)
+      where
+        b' = b `TokenQuantity.difference` x
+        x' = x `TokenQuantity.difference` b
+
+-- | Removes burned values for multiple assets from a list of change maps.
+--
+-- Plural of @removeBurnValueFromChangeMaps@.
+--
+removeBurnValuesFromChangeMaps
+    :: TokenMap
+    -- ^ Map of burned values
+    -> NonEmpty TokenMap
+    -- ^ Change maps
+    -> NonEmpty TokenMap
+    -- ^ Change maps with burned values removed
+removeBurnValuesFromChangeMaps =
+    flip (F.foldr removeBurnValueFromChangeMaps) . TokenMap.toFlatList
+
+--------------------------------------------------------------------------------
 -- Splitting bundles
 --------------------------------------------------------------------------------
 
@@ -1477,17 +1867,15 @@ assetQuantity asset =
     unTokenQuantity . flip TokenBundle.getQuantity asset . view #balance
 
 coinQuantity :: UTxOIndex -> Maybe Coin -> Natural
-coinQuantity index =
-    fromIntegral . unCoin . TokenBundle.getCoin . fullBalance index
+coinQuantity index extraSource =
+    fromIntegral . unCoin . TokenBundle.getCoin $ fullBalance index extraSource
 
 fullBalance :: UTxOIndex -> Maybe Coin -> TokenBundle
 fullBalance index extraSource
     | UTxOIndex.null index =
         TokenBundle.empty
     | otherwise =
-        TokenBundle.add
-            (view #balance index)
-            (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
+        view #balance index <> F.foldMap TokenBundle.fromCoin extraSource
 
 --------------------------------------------------------------------------------
 -- Utility types

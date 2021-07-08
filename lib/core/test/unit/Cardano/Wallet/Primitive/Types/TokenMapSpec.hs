@@ -92,6 +92,7 @@ import Test.QuickCheck
     , applyFun
     , checkCoverage
     , choose
+    , conjoin
     , counterexample
     , cover
     , frequency
@@ -155,6 +156,8 @@ spec =
             property prop_subtract_invariant
         it "prop_difference_invariant" $
             property prop_difference_invariant
+        it "prop_intersection_invariant" $
+            property prop_intersection_invariant
         it "prop_setQuantity_invariant" $
             property prop_setQuantity_invariant
         it "prop_adjustQuantity_invariant" $
@@ -208,6 +211,18 @@ spec =
             property prop_difference_subtract
         it "prop_difference_equality" $
             property prop_difference_equality
+        it "prop_intersection_associativity" $
+            property prop_intersection_associativity
+        it "prop_intersection_commutativity" $
+            property prop_intersection_commutativity
+        it "prop_intersection_empty" $
+            property prop_intersection_empty
+        it "prop_intersection_equality" $
+            property prop_intersection_equality
+        it "prop_intersection_identity" $
+            property prop_intersection_identity
+        it "prop_intersection_subset" $
+            property prop_intersection_subset
 
     parallel $ describe "Quantities" $ do
 
@@ -325,6 +340,10 @@ prop_subtract_invariant m1 m2 = property $
 prop_difference_invariant :: TokenMap -> TokenMap -> Property
 prop_difference_invariant m1 m2 =
     property $ invariantHolds $ TokenMap.difference m1 m2
+
+prop_intersection_invariant :: TokenMap -> TokenMap -> Property
+prop_intersection_invariant m1 m2 =
+    property $ invariantHolds $ TokenMap.intersection m1 m2
 
 prop_setQuantity_invariant
     :: TokenMap -> AssetId -> TokenQuantity -> Property
@@ -498,6 +517,39 @@ prop_difference_equality x y = checkCoverage $
     yReduced = y `TokenMap.unsafeSubtract` yExcess
     xExcess = x `TokenMap.difference` y
     yExcess = y `TokenMap.difference` x
+
+prop_intersection_associativity :: TokenMap -> TokenMap -> TokenMap -> Property
+prop_intersection_associativity x y z = (===)
+    ((x `TokenMap.intersection` y) `TokenMap.intersection` z)
+    (x `TokenMap.intersection` (y `TokenMap.intersection` z))
+
+prop_intersection_commutativity :: TokenMap -> TokenMap -> Property
+prop_intersection_commutativity x y =
+    x `TokenMap.intersection` y === y `TokenMap.intersection` x
+
+prop_intersection_empty :: TokenMap -> Property
+prop_intersection_empty x =
+    x `TokenMap.intersection` TokenMap.empty === TokenMap.empty
+
+prop_intersection_equality :: TokenMap -> TokenMap -> Property
+prop_intersection_equality x y = conjoin
+    [ total `TokenMap.intersection` x === x
+    , total `TokenMap.intersection` y === y
+    ]
+  where
+    total = x <> y
+
+prop_intersection_identity :: TokenMap -> Property
+prop_intersection_identity x =
+    x `TokenMap.intersection` x === x
+
+prop_intersection_subset :: TokenMap -> TokenMap -> Property
+prop_intersection_subset x y = conjoin
+    [ intersection `leq` x
+    , intersection `leq` y
+    ]
+  where
+    intersection = x `TokenMap.intersection` y
 
 --------------------------------------------------------------------------------
 -- Quantity properties

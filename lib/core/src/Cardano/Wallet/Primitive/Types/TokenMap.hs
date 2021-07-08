@@ -58,6 +58,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , add
     , subtract
     , difference
+    , intersection
 
     -- * Tests
     , isEmpty
@@ -545,8 +546,30 @@ difference :: TokenMap -> TokenMap -> TokenMap
 difference m1 m2 = L.foldl' reduce m1 (toFlatList m2)
   where
     reduce :: TokenMap -> (AssetId, TokenQuantity) -> TokenMap
-    reduce m (a, q) = adjustQuantity m a
-        (fromMaybe TokenQuantity.zero . (`TokenQuantity.subtract` q))
+    reduce m (a, q) = adjustQuantity m a (`TokenQuantity.difference` q)
+
+-- | Computes the intersection of two token maps.
+--
+-- Analogous to @Set.intersection@.
+--
+-- Example:
+--
+-- >>> m1 = [("a", 1), ("b", 2), ("c", 3)          ]
+-- >>> m2 = [          ("b", 3), ("c", 2), ("d", 1)]
+-- >>> intersection m1 m2
+--          [          ("b", 2), ("c", 2)          ]
+--
+intersection :: TokenMap -> TokenMap -> TokenMap
+intersection m1 m2 =
+    fromFlatList (getMinimumQuantity <$> F.toList sharedAssets)
+  where
+    getMinimumQuantity :: AssetId -> (AssetId, TokenQuantity)
+    getMinimumQuantity a = (a, ) $ min
+        (getQuantity m1 a)
+        (getQuantity m2 a)
+
+    sharedAssets :: Set AssetId
+    sharedAssets = Set.intersection (getAssets m1) (getAssets m2)
 
 --------------------------------------------------------------------------------
 -- Tests
