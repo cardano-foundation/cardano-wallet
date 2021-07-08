@@ -28,55 +28,41 @@ let
   # our packages
   stack-pkgs = import ./.stack.nix/default.nix;
 
-  # Chop out a subdirectory of the source, so that the package is only
-  # rebuilt when something in the subdirectory changes.
-  filterSubDir = subDir: {
-    src = haskell.haskellLib.cleanSourceWith { inherit src subDir; };
-    package.isProject = true;  # fixme: Haskell.nix
+  # When adding a new Cabal package, or removing, update this attrset.
+  # It's not automatically discovered from stack-pkgs yet.
+  projectPackages = {
+    cardano-wallet-cli = "lib/cli";
+    cardano-wallet-core-integration = "lib/core-integration";
+    cardano-wallet-core = "lib/core";
+    cardano-wallet-launcher = "lib/launcher";
+    cardano-numeric = "lib/numeric";
+    cardano-wallet = "lib/shelley";
+    strict-non-empty-containers = "lib/strict-non-empty-containers";
+    cardano-wallet-test-utils = "lib/test-utils";
+    text-class = "lib/text-class";
   };
 
   pkg-set = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
-      # Add source filtering to local packages
       {
-        packages.cardano-wallet-cli = filterSubDir "lib/cli";
-        packages.cardano-wallet-core-integration = filterSubDir "lib/core-integration";
-        packages.cardano-wallet-core = filterSubDir "lib/core";
-        packages.cardano-wallet-launcher = filterSubDir "lib/launcher";
-        packages.cardano-numeric = filterSubDir "lib/numeric";
-        packages.cardano-wallet = filterSubDir "lib/shelley";
-        packages.strict-non-empty-containers = filterSubDir "lib/strict-non-empty-containers";
-        packages.cardano-wallet-test-utils = filterSubDir "lib/test-utils";
-        packages.text-class = filterSubDir "lib/text-class";
-      }
+        packages = lib.mapAttrs (name: subDir: {
+          # Add source filtering to local packages and chop out a
+          # subdirectory of the source, so that the package is only
+          # rebuilt when something relevant in the subdirectory changes.
+          src = haskell.haskellLib.cleanSourceWith { inherit src subDir; };
+          # Mark package as local non-dep in the nix-shell.
+          # fixme: Haskell.nix should set it
+          package.isProject = true;
 
-      # Enable release flag (optimization and -Werror) on all local packages
-      {
-        packages.cardano-wallet.flags.release = true;
-        packages.cardano-wallet-cli.flags.release = true;
-        packages.cardano-wallet-core-integration.flags.release = true;
-        packages.cardano-wallet-core.flags.release = true;
-        packages.cardano-wallet-launcher.flags.release = true;
-        packages.cardano-wallet-test-utils.flags.release = true;
-        packages.cardano-numeric.flags.release = true;
-        packages.strict-non-empty-containers.flags.release = true;
-        packages.text-class.flags.release = true;
-      }
+          # Enable release flag (optimization and -Werror)
+          flags.release = true;
 
-      (lib.optionalAttrs coverage {
-        # Enable Haskell Program Coverage for all local libraries and test suites.
-        packages.cardano-wallet.components.library.doCoverage = true;
-        packages.cardano-wallet-cli.components.library.doCoverage = true;
-        packages.cardano-wallet-core-integration.components.library.doCoverage = true;
-        packages.cardano-wallet-core.components.library.doCoverage = true;
-        packages.cardano-wallet-core.components.tests.unit.doCoverage = true;
-        packages.cardano-wallet-launcher.components.library.doCoverage = true;
-        packages.cardano-wallet-test-utils.components.library.doCoverage = true;
-        packages.cardano-numeric.components.library.doCoverage = true;
-        packages.strict-non-empty-containers.components.library.doCoverage = true;
-        packages.text-class.components.library.doCoverage = true;
-      })
+          # Enable Haskell Program Coverage for all local libraries
+          # and test suites.
+          doCoverage = coverage;
+        }) projectPackages;
+      }
 
       # Provide configuration and dependencies to cardano-wallet components
       ({ config, ...}: let
