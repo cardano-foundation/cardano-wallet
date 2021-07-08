@@ -1858,12 +1858,9 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     inputBundles <- genTokenBundles inputBundleCount
     outputBundles <- genTokenBundles outputBundleCount
 
-    -- Tokens in the input but not the output can be burned
-    assetsToBurn <- TokenMap.fromFlatList <$>
-        sublistOf (difference' inputBundles outputBundles)
-    -- Tokens in the output but not the input can be minted
-    assetsToMint <- TokenMap.fromFlatList <$>
-        sublistOf (difference' outputBundles inputBundles)
+    (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn
+        (F.foldMap (view #tokens) inputBundles)
+        (F.foldMap (view #tokens) outputBundles)
 
     MakeChangeCriteria
         <$> arbitrary
@@ -1875,20 +1872,30 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
         <*> pure assetsToMint
         <*> pure assetsToBurn
   where
+    genAssetsToMintAndBurn :: TokenMap -> TokenMap -> Gen (TokenMap, TokenMap)
+    genAssetsToMintAndBurn assetsInInputs assetsInOutputs =
+        (,) <$> genAssetsToMint <*> genAssetsToBurn
+      where
+        genAssetsToMint :: Gen TokenMap
+        genAssetsToMint =
+            -- Assets in the outputs but not in the inputs can be minted:
+            (assetsInOutputs `TokenMap.difference` assetsInInputs)
+                & TokenMap.toFlatList
+                & sublistOf
+                & fmap TokenMap.fromFlatList
+
+        genAssetsToBurn :: Gen TokenMap
+        genAssetsToBurn =
+            -- Assets in the inputs but not in the outputs can be burned:
+            (assetsInInputs `TokenMap.difference` assetsInOutputs)
+                & TokenMap.toFlatList
+                & sublistOf
+                & fmap TokenMap.fromFlatList
+
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
         <$> genTokenBundleSmallRangePositive
         <*> replicateM count genTokenBundleSmallRangePositive
-
-    difference'
-        :: NonEmpty TokenBundle
-        -> NonEmpty TokenBundle
-        -> [(AssetId, TokenQuantity)]
-    difference' a b
-        = TokenMap.toFlatList
-        $ TokenMap.difference
-            (F.foldMap (view #tokens) a)
-            (F.foldMap (view #tokens) b)
 
 makeChangeWith
     :: MakeChangeData
