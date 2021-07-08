@@ -3215,6 +3215,18 @@ x-errMalformedTxPayload: &errMalformedTxPayload
       type: string
       enum: ['malformed_tx_payload']
 
+x-errTokensMintedButNotSpentOrBurned: &errTokensMintedButNotSpentOrBurned
+  <<: *responsesErr
+  title: tokens_minted_but_not_spent_or_burned
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user mints funds but does not spend or burn them all.
+    code:
+      type: string
+      enum: ['tokens_minted_but_not_spent_or_burned']
+
 # TODO: Map this error to the place it belongs.
 x-errKeyNotFoundForAddress: &errKeyNotFoundForAddress
   <<: *responsesErr
