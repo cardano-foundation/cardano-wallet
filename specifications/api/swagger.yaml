@@ -1714,6 +1714,7 @@ components:
         - shelley
         - allegra
         - mary
+        - alonzo
 
     ApiNetworkInformation: &ApiNetworkInformation
       type: object
@@ -1742,6 +1743,7 @@ components:
         shelley: *nullableEpochInfo
         allegra: *nullableEpochInfo
         mary: *nullableEpochInfo
+        alonzo: *nullableEpochInfo
       description: |
 
         If and when each era started or will start.

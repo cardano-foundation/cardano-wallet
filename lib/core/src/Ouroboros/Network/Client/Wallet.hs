@@ -89,7 +89,9 @@ import Network.TypedProtocol.Pipelined
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.HardFork.Combinator.Ledger.Query
-    ( Query )
+    ( BlockQuery )
+import Ouroboros.Consensus.Ledger.Query
+    ( Query (..) )
 import Ouroboros.Network.Block
     ( BlockNo (..)
     , HasHeader (..)
@@ -515,11 +517,14 @@ localStateQuery queue =
               -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
               -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
           go (LSQPure a) cont = cont a
-          go (LSQry qry) cont = LSQ.SendMsgQuery qry $ LSQ.ClientStQuerying $ \res -> do
-              pure $ cont res
-              -- It would be nice to trace the time it takes to run the
-              -- queries. We don't have a good opportunity to run IO after a
-              -- point is acquired, but before the query is send, however.
+          go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry)
+            -- NOTE: We only need to support queries of the type `BlockQuery`
+            -- type.
+            $ LSQ.ClientStQuerying $ \res -> do
+                  pure $ cont res
+                  -- It would be nice to trace the time it takes to run the
+                  -- queries. We don't have a good opportunity to run IO after a
+                  -- point is acquired, but before the query is send, however.
           go (LSQBind ma f) cont = go ma $ \a -> do
               go (f a) $ \b -> cont b
 
@@ -535,7 +540,7 @@ data LSQ block (m :: Type -> Type) a where
     LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
 
     -- | A local state query.
-    LSQry :: (Query block res) -> LSQ block m res
+    LSQry :: (BlockQuery block res) -> LSQ block m res
 
 instance Functor (LSQ block m) where
     fmap = liftM
@@ -551,7 +556,7 @@ instance Monad (LSQ block m) where
 --
 -- Helpers
 
-query :: (Query block res) -> LSQ block m res
+query :: (BlockQuery block res) -> LSQ block m res
 query = LSQry
 
 --------------------------------------------------------------------------------

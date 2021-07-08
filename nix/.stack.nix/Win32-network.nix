@@ -25,27 +25,47 @@
       };
     components = {
       "library" = {
-        depends = (([
+        depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          ] ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."network" or (errorHandler.buildDepError "network"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"));
+          ] ++ (pkgs.lib).optionals (system.isWindows) [
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."network" or (errorHandler.buildDepError "network"))
+          (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
+          ];
         libs = (pkgs.lib).optional (system.isWindows) (pkgs."ws2_32" or (errorHandler.sysDepError "ws2_32"));
         buildable = true;
         };
       exes = {
         "named-pipe-demo" = {
-          depends = (([
+          depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            ] ++ (pkgs.lib).optionals (system.isWindows) [
+            (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
             (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-            ] ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."binary" or (errorHandler.buildDepError "binary"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"));
+            ];
           buildable = true;
           };
         };
       tests = {
         "test" = {
-          depends = (((((((((([
+          depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            ] ++ (pkgs.lib).optionals (system.isWindows) [
+            (hsPkgs."async" or (errorHandler.buildDepError "async"))
+            (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."network" or (errorHandler.buildDepError "network"))
+            (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
+            (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"))
             (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-            ] ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."async" or (errorHandler.buildDepError "async"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."binary" or (errorHandler.buildDepError "binary"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."network" or (errorHandler.buildDepError "network"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."stm" or (errorHandler.buildDepError "stm"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))) ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"));
+            ];
           buildable = true;
           };
         };
@@ -53,7 +73,7 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/Win32-network";
-      rev = "94153b676617f8f33abe8d8182c37377d2784bd1";
-      sha256 = "0pb7bg0936fldaa5r08nqbxvi2g8pcy4w3c7kdcg7pdgmimr30ss";
+      rev = "5b3d08c454f425da5cf045fe7865950d7c806691";
+      sha256 = "0npyihbaqlih9abdbaj451lm1h0kl5braczy8vn41s3ivbbnvpcw";
       });
     }

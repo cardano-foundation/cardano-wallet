@@ -8,17 +8,17 @@
   , config
   , ... }:
   {
-    flags = { demo = true; };
+    flags = { checktvarinvariant = false; asserts = false; };
     package = {
       specVersion = "1.10";
-      identifier = { name = "ntp-client"; version = "0.0.1"; };
+      identifier = { name = "io-classes"; version = "0.2.0.0"; };
       license = "Apache-2.0";
-      copyright = "";
+      copyright = "2019 Input Output (Hong Kong) Ltd.";
       maintainer = "";
-      author = "";
+      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts";
       homepage = "";
       url = "";
-      synopsis = "";
+      synopsis = "Type classes for concurrency with STM, ST and timing";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -26,36 +26,20 @@
     components = {
       "library" = {
         depends = [
-          (hsPkgs."async" or (errorHandler.buildDepError "async"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
+          (hsPkgs."async" or (errorHandler.buildDepError "async"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."network" or (errorHandler.buildDepError "network"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
           ];
         buildable = true;
-        };
-      exes = {
-        "demo-ntp-client" = {
-          depends = [
-            (hsPkgs."async" or (errorHandler.buildDepError "async"))
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-            (hsPkgs."ntp-client" or (errorHandler.buildDepError "ntp-client"))
-            ];
-          buildable = if flags.demo then true else false;
-          };
         };
       tests = {
         "test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
@@ -70,5 +54,5 @@
       rev = "e338f2cf8e1078fbda9555dd2b169c6737ef6774";
       sha256 = "12x81hpjyw2cpkazfalz6bw2wgr6ax7bnmlxl2rlfakkvsjfgaqd";
       });
-    postUnpack = "sourceRoot+=/ntp-client; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/io-classes; echo source root reset to \$sourceRoot";
     }

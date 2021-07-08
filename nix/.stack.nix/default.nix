@@ -9,8 +9,8 @@
         "hspec" = (((hackage.hspec)."2.8.2").revisions).default;
         "hspec-core" = (((hackage.hspec-core)."2.8.2").revisions).default;
         "base16-bytestring" = (((hackage.base16-bytestring)."1.0.1.0").revisions).default;
-        "bech32" = (((hackage.bech32)."1.1.0").revisions).default;
-        "bech32-th" = (((hackage.bech32-th)."1.0.2").revisions).default;
+        "bech32" = (((hackage.bech32)."1.1.1").revisions).default;
+        "bech32-th" = (((hackage.bech32-th)."1.1.1").revisions).default;
         "Cabal" = (((hackage.Cabal)."3.4.0.0").revisions).default;
         "parsec" = (((hackage.parsec)."3.1.14.0").revisions).default;
         "async-timer" = (((hackage.async-timer)."0.2.0.0").revisions).default;
@@ -28,6 +28,18 @@
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions).default;
         "streaming-binary" = (((hackage.streaming-binary)."0.2.2.0").revisions).default;
         "transformers-except" = (((hackage.transformers-except)."0.1.1").revisions).default;
+        "Stream" = (((hackage.Stream)."0.4.7.2").revisions).default;
+        "composition-prelude" = (((hackage.composition-prelude)."3.0.0.2").revisions).default;
+        "dependent-map" = (((hackage.dependent-map)."0.4.0.0").revisions).default;
+        "dependent-sum" = (((hackage.dependent-sum)."0.7.1.0").revisions).default;
+        "dependent-sum-template" = (((hackage.dependent-sum-template)."0.1.0.3").revisions).default;
+        "lazy-search" = (((hackage.lazy-search)."0.1.2.1").revisions).default;
+        "monoidal-containers" = (((hackage.monoidal-containers)."0.6.0.1").revisions).default;
+        "size-based" = (((hackage.size-based)."0.1.2.0").revisions).default;
+        "witherable" = (((hackage.witherable)."0.4.1").revisions).default;
+        "constraints-extras" = (((hackage.constraints-extras)."0.3.1.0").revisions).default;
+        "indexed-traversable-instances" = (((hackage.indexed-traversable-instances)."0.1").revisions).default;
+        "lazysmallcheck" = (((hackage.lazysmallcheck)."0.6").revisions).default;
         cardano-wallet-core = ./cardano-wallet-core.nix;
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;
@@ -39,6 +51,7 @@
         strict-non-empty-containers = ./strict-non-empty-containers.nix;
         cardano-addresses-cli = ./cardano-addresses-cli.nix;
         cardano-addresses = ./cardano-addresses.nix;
+        flat = ./flat.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
         cardano-crypto-class = ./cardano-crypto-class.nix;
@@ -60,9 +73,9 @@
         shelley-spec-ledger = ./shelley-spec-ledger.nix;
         shelley-spec-ledger-test = ./shelley-spec-ledger-test.nix;
         cardano-ledger-shelley-ma = ./cardano-ledger-shelley-ma.nix;
+        cardano-ledger-alonzo = ./cardano-ledger-alonzo.nix;
         cardano-ledger-shelley-ma-test = ./cardano-ledger-shelley-ma-test.nix;
         cardano-api = ./cardano-api.nix;
-        cardano-api-test = ./cardano-api-test.nix;
         cardano-cli = ./cardano-cli.nix;
         cardano-config = ./cardano-config.nix;
         cardano-node = ./cardano-node.nix;
@@ -79,10 +92,16 @@
         lobemo-backend-trace-forwarder = ./lobemo-backend-trace-forwarder.nix;
         lobemo-scribe-systemd = ./lobemo-scribe-systemd.nix;
         tracer-transformers = ./tracer-transformers.nix;
+        plutus-core = ./plutus-core.nix;
+        plutus-ledger-api = ./plutus-ledger-api.nix;
+        plutus-tx = ./plutus-tx.nix;
+        prettyprinter-configurable = ./prettyprinter-configurable.nix;
+        word-array = ./word-array.nix;
         io-sim = ./io-sim.nix;
-        io-sim-classes = ./io-sim-classes.nix;
+        io-classes = ./io-classes.nix;
         network-mux = ./network-mux.nix;
         ouroboros-consensus = ./ouroboros-consensus.nix;
+        monoidal-synchronisation = ./monoidal-synchronisation.nix;
         ouroboros-consensus-byron = ./ouroboros-consensus-byron.nix;
         ouroboros-consensus-cardano = ./ouroboros-consensus-cardano.nix;
         ouroboros-consensus-shelley = ./ouroboros-consensus-shelley.nix;
@@ -100,7 +119,7 @@
       compiler.version = "8.10.5";
       compiler.nix-name = "ghc8105";
       };
-  resolver = "lts-17.9";
+  resolver = "lts-17.15";
   modules = [
     ({ lib, ... }:
       {

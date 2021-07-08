@@ -970,19 +970,21 @@ data EraInfo info = EraInfo
     , shelley :: Maybe info
     , allegra :: Maybe info
     , mary :: Maybe info
+    , alonzo :: Maybe info
     } deriving (Eq, Generic, Show, Functor)
 
 emptyEraInfo :: EraInfo info
-emptyEraInfo = EraInfo Nothing Nothing Nothing Nothing
+emptyEraInfo = EraInfo Nothing Nothing Nothing Nothing Nothing
 
 instance NFData info => NFData (EraInfo info)
 
 instance Buildable (EraInfo EpochNo) where
-    build (EraInfo byron shelley allegra mary) = blockListF' "-" id
+    build (EraInfo byron shelley allegra mary alonzo) = blockListF' "-" id
         [ "byron" <> boundF byron
         , "shelley" <> boundF shelley
         , "allegra" <> boundF allegra
         , "mary" <> boundF mary
+        , "alonzo" <> boundF alonzo
         ]
 
       where

@@ -66,7 +66,7 @@ import Fmt
     ( pretty )
 import GHC.Stack
     ( HasCallStack )
-import Ouroboros.Consensus.Shelley.Protocol.Crypto
+import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto )
 
 import qualified Cardano.Ledger.Mary.Value as Ledger

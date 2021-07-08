@@ -27,7 +27,7 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
+          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
           (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."psqueues" or (errorHandler.buildDepError "psqueues"))
@@ -42,8 +42,8 @@
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."array" or (errorHandler.buildDepError "array"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
             (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
-            (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
@@ -56,8 +56,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "9b279c7548ee549e1ed755cd1acb69b6e69d0c7b";
-      sha256 = "0d7bk9vzmhhb2z4ns2qw7f1vz6lr186m98sh8wvrnfpxk3z86dxb";
+      rev = "e338f2cf8e1078fbda9555dd2b169c6737ef6774";
+      sha256 = "12x81hpjyw2cpkazfalz6bw2wgr6ax7bnmlxl2rlfakkvsjfgaqd";
       });
     postUnpack = "sourceRoot+=/io-sim; echo source root reset to \$sourceRoot";
     }

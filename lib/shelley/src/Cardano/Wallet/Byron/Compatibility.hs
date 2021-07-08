@@ -26,7 +26,6 @@ module Cardano.Wallet.Byron.Compatibility
 
       -- * Genesis
     , emptyGenesis
-    , genesisTip
     , genesisBlockFromTxOuts
 
       -- * Conversions
@@ -110,16 +109,7 @@ import Ouroboros.Consensus.Byron.Ledger.Config
 import Ouroboros.Consensus.HardFork.History.Summary
     ( Bound (..) )
 import Ouroboros.Network.Block
-    ( BlockNo (..)
-    , ChainHash
-    , Point (..)
-    , SlotNo (..)
-    , Tip (..)
-    , genesisPoint
-    , getLegacyTipBlockNo
-    , getTipPoint
-    , legacyTip
-    )
+    ( BlockNo (..), ChainHash, Point (..), SlotNo (..), Tip (..), getTipPoint )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.Point
@@ -208,16 +198,6 @@ emptyGenesis gp = W.Block
 --
 -- Genesis
 
-
-genesisTip :: Tip ByronBlock
-genesisTip = legacyTip genesisPoint genesisBlockNo
-  where
-    -- NOTE: ourobouros-network states that:
-    --
-    -- There /is/ no block number if we are at genesis
-    -- ('genesisBlockNo' is the block number of the first block on the chain).
-    -- Usage of this function should be phased out.
-    genesisBlockNo = BlockNo 0
 
 -- | Construct a ("fake") genesis block from genesis transaction outputs.
 --
@@ -362,6 +342,7 @@ fromBlockNo :: BlockNo -> Quantity "block" Word32
 fromBlockNo (BlockNo h) =
     Quantity (fromIntegral h)
 
+
 fromTip :: W.Hash "Genesis" -> Tip ByronBlock -> W.BlockHeader
 fromTip genesisHash tip = case getPoint (getTipPoint tip) of
     Origin -> W.BlockHeader
@@ -384,6 +365,13 @@ fromTip genesisHash tip = case getPoint (getTipPoint tip) of
         -- possibility.
         , parentHeaderHash = W.Hash "parentHeaderHash - unused in Byron"
         }
+  where
+    -- TODO: This function was marked deprecated in ouroboros-network.
+    -- It is wrong, because `Origin` doesn't have a block number.
+    -- We should remove it.
+    getLegacyTipBlockNo t = case O.getTipBlockNo t of
+        Origin -> BlockNo 0
+        At x -> x
 
 fromTxFeePolicy :: TxFeePolicy -> W.FeePolicy
 fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =

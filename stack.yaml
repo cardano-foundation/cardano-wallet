@@ -3,7 +3,7 @@
 #
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/4522834fa3a052aa8f5ed51bf89bb09242daa80b/snapshots/cardano-1.27.0.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/8632a891c1abca5a0357116336e66c20a5c9542d/snapshots/cardano-1.28.0-pre.yaml
 compiler: ghc-8.10.5
 
 packages:

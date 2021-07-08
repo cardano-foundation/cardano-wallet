@@ -10,7 +10,7 @@
   {
     flags = {};
     package = {
-      specVersion = "2.4";
+      specVersion = "3.0";
       identifier = { name = "cardano-node-chairman"; version = "1.27.0"; };
       license = "Apache-2.0";
       copyright = "";
@@ -28,7 +28,6 @@
         "cardano-node-chairman" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
             (hsPkgs."cardano-config" or (errorHandler.buildDepError "cardano-config"))
@@ -37,47 +36,15 @@
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-            (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
-            (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-            (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
-            (hsPkgs."hedgehog-extras" or (errorHandler.buildDepError "hedgehog-extras"))
-            (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
+            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
             (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
             (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
             (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
-            (hsPkgs."process" or (errorHandler.buildDepError "process"))
-            (hsPkgs."random" or (errorHandler.buildDepError "random"))
-            (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
-            ] ++ (pkgs.lib).optional (!system.isWindows) (hsPkgs."unix" or (errorHandler.buildDepError "unix"));
-          buildable = true;
-          };
-        "cardano-testnet" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-            (hsPkgs."ansi-terminal" or (errorHandler.buildDepError "ansi-terminal"))
-            (hsPkgs."cardano-config" or (errorHandler.buildDepError "cardano-config"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-            (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
-            (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-            (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
-            (hsPkgs."hedgehog-extras" or (errorHandler.buildDepError "hedgehog-extras"))
-            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
-            (hsPkgs."process" or (errorHandler.buildDepError "process"))
-            (hsPkgs."random" or (errorHandler.buildDepError "random"))
-            (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
-            (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
-            (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
-            ] ++ (pkgs.lib).optional (!system.isWindows) (hsPkgs."unix" or (errorHandler.buildDepError "unix"));
+            ];
           buildable = true;
           };
         };
@@ -85,10 +52,7 @@
         "chairman-tests" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-            (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
+            (hsPkgs."cardano-testnet" or (errorHandler.buildDepError "cardano-testnet"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
             (hsPkgs."hedgehog-extras" or (errorHandler.buildDepError "hedgehog-extras"))
@@ -98,11 +62,8 @@
             (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
-            (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
-            (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
-            ] ++ (pkgs.lib).optional (!system.isWindows) (hsPkgs."unix" or (errorHandler.buildDepError "unix"));
+            ];
           build-tools = [
             (hsPkgs.buildPackages.cardano-node.components.exes.cardano-node or (pkgs.buildPackages.cardano-node or (errorHandler.buildToolDepError "cardano-node:cardano-node")))
             (hsPkgs.buildPackages.cardano-cli.components.exes.cardano-cli or (pkgs.buildPackages.cardano-cli or (errorHandler.buildToolDepError "cardano-cli:cardano-cli")))
@@ -115,8 +76,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "8fe46140a52810b6ca456be01d652ca08fe730bf";
-      sha256 = "1c9zc899wlgicrs49i33l0bwb554acsavzh1vcyhnxmpm0dmy8vj";
+      rev = "bc225ae3085ba6f4f4007c50c4877bc4cebcd7de";
+      sha256 = "18i3axv3irls5gbcsppkw1aci72zyqw80ffhz25sfpbflbj1m4f5";
       });
     postUnpack = "sourceRoot+=/cardano-node-chairman; echo source root reset to \$sourceRoot";
     }

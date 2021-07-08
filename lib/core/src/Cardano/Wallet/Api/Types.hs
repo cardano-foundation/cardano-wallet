@@ -966,6 +966,7 @@ data ApiEraInfo = ApiEraInfo
     , shelley :: !(Maybe ApiEpochInfo)
     , allegra :: !(Maybe ApiEpochInfo)
     , mary :: !(Maybe ApiEpochInfo)
+    , alonzo :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters
@@ -978,8 +979,9 @@ toApiNetworkParameters (NetworkParameters gp sp pp) toEpochInfo = do
     shelley <- traverse toEpochInfo (pp ^. #eras . #shelley)
     allegra <- traverse toEpochInfo (pp ^. #eras . #allegra)
     mary <- traverse toEpochInfo (pp ^. #eras . #mary)
+    alonzo <- traverse toEpochInfo (pp ^. #eras . #alonzo)
 
-    let apiEras = ApiEraInfo { byron, shelley, allegra, mary }
+    let apiEras = ApiEraInfo { byron, shelley, allegra, mary, alonzo }
 
     return $ ApiNetworkParameters
         { genesisBlockHash = ApiT $ getGenesisBlockHash gp
@@ -1111,6 +1113,7 @@ data ApiEra
     | ApiShelley
     | ApiAllegra
     | ApiMary
+    | ApiAlonzo
     deriving (Show, Eq, Generic, Enum, Ord, Bounded)
     deriving anyclass NFData
 

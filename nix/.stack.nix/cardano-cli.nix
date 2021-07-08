@@ -10,7 +10,7 @@
   {
     flags = { unexpected_thunks = false; };
     package = {
-      specVersion = "2.4";
+      specVersion = "3.0";
       identifier = { name = "cardano-cli"; version = "1.27.0"; };
       license = "Apache-2.0";
       copyright = "";
@@ -41,10 +41,12 @@
           (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
+          (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
           (hsPkgs."cardano-ledger-byron" or (errorHandler.buildDepError "cardano-ledger-byron"))
           (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
           (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
@@ -61,12 +63,15 @@
           (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
           (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
           (hsPkgs."parsec" or (errorHandler.buildDepError "parsec"))
+          (hsPkgs."plutus-ledger-api" or (errorHandler.buildDepError "plutus-ledger-api"))
           (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."split" or (errorHandler.buildDepError "split"))
+          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."transformers-except" or (errorHandler.buildDepError "transformers-except"))
           (hsPkgs."utf8-string" or (errorHandler.buildDepError "utf8-string"))
           (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
@@ -96,10 +101,11 @@
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
-            (hsPkgs."cardano-api-test" or (errorHandler.buildDepError "cardano-api-test"))
+            (hsPkgs."cardano-api".components.sublibs.gen or (errorHandler.buildDepError "cardano-api:gen"))
             (hsPkgs."cardano-cli" or (errorHandler.buildDepError "cardano-cli"))
             (hsPkgs."cardano-node" or (errorHandler.buildDepError "cardano-node"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+            (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
             (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
             (hsPkgs."hedgehog-extras" or (errorHandler.buildDepError "hedgehog-extras"))
@@ -123,6 +129,7 @@
             (hsPkgs."Diff" or (errorHandler.buildDepError "Diff"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
+            (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
             (hsPkgs."hedgehog-extras" or (errorHandler.buildDepError "hedgehog-extras"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
@@ -139,8 +146,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "8fe46140a52810b6ca456be01d652ca08fe730bf";
-      sha256 = "1c9zc899wlgicrs49i33l0bwb554acsavzh1vcyhnxmpm0dmy8vj";
+      rev = "bc225ae3085ba6f4f4007c50c4877bc4cebcd7de";
+      sha256 = "18i3axv3irls5gbcsppkw1aci72zyqw80ffhz25sfpbflbj1m4f5";
       });
     postUnpack = "sourceRoot+=/cardano-cli; echo source root reset to \$sourceRoot";
     }

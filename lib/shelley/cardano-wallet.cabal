@@ -46,6 +46,7 @@ library
     , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-ledger-shelley-ma
+    , cardano-ledger-alonzo
     , cardano-slotting
     , cardano-wallet-cli
     , cardano-wallet-core
@@ -59,7 +60,7 @@ library
     , filepath
     , fmt
     , generic-lens
-    , io-sim-classes
+    , io-classes
     , iohk-monitoring
     , memory
     , network

@@ -47,7 +47,6 @@ module Cardano.Wallet.Shelley.Compatibility
 
       -- * Genesis
     , emptyGenesis
-    , genesisTip
 
       -- * Conversions
     , toCardanoHash
@@ -111,6 +110,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , slottingParametersFromGenesis
     , fromMaryBlock
     , fromMaryTx
+    , fromAlonzoTx
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -144,8 +144,14 @@ import Cardano.Binary
     ( fromCBOR, serialize' )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash), hashToBytes )
+import Cardano.Ledger.Alonzo
+    ( AlonzoEra )
+import Cardano.Ledger.BaseTypes
+    ( strictMaybeToMaybe, urlToText )
 import Cardano.Ledger.Era
     ( Era (..) )
+import Cardano.Ledger.Serialization
+    ( ToCBORGroup )
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Wallet.Api.Types
@@ -203,8 +209,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
-import Data.Ratio
-    ( (%) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -233,22 +237,14 @@ import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( OneEraHash (..) )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( Bound (..) )
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardCrypto )
 import Ouroboros.Consensus.Shelley.Ledger
     ( ShelleyHash (..) )
 import Ouroboros.Consensus.Shelley.Ledger.Block
     ( ShelleyBlock (..) )
-import Ouroboros.Consensus.Shelley.Protocol.Crypto
-    ( StandardCrypto )
 import Ouroboros.Network.Block
-    ( BlockNo (..)
-    , ChainHash
-    , Point (..)
-    , Tip (..)
-    , genesisPoint
-    , getLegacyTipBlockNo
-    , getTipPoint
-    , legacyTip
-    )
+    ( BlockNo (..), ChainHash, Point (..), Tip (..), getTipPoint )
 import Ouroboros.Network.CodecCBORTerm
     ( CodecCBORTerm )
 import Ouroboros.Network.Magic
@@ -262,10 +258,6 @@ import Ouroboros.Network.NodeToClient
     )
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
-import Shelley.Spec.Ledger.BaseTypes
-    ( interval0, strictMaybeToMaybe, urlToText )
-import Shelley.Spec.Ledger.Serialization
-    ( ToCBORGroup )
 import Type.Reflection
     ( Typeable, typeRep )
 
@@ -278,7 +270,10 @@ import qualified Cardano.Binary as Binary
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
+import qualified Cardano.Ledger.Address as SL
+import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
 import qualified Cardano.Ledger.SafeHash as SafeHash
@@ -310,12 +305,9 @@ import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
-import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.API as SL
 import qualified Shelley.Spec.Ledger.API as SLAPI
-import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
-import qualified Shelley.Spec.Ledger.Credential as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
 type NodeVersionData =
@@ -348,22 +340,6 @@ emptyGenesis gp = W.Block
             hashOfNoParent
         }
     }
-
---------------------------------------------------------------------------------
---
--- Genesis
-
-
-genesisTip :: Tip (CardanoBlock sc)
-genesisTip = legacyTip genesisPoint genesisBlockNo
-  where
-    -- NOTE: ourobouros-network states that:
-    --
-    -- There /is/ no block number if we are at genesis
-    -- ('genesisBlockNo' is the block number of the first block on the chain).
-    -- Usage of this function should be phased out.
-    genesisBlockNo = BlockNo 0
-
 
 --------------------------------------------------------------------------------
 --
@@ -435,6 +411,8 @@ toCardanoBlockHeader gp = \case
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
     BlockMary blk ->
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
+    BlockAlonzo blk ->
+        toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
 
 toShelleyBlockHeader
     :: (Era e, ToCBORGroup (Ledger.Era.TxSeq e))
@@ -476,6 +454,8 @@ fromCardanoBlock gp = \case
         fst $ fromAllegraBlock gp blk
     BlockMary blk ->
         fst $ fromMaryBlock gp blk
+    BlockAlonzo blk ->
+        fst $ fromAlonzoBlock gp blk
 
 toCardanoEra :: CardanoBlock c -> AnyCardanoEra
 toCardanoEra = \case
@@ -483,6 +463,7 @@ toCardanoEra = \case
     BlockShelley{} -> AnyCardanoEra ShelleyEra
     BlockAllegra{} -> AnyCardanoEra AllegraEra
     BlockMary{}    -> AnyCardanoEra MaryEra
+    BlockAlonzo{}  -> AnyCardanoEra AlonzoEra
 
 fromShelleyBlock
     :: W.GenesisParameters
@@ -532,6 +513,12 @@ fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
             }
         , mconcat poolCerts
         )
+
+fromAlonzoBlock
+    :: W.GenesisParameters
+    -> ShelleyBlock (AlonzoEra StandardCrypto)
+    -> (W.Block, [W.PoolCertificate])
+fromAlonzoBlock = error "fromAlonzoBlock unimplemented" -- TODO: [ADP-952] fromAlonzoBlock
 
 fromShelleyHash :: ShelleyHash c -> W.Hash "BlockHeader"
 fromShelleyHash (ShelleyHash (SL.HashHeader h)) = W.Hash (hashToBytes h)
@@ -596,6 +583,13 @@ fromTip genesisHash tip = case getPoint (getTipPoint tip) of
         -- possibility.
         , parentHeaderHash = W.Hash "parentHeaderHash - unused in Shelley"
         }
+  where
+    -- TODO: This function was marked deprecated in ouroboros-network.
+    -- It is wrong, because `Origin` doesn't have a block number.
+    -- We should remove it.
+    getLegacyTipBlockNo t = case O.getTipBlockNo t of
+        Origin -> BlockNo 0
+        At x -> x
 
 -- NOTE: Unsafe conversion from Natural -> Word16
 fromMaxTxSize :: Natural -> Quantity "byte" Word16
@@ -688,7 +682,7 @@ slottingParametersFromGenesis g =
         , getEpochLength =
             W.EpochLength . fromIntegral . unEpochSize . sgEpochLength $ g
         , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient . fromRational . sgActiveSlotsCoeff $ g
+            W.ActiveSlotCoefficient . fromRational . SL.unboundRational . sgActiveSlotsCoeff $ g
         , getSecurityParameter =
             Quantity . fromIntegral . sgSecurityParam $ g
         }
@@ -882,7 +876,7 @@ fromAllegraTx tx =
   where
     SL.Tx bod@(MA.TxBody ins outs certs wdrls fee _ _ _ _) _ mmd = tx
 
-    -- FIXME (ADP-525): It is fine for now since we do not look at script
+    -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
     -- multisig/script balance reporting.
     toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
@@ -908,7 +902,7 @@ fromMaryTx tx =
     SL.Tx bod _wits mad = tx
     MA.TxBody ins outs certs wdrls fee _valid _upd _adh _value = bod
 
-    -- FIXME (ADP-525): It is fine for now since we do not look at script
+    -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
     -- multisig/script balance reporting.
     toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
@@ -919,6 +913,14 @@ fromMaryTx tx =
     fromMaryTxOut (SL.TxOut addr value) =
         W.TxOut (fromShelleyAddress addr) $
         fromCardanoValue $ Cardano.fromMaryValue value
+
+fromAlonzoTx
+    :: SLAPI.Tx (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
+    -> ( W.Tx
+       , [W.DelegationCertificate]
+       , [W.PoolCertificate]
+       )
+fromAlonzoTx = error "fromAlonzoTx unimplemented" -- TODO: [ADP-952] fromAlonzoTx
 
 fromCardanoValue :: Cardano.Value -> TokenBundle.TokenBundle
 fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
@@ -1056,7 +1058,7 @@ fromOwnerKeyHash (SL.KeyHash h) =
 
 fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
 fromUnitInterval x =
-    either bomb id . mkPercentage . toRational . SL.intervalValue $ x
+    either bomb id . mkPercentage . toRational . SL.unboundRational $ x
   where
     bomb = error $ mconcat
         [ "fromUnitInterval: "
@@ -1138,11 +1140,12 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
 
 toShelleyTxOut :: W.TxOut -> Cardano.TxOut ShelleyEra
 toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
-    Cardano.TxOut addrInEra
-        $ adaOnly
-        $ toCardanoLovelace
-        $ TokenBundle.getCoin tokens
+    Cardano.TxOut
+        addrInEra
+        (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
+        datumHash
   where
+    datumHash = error "datumHash unimplemented" -- TODO: [ADP-952] datumHash
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
     addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
         asum
@@ -1156,11 +1159,12 @@ toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
 
 toAllegraTxOut :: W.TxOut -> Cardano.TxOut AllegraEra
 toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
-    Cardano.TxOut addrInEra
-        $ adaOnly
-        $ toCardanoLovelace
-        $ TokenBundle.getCoin tokens
+    Cardano.TxOut
+        addrInEra
+        (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
+        datumHash
   where
+    datumHash = error "datumHash unimplemented" -- TODO: [ADP-952] datumHash
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
     addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
         asum
@@ -1174,10 +1178,12 @@ toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
 
 toMaryTxOut :: W.TxOut -> Cardano.TxOut MaryEra
 toMaryTxOut (W.TxOut (W.Address addr) tokens) =
-    Cardano.TxOut addrInEra
-        $ Cardano.TxOutValue Cardano.MultiAssetInMaryEra
-        $ toCardanoValue tokens
+    Cardano.TxOut
+        addrInEra
+        (Cardano.TxOutValue Cardano.MultiAssetInMaryEra $ toCardanoValue tokens)
+        datumHash
   where
+    datumHash = error "datumHash unimplemented" -- TODO: [ADP-952] datumHash
     addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
         asum
         [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
@@ -1532,7 +1538,16 @@ instance Buildable LocalAddress where
 -- >>> intervalValue (invertUnitInterval i) + intervalValue i == 1
 --
 invertUnitInterval :: SL.UnitInterval -> SL.UnitInterval
-invertUnitInterval = SL.truncateUnitInterval . (1 - ) . SL.intervalValue
+invertUnitInterval = unsafeBoundRational . (1 - ) . SL.unboundRational
+  where
+    unsafeBoundRational :: Rational -> SL.UnitInterval
+    unsafeBoundRational =
+        fromMaybe (error "invertUnitInterval: the impossible happened")
+        . SL.boundRational
+
 
 interval1 :: SL.UnitInterval
-interval1 = SL.truncateUnitInterval (1 % 1)
+interval1 = maxBound
+
+interval0 :: SL.UnitInterval
+interval0 = minBound
