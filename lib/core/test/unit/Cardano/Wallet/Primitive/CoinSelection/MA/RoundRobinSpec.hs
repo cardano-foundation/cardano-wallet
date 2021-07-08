@@ -1873,8 +1873,16 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
         <*> pure assetsToBurn
   where
     genAssetsToMintAndBurn :: TokenMap -> TokenMap -> Gen (TokenMap, TokenMap)
-    genAssetsToMintAndBurn assetsInInputs assetsInOutputs =
-        (,) <$> genAssetsToMint <*> genAssetsToBurn
+    genAssetsToMintAndBurn assetsInInputs assetsInOutputs = do
+        mintedAndBurned <- frequency
+            -- Here we deliberately introduce the possibility that there is
+            -- some overlap between minted and burned assets:
+            [ (9, pure TokenMap.empty)
+            , (1, genTokenMapSmallRange)
+            ]
+        assetsToMint <- (<> mintedAndBurned) <$> genAssetsToMint
+        assetsToBurn <- (<> mintedAndBurned) <$> genAssetsToBurn
+        pure (assetsToMint, assetsToBurn)
       where
         genAssetsToMint :: Gen TokenMap
         genAssetsToMint =
