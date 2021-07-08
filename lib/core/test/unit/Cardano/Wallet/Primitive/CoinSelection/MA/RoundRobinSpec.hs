@@ -1995,6 +1995,36 @@ prop_makeChange
     :: MakeChangeData
     -> Property
 prop_makeChange p =
+    checkCoverage $
+
+    -- Inspect the sets of minted and burned assets:
+    cover 20 (view #assetsToMint p /= TokenMap.empty)
+        "Have some assets to mint" $
+    cover 20 (view #assetsToBurn p /= TokenMap.empty)
+        "Have some assets to burn" $
+    cover 2 (view #assetsToMint p == TokenMap.empty)
+        "Have no assets to mint" $
+    cover 2 (view #assetsToBurn p == TokenMap.empty)
+        "Have no assets to burn" $
+
+    -- Inspect the intersection between minted assets and burned assets:
+    cover 2 (someAssetsAreBothMintedAndBurned)
+        "Some assets are both minted and burned" $
+    cover 2 (noAssetsAreBothMintedAndBurned)
+        "No assets are both minted and burned" $
+
+    -- Inspect the intersection between minted assets and spent assets:
+    cover 2 (someAssetsAreBothMintedAndSpent)
+        "Some assets are both minted and spent" $
+    cover 2 (noAssetsAreBothMintedAndSpent)
+        "No assets are both minted and spent" $
+
+    -- Inspect the intersection between spent assets and burned assets:
+    cover 2 (someAssetsAreBothSpentAndBurned)
+        "Some assets are both spent and burned" $
+    cover 2 (noAssetsAreBothSpentAndBurned)
+        "No assets are both spent and burned" $
+
     case makeChangeWith p of
         Left{} -> disjoin
             [ prop_makeChange_fail_costTooBig p     & label "cost too big"
@@ -2004,6 +2034,40 @@ prop_makeChange p =
             [ prop_makeChange_success_delta p change
             , prop_makeChange_success_minValueRespected p change
             ] & label "success"
+  where
+    assetsSpentByUserSpecifiedOutputs :: TokenMap
+    assetsSpentByUserSpecifiedOutputs =
+        F.foldMap (view #tokens) (outputBundles p)
+
+    someAssetsAreBothMintedAndBurned :: Bool
+    someAssetsAreBothMintedAndBurned
+        = TokenMap.isNotEmpty
+        $ TokenMap.intersection
+            (view #assetsToMint p)
+            (view #assetsToBurn p)
+
+    someAssetsAreBothMintedAndSpent :: Bool
+    someAssetsAreBothMintedAndSpent
+        = TokenMap.isNotEmpty
+        $ TokenMap.intersection
+            (view #assetsToMint p)
+            (assetsSpentByUserSpecifiedOutputs)
+
+    someAssetsAreBothSpentAndBurned :: Bool
+    someAssetsAreBothSpentAndBurned
+        = TokenMap.isNotEmpty
+        $ TokenMap.intersection
+            (assetsSpentByUserSpecifiedOutputs)
+            (view #assetsToBurn p)
+
+    noAssetsAreBothMintedAndBurned :: Bool
+    noAssetsAreBothMintedAndBurned = not someAssetsAreBothMintedAndBurned
+
+    noAssetsAreBothMintedAndSpent :: Bool
+    noAssetsAreBothMintedAndSpent = not someAssetsAreBothMintedAndSpent
+
+    noAssetsAreBothSpentAndBurned :: Bool
+    noAssetsAreBothSpentAndBurned = not someAssetsAreBothSpentAndBurned
 
 -- Checks that on successful calls to 'makeChange', the difference between all
 -- inputs and all outputs with change is exactly equal to the required cost of
