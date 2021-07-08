@@ -137,6 +137,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
+import Data.Semigroup
+    ( mtimesDefault )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -602,10 +604,8 @@ genSelectionCriteria genUTxOIndex = do
           )
         ]
     extraCoinSource <- oneof [ pure Nothing, Just <$> genCoinSmall ]
-    assetsToBurn <- TokenMap.fromFlatList <$>
-        sublistOf (availableTokensToBurn utxoAvailable outputsToCover)
-    assetsToMint <- TokenMap.fromFlatList <$>
-        sublistOf (allSpentOrBurnedTokens outputsToCover assetsToBurn)
+    (assetsToMint, assetsToBurn) <-
+        genAssetsToMintAndBurn utxoAvailable outputsToCover
     pure $ SelectionCriteria
         { outputsToCover
         , utxoAvailable
@@ -615,30 +615,61 @@ genSelectionCriteria genUTxOIndex = do
         , assetsToBurn
         }
   where
-    -- We look at a UTxO and remove from it the outputs we need to cover,
-    -- whatever is leftover we can choose to burn.
-    availableTokensToBurn
+    genAssetsToMintAndBurn
         :: UTxOIndex
         -> NonEmpty TxOut
-        -> [(AssetId, TokenQuantity)]
-    availableTokensToBurn index outputsToCover
-        = TokenMap.toFlatList
-        $ TokenMap.difference
-            (view #tokens $ UTxOIndex.balance index)
-            (F.foldMap (view (#tokens . #tokens)) outputsToCover)
+        -> Gen (TokenMap, TokenMap)
+    genAssetsToMintAndBurn utxoAvailable outputsToCover =
+        frequency
+            [ (95, genForSuccess)
+            , ( 5, genForFailureWhereSomeMintedAssetsNotSpentOrBurned)
+            ]
+      where
+        assetsProvidedByUTxO =
+            view #tokens $ UTxOIndex.balance utxoAvailable
+        assetsSpentByUserSpecifiedOutputs =
+            F.foldMap (view (#tokens . #tokens)) outputsToCover
 
-    -- If a token is spent or burned, it is typically satisfied by the UTxO.
-    -- However, we can choose to instead mint those tokens and have the mint
-    -- operation satisfy those outputs.
-    allSpentOrBurnedTokens
-        :: NonEmpty TxOut
-        -> TokenMap
-        -> [(AssetId, TokenQuantity)]
-    allSpentOrBurnedTokens outputsToCover burnedTokens
-        = TokenMap.toFlatList
-        $ TokenMap.add
-            (burnedTokens)
-            (F.foldMap (view (#tokens. #tokens)) outputsToCover)
+        -- To make a successful coin selection, we must satisfy the following
+        -- inequalities:
+        --
+        -- (assetsInUTxO ∪ assetsToMint) ⊇ (assetsInOutputs ∪ assetsToBurn)
+        --                 assetsToMint  ⊆ (assetsInOutputs ∪ assetsToBurn)
+        --
+        genForSuccess :: Gen (TokenMap, TokenMap)
+        genForSuccess = do
+            let assetsAvailableToBurn = TokenMap.difference
+                    assetsProvidedByUTxO
+                    assetsSpentByUserSpecifiedOutputs
+            assetsToBurn <- TokenMap.fromFlatList <$>
+                sublistOf (TokenMap.toFlatList assetsAvailableToBurn)
+            let assetsAvailableToMint = TokenMap.add
+                    assetsToBurn
+                    assetsSpentByUserSpecifiedOutputs
+            assetsToMint <- TokenMap.fromFlatList <$>
+                sublistOf (TokenMap.toFlatList assetsAvailableToMint)
+            pure (assetsToMint, assetsToBurn)
+
+        -- For this generator, we purposefully violate the following condition:
+        --
+        -- assetsToMint ⊆ (assetsInOutputs ∪ assetsToBurn)
+        --
+        -- This allows us to provoke the 'OutputsInsufficient' error.
+        --
+        genForFailureWhereSomeMintedAssetsNotSpentOrBurned
+            :: Gen (TokenMap, TokenMap)
+        genForFailureWhereSomeMintedAssetsNotSpentOrBurned = do
+            let assetsAvailableToBurn = TokenMap.difference
+                    assetsProvidedByUTxO
+                    assetsSpentByUserSpecifiedOutputs
+            assetsToBurn <- TokenMap.fromFlatList <$>
+                sublistOf (TokenMap.toFlatList assetsAvailableToBurn)
+            let assetsAvailableToMint = TokenMap.add
+                    assetsToBurn
+                    assetsSpentByUserSpecifiedOutputs
+            -- Here we deliberately mint more than we have spent and burned:
+            let assetsToMint = mtimesDefault (2 :: Int) assetsAvailableToMint
+            pure (assetsToMint, assetsToBurn)
 
 balanceSufficient :: SelectionCriteria -> Bool
 balanceSufficient criteria =
