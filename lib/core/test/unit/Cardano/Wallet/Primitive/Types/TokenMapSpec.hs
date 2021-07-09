@@ -538,9 +538,22 @@ prop_intersection_associativity xf yf zf =
     r2 = x `TokenMap.intersection` (y `TokenMap.intersection` z)
     [x, y, z] = getManyFolded . getBlind <$> [xf, yf, zf]
 
-prop_intersection_commutativity :: TokenMap -> TokenMap -> Property
-prop_intersection_commutativity x y =
-    x `TokenMap.intersection` y === y `TokenMap.intersection` x
+prop_intersection_commutativity
+    :: Blind (ManyFolded TokenMap)
+    -> Blind (ManyFolded TokenMap)
+    -> Property
+prop_intersection_commutativity xf yf =
+    checkCoverage $
+    cover 50 (x /= y)
+        "maps are different" $
+    cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
+        "intersection is not empty" $
+    counterexample (pretty (Flat <$> [x, y])) $
+    r1 === r2
+  where
+    r1 = x `TokenMap.intersection` y
+    r2 = y `TokenMap.intersection` x
+    [x, y] = getManyFolded . getBlind <$> [xf, yf]
 
 prop_intersection_empty :: TokenMap -> Property
 prop_intersection_empty x =
