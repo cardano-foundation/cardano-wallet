@@ -562,13 +562,24 @@ prop_intersection_empty x =
         "map is not empty" $
     x `TokenMap.intersection` TokenMap.empty === TokenMap.empty
 
-prop_intersection_equality :: TokenMap -> TokenMap -> Property
-prop_intersection_equality x y = conjoin
-    [ total `TokenMap.intersection` x === x
-    , total `TokenMap.intersection` y === y
-    ]
+prop_intersection_equality
+    :: Blind (ManyFolded TokenMap)
+    -> Blind (ManyFolded TokenMap)
+    -> Property
+prop_intersection_equality xf yf =
+    checkCoverage $
+    cover 50 (x /= y)
+        "maps are different" $
+    cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
+        "maps are not empty" $
+    counterexample (pretty (Flat <$> [x, y])) $
+    conjoin
+        [ total `TokenMap.intersection` x === x
+        , total `TokenMap.intersection` y === y
+        ]
   where
     total = x <> y
+    [x, y] = getManyFolded . getBlind <$> [xf, yf]
 
 prop_intersection_identity :: TokenMap -> Property
 prop_intersection_identity x =
