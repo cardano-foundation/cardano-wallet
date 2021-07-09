@@ -557,6 +557,9 @@ prop_intersection_commutativity xf yf =
 
 prop_intersection_empty :: TokenMap -> Property
 prop_intersection_empty x =
+    checkCoverage $
+    cover 50 (TokenMap.isNotEmpty x)
+        "map is not empty" $
     x `TokenMap.intersection` TokenMap.empty === TokenMap.empty
 
 prop_intersection_equality :: TokenMap -> TokenMap -> Property
