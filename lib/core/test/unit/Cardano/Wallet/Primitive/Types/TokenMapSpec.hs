@@ -583,6 +583,9 @@ prop_intersection_equality xf yf =
 
 prop_intersection_identity :: TokenMap -> Property
 prop_intersection_identity x =
+    checkCoverage $
+    cover 50 (TokenMap.isNotEmpty x)
+        "map is not empty" $
     x `TokenMap.intersection` x === x
 
 prop_intersection_subset :: TokenMap -> TokenMap -> Property
