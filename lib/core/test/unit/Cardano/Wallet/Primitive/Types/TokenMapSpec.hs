@@ -588,13 +588,24 @@ prop_intersection_identity x =
         "map is not empty" $
     x `TokenMap.intersection` x === x
 
-prop_intersection_subset :: TokenMap -> TokenMap -> Property
-prop_intersection_subset x y = conjoin
-    [ intersection `leq` x
-    , intersection `leq` y
-    ]
+prop_intersection_subset
+    :: Blind (ManyFolded TokenMap)
+    -> Blind (ManyFolded TokenMap)
+    -> Property
+prop_intersection_subset xf yf =
+    checkCoverage $
+    cover 50 (x /= y)
+        "maps are different" $
+    cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
+        "maps are not empty" $
+    counterexample (pretty (Flat <$> [x, y])) $
+    conjoin
+        [ intersection `leq` x
+        , intersection `leq` y
+        ]
   where
     intersection = x `TokenMap.intersection` y
+    [x, y] = getManyFolded . getBlind <$> [xf, yf]
 
 --------------------------------------------------------------------------------
 -- Quantity properties
