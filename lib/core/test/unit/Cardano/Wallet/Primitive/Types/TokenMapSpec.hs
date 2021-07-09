@@ -103,6 +103,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
+import Test.QuickCheck.Extra
+    ( ManyFolded (..) )
 import Test.Utils.Laws
     ( testLawsMany )
 import Test.Utils.Laws.PartialOrd
@@ -518,10 +520,23 @@ prop_difference_equality x y = checkCoverage $
     xExcess = x `TokenMap.difference` y
     yExcess = y `TokenMap.difference` x
 
-prop_intersection_associativity :: TokenMap -> TokenMap -> TokenMap -> Property
-prop_intersection_associativity x y z = (===)
-    ((x `TokenMap.intersection` y) `TokenMap.intersection` z)
-    (x `TokenMap.intersection` (y `TokenMap.intersection` z))
+prop_intersection_associativity
+    :: Blind (ManyFolded TokenMap)
+    -> Blind (ManyFolded TokenMap)
+    -> Blind (ManyFolded TokenMap)
+    -> Property
+prop_intersection_associativity xf yf zf =
+    checkCoverage $
+    cover 50 (x /= y && y /= z)
+        "maps are different" $
+    cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
+        "intersection is not empty" $
+    counterexample (pretty (Flat <$> [x, y, z])) $
+    r1 === r2
+  where
+    r1 = (x `TokenMap.intersection` y) `TokenMap.intersection` z
+    r2 = x `TokenMap.intersection` (y `TokenMap.intersection` z)
+    [x, y, z] = getManyFolded . getBlind <$> [xf, yf, zf]
 
 prop_intersection_commutativity :: TokenMap -> TokenMap -> Property
 prop_intersection_commutativity x y =
