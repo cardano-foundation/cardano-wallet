@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -10,12 +11,17 @@
 module Test.QuickCheck.Extra
     ( reasonablySized
     , shrinkInterleaved
+
+    -- * Combinators
+    , ManyFolded (..)
     ) where
 
 import Prelude
 
 import Test.QuickCheck
-    ( Gen, scale )
+    ( Arbitrary (..), Gen, scale )
+
+import qualified Data.Foldable as F
 
 -- | Resize a generator to grow with the size parameter, but remains reasonably
 -- sized. That is handy when testing on data-structures that can be arbitrarily
@@ -51,3 +57,22 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
+
+--------------------------------------------------------------------------------
+-- Combinators
+--------------------------------------------------------------------------------
+
+-- | A combinator for generating larger arbitrary values, produced by
+--   generating many smaller arbitrary values and folding them together.
+--
+-- Applying this combinator to a type 'A' with an instance of 'Monoid' will
+-- generate larger values of 'A', based on simple monoidal concatenation of
+-- multiple smaller values.
+--
+newtype ManyFolded a = ManyFolded
+    { getManyFolded :: a }
+    deriving (Eq, Show)
+
+instance forall a. (Arbitrary a, Monoid a) => Arbitrary (ManyFolded a) where
+    arbitrary = ManyFolded . F.fold <$> arbitrary @[a]
+    shrink (ManyFolded a) = ManyFolded <$> shrink a
