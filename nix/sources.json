@@ -12,15 +12,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "iohk-nix": {
-        "branch": "master",
+        "branch": "rvl/nixpkgs-unstable",
         "description": "nix scripts shared across projects",
         "homepage": null,
         "owner": "input-output-hk",
         "repo": "iohk-nix",
-        "rev": "baf39a5a5e782c934eab58337284d4c59c2c57c8",
-        "sha256": "1pf0nrrxf0kqdlghikgz6pas78sbcxzkvmma6rbg0df0hvyll5wn",
+        "rev": "f485c6609b77bc949c9bf32fa44ac6b69673fdf9",
+        "sha256": "0p5qw87h29vshs6av7vrsgssx5j02p5sypyrcmimj0pr1f2wcrf5",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/iohk-nix/archive/baf39a5a5e782c934eab58337284d4c59c2c57c8.tar.gz",
+        "url": "https://github.com/input-output-hk/iohk-nix/archive/f485c6609b77bc949c9bf32fa44ac6b69673fdf9.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "sphinxcontrib-haddock": {
