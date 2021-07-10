@@ -12,7 +12,7 @@ let
   sources = import ./sources.nix { inherit pkgs; }
     // sourcesOverride;
   iohkNixMain = import sources.iohk-nix {};
-  haskellNix = (import sources."haskell.nix" {
+  haskellNix = import sources."haskell.nix" {
     inherit system;
     # if niv sources hackage or stackage are present, pass them
     # through to Haskell.nix.
@@ -20,44 +20,47 @@ let
       (if builtins.hasAttr "hackage" sources then { inherit (sources) hackage; } else {}) //
       (if builtins.hasAttr "stackage" sources then { inherit (sources) stackage; } else {})
       // sourcesOverride;
-  }).nixpkgsArgs;
+  };
   # use our own nixpkgs if it exists in our sources,
   # otherwise use iohkNix default nixpkgs.
   nixpkgs = if (sources ? nixpkgs)
     then
-      (builtins.trace "Not using IOHK default nixpkgs (use 'niv drop nixpkgs' to use default for better sharing)"
+      (builtins.trace "Not using Haskell.nix nixpkgs pin (use 'niv drop nixpkgs' to use default for better sharing)"
       sources.nixpkgs)
-    else iohkNixMain.nixpkgs;
+    # else iohkNixMain.nixpkgs;
+    else haskellNix.sources.nixpkgs-unstable;
 
   # for inclusion in pkgs:
   overlays =
     # Haskell.nix (https://github.com/input-output-hk/haskell.nix)
-    haskellNix.overlays
+    haskellNix.nixpkgsArgs.overlays
     # haskell-nix.haskellLib.extra: some useful extra utility functions for haskell.nix
     ++ iohkNixMain.overlays.haskell-nix-extra
-    ++ iohkNixMain.overlays.crypto
     # iohkNix: nix utilities and niv:
     ++ iohkNixMain.overlays.iohkNix
     # our own overlays:
     ++ [
-      (pkgs: _: with pkgs; {
+      (final: prev: {
+        # iohkNix: crypto
+        libsodium-vrf = final.callPackage (sources.iohk-nix + /overlays/crypto/libsodium.nix) {};
+
         # commonLib: iohk-nix utils and our own:
-        commonLib = iohkNix
-          // import ./util.nix { inherit lib; }
+        commonLib = final.iohkNix
+          // import ./util.nix { inherit (final) lib; }
           # also expose our sources and overlays
           // { inherit overlays sources; };
       })
-      # haskell build tools
-      (import ./build-tools-overlay.nix)
-      # cardano-node packages
-      (import ./cardano-node-overlay.nix)
-      # Other package overlays
-      (import ./pkgs.nix { inherit system crossSystem config; })
+      # Haskell build tools
+      (import ./overlays/build-tools.nix)
+      # Cardano deployments
+      (import ./overlays/cardano-deployments.nix)
+      # Other packages overlay
+      (import ./overlays/pkgs.nix)
     ];
 
   pkgs = import nixpkgs {
     inherit system crossSystem overlays;
-    config = haskellNix.config // config;
+    config = haskellNix.nixpkgsArgs.config // config;
   };
 
 in pkgs

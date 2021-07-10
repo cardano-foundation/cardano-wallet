@@ -694,8 +694,7 @@ prop_readPoolLifeCycleStatus
         -> Maybe (CertificatePublicationTime, certificate)
     lookupFinalCertificateMatching match = certificatePublications
         & reverse
-        & fmap (traverse match)
-        & catMaybes
+        & mapMaybe (traverse match)
         & listToMaybe
 
     certificatePublications :: [(CertificatePublicationTime, PoolCertificate)]

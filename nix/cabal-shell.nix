@@ -8,7 +8,7 @@
 { walletPackages ? import ../default.nix {}
 , pkgs ? walletPackages.private.pkgs
 # optional string argument to override compiler, e.g.
-#   nix-shell nix/cabal-shell.nix --argstr ghcVersion ghc8104
+#   nix-shell nix/cabal-shell.nix --argstr ghcVersion ghc8105
 , ghcVersion ? null
 # Enable building the cabal-cache util - only needed under CI
 , withCabalCache ? false

@@ -55,7 +55,7 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Network
     ( NextBlocksResult (..) )
 import Control.Monad
-    ( ap, liftM )
+    ( ap, liftM, unless )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
@@ -607,10 +607,9 @@ flush :: (MonadSTM m) => TQueue m a -> m ()
 flush queue =
     atomically $ dropUntil isNothing queue
   where
-    dropUntil predicate q =
-        (predicate <$> tryReadTQueue q) >>= \case
-            True  -> pure ()
-            False -> dropUntil predicate q
+    dropUntil predicate q = do
+        done <- predicate <$> tryReadTQueue q
+        unless done $ dropUntil predicate q
 
 -- | Helper function to easily send commands to the node's client and read
 -- responses back.

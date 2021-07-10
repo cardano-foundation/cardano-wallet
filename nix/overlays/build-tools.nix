@@ -28,24 +28,20 @@
 ######################################################################
 
 let
-  index-state = "2021-06-18T00:00:00Z";
+  index-state = "2021-06-30T00:00:00Z";
   tools = {
     cabal-cache.version             = "1.0.2.1";
     cabal-install.exe               = "cabal";
     cabal-install.version           = "3.4.0.0";
     haskell-language-server.version = "1.2.0.0";
-    haskell-language-server.modules = [{
-      # Broken plugin, fails to build.
-      packages.haskell-language-server.flags.fourmolu = false;
-    }];
-    hoogle.version                  = "5.0.18";
-    hlint.version                   = "3.2.1";
-    lentil.version                  = "1.3.2.0";
+    hoogle.version                  = "5.0.18.1";
+    hlint.version                   = "3.3.1";
+    lentil.version                  = "1.5.2.0";
     stylish-haskell.version         = "0.11.0.3";
     weeder.version                  = "2.1.3";
   };
 
-  compiler-nix-name = "ghc8104";  # TODO: get it from the project
+  compiler-nix-name = "ghc8105";  # TODO: get it from the project
 in
 
 pkgs: super: let
@@ -55,7 +51,7 @@ pkgs: super: let
     inherit name index-state compiler-nix-name;
   } // pkgs.lib.optionalAttrs enableMaterialization {
     checkMaterialization = false;
-    materialized = ./materialized + "/${name}";
+    materialized = ../materialized + "/${name}";
   } // builtins.removeAttrs args ["exe"]);
 
   # A script for updating materialized files
@@ -86,7 +82,7 @@ in {
       inherit compiler-nix-name index-state;
     } // pkgs.lib.optionalAttrs enableMaterialization {
       checkMaterialization = false;
-      materialized = ./materialized + "/${name}";
+      materialized = ../materialized + "/${name}";
     });
   in pkgs.symlinkJoin {
     inherit name;

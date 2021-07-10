@@ -42,9 +42,9 @@
         "distributive".revision = (((hackage."distributive")."0.6.2.1").revisions).default;
         "distributive".flags.tagged = true;
         "distributive".flags.semigroups = true;
-        "base".revision = (((hackage."base")."4.14.1.0").revisions).default;
+        "base".revision = (((hackage."base")."4.14.2.0").revisions).default;
         "foldl".revision = (((hackage."foldl")."1.4.11").revisions).default;
-        "rts".revision = (((hackage."rts")."1.0").revisions).default;
+        "rts".revision = (((hackage."rts")."1.0.1").revisions).default;
         "text".revision = (((hackage."text")."1.2.4.1").revisions).default;
         "mtl".revision = (((hackage."mtl")."2.2.2").revisions).default;
         "time".revision = (((hackage."time")."1.9.3").revisions).default;
@@ -67,7 +67,7 @@
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
-        "containers".revision = (((hackage."containers")."0.6.2.1").revisions).default;
+        "containers".revision = (((hackage."containers")."0.6.4.1").revisions).default;
         "semigroupoids".revision = (((hackage."semigroupoids")."5.3.5").revisions).default;
         "semigroupoids".flags.distributive = true;
         "semigroupoids".flags.comonad = true;
@@ -97,7 +97,7 @@
         "th-abstraction".revision = (((hackage."th-abstraction")."0.4.2.0").revisions).default;
         "parsec".revision = (((hackage."parsec")."3.1.14.0").revisions).default;
         "turtle".revision = (((hackage."turtle")."1.5.22").revisions).default;
-        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.4").revisions).default;
+        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.5").revisions).default;
         "splitmix".revision = (((hackage."splitmix")."0.1.0.3").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "system-filepath".revision = (((hackage."system-filepath")."0.4.14").revisions).default;
@@ -106,7 +106,7 @@
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "transformers".revision = (((hackage."transformers")."0.5.6.2").revisions).default;
         "file-embed".revision = (((hackage."file-embed")."0.0.14.0").revisions).default;
-        "colour".revision = (((hackage."colour")."2.3.5").revisions).default;
+        "colour".revision = (((hackage."colour")."2.3.6").revisions).default;
         "system-fileio".revision = (((hackage."system-fileio")."0.3.16.4").revisions).default;
         "hashable".revision = (((hackage."hashable")."1.3.2.0").revisions).default;
         "hashable".flags.integer-gmp = true;
@@ -126,11 +126,11 @@
         "zlib".flags.pkg-config = false;
         "extra".revision = (((hackage."extra")."1.7.9").revisions).default;
         "StateVar".revision = (((hackage."StateVar")."1.2.1").revisions).default;
-        "stm".revision = (((hackage."stm")."2.5.0.0").revisions).default;
+        "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
         };
       compiler = {
-        version = "8.10.4";
-        nix-name = "ghc8104";
+        version = "8.10.5";
+        nix-name = "ghc8105";
         packages = {
           "binary" = "0.8.8.0";
           "ghc-prim" = "0.6.1";
@@ -140,22 +140,22 @@
           "template-haskell" = "2.16.0.0";
           "pretty" = "1.1.3.6";
           "process" = "1.6.9.0";
-          "base" = "4.14.1.0";
-          "rts" = "1.0";
+          "base" = "4.14.2.0";
+          "rts" = "1.0.1";
           "text" = "1.2.4.1";
           "mtl" = "2.2.2";
           "time" = "1.9.3";
           "unix" = "2.7.2.2";
           "bytestring" = "0.10.12.0";
-          "containers" = "0.6.2.1";
+          "containers" = "0.6.4.1";
           "directory" = "1.3.6.0";
           "parsec" = "3.1.14.0";
-          "ghc-boot-th" = "8.10.4";
+          "ghc-boot-th" = "8.10.5";
           "filepath" = "1.4.2.1";
           "deepseq" = "1.4.4.0";
           "transformers" = "0.5.6.2";
           "Cabal" = "3.2.1.0";
-          "stm" = "2.5.0.0";
+          "stm" = "2.5.0.1";
           };
         };
       };

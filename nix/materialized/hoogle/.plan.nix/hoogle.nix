@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "1.18";
-      identifier = { name = "hoogle"; version = "5.0.18"; };
+      identifier = { name = "hoogle"; version = "5.0.18.1"; };
       license = "BSD-3-Clause";
       copyright = "Neil Mitchell 2004-2020";
       maintainer = "Neil Mitchell <ndmitchell@gmail.com>";

@@ -266,6 +266,7 @@ instance Arbitrary SinglePoolCertificateSequence where
             pure $ SinglePoolCertificateSequence sharedPoolId $
                 setPoolCertificatePoolId sharedPoolId <$> certificates
 
+    {- HLINT ignore "Functor law" -}
     shrink (SinglePoolCertificateSequence sharedPoolId certificates) =
         genericShrink certificates
             & fmap (fmap (setPoolCertificatePoolId sharedPoolId))

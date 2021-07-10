@@ -138,7 +138,7 @@ import Data.Map
 import Data.Map.Merge.Strict
     ( dropMissing, traverseMissing, zipWithAMatched, zipWithMatched )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -511,13 +511,11 @@ readPoolDbData :: DBLayer IO -> EpochNo -> IO (Map PoolId PoolDbData)
 readPoolDbData DBLayer {..} currentEpoch = atomically $ do
     lifeCycleData <- listPoolLifeCycleData currentEpoch
     let registrationCertificates = lifeCycleData
-            & fmap getPoolRegistrationCertificate
-            & catMaybes
+            & mapMaybe getPoolRegistrationCertificate
             & fmap (first (view #poolId) . dupe)
             & Map.fromList
     let retirementCertificates = lifeCycleData
-            & fmap getPoolRetirementCertificate
-            & catMaybes
+            & mapMaybe getPoolRetirementCertificate
             & fmap (first (view #poolId) . dupe)
             & Map.fromList
     combineChainData

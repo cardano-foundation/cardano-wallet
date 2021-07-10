@@ -97,6 +97,8 @@
         Win32-network = ./Win32-network.nix;
         http-client = ./http-client.nix;
         };
+      compiler.version = "8.10.5";
+      compiler.nix-name = "ghc8105";
       };
   resolver = "lts-17.9";
   modules = [
@@ -114,4 +116,5 @@
         })
     { packages = {}; }
     ];
+  compiler = "ghc-8.10.5";
   }

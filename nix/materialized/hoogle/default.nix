@@ -14,7 +14,7 @@
         "bifunctors".flags.semigroups = true;
         "ghc-prim".revision = (((hackage."ghc-prim")."0.6.1").revisions).default;
         "socks".revision = (((hackage."socks")."0.6.1").revisions).default;
-        "warp".revision = (((hackage."warp")."3.3.16").revisions).default;
+        "warp".revision = (((hackage."warp")."3.3.17").revisions).default;
         "warp".flags.network-bytestring = false;
         "warp".flags.allow-sendfilefd = true;
         "warp".flags.warp-debug = false;
@@ -93,7 +93,7 @@
         "vector-algorithms".flags.boundschecks = true;
         "vector-algorithms".flags.properties = true;
         "happy".revision = (((hackage."happy")."1.20.0").revisions).default;
-        "base".revision = (((hackage."base")."4.14.1.0").revisions).default;
+        "base".revision = (((hackage."base")."4.14.2.0").revisions).default;
         "blaze-markup".revision = (((hackage."blaze-markup")."0.8.2.8").revisions).default;
         "network-uri".revision = (((hackage."network-uri")."2.6.4.1").revisions).default;
         "storable-tuple".revision = (((hackage."storable-tuple")."0.0.3.3").revisions).default;
@@ -101,7 +101,7 @@
         "cmdargs".revision = (((hackage."cmdargs")."0.10.21").revisions).default;
         "cmdargs".flags.testprog = false;
         "cmdargs".flags.quotation = true;
-        "rts".revision = (((hackage."rts")."1.0").revisions).default;
+        "rts".revision = (((hackage."rts")."1.0.1").revisions).default;
         "text".revision = (((hackage."text")."1.2.4.1").revisions).default;
         "mtl".revision = (((hackage."mtl")."2.2.2").revisions).default;
         "js-flot".revision = (((hackage."js-flot")."0.8.3").revisions).default;
@@ -132,7 +132,7 @@
         "http-client".revision = (((hackage."http-client")."0.7.8").revisions).default;
         "http-client".flags.network-uri = true;
         "x509".revision = (((hackage."x509")."1.7.5").revisions).default;
-        "containers".revision = (((hackage."containers")."0.6.2.1").revisions).default;
+        "containers".revision = (((hackage."containers")."0.6.4.1").revisions).default;
         "byteorder".revision = (((hackage."byteorder")."1.0.4").revisions).default;
         "tagged".revision = (((hackage."tagged")."0.8.6.1").revisions).default;
         "tagged".flags.deepseq = true;
@@ -184,7 +184,7 @@
         "semigroups".flags.text = true;
         "uniplate".revision = (((hackage."uniplate")."1.6.13").revisions).default;
         "parsec".revision = (((hackage."parsec")."3.1.14.0").revisions).default;
-        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.4").revisions).default;
+        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.5").revisions).default;
         "splitmix".revision = (((hackage."splitmix")."0.1.0.3").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "x509-store".revision = (((hackage."x509-store")."1.6.7").revisions).default;
@@ -254,11 +254,11 @@
         "old-locale".revision = (((hackage."old-locale")."1.0.0.7").revisions).default;
         "split".revision = (((hackage."split")."0.2.3.4").revisions).default;
         "x509-validation".revision = (((hackage."x509-validation")."1.6.11").revisions).default;
-        "stm".revision = (((hackage."stm")."2.5.0.0").revisions).default;
+        "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
         };
       compiler = {
-        version = "8.10.4";
-        nix-name = "ghc8104";
+        version = "8.10.5";
+        nix-name = "ghc8105";
         packages = {
           "binary" = "0.8.8.0";
           "ghc-prim" = "0.6.1";
@@ -268,22 +268,22 @@
           "template-haskell" = "2.16.0.0";
           "pretty" = "1.1.3.6";
           "process" = "1.6.9.0";
-          "base" = "4.14.1.0";
-          "rts" = "1.0";
+          "base" = "4.14.2.0";
+          "rts" = "1.0.1";
           "text" = "1.2.4.1";
           "mtl" = "2.2.2";
           "time" = "1.9.3";
           "unix" = "2.7.2.2";
           "bytestring" = "0.10.12.0";
-          "containers" = "0.6.2.1";
+          "containers" = "0.6.4.1";
           "directory" = "1.3.6.0";
           "parsec" = "3.1.14.0";
-          "ghc-boot-th" = "8.10.4";
+          "ghc-boot-th" = "8.10.5";
           "filepath" = "1.4.2.1";
           "deepseq" = "1.4.4.0";
           "transformers" = "0.5.6.2";
           "Cabal" = "3.2.1.0";
-          "stm" = "2.5.0.0";
+          "stm" = "2.5.0.1";
           };
         };
       };

@@ -324,8 +324,8 @@ slotRangeFromRelativeTimeRange (Range a b) =
     Range <$> traverse ceilingSlotAt a <*> traverse ongoingSlotAt b
 
 slotRangeFromTimeRange :: Range UTCTime -> Qry (Maybe (Range SlotNo))
-slotRangeFromTimeRange range = mapM slotRangeFromRelativeTimeRange
-    =<< (toRelativeTimeRange range <$> getStartTime)
+slotRangeFromTimeRange range = getStartTime >>=
+    mapM slotRangeFromRelativeTimeRange . toRelativeTimeRange range
 
 -- | Returns the @NominalDiffTime@ to reach the start of the given epoch, or 0
 -- if it already passed.
