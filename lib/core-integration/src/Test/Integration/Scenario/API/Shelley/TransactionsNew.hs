@@ -648,7 +648,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval 'unspecified'" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith 
+        liftIO $ pendingWith
           "Currently throws: \
           \parsing ApiValidityBound object failed, \
           \expected Object, but encountered String \

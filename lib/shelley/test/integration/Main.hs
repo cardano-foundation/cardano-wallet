@@ -150,6 +150,7 @@ import qualified Test.Integration.Scenario.API.Byron.CoinSelections as ByronCoin
 import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
 import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
 import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
+import qualified Test.Integration.Scenario.API.Byron.TransactionsNew as ByronTransactionsNew
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shared.Addresses as SharedAddresses
@@ -199,6 +200,7 @@ main = withTestsSetup $ \testDir tracers -> do
                     Network_.spec
                     StakePools.spec @n
                     ByronTransactions.spec @n
+                    ByronTransactionsNew.spec @n
                     ByronHWWallets.spec @n
 
             -- Possible conflict with StakePools - mark as not parallizable
