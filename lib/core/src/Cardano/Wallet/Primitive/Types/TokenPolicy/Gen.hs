@@ -1,12 +1,16 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameLargeRange
+    ( genTokenNameSized
+    , genTokenNameLargeRange
     , genTokenNameMediumRange
     , genTokenNameSmallRange
+    , genTokenPolicyIdSized
     , genTokenPolicyIdLargeRange
     , genTokenPolicyIdSmallRange
     , mkTokenPolicyId
+    , shrinkTokenNameSized
     , shrinkTokenNameMediumRange
     , shrinkTokenNameSmallRange
+    , shrinkTokenPolicyIdSized
     , shrinkTokenPolicyIdSmallRange
     , tokenNamesMediumRange
     , tokenNamesSmallRange
@@ -24,11 +28,26 @@ import Data.Either
 import Data.Text.Class
     ( FromText (..) )
 import Test.QuickCheck
-    ( Gen, elements, vector )
+    ( Gen, elements, sized, vector )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
+
+--------------------------------------------------------------------------------
+-- Token names chosen from a range that depends on the size parameter
+--------------------------------------------------------------------------------
+
+genTokenNameSized :: Gen TokenName
+genTokenNameSized = sized $ \size ->
+    elements $ UnsafeTokenName . B8.snoc "Token" <$> take size ['A' ..]
+
+shrinkTokenNameSized :: TokenName -> [TokenName]
+shrinkTokenNameSized x
+    | x == simplest = []
+    | otherwise = [simplest]
+  where
+    simplest = UnsafeTokenName "TokenA"
 
 --------------------------------------------------------------------------------
 -- Token names chosen from a small range (to allow collisions)
@@ -73,6 +92,22 @@ genTokenNameLargeRange :: Gen TokenName
 genTokenNameLargeRange = UnsafeTokenName . BS.pack <$> vector 32
 
 --------------------------------------------------------------------------------
+-- Token policy identifiers chosen from a range that depends on the size
+-- parameter
+--------------------------------------------------------------------------------
+
+genTokenPolicyIdSized :: Gen TokenPolicyId
+genTokenPolicyIdSized = sized $ \size ->
+    elements $ mkTokenPolicyId <$> take size mkTokenPolicyIdValidChars
+
+shrinkTokenPolicyIdSized :: TokenPolicyId -> [TokenPolicyId]
+shrinkTokenPolicyIdSized x
+    | x == simplest = []
+    | otherwise = [simplest]
+  where
+    simplest = mkTokenPolicyId 'A'
+
+--------------------------------------------------------------------------------
 -- Token policy identifiers chosen from a small range (to allow collisions)
 --------------------------------------------------------------------------------
 
@@ -101,7 +136,12 @@ genTokenPolicyIdLargeRange = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
 -- Internal utilities
 --------------------------------------------------------------------------------
 
--- The input must be a character in the range [0-9] or [A-Z].
+-- The set of characters that can be passed to the 'mkTokenPolicyId' function.
+--
+mkTokenPolicyIdValidChars :: [Char]
+mkTokenPolicyIdValidChars = ['0' .. '9'] <> ['A' .. 'F']
+
+-- The input must be a character in the range [0-9] or [A-F].
 --
 mkTokenPolicyId :: Char -> TokenPolicyId
 mkTokenPolicyId c
