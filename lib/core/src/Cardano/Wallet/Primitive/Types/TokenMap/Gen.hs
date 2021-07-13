@@ -6,9 +6,11 @@ module Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetIdSized
     , genAssetIdLargeRange
     , genAssetIdSmallRange
+    , genTokenMapSized
     , genTokenMapSmallRange
     , shrinkAssetIdSized
     , shrinkAssetIdSmallRange
+    , shrinkTokenMapSized
     , shrinkTokenMapSmallRange
     , AssetIdF (..)
     ) where
@@ -32,7 +34,11 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     , tokenPolicies
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySmall, shrinkTokenQuantitySmall )
+    ( genTokenQuantitySized
+    , genTokenQuantitySmall
+    , shrinkTokenQuantitySized
+    , shrinkTokenQuantitySmall
+    )
 import Control.Monad
     ( replicateM )
 import Data.List
@@ -50,6 +56,7 @@ import Test.QuickCheck
     , oneof
     , resize
     , shrinkList
+    , sized
     , variant
     )
 import Test.QuickCheck.Extra
@@ -106,6 +113,30 @@ genAssetIdLargeRange :: Gen AssetId
 genAssetIdLargeRange = AssetId
     <$> genTokenPolicyIdLargeRange
     <*> genTokenNameLargeRange
+
+--------------------------------------------------------------------------------
+-- Token maps with assets and quantities chosen from ranges that depend on the
+-- size parameter
+--------------------------------------------------------------------------------
+
+genTokenMapSized :: Gen TokenMap
+genTokenMapSized = sized $ \size -> do
+    assetCount <- choose (0, size)
+    TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
+  where
+    genAssetQuantity = (,)
+        <$> genAssetIdSized
+        <*> genTokenQuantitySized
+
+shrinkTokenMapSized :: TokenMap -> [TokenMap]
+shrinkTokenMapSized
+    = fmap TokenMap.fromFlatList
+    . shrinkList shrinkAssetQuantity
+    . TokenMap.toFlatList
+  where
+    shrinkAssetQuantity (a, q) = shrinkInterleaved
+        (a, shrinkAssetIdSized)
+        (q, shrinkTokenQuantitySized)
 
 --------------------------------------------------------------------------------
 -- Token maps with assets and quantities chosen from small ranges
