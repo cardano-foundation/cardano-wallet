@@ -22,6 +22,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
     , genAssetIdLargeRange
     , genAssetIdSmallRange
+    , genTokenMapSized
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
     , shrinkTokenMapSmallRange
@@ -95,16 +96,16 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
+    , forAllBlind
     , frequency
     , property
+    , scale
     , (.||.)
     , (===)
     , (==>)
     )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
-import Test.QuickCheck.Extra
-    ( ManyFolded (..) )
 import Test.Utils.Laws
     ( testLawsMany )
 import Test.Utils.Laws.PartialOrd
@@ -520,40 +521,44 @@ prop_difference_equality x y = checkCoverage $
     xExcess = x `TokenMap.difference` y
     yExcess = y `TokenMap.difference` x
 
-prop_intersection_associativity
-    :: Blind (ManyFolded TokenMap)
-    -> Blind (ManyFolded TokenMap)
-    -> Blind (ManyFolded TokenMap)
-    -> Property
-prop_intersection_associativity xf yf zf =
-    checkCoverage $
-    cover 50 (x /= y && y /= z)
-        "maps are different" $
-    cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
-        "intersection is not empty" $
-    counterexample (pretty (Flat <$> [x, y, z])) $
-    r1 === r2
+prop_intersection_associativity :: Property
+prop_intersection_associativity =
+    forAllBlind genTokenMap $ \x ->
+    forAllBlind genTokenMap $ \y ->
+    forAllBlind genTokenMap $ \z ->
+    prop_inner x y z
   where
-    r1 = (x `TokenMap.intersection` y) `TokenMap.intersection` z
-    r2 = x `TokenMap.intersection` (y `TokenMap.intersection` z)
-    [x, y, z] = getManyFolded . getBlind <$> [xf, yf, zf]
+    genTokenMap = scale (* 4) genTokenMapSized
+    prop_inner x y z =
+        checkCoverage $
+        cover 50 (x /= y && y /= z)
+            "maps are different" $
+        cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
+            "intersection is not empty" $
+        counterexample (pretty (Flat <$> [x, y, z, r1, r2])) $
+        r1 == r2
+      where
+        r1 = (x `TokenMap.intersection` y) `TokenMap.intersection` z
+        r2 = x `TokenMap.intersection` (y `TokenMap.intersection` z)
 
-prop_intersection_commutativity
-    :: Blind (ManyFolded TokenMap)
-    -> Blind (ManyFolded TokenMap)
-    -> Property
-prop_intersection_commutativity xf yf =
-    checkCoverage $
-    cover 50 (x /= y)
-        "maps are different" $
-    cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
-        "intersection is not empty" $
-    counterexample (pretty (Flat <$> [x, y])) $
-    r1 === r2
+prop_intersection_commutativity :: Property
+prop_intersection_commutativity =
+    forAllBlind genTokenMap $ \x ->
+    forAllBlind genTokenMap $ \y ->
+    prop_inner x y
   where
-    r1 = x `TokenMap.intersection` y
-    r2 = y `TokenMap.intersection` x
-    [x, y] = getManyFolded . getBlind <$> [xf, yf]
+    genTokenMap = scale (* 2) genTokenMapSized
+    prop_inner x y =
+        checkCoverage $
+        cover 50 (x /= y)
+            "maps are different" $
+        cover 50 (TokenMap.isNotEmpty r1 && TokenMap.isNotEmpty r2)
+            "intersection is not empty" $
+        counterexample (pretty (Flat <$> [x, y, r1, r2])) $
+        r1 == r2
+      where
+        r1 = x `TokenMap.intersection` y
+        r2 = y `TokenMap.intersection` x
 
 prop_intersection_empty :: TokenMap -> Property
 prop_intersection_empty x =
@@ -562,24 +567,26 @@ prop_intersection_empty x =
         "map is not empty" $
     x `TokenMap.intersection` TokenMap.empty === TokenMap.empty
 
-prop_intersection_equality
-    :: Blind (ManyFolded TokenMap)
-    -> Blind (ManyFolded TokenMap)
-    -> Property
-prop_intersection_equality xf yf =
-    checkCoverage $
-    cover 50 (x /= y)
-        "maps are different" $
-    cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
-        "maps are not empty" $
-    counterexample (pretty (Flat <$> [x, y])) $
-    conjoin
-        [ total `TokenMap.intersection` x === x
-        , total `TokenMap.intersection` y === y
-        ]
+prop_intersection_equality :: Property
+prop_intersection_equality =
+    forAllBlind genTokenMap $ \x ->
+    forAllBlind genTokenMap $ \y ->
+    prop_inner x y
   where
-    total = x <> y
-    [x, y] = getManyFolded . getBlind <$> [xf, yf]
+    genTokenMap = scale (* 2) genTokenMapSized
+    prop_inner x y =
+        checkCoverage $
+        cover 50 (x /= y)
+            "maps are different" $
+        cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
+            "maps are not empty" $
+        counterexample (pretty (Flat <$> [x, y, total])) $
+        conjoin
+            [ total `TokenMap.intersection` x === x
+            , total `TokenMap.intersection` y === y
+            ]
+      where
+        total = x <> y
 
 prop_intersection_identity :: TokenMap -> Property
 prop_intersection_identity x =
@@ -588,24 +595,26 @@ prop_intersection_identity x =
         "map is not empty" $
     x `TokenMap.intersection` x === x
 
-prop_intersection_subset
-    :: Blind (ManyFolded TokenMap)
-    -> Blind (ManyFolded TokenMap)
-    -> Property
-prop_intersection_subset xf yf =
-    checkCoverage $
-    cover 50 (x /= y)
-        "maps are different" $
-    cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
-        "maps are not empty" $
-    counterexample (pretty (Flat <$> [x, y])) $
-    conjoin
-        [ intersection `leq` x
-        , intersection `leq` y
-        ]
+prop_intersection_subset :: Property
+prop_intersection_subset =
+    forAllBlind genTokenMap $ \x ->
+    forAllBlind genTokenMap $ \y ->
+    prop_inner x y
   where
-    intersection = x `TokenMap.intersection` y
-    [x, y] = getManyFolded . getBlind <$> [xf, yf]
+    genTokenMap = scale (* 2) genTokenMapSized
+    prop_inner x y =
+        checkCoverage $
+        cover 50 (x /= y)
+            "maps are different" $
+        cover 50 (TokenMap.isNotEmpty x && TokenMap.isNotEmpty y)
+            "maps are not empty" $
+        counterexample (pretty (Flat <$> [x, y, intersection])) $
+        conjoin
+            [ intersection `leq` x
+            , intersection `leq` y
+            ]
+      where
+        intersection = x `TokenMap.intersection` y
 
 --------------------------------------------------------------------------------
 -- Quantity properties
