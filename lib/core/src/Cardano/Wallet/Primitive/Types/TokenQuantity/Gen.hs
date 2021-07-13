@@ -1,9 +1,11 @@
 module Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySmall
+    ( genTokenQuantitySized
+    , genTokenQuantitySmall
     , genTokenQuantitySmallPositive
     , genTokenQuantityLarge
     , genTokenQuantityMassive
     , genTokenQuantityMixed
+    , shrinkTokenQuantitySized
     , shrinkTokenQuantitySmall
     , shrinkTokenQuantitySmallPositive
     , shrinkTokenQuantityLarge
@@ -23,7 +25,18 @@ import Data.Word
 import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
-    ( Gen, choose, oneof, shrink )
+    ( Gen, choose, oneof, shrink, sized )
+
+--------------------------------------------------------------------------------
+-- Token quantities chosen from a range that depends on the size parameter
+--------------------------------------------------------------------------------
+
+genTokenQuantitySized :: Gen TokenQuantity
+genTokenQuantitySized = sized $ \n ->
+    quantityFromInt <$> choose (0, n)
+
+shrinkTokenQuantitySized :: TokenQuantity -> [TokenQuantity]
+shrinkTokenQuantitySized = shrinkTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Small token quantities
@@ -118,6 +131,11 @@ tokenQuantityMassive = TokenQuantity $ (10 :: Natural) ^ (1000 :: Natural)
 
 quantityToInteger :: TokenQuantity -> Integer
 quantityToInteger (TokenQuantity q) = fromIntegral q
+
+quantityFromInt :: Int -> TokenQuantity
+quantityFromInt i
+    | i < 0 = error $ "Unable to convert integer to token quantity: " <> show i
+    | otherwise = TokenQuantity $ fromIntegral i
 
 quantityFromInteger :: Integer -> TokenQuantity
 quantityFromInteger i
