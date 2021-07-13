@@ -1,10 +1,12 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameLargeRange
+    ( genTokenNameSized
+    , genTokenNameLargeRange
     , genTokenNameMediumRange
     , genTokenNameSmallRange
     , genTokenPolicyIdLargeRange
     , genTokenPolicyIdSmallRange
     , mkTokenPolicyId
+    , shrinkTokenNameSized
     , shrinkTokenNameMediumRange
     , shrinkTokenNameSmallRange
     , shrinkTokenPolicyIdSmallRange
@@ -24,11 +26,26 @@ import Data.Either
 import Data.Text.Class
     ( FromText (..) )
 import Test.QuickCheck
-    ( Gen, elements, vector )
+    ( Gen, elements, sized, vector )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
+
+--------------------------------------------------------------------------------
+-- Token names chosen from a range that depends on the size parameter
+--------------------------------------------------------------------------------
+
+genTokenNameSized :: Gen TokenName
+genTokenNameSized = sized $ \size ->
+    elements $ UnsafeTokenName . B8.snoc "Token" <$> take size ['A' ..]
+
+shrinkTokenNameSized :: TokenName -> [TokenName]
+shrinkTokenNameSized x
+    | x == simplest = []
+    | otherwise = [simplest]
+  where
+    simplest = UnsafeTokenName "TokenA"
 
 --------------------------------------------------------------------------------
 -- Token names chosen from a small range (to allow collisions)
