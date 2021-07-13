@@ -1,10 +1,13 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange
+    ( genAssetIdSized
+    , genAssetIdLargeRange
     , genAssetIdSmallRange
     , genTokenMapSmallRange
+    , shrinkAssetIdSized
     , shrinkAssetIdSmallRange
     , shrinkTokenMapSmallRange
     , AssetIdF (..)
@@ -16,10 +19,14 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenNameLargeRange
+    , genTokenNameSized
     , genTokenNameSmallRange
     , genTokenPolicyIdLargeRange
+    , genTokenPolicyIdSized
     , genTokenPolicyIdSmallRange
+    , shrinkTokenNameSized
     , shrinkTokenNameSmallRange
+    , shrinkTokenPolicyIdSized
     , shrinkTokenPolicyIdSmallRange
     , tokenNamesMediumRange
     , tokenPolicies
@@ -41,6 +48,7 @@ import Test.QuickCheck
     , choose
     , functionMap
     , oneof
+    , resize
     , shrinkList
     , variant
     )
@@ -48,6 +56,33 @@ import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+
+--------------------------------------------------------------------------------
+-- Asset identifiers chosen from a range that depends on the size parameter
+--------------------------------------------------------------------------------
+
+genAssetIdSized :: Gen AssetId
+genAssetIdSized = sized $ \size -> do
+    -- Ideally, we want to choose asset identifiers from a range that scales
+    -- /linearly/ with the size parameter.
+    --
+    -- However, since each asset identifier has /two/ components that are
+    -- generated /separately/, naively combining the generators for these two
+    -- components will give rise to a range of asset identifiers that scales
+    -- /quadratically/ with the size parameter, which is /not/ what we want.
+    --
+    -- Therefore, we pass each individual generator a size parameter that
+    -- is the square root of the original.
+    --
+    let sizeSquareRoot = max 1 $ ceiling $ sqrt $ fromIntegral @Int @Double size
+    AssetId
+        <$> resize sizeSquareRoot genTokenPolicyIdSized
+        <*> resize sizeSquareRoot genTokenNameSized
+
+shrinkAssetIdSized :: AssetId -> [AssetId]
+shrinkAssetIdSized (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
+    (p, shrinkTokenPolicyIdSized)
+    (t, shrinkTokenNameSized)
 
 --------------------------------------------------------------------------------
 -- Asset identifiers chosen from a small range (to allow collisions)
