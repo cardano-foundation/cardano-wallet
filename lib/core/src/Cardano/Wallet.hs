@@ -883,7 +883,6 @@ restoreBlocks
     -> ExceptT ErrNoSuchWallet IO ()
 restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp   <- withNoSuchWallet wid (readCheckpoint wid)
-    meta <- withNoSuchWallet wid (readWalletMeta wid)
     sp   <- liftIO $ currentSlottingParameters nl
 
     unless (cp `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
@@ -940,7 +939,6 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
     prune wid epochStability
 
     liftIO $ do
-        traceWith tr $ MsgWalletMetadata meta
         traceWith tr $ MsgDiscoveredTxs txs
         traceWith tr $ MsgBlocks blocks
         traceWith tr $ MsgDiscoveredTxsContent txs
@@ -2805,7 +2803,6 @@ instance HasSeverityAnnotation WalletWorkerLog where
 data WalletFollowLog
     = MsgDiscoveredDelegationCert SlotNo DelegationCertificate
     | MsgCheckpoint BlockHeader
-    | MsgWalletMetadata WalletMetadata
     | MsgDiscoveredTxs [(Tx, TxMeta)]
     | MsgDiscoveredTxsContent [(Tx, TxMeta)]
     | MsgBlocks (NonEmpty Block)
@@ -2847,8 +2844,6 @@ instance ToText WalletFollowLog where
                 ]
         MsgCheckpoint checkpointTip ->
             "Creating checkpoint at " <> pretty checkpointTip
-        MsgWalletMetadata meta ->
-            pretty meta
         MsgDiscoveredTxs txs ->
             "discovered " <> pretty (length txs) <> " new transaction(s)"
         MsgDiscoveredTxsContent txs ->
@@ -2896,7 +2891,6 @@ instance HasSeverityAnnotation WalletFollowLog where
     getSeverityAnnotation = \case
         MsgDiscoveredDelegationCert _ _ -> Info
         MsgCheckpoint _ -> Debug
-        MsgWalletMetadata _ -> Debug
         MsgDiscoveredTxs [] -> Debug
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
