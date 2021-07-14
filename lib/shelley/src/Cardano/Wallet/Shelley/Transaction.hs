@@ -821,15 +821,15 @@ estimateTxSize skeleton =
     scriptRequiredKeySigs = \case
         RequireSignatureOf _ ->
             1
-        RequireAllOf ss      ->
+        RequireAllOf ss ->
             sumVia scriptRequiredKeySigs ss
-        RequireAnyOf ss      ->
+        RequireAnyOf ss ->
             sumVia scriptRequiredKeySigs ss
-        ActiveFromSlot _     ->
+        ActiveFromSlot _ ->
             0
-        ActiveUntilSlot _    ->
+        ActiveUntilSlot _ ->
             0
-        RequireSomeOf _ ss   ->
+        RequireSomeOf _ ss ->
             -- We don't know how many the user will sign with, so we just assume
             -- the worst case of "signs with all".
             sumVia scriptRequiredKeySigs ss
@@ -1140,12 +1140,21 @@ estimateTxSize skeleton =
     --      ; This field specifies the right (excluded) endpoint b.
     --   ]
     sizeOf_NativeScript = \case
-        RequireSignatureOf _ -> sizeOf_SmallUInt + sizeOf_Hash28
-        RequireAllOf ss      -> sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
-        RequireAnyOf ss      -> sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
-        RequireSomeOf _ ss   -> sizeOf_SmallUInt + sizeOf_UInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
-        ActiveFromSlot _     -> sizeOf_SmallUInt + sizeOf_UInt
-        ActiveUntilSlot _    -> sizeOf_SmallUInt + sizeOf_UInt
+        RequireSignatureOf _ ->
+            sizeOf_SmallUInt + sizeOf_Hash28
+        RequireAllOf ss ->
+            sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+        RequireAnyOf ss ->
+            sizeOf_SmallUInt + sizeOf_Array + sumVia sizeOf_NativeScript ss
+        RequireSomeOf _ ss ->
+            sizeOf_SmallUInt
+                + sizeOf_UInt
+                + sizeOf_Array
+                + sumVia sizeOf_NativeScript ss
+        ActiveFromSlot _ ->
+            sizeOf_SmallUInt + sizeOf_UInt
+        ActiveUntilSlot _ ->
+            sizeOf_SmallUInt + sizeOf_UInt
 
     -- A Blake2b-224 hash, resulting in a 28-byte digest wrapped in CBOR, so
     -- with 2 bytes overhead (length <255, but length > 23)
