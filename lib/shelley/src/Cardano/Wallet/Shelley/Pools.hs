@@ -592,6 +592,10 @@ monitorStakePools followTr (NetworkParameters gp sp _pp) nl DBLayer{..} =
                 forEachShelleyBlock (fromAllegraBlock gp blk) (getProducer blk)
             BlockMary blk ->
                 forEachShelleyBlock (fromMaryBlock gp blk) (getProducer blk)
+            BlockAlonzo blk ->
+                forEachShelleyBlock (fromAlonzoBlock gp blk) (getProducer blk)
+
+        fromAlonzoBlock = error "todo: fromAlonzoBlock"
 
         forLastBlock = \case
             BlockByron blk ->
@@ -601,6 +605,8 @@ monitorStakePools followTr (NetworkParameters gp sp _pp) nl DBLayer{..} =
             BlockAllegra blk ->
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
             BlockMary blk ->
+                putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
+            BlockAlonzo blk ->
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
 
         forEachShelleyBlock (blk, certificates) poolId = do

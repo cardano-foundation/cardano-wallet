@@ -162,11 +162,11 @@ import Network.Mux
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock )
 import Ouroboros.Consensus.Cardano.Block
-    ( CardanoApplyTxErr
+    ( BlockQuery (..)
+    , CardanoApplyTxErr
     , CardanoEras
     , CodecConfig (..)
     , GenTx (..)
-    , Query (..)
     )
 import Ouroboros.Consensus.HardFork.Combinator
     ( EraIndex (..), QueryAnytime (..), QueryHardFork (..), eraIndexToInt )
@@ -174,6 +174,8 @@ import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( Interpreter, PastHorizonException (..) )
+import Ouroboros.Consensus.Ledger.Query
+    ( Query (..) )
 import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
@@ -485,6 +487,13 @@ withNetworkLayerBase tr np conn (versionData, _) tol action = do
                 case result of
                     SubmitSuccess -> pure ()
                     SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
+            AnyCardanoEra AlonzoEra -> do
+                let cmd = CmdSubmitTx $ unsealShelleyTx GenTxAlonzo tx
+                result <- liftIO $ localTxSubmissionQ `send` cmd
+                case result of
+                    SubmitSuccess -> pure ()
+                    SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
+
 
     _stakeDistribution queue coin = do
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
@@ -693,6 +702,8 @@ codecConfig sp = CardanoCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
     ShelleyCodecConfig
+    ShelleyCodecConfig
+
 
 -- | A group of codecs which will deserialise block data.
 codecs
@@ -758,6 +769,7 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate onE
                 <*> LSQry (QueryAnytimeShelley GetEraStart)
                 <*> LSQry (QueryAnytimeAllegra GetEraStart)
                 <*> LSQry (QueryAnytimeMary GetEraStart)
+                <*> LSQry (QueryAnytimeAlonzo GetEraStart)
 
             sp <- byronOrShelleyBased
                 (pure $ W.slottingParameters np)
@@ -1125,7 +1137,6 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxBearerClosed -> do
         traceWith tr Nothing
         pure onResourceVanished
-    MuxCleanShutdown -> pure False
     MuxBlockedOnCompletionVar _ -> pure False -- TODO: Is this correct?
 
 {-------------------------------------------------------------------------------
@@ -1342,9 +1353,12 @@ byronOrShelleyBased onByron onShelleyBased = currentEra >>= \case
     AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelleyBased
     AnyCardanoEra AllegraEra -> mapQuery QueryIfCurrentAllegra onShelleyBased
     AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onShelleyBased
+    AnyCardanoEra AlonzoEra -> error "todo: QueryIfCurrentAlonzo"
   where
     mapQuery
-        :: (forall r. Query block1 r -> Query block2 ((Either (MismatchEraInfo (CardanoEras StandardCrypto))) r))
+        :: (forall r. BlockQuery block1 r
+            -> BlockQuery block2
+                ((Either (MismatchEraInfo (CardanoEras StandardCrypto))) r))
         -> LSQ block1 m a
         -> LSQ block2 m a
     mapQuery _ (LSQPure x) = LSQPure x

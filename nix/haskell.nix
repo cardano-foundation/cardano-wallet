@@ -102,7 +102,13 @@ let
 
           # Force more integration tests to run in parallel than the
           # default number of build cores.
-          integration.testFlags = ["-j" "3"];
+          #
+          # To alleviate TimeInterpreter race conditions on the mac builders
+          # since #2755, we run slightly less in paralell on macOS.
+          integration.testFlags =
+            if pkgs.stdenv.hostPlatform.isDarwin
+            then ["-j" "2"]
+            else ["-j" "3"];
 
           integration.preCheck = noCacheCookie + ''
             # Variables picked up by integration tests

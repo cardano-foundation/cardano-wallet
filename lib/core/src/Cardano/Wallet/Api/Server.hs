@@ -2500,6 +2500,7 @@ getNetworkInformation st nl = liftIO $ do
     toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
     toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
     toApiEra (AnyCardanoEra MaryEra) = ApiMary
+    toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
 
     -- (network tip, next epoch)
     -- May be unavailible if the node is still syncing.

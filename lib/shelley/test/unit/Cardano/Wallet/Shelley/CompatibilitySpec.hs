@@ -104,6 +104,8 @@ import Data.Either
     ( isLeft, isRight )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Ratio
@@ -135,7 +137,6 @@ import Test.QuickCheck
     , counterexample
     , cover
     , frequency
-    , genericShrink
     , oneof
     , property
     , vector
@@ -145,6 +146,8 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Ledger.Address as SL
+import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley as SLAPI
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
@@ -154,8 +157,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
-import qualified Shelley.Spec.Ledger.Address as SL
-import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.PParams as SL
 
 spec :: Spec
@@ -228,7 +229,8 @@ spec = do
         forM_ testCases $ \(input, expectedOutput) -> do
             let title = show input <> " -> " <> show expectedOutput
             let output = input
-                    & SL.truncateUnitInterval
+                    & toRational
+                    & unsafeBoundRational
                     & mkDecentralizationParam
                     & decentralizationLevelFromPParams
                     & unDecentralizationLevel
@@ -265,7 +267,7 @@ spec = do
 
             it "coverage adequate" $
                 checkCoverage $ property $ \i ->
-                    let half = SL.truncateUnitInterval (1 % 2) in
+                    let half = unsafeBoundRational (1 % 2) in
                     cover 10 (i == half) "i = 0.5" $
                     cover 10 (i == interval0) "i = 0" $
                     cover 10 (i == interval1) "i = 1" $
@@ -279,7 +281,7 @@ spec = do
 
             it "intervalValue i + intervalValue (invertUnitInterval i) == 1" $
                 property $ \i ->
-                    SL.intervalValue i + SL.intervalValue (invertUnitInterval i)
+                    SL.unboundRational i + SL.unboundRational (invertUnitInterval i)
                         `shouldBe` 1
 
             it "invertUnitInterval interval0 == interval1" $
@@ -289,7 +291,7 @@ spec = do
                 invertUnitInterval interval1 `shouldBe` interval0
 
             it "invertUnitInterval half == half" $
-                let half = SL.truncateUnitInterval (1 % 2) in
+                let half = unsafeBoundRational (1 % 2) in
                 invertUnitInterval half `shouldBe` half
 
     describe "InspectAddr" $ do
@@ -675,10 +677,10 @@ instance Arbitrary SL.UnitInterval where
     arbitrary = oneof
         [ pure interval0
         , pure interval1
-        , pure $ SL.truncateUnitInterval (1 % 2)
-        , SL.truncateUnitInterval . (% 1000) <$> choose (0, 1000)
+        , pure $ unsafeBoundRational (1 % 2)
+        , unsafeBoundRational . (% 1000) <$> choose (0, 1000)
         ]
-    shrink = genericShrink
+    shrink = map unsafeBoundRational . shrink . SL.unboundRational
 
 instance Arbitrary SlotId where
     arbitrary = SlotId
@@ -788,3 +790,8 @@ bech32testnet = Bech32.encodeLenient hrp . Bech32.dataPartFromBytes
 
 base58 :: ByteString -> Text
 base58 = T.decodeUtf8 . encodeBase58 bitcoinAlphabet
+
+unsafeBoundRational :: Rational -> SL.UnitInterval
+unsafeBoundRational =
+    fromMaybe (error "unsafeBoundRational: the impossible happened")
+    . SL.boundRational

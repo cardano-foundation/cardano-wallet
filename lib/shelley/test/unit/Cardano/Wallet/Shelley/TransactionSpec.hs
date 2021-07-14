@@ -79,6 +79,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Shelley.Compatibility
     ( computeTokenBundleSerializedLengthBytes
     , fromAllegraTx
+    , fromAlonzoTx
+    , fromMaryTx
     , fromShelleyTx
     , maxTokenBundleSerializedLengthBytes
     , sealShelleyTx
@@ -100,8 +102,7 @@ import Cardano.Wallet.Shelley.Transaction
     , _estimateMaxNumberOfInputs
     )
 import Cardano.Wallet.Transaction
-    ( ErrDecodeSignedTx (..)
-    , TransactionCtx (..)
+    ( TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
     , defaultTransactionCtx
@@ -500,7 +501,9 @@ prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md 
     let expected = case shelleyEra of
             Cardano.ShelleyBasedEraShelley -> Right $ sealShelleyTx fromShelleyTx ledgerTx
             Cardano.ShelleyBasedEraAllegra -> Right $ sealShelleyTx fromAllegraTx ledgerTx
-            Cardano.ShelleyBasedEraMary    -> Left ErrDecodeSignedTxNotSupported
+            Cardano.ShelleyBasedEraMary    -> Right $ sealShelleyTx fromMaryTx ledgerTx
+            Cardano.ShelleyBasedEraAlonzo  -> Right $ sealShelleyTx fromAlonzoTx ledgerTx
+
 
     _decodeSignedTx anyEra (Cardano.serialiseToCBOR ledgerTx) === expected
   where
