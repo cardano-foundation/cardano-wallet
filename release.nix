@@ -299,4 +299,4 @@ let
     in if (jobset != null) then f path jobset else [];
 
 in
-  platformJobs // required
+  pkgs.commonLib.traceNames "job " (platformJobs // required)

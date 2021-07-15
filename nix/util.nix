@@ -22,4 +22,16 @@
         "versionTag: \"${cabalName}\" does not have a version in YYYY.M.D format";
       (name + tag + lib.concatStrings rest);
 
+  # Recursively traces an attrset as it's evaluated.
+  # This is helpful to use in the Hydra jobset so that we can more
+  # easily locate evaluation problems.
+  traceNames = let
+    go = prefix: builtins.mapAttrs (n: v:
+      if builtins.isAttrs v
+        then if v ? type && v.type == "derivation"
+          then __trace (prefix + n) v
+          else go (prefix + n + ".") v
+        else v);
+  in
+    go;
 }
