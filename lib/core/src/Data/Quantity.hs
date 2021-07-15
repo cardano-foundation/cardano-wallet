@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
@@ -66,6 +66,8 @@ import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
 import NoThunks.Class
     ( NoThunks (..) )
+import Quiet
+    ( Quiet (..) )
 
 import qualified Data.Text as T
 
@@ -94,9 +96,9 @@ import qualified Data.Text as T
 -- >>> Aeson.encode $ Quantity @"lovelace" 14
 -- {"unit":"lovelace","quantity":14}
 newtype Quantity (unit :: Symbol) a = Quantity { getQuantity :: a }
-    deriving stock (Generic, Show, Eq, Ord)
+    deriving stock (Generic, Eq, Ord)
     deriving newtype (Bounded, Enum, Hashable)
-
+    deriving Show via (Quiet (Quantity unit a))
 
 instance NoThunks a => NoThunks (Quantity unit a)
 
@@ -145,7 +147,8 @@ instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
 newtype Percentage = Percentage
     { getPercentage :: Rational }
-    deriving stock (Generic, Show, Eq, Ord)
+    deriving stock (Generic, Eq, Ord)
+    deriving Show via (Quiet Percentage)
 
 instance NoThunks Percentage
 
