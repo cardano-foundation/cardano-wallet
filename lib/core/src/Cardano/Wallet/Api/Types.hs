@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -401,6 +401,8 @@ import GHC.TypeLits
     ( Nat, Symbol )
 import Numeric.Natural
     ( Natural )
+import Quiet
+    ( Quiet (..) )
 import Servant.API
     ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
@@ -504,11 +506,15 @@ data MaintenanceAction = GcStakePools
 
 newtype ApiMaintenanceActionPostData = ApiMaintenanceActionPostData
     { maintenanceAction :: MaintenanceAction
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic)
+    deriving Show via (Quiet ApiMaintenanceActionPostData)
 
 newtype ApiMaintenanceAction = ApiMaintenanceAction
     { gcStakePools :: ApiT PoolMetadataGCStatus
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic)
+    deriving Show via (Quiet ApiMaintenanceAction)
 
 data ApiAsset = ApiAsset
     { policyId :: ApiT W.TokenPolicyId
@@ -611,7 +617,9 @@ data ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
 
 newtype ApiSelectCoinsAction = ApiSelectCoinsAction
     { delegationAction :: ApiDelegationAction
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic)
+    deriving Show via (Quiet ApiSelectCoinsAction)
 
 data ApiCertificate
     = RegisterRewardAccount
@@ -695,8 +703,10 @@ data ApiWalletAssetsBalance = ApiWalletAssetsBalance
 
 newtype ApiWalletPassphraseInfo = ApiWalletPassphraseInfo
     { lastUpdatedAt :: UTCTime
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiWalletPassphraseInfo)
 
 data ApiWalletDelegation = ApiWalletDelegation
     { active :: !ApiWalletDelegationNext
@@ -719,14 +729,17 @@ data ApiWalletDelegationStatus
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
     { passphrase :: ApiT (Passphrase "lenient")
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiWalletPassphrase)
 
 newtype ApiWalletUtxoSnapshot = ApiWalletUtxoSnapshot
     { entries :: [ApiWalletUtxoSnapshotEntry]
     }
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic)
     deriving anyclass NFData
+    deriving Show via (Quiet ApiWalletUtxoSnapshot)
 
 data ApiWalletUtxoSnapshotEntry = ApiWalletUtxoSnapshotEntry
     { ada :: !(Quantity "lovelace" Natural)
@@ -814,12 +827,16 @@ data ByronWalletFromXPrvPostData = ByronWalletFromXPrvPostData
 
 newtype ApiAccountPublicKey = ApiAccountPublicKey
     { key :: (ApiT XPub)
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiAccountPublicKey)
 
 newtype WalletOrAccountPostData = WalletOrAccountPostData
     { postData :: Either WalletPostData AccountPostData
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic)
+    deriving Show via (Quiet WalletOrAccountPostData)
 
 data AccountPostData = AccountPostData
     { name :: !(ApiT WalletName)
@@ -829,11 +846,15 @@ data AccountPostData = AccountPostData
 
 newtype WalletPutData = WalletPutData
     { name :: (Maybe (ApiT WalletName))
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic)
+    deriving Show via (Quiet WalletPutData)
 
 newtype SettingsPutData = SettingsPutData
     { settings :: (ApiT W.Settings)
-    } deriving (Eq, Generic, Show)
+    }
+    deriving (Eq, Generic)
+    deriving Show via (Quiet SettingsPutData)
 
 data WalletPutPassphraseData = WalletPutPassphraseData
     { oldPassphrase :: !(ApiT (Passphrase "raw"))
@@ -932,8 +953,10 @@ type ApiBase64 = ApiBytesT 'Base64 ByteString
 
 newtype ApiSerialisedTransaction = ApiSerialisedTransaction
     { transaction :: ApiBytesT 'Base64 SerialisedTx
-    } deriving stock (Eq, Generic, Show)
+    }
+    deriving stock (Eq, Generic)
     deriving newtype NFData
+    deriving Show via (Quiet ApiSerialisedTransaction)
 
 data ApiSignedTransaction = ApiSignedTransaction
     { transaction :: ApiBytesT 'Base64 SerialisedTx
@@ -1006,8 +1029,10 @@ toApiNetworkParameters (NetworkParameters gp sp pp) toEpochInfo = do
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiTxId)
 
 data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
@@ -1030,8 +1055,10 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
 
 newtype ApiTxMetadata = ApiTxMetadata
     { getApiTxMetadata :: Maybe (ApiT TxMetadata)
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiTxMetadata)
 
 data ApiWithdrawal n = ApiWithdrawal
     { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
@@ -1073,14 +1100,16 @@ coinFromQuantity = Coin . fromIntegral . getQuantity
 
 newtype ApiAddressInspect = ApiAddressInspect
     { unApiAddressInspect :: Aeson.Value }
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic)
     deriving anyclass NFData
+    deriving Show via (Quiet ApiAddressInspect)
 
 newtype ApiAddressInspectData = ApiAddressInspectData
     { unApiAddressInspectData :: Text }
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic)
     deriving newtype (IsString)
     deriving anyclass NFData
+    deriving Show via (Quiet ApiAddressInspectData)
 
 data ApiSlotReference = ApiSlotReference
     { absoluteSlotNumber :: !(ApiT SlotNo)
@@ -1105,8 +1134,10 @@ data ApiBlockReference = ApiBlockReference
 
 newtype ApiBlockInfo = ApiBlockInfo
     { height :: Quantity "block" Natural
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiBlockInfo)
 
 data ApiEra
     = ApiByron
@@ -1148,8 +1179,10 @@ data ApiNtpStatus = ApiNtpStatus
 
 newtype ApiNetworkClock = ApiNetworkClock
     { ntpStatus :: ApiNtpStatus
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiNetworkClock)
 
 data ApiPostRandomAddressData = ApiPostRandomAddressData
     { passphrase :: !(ApiT (Passphrase "lenient"))
@@ -1160,8 +1193,10 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
 newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
     ApiWalletMigrationPlanPostData
     { addresses :: NonEmpty (ApiT Address, Proxy n)
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet (ApiWalletMigrationPlanPostData n))
 
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
@@ -1172,8 +1207,10 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
 
 newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
     { addresses :: [(ApiT Address, Proxy n)]
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet (ApiPutAddressesData n))
 
 data ApiWalletMigrationBalance = ApiWalletMigrationBalance
     { ada :: !(Quantity "lovelace" Natural)
@@ -1294,8 +1331,12 @@ data ApiSharedWalletPostDataFromAccountPubX = ApiSharedWalletPostDataFromAccount
     } deriving (Eq, Generic, Show)
 
 newtype ApiSharedWalletPostData = ApiSharedWalletPostData
-    { wallet :: Either ApiSharedWalletPostDataFromMnemonics ApiSharedWalletPostDataFromAccountPubX
-    } deriving (Eq, Generic, Show)
+    { wallet :: Either
+        ApiSharedWalletPostDataFromMnemonics
+        ApiSharedWalletPostDataFromAccountPubX
+    }
+    deriving (Eq, Generic)
+    deriving Show via (Quiet ApiSharedWalletPostData)
 
 data ApiActiveSharedWallet = ApiActiveSharedWallet
     { id :: !(ApiT WalletId)
@@ -1325,8 +1366,10 @@ data ApiPendingSharedWallet = ApiPendingSharedWallet
 
 newtype ApiSharedWallet = ApiSharedWallet
     { wallet :: Either ApiPendingSharedWallet ApiActiveSharedWallet
-    } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
+    }
+    deriving (Eq, Generic)
+    deriving anyclass NFData
+    deriving Show via (Quiet ApiSharedWallet)
 
 data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     { cosigner :: !(ApiT Cosigner)
@@ -1399,7 +1442,9 @@ data ApiErrorCode
 --
 newtype Iso8601Time = Iso8601Time
     { getIso8601Time :: UTCTime
-    } deriving (Eq, Ord, Show)
+    }
+    deriving (Eq, Ord, Generic)
+    deriving Show via (Quiet Iso8601Time)
 
 instance ToText Iso8601Time where
     toText = utcTimeToText iso8601ExtendedUtc . getIso8601Time
@@ -1427,7 +1472,9 @@ instance ToHttpApiData Iso8601Time where
 
 newtype MinWithdrawal = MinWithdrawal
     { getMinWithdrawal :: Natural
-    } deriving (Show)
+    }
+    deriving Generic
+    deriving Show via (Quiet MinWithdrawal)
 
 instance FromHttpApiData MinWithdrawal where
     parseUrlPiece = bimap (T.pack . getTextDecodingError) MinWithdrawal . fromText
@@ -1566,17 +1613,19 @@ instance KnownDiscovery (SeqState network key) where
 -- API layer and other modules.
 newtype ApiT a =
     ApiT { getApiT :: a }
-    deriving (Generic, Show, Eq, Functor)
+    deriving (Generic, Eq, Functor)
     deriving newtype (Semigroup, Monoid, Hashable)
     deriving anyclass NFData
+    deriving Show via (Quiet (ApiT a))
 deriving instance Ord a => Ord (ApiT a)
 
 -- | Polymorphic wrapper for byte arrays, parameterised by the desired string
 -- encoding.
 newtype ApiBytesT (base :: Base) bs = ApiBytesT { getApiBytesT :: bs }
-    deriving (Generic, Show, Eq, Functor)
+    deriving (Generic, Eq, Functor)
     deriving newtype (Semigroup, Monoid, Hashable)
     deriving anyclass NFData
+    deriving Show via (Quiet (ApiBytesT base bs))
 
 -- | Representation of mnemonics at the API-level, using a polymorphic type in
 -- the lengths of mnemonics that are supported (and an underlying purpose). In
@@ -1600,8 +1649,9 @@ newtype ApiBytesT (base :: Base) bs = ApiBytesT { getApiBytesT :: bs }
 -- practice, we'll NEVER peek at the mnemonic, output them and whatnot.
 newtype ApiMnemonicT (sizes :: [Nat]) =
     ApiMnemonicT { getApiMnemonicT :: SomeMnemonic }
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Eq)
     deriving newtype NFData
+    deriving Show via (Quiet (ApiMnemonicT sizes))
 
 -- | A stake key belonging to the current wallet.
 data ApiOurStakeKey n = ApiOurStakeKey
@@ -1634,7 +1684,9 @@ newtype ApiNullStakeKey = ApiNullStakeKey
     { _stake :: Quantity "lovelace" Natural
       -- ^ The total stake of the wallet UTxO that is not associated with a
       -- stake key, because it's part of an enterprise address.
-    } deriving (Generic, Eq, Show)
+    }
+    deriving (Generic, Eq)
+    deriving Show via (Quiet ApiNullStakeKey)
 
 -- | Collection of stake keys associated with a wallet.
 data ApiStakeKeys n = ApiStakeKeys
@@ -3320,7 +3372,8 @@ data HealthCheckSMASH =
 
 newtype ApiHealthCheck = ApiHealthCheck
     { health :: HealthCheckSMASH }
-    deriving (Generic, Show, Eq, Ord)
+    deriving (Generic, Eq, Ord)
+    deriving Show via (Quiet ApiHealthCheck)
 
 instance FromJSON HealthCheckSMASH where
     parseJSON = genericParseJSON defaultSumTypeOptions

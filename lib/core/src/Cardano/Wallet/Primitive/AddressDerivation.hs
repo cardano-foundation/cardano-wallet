@@ -1,7 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -150,6 +150,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
+import Quiet
+    ( Quiet (..) )
 import Safe
     ( readMay, toEnumMay )
 
@@ -258,7 +260,8 @@ stakeDerivationPath (DerivationPrefix (purpose, coin, acc)) =
 --    as just an index between 0 and 2^32, which is what DerivationIndex does.
 newtype DerivationIndex
     = DerivationIndex { getDerivationIndex :: Word32 }
-    deriving (Show, Eq, Ord, Generic)
+    deriving (Eq, Ord, Generic)
+    deriving Show via (Quiet DerivationIndex)
 
 instance NFData DerivationIndex
 
