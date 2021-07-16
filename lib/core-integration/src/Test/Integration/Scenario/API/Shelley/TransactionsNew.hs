@@ -151,7 +151,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_02 - Only metadata" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
-        let expectedFee = 1129000
+        let expectedFee = 1129500
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default metadata
@@ -167,7 +167,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_03a - Withdrawal from self" $ \ctx -> runResourceT $ do
         (wa, _) <- rewardWallet ctx
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
-        let expectedFee = 139000
+        let expectedFee = 139500
         -- let withdrawalAmt = 1000000000000
 
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -186,7 +186,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, mw) <- rewardWallet ctx
         wa <- fixtureWallet ctx
         let withdrawal = Json [json|{ "withdrawal": #{mnemonicToText mw} }|]
-        let expectedFee = 1139000
+        let expectedFee = 1139500
         -- let withdrawalAmt = 1000000000000
 
         rTx <- request @(ApiConstructTransaction n) ctx

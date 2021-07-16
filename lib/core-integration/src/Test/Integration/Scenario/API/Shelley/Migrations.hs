@@ -142,7 +142,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             verify response
                 [ expectResponseCode HTTP.status202
                 , expectField (#totalFee . #getQuantity)
-                    (`shouldBe` 255_200)
+                    (`shouldBe` 255_700)
                 , expectField (#selections)
                     ((`shouldBe` 1) . length)
                 , expectField (#balanceSelected . #ada . #getQuantity)
@@ -303,7 +303,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             verify response
                 [ expectResponseCode HTTP.status202
                 , expectField (#totalFee . #getQuantity)
-                    (`shouldBe` 139_300)
+                    (`shouldBe` 139_800)
                 , expectField (#selections)
                     ((`shouldBe` 1) . length)
                 , expectField (#selections)
@@ -623,7 +623,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField
                 (#totalFee . #getQuantity)
-                (`shouldBe` 3_120_400)
+                (`shouldBe` 3_121_400)
             , expectField
                 (#selections)
                 ((`shouldBe` 2) . length)
@@ -712,7 +712,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         \Actual fee for migration is identical to predicted fee."
         $ \ctx -> runResourceT @IO $ do
 
-            let feeExpected = 255_200
+            let feeExpected = 255_700
 
             -- Restore a source wallet with funds:
             sourceWallet <- fixtureWallet ctx
@@ -873,7 +873,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (\(ApiTypes.ApiAddress addrId _ _) -> addrId)
 
             -- Compute the expected migration plan:
-            let feeExpected = 254_800
+            let feeExpected = 255_300
             responsePlan <- request @(ApiWalletMigrationPlan n) ctx
                 (Link.createMigrationPlan @'Shelley sourceWallet) Default
                 (Json [json|{addresses: #{targetAddressIds}}|])
@@ -967,7 +967,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     }|]
 
             -- Verify the fee is as expected:
-            let expectedFee = 139_300
+            let expectedFee = 139_800
             verify responseMigrate
                 [ expectResponseCode HTTP.status202
                 , expectField id ((`shouldBe` 1) . length)
@@ -1048,7 +1048,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 Json [json|{addresses: #{targetAddressIds}}|]
 
             -- Verify the plan is as expected:
-            let expectedFee = 191_100
+            let expectedFee = 191_600
             verify responsePlan
                 [ expectResponseCode HTTP.status202
                 , expectField (#totalFee . #getQuantity)

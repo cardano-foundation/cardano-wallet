@@ -1038,7 +1038,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                     Nothing
                 , expectedFee =
-                    Quantity 130_500
+                    Quantity 131_000
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -1048,7 +1048,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                     Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
                 , expectedFee =
-                    Quantity 134_700
+                    Quantity 135_200
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -1058,7 +1058,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
-                    Quantity 152_300
+                    Quantity 152_800
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -1069,7 +1069,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
-                    Quantity 165_900
+                    Quantity 166_400
                 }
             ]
 

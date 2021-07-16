@@ -1397,7 +1397,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             fromIntegral (unCoin c)
 
     costOfJoining :: Context -> Natural
-    costOfJoining = costOf (\coeff cst -> 449 * coeff + cst)
+    costOfJoining = costOf (\coeff cst -> 454 * coeff + cst)
 
     costOfQuitting :: Context -> Natural
     costOfQuitting = costOf (\coeff cst -> 303 * coeff + cst)
