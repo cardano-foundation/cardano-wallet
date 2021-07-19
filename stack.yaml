@@ -49,6 +49,10 @@ flags:
   cryptonite:
     support_rdrand: false
 
+ghc-options:
+  # Enable .hie file generation for weeder and haskell-language-server
+  "$locals": -fwrite-ide-info
+
 nix:
   shell-file: nix/stack-shell.nix
   # Disabling the pure nix-shell allows environment variables to be

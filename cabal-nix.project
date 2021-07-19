@@ -16,11 +16,11 @@
 --
 -- To build, start "nix-shell", then run Cabal inside:
 --     nix-shell
---     cabal build --project-file=cabal-nix.project all
+--     cabal --project-file=cabal-nix.project build all
 --
 -- To build with profiling enabled, use:
 --    nix-shell --arg profiling true
---    cabal build --project-file=cabal-nix.project all --enable-profiling
+--    cabal --project-file=cabal-nix.project build all --enable-profiling
 --
 --------------------------------------------------------------------------------
 
@@ -29,3 +29,5 @@ packages:
 
 tests: True
 benchmarks: True
+package *
+  ghc-options: -fwrite-ide-info

@@ -133,7 +133,7 @@
           "zip" = { flags = { "disable-bzip2" = lib.mkOverride 900 true; }; };
           };
         })
-    { packages = {}; }
+    { packages = { "$locals" = { ghcOptions = [ "-fwrite-ide-info" ]; }; }; }
     ];
   compiler = "ghc-8.10.5";
   }
