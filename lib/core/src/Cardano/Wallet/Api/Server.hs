@@ -3119,6 +3119,12 @@ instance IsServerError ErrWithRootKey where
                 , "to encrypt the root private key of the given wallet: "
                 , toText wid
                 ]
+        ErrWithRootKeyWrongPassphrase wid ErrScryptUnsupported ->
+            apiError err501 WrongEncryptionPassphrase $ mconcat
+                [ "This build is not compiled with support for the "
+                , "legacy scrypt scheme used by the given wallet: "
+                , toText wid
+                ]
 
 instance IsServerError ErrListAssets where
     toServerError = \case

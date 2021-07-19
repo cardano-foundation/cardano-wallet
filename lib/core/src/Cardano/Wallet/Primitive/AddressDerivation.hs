@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -156,11 +157,16 @@ import Safe
 import qualified Cardano.Address.Script as CA
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+
+#ifdef HAVE_SCRYPT
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
+import qualified Crypto.Scrypt as Scrypt
+#endif
 
 {-------------------------------------------------------------------------------
                                 HD Hierarchy
@@ -607,6 +613,7 @@ checkPassphrase scheme received stored = do
             unless (constantTimeEq (encryptPassphrase prepared salt) stored) $
                 Left ErrWrongPassphrase
         EncryptWithScrypt -> do
+#ifdef HAVE_SCRYPT
             let msg = Scrypt.Pass
                     $ CBOR.toStrictByteString
                     $ CBOR.encodeBytes
@@ -614,6 +621,9 @@ checkPassphrase scheme received stored = do
             if Scrypt.verifyPass' msg (Scrypt.EncryptedPass (getHash stored))
                 then Right ()
                 else Left ErrWrongPassphrase
+#else
+           Left ErrScryptUnsupported
+#endif
   where
     getSalt :: Hash purpose -> Either ErrWrongPassphrase (Passphrase "salt")
     getSalt (Hash bytes) = do
@@ -626,7 +636,9 @@ checkPassphrase scheme received stored = do
         BA.convert @_ @ScrubbedBytes a == BA.convert @_ @ScrubbedBytes b
 
 -- | Indicate a failure when checking for a given 'Passphrase' match
-data ErrWrongPassphrase = ErrWrongPassphrase
+data ErrWrongPassphrase
+    = ErrWrongPassphrase
+    | ErrScryptUnsupported
     deriving stock (Show, Eq)
 
 -- | Little trick to be able to provide our own "random" salt in order to
