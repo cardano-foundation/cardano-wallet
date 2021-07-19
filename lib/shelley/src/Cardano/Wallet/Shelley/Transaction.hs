@@ -95,7 +95,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..) )
+    ( TokenName (..), TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -118,11 +118,15 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromMaryTx
     , fromShelleyTx
     , maxTokenBundleSerializedLengthBytes
+    , prettyPrintScriptWitnessConversionError
     , sealShelleyTx
     , toAllegraTxOut
     , toCardanoLovelace
+    , toCardanoPolicyId
+    , toCardanoScriptWitness
     , toCardanoStakeCredential
     , toCardanoTxIn
+    , toCardanoValue
     , toHDPayloadAddress
     , toMaryTxOut
     , toShelleyTxOut
@@ -149,6 +153,8 @@ import Control.Monad
     ( forM )
 import Data.ByteString
     ( ByteString )
+import Data.Either.Combinators
+    ( mapLeft )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -273,7 +279,7 @@ constructUnsignedTx
 constructUnsignedTx networkId (md, certs) ttl rewardAcnt wdrl cs fee era =
     SerialisedTx . serialiseToCBOR <$> tx
   where
-    tx = mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fee)
+    tx = mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fee) Nothing
     wdrls = mkWithdrawals networkId rewardAcnt wdrl
 
 mkTx
@@ -305,7 +311,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
             (toRewardAccountRaw . toXPub $ rewardAcnt)
             wdrl
 
-    unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
+    unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees) Nothing
 
     wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do
@@ -1249,71 +1255,118 @@ mkUnsignedTx
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
     -> Cardano.Lovelace
+    -> Maybe (TokenMap, [Script KeyHash])
     -> Either ErrMkTx (Cardano.TxBody era)
-mkUnsignedTx era ttl cs md wdrls certs fees =
+mkUnsignedTx era ttl cs md wdrls certs fees mMint = do
+    txMintValue <- case mMint of
+        Nothing -> Right Cardano.TxMintNone
+        Just (val, scripts) -> tryConvertToTxMintValue era val scripts
+
     left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
-    { Cardano.txIns =
-        (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
-        . toCardanoTxIn
-        . fst <$> F.toList (inputsSelected cs)
+     { Cardano.txIns =
+         (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
+         . toCardanoTxIn
+         . fst <$> F.toList (inputsSelected cs)
 
-    , Cardano.txOuts =
-        toShelleyBasedTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
+     , Cardano.txOuts =
+         toShelleyBasedTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
 
-    , Cardano.txWithdrawals =
-        let
-            wit = Cardano.BuildTxWith
-                $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
-        in
-            Cardano.TxWithdrawals wdrlsSupported
-                (map (\(key, coin) -> (key, coin, wit)) wdrls)
+     , Cardano.txWithdrawals =
+         let
+             wit = Cardano.BuildTxWith
+                 $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
+         in
+             Cardano.TxWithdrawals wdrlsSupported
+                 (map (\(key, coin) -> (key, coin, wit)) wdrls)
 
-    , txInsCollateral =
-        -- TODO: [ADP-957] Support collateral.
-        Cardano.TxInsCollateralNone
+     , txInsCollateral =
+         -- TODO: [ADP-957] Support collateral.
+         Cardano.TxInsCollateralNone
 
-    , txProtocolParams =
-        -- TODO: [ADP-952] We presumably need to provide the protocol params if
-        -- our tx uses scripts?
-        Cardano.BuildTxWith Nothing
+     , txProtocolParams =
+         -- TODO: [ADP-952] We presumably need to provide the protocol params if
+         -- our tx uses scripts?
+         Cardano.BuildTxWith Nothing
 
-    , txExtraScriptData = Cardano.BuildTxWith Cardano.TxExtraScriptDataNone
+     , txExtraScriptData = Cardano.BuildTxWith Cardano.TxExtraScriptDataNone
 
-    , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
+     , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
 
-    , Cardano.txCertificates =
-        let
-            -- It seems that passing Map.empty here works just fine.
-            witMap = Map.empty
-            ctx = Cardano.BuildTxWith witMap
-        in
-            Cardano.TxCertificates certSupported certs ctx
+     , Cardano.txCertificates =
+         let
+             -- It seems that passing Map.empty here works just fine.
+             witMap = Map.empty
+             ctx = Cardano.BuildTxWith witMap
+         in
+             Cardano.TxCertificates certSupported certs ctx
 
-    , Cardano.txFee = explicitFees fees
+     , Cardano.txFee = explicitFees fees
 
-    , Cardano.txValidityRange =
-        ( Cardano.TxValidityNoLowerBound
-        , Cardano.TxValidityUpperBound txValidityUpperBoundSupported ttl
-        )
+     , Cardano.txValidityRange =
+         ( Cardano.TxValidityNoLowerBound
+         , Cardano.TxValidityUpperBound txValidityUpperBoundSupported ttl
+         )
 
-    , Cardano.txMetadata =
-        maybe
-            Cardano.TxMetadataNone
-            (Cardano.TxMetadataInEra metadataSupported)
-            md
+     , Cardano.txMetadata =
+         maybe
+             Cardano.TxMetadataNone
+             (Cardano.TxMetadataInEra metadataSupported)
+             md
 
-    , Cardano.txAuxScripts =
-        Cardano.TxAuxScriptsNone
+     , Cardano.txAuxScripts =
+         Cardano.TxAuxScriptsNone
 
-    , Cardano.txUpdateProposal =
-        Cardano.TxUpdateProposalNone
+     , Cardano.txUpdateProposal =
+         Cardano.TxUpdateProposalNone
 
-    , Cardano.txMintValue =
-        Cardano.TxMintNone
-    }
+     , Cardano.txMintValue =
+         txMintValue
+     }
   where
     toErrMkTx :: Cardano.TxBodyError era -> ErrMkTx
     toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
+
+    toCardanoEra :: ShelleyBasedEra era -> CardanoEra era
+    toCardanoEra = \case
+        ShelleyBasedEraShelley -> Cardano.ShelleyEra
+        ShelleyBasedEraAllegra -> Cardano.AllegraEra
+        ShelleyBasedEraMary -> Cardano.MaryEra
+        ShelleyBasedEraAlonzo -> Cardano.AlonzoEra
+
+    renderMintingEraError :: Cardano.OnlyAdaSupportedInEra era -> T.Text
+    renderMintingEraError adaEra =
+        "Multi-asset minting is not supported in the "
+        <> (case adaEra of
+               Cardano.AdaOnlyInByronEra -> "Byron"
+               Cardano.AdaOnlyInShelleyEra -> "Shelley"
+               Cardano.AdaOnlyInAllegraEra -> "Allegra"
+           )
+        <> " era."
+
+    tryConvertToTxMintValue
+      :: ShelleyBasedEra era
+      -> TokenMap
+      -> [Script KeyHash]
+      -> Either ErrMkTx (Cardano.TxMintValue Cardano.BuildTx era)
+    tryConvertToTxMintValue era' value scripts = do
+        let cardanoEra = toCardanoEra era'
+        case Cardano.multiAssetSupportedInEra cardanoEra of
+            Left e ->
+                Left $ ErrConstructedInvalidTx $ renderMintingEraError e
+            Right supported -> do
+                pidsAndWits <-
+                    fmap mconcat $ forM scripts $ \script -> do
+                      let pid = TokenPolicy.tokenPolicyIdFromScript script
+                      witness <-
+                          mapLeft ( ErrConstructedInvalidTx
+                                  . prettyPrintScriptWitnessConversionError )
+                          $ toCardanoScriptWitness cardanoEra script
+                      pure [(toCardanoPolicyId pid, witness)]
+
+                pure $ Cardano.TxMintValue
+                            supported
+                            (toCardanoValue $ TokenBundle.fromTokenMap value)
+                            (Cardano.BuildTxWith $ Map.fromList pidsAndWits)
 
     toShelleyBasedTxOut :: TxOut -> Cardano.TxOut era
     toShelleyBasedTxOut = case era of
