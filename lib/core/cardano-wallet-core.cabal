@@ -17,6 +17,10 @@ flag release
     default: False
     manual: True
 
+flag scrypt
+    description: Enable compatibility support for legacy wallet passwords.
+    default: True
+
 library
   default-language:
       Haskell2010
@@ -29,6 +33,9 @@ library
       -fwarn-redundant-constraints
   if (flag(release))
     ghc-options: -O2 -Werror
+  if (flag(scrypt))
+    cpp-options: -DHAVE_SCRYPT
+    build-depends: scrypt
   build-depends:
       aeson
     , async
@@ -111,7 +118,6 @@ library
     , retry
     , safe
     , scientific
-    , scrypt
     , servant
     , servant-client
     , servant-server
