@@ -17,9 +17,7 @@
 
 module Cardano.Wallet.Logging
     ( -- * Conversions from BM framework
-      logTrace
-    , fromLogObject
-    , trMessage
+      trMessage
     , trMessageText
 
       -- * Formatting typed messages as plain text
@@ -52,7 +50,7 @@ import Cardano.BM.Data.Tracer
     , Transformable (..)
     )
 import Cardano.BM.Trace
-    ( Trace, traceNamedItem )
+    ( Trace )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -101,27 +99,6 @@ import qualified Data.Text.Encoding as T
 -- instance.
 transformTextTrace :: ToText a => Trace IO Text -> Trace IO a
 transformTextTrace = contramap (fmap . fmap $ toText) . filterNonEmpty
-
--- | Traces some data.
-logTrace
-    :: (MonadIO m, HasPrivacyAnnotation a, HasSeverityAnnotation a)
-    => Trace m a
-    -> a
-    -> m ()
-logTrace tr msg = traceNamedItem tr priv sev msg
-  where
-    priv = getPrivacyAnnotation msg
-    sev = getSeverityAnnotation msg
-
--- | Strips out the data that 'trMessage' (or
--- "Cardano.BM.Data.Tracer.toLogObject") adds.
-fromLogObject :: Show a => Tracer IO a -> Tracer IO (LogObject a)
-fromLogObject = contramap (getLogMessage . loContent)
-  where
-    getLogMessage (LogMessage a) = a
-    getLogMessage msg = error $
-        "internal error: unable to extract log message from content\n"
-        <> show msg
 
 -- | Tracer transformer which transforms traced items to their 'ToText'
 -- representation and further traces them as a 'LogObject'. If the 'ToText'

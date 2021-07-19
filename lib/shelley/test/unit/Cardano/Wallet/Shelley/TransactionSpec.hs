@@ -311,7 +311,7 @@ spec = do
                 sizeWithout =
                     estimateTxSize' emptyTxSkeleton
 
-                marginalSize :: Integer 
+                marginalSize :: Integer
                 marginalSize = sizeWith - sizeWithout
             in
                 -- Larger asset names means more bytes in the tx which should

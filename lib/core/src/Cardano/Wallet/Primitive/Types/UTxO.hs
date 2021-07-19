@@ -25,17 +25,13 @@ module Cardano.Wallet.Primitive.Types.UTxO
 
     -- * Functions
     , balance
-    , balance'
-    , coinBalance
     , computeStatistics
     , computeUtxoStatistics
     , excluding
     , isSubsetOf
     , log10
-    , pickRandom
     , restrictedBy
     , restrictedTo
-    , getAssets
     ) where
 
 import Prelude
@@ -54,8 +50,6 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Kind
     ( Type )
-import Data.List
-    ( foldl' )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -68,8 +62,6 @@ import Fmt
     ( Buildable (..), blockListF', blockMapF, padRightF, tupleF )
 import GHC.Generics
     ( Generic )
-import System.Random
-    ( randomRIO )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Control.Foldl as F
@@ -107,18 +99,6 @@ instance Buildable UTxO where
             ]
         buildMap = blockMapF . fmap (first $ id @String)
 
--- | Pick a random element from a UTxO, returns 'Nothing' if the UTxO is empty.
--- Otherwise, returns the selected entry and, the UTxO minus the selected one.
-pickRandom
-    :: UTxO
-    -> IO (Maybe (TxIn, TxOut), UTxO)
-pickRandom (UTxO utxo)
-    | Map.null utxo =
-        return (Nothing, UTxO utxo)
-    | otherwise = do
-        ix <- randomRIO (0, toEnum (Map.size utxo - 1))
-        return (Just $ Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
-
 -- | Compute the balance of a UTxO
 balance :: UTxO -> TokenBundle
 balance =
@@ -126,17 +106,6 @@ balance =
   where
     fn :: TokenBundle -> TxOut -> TokenBundle
     fn tot out = tot `TB.add` view #tokens out
-
-coinBalance :: UTxO -> Coin
-coinBalance = TB.getCoin . balance
-
--- | Compute the balance of a unwrapped UTxO
-balance' :: [(TxIn, TxOut)] -> Word64
-balance' =
-    foldl' fn 0
-  where
-    fn :: Word64 -> (TxIn, TxOut) -> Word64
-    fn tot (_, out) = tot + unCoin (txOutCoin out)
 
 -- | ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
@@ -274,8 +243,3 @@ computeStatistics getCoins btype utxos =
 
     (^!) :: Word64 -> Word64 -> Word64
     (^!) = (^)
-
--- | List all assets seen in the UTxO.
-getAssets :: UTxO -> Set TB.AssetId
-getAssets =
-    Set.unions . map (TB.getAssets . view #tokens . snd) . Map.toList . getUTxO

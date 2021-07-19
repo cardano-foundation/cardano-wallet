@@ -131,7 +131,6 @@ module Cardano.Wallet.Primitive.Types
     , Signature (..)
     , ShowFmt (..)
     , invariant
-    , distance
 
     -- * Settings
     , Settings(..)
@@ -1352,11 +1351,6 @@ invariant
     -> a
 invariant msg a predicate =
     if predicate a then a else error msg
-
--- | Compute distance between two numeric values |a - b|
-distance :: (Ord a, Num a) => a -> a -> a
-distance a b =
-    if a < b then b - a else a - b
 
 {-------------------------------------------------------------------------------
                                Metadata services

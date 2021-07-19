@@ -36,7 +36,6 @@ module Cardano.CLI
     , cmdWalletCreate
     , cmdByronWalletCreate
     , cmdTransaction
-    , cmdTransactionJormungandr
     , cmdAddress
     , cmdStakePool
     , cmdNetwork
@@ -49,8 +48,6 @@ module Cardano.CLI
     , databaseOption
     , hostPreferenceOption
     , listenOption
-    , nodePortOption
-    , nodePortMaybeOption
     , shutdownHandlerFlag
     , stateDirOption
     , syncToleranceOption
@@ -744,14 +741,6 @@ cmdTransaction
     -> Mod CommandFields (IO ())
 cmdTransaction = cmdTransactionBase ShelleyFeatures
 
--- | cardano-wallet-jormungandr transaction
-cmdTransactionJormungandr
-    :: ToJSON wallet
-    => TransactionClient
-    -> WalletClient wallet
-    -> Mod CommandFields (IO ())
-cmdTransactionJormungandr = cmdTransactionBase NoShelleyFeatures
-
 cmdTransactionBase
     :: ToJSON wallet
     => TransactionFeatures
@@ -1214,21 +1203,6 @@ randomPortOption :: Parser Bool
 randomPortOption = flag' False $ mempty
     <> long "random-port"
     <> help "serve wallet API on any available port (conflicts with --port)"
-
--- | [--node-port=INT], default: 8080
-nodePortOption :: Parser (Port "Node")
-nodePortOption = optionT $ optionNodePort <> value (Port 8080)
-
--- | [--node-port=INT], default: use any available port
-nodePortMaybeOption :: Parser (Maybe (Port "Node"))
-nodePortMaybeOption = optional $ optionT optionNodePort
-
-optionNodePort :: Mod OptionFields (Port "Node")
-optionNodePort = mempty
-    <> long "node-port"
-    <> metavar "INT"
-    <> help "port used for communicating with the target node."
-    <> showDefaultWith showT
 
 -- | --payment=PAYMENT
 paymentOption :: Parser Text

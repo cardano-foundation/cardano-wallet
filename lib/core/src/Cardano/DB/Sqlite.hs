@@ -38,7 +38,6 @@ module Cardano.DB.Sqlite
     , dbChunkedFor
     , dbChunked'
     , handleConstraint
-    , unsafeRunQuery
 
     -- * Manual Migration
     , ManualMigration (..)
@@ -148,12 +147,6 @@ newtype SqliteContext = SqliteContext
     }
 
 type ConnectionPool = Pool (SqlBackend, Sqlite.Connection)
-
--- | Run a raw query from the outside using an instantiate DB layer. This is
--- completely unsafe because it breaks the abstraction boundary and can have
--- disastrous results on the database consistency.
-unsafeRunQuery :: SqliteContext -> SqlPersistT IO a -> IO a
-unsafeRunQuery = runQuery
 
 -- | Run an action, and convert any Sqlite constraints exception into the given
 -- error result. No other exceptions are handled.

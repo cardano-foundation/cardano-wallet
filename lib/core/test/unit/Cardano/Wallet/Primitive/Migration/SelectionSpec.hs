@@ -918,11 +918,6 @@ shrinkMockInput (inputId, TokenBundle c m)
     | otherwise =
         []
 
-genMockInputAdaOnly :: MockTxConstraints -> Gen (MockInputId, TokenBundle)
-genMockInputAdaOnly mockConstraints = (,)
-    <$> genMockInputId
-    <*> (TokenBundle.fromCoin <$> genCoinMixed mockConstraints)
-
 genMockInputId :: Gen MockInputId
 genMockInputId = MockInputId . BS.pack <$>
     vectorOf 16 (choose (minBound @Word8, maxBound @Word8))
@@ -930,12 +925,6 @@ genMockInputId = MockInputId . BS.pack <$>
 --------------------------------------------------------------------------------
 -- Generating coins, token bundles, token maps, and token quantities
 --------------------------------------------------------------------------------
-
-genCoinMixed :: MockTxConstraints -> Gen Coin
-genCoinMixed mockConstraints = frequency
-    [ (10, genCoinBelowMinimumAdaQuantity mockConstraints)
-    , (40, genCoinAboveMinimumAdaQuantity mockConstraints)
-    ]
 
 genCoinAboveMinimumAdaQuantity :: MockTxConstraints -> Gen Coin
 genCoinAboveMinimumAdaQuantity mockConstraints =

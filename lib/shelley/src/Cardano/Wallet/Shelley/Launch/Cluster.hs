@@ -27,7 +27,6 @@ module Cardano.Wallet.Shelley.Launch.Cluster
     , LocalClusterConfig (..)
     , localClusterConfigFromEnv
     , ClusterEra (..)
-    , clusterEraName
 
       -- * Node launcher
     , NodeParams (..)
@@ -466,13 +465,6 @@ clusterEraFromEnv =
         "mary" -> pure MaryHardFork
         _ -> die $ var ++ ": unknown era"
     withDefault = fromMaybe maxBound
-
-clusterEraName :: ClusterEra -> String
-clusterEraName = \case
-    ByronNoHardFork -> "byron"
-    ShelleyHardFork -> "shelley"
-    AllegraHardFork -> "allegra"
-    MaryHardFork -> "mary"
 
 data LocalClusterConfig = LocalClusterConfig
     { cfgStakePools :: [PoolConfig]

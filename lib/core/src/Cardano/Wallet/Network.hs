@@ -37,9 +37,6 @@ module Cardano.Wallet.Network
     , LogState (..)
     , emptyStats
     , updateStats
-
-    -- * Initialization
-    , defaultRetryPolicy
     ) where
 
 import Prelude
@@ -75,8 +72,6 @@ import Control.Monad.Class.MonadSTM.Strict
     ( StrictTMVar, newTMVarIO, putTMVar, takeTMVar )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
-import Control.Retry
-    ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay )
 import Control.Tracer
     ( Tracer, contramapM, traceWith )
 import Data.Functor
@@ -215,18 +210,6 @@ instance ToText ErrPostTx where
     toText = \case
         ErrPostTxBadRequest msg -> msg
         ErrPostTxProtocolFailure msg -> msg
-
-{-------------------------------------------------------------------------------
-                              Initialization
--------------------------------------------------------------------------------}
-
--- | A default 'RetryPolicy' with a delay that starts short, and that retries
--- for no longer than a minute.
-defaultRetryPolicy :: Monad m => RetryPolicyM m
-defaultRetryPolicy =
-    limitRetriesByCumulativeDelay (3600 * second) (constantDelay second)
-  where
-    second = 1000*1000
 
 {-------------------------------------------------------------------------------
                                 Chain Sync

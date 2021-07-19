@@ -41,7 +41,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , CredentialType (..)
     , liftPaymentAddress
     , liftDelegationAddress
-    , keyHashFromAccXPubIx
     ) where
 
 import Prelude
@@ -49,7 +48,6 @@ import Prelude
 import Cardano.Address.Script
     ( Cosigner (..)
     , ErrValidateScriptTemplate (..)
-    , KeyHash (..)
     , Script (..)
     , ScriptHash (..)
     , ScriptTemplate (..)
@@ -77,8 +75,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation
     , WalletKey (..)
-    , deriveVerificationKey
-    , hashVerificationKey
     , utxoExternal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
@@ -561,26 +557,19 @@ instance FromText CredentialType where
             , "'payment', 'delegation'."
             ]
 
-keyHashFromAccXPubIx
-    :: (SoftDerivation k, WalletKey k)
-    => k 'AccountK XPub
-    -> Role
-    -> Index 'Soft 'ScriptK
-    -> KeyHash
-keyHashFromAccXPubIx accXPub r ix =
-    hashVerificationKey r $ deriveVerificationKey accXPub r ix
-
 liftPaymentAddress
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type). Typeable n
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type).
+       Typeable n
     => KeyFingerprint "payment" k
-  -> Address
+    -> Address
 liftPaymentAddress (KeyFingerprint fingerprint) =
     Address $ CA.unAddress $
     paymentAddress (toNetworkTag @n)
     (PaymentFromScript (ScriptHash fingerprint))
 
 liftDelegationAddress
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type). Typeable n
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type).
+       Typeable n
     => Index 'Soft 'ScriptK
     -> ScriptTemplate
     -> KeyFingerprint "payment" k

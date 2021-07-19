@@ -35,9 +35,6 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
 
     -- * Reward Account
     , toRewardAccountRaw
-
-    -- * Address
-    , decodeShelleyAddress
     ) where
 
 import Prelude
@@ -117,8 +114,6 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text.Class
-    ( TextDecodingError (..) )
 import GHC.Generics
     ( Generic )
 
@@ -351,13 +346,6 @@ instance DelegationAddress ('Testnet pm) ShelleyKey where
       where
         base = 0
         networkId = 0
-
--- | Verify the structure of a payload decoded from a Bech32 text string
-decodeShelleyAddress
-    :: ByteString
-    -> Either TextDecodingError Address
-decodeShelleyAddress _bytes = do
-    error "TODO: decodeShelleyAddress"
 
 instance MkKeyFingerprint ShelleyKey Address where
     paymentKeyFingerprint (Address bytes) =

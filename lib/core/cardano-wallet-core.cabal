@@ -161,7 +161,6 @@ library
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.Logging
       Cardano.Wallet.Network
-      Cardano.Wallet.Network.BlockHeaders
       Cardano.Wallet.Network.Ports
       Cardano.Wallet.Orphans
       Cardano.Wallet.TokenMetadata
@@ -204,7 +203,6 @@ library
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
       Crypto.Hash.Utils
-      Data.Binary.Get.Safe
       Data.Function.Utils
       Data.Time.Text
       Data.Time.Utils
@@ -357,7 +355,6 @@ test-suite unit
       Cardano.Wallet.DB.Sqlite.TypesSpec
       Cardano.Wallet.DB.StateMachine
       Cardano.Wallet.DummyTarget.Primitive.Types
-      Cardano.Wallet.Network.BlockHeadersSpec
       Cardano.Wallet.Network.PortsSpec
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivation.ByronSpec

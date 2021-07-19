@@ -11,7 +11,6 @@ module Cardano.Wallet.Registry
     ( -- * Worker Registry
       WorkerRegistry
     , empty
-    , keys
     , lookup
     , register
     , unregister
@@ -120,13 +119,6 @@ lookup
     -> m (Maybe (Worker key resource))
 lookup (WorkerRegistry mvar) k =
     liftIO (Map.lookup k <$> readMVar mvar)
-
--- | Get all registered keys in the registry
-keys
-    :: WorkerRegistry key resource
-    -> IO [key]
-keys (WorkerRegistry mvar) =
-    Map.keys <$> readMVar mvar
 
 -- | Register a new worker
 insert

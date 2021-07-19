@@ -10,10 +10,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
--- Orphan instances for {Encode,Decode}Address until we get rid of the
--- Jörmungandr dual support.
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 -- |
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
@@ -29,10 +25,6 @@ module Cardano.Wallet.Byron.Compatibility
     , genesisBlockFromTxOuts
 
       -- * Conversions
-    , toByronHash
-    , toGenTx
-    , toPoint
-
     , fromBlockNo
     , fromByronBlock
     , toByronBlockHeader
@@ -40,9 +32,7 @@ module Cardano.Wallet.Byron.Compatibility
     , fromChainHash
     , fromGenesisData
     , byronCodecConfig
-    , fromNetworkMagic
     , fromProtocolMagicId
-    , fromTip
     , fromTxAux
     , fromTxIn
     , fromTxOut
@@ -53,7 +43,7 @@ module Cardano.Wallet.Byron.Compatibility
 import Prelude
 
 import Cardano.Binary
-    ( fromCBOR, serialize' )
+    ( serialize' )
 import Cardano.Chain.Block
     ( ABlockOrBoundary (..), blockTxPayload )
 import Cardano.Chain.Common
@@ -65,27 +55,18 @@ import Cardano.Chain.Common
     )
 import Cardano.Chain.Genesis
     ( GenesisData (..), GenesisHash (..), GenesisNonAvvmBalances (..) )
-import Cardano.Chain.MempoolPayload
-    ( AMempoolPayload (..) )
 import Cardano.Chain.Slotting
     ( EpochSlots (..) )
 import Cardano.Chain.Update
     ( ProtocolParameters (..) )
 import Cardano.Chain.UTxO
-    ( ATxAux (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxOut (..)
-    , annotateTxAux
-    , taTx
-    , unTxPayload
-    )
+    ( ATxAux (..), Tx (..), TxIn (..), TxOut (..), taTx, unTxPayload )
 import Cardano.Crypto
     ( serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor, unsafeFromHex )
+    ( unsafeFromHex )
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Coerce
@@ -96,24 +77,18 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32 )
-import GHC.Stack
-    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Block.Abstract
     ( headerPrevHash )
 import Ouroboros.Consensus.Byron.Ledger
-    ( ByronBlock (..), ByronHash (..), GenTx, fromMempoolPayload )
+    ( ByronBlock (..), ByronHash (..) )
 import Ouroboros.Consensus.Byron.Ledger.Config
     ( CodecConfig (..) )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( Bound (..) )
 import Ouroboros.Network.Block
-    ( BlockNo (..), ChainHash, Point (..), SlotNo (..), Tip (..), getTipPoint )
-import Ouroboros.Network.Magic
-    ( NetworkMagic (..) )
-import Ouroboros.Network.Point
-    ( WithOrigin (..) )
+    ( BlockNo (..), ChainHash, SlotNo (..) )
 
 import qualified Cardano.Chain.Update as Update
 import qualified Cardano.Chain.Update.Validation.Interface as Update
@@ -125,12 +100,9 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Block as O
-import qualified Ouroboros.Network.Block as O
-import qualified Ouroboros.Network.Point as Point
 
 --------------------------------------------------------------------------------
 --
@@ -226,40 +198,9 @@ genesisBlockFromTxOuts gp outs = W.Block
 --
 -- Type Conversions
 
-toByronHash :: W.Hash "BlockHeader" -> ByronHash
-toByronHash (W.Hash bytes) =
-    case CC.hashFromBytes bytes of
-        Just h ->
-            ByronHash h
-        Nothing ->
-            error "unsafeHash: failed to convert bytes to hash?"
-
 toEpochSlots :: W.EpochLength -> EpochSlots
 toEpochSlots =
     EpochSlots . fromIntegral . W.unEpochLength
-
--- | Magic value for the absence of a block.
-hashOfNoParent :: W.Hash "BlockHeader"
-hashOfNoParent = W.Hash . BS.pack $ replicate 0 32
-
-toPoint
-    :: W.Hash "Genesis"
-    -> W.BlockHeader
-    -> Point ByronBlock
-toPoint genesisH (W.BlockHeader sl _ h _)
-  | h == (coerce genesisH) = O.GenesisPoint
-  | otherwise = O.Point $ Point.block sl (toByronHash h)
-
--- | SealedTx are the result of rightfully constructed byron transactions so, it
--- is relatively safe to unserialize them from CBOR.
-toGenTx :: HasCallStack => W.SealedTx -> GenTx ByronBlock
-toGenTx =
-    fromMempoolPayload
-    . MempoolTx
-    . annotateTxAux
-    . unsafeDeserialiseCbor fromCBOR
-    . BL.fromStrict
-    . W.getSealedTx
 
 byronCodecConfig :: W.SlottingParameters -> CodecConfig ByronBlock
 byronCodecConfig W.SlottingParameters{getEpochLength} =
@@ -341,37 +282,6 @@ fromChainHash genesisHash = \case
 fromBlockNo :: BlockNo -> Quantity "block" Word32
 fromBlockNo (BlockNo h) =
     Quantity (fromIntegral h)
-
-
-fromTip :: W.Hash "Genesis" -> Tip ByronBlock -> W.BlockHeader
-fromTip genesisHash tip = case getPoint (getTipPoint tip) of
-    Origin -> W.BlockHeader
-        { slotNo = W.SlotNo 0
-        , blockHeight = Quantity 0
-        , headerHash = coerce genesisHash
-        , parentHeaderHash = hashOfNoParent
-        }
-    At blk -> W.BlockHeader
-        { slotNo = Point.blockPointSlot blk
-        , blockHeight = fromBlockNo $ getLegacyTipBlockNo tip
-        , headerHash = fromByronHash $ Point.blockPointHash blk
-        -- TODO
-        -- We only use the parentHeaderHash in the
-        -- 'Cardano.Wallet.Network.BlockHeaders' chain follower only required for
-        -- Jörmungandr, this is therefore useless to have in 'normal' BlockHeader
-        --
-        -- Yet, since we also serialize these to the database, this requires
-        -- some non-trivial changes. Not fixing this right now is also a
-        -- possibility.
-        , parentHeaderHash = W.Hash "parentHeaderHash - unused in Byron"
-        }
-  where
-    -- TODO: This function was marked deprecated in ouroboros-network.
-    -- It is wrong, because `Origin` doesn't have a block number.
-    -- We should remove it.
-    getLegacyTipBlockNo t = case O.getTipBlockNo t of
-        Origin -> BlockNo 0
-        At x -> x
 
 fromTxFeePolicy :: TxFeePolicy -> W.FeePolicy
 fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =
@@ -460,10 +370,6 @@ fromGenesisData (genesisData, genesisHash) =
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )
-
-fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
-fromNetworkMagic (NetworkMagic magic) =
-    W.ProtocolMagic (fromIntegral magic)
 
 fromProtocolMagicId :: ProtocolMagicId -> W.ProtocolMagic
 fromProtocolMagicId = W.ProtocolMagic . fromIntegral . unProtocolMagicId
