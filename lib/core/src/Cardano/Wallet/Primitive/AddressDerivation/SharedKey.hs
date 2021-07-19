@@ -35,11 +35,7 @@ import Cardano.Address.Script
 import Cardano.Address.Style.Shared
     ( deriveAddressPublicKey, deriveDelegationPublicKey, hashKey, liftXPub )
 import Cardano.Address.Style.Shelley
-    ( Credential (..)
-    , delegationAddress
-    , mkNetworkDiscriminant
-    , paymentAddress
-    )
+    ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -48,10 +44,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Control.DeepSeq
     ( NFData (..) )
-import Data.Either.Combinators
-    ( fromRight', rightToMaybe )
 import Data.Maybe
-    ( fromJust, fromMaybe, isJust )
+    ( fromJust, isJust )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import GHC.Generics
@@ -153,12 +147,9 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         CA.Stake -> deriveDelegationPublicKey
         _ ->  error "replaceCosignersWithVerKeys is supported only for role=0 and role=2"
 
-toNetworkTag
-    :: forall (n :: NetworkDiscriminant). Typeable n => CA.NetworkTag
-toNetworkTag =
-    fromMaybe (fromRight' $ mkNetworkDiscriminant 0) tryMainnet
-  where
-    tryMainnet =
-        case testEquality (typeRep @n) (typeRep @'Mainnet) of
-            Just Refl  -> rightToMaybe $ mkNetworkDiscriminant 1
-            Nothing -> Nothing
+-- | Convert 'NetworkDiscriminant type parameter to
+-- 'Cardano.Address.NetworkTag'.
+toNetworkTag :: forall (n :: NetworkDiscriminant). Typeable n => CA.NetworkTag
+toNetworkTag = case testEquality (typeRep @n) (typeRep @'Mainnet) of
+    Just Refl -> CA.NetworkTag 1
+    Nothing -> CA.NetworkTag 0 -- fixme: Not all testnets have NetworkTag=0
