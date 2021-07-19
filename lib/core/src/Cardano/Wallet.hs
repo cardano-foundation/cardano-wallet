@@ -123,6 +123,7 @@ module Cardano.Wallet
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotWorth (..)
     , ErrConstructTx (..)
+    , ErrMintBurnAssets (..)
 
     -- ** Migration
     , createMigrationPlan
@@ -2592,6 +2593,11 @@ data ErrConstructTx
     | ErrConstructTxReadRewardAccount ErrReadRewardAccount
     | ErrConstructTxIncorrectTTL PastHorizonException
     | ErrConstructTxNotImplemented String
+      -- ^ Temporary error constructor.
+    deriving (Show, Eq)
+
+newtype ErrMintBurnAssets
+    = ErrMintBurnNotImplemented T.Text
       -- ^ Temporary error constructor.
     deriving (Show, Eq)
 
