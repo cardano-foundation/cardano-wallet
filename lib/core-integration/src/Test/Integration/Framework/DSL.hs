@@ -323,6 +323,8 @@ import Control.Retry
     ( capDelay, constantDelay, retrying )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
+import Crypto.Random.Entropy
+    ( getEntropy )
 import Data.Aeson
     ( FromJSON, ToJSON, Value, (.=) )
 import Data.Aeson.QQ
@@ -430,7 +432,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.Scrypt as Scrypt
+import qualified Crypto.KDF.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -1170,17 +1172,19 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
             $ hex
             $ Byron.getKey
             $ Byron.generateKeyFromSeed seed pwd
-    pwdH <- liftIO $ T.decodeUtf8 . hex <$> encryptPasswordWithScrypt pwd
+    pwdH <- liftIO $ T.decodeUtf8 . hex @ByteString <$> scrypt pwd
     emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
   where
-    encryptPasswordWithScrypt =
-        fmap Scrypt.getEncryptedPass
-        . Scrypt.encryptPassIO Scrypt.defaultParams
-        . Scrypt.Pass
+    scrypt = encryptPasswordWithScrypt
         . CBOR.toStrictByteString
         . CBOR.encodeBytes
         . BA.convert
 
+encryptPasswordWithScrypt :: (BA.ByteArrayAccess a, BA.ByteArray b) => a -> IO b
+encryptPasswordWithScrypt pwd = Scrypt.generate params pwd <$> genSalt
+  where
+    params = Scrypt.Parameters 14 8 1 64
+    genSalt = getEntropy @ByteString 32
 
 postWallet'
     :: (MonadIO m, MonadUnliftIO m)

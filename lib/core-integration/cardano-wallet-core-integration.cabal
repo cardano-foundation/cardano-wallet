@@ -68,7 +68,6 @@ library
     , resourcet
     , retry
     , say
-    , scrypt
     , template-haskell
     , text
     , text-class
