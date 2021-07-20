@@ -24,7 +24,6 @@ module Cardano.Wallet.Gen
     , genScript
     , genScriptCosigners
     , genScriptTemplate
-    , genScriptTemplateComplete
     , genScriptTemplateEntry
     , genMockXPub
     , genNatural
@@ -323,13 +322,6 @@ genScriptTemplateEntry = do
     cosignersSubset <- sublistOf scriptCosigners `suchThat` (not . null)
     xpubsOrSelf <- vectorOf (length cosignersSubset) genXPubOrSelf
     pure $ ApiScriptTemplateEntry (Map.fromList $ zip cosignersSubset xpubsOrSelf) script
-
-genScriptTemplateComplete :: Gen ScriptTemplate
-genScriptTemplateComplete = do
-    script <- genScriptCosigners `suchThat` (not . null . retrieveAllCosigners)
-    let scriptCosigners = retrieveAllCosigners script
-    xpubs <- vectorOf (length scriptCosigners) genMockXPub
-    pure $ ScriptTemplate (Map.fromList $ zip scriptCosigners xpubs) script
 
 genMockXPub :: Gen XPub
 genMockXPub = fromMaybe impossible . xpubFromBytes . BS.pack <$> genBytes

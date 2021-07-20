@@ -46,8 +46,6 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , DerivationPrefix (..)
     , DerivationIndex (..)
     , liftIndex
-    , deriveVerificationKey
-    , hashVerificationKey
 
     -- * Delegation
     , RewardAccount (..)
@@ -87,9 +85,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubPublicKey )
-import Cardano.Address.Script
-    ( KeyHash (..) )
+    ( XPrv, XPub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -107,7 +103,7 @@ import Control.Monad
 import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
-    ( blake2b224, blake2b256 )
+    ( blake2b256 )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
@@ -155,7 +151,6 @@ import Quiet
 import Safe
     ( readMay, toEnumMay )
 
-import qualified Cardano.Address.Script as CA
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -496,28 +491,6 @@ deriveRewardAccount
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
-
-deriveVerificationKey
-    :: (SoftDerivation k, WalletKey k)
-    => k 'AccountK XPub
-    -> Role
-    -> Index 'Soft 'ScriptK
-    -> k 'ScriptK XPub
-deriveVerificationKey accXPub role' =
-    liftRawKey . getRawKey . deriveAddressPublicKey accXPub role' . coerce
-
-hashVerificationKey
-    :: WalletKey k
-    => Role
-    -> k 'ScriptK XPub
-    -> KeyHash
-hashVerificationKey role' =
-    KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
-  where
-    keyRole = case role' of
-        UtxoExternal -> CA.Payment
-        UtxoInternal -> CA.Payment
-        MutableAccount -> CA.Delegation
 
 {-------------------------------------------------------------------------------
                                  Passphrases

@@ -27,12 +27,9 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , fromNestedList
     , fromNestedMap
     , fromTokenMap
-    , fromTokenQuantity
 
     -- * Deconstruction
     , toFlatList
-    , toNestedList
-    , toNestedMap
 
     -- * Coins
     , fromCoin
@@ -48,17 +45,11 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
 
     -- * Quantities
     , getQuantity
-    , setQuantity
     , hasQuantity
-    , adjustQuantity
-    , removeQuantity
 
     -- * Partitioning
     , equipartitionAssets
     , equipartitionQuantitiesWithUpperBound
-
-    -- * Policies
-    , hasPolicy
 
     -- * Serialization
     , Flat (..)
@@ -221,9 +212,6 @@ fromNestedMap (c, m) = TokenBundle c (TokenMap.fromNestedMap m)
 fromTokenMap :: TokenMap -> TokenBundle
 fromTokenMap = TokenBundle (Coin 0)
 
-fromTokenQuantity :: AssetId -> TokenQuantity -> TokenBundle
-fromTokenQuantity a q = TokenBundle (Coin 0) (TokenMap.singleton a q)
-
 --------------------------------------------------------------------------------
 -- Deconstruction
 --------------------------------------------------------------------------------
@@ -232,20 +220,6 @@ fromTokenQuantity a q = TokenBundle (Coin 0) (TokenMap.singleton a q)
 --
 toFlatList :: TokenBundle -> (Coin, [(AssetId, TokenQuantity)])
 toFlatList (TokenBundle c m) = (c, TokenMap.toFlatList m)
-
--- | Converts a token bundle to a coin and a nested list of token quantities.
---
-toNestedList
-    :: TokenBundle
-    -> (Coin, [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))])
-toNestedList (TokenBundle c m) = (c, TokenMap.toNestedList m)
-
--- | Converts a token bundle to a coin and a nested map.
---
-toNestedMap
-    :: TokenBundle
-    -> (Coin, Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity))
-toNestedMap (TokenBundle c m) = (c, TokenMap.toNestedMap m)
 
 --------------------------------------------------------------------------------
 -- Coins
@@ -336,39 +310,11 @@ difference (TokenBundle c1 m1) (TokenBundle c2 m2) =
 getQuantity :: TokenBundle -> AssetId -> TokenQuantity
 getQuantity = TokenMap.getQuantity . tokens
 
--- | Updates the quantity associated with a given asset.
---
--- If the given quantity is zero, the resultant bundle will not have an entry
--- for the given asset.
---
-setQuantity :: TokenBundle -> AssetId -> TokenQuantity -> TokenBundle
-setQuantity b a q = b { tokens = TokenMap.setQuantity (tokens b) a q }
-
 -- | Returns true if and only if the given bundle has a non-zero quantity
 --   for the given asset.
 --
 hasQuantity :: TokenBundle -> AssetId -> Bool
 hasQuantity = TokenMap.hasQuantity . tokens
-
--- | Uses the specified function to adjust the quantity associated with a
---   given asset.
---
--- If the result of adjusting the quantity is equal to zero, the resultant
--- bundle will not have an entry for the given asset.
---
-adjustQuantity
-    :: TokenBundle
-    -> AssetId
-    -> (TokenQuantity -> TokenQuantity)
-    -> TokenBundle
-adjustQuantity b a f = b { tokens = TokenMap.adjustQuantity (tokens b) a f }
-
--- | Removes the quantity associated with the given asset.
---
--- This is equivalent to calling 'setQuantity' with a value of zero.
---
-removeQuantity :: TokenBundle -> AssetId -> TokenBundle
-removeQuantity b a = b { tokens = TokenMap.removeQuantity (tokens b) a }
 
 --------------------------------------------------------------------------------
 -- Partitioning
@@ -417,16 +363,6 @@ equipartitionQuantitiesWithUpperBound (TokenBundle c m) maxQuantity =
   where
     cs = Coin.equipartition c ms
     ms = TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity
-
---------------------------------------------------------------------------------
--- Policies
---------------------------------------------------------------------------------
-
--- | Returns 'True' if (and only if) there is at least one non-zero token
---   quantity corresponding to the specified policy.
---
-hasPolicy :: TokenBundle -> TokenPolicyId -> Bool
-hasPolicy = TokenMap.hasPolicy . tokens
 
 --------------------------------------------------------------------------------
 -- Queries

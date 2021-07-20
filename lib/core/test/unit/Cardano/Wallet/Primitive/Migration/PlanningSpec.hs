@@ -387,10 +387,3 @@ prop_categorizeUTxOEntry (Blind mockConstraints) =
             Supporter -> isRight
             Freerider -> isLeft
             Ignorable -> isLeft
-
---------------------------------------------------------------------------------
--- Miscellaneous types and functions
---------------------------------------------------------------------------------
-
-coinToInteger :: Coin -> Integer
-coinToInteger = fromIntegral . unCoin

@@ -28,7 +28,7 @@ import Cardano.Launcher
     , LauncherLog
     , ProcessHasExited (..)
     , StdStream (..)
-    , withBackendProcessHandle
+    , withBackendProcess
     )
 import Control.Monad
     ( forever )
@@ -167,7 +167,7 @@ spec = beforeAll setupMockCommands $ do
     it "Backend process is terminated when Async thread is cancelled" $ \MockCommands{..} -> withTestLogging $ \tr -> do
         pendingOnWine "SYSTEM32 commands not available under wine"
         mvar <- newEmptyMVar
-        let backend = withBackendProcessHandle tr foreverCommand $ \_ ph -> do
+        let backend = withBackendProcess tr foreverCommand $ \_ ph -> do
                 putMVar mvar ph
                 forever $ threadDelay maxBound
         before <- getCurrentTime
@@ -182,7 +182,7 @@ spec = beforeAll setupMockCommands $ do
     it "Misbehaving backend process is killed when Async thread is cancelled" $ \_ -> withTestLogging $ \tr -> do
         skipOnWindows "Not applicable"
         mvar <- newEmptyMVar
-        let backend = withBackendProcessHandle tr unkillableCommand $ \_ ph -> do
+        let backend = withBackendProcess tr unkillableCommand $ \_ ph -> do
                 putMVar mvar ph
                 forever $ threadDelay maxBound
         before <- getCurrentTime
@@ -236,7 +236,7 @@ launch tr cmds = do
         waitForOthers _ ph = do
             modifyMVar_ phsVar (pure . (ph:))
             forever $ threadDelay maxBound
-        start = async . flip (withBackendProcessHandle tr) waitForOthers
+        start = async . flip (withBackendProcess tr) waitForOthers
 
     mapM start cmds >>= waitAnyCancel >>= \case
         (_, Left e) -> do

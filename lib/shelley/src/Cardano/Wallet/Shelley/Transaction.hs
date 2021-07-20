@@ -34,7 +34,6 @@ module Cardano.Wallet.Shelley.Transaction
     , TxWitnessTagFor (..)
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
-    , emptyTxPayload
     , estimateTxCost
     , estimateTxSize
     , mkByronWitness
@@ -215,9 +214,6 @@ data TxPayload era = TxPayload
       -- Caller has the freedom and responsibility to provide the correct
       -- witnesses for what they're trying to do.
     }
-
-emptyTxPayload :: TxPayload era
-emptyTxPayload = TxPayload Nothing mempty mempty
 
 data TxWitnessTag
     = TxWitnessByronUTxO WalletStyle

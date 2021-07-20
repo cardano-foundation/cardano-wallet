@@ -9,7 +9,6 @@ module Cardano.Launcher.Node
     ( -- * Startup
       withCardanoNode
     , CardanoNodeConfig (..)
-    , defaultCardanoNodeConfig
     , NodePort (..)
 
       -- * cardano-node Snockets
@@ -97,21 +96,6 @@ data CardanoNodeConfig = CardanoNodeConfig
     , nodePort            :: Maybe NodePort
     , nodeLoggingHostname :: Maybe String
     } deriving (Show, Eq)
-
-defaultCardanoNodeConfig :: CardanoNodeConfig
-defaultCardanoNodeConfig = CardanoNodeConfig
-    { nodeDir             = "."
-    , nodeConfigFile      = "configuration.json"
-    , nodeTopologyFile    = "topology.json"
-    , nodeDatabaseDir     = "db"
-    , nodeDlgCertFile     = Nothing
-    , nodeSignKeyFile     = Nothing
-    , nodeOpCertFile      = Nothing
-    , nodeKesKeyFile      = Nothing
-    , nodeVrfKeyFile      = Nothing
-    , nodePort            = Nothing
-    , nodeLoggingHostname = Nothing
-    }
 
 -- | Spawns a @cardano-node@ process.
 --

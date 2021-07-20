@@ -42,7 +42,6 @@ module Cardano.Wallet.Shelley.Compatibility
 
       -- * Protocol Parameters
     , nodeToClientVersion
-    , mainnetVersionData
     , testnetVersionData
 
       -- * Genesis
@@ -50,7 +49,6 @@ module Cardano.Wallet.Shelley.Compatibility
 
       -- * Conversions
     , toCardanoHash
-    , toEpochSize
     , unsealShelleyTx
     , toPoint
     , toCardanoTxId
@@ -95,14 +93,10 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromCardanoHash
     , fromChainHash
     , fromPrevHash
-    , fromShelleyChainHash
     , fromGenesisData
-    , fromNetworkMagic
-    , toByronNetworkMagic
     , fromTip
     , fromTip'
     , fromShelleyPParams
-    , fromNetworkDiscriminant
     , fromShelleyTx
     , fromAllegraTx
     , fromShelleyBlock
@@ -213,8 +207,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
-import Data.Type.Equality
-    ( testEquality )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 import Fmt
@@ -258,8 +250,6 @@ import Ouroboros.Network.NodeToClient
     )
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
-import Type.Reflection
-    ( Typeable, typeRep )
 
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
@@ -349,17 +339,6 @@ emptyGenesis gp = W.Block
 nodeToClientVersion :: NodeToClientVersion
 nodeToClientVersion = NodeToClientV_8
 
--- | Settings for configuring a MainNet network client
-mainnetVersionData
-    :: NodeVersionData
-mainnetVersionData =
-    ( NodeToClientVersionData
-        { networkMagic =
-            NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
-        }
-    , nodeToClientCodecCBORTerm nodeToClientVersion
-    )
-
 -- | Settings for configuring a TestNet network client
 testnetVersionData
     :: W.ProtocolMagic
@@ -384,10 +363,6 @@ hashOfNoParent =
 toCardanoHash :: W.Hash "BlockHeader" -> OneEraHash (CardanoEras sc)
 toCardanoHash (W.Hash bytes) =
     OneEraHash $ toShort bytes
-
-toEpochSize :: W.EpochLength -> EpochSize
-toEpochSize =
-    EpochSize . fromIntegral . W.unEpochLength
 
 toPoint
     :: W.Hash "Genesis"
@@ -542,14 +517,6 @@ fromChainHash genesisHash = \case
     O.GenesisHash -> coerce genesisHash
     O.BlockHash (OneEraHash h) -> W.Hash $ fromShort h
 
-fromShelleyChainHash
-    :: W.Hash "Genesis"
-    -> ChainHash (ShelleyBlock e)
-    -> W.Hash "BlockHeader"
-fromShelleyChainHash genesisHash = \case
-    O.GenesisHash -> coerce genesisHash
-    O.BlockHash h -> fromShelleyHash h
-
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: BlockNo -> Quantity "block" Word32
 fromBlockNo (BlockNo h) =
@@ -573,14 +540,7 @@ fromTip genesisHash tip = case getPoint (getTipPoint tip) of
         { slotNo = Point.blockPointSlot blk
         , blockHeight = fromBlockNo $ getLegacyTipBlockNo tip
         , headerHash = fromCardanoHash $ Point.blockPointHash blk
-        -- TODO
-        -- We only use the parentHeaderHash in the
-        -- 'Cardano.Wallet.Network.BlockHeaders' chain follower only required for
-        -- Jörmungandr, this is therefore useless to have in 'normal' BlockHeader
-        --
-        -- Yet, since we also serialize these to the database, this requires
-        -- some non-trivial changes. Not fixing this right now is also a
-        -- possibility.
+        -- TODO: parentHeaderHash could be removed.
         , parentHeaderHash = W.Hash "parentHeaderHash - unused in Shelley"
         }
   where
@@ -750,9 +710,6 @@ fromGenesisData g initialFunds =
             W.TxIn pseudoHash _ = fromShelleyTxIn $
                 SL.initialFundsPseudoTxIn @crypto addr
 
-fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
-fromNetworkMagic (NetworkMagic magic) =
-    W.ProtocolMagic (fromIntegral magic)
 
 --
 -- Stake pools
@@ -1065,22 +1022,6 @@ fromUnitInterval x =
         , "encountered invalid parameter value: "
         , show x
         ]
-
-fromNetworkDiscriminant
-    :: forall (n :: NetworkDiscriminant). (Typeable n)
-    => Proxy n
-    -> SL.Network
-fromNetworkDiscriminant _ =
-    case testEquality (typeRep @n) (typeRep @'Mainnet) of
-        Just{}  -> SL.Mainnet
-        Nothing -> SL.Testnet
-
-toByronNetworkMagic :: W.ProtocolMagic -> Byron.NetworkMagic
-toByronNetworkMagic pm@(W.ProtocolMagic magic) =
-    if pm == W.mainnetMagic then
-        Byron.NetworkMainOrStage
-    else
-        Byron.NetworkTestnet (fromIntegral magic)
 
 -- | SealedTx are the result of rightfully constructed shelley transactions so, it
 -- is relatively safe to unserialize them from CBOR.

@@ -1213,9 +1213,9 @@ instance Malformed (BodyParam ApiSignTransactionPostData) where
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, expected Object, but encountered Number")
             , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, expected Object, but encountered String")
             , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
-            , ("{\"transaction\": \"lah\", \"passphase\": \"Secure Passphrase\"}", "Error in $.transaction: Parse error. Expecting Base64-encoded format.")
-            , ("{\"transaction\": 1020344, \"passphase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
-            , ("{\"transaction\": { \"body\": 1020344 }, \"passphase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object")
+            , ("{\"transaction\": \"lah\", \"passphrase\": \"Secure Passphrase\"}", "Error in $.transaction: Parse error. Expecting Base64-encoded format.")
+            , ("{\"transaction\": 1020344, \"passphrase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
+            , ("{\"transaction\": { \"body\": 1020344 }, \"passphrase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ -- passphrase
@@ -1235,6 +1235,13 @@ instance Malformed (BodyParam ApiSignTransactionPostData) where
                   "passphrase": #{wPassphrase}
                }|]
                , "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object"
+              )
+            , ( [aesonQQ|
+               { "transaction": "cafecafe",
+                  "passphrase": "Secure Passphrase",
+                  "extra": "hello"
+               }|]
+               , "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, unknown fields: ['extra']"
               )
             ]
 

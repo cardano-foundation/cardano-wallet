@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -24,10 +22,7 @@ module Cardano.Wallet.Network.Ports
     , simpleSockAddr
 
     -- * Helpers
-    , waitForPort
     , portFromURL
-    , unsafePortNumber
-    , findPort
     , randomUnusedTCPPorts
     ) where
 
@@ -37,8 +32,6 @@ import Control.Monad
     ( filterM )
 import Control.Monad.IO.Class
     ( liftIO )
-import Control.Retry
-    ( RetryPolicyM, retrying )
 import Data.List
     ( isInfixOf, sort )
 import Data.Maybe
@@ -69,14 +62,6 @@ import System.Random.Shuffle
     ( shuffleM )
 import UnliftIO.Exception
     ( bracket, throwIO, try )
-
--- | Wait until a TCP port is open to connections according to a given retry
--- policy. Throws an exception if the time out is reached.
-waitForPort :: RetryPolicyM IO -> PortNumber -> IO Bool
-waitForPort policy port =
-    retrying policy (const (pure . not)) (const $ isPortOpen addr)
-  where
-    addr = simpleSockAddr (127,0,0,1) port
 
 -- | Find a TCPv4 port which is likely to be free for listening on
 -- @localhost@. This binds a socket, receives an OS-assigned port, then closes
@@ -118,15 +103,6 @@ isPortOpen sockAddr = do
 simpleSockAddr :: (Word8, Word8, Word8, Word8) -> PortNumber -> SockAddr
 simpleSockAddr addr port = SockAddrInet port (tupleToHostAddress addr)
 
-
--- | Get the underlying port number for the given socket address. Fails for UNIX
--- socket addresses which aren't bound to any TCP port.
-unsafePortNumber :: SockAddr -> PortNumber
-unsafePortNumber = \case
-    SockAddrInet p _ -> p
-    SockAddrInet6 p _ _ _ -> p
-    SockAddrUnix _ -> error "unsafePortNumber: no port for unix sockets."
-
 -- | Get the port from a URI, which is assumed to be a HTTP or HTTPS URL.
 portFromURL :: URI -> PortNumber
 portFromURL uri = fromMaybe fallback
@@ -146,8 +122,3 @@ randomUnusedTCPPorts count = do
     sort <$> filterM unused (take count usablePorts)
   where
     unused = fmap not . isPortOpen . simpleSockAddr (127,0,0,1) . fromIntegral
-
--- | Returen a single TCP port that was unused at the time this function was
--- called.
-findPort :: IO Int
-findPort = head <$> randomUnusedTCPPorts 1

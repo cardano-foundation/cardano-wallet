@@ -19,7 +19,6 @@ module Cardano.Launcher
     , StdStream(..)
     , ProcessHasExited(..)
     , withBackendProcess
-    , withBackendProcessHandle
     , withBackendCreateProcess
 
     -- * Logging
@@ -162,20 +161,9 @@ instance Exception ProcessHasExited
 -- finishes (through an exception or otherwise) then the process is terminated
 -- (see 'withCreateProcess') for details. If the process exits, the action is
 -- cancelled. The return type reflects those two cases.
+--
+-- The action receives the 'ProcessHandle' and stdin 'Handle' as arguments.
 withBackendProcess
-    :: MonadUnliftIO m
-    => Tracer m LauncherLog
-    -- ^ Logging
-    -> Command
-    -- ^ 'Command' description
-    -> m a
-    -- ^ Action to execute while process is running.
-    -> m (Either ProcessHasExited a)
-withBackendProcess tr cmd = withBackendProcessHandle tr cmd . const . const
-
--- | A variant of 'withBackendProcess' which also provides the 'ProcessHandle'
--- and stdin 'Handle' to the given action.
-withBackendProcessHandle
     :: MonadUnliftIO m
     => Tracer m LauncherLog
     -- ^ Logging
@@ -184,7 +172,7 @@ withBackendProcessHandle
     -> (Maybe Handle -> ProcessHandle -> m a)
     -- ^ Action to execute while process is running.
     -> m (Either ProcessHasExited a)
-withBackendProcessHandle tr (Command name args before std_in std_out) action =
+withBackendProcess tr (Command name args before std_in std_out) action =
     liftIO before >> withBackendCreateProcess tr process action
   where
     process = (proc name args) { std_in, std_out, std_err = std_out }

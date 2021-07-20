@@ -21,7 +21,6 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
       -- * Partitioning
     , equipartition
     , partition
-    , unsafePartition
 
       -- * Tests
     , isNonZero
@@ -57,8 +56,6 @@ import Fmt
     ( Buildable (..) )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import Quiet
@@ -181,25 +178,6 @@ partition c
     = fmap (fmap TokenQuantity)
     . partitionNatural (unTokenQuantity c)
     . fmap unTokenQuantity
-
--- | Partitions a token quantity into a number of parts, where the size of each
---   part is proportional to the size of its corresponding element in the given
---   list of weights, and the number of parts is equal to the number of weights.
---
--- Throws a run-time error if the sum of weights is equal to zero.
---
-unsafePartition
-    :: HasCallStack
-    => TokenQuantity
-    -- ^ The token quantity to be partitioned.
-    -> NonEmpty TokenQuantity
-    -- ^ The list of weights.
-    -> NonEmpty TokenQuantity
-    -- ^ The partitioned token quantities.
-unsafePartition = (fromMaybe zeroWeightSumError .) . partition
-  where
-    zeroWeightSumError = error
-        "TokenQuantity.unsafePartition: weights must have a non-zero sum."
 
 --------------------------------------------------------------------------------
 -- Tests

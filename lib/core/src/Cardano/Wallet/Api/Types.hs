@@ -2587,9 +2587,9 @@ instance ToJSON ApiSignedTransaction where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiSignTransactionPostData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON = genericParseJSON strictRecordTypeOptions
 instance ToJSON ApiSignTransactionPostData where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON = genericToJSON strictRecordTypeOptions
 
 instance DecodeAddress t => FromJSON (PostTransactionOldData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

@@ -30,7 +30,6 @@ module Data.Text.Class
 
       -- * Helpers
     , showT
-    , splitAtLastOccurrence
     ) where
 
 import Prelude
@@ -44,7 +43,7 @@ import Data.List
 import Data.List.Extra
     ( enumerate )
 import Data.Maybe
-    ( isNothing, listToMaybe )
+    ( listToMaybe )
 import Data.Text
     ( Text )
 import Data.Text.Read
@@ -294,15 +293,3 @@ fromCaseStyle = \case
 -- | Show a data-type through its 'ToText' instance
 showT :: ToText a => a -> String
 showT = T.unpack . toText
-
--- | Splits the given 'Text' into a prefix and a suffix using the last
--- occurrence of the specified separator character as a splitting point.
--- Evaluates to 'Nothing' if the specified 'Text' does not contain the
--- separator character.
-splitAtLastOccurrence :: Char -> Text -> Maybe (Text, Text)
-splitAtLastOccurrence c s
-    | isNothing (T.find (== c) s) = Nothing
-    | otherwise = pure (prefix, suffix)
-  where
-    (prefixPlusOne, suffix) = T.breakOnEnd (T.pack [c]) s
-    prefix = T.dropEnd 1 prefixPlusOne

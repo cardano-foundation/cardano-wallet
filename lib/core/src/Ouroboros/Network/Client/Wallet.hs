@@ -34,7 +34,6 @@ module Ouroboros.Network.Client.Wallet
     , LSQ (..)
     , LocalStateQueryCmd (..)
     , localStateQuery
-    , query
 
       -- * Helpers
     , send
@@ -552,12 +551,6 @@ instance Applicative (LSQ block m) where
 instance Monad (LSQ block m) where
     return = pure
     (>>=)  = LSQBind
-
---
--- Helpers
-
-query :: (BlockQuery block res) -> LSQ block m res
-query = LSQry
 
 --------------------------------------------------------------------------------
 --

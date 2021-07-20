@@ -85,7 +85,6 @@ module Cardano.Wallet.Api.Link
       -- * StakePools
     , listStakePools
     , listStakeKeys
-    , listJormungandrStakePools
     , joinStakePool
     , quitStakePool
     , getDelegationFee
@@ -677,12 +676,6 @@ listStakeKeys w =
     endpoint @(Api.ListStakeKeys ()) (\mk -> mk wid)
   where
     wid = w ^. typed @(ApiT WalletId)
-
--- | Like @listStakePools@ but with out the query parameter for the stake that
--- the user intends to delegate.
-listJormungandrStakePools :: (Method, Text)
-listJormungandrStakePools =
-    endpoint @(Api.ListStakePools ()) (\mk -> mk Nothing)
 
 joinStakePool
     :: forall s w.

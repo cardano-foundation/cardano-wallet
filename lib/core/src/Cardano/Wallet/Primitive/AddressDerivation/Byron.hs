@@ -41,8 +41,6 @@ module Cardano.Wallet.Primitive.AddressDerivation.Byron
     , deriveAccountPrivateKey
     , deriveAddressPrivateKey
 
-      -- * Encoding / Decoding
-    , decodeLegacyAddress
     ) where
 
 import Prelude
@@ -77,15 +75,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , hex
     )
 import Cardano.Wallet.Primitive.Types
-    ( ProtocolMagic (..), invariant, testnetMagic )
+    ( invariant, testnetMagic )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.DeepSeq
     ( NFData )
-import Control.Monad
-    ( guard )
 import Crypto.Hash
     ( hash )
 import Crypto.Hash.Algorithms
@@ -184,31 +180,6 @@ instance MkKeyFingerprint ByronKey Address where
         case CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes of
             Just _  -> Right $ KeyFingerprint bytes
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @ByronKey)
-
-{-------------------------------------------------------------------------------
-                            Encoding / Decoding
--------------------------------------------------------------------------------}
-
--- | Attempt decoding a 'ByteString' into an 'Address'. This merely checks that
--- the underlying bytestring has a "valid" structure / format without doing much
--- more.
-decodeLegacyAddress :: Maybe ProtocolMagic -> ByteString -> Maybe Address
-decodeLegacyAddress expectedMagic bytes = do
-    payload <- CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes
-    decodedMagic <- CBOR.deserialiseCbor CBOR.decodeProtocolMagicAttr payload
-    -- NOTE
-    -- Legacy / Byron addesses on Jörmungandr can have any network
-    -- discrimination. In practice, the genesis file only contains
-    -- Mainnet addresses whereas the network discrimination is set to testnet.
-    --
-    -- This create a very annoying discrepency where it becomes tricky to
-    -- enforce any sort of discrimination on legacy addresses. As a result, for
-    -- Jörmungandr (identified by as being 'Testnet 0'), we simply don't.
-    guard (expectedMagic == itnMagic || decodedMagic == expectedMagic)
-    pure (Address bytes)
-  where
-    itnMagic = Just (ProtocolMagic 0)
-
 
 {-------------------------------------------------------------------------------
                                  Key generation

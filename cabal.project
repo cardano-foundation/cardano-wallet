@@ -175,30 +175,39 @@ test-show-details: direct
 
 package cardano-wallet
   tests: True
+  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-core
   tests: True
+  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-cli
   tests: True
+  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-launcher
   tests: True
+  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-text-class
   tests: True
+  ghc-options: -fwrite-ide-info
 
 package cardano-numeric
   tests: True
+  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-core-integration
   tests: True
+  ghc-options: -fwrite-ide-info
 
 package cardano-wallet-test-utils
   tests: True
+  ghc-options: -fwrite-ide-info
 
 package strict-non-empty-containers
   tests: True
+  ghc-options: -fwrite-ide-info
 
 -- Now disable all other tests with a global flag.
 -- This is what they do in cardano-node/cabal.project.

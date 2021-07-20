@@ -29,9 +29,6 @@ module Cardano.Wallet.Primitive.Slotting
     , ceilingSlotAt
     , timeOfEpoch
     , getStartTime
-    , querySlotLength
-    , queryEpochLength
-    , timeUntilEpoch
 
       -- ** Blockchain-relative times
     , RelativeTime
@@ -111,12 +108,11 @@ import Fmt
 import GHC.Stack
     ( CallStack, HasCallStack, getCallStack, prettySrcLoc )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), SystemStart (..), addRelTime, diffRelTime )
+    ( RelativeTime (..), SystemStart (..), addRelTime )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( Expr (..)
     , Interpreter
     , PastHorizonException (..)
-    , epochToSize
     , epochToSlot'
     , mkInterpreter
     , qryFromExpr
@@ -295,19 +291,6 @@ slotAtTimeDetailed = EraContainedQry . fmap dropThird . wallclockToSlot
   where
     dropThird (a, b, _) = (a, b)
 
-querySlotLength :: SlotNo -> Qry SlotLength
-querySlotLength sl =
-    EraContainedQry $ fmap (SlotLength . Cardano.getSlotLength) $
-        qryFromExpr $ ESlotLength $ ELit sl
-
-queryEpochLength :: SlotNo -> Qry EpochLength
-queryEpochLength sl = EraContainedQry $ toEpochLength <$> do
-    (e, _) <- slotToEpoch' sl
-    epochToSize e
-  where
-    -- converting up from Word32 to Word64
-    toEpochLength = EpochLength . fromIntegral . Cardano.unEpochSize
-
 -- | This function returns a chain-relative time range if (and only if) the
 -- specified UTC time range intersects with the life of the blockchain.
 --
@@ -326,13 +309,6 @@ slotRangeFromRelativeTimeRange (Range a b) =
 slotRangeFromTimeRange :: Range UTCTime -> Qry (Maybe (Range SlotNo))
 slotRangeFromTimeRange range = getStartTime >>=
     mapM slotRangeFromRelativeTimeRange . toRelativeTimeRange range
-
--- | Returns the @NominalDiffTime@ to reach the start of the given epoch, or 0
--- if it already passed.
-timeUntilEpoch :: EpochNo -> RelativeTime -> Qry NominalDiffTime
-timeUntilEpoch e tNow = do
-    tEpoch <- slotToRelTime =<< firstSlotInEpoch e
-    return $ max 0 $ tEpoch `diffRelTime` tNow
 
 {-------------------------------------------------------------------------------
                             Blockchain-relative time

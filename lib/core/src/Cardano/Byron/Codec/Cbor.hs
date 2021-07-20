@@ -26,25 +26,17 @@ module Cardano.Byron.Codec.Cbor
     , decodeAddressPayload
     , decodeAllAttributes
     , decodeDerivationPathAttr
-    , decodeSignedTx
     , decodeTx
-    , decodeTxWitness
-    , decodeProtocolMagicAttr
 
     -- * Encoding
     , encodeAddress
     , encodeAttributes
     , encodeDerivationPathAttr
     , encodeProtocolMagicAttr
-    , encodePublicKeyWitness
     , encodeTx
-    , encodeSignedTx
-    , encodeTxWitness
 
     -- * Helpers
     , deserialiseCbor
-    , inspectNextToken
-    , decodeList
     , decodeListIndef
     , decodeNestedBytes
     ) where
@@ -79,12 +71,8 @@ import Data.Digest.CRC32
     ( crc32 )
 import Data.Either.Extra
     ( eitherToMaybe )
-import Data.List
-    ( find )
 import Data.Word
     ( Word8 )
-import Debug.Trace
-    ( traceShow )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.CBOR.Decoding as CBOR
@@ -187,18 +175,6 @@ decodeAddressDerivationPath pwd = do
             ]
     pure path
 
-decodeProtocolMagicAttr
-    :: CBOR.Decoder s (Maybe ProtocolMagic)
-decodeProtocolMagicAttr = do
-    _ <- CBOR.decodeListLenCanonicalOf 3
-    _ <- CBOR.decodeBytes
-    attrs <- decodeAllAttributes
-    case find ((== 2) . fst) attrs of
-        Nothing -> pure Nothing
-        Just (_, bytes) -> case deserialiseCbor decodeProtocolMagic bytes of
-            Nothing -> fail "unable to decode attribute into protocol magic"
-            Just pm -> pure (Just pm)
-
 decodeEmptyAttributes :: CBOR.Decoder s ((), CBOR.Encoding)
 decodeEmptyAttributes = do
     _ <- CBOR.decodeMapLenCanonical -- Empty map of attributes
@@ -261,16 +237,6 @@ decodeDerivationPath = do
                 , show ixs
                 ]
 
-decodeProtocolMagic :: CBOR.Decoder s ProtocolMagic
-decodeProtocolMagic = ProtocolMagic <$> CBOR.decodeInt32
-
-decodeSignedTx :: CBOR.Decoder s (([TxIn], [TxOut]), [ByteString])
-decodeSignedTx = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
-    tx <- decodeTx
-    witnesses <- decodeList decodeTxWitness
-    return (tx, witnesses)
-
 decodeTx :: CBOR.Decoder s ([TxIn], [TxOut])
 decodeTx = do
     _ <- CBOR.decodeListLenCanonicalOf 3
@@ -305,18 +271,6 @@ decodeTxOut = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     addr <- decodeAddress
     TxOut addr . TokenBundle.fromCoin . Coin <$> CBOR.decodeWord64
-
-decodeTxWitness :: CBOR.Decoder s ByteString
-decodeTxWitness = do
-    _ <- CBOR.decodeListLenCanonicalOf 2
-    t <- CBOR.decodeWord8
-    _ <- CBOR.decodeTag
-    case t of
-        0 -> CBOR.decodeBytes
-        1 -> CBOR.decodeBytes
-        2 -> CBOR.decodeBytes
-        _ -> fail
-            $ "decodeTxWitness: unknown tx witness constructor: " <> show t
 
 -- * Encoding
 
@@ -411,12 +365,6 @@ encodeDerivationPath (Index acctIx) (Index addrIx) = mempty
     <> CBOR.encodeWord32 addrIx
     <> CBOR.encodeBreak
 
-encodePublicKeyWitness :: XPub -> ByteString -> CBOR.Encoding
-encodePublicKeyWitness xpub signatur = mempty
-    <> CBOR.encodeListLen 2
-    <> CBOR.encodeBytes (xpubToBytes xpub)
-    <> CBOR.encodeBytes signatur
-
 encodeTx :: ([TxIn], [TxOut]) -> CBOR.Encoding
 encodeTx (inps, outs) = mempty
     <> CBOR.encodeListLen 3
@@ -427,29 +375,6 @@ encodeTx (inps, outs) = mempty
     <> mconcat (encodeTxOut <$> outs)
     <> CBOR.encodeBreak
     <> encodeTxAttributes
-
-encodeSignedTx :: ([TxIn], [TxOut]) -> [ByteString] -> CBOR.Encoding
-encodeSignedTx tx witnesses = mempty
-    <> CBOR.encodeListLen 2
-    <> encodeTx tx
-    <> CBOR.encodeListLen (fromIntegral $ length witnesses)
-    <> mconcat (map encodeTxWitness witnesses)
-
-encodeTxWitness :: ByteString -> CBOR.Encoding
-encodeTxWitness bytes = mempty
-    <> CBOR.encodeListLen 2
-    <> CBOR.encodeWord8 tag
-    <> CBOR.encodeTag 24
-    <> CBOR.encodeBytes bytes
-  where
-    -- NOTE
-    -- We only support 'PublicKey' witness types at the moment. However,
-    -- Byron nodes support more:
-    --
-    --   * 0 for Public Key
-    --   * 1 for Script
-    --   * 2 for Redeem
-    tag = 0
 
 encodeTxAttributes :: CBOR.Encoding
 encodeTxAttributes = mempty
@@ -537,34 +462,6 @@ decryptDerivationPath (Passphrase passphrase) bytes = do
 {-------------------------------------------------------------------------------
                                 Helpers
 -------------------------------------------------------------------------------}
-
--- | Inspect the next token that has to be decoded and print it to the console
--- as a trace. Useful for debugging Decoders.
--- Example:
---
--- @
---     myDecoder :: CBOR.Decoder s MyType
---     myDecoder = do
---         a <- CBOR.decodeWord64
---         inspectNextToken
---         [...]
--- @
-inspectNextToken :: CBOR.Decoder s ()
-inspectNextToken =
-  CBOR.peekTokenType >>= flip traceShow (return ())
-
--- | Decode an list of known length. Very similar to @decodeListIndef@.
---
--- @
---     myDecoder :: CBOR.Decoder s [MyType]
---     myDecoder = decodeList decodeOne
---       where
---         decodeOne :: CBOR.Decoder s MyType
--- @
-decodeList :: forall s a . CBOR.Decoder s a -> CBOR.Decoder s [a]
-decodeList decodeOne = do
-    l <- CBOR.decodeListLenCanonical
-    CBOR.decodeSequenceLenN (flip (:)) [] reverse l decodeOne
 
 -- | Decode an arbitrary long list. CBOR introduce a "break" character to
 -- mark the end of the list, so we simply decode each item until we encounter

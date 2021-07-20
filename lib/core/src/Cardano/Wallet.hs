@@ -97,7 +97,6 @@ module Cardano.Wallet
     , normalizeSharedAddress
 
     -- ** Address
-    , createChangeAddress
     , createRandomAddress
     , importRandomAddresses
     , listAddresses
@@ -1142,24 +1141,6 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
         $ L.sortBy (\(a,_,_) (b,_,_) -> compareDiscovery s a b)
         $ mapMaybe (\(addr, st,path) -> (,st,path) <$> normalize s addr)
         $ knownAddresses s
-  where
-    db = ctx ^. dbLayer @IO @s @k
-
-createChangeAddress
-    :: forall ctx s k.
-        ( HasDBLayer IO s k ctx
-        , GenChange s
-        )
-    => ctx
-    -> WalletId
-    -> ArgGenChange s
-    -> ExceptT ErrNoSuchWallet IO Address
-createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
-    mapExceptT atomically $ do
-        cp <- withNoSuchWallet wid (readCheckpoint wid)
-        let (addr, s') = genChange argGenChange (getState cp)
-        putCheckpoint wid (updateState s' cp)
-        pure addr
   where
     db = ctx ^. dbLayer @IO @s @k
 

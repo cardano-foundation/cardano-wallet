@@ -77,9 +77,6 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , equipartitionQuantities
     , equipartitionQuantitiesWithUpperBound
 
-    -- * Policies
-    , hasPolicy
-
     -- * Serialization
     , Flat (..)
     , Nested (..)
@@ -771,16 +768,6 @@ equipartitionQuantitiesWithUpperBound m (TokenQuantity maxQuantity)
         [ "equipartitionQuantitiesWithUpperBound:"
         , "the maximum allowable token quantity cannot be zero."
         ]
-
---------------------------------------------------------------------------------
--- Policies
---------------------------------------------------------------------------------
-
--- | Returns true if and only if there is at least one entry corresponding
---   to the specified policy.
---
-hasPolicy :: TokenMap -> TokenPolicyId -> Bool
-hasPolicy b policy = isJust $ Map.lookup policy $ unTokenMap b
 
 --------------------------------------------------------------------------------
 -- Queries
