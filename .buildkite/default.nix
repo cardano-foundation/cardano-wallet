@@ -6,7 +6,7 @@ with pkgs;
 let
   buildTools = [
     gnused gnugrep coreutils git nix gnumake gnutar gzip lz4
-    stack haskellPackages.weeder
+    stack haskell-build-tools.weeder
   ];
   libs = ps: with ps; [turtle safe transformers extra async];
   ghc' = haskellPackages.ghcWithPackages libs;
