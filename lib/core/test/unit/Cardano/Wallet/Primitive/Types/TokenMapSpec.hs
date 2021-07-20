@@ -41,6 +41,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmall
     , genTokenQuantitySmallPositive
+    , shrinkTokenQuantitySmall
     , shrinkTokenQuantitySmallPositive
     )
 import Control.Monad
@@ -1050,7 +1051,7 @@ instance Arbitrary TokenQuantity where
     -- verify that the token map invariant (that a map contains no
     -- zero-valued tokens) is maintained.
     arbitrary = genTokenQuantitySmall
-    shrink = shrinkTokenQuantitySmallPositive
+    shrink = shrinkTokenQuantitySmall
 
 instance Arbitrary (Positive TokenQuantity) where
     arbitrary = Positive <$> genTokenQuantitySmallPositive
