@@ -28,7 +28,7 @@ let
   mkShell = name: project: project.shellFor rec {
     inherit name;
     packages = ps: lib.attrValues (selectProjectPackages ps);
-    buildInputs = (with walletPackages; [
+    nativeBuildInputs = (with walletPackages; [
         cardano-node
         cardano-cli
         cardano-address
@@ -58,15 +58,6 @@ let
     };
 
     CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;
-
-    # If any build input has bash completions, add it to the search
-    # path for shell completions.
-    XDG_DATA_DIRS = lib.concatStringsSep ":" (
-      [(builtins.getEnv "XDG_DATA_DIRS")] ++
-      (lib.filter
-        (share: builtins.pathExists (share + "/bash-completion"))
-        (map (p: p + "/share") buildInputs))
-    );
 
     meta.platforms = lib.platforms.unix;
   };

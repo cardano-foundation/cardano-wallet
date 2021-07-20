@@ -1,28 +1,33 @@
 ### Haskell ###
-dist
-dist-*
-cabal-dev
 *.o
 *.hi
+*.hie
 *.chi
 *.chs.h
 *.dyn_o
 *.dump-hi
 *.dyn_hi
+*.tix
 .hpc
 .hsenv
-.cabal-sandbox/
-cabal.sandbox.config
 *.prof
 *.aux
 *.hp
 *.eventlog
-.stack-work/
-*.project.local*
-.HTF/
+
+### Cabal ###
+dist
+dist-*
 .ghc.environment.*
+cabal*.project.local*
+
+### Stack ###
+.stack-work/
+stack.yaml.lock
+.HTF/
+
+### Local configs ###
 .ghci
-*.tix
 hie.yaml
 
 ### Nix ###

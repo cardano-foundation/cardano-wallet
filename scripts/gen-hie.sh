@@ -133,10 +133,29 @@ echo "Generating $out. Some cabal builds may be necessary."
 
 setup_cabal_plan
 
-make_hie > $out
+tmp=$(mktemp -d)
+cleanup() { rm -rf "$tmp"; }
+trap cleanup EXIT
 
-make_ghci > $ghci
+make_hie > "$tmp/hie.yaml"
+mv "$tmp/hie.yaml" $out
 
-echo "Finished. Type the following to enable your config:"
-echo "  ln -sf $out hie.yaml"
-echo "  ln -sf $ghci .ghci"
+make_ghci > "$tmp/.ghci"
+mv "$tmp/.ghci" $ghci
+
+symlink() {
+  src="$1"
+  target="$2"
+
+  if [ ! -e "$target" ] || [ -L "$target" ]; then
+    ln -vsf "$src" "$target"
+  else
+    echo "Refusing to overwrite $target - check the file then run:"
+    echo "  ln -sf $src $target"
+  fi
+}
+
+symlink "$ghci" .ghci
+symlink "$out" hie.yaml
+
+echo "Finished."
