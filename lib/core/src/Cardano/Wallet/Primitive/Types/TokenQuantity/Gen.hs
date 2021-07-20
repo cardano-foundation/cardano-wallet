@@ -5,11 +5,8 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     , genTokenQuantityLarge
     , genTokenQuantityMassive
     , genTokenQuantityMixed
-    , shrinkTokenQuantitySized
     , shrinkTokenQuantitySmall
     , shrinkTokenQuantitySmallPositive
-    , shrinkTokenQuantityLarge
-    , shrinkTokenQuantityMassive
     , shrinkTokenQuantityMixed
     , tokenQuantitySmall
     , tokenQuantityLarge
@@ -34,9 +31,6 @@ import Test.QuickCheck
 genTokenQuantitySized :: Gen TokenQuantity
 genTokenQuantitySized = sized $ \n ->
     quantityFromInt <$> choose (0, n)
-
-shrinkTokenQuantitySized :: TokenQuantity -> [TokenQuantity]
-shrinkTokenQuantitySized = shrinkTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Small token quantities
@@ -73,9 +67,6 @@ genTokenQuantityLarge = quantityFromInteger <$> choose
     , quantityToInteger tokenQuantityLarge
     )
 
-shrinkTokenQuantityLarge :: TokenQuantity -> [TokenQuantity]
-shrinkTokenQuantityLarge = shrinkTokenQuantity
-
 --------------------------------------------------------------------------------
 -- Massive token quantities
 --------------------------------------------------------------------------------
@@ -85,9 +76,6 @@ genTokenQuantityMassive = quantityFromInteger <$> choose
     ( quantityToInteger tokenQuantityLarge + 1
     , quantityToInteger tokenQuantityMassive
     )
-
-shrinkTokenQuantityMassive :: TokenQuantity -> [TokenQuantity]
-shrinkTokenQuantityMassive = shrinkTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Mixed token quantities (both small and large)

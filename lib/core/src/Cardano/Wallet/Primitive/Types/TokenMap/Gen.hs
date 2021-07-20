@@ -8,9 +8,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , genAssetIdSmallRange
     , genTokenMapSized
     , genTokenMapSmallRange
-    , shrinkAssetIdSized
     , shrinkAssetIdSmallRange
-    , shrinkTokenMapSized
     , shrinkTokenMapSmallRange
     , AssetIdF (..)
     ) where
@@ -26,19 +24,13 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     , genTokenPolicyIdLargeRange
     , genTokenPolicyIdSized
     , genTokenPolicyIdSmallRange
-    , shrinkTokenNameSized
     , shrinkTokenNameSmallRange
-    , shrinkTokenPolicyIdSized
     , shrinkTokenPolicyIdSmallRange
     , tokenNamesMediumRange
     , tokenPolicies
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySized
-    , genTokenQuantitySmall
-    , shrinkTokenQuantitySized
-    , shrinkTokenQuantitySmall
-    )
+    ( genTokenQuantitySized, genTokenQuantitySmall, shrinkTokenQuantitySmall )
 import Control.Monad
     ( replicateM )
 import Data.List
@@ -86,11 +78,6 @@ genAssetIdSized = sized $ \size -> do
         <$> resize sizeSquareRoot genTokenPolicyIdSized
         <*> resize sizeSquareRoot genTokenNameSized
 
-shrinkAssetIdSized :: AssetId -> [AssetId]
-shrinkAssetIdSized (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
-    (p, shrinkTokenPolicyIdSized)
-    (t, shrinkTokenNameSized)
-
 --------------------------------------------------------------------------------
 -- Asset identifiers chosen from a small range (to allow collisions)
 --------------------------------------------------------------------------------
@@ -127,16 +114,6 @@ genTokenMapSized = sized $ \size -> do
     genAssetQuantity = (,)
         <$> genAssetIdSized
         <*> genTokenQuantitySized
-
-shrinkTokenMapSized :: TokenMap -> [TokenMap]
-shrinkTokenMapSized
-    = fmap TokenMap.fromFlatList
-    . shrinkList shrinkAssetQuantity
-    . TokenMap.toFlatList
-  where
-    shrinkAssetQuantity (a, q) = shrinkInterleaved
-        (a, shrinkAssetIdSized)
-        (q, shrinkTokenQuantitySized)
 
 --------------------------------------------------------------------------------
 -- Token maps with assets and quantities chosen from small ranges

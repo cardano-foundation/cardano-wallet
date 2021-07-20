@@ -7,10 +7,7 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     , genTokenPolicyIdLargeRange
     , genTokenPolicyIdSmallRange
     , mkTokenPolicyId
-    , shrinkTokenNameSized
-    , shrinkTokenNameMediumRange
     , shrinkTokenNameSmallRange
-    , shrinkTokenPolicyIdSized
     , shrinkTokenPolicyIdSmallRange
     , tokenNamesMediumRange
     , tokenNamesSmallRange
@@ -42,13 +39,6 @@ genTokenNameSized :: Gen TokenName
 genTokenNameSized = sized $ \size ->
     elements $ UnsafeTokenName . B8.snoc "Token" <$> take size ['A' ..]
 
-shrinkTokenNameSized :: TokenName -> [TokenName]
-shrinkTokenNameSized x
-    | x == simplest = []
-    | otherwise = [simplest]
-  where
-    simplest = UnsafeTokenName "TokenA"
-
 --------------------------------------------------------------------------------
 -- Token names chosen from a small range (to allow collisions)
 --------------------------------------------------------------------------------
@@ -74,13 +64,6 @@ tokenNamesSmallRange = UnsafeTokenName . B8.snoc "Token" <$> ['A' .. 'D']
 genTokenNameMediumRange :: Gen TokenName
 genTokenNameMediumRange = elements tokenNamesMediumRange
 
-shrinkTokenNameMediumRange :: TokenName -> [TokenName]
-shrinkTokenNameMediumRange x
-    | x == simplest = []
-    | otherwise = [simplest]
-  where
-    simplest = head tokenNamesMediumRange
-
 tokenNamesMediumRange :: [TokenName]
 tokenNamesMediumRange = UnsafeTokenName . B8.snoc "Token" <$> ['A' .. 'Z']
 
@@ -99,13 +82,6 @@ genTokenNameLargeRange = UnsafeTokenName . BS.pack <$> vector 32
 genTokenPolicyIdSized :: Gen TokenPolicyId
 genTokenPolicyIdSized = sized $ \size ->
     elements $ mkTokenPolicyId <$> take size mkTokenPolicyIdValidChars
-
-shrinkTokenPolicyIdSized :: TokenPolicyId -> [TokenPolicyId]
-shrinkTokenPolicyIdSized x
-    | x == simplest = []
-    | otherwise = [simplest]
-  where
-    simplest = mkTokenPolicyId 'A'
 
 --------------------------------------------------------------------------------
 -- Token policy identifiers chosen from a small range (to allow collisions)
