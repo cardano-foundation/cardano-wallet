@@ -89,6 +89,7 @@ library
       Test.Integration.Scenario.API.Byron.Addresses
       Test.Integration.Scenario.API.Byron.CoinSelections
       Test.Integration.Scenario.API.Byron.Transactions
+      Test.Integration.Scenario.API.Byron.TransactionsNew
       Test.Integration.Scenario.API.Byron.Migrations
       Test.Integration.Scenario.API.Byron.Network
       Test.Integration.Scenario.API.Shelley.Addresses

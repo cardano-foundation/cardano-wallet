@@ -644,7 +644,7 @@ createUnsignedTransaction
     -> (Method, Text)
 createUnsignedTransaction w = discriminate @style
     (endpoint @(Api.ConstructTransaction Net) (wid &))
-    (notSupported "Byron")  --TODO should be supported in the final version of Transaction Workflow.
+    (endpoint @(Api.ConstructByronTransaction Net) (wid &))
     (notSupported "Shared") --TODO should be supported in the final version of Transaction Workflow.
   where
     wid = w ^. typed @(ApiT WalletId)
