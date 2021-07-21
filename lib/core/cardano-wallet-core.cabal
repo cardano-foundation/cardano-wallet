@@ -184,6 +184,7 @@ library
       Cardano.Wallet.Primitive.Migration
       Cardano.Wallet.Primitive.Migration.Planning
       Cardano.Wallet.Primitive.Migration.Selection
+      Cardano.Wallet.Primitive.MintBurn
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Primitive.Types.Address

@@ -84,6 +84,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , prepareOutputsWith
     , selectionDelta
     )
+import Cardano.Wallet.Primitive.MintBurn
+    ( TxMintBurn )
 import Cardano.Wallet.Primitive.Types
     ( FeePolicy (..), ProtocolParameters (..), TxParameters (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -118,15 +120,13 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromMaryTx
     , fromShelleyTx
     , maxTokenBundleSerializedLengthBytes
-    , prettyPrintScriptWitnessConversionError
+    , prettyPrintTxMintBurnConversionError
     , sealShelleyTx
     , toAllegraTxOut
     , toCardanoLovelace
-    , toCardanoPolicyId
-    , toCardanoScriptWitness
+    , toCardanoMintValue
     , toCardanoStakeCredential
     , toCardanoTxIn
-    , toCardanoValue
     , toHDPayloadAddress
     , toMaryTxOut
     , toShelleyTxOut
@@ -190,7 +190,6 @@ import qualified Cardano.Ledger.Core as SL
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
@@ -1256,12 +1255,16 @@ mkUnsignedTx
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
     -> Cardano.Lovelace
-    -> Maybe (TokenMap, [Script KeyHash])
+    -> Maybe TxMintBurn
     -> Either ErrMkTx (Cardano.TxBody era)
 mkUnsignedTx era ttl cs md wdrls certs fees mMint = do
+    let cardanoEra = toCardanoEra era
     txMintValue <- case mMint of
         Nothing -> Right Cardano.TxMintNone
-        Just (val, scripts) -> tryConvertToTxMintValue era val scripts
+        Just txMintBurn ->
+            mapLeft
+              (ErrConstructedInvalidTx . prettyPrintTxMintBurnConversionError)
+            $ toCardanoMintValue cardanoEra txMintBurn
 
     left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
      { Cardano.txIns =
@@ -1333,41 +1336,6 @@ mkUnsignedTx era ttl cs md wdrls certs fees mMint = do
         ShelleyBasedEraAllegra -> Cardano.AllegraEra
         ShelleyBasedEraMary -> Cardano.MaryEra
         ShelleyBasedEraAlonzo -> Cardano.AlonzoEra
-
-    renderMintingEraError :: Cardano.OnlyAdaSupportedInEra era -> T.Text
-    renderMintingEraError adaEra =
-        "Multi-asset minting is not supported in the "
-        <> (case adaEra of
-               Cardano.AdaOnlyInByronEra -> "Byron"
-               Cardano.AdaOnlyInShelleyEra -> "Shelley"
-               Cardano.AdaOnlyInAllegraEra -> "Allegra"
-           )
-        <> " era."
-
-    tryConvertToTxMintValue
-      :: ShelleyBasedEra era
-      -> TokenMap
-      -> [Script KeyHash]
-      -> Either ErrMkTx (Cardano.TxMintValue Cardano.BuildTx era)
-    tryConvertToTxMintValue era' value scripts = do
-        let cardanoEra = toCardanoEra era'
-        case Cardano.multiAssetSupportedInEra cardanoEra of
-            Left e ->
-                Left $ ErrConstructedInvalidTx $ renderMintingEraError e
-            Right supported -> do
-                pidsAndWits <-
-                    fmap mconcat $ forM scripts $ \script -> do
-                      let pid = TokenPolicy.tokenPolicyIdFromScript script
-                      witness <-
-                          mapLeft ( ErrConstructedInvalidTx
-                                  . prettyPrintScriptWitnessConversionError )
-                          $ toCardanoScriptWitness cardanoEra script
-                      pure [(toCardanoPolicyId pid, witness)]
-
-                pure $ Cardano.TxMintValue
-                            supported
-                            (toCardanoValue $ TokenBundle.fromTokenMap value)
-                            (Cardano.BuildTxWith $ Map.fromList pidsAndWits)
 
     toShelleyBasedTxOut :: TxOut -> Cardano.TxOut era
     toShelleyBasedTxOut = case era of
