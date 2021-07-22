@@ -128,11 +128,12 @@ spec = describe "BYRON_HW_WALLETS" $ do
         --send funds
         let [addr] = take 1 $ icarusAddresses @n mnemonics
         let destination = encodeAddress @n addr
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": #{minUTxOValue},
+                        "quantity": #{minUTxOValue'},
                         "unit": "lovelace"
                     }
                 }],
@@ -147,9 +148,9 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 (Link.getWallet @'Byron wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
                 ]
 
         -- delete wallet
@@ -166,9 +167,9 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 (Link.getWallet @'Byron wDest') Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
                 ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
@@ -182,11 +183,12 @@ spec = describe "BYRON_HW_WALLETS" $ do
 
             let [addr] = take 1 $ icarusAddresses @n mnemonics
             let destination = encodeAddress @n addr
+            let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let payload = Json [json|{
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": #{minUTxOValue},
+                            "quantity": #{minUTxOValue'},
                             "unit": "lovelace"
                         }
                     }],
@@ -238,11 +240,12 @@ spec = describe "BYRON_HW_WALLETS" $ do
 
             let [addr] = take 1 $ icarusAddresses @n mnemonics
             let destination = encodeAddress @n addr
+            let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let payload = Json [json|{
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": #{minUTxOValue},
+                            "quantity": #{minUTxOValue'},
                             "unit": "lovelace"
                         }
                     }]
@@ -327,8 +330,9 @@ spec = describe "BYRON_HW_WALLETS" $ do
             let targetAddresses = take paymentCount $
                     (\a -> (ApiT a, Proxy @n)) <$>
                     icarusAddresses @n mnemonics
+            let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let targetAmounts = take paymentCount $
-                    Quantity <$> [minUTxOValue ..]
+                    Quantity <$> [minUTxOValue' ..]
             let targetAssets = repeat mempty
             let payments = NE.fromList $ map ($ mempty) $
                     zipWith AddressAmount targetAddresses targetAmounts

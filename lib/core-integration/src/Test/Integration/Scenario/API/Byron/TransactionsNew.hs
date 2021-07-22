@@ -54,7 +54,7 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context
+    ( Context (..)
     , Headers (..)
     , Payload (..)
     , emptyIcarusWallet
@@ -134,7 +134,7 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
             (wByron, wShelley) <- (,) <$> srcFixture ctx <*> emptyWallet ctx
             addrs <- listAddresses @n ctx wShelley
 
-            let amt = minUTxOValue :: Natural
+            let amt = minUTxOValue (_mainEra ctx) :: Natural
             let destination = (addrs !! 1) ^. #id
             let payload = Json [json|{
                     "payments": [{
@@ -163,10 +163,10 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
 
             liftIO $ pendingWith "Byron wallet returns 500, Icarus wallet as expected"
 
-            wa <- srcFixture ctx [minUTxOValue + 1]
+            wa <- srcFixture ctx [minUTxOValue (_mainEra ctx) + 1]
             wb <- emptyWallet ctx
 
-            payload <- liftIO $ mkTxPayload ctx wb minUTxOValue
+            payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
 
             rTx <- request @(ApiConstructTransaction n) ctx
                 (Link.createUnsignedTransaction @'Byron wa) Default payload
@@ -182,7 +182,8 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
 
             liftIO $ pendingWith "Byron wallet returns 500, Icarus wallet as expected"
 
-            let (srcAmt, reqAmt) = (minUTxOValue, 2 * minUTxOValue)
+            let minUTxOValue' = minUTxOValue (_mainEra ctx)
+            let (srcAmt, reqAmt) = (minUTxOValue', 2 * minUTxOValue')
             wa <- srcFixture ctx [srcAmt]
             wb <- emptyWallet ctx
 
@@ -205,7 +206,7 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
             wa <- emptySrcWallet ctx
             wb <- emptyWallet ctx
 
-            payload <- liftIO $ mkTxPayload ctx wb minUTxOValue
+            payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
 
             rTx <- request @(ApiConstructTransaction n) ctx
                 (Link.createUnsignedTransaction @'Byron wa) Default payload
@@ -225,7 +226,7 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
             wb <- emptyWallet ctx
             addrs <- listAddresses @n ctx wb
 
-            let amt = minUTxOValue :: Natural
+            let amt = minUTxOValue (_mainEra ctx) :: Natural
             let destination1 = (addrs !! 1) ^. #id
             let destination2 = (addrs !! 2) ^. #id
             let payload = Json [json|{
@@ -273,12 +274,12 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
         -- create payload
         addrs <- listAddresses @n ctx wb
         let destination = (addrs !! 1) ^. #id
-        let amt = 2 * minUTxOValue
+        let amt = 2 * minUTxOValue (_mainEra ctx)
         payload <- mkTxPayloadMA @n destination amt [val]
 
         --construct transaction
@@ -310,12 +311,12 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
             -- pick out an asset to send
             let assetsSrc = wal ^. #assets . #total . #getApiT
             assetsSrc `shouldNotBe` mempty
-            let val = minUTxOValue <$ pickAnAsset assetsSrc
+            let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
             -- create payload
             addrs <- listAddresses @n ctx wb
             let destination = (addrs !! 1) ^. #id
-            let amt = minUTxOValue
+            let amt = minUTxOValue (_mainEra ctx)
             payload <- mkTxPayloadMA @n destination amt [val]
 
             --construct transaction
@@ -341,7 +342,7 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
             -- pick out an asset to send
             let assetsSrc = wal ^. #assets . #total . #getApiT
             assetsSrc `shouldNotBe` mempty
-            let val = minUTxOValue <$ pickAnAsset assetsSrc
+            let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
             -- create payload
             addrs <- listAddresses @n ctx wb
@@ -367,7 +368,7 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
         forM_ [(fixtureMultiAssetRandomWallet @n, "Byron wallet"),
               (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
               \(srcFixture,name) -> it name $ \ctx -> runResourceT $ do
-            
+
             liftIO $ pendingWith "Byron wallet returns 500, Icarus wallet as expected"
 
             wa <- srcFixture ctx
@@ -378,7 +379,8 @@ spec = describe "NEW_BYRON_TRANSACTIONS" $ do
             -- pick out an asset to send
             let assetsSrc = wal ^. #assets . #total . #getApiT
             assetsSrc `shouldNotBe` mempty
-            let val = (minUTxOValue * minUTxOValue) <$ pickAnAsset assetsSrc
+            let minUTxOValue' = minUTxOValue (_mainEra ctx)
+            let val = (minUTxOValue' * minUTxOValue') <$ pickAnAsset assetsSrc
 
             -- create payload
             addrs <- listAddresses @n ctx wb

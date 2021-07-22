@@ -62,7 +62,7 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context
+    ( Context (..)
     , Headers (..)
     , Payload (..)
     , arbitraryStake
@@ -205,10 +205,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
 
-        let initialAmt = 3*minUTxOValue
+        let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
-        let amt = (minUTxOValue :: Natural)
+        let amt = (minUTxOValue (_mainEra ctx) :: Natural)
 
         payload <- liftIO $ mkTxPayload ctx wb amt
 
@@ -238,7 +238,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
-        let amt = minUTxOValue - 1
+        let amt = minUTxOValue (_mainEra ctx) - 1
 
         payload <- liftIO $ mkTxPayload ctx wb amt
 
@@ -250,10 +250,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_CREATE_04c - Can't cover fee" $ \ctx -> runResourceT $ do
-        wa <- fixtureWalletWith @n ctx [minUTxOValue + 1]
+        wa <- fixtureWalletWith @n ctx [minUTxOValue (_mainEra ctx) + 1]
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb minUTxOValue
+        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -263,7 +263,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_CREATE_04d - Not enough money" $ \ctx -> runResourceT $ do
-        let (srcAmt, reqAmt) = (minUTxOValue, 2 * minUTxOValue)
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let (srcAmt, reqAmt) = (minUTxOValue', 2 * minUTxOValue')
         wa <- fixtureWalletWith @n ctx [srcAmt]
         wb <- emptyWallet ctx
 
@@ -280,7 +281,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- emptyWallet ctx
         wb <- emptyWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wb minUTxOValue
+        payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx))
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
@@ -297,7 +298,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
 
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
         let payload = Json [json|{
@@ -345,12 +346,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
         -- create payload
         addrs <- listAddresses @n ctx wb
         let destination = (addrs !! 1) ^. #id
-        let amt = 2 * minUTxOValue
+        let amt = 2 * minUTxOValue (_mainEra ctx)
         payload <- mkTxPayloadMA @n destination amt [val]
 
         --construct transaction
@@ -376,12 +377,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
         -- create payload
         addrs <- listAddresses @n ctx wb
         let destination = (addrs !! 1) ^. #id
-        let amt = minUTxOValue
+        let amt = minUTxOValue (_mainEra ctx)
         payload <- mkTxPayloadMA @n destination amt [val]
 
         --construct transaction
@@ -404,7 +405,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
         -- create payload
         addrs <- listAddresses @n ctx wb
@@ -432,10 +433,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
         let (_, Right wal) = ra
 
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = (minUTxOValue * minUTxOValue) <$ pickAnAsset assetsSrc
+        let val = (minUTxOValue' * minUTxOValue') <$ pickAnAsset assetsSrc
 
         -- create payload
         addrs <- listAddresses @n ctx wb
@@ -541,7 +544,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
         let destination = (addrs !! 1) ^. #id
-        let amt = minUTxOValue
+        let amt = minUTxOValue (_mainEra ctx)
 
         let payload = Json [json|{
                 "payments": [{
@@ -676,7 +679,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
 
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
         pool:_ <- map (view #id) . snd <$> unsafeRequest

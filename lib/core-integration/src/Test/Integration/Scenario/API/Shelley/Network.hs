@@ -70,7 +70,7 @@ spec = describe "SHELLEY_NETWORK" $ do
         verify r $
             [ expectField #decentralizationLevel (`shouldBe` d)
             , expectField #desiredPoolNumber (`shouldBe` nOpt)
-            , expectField #minimumUtxoValue (`shouldBe` Quantity minUTxOValue)
+            , expectField #minimumUtxoValue (`shouldBe` Quantity (minUTxOValue (_mainEra ctx)))
             , expectField #slotLength (`shouldBe` Quantity slotLengthValue)
             , expectField #epochLength (`shouldBe` Quantity epochLengthValue)
             , expectField #securityParameter (`shouldBe` Quantity securityParameterValue)

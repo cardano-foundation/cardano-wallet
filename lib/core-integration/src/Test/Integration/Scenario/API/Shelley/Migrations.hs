@@ -90,6 +90,7 @@ import Test.Integration.Framework.DSL
     , icarusAddresses
     , json
     , listAddresses
+    , minUTxOValue
     , postWallet
     , randomAddresses
     , request
@@ -220,8 +221,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- ada quantity is large enough to allow minting to succeed, but
             -- small enough to make the migration algorithm categorize the
             -- entry as a freerider.
-            --
-            let perEntryAdaQuantity = Coin 3_300_000
+
+            let minUTxOValue' = fromIntegral . minUTxOValue . _mainEra $ ctx
+            let perEntryAdaQuantity = Coin (2_100_000 + minUTxOValue')
             let perEntryAssetCount = 10
             let batchSize = 20
             liftIO $ _mintSeaHorseAssets ctx

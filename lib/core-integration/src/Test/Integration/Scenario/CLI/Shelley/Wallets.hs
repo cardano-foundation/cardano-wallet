@@ -207,7 +207,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             ]
 
         --send transaction to the wallet
-        let amount = minUTxOValue
+        let amount = (minUTxOValue (_mainEra ctx))
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let args = T.unpack <$>
@@ -694,7 +694,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
             let args = T.unpack <$>
                     [ wSrc ^. walletId
-                    , "--payment", T.pack (show minUTxOValue) <> "@" <> addrStr
+                    , "--payment", T.pack (show (minUTxOValue (_mainEra ctx))) <> "@" <> addrStr
                     ]
 
             (cTx, outTx, errTx) <- postTransactionViaCLI ctx pass args

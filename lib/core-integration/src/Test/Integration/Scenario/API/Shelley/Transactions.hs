@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {- HLINT ignore "Use head" -}
+{- HLINT ignore "Use :" -}
 
 module Test.Integration.Scenario.API.Shelley.Transactions
     ( spec
@@ -98,7 +99,7 @@ import Test.Hspec.Extra
 import Test.Integration.Faucet
     ( seaHorsePolicyId, seaHorseTokenName )
 import Test.Integration.Framework.DSL
-    ( Context (_mintSeaHorseAssets)
+    ( Context (_mainEra, _mintSeaHorseAssets)
     , Headers (..)
     , Payload (..)
     , between
@@ -199,7 +200,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
       wSrc <- fixtureWallet ctx
       wDest <- emptyWallet ctx
 
-      let amt = minUTxOValue  - 1
+      let amt = minUTxOValue (_mainEra ctx) - 1
       addrs <- listAddresses @n ctx wDest
       let destination = (addrs !! 1) ^. #id
       let payload = Json [json|{
@@ -238,7 +239,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         \ while both, pending and in_ledger" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wSrc minUTxOValue fixturePassphrase
+        payload <- liftIO $
+            mkTxPayload ctx wSrc (minUTxOValue (_mainEra ctx)) fixturePassphrase
 
         (_, ApiFee (Quantity feeMin) (Quantity feeMax) _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wSrc) payload
@@ -276,7 +278,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         eventually "Pending tx has pendingSince field" $ do
             -- Post Tx
-            let amt = (minUTxOValue :: Natural)
+            let amt = (minUTxOValue (_mainEra ctx) :: Natural)
             r <- postTx @n ctx
                 (wSrc, Link.createTransaction @'Shelley,fixturePassphrase)
                 wDest
@@ -303,10 +305,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     pendingSince tx' `shouldBe` pendingSince tx
 
     it "TRANS_CREATE_01x - Single Output Transaction" $ \ctx -> runResourceT $ do
-        let initialAmt = 3*minUTxOValue
+        let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- fixtureWalletWith @n ctx [initialAmt]
-        let amt = (minUTxOValue :: Natural)
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         payload <- liftIO $ mkTxPayload ctx wb amt fixturePassphrase
 
@@ -322,7 +324,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
                 between (feeMin + amt, feeMax + amt)
-            , const (minCoins `shouldBe` [Quantity minUTxOValue])
+            , const (minCoins `shouldBe` [Quantity (minUTxOValue (_mainEra ctx))])
             , expectField #inputs $ \inputs' -> do
                 inputs' `shouldSatisfy` all (isJust . source)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -388,7 +390,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
         addrs <- listAddresses @n ctx wDest
 
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
         let payload = Json [json|{
@@ -455,7 +457,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             \implementation works. We may want to revise this test completely \
             \otherwise we'll have to update it for every single change in \
             \the fee calculation or selection algorithm."
-        let amt = minUTxOValue
+        let amt = minUTxOValue (_mainEra ctx)
 
         wDest <- fixtureWalletWith @n ctx [amt]
         payload <- liftIO $ mkTxPayload ctx wDest amt fixturePassphrase
@@ -510,11 +512,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> runResourceT $ do
         wDest <- fixtureWallet ctx
 
-        payload <- liftIO $ mkTxPayload ctx wDest minUTxOValue fixturePassphrase
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+
+        payload <- liftIO $ mkTxPayload ctx wDest minUTxOValue' fixturePassphrase
         (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wDest) payload
 
-        wSrc <- fixtureWalletWith @n ctx [minUTxOValue + (feeMin `div` 2)]
+        wSrc <- fixtureWalletWith @n ctx [minUTxOValue' + (feeMin `div` 2)]
 
         r <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
@@ -524,7 +528,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> runResourceT $ do
-        let (srcAmt, reqAmt) = (minUTxOValue, 2 * minUTxOValue)
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let (srcAmt, reqAmt) = (minUTxOValue', 2 * minUTxOValue')
         wSrc <- fixtureWalletWith @n ctx [srcAmt]
         wDest <- emptyWallet ctx
         payload <- mkTxPayload ctx wDest reqAmt fixturePassphrase
@@ -545,7 +550,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": #{minUTxOValue},
+                        "quantity": #{minUTxOValue (_mainEra ctx)},
                         "unit": "lovelace"
                     }
                 }],
@@ -568,7 +573,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": #{minUTxOValue},
+                        "quantity": #{minUTxOValue (_mainEra ctx) },
                         "unit": "lovelace"
                     }
                 }],
@@ -625,7 +630,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
@@ -664,11 +669,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
         -- This is a non-zero ada amount, but less than the actual minimum utxo
         -- due to assets in the transaction.
-        let coin = minUTxOValue
+        let coin = minUTxOValue (_mainEra ctx)
 
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
@@ -689,7 +694,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
@@ -771,7 +776,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
@@ -899,7 +904,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_TTL_01 - Pending transaction expiry" $ \ctx -> runResourceT $ do
         liftIO $ flakyBecauseOf "#2295"
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         payload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -933,7 +938,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_TTL_02 - Custom transaction expiry" $ \ctx -> runResourceT $ do
         liftIO $ flakyBecauseOf "#2295"
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         let testTTL = 42 :: NominalDiffTime
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
@@ -969,7 +974,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         liftIO $ flakyBecauseOf "#1840 -- need a better approach"
 
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
         -- Set a transaction TTL that is going to expire really soon.
@@ -1011,7 +1016,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_TTL_04 - Large TTL" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         let hugeTTL = 1e9 :: NominalDiffTime
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
@@ -1033,8 +1038,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             [ CreateTransactionWithMetadataTest
                 { testName =
                     "transaction without any metadata (1 output)"
-                , txOutputAdaQuantities =
-                    [minUTxOValue]
+                , txOutputAdaQuantities = \minUTxOVal ->
+                    [minUTxOVal]
                 , txMetadata =
                     Nothing
                 , expectedFee =
@@ -1043,8 +1048,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , CreateTransactionWithMetadataTest
                 { testName =
                     "transaction with simple textual metadata (1 output)"
-                , txOutputAdaQuantities =
-                    [minUTxOValue]
+                , txOutputAdaQuantities = \minUTxOVal ->
+                    [minUTxOVal]
                 , txMetadata =
                     Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
                 , expectedFee =
@@ -1053,8 +1058,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , CreateTransactionWithMetadataTest
                 { testName =
                     "transaction with metadata from ADP-1005 (1 output)"
-                , txOutputAdaQuantities =
-                    [minUTxOValue]
+                , txOutputAdaQuantities = \minUTxOVal ->
+                    [minUTxOVal]
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
@@ -1063,7 +1068,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , CreateTransactionWithMetadataTest
                 { testName =
                     "transaction with metadata from ADP-1005 (2 outputs)"
-                , txOutputAdaQuantities =
+                , txOutputAdaQuantities = \_minUTxOVal ->
                     -- The exact ada quantities recorded in ADP-1005:
                     [1_000_000, 498_283_127]
                 , txMetadata =
@@ -1075,7 +1080,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_CREATE_02 - Transaction with invalid metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
-        let amt = (minUTxOValue :: Natural)
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -1090,7 +1095,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_CREATE_03 - Transaction with too much metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (minUTxOValue :: Natural)
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -1110,7 +1115,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_ESTIMATE_01 - fee estimation includes metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (minUTxOValue :: Natural)
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         payload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -1138,7 +1143,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_ESTIMATE_02 - fee estimation with invalid metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (minUTxOValue :: Natural)
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -1153,7 +1158,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANSMETA_ESTIMATE_03 - fee estimation with too much metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = (minUTxOValue :: Natural)
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
@@ -1234,7 +1239,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> runResourceT $ do
-        let (srcAmt, reqAmt) = (minUTxOValue, 2 * minUTxOValue)
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let (srcAmt, reqAmt) = (minUTxOValue', 2 * minUTxOValue')
         wSrc <- fixtureWalletWith @n ctx [srcAmt]
         wDest <- emptyWallet ctx
         payload <- mkTxPayload ctx wDest reqAmt fixturePassphrase
@@ -1249,7 +1255,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         wDest <- emptyWallet ctx
-        payload <- mkTxPayload ctx wDest minUTxOValue fixturePassphrase
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        payload <- mkTxPayload ctx wDest minUTxOValue' fixturePassphrase
         r <- request @ApiFee ctx
             (Link.getTransactionFee @'Shelley w) Default payload
         expectResponseCode HTTP.status404 r
@@ -1260,7 +1267,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         addrs <- listAddresses @n ctx wDest
 
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -1322,16 +1329,17 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     -- +---+----------+----------+------------+--------------+
     it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
         $ \ctx -> runResourceT $ do
-        let a1 = Quantity minUTxOValue
-        let a2 = Quantity (2 * minUTxOValue)
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let a1 = Quantity minUTxOValue'
+        let a2 = Quantity (2 * minUTxOValue')
         (wSrc, w) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         -- post txs
         let linkTx = (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
-        _ <- postTx @n ctx linkTx w minUTxOValue
-        verifyWalletBalance ctx w (Quantity minUTxOValue)
+        _ <- postTx @n ctx linkTx w minUTxOValue'
+        verifyWalletBalance ctx w (Quantity minUTxOValue')
 
-        _ <- postTx @n ctx linkTx w (2 * minUTxOValue)
-        verifyWalletBalance ctx w (Quantity (3 * minUTxOValue))
+        _ <- postTx @n ctx linkTx w (2 * minUTxOValue')
+        verifyWalletBalance ctx w (Quantity (3 * minUTxOValue'))
 
         txs <- eventually "I make sure there are exactly 2 transactions" $ do
             let linkList = Link.listTransactions' @'Shelley w
@@ -1663,7 +1671,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
           \ctx -> runResourceT $ do
-              w <- fixtureWalletWith @n ctx [minUTxOValue]
+              w <- fixtureWalletWith @n ctx [minUTxOValue (_mainEra ctx) ]
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
               txs1 <- listTransactions @n ctx w (Just t ) (Just t ) Nothing
@@ -1675,7 +1683,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_LIST_RANGE_02 - \
        \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
           \ctx -> runResourceT $ do
-              w <- fixtureWalletWith @n ctx [minUTxOValue]
+              w <- fixtureWalletWith @n ctx [minUTxOValue (_mainEra ctx)]
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let tl = utcTimeSucc t
               txs1 <- listTransactions @n ctx w (Just tl) (Nothing) Nothing
@@ -1685,7 +1693,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_LIST_RANGE_03 - \
        \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
           \ctx -> runResourceT $ do
-              w <- fixtureWalletWith @n ctx [minUTxOValue]
+              w <- fixtureWalletWith @n ctx [minUTxOValue (_mainEra ctx) ]
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let te = utcTimePred t
               txs1 <- listTransactions @n ctx w (Nothing) (Just te) Nothing
@@ -1695,7 +1703,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $ \ctx -> runResourceT $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         -- post tx
-        let amt = (minUTxOValue :: Natural)
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         rMkTx <- postTx @n ctx
             (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
             wDest
@@ -1749,7 +1757,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         -- post tx
-        let amt = (minUTxOValue :: Natural)
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         rMkTx <- postTx @n ctx
             (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
             wDest
@@ -1772,7 +1780,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         \ Shelley: Can forget pending transaction" $ \ctx -> runResourceT $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         -- post tx
-        let amt = (minUTxOValue :: Natural)
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         rMkTx <- postTx @n ctx
             (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
             wDest
@@ -1840,7 +1848,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             postTx @n ctx
             (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
             wDest
-            (minUTxOValue :: Natural)
+            (minUTxOValue (_mainEra ctx) :: Natural)
         let txid = getFromResponse #id rTx
 
         eventually "Transaction is accepted" $ do
@@ -1871,7 +1879,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_TTL_DELETE_01 - Shelley: can remove expired tx" $ \ctx -> runResourceT $ do
         liftIO $ flakyBecauseOf "#1840 -- need a better approach"
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
 
         -- this transaction is going to expire really soon.
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
@@ -1916,7 +1924,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": "self",
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
+                    "amount": {
+                        "quantity": #{minUTxOValue (_mainEra ctx)},
+                        "unit": "lovelace"
+                    }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -1947,7 +1958,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
+                    "amount": {
+                        "quantity": #{minUTxOValue (_mainEra ctx)},
+                        "unit": "lovelace"
+                    }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -2022,7 +2036,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
+                    "amount": {
+                        "quantity": #{minUTxOValue (_mainEra ctx) },
+                        "unit": "lovelace"
+                    }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -2054,7 +2071,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": "self",
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
+                    "amount": {
+                        "quantity": #{minUTxOValue (_mainEra ctx) },
+                        "unit": "lovelace"
+                    }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -2075,7 +2095,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
+                    "amount": {
+                        "quantity": #{minUTxOValue (_mainEra ctx)},
+                        "unit": "lovelace"
+                    }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -2095,7 +2118,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": "self",
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
+                    "amount": {
+                        "quantity": #{minUTxOValue (_mainEra ctx) },
+                        "unit": "lovelace"
+                    }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -2116,7 +2142,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": #{mnemonicToText mw},
                 "payments": [{
                     "address": #{addr},
-                    "amount": { "quantity": #{minUTxOValue}, "unit": "lovelace" }
+                    "amount": {
+                        "quantity": #{minUTxOValue (_mainEra ctx) },
+                        "unit": "lovelace"
+                    }
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
@@ -2234,18 +2263,20 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
 
-        let paymentCount = length txOutputAdaQuantities
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let outputQuantities = txOutputAdaQuantities minUTxOValue'
+        let paymentCount = length outputQuantities
         targetAddresses <- take paymentCount .
             fmap (view #id) <$> listAddresses @n ctx wb
         let targetAssets = repeat mempty
         let payments = NE.fromList $ map ($ mempty) $ zipWith
                 (AddressAmount)
                 (targetAddresses)
-                (Quantity <$> txOutputAdaQuantities)
+                (Quantity <$> outputQuantities)
         let outputs = zipWith3
                 ApiCoinSelectionOutput
                 (targetAddresses)
-                (Quantity <$> txOutputAdaQuantities)
+                (Quantity <$> outputQuantities)
                 (targetAssets)
 
         -- First, perform a dry-run selection using the 'selectCoins' endpoint.
@@ -2367,7 +2398,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rMkTx <- postTx @n ctx
                 (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
                 wDest
-                (minUTxOValue :: Natural)
+                (minUTxOValue (_mainEra ctx) :: Natural)
 
             -- try to forget from different wallet
             wDifferent <- eWallet ctx
@@ -2451,7 +2482,8 @@ data CreateTransactionWithMetadataTest = CreateTransactionWithMetadataTest
     { testName
         :: String
     , txOutputAdaQuantities
-        :: [Natural]
+        :: Natural -> [Natural]
+        -- ^ Takes `minUTxOValue` as argument.
     , txMetadata
         :: Maybe TxMetadata
     , expectedFee

@@ -56,7 +56,7 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context
+    ( Context (..)
     , Headers (..)
     , Payload (..)
     , emptyRandomWallet
@@ -211,6 +211,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
         addrs <- listAddresses @n ctx wDest
 
+        let amt = minUTxOValue (_mainEra ctx)
+
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..9] $ \addrNum -> do
             let destination = (addrs !! addrNum) ^. #id
@@ -218,7 +220,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": #{minUTxOValue},
+                            "quantity": #{amt},
                             "unit": "lovelace"
                         }
                     }],
@@ -235,7 +237,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (10 * 1_000_000))
+                (`shouldBe` Quantity (10 * amt))
                 rb
 
         -- verify new address_pool_gap has been created
@@ -295,7 +297,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
 
         -- 2. Send a transaction from A -> B
         destination <- view #id . head <$> listAddresses @n ctx wB
-        let amount = 10 * minUTxOValue
+        let amount = 10 * minUTxOValue (_mainEra ctx)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},

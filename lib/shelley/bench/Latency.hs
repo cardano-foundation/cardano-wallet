@@ -30,6 +30,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiAsset (..)
+    , ApiEra
     , ApiFee
     , ApiNetworkInformation
     , ApiStakePool
@@ -215,7 +216,7 @@ walletApiBench capture ctx = do
     nFixtureWalletWithTxs n m = do
         (wal1, wal2, walMA, maWalletToMigrate) <- nFixtureWallet n
 
-        let amt = minUTxOValue
+        let amt = minUTxOValue era
         let batchSize = 10
         let whole10Rounds = div m batchSize
         let lastBit = mod m batchSize
@@ -231,7 +232,7 @@ walletApiBench capture ctx = do
         pure (wal1, wal2, walMA, maWalletToMigrate)
 
     nFixtureWalletWithUTxOs n utxoNumber = do
-        let utxoExp = replicate utxoNumber minUTxOValue
+        let utxoExp = replicate utxoNumber (minUTxOValue era)
         wal1 <- fixtureWalletWith @n ctx utxoExp
         (_, wal2, walMA, maWalletToMigrate) <- nFixtureWallet n
 
@@ -242,7 +243,7 @@ walletApiBench capture ctx = do
                 [ expectSuccess
                 , expectField
                         (#balance . #available . #getQuantity)
-                        (`shouldBe` (minUTxOValue * (fromIntegral utxoNumber)))
+                        (`shouldBe` ((minUTxOValue era) * (fromIntegral utxoNumber)))
                 ]
 
         rStat <- request @ApiUtxoStatistics ctx
@@ -313,7 +314,7 @@ walletApiBench capture ctx = do
         fmtResult "getTransaction     " t5a
 
         (_, addrs) <- unsafeRequest @[ApiAddress n] ctx (Link.listAddresses @'Shelley wal2) Empty
-        let amt = minUTxOValue
+        let amt = minUTxOValue era
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -361,8 +362,8 @@ walletApiBench capture ctx = do
         fmtResult "postTransTo5Addrs  " t7a
 
         let assetsToSend = walMA ^. #assets . #total . #getApiT
-        let val = minUTxOValue <$ pickAnAsset assetsToSend
-        payloadMA <- mkTxPayloadMA @n destination (2*minUTxOValue) [val] fixturePassphrase
+        let val = minUTxOValue era <$ pickAnAsset assetsToSend
+        payloadMA <- mkTxPayloadMA @n destination (2 * minUTxOValue era) [val] fixturePassphrase
         t7b <- measureApiLogs capture $ request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley walMA) Default payloadMA
         fmtResult "postTransactionMA  " t7b
@@ -478,3 +479,6 @@ withShelleyServer tracers action = do
             block0
             (np, vData)
             (act np)
+
+era :: ApiEra
+era = maxBound
