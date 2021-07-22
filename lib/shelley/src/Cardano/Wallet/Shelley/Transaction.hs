@@ -119,6 +119,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , maxTokenBundleSerializedLengthBytes
     , sealShelleyTx
     , toAllegraTxOut
+    , toAlonzoTxOut
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
@@ -1316,7 +1317,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         ShelleyBasedEraShelley -> toShelleyTxOut
         ShelleyBasedEraAllegra -> toAllegraTxOut
         ShelleyBasedEraMary -> toMaryTxOut
-        ShelleyBasedEraAlonzo -> error "toAlonzoTxOut unimplemented" -- TODO: [ADP-952] toAlonzoTxOut
+        ShelleyBasedEraAlonzo -> toAlonzoTxOut
 
     metadataSupported :: Cardano.TxMetadataSupportedInEra era
     metadataSupported = case era of

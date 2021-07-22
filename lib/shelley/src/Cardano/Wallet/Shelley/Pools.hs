@@ -103,6 +103,7 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAllegraBlock
+    , fromAlonzoBlock
     , fromMaryBlock
     , fromShelleyBlock
     , getProducer
@@ -594,8 +595,6 @@ monitorStakePools followTr (NetworkParameters gp sp _pp) nl DBLayer{..} =
                 forEachShelleyBlock (fromMaryBlock gp blk) (getProducer blk)
             BlockAlonzo blk ->
                 forEachShelleyBlock (fromAlonzoBlock gp blk) (getProducer blk)
-
-        fromAlonzoBlock = error "todo: fromAlonzoBlock"
 
         forLastBlock = \case
             BlockByron blk ->
