@@ -13,7 +13,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinAny, shrinkCoinAny )
+    ( genCoinFullRange, shrinkCoinFullRange )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -260,8 +260,10 @@ newtype FixedSize256 a = FixedSize256 { unFixedSize256 :: a }
 --------------------------------------------------------------------------------
 
 instance Arbitrary Coin where
-    arbitrary = genCoinAny
-    shrink = shrinkCoinAny
+    -- This instance is used to test roundtrip conversions, so it's important
+    -- that we generate coins across the full range available.
+    arbitrary = genCoinFullRange
+    shrink = shrinkCoinFullRange
 
 instance Arbitrary (ProtocolMinimum Coin) where
     arbitrary

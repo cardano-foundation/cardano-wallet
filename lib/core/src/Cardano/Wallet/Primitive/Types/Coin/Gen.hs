@@ -1,11 +1,11 @@
 {-# LANGUAGE NumericUnderscores #-}
 
 module Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinAny
+    ( genCoinFullRange
     , genCoinSmall
     , genCoinSmallPositive
     , genCoinLargePositive
-    , shrinkCoinAny
+    , shrinkCoinFullRange
     , shrinkCoinSmall
     , shrinkCoinSmallPositive
     , shrinkCoinLargePositive
@@ -16,17 +16,29 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Test.QuickCheck
-    ( Gen, choose, shrink )
+    ( Gen, choose, frequency, shrink )
 
 --------------------------------------------------------------------------------
--- Coins chosen from the full range available
+-- Coins chosen from the full range available.
 --------------------------------------------------------------------------------
 
-genCoinAny :: Gen Coin
-genCoinAny = Coin <$> choose (unCoin minBound, unCoin maxBound)
+-- | Generates coins across the full range available.
+--
+-- This generator has a slight bias towards the limits of the range, but
+-- otherwise generates values uniformly across the whole range.
+--
+-- This can be useful when testing roundtrip conversions between different
+-- types.
+--
+genCoinFullRange :: Gen Coin
+genCoinFullRange = frequency
+    [ (1, pure (Coin 0))
+    , (1, pure (maxBound :: Coin))
+    , (8, Coin <$> choose (1, unCoin (maxBound :: Coin) - 1))
+    ]
 
-shrinkCoinAny :: Coin -> [Coin]
-shrinkCoinAny (Coin c) = Coin <$> shrink c
+shrinkCoinFullRange :: Coin -> [Coin]
+shrinkCoinFullRange (Coin c) = Coin <$> shrink c
 
 --------------------------------------------------------------------------------
 -- Coins chosen to be small and possibly zero
