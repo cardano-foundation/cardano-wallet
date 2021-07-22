@@ -1,14 +1,10 @@
-{-# LANGUAGE NumericUnderscores #-}
-
 module Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinFullRange
-    , genCoinSmall
-    , genCoinSmallPositive
-    , genCoinLargePositive
+    ( genCoin
+    , genCoinPositive
+    , genCoinFullRange
+    , shrinkCoin
+    , shrinkCoinPositive
     , shrinkCoinFullRange
-    , shrinkCoinSmall
-    , shrinkCoinSmallPositive
-    , shrinkCoinLargePositive
     ) where
 
 import Prelude
@@ -16,7 +12,27 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Test.QuickCheck
-    ( Gen, choose, frequency, shrink )
+    ( Gen, choose, frequency, shrink, sized )
+
+--------------------------------------------------------------------------------
+-- Coins chosen according to the size parameter.
+--------------------------------------------------------------------------------
+
+genCoin :: Gen Coin
+genCoin = sized $ \n -> Coin . fromIntegral <$> choose (0, n)
+
+shrinkCoin :: Coin -> [Coin]
+shrinkCoin (Coin c) = Coin <$> shrink c
+
+--------------------------------------------------------------------------------
+-- Coins chosen according to the size parameter, but strictly positive.
+--------------------------------------------------------------------------------
+
+genCoinPositive :: Gen Coin
+genCoinPositive = sized $ \n -> Coin . fromIntegral <$> choose (1, max 1 n)
+
+shrinkCoinPositive :: Coin -> [Coin]
+shrinkCoinPositive (Coin c) = Coin <$> filter (> 0) (shrink c)
 
 --------------------------------------------------------------------------------
 -- Coins chosen from the full range available.
@@ -39,33 +55,3 @@ genCoinFullRange = frequency
 
 shrinkCoinFullRange :: Coin -> [Coin]
 shrinkCoinFullRange (Coin c) = Coin <$> shrink c
-
---------------------------------------------------------------------------------
--- Coins chosen to be small and possibly zero
---------------------------------------------------------------------------------
-
-genCoinSmall :: Gen Coin
-genCoinSmall = Coin <$> choose (0, 10)
-
-shrinkCoinSmall :: Coin -> [Coin]
-shrinkCoinSmall (Coin c) = Coin <$> shrink c
-
---------------------------------------------------------------------------------
--- Coins chosen to be small and strictly positive
---------------------------------------------------------------------------------
-
-genCoinSmallPositive :: Gen Coin
-genCoinSmallPositive = Coin <$> choose (1, 10)
-
-shrinkCoinSmallPositive :: Coin -> [Coin]
-shrinkCoinSmallPositive (Coin c) = Coin <$> filter (> 0) (shrink c)
-
---------------------------------------------------------------------------------
--- Coins chosen from a large range and strictly positive
---------------------------------------------------------------------------------
-
-genCoinLargePositive :: Gen Coin
-genCoinLargePositive = Coin <$> choose (1, 1_000_000_000_000)
-
-shrinkCoinLargePositive :: Coin -> [Coin]
-shrinkCoinLargePositive (Coin c) = Coin <$> filter (> 0) (shrink c)

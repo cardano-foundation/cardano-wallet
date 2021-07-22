@@ -236,7 +236,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinLargePositive, genCoinSmallPositive )
+    ( genCoinFullRange, genCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -2124,7 +2124,7 @@ instance Arbitrary RewardAccount where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = genCoinLargePositive
+    arbitrary = genCoinFullRange
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
@@ -2163,8 +2163,8 @@ instance Arbitrary ApiWalletUtxoSnapshot where
       where
         genEntry :: Gen ApiWalletUtxoSnapshotEntry
         genEntry = do
-            adaValue1 <- genCoinSmallPositive
-            adaValue2 <- genCoinSmallPositive
+            adaValue1 <- genCoinPositive
+            adaValue2 <- genCoinPositive
             -- The actual ada quantity of an output's token bundle must be
             -- greater than or equal to the minimum permissible ada quantity:
             let ada = Api.coinToQuantity $ max adaValue1 adaValue2

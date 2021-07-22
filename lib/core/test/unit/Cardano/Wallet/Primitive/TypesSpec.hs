@@ -91,7 +91,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinSmall )
+    ( genCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.HashSpec
@@ -1109,7 +1109,7 @@ instance Arbitrary AddressState where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = genCoinSmall
+    arbitrary = genCoin
 
 instance (Arbitrary a, Ord a) => Arbitrary (Range a) where
     arbitrary =
@@ -1149,7 +1149,7 @@ instance Arbitrary TxOut where
     -- No Shrinking
     arbitrary = TxOut
         <$> arbitrary
-        <*> fmap TokenBundle.fromCoin genCoinSmall
+        <*> fmap TokenBundle.fromCoin genCoin
 
 instance Arbitrary TxIn where
     -- No Shrinking

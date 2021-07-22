@@ -71,11 +71,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinLargePositive
-    , genCoinSmall
-    , genCoinSmallPositive
-    , shrinkCoinSmallPositive
-    )
+    ( genCoin, genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -603,7 +599,7 @@ genSelectionCriteria genUTxOIndex = do
             (1, UTxOIndex.size utxoAvailable `div` 8)
           )
         ]
-    extraCoinSource <- oneof [ pure Nothing, Just <$> genCoinSmall ]
+    extraCoinSource <- oneof [ pure Nothing, Just <$> genCoin ]
     (assetsToMint, assetsToBurn) <-
         genAssetsToMintAndBurn utxoAvailable outputsToCover
     pure $ SelectionCriteria
@@ -1865,8 +1861,8 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     MakeChangeCriteria
         <$> arbitrary
         <*> pure NoBundleSizeLimit
-        <*> genCoinSmall
-        <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
+        <*> genCoin
+        <*> oneof [pure Nothing, Just <$> genCoinPositive]
         <*> pure inputBundles
         <*> pure outputBundles
         <*> pure assetsToMint
@@ -3501,7 +3497,7 @@ instance Arbitrary TokenBundle where
 
 instance Arbitrary (Large TokenBundle) where
     arbitrary = fmap Large $ TokenBundle
-        <$> genCoinLargePositive
+        <$> genCoinPositive
         <*> genTokenMapLarge
     -- No shrinking
 
@@ -3555,8 +3551,8 @@ instance Arbitrary (Small UTxOIndex) where
     shrink = fmap Small . shrinkUTxOIndexSmall . getSmall
 
 instance Arbitrary Coin where
-    arbitrary = genCoinSmallPositive
-    shrink = shrinkCoinSmallPositive
+    arbitrary = genCoinPositive
+    shrink = shrinkCoinPositive
 
 instance Arbitrary MinCoinValueFor where
     arbitrary = arbitraryBoundedEnum

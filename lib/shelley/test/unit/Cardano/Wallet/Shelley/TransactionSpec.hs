@@ -61,7 +61,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), coinToInteger )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinLargePositive, shrinkCoinLargePositive )
+    ( genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -759,8 +759,8 @@ instance Arbitrary (Hash "Tx") where
 -- transactions.
 --
 instance Arbitrary Coin where
-    arbitrary = genCoinLargePositive
-    shrink = shrinkCoinLargePositive
+    arbitrary = genCoinPositive
+    shrink = shrinkCoinPositive
 
 instance Arbitrary TxOut where
     arbitrary = TxOut addr <$> genTokenBundleSmallRange

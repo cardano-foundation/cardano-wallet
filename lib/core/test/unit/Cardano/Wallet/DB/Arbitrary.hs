@@ -111,7 +111,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinLargePositive )
+    ( genCoinFullRange )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -415,7 +415,7 @@ instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata
 
 instance Arbitrary Coin where
-    arbitrary = genCoinLargePositive
+    arbitrary = genCoinFullRange
 
 instance Arbitrary UTxO where
     shrink (UTxO u) =
