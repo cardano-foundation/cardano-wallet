@@ -17,7 +17,9 @@ Cardano Node
 - [User Guide](https://docs.cardano.org/en/latest/)
 - [Engineering Design Specification for Delegation and Incentives](https://hydra.iohk.io/build/902246/download/1/delegation_design_spec.pdf) 
 - [A Formal Specification of the Cardano Ledger](https://hydra.iohk.io/build/1224753/download/1/ledger-spec.pdf)
-- [Data Diffusion and Peer Networking](https://hydra.iohk.io/build/1070091/download/1/network.pdf)
+- Networking Protocol(s)
+  - Repository: [input-output-hk/ouroboros-network](https://github.com/input-output-hk/ouroboros-network), includes specifications
+  - Specification: [The Shelley Networking Protocol](https://hydra.iohk.io/build/6955704/download/2/network-spec.pdf) (Version 1.3.0, 16th July 2021)
 - Low-Level Specifications
   - [[Byron] On-Chain Binary Formats](https://github.com/input-output-hk/cardano-sl/blob/master/docs/on-the-wire/current-spec.cddl)
   - [[Shelley] Network Binary Formats - Draft](https://github.com/input-output-hk/ouroboros-network/blob/master/ouroboros-network/test/messages.cddl)
