@@ -62,7 +62,7 @@ jobs:
     - name: Display versions
       run: |
         docker run --rm inputoutput/cardano-wallet:$WALLET version
-        docker run --rm inputoutput/cardano-node:$NODE version
+        docker run --rm inputoutput/cardano-node:$NODE cli version
 
     - name: Wait until node is synced
       run: rake wait_until_node_synced
@@ -87,5 +87,5 @@ jobs:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
-      NODE: ${{ github.event.inputs.nodeTag || '1.27.0' }}
+      NODE: ${{ github.event.inputs.nodeTag || '1.28.0' }}
       TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
