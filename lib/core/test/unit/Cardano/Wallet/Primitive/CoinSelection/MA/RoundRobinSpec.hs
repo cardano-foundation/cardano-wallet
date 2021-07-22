@@ -501,11 +501,11 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
         $ cover 20 (emptyMapCount >= 8 && nonEmptyMapCount >= 8)
             "empty map count >= 8 && non-empty map count >= 8"
         -- Check head and last element of list:
-        $ cover 40 (isEmptyMap $ NE.head maps)
+        $ cover 20 (isEmptyMap $ NE.head maps)
             "head element is empty map"
         $ cover 40 (not $ isEmptyMap $ NE.head maps)
             "head element is non-empty map"
-        $ cover 40 (isEmptyMap $ NE.last maps)
+        $ cover 20 (isEmptyMap $ NE.last maps)
             "last element is empty map"
         $ cover 40 (not $ isEmptyMap $ NE.last maps)
             "last element is non-empty map"
@@ -738,7 +738,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
-        . cover 5 (selectionLimited && selectionSufficient result)
+        . cover 4 (selectionLimited && selectionSufficient result)
             "selection limited but sufficient"
         . cover 10 (selectionLimited && selectionInsufficient result)
             "selection limited and insufficient"

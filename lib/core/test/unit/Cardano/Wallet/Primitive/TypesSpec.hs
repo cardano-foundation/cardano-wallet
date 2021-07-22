@@ -1149,7 +1149,9 @@ instance Arbitrary TxOut where
     -- No Shrinking
     arbitrary = TxOut
         <$> arbitrary
-        <*> fmap TokenBundle.fromCoin genCoin
+        -- Here we deliberately restrict the range of coins in order to increase
+        -- the probability of collisions between identical transaction outputs:
+        <*> fmap TokenBundle.fromCoin (scale (`mod` 8) genCoin)
 
 instance Arbitrary TxIn where
     -- No Shrinking

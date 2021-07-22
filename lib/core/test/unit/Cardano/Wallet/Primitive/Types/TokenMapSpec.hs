@@ -773,9 +773,9 @@ prop_equipartitionQuantitiesWithUpperBound_coverage
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_coverage m (Positive maxQuantity) =
     checkCoverage $
-    cover 8 (maxQuantity == TokenQuantity 1)
+    cover 4 (maxQuantity == TokenQuantity 1)
         "Maximum allowable quantity == 1" $
-    cover 8 (maxQuantity == TokenQuantity 2)
+    cover 4 (maxQuantity == TokenQuantity 2)
         "Maximum allowable quantity == 2" $
     cover 8 (maxQuantity >= TokenQuantity 3)
         "Maximum allowable quantity >= 3" $
