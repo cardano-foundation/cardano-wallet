@@ -167,6 +167,7 @@ library
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Byron
       Cardano.Wallet.Primitive.AddressDerivation.Icarus
+      Cardano.Wallet.Primitive.AddressDerivation.MintBurn
       Cardano.Wallet.Primitive.AddressDerivation.Shared
       Cardano.Wallet.Primitive.AddressDerivation.SharedKey
       Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -359,6 +360,7 @@ test-suite unit
       Cardano.Wallet.NetworkSpec
       Cardano.Wallet.Primitive.AddressDerivation.ByronSpec
       Cardano.Wallet.Primitive.AddressDerivation.IcarusSpec
+      Cardano.Wallet.Primitive.AddressDerivation.MintBurnSpec
       Cardano.Wallet.Primitive.AddressDerivationSpec
       Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
       Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
