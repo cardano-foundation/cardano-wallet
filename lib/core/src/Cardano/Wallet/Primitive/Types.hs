@@ -56,6 +56,7 @@ module Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , SlottingParameters (..)
     , ProtocolParameters (..)
+    , MinimumUTxOValue (..)
     , TxParameters (..)
     , EraInfo (..)
     , emptyEraInfo
@@ -990,6 +991,23 @@ instance Buildable (EraInfo EpochNo) where
         boundF (Just e) = " from " <> build e
         boundF Nothing = " <not started>"
 
+data MinimumUTxOValue
+    -- | In Shelley, tx outputs could only be created if they were larger than
+    -- this `MinimumUTxOValue`.
+    = MinimumUTxOValue Coin
+
+    -- | With Alonzo, `MinimumUTxOValue` is replaced by an ada-cost per word of
+    -- the output. Note that the alonzo ledger assumes fixed sizes for address
+    -- and coin, so the size is not the serialized size exactly.
+    | MinimumUTxOValueCostPerWord Coin
+    deriving (Eq, Generic, Show)
+
+instance NFData MinimumUTxOValue
+
+instance Buildable MinimumUTxOValue where
+    build (MinimumUTxOValue c) = "constant " <> build c
+    build (MinimumUTxOValueCostPerWord c) = build c <> " per word"
+
 -- | Protocol parameters that can be changed through the update system.
 --
 data ProtocolParameters = ProtocolParameters
@@ -1004,7 +1022,7 @@ data ProtocolParameters = ProtocolParameters
         -- ^ The current desired number of stakepools in the network.
         -- Also known as k parameter.
     , minimumUTxOvalue
-        :: Coin
+        :: MinimumUTxOValue
         -- ^ The minimum UTxO value.
     , stakeKeyDeposit
         :: Coin

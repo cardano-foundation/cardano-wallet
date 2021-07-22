@@ -10,6 +10,8 @@ module Cardano.Wallet.Shelley.Compatibility.LedgerSpec
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types
+    ( MinimumUTxOValue (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -56,6 +58,8 @@ import Test.QuickCheck
     , conjoin
     , counterexample
     , cover
+    , genericShrink
+    , oneof
     , property
     , withMaxSuccess
     , (=/=)
@@ -103,18 +107,25 @@ spec = describe "Cardano.Wallet.Shelley.Compatibility.LedgerSpec" $
 --------------------------------------------------------------------------------
 
 prop_computeMinimumAdaQuantity_forCoin
-    :: ProtocolMinimum Coin
+    :: MinimumUTxOValue
     -> Coin
     -> Property
-prop_computeMinimumAdaQuantity_forCoin (ProtocolMinimum pm) c =
-    computeMinimumAdaQuantityInternal pm (TokenBundle.fromCoin c) === pm
+prop_computeMinimumAdaQuantity_forCoin minParam c =
+    computeMinimumAdaQuantityInternal
+        minParam
+        (TokenBundle.fromCoin c)
+        === expectedMinimumAdaQuantity
+  where
+    expectedMinimumAdaQuantity = case minParam of
+        MinimumUTxOValue c' -> c'
+        MinimumUTxOValueCostPerWord (Coin x) -> Coin $ x * 29
 
 prop_computeMinimumAdaQuantity_agnosticToAdaQuantity
     :: Blind TokenBundle
-    -> ProtocolMinimum Coin
+    -> MinimumUTxOValue
     -> Property
 prop_computeMinimumAdaQuantity_agnosticToAdaQuantity
-    (Blind bundle) (ProtocolMinimum protocolMinimum) =
+    (Blind bundle) minParam =
         counterexample counterexampleText $ conjoin
             [ compute bundle === compute bundleWithCoinMinimized
             , compute bundle === compute bundleWithCoinMaximized
@@ -123,7 +134,7 @@ prop_computeMinimumAdaQuantity_agnosticToAdaQuantity
   where
     bundleWithCoinMinimized = TokenBundle.setCoin bundle minBound
     bundleWithCoinMaximized = TokenBundle.setCoin bundle maxBound
-    compute = computeMinimumAdaQuantityInternal protocolMinimum
+    compute = computeMinimumAdaQuantityInternal minParam
     counterexampleText = unlines
         [ "bundle:"
         , pretty (Flat bundle)
@@ -135,10 +146,10 @@ prop_computeMinimumAdaQuantity_agnosticToAdaQuantity
 
 prop_computeMinimumAdaQuantity_agnosticToAssetQuantities
     :: Blind TokenBundle
-    -> ProtocolMinimum Coin
+    -> MinimumUTxOValue
     -> Property
 prop_computeMinimumAdaQuantity_agnosticToAssetQuantities
-    (Blind bundle) (ProtocolMinimum protocolMinimum) =
+    (Blind bundle) minVal =
         checkCoverage $
         cover 40 (assetCount >= 1)
             "Token bundle has at least 1 non-ada asset" $
@@ -161,7 +172,7 @@ prop_computeMinimumAdaQuantity_agnosticToAssetQuantities
     assetCountMaximized = Set.size $ TokenBundle.getAssets bundleMaximized
     bundleMinimized = bundle `setAllQuantitiesTo` txOutMinTokenQuantity
     bundleMaximized = bundle `setAllQuantitiesTo` txOutMaxTokenQuantity
-    compute = computeMinimumAdaQuantityInternal protocolMinimum
+    compute = computeMinimumAdaQuantityInternal minVal
     setAllQuantitiesTo = flip (adjustAllQuantities . const)
     counterexampleText = unlines
         [ "bundle:"
@@ -189,7 +200,7 @@ unit_computeMinimumAdaQuantity_fixedSizeBundle
     -> Property
 unit_computeMinimumAdaQuantity_fixedSizeBundle bundle expectation =
     withMaxSuccess 100 $
-    computeMinimumAdaQuantityInternal protocolMinimum bundle === expectation
+    computeMinimumAdaQuantityInternal (MinimumUTxOValue protocolMinimum) bundle === expectation
   where
     protocolMinimum = Coin 1_000_000
 
@@ -243,9 +254,6 @@ ledgerRoundtrip proxy = it title $
 -- Adaptors
 --------------------------------------------------------------------------------
 
-newtype ProtocolMinimum a = ProtocolMinimum { unProtocolMinimum :: a }
-    deriving (Eq, Show)
-
 newtype FixedSize8 a = FixedSize8 { unFixedSize8 :: a }
     deriving (Eq, Show)
 
@@ -265,18 +273,14 @@ instance Arbitrary Coin where
     arbitrary = genCoinFullRange
     shrink = shrinkCoinFullRange
 
-instance Arbitrary (ProtocolMinimum Coin) where
-    arbitrary
-        = ProtocolMinimum
-        . Coin
-        . (* 1_000_000)
-        . fromIntegral @Int @Word64
-        . getPositive <$> arbitrary
-    shrink
-        = fmap (ProtocolMinimum . Coin)
-        . shrink
-        . unCoin
-        . unProtocolMinimum
+instance Arbitrary MinimumUTxOValue where
+    arbitrary = oneof
+        [ MinimumUTxOValue . Coin . (* 1_000_000) <$> genSmallWord
+        , MinimumUTxOValueCostPerWord . Coin <$> genSmallWord
+        ]
+      where
+      genSmallWord = fromIntegral @Int @Word64 . getPositive <$> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRange

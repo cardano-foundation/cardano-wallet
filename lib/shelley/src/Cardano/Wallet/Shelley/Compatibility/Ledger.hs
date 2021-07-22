@@ -21,6 +21,7 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
     , toLedgerTokenPolicyId
     , toLedgerTokenName
     , toLedgerTokenQuantity
+    , toAlonzoTxOut
 
       -- * Conversions from ledger specification types to wallet types
     , toWalletCoin
@@ -42,6 +43,10 @@ import Prelude
 
 import Cardano.Crypto.Hash
     ( hashFromBytes, hashToBytes )
+import Cardano.Wallet.Primitive.Types
+    ( MinimumUTxOValue (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -54,6 +59,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxOut (..) )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -69,10 +76,16 @@ import GHC.Stack
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto )
 
+import qualified Cardano.Ledger.Address as Ledger
+
+import qualified Cardano.Ledger.Alonzo as Alonzo
+import qualified Cardano.Ledger.Alonzo.Rules.Utxo as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.ShelleyMA.Rules.Utxo as Ledger
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Shelley.Spec.Ledger.API as Ledger
@@ -85,7 +98,7 @@ import qualified Shelley.Spec.Ledger.API as Ledger
 --   for a token map.
 --
 computeMinimumAdaQuantity
-    :: Coin
+    :: MinimumUTxOValue
     -- ^ The absolute minimum ada quantity specified by the protocol.
     -> TokenMap
     -- ^ The token map to evaluate.
@@ -253,6 +266,28 @@ toWalletTokenQuantity q
             ]
 
 --------------------------------------------------------------------------------
+-- Conversions for 'Address'
+--------------------------------------------------------------------------------
+
+instance Convert Address (Ledger.Addr StandardCrypto) where
+    toLedger (Address bytes ) = case Ledger.deserialiseAddr bytes of
+        Just addr -> addr
+        Nothing -> error $ unwords
+            [ "toLedger @Address: Invalid address:"
+            , pretty (Address bytes)
+            ]
+    toWallet = Address . Ledger.serialiseAddr
+
+toAlonzoTxOut
+    :: TxOut
+    -> Alonzo.TxOut (Alonzo.AlonzoEra StandardCrypto)
+toAlonzoTxOut (TxOut addr bundle) =
+    Alonzo.TxOut
+        (toLedger addr)
+        (toLedger bundle)
+        Ledger.SNothing
+
+--------------------------------------------------------------------------------
 -- Internal functions
 --------------------------------------------------------------------------------
 
@@ -269,15 +304,36 @@ toWalletTokenQuantity q
 --    - 'prop_computeMinimumAdaQuantity_agnosticToAdaQuantity';
 --    - 'prop_computeMinimumAdaQuantity_agnosticToAssetQuantities'.
 --
+-- TODO: [ADP-954] Datum hashes are currently not taken into account.
 computeMinimumAdaQuantityInternal
-    :: Coin
+    :: MinimumUTxOValue
     -- ^ The absolute minimum ada quantity specified by the protocol.
     -> TokenBundle
     -- ^ The token bundle to evaluate.
     -> Coin
     -- ^ The minimum ada quantity for the given token bundle.
-computeMinimumAdaQuantityInternal protocolMinimum bundle =
+computeMinimumAdaQuantityInternal (MinimumUTxOValue protocolMinimum) bundle =
     toWalletCoin $
         Ledger.scaledMinDeposit
             (toLedgerTokenBundle bundle)
             (toLedgerCoin protocolMinimum)
+computeMinimumAdaQuantityInternal (MinimumUTxOValueCostPerWord (Coin perWord)) bundle =
+    let
+        outputSize = Alonzo.utxoEntrySize (toAlonzoTxOut (TxOut dummyAddr bundle))
+    in
+        Coin $ fromIntegral outputSize * perWord
+  where
+    -- We just need an address the ledger can deserialize. It doesn't actually
+    -- use the length of it.
+    --
+    -- This should not change (if Alonzo is already in-use, it would have to be
+    -- changed in a new era).
+    --
+    -- Regardless, the dummy address is a payment / enterprise address -- can't
+    -- get any shorter than that. The integration tests use longer addresses.
+    -- They should break if this were to be wrong.
+    --
+    -- Because the ledger function is pure and not taking a network, passing in
+    -- a mainnet network should be fine regardless of network.
+    dummyAddr = Address $ BS.pack $ 97 : replicate 28 0
+

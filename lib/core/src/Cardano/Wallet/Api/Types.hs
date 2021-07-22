@@ -272,6 +272,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , GenesisParameters (..)
+    , MinimumUTxOValue (..)
     , NetworkParameters (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
@@ -298,6 +299,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SerialisedTx (..)
+    , TxConstraints (..)
     , TxIn (..)
     , TxMetadata
     , TxStatus (..)
@@ -422,6 +424,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Codec.Binary.Bech32 as Bech32
@@ -1004,9 +1007,10 @@ data ApiEraInfo = ApiEraInfo
 toApiNetworkParameters
     :: Monad m
     => NetworkParameters
+    -> TxConstraints
     -> (EpochNo -> m ApiEpochInfo)
     -> m ApiNetworkParameters
-toApiNetworkParameters (NetworkParameters gp sp pp) toEpochInfo = do
+toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = do
     byron <- traverse toEpochInfo (pp ^. #eras . #byron)
     shelley <- traverse toEpochInfo (pp ^. #eras . #shelley)
     allegra <- traverse toEpochInfo (pp ^. #eras . #allegra)
@@ -1029,12 +1033,16 @@ toApiNetworkParameters (NetworkParameters gp sp pp) toEpochInfo = do
             $ unDecentralizationLevel
             $ view #decentralizationLevel pp
         , desiredPoolNumber = view #desiredNumberOfStakePools pp
-        , minimumUtxoValue = Quantity
-            $ fromIntegral
-            $ unCoin
-            $ view #minimumUTxOvalue pp
+        , minimumUtxoValue = toApiCoin $ case (view #minimumUTxOvalue pp) of
+            MinimumUTxOValue c ->
+                c
+            MinimumUTxOValueCostPerWord _perWord ->
+                txOutputMinimumAdaQuantity txConstraints TokenMap.empty
         , eras = apiEras
         }
+  where
+    toApiCoin = Quantity . fromIntegral . unCoin
+
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
