@@ -63,6 +63,7 @@ import Test.Integration.Framework.DSL
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyRandomWalletWithPasswd
+    , encryptWalletPasswordWithScrypt
     , eventually
     , expectErrorMessage
     , expectField
@@ -78,6 +79,7 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , genMnemonics
     , getFromResponse
+    , getSaltFromHexScryptPassword
     , json
     , listFilteredByronWallets
     , postByronWallet
@@ -500,3 +502,8 @@ spec = describe "BYRON_WALLETS" $ do
         verify r
             [ expectResponseCode HTTP.status204
             ]
+
+    it "BYRON_UPDATE_PASS_08 - Check DSL scrypt" $ \_ctx -> runResourceT $ do
+        let Just salt = getSaltFromHexScryptPassword fixturePassphraseEncrypted
+        encryptWalletPasswordWithScrypt fixturePassphrase salt
+             `shouldBe` fixturePassphraseEncrypted

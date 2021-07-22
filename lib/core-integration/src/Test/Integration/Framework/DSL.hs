@@ -164,6 +164,8 @@ module Test.Integration.Framework.DSL
     , hexText
     , fromHexText
     , accPubKeyFromMnemonics
+    , encryptWalletPasswordWithScrypt
+    , getSaltFromHexScryptPassword
 
     -- * Delegation helpers
     , notDelegating
@@ -329,6 +331,8 @@ import Data.Aeson
     ( FromJSON, ToJSON, Value, (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Extra
@@ -1172,19 +1176,44 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
             $ hex
             $ Byron.getKey
             $ Byron.generateKeyFromSeed seed pwd
-    pwdH <- liftIO $ T.decodeUtf8 . hex @ByteString <$> scrypt pwd
+    pwdH <- encryptWalletPasswordWithScrypt rawPwd
+        <$> liftIO genSaltForScrypt
     emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
-  where
-    scrypt = encryptPasswordWithScrypt
-        . CBOR.toStrictByteString
-        . CBOR.encodeBytes
-        . BA.convert
 
-encryptPasswordWithScrypt :: (BA.ByteArrayAccess a, BA.ByteArray b) => a -> IO b
-encryptPasswordWithScrypt pwd = Scrypt.generate params pwd <$> genSalt
+encryptWalletPasswordWithScrypt :: BA.ByteArrayAccess s => Text -> s -> Text
+encryptWalletPasswordWithScrypt pwd = T.decodeUtf8 . hex @ByteString
+    . encryptPasswordWithScrypt (preparePassphraseForScrypt $ T.encodeUtf8 pwd)
+
+preparePassphraseForScrypt :: BA.ByteArrayAccess b => b -> ByteString
+preparePassphraseForScrypt = CBOR.toStrictByteString . CBOR.encodeBytes . BA.convert
+
+genSaltForScrypt :: IO ByteString
+genSaltForScrypt = getEntropy 32
+
+encryptPasswordWithScrypt
+    :: (BA.ByteArrayAccess pwd, BA.ByteArrayAccess salt)
+    => pwd -> salt -> ByteString
+encryptPasswordWithScrypt pwd salt = B8.intercalate "|"
+    [ showBS logN, showBS r, showBS p
+    , convertToBase Base64 salt, convertToBase Base64 passHash]
   where
-    params = Scrypt.Parameters 14 8 1 64
-    genSalt = getEntropy @ByteString 32
+    passHash = Scrypt.generate params pwd salt :: ByteString
+
+    params = Scrypt.Parameters ((2 :: Word64) ^ logN) r p 64
+    logN = 14
+    r = 8
+    p = 1
+
+    showBS = B8.pack . show
+
+getSaltFromHexScryptPassword :: Text -> Maybe ByteString
+getSaltFromHexScryptPassword = either (const Nothing) getSaltFromScryptPassword
+    . convertFromBase Base64 . T.encodeUtf8
+
+getSaltFromScryptPassword :: ByteString -> Maybe ByteString
+getSaltFromScryptPassword pwd = case B8.split '|' pwd of
+    [_logN, _r, _p, salt, _passHash] -> Just salt
+    _ -> Nothing
 
 postWallet'
     :: (MonadIO m, MonadUnliftIO m)
