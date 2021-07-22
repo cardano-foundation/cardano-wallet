@@ -442,6 +442,7 @@ data ClusterEra
     | ShelleyHardFork
     | AllegraHardFork
     | MaryHardFork
+    | AlonzoHardFork
     deriving (Show, Read, Eq, Ord, Bounded, Enum)
 
 -- | Convert @ClusterEra@ to a @ApiEra@.
@@ -451,6 +452,7 @@ clusterToApiEra = \case
     ShelleyHardFork -> ApiShelley
     AllegraHardFork -> ApiAllegra
     MaryHardFork -> ApiMary
+    AlonzoHardFork -> ApiAlonzo
 
 -- | Defaults to the latest era.
 clusterEraFromEnv :: IO ClusterEra
@@ -463,6 +465,7 @@ clusterEraFromEnv =
         "shelley" -> pure ShelleyHardFork
         "allegra" -> pure AllegraHardFork
         "mary" -> pure MaryHardFork
+        "alonzo" -> pure AlonzoHardFork
         _ -> die $ var ++ ": unknown era"
     withDefault = fromMaybe maxBound
 

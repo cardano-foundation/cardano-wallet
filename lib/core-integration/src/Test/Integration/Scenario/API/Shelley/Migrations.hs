@@ -19,7 +19,8 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..)
+    ( ApiEra (..)
+    , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
@@ -90,7 +91,6 @@ import Test.Integration.Framework.DSL
     , icarusAddresses
     , json
     , listAddresses
-    , minUTxOValue
     , postWallet
     , randomAddresses
     , request
@@ -222,8 +222,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- small enough to make the migration algorithm categorize the
             -- entry as a freerider.
 
-            let minUTxOValue' = fromIntegral . minUTxOValue . _mainEra $ ctx
-            let perEntryAdaQuantity = Coin (2_100_000 + minUTxOValue')
+            let perEntryAdaQuantity = Coin $ case _mainEra ctx of
+                    e | e >= ApiAlonzo -> 3_100_000
+                      | otherwise      -> 3_300_000
+
             let perEntryAssetCount = 10
             let batchSize = 20
             liftIO $ _mintSeaHorseAssets ctx
