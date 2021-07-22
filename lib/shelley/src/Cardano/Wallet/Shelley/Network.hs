@@ -43,6 +43,12 @@ module Cardano.Wallet.Shelley.Network
 
 import Prelude
 
+import Cardano.Api
+    ( AnyCardanoEra (..)
+    , CardanoEra (..)
+    , NodeToClientVersion (..)
+    , SlotNo (..)
+    )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -64,9 +70,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance )
 import Cardano.Wallet.Shelley.Compatibility
-    ( AnyCardanoEra (..)
-    , CardanoEra (..)
-    , StandardCrypto
+    ( StandardCrypto
+    , fromAlonzoPParams
     , fromCardanoHash
     , fromChainHash
     , fromNonMyopicMemberRewards
@@ -167,6 +172,10 @@ import Ouroboros.Consensus.Cardano.Block
     , CardanoEras
     , CodecConfig (..)
     , GenTx (..)
+    , StandardAllegra
+    , StandardAlonzo
+    , StandardMary
+    , StandardShelley
     )
 import Ouroboros.Consensus.HardFork.Combinator
     ( EraIndex (..), QueryAnytime (..), QueryHardFork (..), eraIndexToInt )
@@ -184,7 +193,6 @@ import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..), getCompactGenesis )
 import Ouroboros.Network.Block
     ( Point
-    , SlotNo (..)
     , Tip (..)
     , blockPoint
     , genesisPoint
@@ -221,7 +229,6 @@ import Ouroboros.Network.NodeToClient
     , LocalAddress
     , NetworkConnectTracers (..)
     , NodeToClientProtocols (..)
-    , NodeToClientVersion
     , NodeToClientVersionData (..)
     , connectTo
     , localSnocket
@@ -255,7 +262,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( Handler (..), IOException )
 
-import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Wallet.Primitive.SyncProgress as SyncProgress
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -525,8 +532,12 @@ withNetworkLayerBase tr np conn (versionData, _) tol action = do
             (fromPoolDistr <$> LSQry Shelley.GetStakeDistribution)
 
         getNOpt :: LSQ (CardanoBlock StandardCrypto) IO (Maybe Int)
-        getNOpt = shelleyBased $
-            optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams
+        getNOpt = onAnyEra
+            (pure Nothing)
+            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
+            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
+            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
+            (Just . fromIntegral . Alonzo._nOpt <$> LSQry Shelley.GetCurrentPParams)
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
@@ -775,10 +786,17 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate onE
                 (pure $ W.slottingParameters np)
                 ((slottingParametersFromGenesis . getCompactGenesis)
                     <$> LSQry Shelley.GetGenesisConfig)
-            pp <- byronOrShelleyBased
+
+            pp <- onAnyEra
                 (protocolParametersFromUpdateState eraBounds
                     <$> LSQry Byron.GetUpdateInterfaceState)
                 (fromShelleyPParams eraBounds
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (fromShelleyPParams eraBounds
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (fromShelleyPParams eraBounds
+                    <$> LSQry Shelley.GetCurrentPParams)
+                (fromAlonzoPParams eraBounds
                     <$> LSQry Shelley.GetCurrentPParams)
             return (pp, sp)
 
@@ -792,10 +810,10 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate onE
     -- By blocking (with `send`) we ensure we don't queue multiple queries.
     let onTipUpdate _tip = do
             let qry = (,,) <$> queryParams <*> queryInterpreter <*> currentEra
-            (pparams, int, era) <- localStateQueryQ `send` (SomeLSQ qry)
+            (pparams, int, e) <- localStateQueryQ `send` (SomeLSQ qry)
             onPParamsUpdate' pparams
             onInterpreterUpdate int
-            onEraUpdate era
+            onEraUpdate e
 
     link =<< async (observeForever (readTVar tipVar) onTipUpdate)
 
@@ -1338,22 +1356,39 @@ observeForever readVal action = go Nothing
 -- LSQ Helpers
 --
 
--- Create a local state query specific to the current era — either Byron or one
--- of the Shelley-based eras (Shelley, Allegra, Mary).
+byronOrShelleyBased
+    :: LSQ Byron.ByronBlock m a
+    -> (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    -> LSQ (CardanoBlock StandardCrypto) m a
+byronOrShelleyBased onByron onShelleyBased = onAnyEra
+    onByron
+    onShelleyBased
+    onShelleyBased
+    onShelleyBased
+    onShelleyBased
+
+-- | Create a local state query specific to the each era.
 --
 -- This combinator treats @MismatchEraInfo@ as impossible, which is true if the
 -- @LSQEra@ value the @LSQ@ interpreter uses always matches the era of the
 -- acquired point.
-byronOrShelleyBased
+--
+-- Where possible, the more convenient @shelleyBased@ or @byronOrShelleyBased@
+-- should be used. This more raw helper was added to simplify dealing with
+-- @PParams@ in alonzo.
+onAnyEra
     :: LSQ Byron.ByronBlock m a
-    -> (forall shelleyEra. WalletSupportedShelleyEra (shelleyEra StandardCrypto) => LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    -> LSQ (Shelley.ShelleyBlock StandardShelley) m a
+    -> LSQ (Shelley.ShelleyBlock StandardAllegra) m a
+    -> LSQ (Shelley.ShelleyBlock StandardMary) m a
+    -> LSQ (Shelley.ShelleyBlock StandardAlonzo) m a
     -> LSQ (CardanoBlock StandardCrypto) m a
-byronOrShelleyBased onByron onShelleyBased = currentEra >>= \case
+onAnyEra onByron onShelley onAllegra onMary onAlonzo = currentEra >>= \case
     AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
-    AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelleyBased
-    AnyCardanoEra AllegraEra -> mapQuery QueryIfCurrentAllegra onShelleyBased
-    AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onShelleyBased
-    AnyCardanoEra AlonzoEra -> error "todo: QueryIfCurrentAlonzo"
+    AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelley
+    AnyCardanoEra AllegraEra -> mapQuery QueryIfCurrentAllegra onAllegra
+    AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onMary
+    AnyCardanoEra AlonzoEra -> mapQuery QueryIfCurrentAlonzo onAlonzo
   where
     mapQuery
         :: (forall r. BlockQuery block1 r
@@ -1368,9 +1403,10 @@ byronOrShelleyBased onByron onShelleyBased = currentEra >>= \case
     unwrap = either (error "impossible: byronOrShelleyBased query resulted in an \
         \era mismatch") id
 
+
 -- | Return Nothings in Byron, or @Just result@ in Shelley.
 shelleyBased
-    :: (forall shelleyEra. WalletSupportedShelleyEra (shelleyEra StandardCrypto) => LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    :: (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
     -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
 shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron
@@ -1401,13 +1437,5 @@ eraIndexToAnyCardanoEra index =
         1 -> AnyCardanoEra ShelleyEra
         2 -> AnyCardanoEra AllegraEra
         3 -> AnyCardanoEra MaryEra
+        4 -> AnyCardanoEra AlonzoEra
         _ -> error "eraIndexToAnyCardanoEra: unknown era"
-
--- | Workaround to deal with @GetCurrentPParams@ now returning a
--- 'SL.Core.PParams era' type family application, instead of a concrete datatype
--- @SL.PParams era@ abstracted over @era@.
---
--- If we continue getting problems like this, we should maybe switch to rely
--- more on cardano-api.
-type WalletSupportedShelleyEra era =
-    (SL.Core.PParams era ~ SL.PParams era)
