@@ -6,6 +6,7 @@
 
 # Developer Guides
 
+- [Useful Resources and Design Documents](https://github.com/input-output-hk/cardano-wallet/wiki/Resources)
 - [Coding Standards](https://github.com/input-output-hk/adrestia/wiki/Coding-Standards)
 - [Building](https://github.com/input-output-hk/cardano-wallet/wiki/Building)
 - [Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
