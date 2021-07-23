@@ -513,9 +513,9 @@ deriveRewardAccount pwd rootPrv =
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
 
 hashVerificationKey
-    :: WalletKey k
+    :: WalletKey key
     => KeyRole
-    -> k d XPub
+    -> key depth XPub
     -> KeyHash
 hashVerificationKey keyRole =
     KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
