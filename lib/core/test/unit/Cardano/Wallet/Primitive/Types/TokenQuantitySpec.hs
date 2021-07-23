@@ -15,7 +15,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityMixed, shrinkTokenQuantityMixed )
+    ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Proxy
@@ -194,5 +194,5 @@ instance Arbitrary TokenQuantity where
     -- We test with token quantities of a variety of magnitudes to ensure that
     -- roundtrip serialization works even with large values, both positive and
     -- negative.
-    arbitrary = genTokenQuantityMixed
-    shrink = shrinkTokenQuantityMixed
+    arbitrary = genTokenQuantityFullRange
+    shrink = shrinkTokenQuantityFullRange

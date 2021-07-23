@@ -39,10 +39,10 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySmall
-    , genTokenQuantitySmallPositive
-    , shrinkTokenQuantitySmall
-    , shrinkTokenQuantitySmallPositive
+    ( genTokenQuantity
+    , genTokenQuantityPositive
+    , shrinkTokenQuantity
+    , shrinkTokenQuantityPositive
     )
 import Control.Monad
     ( replicateM )
@@ -1030,7 +1030,7 @@ instance Arbitrary (Large TokenMap) where
       where
         genAssetQuantity = (,)
             <$> genAssetIdLargeRange
-            <*> genTokenQuantitySmallPositive
+            <*> genTokenQuantityPositive
     -- No shrinking
 
 instance Arbitrary TokenName where
@@ -1050,9 +1050,9 @@ instance Arbitrary TokenQuantity where
     -- The generation of zero-valued tokens is useful, as it allows us to
     -- verify that the token map invariant (that a map contains no
     -- zero-valued tokens) is maintained.
-    arbitrary = genTokenQuantitySmall
-    shrink = shrinkTokenQuantitySmall
+    arbitrary = genTokenQuantity
+    shrink = shrinkTokenQuantity
 
 instance Arbitrary (Positive TokenQuantity) where
-    arbitrary = Positive <$> genTokenQuantitySmallPositive
-    shrink = fmap Positive . shrinkTokenQuantitySmallPositive . getPositive
+    arbitrary = Positive <$> genTokenQuantityPositive
+    shrink = fmap Positive . shrinkTokenQuantityPositive . getPositive

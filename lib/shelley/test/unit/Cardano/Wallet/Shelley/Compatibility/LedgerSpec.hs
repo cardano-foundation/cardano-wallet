@@ -28,7 +28,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityMixed, shrinkTokenQuantityMixed )
+    ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -303,5 +303,5 @@ instance Arbitrary TokenPolicyId where
     -- No shrinking
 
 instance Arbitrary TokenQuantity where
-    arbitrary = genTokenQuantityMixed
-    shrink = shrinkTokenQuantityMixed
+    arbitrary = genTokenQuantityFullRange
+    shrink = shrinkTokenQuantityFullRange

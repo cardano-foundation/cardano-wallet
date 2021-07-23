@@ -30,7 +30,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     , tokenPolicies
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySized, genTokenQuantitySmall, shrinkTokenQuantitySmall )
+    ( genTokenQuantity, shrinkTokenQuantity )
 import Control.Monad
     ( replicateM )
 import Data.List
@@ -113,7 +113,7 @@ genTokenMapSized = sized $ \size -> do
   where
     genAssetQuantity = (,)
         <$> genAssetIdSized
-        <*> genTokenQuantitySized
+        <*> genTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Token maps with assets and quantities chosen from small ranges
@@ -130,7 +130,7 @@ genTokenMapSmallRange = do
   where
     genAssetQuantity = (,)
         <$> genAssetIdSmallRange
-        <*> genTokenQuantitySmall
+        <*> genTokenQuantity
 
 shrinkTokenMapSmallRange :: TokenMap -> [TokenMap]
 shrinkTokenMapSmallRange
@@ -140,7 +140,7 @@ shrinkTokenMapSmallRange
   where
     shrinkAssetQuantity (a, q) = shrinkInterleaved
         (a, shrinkAssetIdSmallRange)
-        (q, shrinkTokenQuantitySmall)
+        (q, shrinkTokenQuantity)
 
 --------------------------------------------------------------------------------
 -- Filtering functions

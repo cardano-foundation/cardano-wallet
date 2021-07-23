@@ -20,18 +20,15 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityMixed
-    , shrinkTokenQuantityMixed
-    , tokenQuantityLarge
-    , tokenQuantityMassive
-    , tokenQuantitySmall
-    )
+    ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Time.Clock.POSIX
     ( POSIXTime )
 import Data.Typeable
     ( Typeable, typeRep )
+import Data.Word
+    ( Word64 )
 import Data.Word.Odd
     ( Word31 )
 import Database.Persist.Class
@@ -49,8 +46,6 @@ import Test.QuickCheck
     , shrinkIntegral
     , (===)
     )
-
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 
 spec :: Spec
 spec = do
@@ -78,19 +73,18 @@ persistRoundtrip proxy = it
 
 prop_checkTokenQuantityCoverage :: TokenQuantity -> Property
 prop_checkTokenQuantityCoverage q = checkCoverage
-    $ cover 2 (TokenQuantity.isZero q)
-        "token quantity is zero"
-    $ cover 2 isSmall
-        "token quantity is small"
-    $ cover 2 isLarge
-        "token quantity is large"
-    $ cover 2 isMassive
-        "token quantity is massive"
+    $ cover 2 (q == minTokenQuantity)
+        "token quantity is smallest allowable"
+    $ cover 2 (q == maxTokenQuantity)
+        "token quantity is greatest allowable"
+    $ cover 2 (q > minTokenQuantity && q < maxTokenQuantity)
+        "token quantity is between smallest and greatest"
     True
   where
-    isSmall   = TokenQuantity    0 < q && q <= tokenQuantitySmall
-    isLarge   = tokenQuantitySmall < q && q <= tokenQuantityLarge
-    isMassive = tokenQuantityLarge < q && q <= tokenQuantityMassive
+    minTokenQuantity :: TokenQuantity
+    minTokenQuantity = TokenQuantity 0
+    maxTokenQuantity :: TokenQuantity
+    maxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
@@ -118,5 +112,5 @@ instance Arbitrary Word31 where
     shrink = shrinkIntegral
 
 instance Arbitrary TokenQuantity where
-    arbitrary = genTokenQuantityMixed
-    shrink = shrinkTokenQuantityMixed
+    arbitrary = genTokenQuantityFullRange
+    shrink = shrinkTokenQuantityFullRange

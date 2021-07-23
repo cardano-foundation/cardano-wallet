@@ -94,7 +94,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
+    ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
@@ -3512,15 +3512,15 @@ genTokenMapLarge = do
   where
     genAssetQuantity = (,)
         <$> genAssetIdLargeRange
-        <*> genTokenQuantitySmallPositive
+        <*> genTokenQuantityPositive
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
     shrink = shrinkTokenMapSmallRange
 
 instance Arbitrary TokenQuantity where
-    arbitrary = genTokenQuantitySmallPositive
-    shrink = shrinkTokenQuantitySmallPositive
+    arbitrary = genTokenQuantityPositive
+    shrink = shrinkTokenQuantityPositive
 
 instance Arbitrary TxOut where
     arbitrary = genTxOutSmallRange
