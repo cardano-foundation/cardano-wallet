@@ -35,15 +35,16 @@ import Cardano.Crypto.Wallet
 import Cardano.Crypto.Wallet.Types
     ( DerivationScheme (DerivationScheme2) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (PolicyK, PurposeK, RootK)
-    , DerivationType (Hardened)
-    , Index (getIndex)
-    , Index (Index)
-    , Passphrase (Passphrase)
-    , WalletKey (publicKey)
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Passphrase (..)
+    , WalletKey
+    , getIndex
     , getRawKey
     , hashVerificationKey
     , liftRawKey
+    , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
