@@ -72,7 +72,10 @@ genTokenQuantityFullRange = frequency
     maxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
 
 shrinkTokenQuantityFullRange :: TokenQuantity -> [TokenQuantity]
-shrinkTokenQuantityFullRange = shrinkTokenQuantity
+shrinkTokenQuantityFullRange =
+    -- Given that we may have a large value, we limit the number of results
+    -- returned in order to avoid processing long lists of shrunken values.
+    take 8 . shrinkTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Internal functions
