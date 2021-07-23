@@ -166,9 +166,19 @@ import qualified Data.Text.Encoding as T
                                 HD Hierarchy
 -------------------------------------------------------------------------------}
 
--- | Key Depth in the derivation path, according to BIP-0044 / CIP-1852
+-- | Typically used as a phantom type parameter, a witness to the type of the
+-- key being used.
+--
+-- For example, @key 'RootK XPrv@, represents the private key at the root of the
+-- HD hierarchy.
+--
+-- According to BIP-0044 / CIP-1852, we have the following keys in our HD
+-- hierarchy:
 --
 -- @m | purpose' | cointype' | account' | role | address@
+--
+-- Plus, we also have script keys (which are used in shared wallets) and policy
+-- keys (which are used in minting and burning).
 data Depth
     = RootK
     | PurposeK
