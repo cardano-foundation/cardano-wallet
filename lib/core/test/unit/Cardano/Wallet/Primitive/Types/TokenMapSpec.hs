@@ -32,9 +32,9 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId, mkTokenName )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenNameSmallRange
-    , genTokenPolicyIdSmallRange
+    , genTokenPolicyId
     , shrinkTokenNameSmallRange
-    , shrinkTokenPolicyIdSmallRange
+    , shrinkTokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
@@ -1038,8 +1038,8 @@ instance Arbitrary TokenName where
     shrink = shrinkTokenNameSmallRange
 
 instance Arbitrary TokenPolicyId where
-    arbitrary = genTokenPolicyIdSmallRange
-    shrink = shrinkTokenPolicyIdSmallRange
+    arbitrary = genTokenPolicyId
+    shrink = shrinkTokenPolicyId
 
 instance Arbitrary TokenQuantity where
     -- We generate small token quantities in order to increase the chance of

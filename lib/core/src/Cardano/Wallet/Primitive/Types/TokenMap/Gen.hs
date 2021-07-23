@@ -22,12 +22,11 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     , genTokenNameSized
     , genTokenNameSmallRange
     , genTokenPolicyIdLargeRange
-    , genTokenPolicyIdSized
-    , genTokenPolicyIdSmallRange
+    , genTokenPolicyId
     , shrinkTokenNameSmallRange
-    , shrinkTokenPolicyIdSmallRange
+    , shrinkTokenPolicyId
+    , testTokenPolicyIds
     , tokenNamesMediumRange
-    , tokenPolicies
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantity, shrinkTokenQuantity )
@@ -75,7 +74,7 @@ genAssetIdSized = sized $ \size -> do
     --
     let sizeSquareRoot = max 1 $ ceiling $ sqrt $ fromIntegral @Int @Double size
     AssetId
-        <$> resize sizeSquareRoot genTokenPolicyIdSized
+        <$> resize sizeSquareRoot genTokenPolicyId
         <*> resize sizeSquareRoot genTokenNameSized
 
 --------------------------------------------------------------------------------
@@ -84,12 +83,12 @@ genAssetIdSized = sized $ \size -> do
 
 genAssetIdSmallRange :: Gen AssetId
 genAssetIdSmallRange = AssetId
-    <$> genTokenPolicyIdSmallRange
+    <$> genTokenPolicyId
     <*> genTokenNameSmallRange
 
 shrinkAssetIdSmallRange :: AssetId -> [AssetId]
 shrinkAssetIdSmallRange (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
-    (p, shrinkTokenPolicyIdSmallRange)
+    (p, shrinkTokenPolicyId)
     (t, shrinkTokenNameSmallRange)
 
 --------------------------------------------------------------------------------
@@ -155,5 +154,5 @@ instance Function AssetIdF where
 instance CoArbitrary AssetIdF where
     coarbitrary (AssetIdF AssetId{tokenName, tokenPolicyId}) genB = do
         let n = fromMaybe 0 (elemIndex tokenName tokenNamesMediumRange)
-        let m = fromMaybe 0 (elemIndex tokenPolicyId tokenPolicies)
+        let m = fromMaybe 0 (elemIndex tokenPolicyId testTokenPolicyIds)
         variant (n+m) genB

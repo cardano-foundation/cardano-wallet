@@ -3,15 +3,14 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     , genTokenNameLargeRange
     , genTokenNameMediumRange
     , genTokenNameSmallRange
-    , genTokenPolicyIdSized
+    , genTokenPolicyId
     , genTokenPolicyIdLargeRange
-    , genTokenPolicyIdSmallRange
     , mkTokenPolicyId
     , shrinkTokenNameSmallRange
-    , shrinkTokenPolicyIdSmallRange
+    , shrinkTokenPolicyId
+    , testTokenPolicyIds
     , tokenNamesMediumRange
     , tokenNamesSmallRange
-    , tokenPolicies
     ) where
 
 import Prelude
@@ -79,26 +78,15 @@ genTokenNameLargeRange = UnsafeTokenName . BS.pack <$> vector 32
 -- parameter
 --------------------------------------------------------------------------------
 
-genTokenPolicyIdSized :: Gen TokenPolicyId
-genTokenPolicyIdSized = sized $ \size ->
-    elements $ mkTokenPolicyId <$> take size mkTokenPolicyIdValidChars
+genTokenPolicyId :: Gen TokenPolicyId
+genTokenPolicyId = sized $ \n -> elements $ take (max 1 n) testTokenPolicyIds
 
---------------------------------------------------------------------------------
--- Token policy identifiers chosen from a small range (to allow collisions)
---------------------------------------------------------------------------------
-
-genTokenPolicyIdSmallRange :: Gen TokenPolicyId
-genTokenPolicyIdSmallRange = elements tokenPolicies
-
-shrinkTokenPolicyIdSmallRange :: TokenPolicyId -> [TokenPolicyId]
-shrinkTokenPolicyIdSmallRange x
-    | x == simplest = []
+shrinkTokenPolicyId :: TokenPolicyId -> [TokenPolicyId]
+shrinkTokenPolicyId i
+    | i == simplest = []
     | otherwise = [simplest]
   where
-    simplest = head tokenPolicies
-
-tokenPolicies :: [TokenPolicyId]
-tokenPolicies = mkTokenPolicyId <$> ['A' .. 'D']
+    simplest = head testTokenPolicyIds
 
 --------------------------------------------------------------------------------
 -- Token policy identifiers chosen from a large range (to minimize the risk of
@@ -111,6 +99,9 @@ genTokenPolicyIdLargeRange = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
 --------------------------------------------------------------------------------
 -- Internal utilities
 --------------------------------------------------------------------------------
+
+testTokenPolicyIds :: [TokenPolicyId]
+testTokenPolicyIds = mkTokenPolicyId <$> mkTokenPolicyIdValidChars
 
 -- The set of characters that can be passed to the 'mkTokenPolicyId' function.
 --
