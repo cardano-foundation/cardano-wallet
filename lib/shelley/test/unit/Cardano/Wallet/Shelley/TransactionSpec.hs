@@ -197,12 +197,21 @@ spec = do
             prop_decodeSignedShelleyTxRoundtrip Cardano.ShelleyBasedEraAllegra
         prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
+    -- Note:
+    --
+    -- In the tests below, the expected numbers of inputs are highly sensitive
+    -- to the size distribution of token bundles within generated transaction
+    -- outputs.
+    --
+    -- If these tests fail unexpectedly, it's a good idea to check whether or
+    -- not the distribution of generated token bundles has changed.
+    --
     estimateMaxInputsTests @ShelleyKey
-        [(1,114),(5,106),(10,101),(20,85),(50,32)]
+        [(1,114),(5,108),(10,103),(20,89),(50,37)]
     estimateMaxInputsTests @ByronKey
-        [(1,73),(5,67),(10,63),(20,52),(50,14)]
+        [(1,73),(5,69),(10,64),(20,54),(50,17)]
     estimateMaxInputsTests @IcarusKey
-        [(1,73),(5,67),(10,63),(20,52),(50,14)]
+        [(1,73),(5,69),(10,64),(20,54),(50,17)]
 
     describe "fee calculations" $ do
         let pp :: ProtocolParameters
@@ -763,7 +772,7 @@ instance Arbitrary Coin where
     shrink = shrinkCoinPositive
 
 instance Arbitrary TxOut where
-    arbitrary = TxOut addr <$> genTokenBundleSmallRange
+    arbitrary = TxOut addr <$> scale (`mod` 4) genTokenBundleSmallRange
       where
         addr = Address $ BS.pack (1:replicate 64 0)
 
