@@ -260,7 +260,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , mkTokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameSmallRange )
+    ( genTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SerialisedTx (..)
@@ -1953,7 +1953,7 @@ instance Arbitrary (ApiConstructTransaction t) where
 instance Arbitrary (ApiMintBurnData t) where
     arbitrary = ApiMintBurnData
         <$> arbitrary
-        <*> (ApiT <$> genTokenNameSmallRange)
+        <*> (ApiT <$> genTokenName)
         <*> arbitrary
 
 instance Arbitrary ApiStakeKeyIndex where

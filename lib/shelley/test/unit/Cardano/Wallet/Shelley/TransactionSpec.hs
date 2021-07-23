@@ -76,7 +76,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (UnsafeTokenName), TokenPolicyId, unTokenName )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenPolicyIdSmallRange, shrinkTokenPolicyIdSmallRange )
+    ( genTokenPolicyId, shrinkTokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..)
     , TxIn (..)
@@ -1085,8 +1085,8 @@ instance Arbitrary AssetId where
         <*> (UnsafeTokenName . BS.pack <$> vector 128)
 
 instance Arbitrary TokenPolicyId where
-    arbitrary = genTokenPolicyIdSmallRange
-    shrink = shrinkTokenPolicyIdSmallRange
+    arbitrary = genTokenPolicyId
+    shrink = shrinkTokenPolicyId
 
 instance Arbitrary (Script KeyHash) where
     arbitrary = do

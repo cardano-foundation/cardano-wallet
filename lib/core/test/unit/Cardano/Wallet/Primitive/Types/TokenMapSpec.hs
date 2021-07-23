@@ -31,11 +31,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId, mkTokenName )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameSmallRange
-    , genTokenPolicyId
-    , shrinkTokenNameSmallRange
-    , shrinkTokenPolicyId
-    )
+    ( genTokenName, genTokenPolicyId, shrinkTokenName, shrinkTokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
@@ -1034,8 +1030,8 @@ instance Arbitrary (Large TokenMap) where
     -- No shrinking
 
 instance Arbitrary TokenName where
-    arbitrary = genTokenNameSmallRange
-    shrink = shrinkTokenNameSmallRange
+    arbitrary = genTokenName
+    shrink = shrinkTokenName
 
 instance Arbitrary TokenPolicyId where
     arbitrary = genTokenPolicyId

@@ -90,7 +90,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameMediumRange )
+    ( genTokenName )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
@@ -3488,7 +3488,7 @@ instance Arbitrary MakeChangeData where
     arbitrary = genMakeChangeData
 
 instance Arbitrary (MockRoundRobinState TokenName Word8) where
-    arbitrary = genMockRoundRobinState genTokenNameMediumRange arbitrary
+    arbitrary = genMockRoundRobinState genTokenName arbitrary
     shrink = shrinkMockRoundRobinState shrink
 
 instance Arbitrary TokenBundle where

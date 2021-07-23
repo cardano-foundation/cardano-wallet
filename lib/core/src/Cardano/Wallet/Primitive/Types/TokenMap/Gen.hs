@@ -18,15 +18,14 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameLargeRange
-    , genTokenNameSized
-    , genTokenNameSmallRange
-    , genTokenPolicyIdLargeRange
+    ( genTokenName
+    , genTokenNameLargeRange
     , genTokenPolicyId
-    , shrinkTokenNameSmallRange
+    , genTokenPolicyIdLargeRange
+    , shrinkTokenName
     , shrinkTokenPolicyId
+    , testTokenNames
     , testTokenPolicyIds
-    , tokenNamesMediumRange
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantity, shrinkTokenQuantity )
@@ -75,7 +74,7 @@ genAssetIdSized = sized $ \size -> do
     let sizeSquareRoot = max 1 $ ceiling $ sqrt $ fromIntegral @Int @Double size
     AssetId
         <$> resize sizeSquareRoot genTokenPolicyId
-        <*> resize sizeSquareRoot genTokenNameSized
+        <*> resize sizeSquareRoot genTokenName
 
 --------------------------------------------------------------------------------
 -- Asset identifiers chosen from a small range (to allow collisions)
@@ -84,12 +83,12 @@ genAssetIdSized = sized $ \size -> do
 genAssetIdSmallRange :: Gen AssetId
 genAssetIdSmallRange = AssetId
     <$> genTokenPolicyId
-    <*> genTokenNameSmallRange
+    <*> genTokenName
 
 shrinkAssetIdSmallRange :: AssetId -> [AssetId]
 shrinkAssetIdSmallRange (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
     (p, shrinkTokenPolicyId)
-    (t, shrinkTokenNameSmallRange)
+    (t, shrinkTokenName)
 
 --------------------------------------------------------------------------------
 -- Asset identifiers chosen from a large range (to minimize collisions)
@@ -153,6 +152,6 @@ instance Function AssetIdF where
 
 instance CoArbitrary AssetIdF where
     coarbitrary (AssetIdF AssetId{tokenName, tokenPolicyId}) genB = do
-        let n = fromMaybe 0 (elemIndex tokenName tokenNamesMediumRange)
+        let n = fromMaybe 0 (elemIndex tokenName testTokenNames)
         let m = fromMaybe 0 (elemIndex tokenPolicyId testTokenPolicyIds)
         variant (n+m) genB
