@@ -24,7 +24,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , liftRawKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.MintBurn
-    ( derivePolicyKey, derivePolicyPrivateKey )
+    ( derivePolicyKeyAndHash, derivePolicyPrivateKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
@@ -79,7 +79,7 @@ prop_keyHashMatchesXPrv pwd masterkey policyIx =
   where
     rndKey :: ShelleyKey 'PolicyK XPrv
     keyHash :: KeyHash
-    (rndKey, keyHash) = derivePolicyKey pwd masterkey policyIx
+    (rndKey, keyHash) = derivePolicyKeyAndHash pwd masterkey policyIx
 
     getPublicKey
         :: ShelleyKey 'PolicyK XPrv

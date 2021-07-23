@@ -20,7 +20,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.MintBurn
     ( -- * Constants
       purposeCIP1855
       -- * Helpers
-    , derivePolicyKey
+    , derivePolicyKeyAndHash
     , derivePolicyPrivateKey
     ) where
 
@@ -82,7 +82,7 @@ derivePolicyPrivateKey (Passphrase pwd) rootXPrv (Index policyIx) =
 
 -- | Derive the policy private key that should be used to create mint/burn
 -- scripts, as well as the key hash of the policy public key.
-derivePolicyKey
+derivePolicyKeyAndHash
   :: WalletKey key
   => Passphrase "encryption"
   -- ^ Passphrase for wallet
@@ -92,7 +92,7 @@ derivePolicyKey
   -- ^ Index of policy script
   -> (key 'PolicyK XPrv, KeyHash)
   -- ^ Policy private key
-derivePolicyKey pwd rootPrv policyIx = (policyK, vkeyHash)
+derivePolicyKeyAndHash pwd rootPrv policyIx = (policyK, vkeyHash)
   where
     policyK = liftRawKey policyPrv
     policyPrv = derivePolicyPrivateKey pwd (getRawKey rootPrv) policyIx
