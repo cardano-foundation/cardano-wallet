@@ -81,10 +81,10 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange
-    , genAssetIdSmallRange
+    ( genAssetId
+    , genAssetIdLargeRange
     , genTokenMapSmallRange
-    , shrinkAssetIdSmallRange
+    , shrinkAssetId
     , shrinkTokenMapSmallRange
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -3477,8 +3477,8 @@ instance Arbitrary a => Arbitrary (AssetCount a) where
     shrink = fmap AssetCount . shrink . unAssetCount
 
 instance Arbitrary AssetId where
-    arbitrary = genAssetIdSmallRange
-    shrink = shrinkAssetIdSmallRange
+    arbitrary = genAssetId
+    shrink = shrinkAssetId
 
 instance Arbitrary Natural where
     arbitrary = arbitrarySizedNatural

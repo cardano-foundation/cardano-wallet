@@ -21,11 +21,11 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap, difference )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
+    , genAssetId
     , genAssetIdLargeRange
-    , genAssetIdSmallRange
     , genTokenMapSized
     , genTokenMapSmallRange
-    , shrinkAssetIdSmallRange
+    , shrinkAssetId
     , shrinkTokenMapSmallRange
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -1008,8 +1008,8 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
     shrink = mapMaybe NE.nonEmpty . shrink . NE.toList
 
 instance Arbitrary AssetId where
-    arbitrary = genAssetIdSmallRange
-    shrink = shrinkAssetIdSmallRange
+    arbitrary = genAssetId
+    shrink = shrinkAssetId
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange

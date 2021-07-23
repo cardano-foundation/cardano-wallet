@@ -248,7 +248,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSmallRange, genTokenMapSmallRange, shrinkTokenMapSmallRange )
+    ( genAssetId, genTokenMapSmallRange, shrinkTokenMapSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
     , AssetLogo (..)
@@ -1915,7 +1915,7 @@ instance Arbitrary TokenMetadataError where
         ]
 
 instance Arbitrary ApiAsset where
-    arbitrary = toApiAsset <$> arbitrary <*> genAssetIdSmallRange
+    arbitrary = toApiAsset <$> arbitrary <*> genAssetId
 
 instance Arbitrary a => Arbitrary (AddressAmount a) where
     arbitrary = applyArbitrary3 AddressAmount
@@ -2242,7 +2242,7 @@ instance Arbitrary ApiPostAccountKeyDataWithPurpose where
 
 instance Arbitrary TokenFingerprint where
     arbitrary = do
-        AssetId policy aName <- genAssetIdSmallRange
+        AssetId policy aName <- genAssetId
         pure $ mkTokenFingerprint policy aName
     shrink _ = []
 

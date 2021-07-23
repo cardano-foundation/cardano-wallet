@@ -3,12 +3,11 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSized
+    ( genAssetId
     , genAssetIdLargeRange
-    , genAssetIdSmallRange
     , genTokenMapSized
     , genTokenMapSmallRange
-    , shrinkAssetIdSmallRange
+    , shrinkAssetId
     , shrinkTokenMapSmallRange
     , AssetIdF (..)
     ) where
@@ -58,8 +57,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 -- Asset identifiers chosen from a range that depends on the size parameter
 --------------------------------------------------------------------------------
 
-genAssetIdSized :: Gen AssetId
-genAssetIdSized = sized $ \size -> do
+genAssetId :: Gen AssetId
+genAssetId = sized $ \size -> do
     -- Ideally, we want to choose asset identifiers from a range that scales
     -- /linearly/ with the size parameter.
     --
@@ -76,17 +75,8 @@ genAssetIdSized = sized $ \size -> do
         <$> resize sizeSquareRoot genTokenPolicyId
         <*> resize sizeSquareRoot genTokenName
 
---------------------------------------------------------------------------------
--- Asset identifiers chosen from a small range (to allow collisions)
---------------------------------------------------------------------------------
-
-genAssetIdSmallRange :: Gen AssetId
-genAssetIdSmallRange = AssetId
-    <$> genTokenPolicyId
-    <*> genTokenName
-
-shrinkAssetIdSmallRange :: AssetId -> [AssetId]
-shrinkAssetIdSmallRange (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
+shrinkAssetId :: AssetId -> [AssetId]
+shrinkAssetId (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
     (p, shrinkTokenPolicyId)
     (t, shrinkTokenName)
 
@@ -110,7 +100,7 @@ genTokenMapSized = sized $ \size -> do
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
     genAssetQuantity = (,)
-        <$> genAssetIdSized
+        <$> genAssetId
         <*> genTokenQuantity
 
 --------------------------------------------------------------------------------
@@ -127,7 +117,7 @@ genTokenMapSmallRange = do
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
     genAssetQuantity = (,)
-        <$> genAssetIdSmallRange
+        <$> genAssetId
         <*> genTokenQuantity
 
 shrinkTokenMapSmallRange :: TokenMap -> [TokenMap]
@@ -137,7 +127,7 @@ shrinkTokenMapSmallRange
     . TokenMap.toFlatList
   where
     shrinkAssetQuantity (a, q) = shrinkInterleaved
-        (a, shrinkAssetIdSmallRange)
+        (a, shrinkAssetId)
         (q, shrinkTokenQuantity)
 
 --------------------------------------------------------------------------------

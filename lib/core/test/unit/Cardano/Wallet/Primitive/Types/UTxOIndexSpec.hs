@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSmallRange, shrinkAssetIdSmallRange )
+    ( genAssetId, shrinkAssetId )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -542,8 +542,8 @@ prop_selectRandom_all_withAssetOnly u a = checkCoverage $ monadicIO $ do
 --
 prop_selectRandomWithPriority :: UTxOIndex -> Property
 prop_selectRandomWithPriority u =
-    forAll (genAssetIdSmallRange) $ \a1 ->
-    forAll (genAssetIdSmallRange `suchThat` (/= a1)) $ \a2 ->
+    forAll (genAssetId) $ \a1 ->
+    forAll (genAssetId `suchThat` (/= a1)) $ \a2 ->
     checkCoverage $ monadicIO $ do
         haveMatchForAsset1 <- isJust <$>
             run (UTxOIndex.selectRandom u $ WithAssetOnly a1)
@@ -685,8 +685,8 @@ txOutIsAdaOnly = TokenBundle.isCoin . view #tokens
 --------------------------------------------------------------------------------
 
 instance Arbitrary AssetId where
-    arbitrary = genAssetIdSmallRange
-    shrink = shrinkAssetIdSmallRange
+    arbitrary = genAssetId
+    shrink = shrinkAssetId
 
 instance Arbitrary UTxOIndex where
     arbitrary = genUTxOIndexSmall
@@ -708,8 +708,8 @@ genSelectionFilterSmallRange :: Gen SelectionFilter
 genSelectionFilterSmallRange = oneof
     [ pure Any
     , pure WithAdaOnly
-    , WithAsset <$> genAssetIdSmallRange
-    , WithAssetOnly <$> genAssetIdSmallRange
+    , WithAsset <$> genAssetId
+    , WithAssetOnly <$> genAssetId
     ]
 
 shrinkSelectionFilterSmallRange :: SelectionFilter -> [SelectionFilter]
@@ -717,10 +717,10 @@ shrinkSelectionFilterSmallRange = \case
     Any -> []
     WithAdaOnly -> [Any]
     WithAsset a ->
-        case WithAsset <$> shrinkAssetIdSmallRange a of
+        case WithAsset <$> shrinkAssetId a of
             [] -> [WithAdaOnly]
             xs -> xs
     WithAssetOnly a ->
-        case WithAssetOnly <$> shrinkAssetIdSmallRange a of
+        case WithAssetOnly <$> shrinkAssetId a of
             [] -> [WithAsset a]
             xs -> xs
