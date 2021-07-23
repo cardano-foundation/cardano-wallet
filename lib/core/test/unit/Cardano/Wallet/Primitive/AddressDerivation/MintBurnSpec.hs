@@ -37,7 +37,7 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property, vector, (===) )
+    ( Arbitrary (..), Property, property, vector, (=/=), (===) )
 import Test.QuickCheck.Arbitrary
     ( arbitraryBoundedEnum )
 
@@ -50,6 +50,12 @@ spec = do
             property prop_keyDerivationFromXPrv
         it "Policy public key hash matches private key" $
             property prop_keyHashMatchesXPrv
+        it "The same index always returns the same private key" $
+            property prop_keyDerivationSameIndexSameKey
+        it "A different index always returns a different private key" $
+            property prop_keyDerivationDiffIndexDiffKey
+        it "Using derivePolicyKeyAndHash returns same private key as using derivePolicyPrivateKey" $
+            property prop_keyDerivationRelation
 
 {-------------------------------------------------------------------------------
                                Properties
@@ -86,6 +92,50 @@ prop_keyHashMatchesXPrv pwd masterkey policyIx =
         -> ShelleyKey 'ScriptK XPub
     getPublicKey =
         publicKey . (liftRawKey :: XPrv -> ShelleyKey 'ScriptK XPrv) . getRawKey
+
+prop_keyDerivationSameIndexSameKey
+    :: Passphrase "encryption"
+    -> XPrv
+    -> Index 'Hardened 'PolicyK
+    -> Property
+prop_keyDerivationSameIndexSameKey pwd masterkey policyIx =
+    key1 === key2
+  where
+    key1 :: XPrv
+    key2 :: XPrv
+    key1 = derivePolicyPrivateKey pwd masterkey policyIx
+    key2 = derivePolicyPrivateKey pwd masterkey policyIx
+
+prop_keyDerivationDiffIndexDiffKey
+    :: Passphrase "encryption"
+    -> XPrv
+    -> Index 'Hardened 'PolicyK
+    -> Index 'Hardened 'PolicyK
+    -> Property
+prop_keyDerivationDiffIndexDiffKey pwd masterkey policyIx1 policyIx2 =
+    key1 =/= key2
+  where
+    key1 :: XPrv
+    key2 :: XPrv
+    key1 = derivePolicyPrivateKey pwd masterkey policyIx1
+    key2 = derivePolicyPrivateKey pwd masterkey policyIx2
+
+prop_keyDerivationRelation
+    :: Passphrase "encryption"
+    -> XPrv
+    -> Index 'Hardened 'PolicyK
+    -> Property
+prop_keyDerivationRelation pwd masterkey policyIx =
+    key1 === key2
+  where
+    key1 :: XPrv
+    key1 = derivePolicyPrivateKey pwd masterkey policyIx
+
+    keyAndHash :: (ShelleyKey 'PolicyK XPrv, KeyHash)
+    keyAndHash = derivePolicyKeyAndHash pwd (liftRawKey masterkey) policyIx
+
+    key2 :: XPrv
+    key2 = getRawKey $ fst keyAndHash
 
 instance Arbitrary XPrv where
     arbitrary = unsafeXPrv . BS.pack <$> vector 128
