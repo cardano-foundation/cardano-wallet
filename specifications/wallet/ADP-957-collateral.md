@@ -14,7 +14,7 @@
     additionally, the total number of collateral inputs, and thus the total
     number of additional signatures that must be checked during validation.
 
-# Requirements
+# Specification
 
 1.  The wallet application, when requested to create a transaction requiring
     collateral, should attempt to select one or more **pure-ada** entries from
