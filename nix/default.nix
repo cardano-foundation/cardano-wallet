@@ -38,11 +38,11 @@ let
     ++ iohkNixMain.overlays.haskell-nix-extra
     # iohkNix: nix utilities and niv:
     ++ iohkNixMain.overlays.iohkNix
+    # iohkNix: crypto
+    ++ iohkNixMain.overlays.crypto
     # our own overlays:
     ++ [
       (final: prev: {
-        # iohkNix: crypto
-        libsodium-vrf = final.callPackage (sources.iohk-nix + /overlays/crypto/libsodium.nix) {};
 
         # commonLib: iohk-nix utils and our own:
         commonLib = final.iohkNix

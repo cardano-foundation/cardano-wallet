@@ -43,7 +43,7 @@ mkShell rec {
     ncurses
     lzma
     openssl
-    libsodium
+    libsodium-vrf
     pcre
   ]
   ++ lib.optional (stdenv.hostPlatform.libc == "glibc") glibcLocales
