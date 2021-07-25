@@ -1,4 +1,9 @@
-# Basic definitions
+# Overview
+
+This document provides a high-level specification for the wallet's handling
+of collateral inputs within transactions.
+
+# Definitions
 
 *   **Collateral inputs**, in a transaction, are used to cover transaction fees
     in the case that a non-native script fails. The term **collateral** refers
