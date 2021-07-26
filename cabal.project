@@ -138,6 +138,12 @@ source-repository-package
     tag: 1a75bdfca014723dd5d40760fad854b3f0f37156
     subdir: http-client
 
+-- Drops an instance breaking cardano-node.
+source-repository-package
+  type: git
+  location: https://github.com/Quid2/flat.git
+  tag: 95e5d7488451e43062ca84d5376b3adcc465f1cd
+
 -- -------------------------------------------------------------------------
 -- Constraints tweaking
 
