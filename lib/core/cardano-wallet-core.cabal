@@ -180,6 +180,7 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.AddressDiscovery.Shared
       Cardano.Wallet.Primitive.SyncProgress
+      Cardano.Wallet.Primitive.CoinSelection.Collateral
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
       Cardano.Wallet.Primitive.Delegation.UTxO
       Cardano.Wallet.Primitive.Migration
@@ -299,6 +300,7 @@ test-suite unit
     , regex-pcre-builtin
     , OddWord
     , ouroboros-consensus
+    , overloaded
     , QuickCheck
     , quickcheck-classes
     , quickcheck-state-machine >= 0.6.0
@@ -370,6 +372,7 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
       Cardano.Wallet.Primitive.Delegation.StateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
+      Cardano.Wallet.Primitive.CoinSelection.CollateralSpec
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
       Cardano.Wallet.Primitive.MigrationSpec
       Cardano.Wallet.Primitive.Migration.PlanningSpec
