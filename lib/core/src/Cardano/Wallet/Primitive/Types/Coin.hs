@@ -63,6 +63,8 @@ import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
     ( Natural )
+import Overloaded.Numerals
+    ( FromNumeral (..) )
 import Quiet
     ( Quiet (..) )
 
@@ -83,6 +85,7 @@ newtype Coin = Coin
     }
     deriving stock (Ord, Eq, Generic)
     deriving (Read, Show) via (Quiet Coin)
+    deriving (FromNumeral n) via Word64
 
 instance Semigroup Coin where
     -- Word64 doesn't have a default Semigroup instance.

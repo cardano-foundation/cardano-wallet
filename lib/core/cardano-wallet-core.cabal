@@ -80,6 +80,7 @@ library
     , OddWord
     , ouroboros-consensus
     , ouroboros-network
+    , overloaded
     , path-pieces
     , persistent >=2.13 && <2.14
     , persistent-sqlite >=2.13 && <2.14

@@ -24,6 +24,8 @@ extra-deps:
 - command-0.1.1
 - hspec-2.8.2
 - hspec-core-2.8.2
+- overloaded-0.3.1
+- symbols-0.3.0.0
 
 # cardano-addresses-3.5.0
 - git: https://github.com/input-output-hk/cardano-addresses
