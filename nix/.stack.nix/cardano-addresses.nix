@@ -82,6 +82,10 @@
       url = "https://github.com/input-output-hk/cardano-addresses";
       rev = "46ce81050f4015abd40c6bdf0a1ed30fa54e375a";
       sha256 = "1i46ihk0rcnfnjczxg51ih6afmjnxc32cplibgh1pqn16dnfnrx2";
-      });
+      }) // {
+      url = "https://github.com/input-output-hk/cardano-addresses";
+      rev = "46ce81050f4015abd40c6bdf0a1ed30fa54e375a";
+      sha256 = "1i46ihk0rcnfnjczxg51ih6afmjnxc32cplibgh1pqn16dnfnrx2";
+      };
     postUnpack = "sourceRoot+=/core; echo source root reset to \$sourceRoot";
     }) // { cabal-generator = "hpack"; }

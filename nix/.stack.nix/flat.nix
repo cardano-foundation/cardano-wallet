@@ -141,5 +141,9 @@
       url = "https://github.com/Quid2/flat.git";
       rev = "95e5d7488451e43062ca84d5376b3adcc465f1cd";
       sha256 = "06l31x3y93rjpryvlxnpsyq2zyxvb0z6lik6yq2fvh36i5zwvwa3";
-      });
+      }) // {
+      url = "https://github.com/Quid2/flat.git";
+      rev = "95e5d7488451e43062ca84d5376b3adcc465f1cd";
+      sha256 = "06l31x3y93rjpryvlxnpsyq2zyxvb0z6lik6yq2fvh36i5zwvwa3";
+      };
     }

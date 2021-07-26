@@ -69,5 +69,9 @@
       url = "https://github.com/input-output-hk/cardano-sl-x509";
       rev = "12925934c533b3a6e009b61ede555f8f26bac037";
       sha256 = "1kma25g8sl6m3pgsihja7fysmv6vjdfc0x7dyky9g5z156sh8z7i";
-      });
+      }) // {
+      url = "https://github.com/input-output-hk/cardano-sl-x509";
+      rev = "12925934c533b3a6e009b61ede555f8f26bac037";
+      sha256 = "1kma25g8sl6m3pgsihja7fysmv6vjdfc0x7dyky9g5z156sh8z7i";
+      };
     }

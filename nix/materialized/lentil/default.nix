@@ -136,5 +136,71 @@
           "lentil" = { flags = { "developer" = lib.mkOverride 900 false; }; };
           };
         })
+    ({ lib, ... }:
+      {
+        packages = {
+          "tf-random".components.library.planned = lib.mkOverride 900 true;
+          "containers".components.library.planned = lib.mkOverride 900 true;
+          "lentil".components.tests."test".planned = lib.mkOverride 900 true;
+          "binary".components.library.planned = lib.mkOverride 900 true;
+          "regex-tdfa".components.library.planned = lib.mkOverride 900 true;
+          "ghc-prim".components.library.planned = lib.mkOverride 900 true;
+          "stm".components.library.planned = lib.mkOverride 900 true;
+          "hsc2hs".components.exes."hsc2hs".planned = lib.mkOverride 900 true;
+          "hspec-discover".components.exes."hspec-discover".planned = lib.mkOverride 900 true;
+          "hspec".components.library.planned = lib.mkOverride 900 true;
+          "filemanip".components.library.planned = lib.mkOverride 900 true;
+          "regex-base".components.library.planned = lib.mkOverride 900 true;
+          "clock".components.library.planned = lib.mkOverride 900 true;
+          "hashable".components.library.planned = lib.mkOverride 900 true;
+          "colour".components.library.planned = lib.mkOverride 900 true;
+          "transformers".components.library.planned = lib.mkOverride 900 true;
+          "QuickCheck".components.library.planned = lib.mkOverride 900 true;
+          "hspec-discover".components.library.planned = lib.mkOverride 900 true;
+          "optparse-applicative".components.library.planned = lib.mkOverride 900 true;
+          "unix-compat".components.library.planned = lib.mkOverride 900 true;
+          "random".components.library.planned = lib.mkOverride 900 true;
+          "process".components.library.planned = lib.mkOverride 900 true;
+          "scientific".components.library.planned = lib.mkOverride 900 true;
+          "csv".components.library.planned = lib.mkOverride 900 true;
+          "dlist".components.library.planned = lib.mkOverride 900 true;
+          "pretty".components.library.planned = lib.mkOverride 900 true;
+          "HUnit".components.library.planned = lib.mkOverride 900 true;
+          "template-haskell".components.library.planned = lib.mkOverride 900 true;
+          "integer-gmp".components.library.planned = lib.mkOverride 900 true;
+          "call-stack".components.library.planned = lib.mkOverride 900 true;
+          "array".components.library.planned = lib.mkOverride 900 true;
+          "hspec-expectations".components.library.planned = lib.mkOverride 900 true;
+          "ansi-terminal".components.library.planned = lib.mkOverride 900 true;
+          "terminal-size".components.library.planned = lib.mkOverride 900 true;
+          "setenv".components.library.planned = lib.mkOverride 900 true;
+          "integer-logarithms".components.library.planned = lib.mkOverride 900 true;
+          "ansi-wl-pprint".components.library.planned = lib.mkOverride 900 true;
+          "bytestring".components.library.planned = lib.mkOverride 900 true;
+          "lentil".components.exes."lentil".planned = lib.mkOverride 900 true;
+          "case-insensitive".components.library.planned = lib.mkOverride 900 true;
+          "unix".components.library.planned = lib.mkOverride 900 true;
+          "text".components.library.planned = lib.mkOverride 900 true;
+          "base".components.library.planned = lib.mkOverride 900 true;
+          "rts".components.library.planned = lib.mkOverride 900 true;
+          "parser-combinators".components.library.planned = lib.mkOverride 900 true;
+          "mtl".components.library.planned = lib.mkOverride 900 true;
+          "time".components.library.planned = lib.mkOverride 900 true;
+          "terminal-progress-bar".components.library.planned = lib.mkOverride 900 true;
+          "quickcheck-io".components.library.planned = lib.mkOverride 900 true;
+          "megaparsec".components.library.planned = lib.mkOverride 900 true;
+          "deepseq".components.library.planned = lib.mkOverride 900 true;
+          "filepath".components.library.planned = lib.mkOverride 900 true;
+          "hspec-core".components.library.planned = lib.mkOverride 900 true;
+          "natural-sort".components.library.planned = lib.mkOverride 900 true;
+          "splitmix".components.library.planned = lib.mkOverride 900 true;
+          "semigroups".components.library.planned = lib.mkOverride 900 true;
+          "parsec".components.library.planned = lib.mkOverride 900 true;
+          "ghc-boot-th".components.library.planned = lib.mkOverride 900 true;
+          "directory".components.library.planned = lib.mkOverride 900 true;
+          "primitive".components.library.planned = lib.mkOverride 900 true;
+          "transformers-compat".components.library.planned = lib.mkOverride 900 true;
+          };
+        })
     ];
   }

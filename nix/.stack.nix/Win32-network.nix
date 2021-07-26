@@ -75,5 +75,9 @@
       url = "https://github.com/input-output-hk/Win32-network";
       rev = "5b3d08c454f425da5cf045fe7865950d7c806691";
       sha256 = "0npyihbaqlih9abdbaj451lm1h0kl5braczy8vn41s3ivbbnvpcw";
-      });
+      }) // {
+      url = "https://github.com/input-output-hk/Win32-network";
+      rev = "5b3d08c454f425da5cf045fe7865950d7c806691";
+      sha256 = "0npyihbaqlih9abdbaj451lm1h0kl5braczy8vn41s3ivbbnvpcw";
+      };
     }

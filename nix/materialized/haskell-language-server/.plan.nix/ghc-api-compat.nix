@@ -41,4 +41,14 @@
         hsSourceDirs = (pkgs.lib).optional (compiler.isGhc && (compiler.version).ge "9.0") "src";
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault .././.source-repository-packages/0; }
+    } // {
+    src = (pkgs.lib).mkDefault (pkgs.fetchgit {
+      url = "0";
+      rev = "minimal";
+      sha256 = "";
+      }) // {
+      url = "0";
+      rev = "minimal";
+      sha256 = "";
+      };
+    }
