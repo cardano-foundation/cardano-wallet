@@ -85,6 +85,10 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Char
+    ( isDigit )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -116,8 +120,10 @@ import GHC.Generics
     ( Generic )
 import Network.URI
     ( parseAbsoluteURI )
-import System.Random
-    ( StdGen )
+import System.Random.Internal
+    ( StdGen (..) )
+import System.Random.SplitMix
+    ( seedSMGen' )
 import Text.Read
     ( readMaybe )
 import Web.HttpApiData
@@ -129,6 +135,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Debug.Trace as Tr
 
 ----------------------------------------------------------------------------
 
@@ -551,7 +558,15 @@ instance PersistFieldSql Role where
 
 instance PersistField StdGen where
     toPersistValue = toPersistValue . show
-    fromPersistValue = fromPersistValueRead
+    fromPersistValue = fmap readStdGen . fromPersistValue
+      where
+        -- StdGen {unStdGen = SMGen 5889121503043413025 17512980752375952679}
+        readStdGen s =
+            let
+                [i, j] = Tr.trace s $ mapMaybe (readMaybe @Word64 . T.unpack)
+                    $ T.split (not . isDigit) (T.pack s)
+            in
+                StdGen $ seedSMGen' (i, j)
 
 instance PersistFieldSql StdGen where
     sqlType _ = sqlType (Proxy @Text)

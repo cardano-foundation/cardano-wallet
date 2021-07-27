@@ -95,20 +95,21 @@ import Data.Text.Class
 import Data.Time.Clock
     ( NominalDiffTime )
 import Database.Persist.Sql
-    ( DBName (..)
-    , EntityField
+    ( EntityField
+    , EntityNameDB (..)
     , LogFunc
     , Migration
     , PersistEntity (..)
     , PersistException
     , SqlType (..)
     , close'
-    , entityDB
-    , entityFields
     , fieldDB
     , fieldSqlType
+    , getEntityDBName
+    , getEntityFields
     , runMigrationUnsafeQuiet
     , runSqlConn
+    , unFieldNameDB
     )
 import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistT, wrapConnection )
@@ -468,11 +469,11 @@ data DBField where
 
 tableName :: DBField -> Text
 tableName (DBField (_ :: EntityField record typ)) =
-    unDBName $ entityDB $ entityDef (Proxy @record)
+    unEntityNameDB $ getEntityDBName $ entityDef (Proxy @record)
 
 fieldName :: DBField -> Text
 fieldName (DBField field) =
-    unDBName $ fieldDB $ persistFieldDef field
+    unFieldNameDB $ fieldDB $ persistFieldDef field
 
 fieldType :: DBField -> Text
 fieldType (DBField field) =
@@ -504,7 +505,7 @@ instance Eq DBField where
     field0 == field1 = show field0 == show field1
 
 instance ToJSON DBField where
-    toJSON = Aeson.String . fieldName
+    toJSON = Aeson.String . T.pack . show
 
 {-------------------------------------------------------------------------------
                                     Logging
@@ -690,4 +691,5 @@ chunkSize = 999
 chunkSizeFor :: forall record. PersistEntity record => Int
 chunkSizeFor = chunkSize `div` cols
   where
-    cols = length $ entityFields $ entityDef (Proxy @record)
+    cols = length $ getEntityFields $ entityDef (Proxy @record)
+    -- TODO: Does getEntityFields differ from the past entityFields?

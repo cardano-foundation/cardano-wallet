@@ -98,6 +98,7 @@ library
     , servant-client
     , servant-server
     , split
+    , splitmix
     , statistics
     , streaming-commons
     , strict-non-empty-containers
