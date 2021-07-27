@@ -71,11 +71,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinLargePositive
-    , genCoinSmall
-    , genCoinSmallPositive
-    , shrinkCoinSmallPositive
-    )
+    ( genCoin, genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -85,20 +81,20 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange
-    , genAssetIdSmallRange
+    ( genAssetId
+    , genAssetIdLargeRange
     , genTokenMapSmallRange
-    , shrinkAssetIdSmallRange
+    , shrinkAssetId
     , shrinkTokenMapSmallRange
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameMediumRange )
+    ( genTokenName )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
+    ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
@@ -505,11 +501,11 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
         $ cover 20 (emptyMapCount >= 8 && nonEmptyMapCount >= 8)
             "empty map count >= 8 && non-empty map count >= 8"
         -- Check head and last element of list:
-        $ cover 40 (isEmptyMap $ NE.head maps)
+        $ cover 20 (isEmptyMap $ NE.head maps)
             "head element is empty map"
         $ cover 40 (not $ isEmptyMap $ NE.head maps)
             "head element is non-empty map"
-        $ cover 40 (isEmptyMap $ NE.last maps)
+        $ cover 20 (isEmptyMap $ NE.last maps)
             "last element is empty map"
         $ cover 40 (not $ isEmptyMap $ NE.last maps)
             "last element is non-empty map"
@@ -603,7 +599,7 @@ genSelectionCriteria genUTxOIndex = do
             (1, UTxOIndex.size utxoAvailable `div` 8)
           )
         ]
-    extraCoinSource <- oneof [ pure Nothing, Just <$> genCoinSmall ]
+    extraCoinSource <- oneof [ pure Nothing, Just <$> genCoin ]
     (assetsToMint, assetsToBurn) <-
         genAssetsToMintAndBurn utxoAvailable outputsToCover
     pure $ SelectionCriteria
@@ -742,7 +738,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
-        . cover 5 (selectionLimited && selectionSufficient result)
+        . cover 4 (selectionLimited && selectionSufficient result)
             "selection limited but sufficient"
         . cover 10 (selectionLimited && selectionInsufficient result)
             "selection limited and insufficient"
@@ -1865,8 +1861,8 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     MakeChangeCriteria
         <$> arbitrary
         <*> pure NoBundleSizeLimit
-        <*> genCoinSmall
-        <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
+        <*> genCoin
+        <*> oneof [pure Nothing, Just <$> genCoinPositive]
         <*> pure inputBundles
         <*> pure outputBundles
         <*> pure assetsToMint
@@ -3481,8 +3477,8 @@ instance Arbitrary a => Arbitrary (AssetCount a) where
     shrink = fmap AssetCount . shrink . unAssetCount
 
 instance Arbitrary AssetId where
-    arbitrary = genAssetIdSmallRange
-    shrink = shrinkAssetIdSmallRange
+    arbitrary = genAssetId
+    shrink = shrinkAssetId
 
 instance Arbitrary Natural where
     arbitrary = arbitrarySizedNatural
@@ -3492,7 +3488,7 @@ instance Arbitrary MakeChangeData where
     arbitrary = genMakeChangeData
 
 instance Arbitrary (MockRoundRobinState TokenName Word8) where
-    arbitrary = genMockRoundRobinState genTokenNameMediumRange arbitrary
+    arbitrary = genMockRoundRobinState genTokenName arbitrary
     shrink = shrinkMockRoundRobinState shrink
 
 instance Arbitrary TokenBundle where
@@ -3501,7 +3497,7 @@ instance Arbitrary TokenBundle where
 
 instance Arbitrary (Large TokenBundle) where
     arbitrary = fmap Large $ TokenBundle
-        <$> genCoinLargePositive
+        <$> genCoinPositive
         <*> genTokenMapLarge
     -- No shrinking
 
@@ -3516,15 +3512,15 @@ genTokenMapLarge = do
   where
     genAssetQuantity = (,)
         <$> genAssetIdLargeRange
-        <*> genTokenQuantitySmallPositive
+        <*> genTokenQuantityPositive
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
     shrink = shrinkTokenMapSmallRange
 
 instance Arbitrary TokenQuantity where
-    arbitrary = genTokenQuantitySmallPositive
-    shrink = shrinkTokenQuantitySmallPositive
+    arbitrary = genTokenQuantityPositive
+    shrink = shrinkTokenQuantityPositive
 
 instance Arbitrary TxOut where
     arbitrary = genTxOutSmallRange
@@ -3555,8 +3551,8 @@ instance Arbitrary (Small UTxOIndex) where
     shrink = fmap Small . shrinkUTxOIndexSmall . getSmall
 
 instance Arbitrary Coin where
-    arbitrary = genCoinSmallPositive
-    shrink = shrinkCoinSmallPositive
+    arbitrary = genCoinPositive
+    shrink = shrinkCoinPositive
 
 instance Arbitrary MinCoinValueFor where
     arbitrary = arbitraryBoundedEnum

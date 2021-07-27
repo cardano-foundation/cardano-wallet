@@ -236,7 +236,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinLargePositive, genCoinSmallPositive )
+    ( genCoinFullRange, genCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -248,7 +248,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSmallRange, genTokenMapSmallRange, shrinkTokenMapSmallRange )
+    ( genAssetId, genTokenMapSmallRange, shrinkTokenMapSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
     , AssetLogo (..)
@@ -260,7 +260,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , mkTokenFingerprint
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameSmallRange )
+    ( genTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SerialisedTx (..)
@@ -1915,7 +1915,7 @@ instance Arbitrary TokenMetadataError where
         ]
 
 instance Arbitrary ApiAsset where
-    arbitrary = toApiAsset <$> arbitrary <*> genAssetIdSmallRange
+    arbitrary = toApiAsset <$> arbitrary <*> genAssetId
 
 instance Arbitrary a => Arbitrary (AddressAmount a) where
     arbitrary = applyArbitrary3 AddressAmount
@@ -1953,7 +1953,7 @@ instance Arbitrary (ApiConstructTransaction t) where
 instance Arbitrary (ApiMintBurnData t) where
     arbitrary = ApiMintBurnData
         <$> arbitrary
-        <*> (ApiT <$> genTokenNameSmallRange)
+        <*> (ApiT <$> genTokenName)
         <*> arbitrary
 
 instance Arbitrary ApiStakeKeyIndex where
@@ -2124,7 +2124,7 @@ instance Arbitrary RewardAccount where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = genCoinLargePositive
+    arbitrary = genCoinFullRange
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
@@ -2163,8 +2163,8 @@ instance Arbitrary ApiWalletUtxoSnapshot where
       where
         genEntry :: Gen ApiWalletUtxoSnapshotEntry
         genEntry = do
-            adaValue1 <- genCoinSmallPositive
-            adaValue2 <- genCoinSmallPositive
+            adaValue1 <- genCoinPositive
+            adaValue2 <- genCoinPositive
             -- The actual ada quantity of an output's token bundle must be
             -- greater than or equal to the minimum permissible ada quantity:
             let ada = Api.coinToQuantity $ max adaValue1 adaValue2
@@ -2242,7 +2242,7 @@ instance Arbitrary ApiPostAccountKeyDataWithPurpose where
 
 instance Arbitrary TokenFingerprint where
     arbitrary = do
-        AssetId policy aName <- genAssetIdSmallRange
+        AssetId policy aName <- genAssetId
         pure $ mkTokenFingerprint policy aName
     shrink _ = []
 

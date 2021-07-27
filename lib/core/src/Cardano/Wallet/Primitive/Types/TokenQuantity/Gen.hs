@@ -1,16 +1,12 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySized
-    , genTokenQuantitySmall
-    , genTokenQuantitySmallPositive
-    , genTokenQuantityLarge
-    , genTokenQuantityMassive
-    , genTokenQuantityMixed
-    , shrinkTokenQuantitySmall
-    , shrinkTokenQuantitySmallPositive
-    , shrinkTokenQuantityMixed
-    , tokenQuantitySmall
-    , tokenQuantityLarge
-    , tokenQuantityMassive
+    ( genTokenQuantity
+    , genTokenQuantityPositive
+    , genTokenQuantityFullRange
+    , shrinkTokenQuantity
+    , shrinkTokenQuantityPositive
+    , shrinkTokenQuantityFullRange
     ) where
 
 import Prelude
@@ -19,99 +15,67 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Data.Word
     ( Word64 )
-import Numeric.Natural
-    ( Natural )
 import Test.QuickCheck
-    ( Gen, choose, oneof, shrink, sized )
+    ( Gen, choose, frequency, shrink, sized )
 
 --------------------------------------------------------------------------------
--- Token quantities chosen from a range that depends on the size parameter
+-- Token quantities chosen according to the size parameter.
 --------------------------------------------------------------------------------
 
-genTokenQuantitySized :: Gen TokenQuantity
-genTokenQuantitySized = sized $ \n ->
-    quantityFromInt <$> choose (0, n)
-
---------------------------------------------------------------------------------
--- Small token quantities
---------------------------------------------------------------------------------
-
-genTokenQuantitySmall :: Gen TokenQuantity
-genTokenQuantitySmall = quantityFromInteger <$> oneof
-    [ pure 0
-    , choose (1, quantityToInteger tokenQuantitySmall)
-    ]
-
-shrinkTokenQuantitySmall :: TokenQuantity -> [TokenQuantity]
-shrinkTokenQuantitySmall = shrinkTokenQuantity
-
---------------------------------------------------------------------------------
--- Small strictly-positive token quantities
---------------------------------------------------------------------------------
-
-genTokenQuantitySmallPositive :: Gen TokenQuantity
-genTokenQuantitySmallPositive = quantityFromInteger <$>
-    choose (1, quantityToInteger tokenQuantitySmall)
-
-shrinkTokenQuantitySmallPositive :: TokenQuantity -> [TokenQuantity]
-shrinkTokenQuantitySmallPositive q = quantityFromInteger <$>
-    filter (> 0) (shrink $ quantityToInteger q)
-
---------------------------------------------------------------------------------
--- Large token quantities
---------------------------------------------------------------------------------
-
-genTokenQuantityLarge :: Gen TokenQuantity
-genTokenQuantityLarge = quantityFromInteger <$> choose
-    ( quantityToInteger tokenQuantitySmall + 1
-    , quantityToInteger tokenQuantityLarge
-    )
-
---------------------------------------------------------------------------------
--- Massive token quantities
---------------------------------------------------------------------------------
-
-genTokenQuantityMassive :: Gen TokenQuantity
-genTokenQuantityMassive = quantityFromInteger <$> choose
-    ( quantityToInteger tokenQuantityLarge + 1
-    , quantityToInteger tokenQuantityMassive
-    )
-
---------------------------------------------------------------------------------
--- Mixed token quantities (both small and large)
---------------------------------------------------------------------------------
-
-genTokenQuantityMixed :: Gen TokenQuantity
-genTokenQuantityMixed = oneof
-    [ genTokenQuantitySmall
-    , genTokenQuantityLarge
-    , genTokenQuantityMassive
-    ]
-
-shrinkTokenQuantityMixed :: TokenQuantity -> [TokenQuantity]
-shrinkTokenQuantityMixed = shrinkTokenQuantity
-
---------------------------------------------------------------------------------
--- Utilities
---------------------------------------------------------------------------------
+genTokenQuantity :: Gen TokenQuantity
+genTokenQuantity = sized $ \n -> quantityFromInt <$> choose (0, n)
 
 shrinkTokenQuantity :: TokenQuantity -> [TokenQuantity]
-shrinkTokenQuantity
-    -- Since token quantities can be very large, we limit the number of results
-    -- that the shrinker can return:
-    = take 8
-    . fmap quantityFromInteger
+shrinkTokenQuantity = fmap quantityFromInteger . shrink . quantityToInteger
+
+--------------------------------------------------------------------------------
+-- Token quantities chosen according to the size parameter, but strictly
+-- positive.
+--------------------------------------------------------------------------------
+
+genTokenQuantityPositive :: Gen TokenQuantity
+genTokenQuantityPositive = sized $ \n -> quantityFromInt <$> choose (1, max 1 n)
+
+shrinkTokenQuantityPositive :: TokenQuantity -> [TokenQuantity]
+shrinkTokenQuantityPositive
+    = fmap quantityFromInteger
+    . filter (> 0)
     . shrink
     . quantityToInteger
 
-tokenQuantitySmall :: TokenQuantity
-tokenQuantitySmall = TokenQuantity 10
+--------------------------------------------------------------------------------
+-- Token quantities chosen from the full range available.
+--------------------------------------------------------------------------------
 
-tokenQuantityLarge :: TokenQuantity
-tokenQuantityLarge = TokenQuantity $ fromIntegral (maxBound :: Word64)
+-- | Generates token quantities across the full range of what may be encoded
+--   within a single on-chain token bundle.
+--
+-- This generator has a slight bias towards the limits of the range, but
+-- otherwise generates values uniformly across the whole range.
+--
+-- This can be useful when testing roundtrip conversions between different
+-- types.
+--
+genTokenQuantityFullRange :: Gen TokenQuantity
+genTokenQuantityFullRange = frequency
+    [ ( 1, pure minTokenQuantity )
+    , ( 1, pure maxTokenQuantity )
+    , ( 8
+      , quantityFromInteger <$>
+        choose (1, quantityToInteger maxTokenQuantity - 1)
+      )
+    ]
+  where
+    minTokenQuantity :: TokenQuantity
+    minTokenQuantity = TokenQuantity 0
+    maxTokenQuantity :: TokenQuantity
+    maxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64
 
-tokenQuantityMassive :: TokenQuantity
-tokenQuantityMassive = TokenQuantity $ (10 :: Natural) ^ (1000 :: Natural)
+shrinkTokenQuantityFullRange :: TokenQuantity -> [TokenQuantity]
+shrinkTokenQuantityFullRange =
+    -- Given that we may have a large value, we limit the number of results
+    -- returned in order to avoid processing long lists of shrunken values.
+    take 8 . shrinkTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Internal functions

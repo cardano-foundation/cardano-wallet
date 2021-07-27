@@ -91,7 +91,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinSmall )
+    ( genCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.HashSpec
@@ -891,29 +891,28 @@ prop_2_1_1 :: (Set TxIn, UTxO) -> Property
 prop_2_1_1 (ins, u) =
     cover 50 cond "dom u ⋂ ins ≠ ∅" (property prop)
   where
-    cond = not $ Set.null $ dom u `Set.intersection` ins
+    cond = not $ dom u `Set.disjoint` ins
     prop = (u `restrictedBy` ins) `isSubsetOf` u
 
 prop_2_1_2 :: (Set TxIn, UTxO) -> Property
 prop_2_1_2 (ins, u) =
     cover 50 cond "dom u ⋂ ins ≠ ∅" (property prop)
   where
-    cond = not $ Set.null $ dom u `Set.intersection` ins
+    cond = not $ dom u `Set.disjoint` ins
     prop = (u `excluding` ins) `isSubsetOf` u
 
 prop_2_1_3 :: (Set TxOut, UTxO) -> Property
 prop_2_1_3 (outs, u) =
     cover 50 cond "u ⋂ outs ≠ ∅" (property prop)
   where
-    cond = not $ Set.null $
-        Set.fromList (Map.elems (getUTxO u)) `Set.intersection` outs
+    cond = not $ Set.fromList (Map.elems (getUTxO u)) `Set.disjoint` outs
     prop = (u `restrictedTo` outs) `isSubsetOf` u
 
 prop_2_1_4 :: (Set TxIn, UTxO, UTxO) -> Property
 prop_2_1_4 (ins, u, v) =
     cover 50 cond "(dom u ⋃ dom v) ⋂ ins ≠ ∅" (property prop)
   where
-    cond = not $ Set.null $ Set.union (dom u) (dom v) `Set.intersection` ins
+    cond = not $ Set.union (dom u) (dom v) `Set.disjoint` ins
     prop =
         ((u <> v) `restrictedBy` ins)
             ===
@@ -923,7 +922,7 @@ prop_2_1_5 :: (Set TxIn, UTxO, UTxO) -> Property
 prop_2_1_5 (ins, u, v) =
     cover 50 cond "(dom u ⋃ dom v) ⋂ ins ≠ ∅" (property prop)
   where
-    cond = not $ Set.null $ Set.union (dom u) (dom v) `Set.intersection` ins
+    cond = not $ Set.union (dom u) (dom v) `Set.disjoint` ins
     prop =
         ((u <> v) `excluding` ins)
             ===
@@ -933,7 +932,7 @@ prop_2_1_6 :: (Set TxIn, UTxO) -> Property
 prop_2_1_6 (ins, u) =
     cover 50 cond "dom u ⋂ ins ≠ ∅" (property prop)
   where
-    cond = not $ Set.null $ dom u `Set.intersection` ins
+    cond = not $ dom u `Set.disjoint` ins
     prop =
         (u `restrictedBy` (dom u `Set.intersection` ins))
             ===
@@ -943,7 +942,7 @@ prop_2_1_7 :: (Set TxIn, UTxO) -> Property
 prop_2_1_7 (ins, u) =
     cover 50 cond "dom u ⋂ ins ≠ ∅" (property prop)
   where
-    cond = not $ Set.null $ dom u `Set.intersection` ins
+    cond = not $ dom u `Set.disjoint` ins
     prop =
         (u `excluding` (dom u `Set.intersection` ins))
             ===
@@ -953,7 +952,7 @@ prop_2_1_8 :: (Set TxIn, UTxO, UTxO) -> Property
 prop_2_1_8 (ins, u, v) =
     cover 50 cond "dom u ⋂ ins ≠ ∅" (property prop)
   where
-    cond = not $ Set.null $ dom u `Set.intersection` ins
+    cond = not $ dom u `Set.disjoint` ins
     prop =
         ((u <> v) `excluding` (dom u <> ins))
             ===
@@ -963,7 +962,7 @@ prop_2_1_9 :: (Set TxIn, UTxO) -> Property
 prop_2_1_9 (ins, u) =
     cover 50 cond "dom u ⋂ ins ≠ ∅" (property prop)
   where
-    cond = not $ Set.null $ dom u `Set.intersection` ins
+    cond = not $ dom u `Set.disjoint` ins
     prop = (u `excluding` ins) === u `restrictedBy` (dom u \\ ins)
 
 
@@ -1110,7 +1109,7 @@ instance Arbitrary AddressState where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = genCoinSmall
+    arbitrary = genCoin
 
 instance (Arbitrary a, Ord a) => Arbitrary (Range a) where
     arbitrary =
@@ -1150,7 +1149,9 @@ instance Arbitrary TxOut where
     -- No Shrinking
     arbitrary = TxOut
         <$> arbitrary
-        <*> fmap TokenBundle.fromCoin genCoinSmall
+        -- Here we deliberately restrict the range of coins in order to increase
+        -- the probability of collisions between identical transaction outputs:
+        <*> fmap TokenBundle.fromCoin (scale (`mod` 8) genCoin)
 
 instance Arbitrary TxIn where
     -- No Shrinking

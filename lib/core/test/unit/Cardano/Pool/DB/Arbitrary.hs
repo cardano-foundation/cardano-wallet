@@ -47,7 +47,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinLargePositive, shrinkCoinLargePositive )
+    ( genCoinFullRange, shrinkCoinFullRange )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Arrow
@@ -141,8 +141,8 @@ instance Arbitrary (Quantity "lovelace" Word64) where
     arbitrary = Quantity <$> arbitrary
 
 instance Arbitrary Coin where
-    shrink = shrinkCoinLargePositive
-    arbitrary = genCoinLargePositive
+    shrink = shrinkCoinFullRange
+    arbitrary = genCoinFullRange
 
 arbitraryEpochLength :: Word32
 arbitraryEpochLength = 100

@@ -21,28 +21,24 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap, difference )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
+    , genAssetId
     , genAssetIdLargeRange
-    , genAssetIdSmallRange
     , genTokenMapSized
     , genTokenMapSmallRange
-    , shrinkAssetIdSmallRange
+    , shrinkAssetId
     , shrinkTokenMapSmallRange
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId, mkTokenName )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameSmallRange
-    , genTokenPolicyIdSmallRange
-    , shrinkTokenNameSmallRange
-    , shrinkTokenPolicyIdSmallRange
-    )
+    ( genTokenName, genTokenPolicyId, shrinkTokenName, shrinkTokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySmall
-    , genTokenQuantitySmallPositive
-    , shrinkTokenQuantitySmall
-    , shrinkTokenQuantitySmallPositive
+    ( genTokenQuantity
+    , genTokenQuantityPositive
+    , shrinkTokenQuantity
+    , shrinkTokenQuantityPositive
     )
 import Control.Monad
     ( replicateM )
@@ -777,9 +773,9 @@ prop_equipartitionQuantitiesWithUpperBound_coverage
     :: TokenMap -> Positive TokenQuantity -> Property
 prop_equipartitionQuantitiesWithUpperBound_coverage m (Positive maxQuantity) =
     checkCoverage $
-    cover 8 (maxQuantity == TokenQuantity 1)
+    cover 4 (maxQuantity == TokenQuantity 1)
         "Maximum allowable quantity == 1" $
-    cover 8 (maxQuantity == TokenQuantity 2)
+    cover 4 (maxQuantity == TokenQuantity 2)
         "Maximum allowable quantity == 2" $
     cover 8 (maxQuantity >= TokenQuantity 3)
         "Maximum allowable quantity >= 3" $
@@ -1012,8 +1008,8 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
     shrink = mapMaybe NE.nonEmpty . shrink . NE.toList
 
 instance Arbitrary AssetId where
-    arbitrary = genAssetIdSmallRange
-    shrink = shrinkAssetIdSmallRange
+    arbitrary = genAssetId
+    shrink = shrinkAssetId
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
@@ -1030,16 +1026,16 @@ instance Arbitrary (Large TokenMap) where
       where
         genAssetQuantity = (,)
             <$> genAssetIdLargeRange
-            <*> genTokenQuantitySmallPositive
+            <*> genTokenQuantityPositive
     -- No shrinking
 
 instance Arbitrary TokenName where
-    arbitrary = genTokenNameSmallRange
-    shrink = shrinkTokenNameSmallRange
+    arbitrary = genTokenName
+    shrink = shrinkTokenName
 
 instance Arbitrary TokenPolicyId where
-    arbitrary = genTokenPolicyIdSmallRange
-    shrink = shrinkTokenPolicyIdSmallRange
+    arbitrary = genTokenPolicyId
+    shrink = shrinkTokenPolicyId
 
 instance Arbitrary TokenQuantity where
     -- We generate small token quantities in order to increase the chance of
@@ -1050,9 +1046,9 @@ instance Arbitrary TokenQuantity where
     -- The generation of zero-valued tokens is useful, as it allows us to
     -- verify that the token map invariant (that a map contains no
     -- zero-valued tokens) is maintained.
-    arbitrary = genTokenQuantitySmall
-    shrink = shrinkTokenQuantitySmall
+    arbitrary = genTokenQuantity
+    shrink = shrinkTokenQuantity
 
 instance Arbitrary (Positive TokenQuantity) where
-    arbitrary = Positive <$> genTokenQuantitySmallPositive
-    shrink = fmap Positive . shrinkTokenQuantitySmallPositive . getPositive
+    arbitrary = Positive <$> genTokenQuantityPositive
+    shrink = fmap Positive . shrinkTokenQuantityPositive . getPositive

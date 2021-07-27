@@ -1,17 +1,21 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameSized
+    (
+    -- * Generators and shrinkers
+      genTokenName
     , genTokenNameLargeRange
-    , genTokenNameMediumRange
-    , genTokenNameSmallRange
-    , genTokenPolicyIdSized
+    , genTokenPolicyId
     , genTokenPolicyIdLargeRange
-    , genTokenPolicyIdSmallRange
+    , shrinkTokenName
+    , shrinkTokenPolicyId
+
+    -- * Test values
+    , testTokenNames
+    , testTokenPolicyIds
+
+    -- * Creation of test values
+    , mkTokenName
     , mkTokenPolicyId
-    , shrinkTokenNameSmallRange
-    , shrinkTokenPolicyIdSmallRange
-    , tokenNamesMediumRange
-    , tokenNamesSmallRange
-    , tokenPolicies
+
     ) where
 
 import Prelude
@@ -35,37 +39,15 @@ import qualified Data.Text as T
 -- Token names chosen from a range that depends on the size parameter
 --------------------------------------------------------------------------------
 
-genTokenNameSized :: Gen TokenName
-genTokenNameSized = sized $ \size ->
-    elements $ UnsafeTokenName . B8.snoc "Token" <$> take size ['A' ..]
+genTokenName :: Gen TokenName
+genTokenName = sized $ \n -> elements $ take (max 1 n) testTokenNames
 
---------------------------------------------------------------------------------
--- Token names chosen from a small range (to allow collisions)
---------------------------------------------------------------------------------
-
-genTokenNameSmallRange :: Gen TokenName
-genTokenNameSmallRange = elements tokenNamesSmallRange
-
-shrinkTokenNameSmallRange :: TokenName -> [TokenName]
-shrinkTokenNameSmallRange x
-    | x == simplest = []
+shrinkTokenName :: TokenName -> [TokenName]
+shrinkTokenName i
+    | i == simplest = []
     | otherwise = [simplest]
   where
-    simplest = head tokenNamesSmallRange
-
-tokenNamesSmallRange :: [TokenName]
-tokenNamesSmallRange = UnsafeTokenName . B8.snoc "Token" <$> ['A' .. 'D']
-
---------------------------------------------------------------------------------
--- Token names chosen from a medium-sized range (to minimize the risk of
--- collisions)
---------------------------------------------------------------------------------
-
-genTokenNameMediumRange :: Gen TokenName
-genTokenNameMediumRange = elements tokenNamesMediumRange
-
-tokenNamesMediumRange :: [TokenName]
-tokenNamesMediumRange = UnsafeTokenName . B8.snoc "Token" <$> ['A' .. 'Z']
+    simplest = head testTokenNames
 
 --------------------------------------------------------------------------------
 -- Token names chosen from a large range (to minimize the risk of collisions)
@@ -79,26 +61,15 @@ genTokenNameLargeRange = UnsafeTokenName . BS.pack <$> vector 32
 -- parameter
 --------------------------------------------------------------------------------
 
-genTokenPolicyIdSized :: Gen TokenPolicyId
-genTokenPolicyIdSized = sized $ \size ->
-    elements $ mkTokenPolicyId <$> take size mkTokenPolicyIdValidChars
+genTokenPolicyId :: Gen TokenPolicyId
+genTokenPolicyId = sized $ \n -> elements $ take (max 1 n) testTokenPolicyIds
 
---------------------------------------------------------------------------------
--- Token policy identifiers chosen from a small range (to allow collisions)
---------------------------------------------------------------------------------
-
-genTokenPolicyIdSmallRange :: Gen TokenPolicyId
-genTokenPolicyIdSmallRange = elements tokenPolicies
-
-shrinkTokenPolicyIdSmallRange :: TokenPolicyId -> [TokenPolicyId]
-shrinkTokenPolicyIdSmallRange x
-    | x == simplest = []
+shrinkTokenPolicyId :: TokenPolicyId -> [TokenPolicyId]
+shrinkTokenPolicyId i
+    | i == simplest = []
     | otherwise = [simplest]
   where
-    simplest = head tokenPolicies
-
-tokenPolicies :: [TokenPolicyId]
-tokenPolicies = mkTokenPolicyId <$> ['A' .. 'D']
+    simplest = head testTokenPolicyIds
 
 --------------------------------------------------------------------------------
 -- Token policy identifiers chosen from a large range (to minimize the risk of
@@ -111,6 +82,15 @@ genTokenPolicyIdLargeRange = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
 --------------------------------------------------------------------------------
 -- Internal utilities
 --------------------------------------------------------------------------------
+
+testTokenNames :: [TokenName]
+testTokenNames = mkTokenName <$> ['A' .. 'Z']
+
+testTokenPolicyIds :: [TokenPolicyId]
+testTokenPolicyIds = mkTokenPolicyId <$> mkTokenPolicyIdValidChars
+
+mkTokenName :: Char -> TokenName
+mkTokenName = UnsafeTokenName . B8.snoc "Token"
 
 -- The set of characters that can be passed to the 'mkTokenPolicyId' function.
 --

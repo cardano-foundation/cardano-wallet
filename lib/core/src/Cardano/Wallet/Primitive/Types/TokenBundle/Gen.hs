@@ -9,13 +9,12 @@ module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinSmall
-    , genCoinSmallPositive
-    , shrinkCoinSmall
-    , shrinkCoinSmallPositive
+    ( genCoin
+    , genCoinFullRange
+    , genCoinPositive
+    , shrinkCoin
+    , shrinkCoinPositive
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
@@ -43,17 +42,12 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 genFixedSizeTokenBundle :: Int -> Gen TokenBundle
 genFixedSizeTokenBundle fixedAssetCount
     = TokenBundle.fromFlatList
-        <$> genCoin
+        <$> genCoinFullRange
         <*> replicateM fixedAssetCount genAssetQuantity
   where
     genAssetQuantity = (,)
         <$> genAssetIdLargeRange
         <*> genTokenQuantity
-    genCoin = Coin <$> oneof
-        [ pure $ unCoin minBound
-        , pure $ unCoin maxBound
-        , choose (unCoin minBound + 1, unCoin maxBound - 1)
-        ]
     genTokenQuantity = integerToTokenQuantity <$> oneof
         [ pure $ tokenQuantityToInteger txOutMinTokenQuantity
         , pure $ tokenQuantityToInteger txOutMaxTokenQuantity
@@ -85,22 +79,22 @@ genVariableSizedTokenBundle maxAssetCount =
 
 genTokenBundleSmallRange :: Gen TokenBundle
 genTokenBundleSmallRange = TokenBundle
-    <$> genCoinSmall
+    <$> genCoin
     <*> genTokenMapSmallRange
 
 shrinkTokenBundleSmallRange :: TokenBundle -> [TokenBundle]
 shrinkTokenBundleSmallRange (TokenBundle c m) =
     uncurry TokenBundle <$> shrinkInterleaved
-        (c, shrinkCoinSmall)
+        (c, shrinkCoin)
         (m, shrinkTokenMapSmallRange)
 
 genTokenBundleSmallRangePositive :: Gen TokenBundle
 genTokenBundleSmallRangePositive = TokenBundle
-    <$> genCoinSmallPositive
+    <$> genCoinPositive
     <*> genTokenMapSmallRange
 
 shrinkTokenBundleSmallRangePositive :: TokenBundle -> [TokenBundle]
 shrinkTokenBundleSmallRangePositive (TokenBundle c m) =
     uncurry TokenBundle <$> shrinkInterleaved
-        (c, shrinkCoinSmallPositive)
+        (c, shrinkCoinPositive)
         (m, shrinkTokenMapSmallRange)

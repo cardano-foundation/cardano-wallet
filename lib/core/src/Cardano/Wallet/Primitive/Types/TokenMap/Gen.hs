@@ -3,12 +3,11 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSized
+    ( genAssetId
     , genAssetIdLargeRange
-    , genAssetIdSmallRange
     , genTokenMapSized
     , genTokenMapSmallRange
-    , shrinkAssetIdSmallRange
+    , shrinkAssetId
     , shrinkTokenMapSmallRange
     , AssetIdF (..)
     ) where
@@ -18,19 +17,17 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameLargeRange
-    , genTokenNameSized
-    , genTokenNameSmallRange
+    ( genTokenName
+    , genTokenNameLargeRange
+    , genTokenPolicyId
     , genTokenPolicyIdLargeRange
-    , genTokenPolicyIdSized
-    , genTokenPolicyIdSmallRange
-    , shrinkTokenNameSmallRange
-    , shrinkTokenPolicyIdSmallRange
-    , tokenNamesMediumRange
-    , tokenPolicies
+    , shrinkTokenName
+    , shrinkTokenPolicyId
+    , testTokenNames
+    , testTokenPolicyIds
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySized, genTokenQuantitySmall, shrinkTokenQuantitySmall )
+    ( genTokenQuantity, shrinkTokenQuantity )
 import Control.Monad
     ( replicateM )
 import Data.List
@@ -60,8 +57,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 -- Asset identifiers chosen from a range that depends on the size parameter
 --------------------------------------------------------------------------------
 
-genAssetIdSized :: Gen AssetId
-genAssetIdSized = sized $ \size -> do
+genAssetId :: Gen AssetId
+genAssetId = sized $ \size -> do
     -- Ideally, we want to choose asset identifiers from a range that scales
     -- /linearly/ with the size parameter.
     --
@@ -75,22 +72,13 @@ genAssetIdSized = sized $ \size -> do
     --
     let sizeSquareRoot = max 1 $ ceiling $ sqrt $ fromIntegral @Int @Double size
     AssetId
-        <$> resize sizeSquareRoot genTokenPolicyIdSized
-        <*> resize sizeSquareRoot genTokenNameSized
+        <$> resize sizeSquareRoot genTokenPolicyId
+        <*> resize sizeSquareRoot genTokenName
 
---------------------------------------------------------------------------------
--- Asset identifiers chosen from a small range (to allow collisions)
---------------------------------------------------------------------------------
-
-genAssetIdSmallRange :: Gen AssetId
-genAssetIdSmallRange = AssetId
-    <$> genTokenPolicyIdSmallRange
-    <*> genTokenNameSmallRange
-
-shrinkAssetIdSmallRange :: AssetId -> [AssetId]
-shrinkAssetIdSmallRange (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
-    (p, shrinkTokenPolicyIdSmallRange)
-    (t, shrinkTokenNameSmallRange)
+shrinkAssetId :: AssetId -> [AssetId]
+shrinkAssetId (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
+    (p, shrinkTokenPolicyId)
+    (t, shrinkTokenName)
 
 --------------------------------------------------------------------------------
 -- Asset identifiers chosen from a large range (to minimize collisions)
@@ -112,8 +100,8 @@ genTokenMapSized = sized $ \size -> do
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
     genAssetQuantity = (,)
-        <$> genAssetIdSized
-        <*> genTokenQuantitySized
+        <$> genAssetId
+        <*> genTokenQuantity
 
 --------------------------------------------------------------------------------
 -- Token maps with assets and quantities chosen from small ranges
@@ -129,8 +117,8 @@ genTokenMapSmallRange = do
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
     genAssetQuantity = (,)
-        <$> genAssetIdSmallRange
-        <*> genTokenQuantitySmall
+        <$> genAssetId
+        <*> genTokenQuantity
 
 shrinkTokenMapSmallRange :: TokenMap -> [TokenMap]
 shrinkTokenMapSmallRange
@@ -139,8 +127,8 @@ shrinkTokenMapSmallRange
     . TokenMap.toFlatList
   where
     shrinkAssetQuantity (a, q) = shrinkInterleaved
-        (a, shrinkAssetIdSmallRange)
-        (q, shrinkTokenQuantitySmall)
+        (a, shrinkAssetId)
+        (q, shrinkTokenQuantity)
 
 --------------------------------------------------------------------------------
 -- Filtering functions
@@ -154,6 +142,6 @@ instance Function AssetIdF where
 
 instance CoArbitrary AssetIdF where
     coarbitrary (AssetIdF AssetId{tokenName, tokenPolicyId}) genB = do
-        let n = fromMaybe 0 (elemIndex tokenName tokenNamesMediumRange)
-        let m = fromMaybe 0 (elemIndex tokenPolicyId tokenPolicies)
+        let n = fromMaybe 0 (elemIndex tokenName testTokenNames)
+        let m = fromMaybe 0 (elemIndex tokenPolicyId testTokenPolicyIds)
         variant (n+m) genB

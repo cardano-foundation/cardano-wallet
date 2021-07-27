@@ -20,7 +20,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
+    ( genTokenQuantityPositive, shrinkTokenQuantityPositive )
 import Data.Ratio
     ( (%) )
 import Test.Hspec
@@ -182,5 +182,5 @@ instance Arbitrary TokenBundle where
     shrink = shrinkTokenBundleSmallRange
 
 instance Arbitrary TokenQuantity where
-    arbitrary = genTokenQuantitySmallPositive
-    shrink = shrinkTokenQuantitySmallPositive
+    arbitrary = genTokenQuantityPositive
+    shrink = shrinkTokenQuantityPositive
