@@ -1,0 +1,115 @@
+{
+    "seed": 6692059182321904665,
+    "samples": [
+        {
+            "stake": {
+                "quantity": 239,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 147,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 23,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 195,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 173,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 154,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 182,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 164,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 171,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 111,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 64,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 204,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 216,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 40,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 49,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 118,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 105,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 113,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "stake": {
+                "quantity": 70,
+                "unit": "lovelace"
+            },
+            "key": "<stake-addr>",
+            "reward_balance": {
+                "quantity": 231,
+                "unit": "lovelace"
+            }
+        }
+    ]
+}
