@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -85,8 +86,6 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Char
-    ( isDigit )
 import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
@@ -123,7 +122,7 @@ import Network.URI
 import System.Random.Internal
     ( StdGen (..) )
 import System.Random.SplitMix
-    ( seedSMGen' )
+    ( seedSMGen, unseedSMGen )
 import Text.Read
     ( readMaybe )
 import Web.HttpApiData
@@ -135,7 +134,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Debug.Trace as Tr
 
 ----------------------------------------------------------------------------
 
@@ -556,20 +554,28 @@ instance PersistFieldSql Role where
 ----------------------------------------------------------------------------
 -- StdGen
 
-instance PersistField StdGen where
-    toPersistValue = toPersistValue . show
-    fromPersistValue = fmap readStdGen . fromPersistValue
-      where
-        -- StdGen {unStdGen = SMGen 5889121503043413025 17512980752375952679}
-        readStdGen s =
-            let
-                [i, j] = Tr.trace s $ mapMaybe (readMaybe @Word64 . T.unpack)
-                    $ T.split (not . isDigit) (T.pack s)
-            in
-                StdGen $ seedSMGen' (i, j)
-
 instance PersistFieldSql StdGen where
     sqlType _ = sqlType (Proxy @Text)
+
+instance PersistField StdGen where
+    toPersistValue = toPersistValue . stdGenToString
+    fromPersistValue = fromPersistValue >=> stdGenFromString
+
+-- | In @random < 1.2@ there used to be an @instance Read StdGen@, but no
+-- longer.
+--
+-- The format used to look like this:
+-- @
+-- 5889121503043413025 17512980752375952679
+-- @
+stdGenFromString :: String -> Either Text StdGen
+stdGenFromString s = case mapMaybe readMaybe (words s) of
+    [i, j] -> Right $ StdGen $ seedSMGen i j
+    _ -> Left "StdGen should be formatted as two space-separated integers"
+
+-- | Equivalent to the old @random < 1.2@ 'StdGen' 'Show' instance.
+stdGenToString :: StdGen -> String
+stdGenToString (StdGen (unseedSMGen -> (i, j))) = unwords $ map show [i, j]
 
 ----------------------------------------------------------------------------
 -- PoolId
