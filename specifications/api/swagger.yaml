@@ -1764,12 +1764,13 @@ x-stakePoolSaturation: &stakePoolSaturation
   type: number
   minimum: 0
   description: |
-    Saturation-level of the pool based on the desired number of pools aimed by the network.
-    A value above `1` indicates that the pool is saturated.
+    The saturation of a pool is the ratio of the current `relative_stake`
+    to the equilibrium relative stake of `1/k`.
+    This equilibrium stake appears in the long term,
+    where it is expected that `k` pools attract an equal share of the stake.
+    A value above `1` indicates that the pool is oversaturated.
 
-    The `non_myopic_member_rewards` take oversaturation into account, as specified by the [specs](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec).
-
-    The saturation is based on the live `relative_stake`. The saturation at the end of epoch e,
+    The saturation at the end of epoch e,
     will affect the rewards paid out at the end of epoch e+3.
 
   example: 0.74
@@ -1777,22 +1778,50 @@ x-stakePoolSaturation: &stakePoolSaturation
 x-non-myopic-member-rewards: &nonMyopicMemberRewards
   <<: *amount
   description: |
-    The rewards the wallet can expect to receive at the end of an epoch, in the long term, if delegating to
-    this pool.
+    The rewards that the wallet can expect to receive at the end of each epoch, in the long term,
+    if it delegates to this pool.
+
+    In the long term, it is expected that only the first `k` pools
+    with the highest desirability scores will attract an equal share of the stake,
+    while the other pools loose all their delegators.
+    The parameter `k` is fixed by the protocol (e.g. `k = 500` as of 2021-07-30).
+    This expectation is taken into account by `non_myopic_member_rewards`:
+    When delegating to a pool that is oversaturated or has too low desirability,
+    the stake of this wallet will be the main influence on the rewarads.
 
     For more details, see the
     [Design Specification for Delegation and Incentives in Cardano](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec)
     document.
+
+x-desirability-score: &desirabilityScore
+  type: number
+  description: |
+      The desirability of a pool is equal to the rewards
+      that a wallet delegating to this pool would get
+      if the relative stake of the pool were precisely at saturation.
+
+      Thus, the desirability score reflects how cost-effective and reliable
+      the pool operator runs this pool,
+      and how much of their own stake they are willing to pledge.
+      The score provides additional ranking information for pools that
+      have not attracted many delegators yet. Higher scores are better.
+
+      For more details, see the
+      [Design Specification for Delegation and Incentives in Cardano](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec)
+      document.
 
 x-stakePoolMetrics: &stakePoolMetrics
   type: object
   required:
     - relative_stake
     - non_myopic_member_rewards
+    - desirability_score
     - produced_blocks
     - saturation
+    - owner_stake
   properties:
     non_myopic_member_rewards: *nonMyopicMemberRewards
+    desirability_score: *desirabilityScore
     relative_stake:
       <<: *percentage
       description: |
@@ -1800,6 +1829,10 @@ x-stakePoolMetrics: &stakePoolMetrics
 
         For more details, see the section "Relative Stake: Active vs Total" in
         [Design Specification for Delegation and Incentives in Cardano](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec).
+    owner_stake:
+      <<: *amount
+      description: |
+        Total Ada delegated to the stake pool by the pool owners in order to meet their pledge.
     saturation: *stakePoolSaturation
     produced_blocks:
       <<: *numberOfBlocks
@@ -1809,15 +1842,17 @@ x-stakePoolFlag: &stakePoolFlag
   type: string
   enum:
   - delisted
+  - owner_stake_lower_than_pledge
 
 x-stakePoolFlags: &stakePoolFlags
   type: array
   description: |
     Various flags applicable to stake pools. Possible flags:
 
-    | flag     | description                                                                                                      |
-    | ---      | ---                                                                                                              |
-    | delisted | The pool is marked as delisted on a configured SMASH server; metadata for this pool have therefore been dropped. |
+    | flag                          | description                                                                                                      |
+    | ---                           | ---                                                                                                              |
+    | delisted                      | The pool is marked as delisted on a configured SMASH server; metadata for this pool have therefore been dropped. |
+    | owner_stake_lower_than_pledge | The pool owners fail to meet their pledge; this is bad.
   items: *stakePoolFlag
 
 x-networkInformationSyncProgress: &networkInformationSyncProgress

@@ -107,12 +107,14 @@ module Cardano.Wallet.Primitive.Types
     , IsDelegatingTo (..)
 
     -- * Stake Pools
-    , StakePoolsSummary (..)
     , PoolId(..)
     , PoolOwner(..)
     , poolIdBytesLength
     , decodePoolIdBech32
     , encodePoolIdBech32
+    , StakePoolsSummary (..)
+    , RewardParams (..)
+    , RewardProvenancePool (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
@@ -759,17 +761,64 @@ instance FromJSON PoolOwner where
 instance ToJSON PoolOwner where
     toJSON = toJSON . toText
 
+-- | Information need for the computation of rewards, such as the
+-- stake currently delegated to a pool, or the pool cost and margin.
+--
+-- This information is mostly derived from the @RewardProvenancePool@
+-- type in 'Shelley.Spec.Ledger.RewardProvenance',
+-- but reorganized and shortened.
+data RewardProvenancePool = RewardProvenancePool
+    { stakeRelative :: Percentage -- ^ sigma = pool stake / total stake
+    , ownerPledge :: Coin -- ^ pledge of pool owner(s)
+    , ownerStake :: Coin -- ^ absolute stake delegated by pool owner(s)
+    , ownerStakeRelative :: Percentage -- ^ s = owner stake / total stake
+    , cost :: Coin
+    , margin :: Percentage
+    , performanceEstimate :: Rational
+    } deriving (Show, Eq)
+
+instance Buildable RewardProvenancePool where
+    build RewardProvenancePool
+            {stakeRelative,ownerPledge,ownerStake,ownerStakeRelative
+            ,cost,margin,performanceEstimate
+            }
+      = listF' id
+        [ "Stake (relative): " <> build stakeRelative
+        , "Pledge: " <> build ownerPledge
+        , "Owner stake: " <> build ownerStake
+        , "Owner stake (relative): " <> build ownerStakeRelative
+        , "Pool cost: " <> build cost
+        , "Pool margin: " <> build margin
+        , "Pool performance: " <> build performanceEstimate
+        ]
+
+-- | Global parameters used for computing rewards
+data RewardParams = RewardParams
+    { nOpt :: Int -- ^ desired number of stake pools
+    , a0   :: Rational -- ^ influence of the pool owner's pledge on rewards
+    , r    :: Coin -- ^ Total rewards available for the given epoch
+    , totalStake :: Coin -- ^ Maximum lovelace supply minus treasury
+    } deriving (Show, Eq)
+-- NOTE: In the ledger, @a0@ has type 'NonNegativeInterval'.
+
+instance Buildable RewardParams where
+    build RewardParams{nOpt,a0,r,totalStake} = blockListF' "" id
+        [ "Desired number of stake pools: " <> build nOpt
+        , "Pledge influence parameter, a0: " <> build a0
+        , "Total rewards for this epoch: " <> build r
+        , "Total stake: " <> build totalStake
+        ]
+
+-- | Summary of stake distribution and stake pools obtained from network
 data StakePoolsSummary = StakePoolsSummary
-    { nOpt :: Int
-    , rewards :: Map PoolId Coin
-    , stake :: Map PoolId Percentage
+    { rewardParams :: RewardParams
+    , pools :: Map PoolId RewardProvenancePool
     } deriving (Show, Eq)
 
 instance Buildable StakePoolsSummary where
-    build StakePoolsSummary{nOpt,rewards,stake} = listF' id
-        [ "Stake: " <> mapF (Map.toList stake)
-        , "Non-myopic member rewards: " <> mapF (Map.toList rewards)
-        , "Optimum number of pools: " <> pretty nOpt
+    build StakePoolsSummary{rewardParams,pools} = blockListF' "" id
+        [ "Global reward parameters: " <> build rewardParams
+        , "Individual pools: " <> mapF (Map.toList pools)
         ]
 
 {-------------------------------------------------------------------------------
