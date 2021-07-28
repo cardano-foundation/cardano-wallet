@@ -327,6 +327,8 @@ import Data.Time.Clock
     ( NominalDiffTime )
 import Data.Time.Clock.POSIX
     ( utcTimeToPOSIXSeconds )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
     ( Word32, Word8 )
 import Data.Word.Odd
@@ -1223,10 +1225,10 @@ instance Arbitrary (Proxy (n :: NetworkDiscriminant)) where
     shrink _ = []
     arbitrary = pure (Proxy @n)
 
-instance Arbitrary (ApiAddress t) where
+instance Arbitrary (ApiAddress n) where
     shrink _ = []
     arbitrary = ApiAddress
-        <$> fmap (, Proxy @t) arbitrary
+        <$> fmap (, Proxy @n) arbitrary
         <*> arbitrary
         <*> arbitrary
 
@@ -1924,7 +1926,7 @@ instance Arbitrary a => Arbitrary (AddressAmount a) where
 instance Arbitrary ApiSignTransactionPostData where
     arbitrary = ApiSignTransactionPostData <$> arbitrary <*> arbitrary
 
-instance Arbitrary (PostTransactionOldData t) where
+instance Arbitrary (PostTransactionOldData n) where
     arbitrary = PostTransactionOldData
         <$> arbitrary
         <*> arbitrary
@@ -1932,7 +1934,7 @@ instance Arbitrary (PostTransactionOldData t) where
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary (ApiConstructTransactionData t) where
+instance Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
         <$> arbitrary
         <*> elements [Just SelfWithdrawal]
@@ -1941,16 +1943,16 @@ instance Arbitrary (ApiConstructTransactionData t) where
         <*> arbitrary
         <*> pure Nothing
 
-instance Arbitrary (PostMintBurnAssetData t) where
+instance Arbitrary (PostMintBurnAssetData n) where
     arbitrary = applyArbitrary4 PostMintBurnAssetData
 
-instance Arbitrary (ApiConstructTransaction t) where
+instance Arbitrary (ApiConstructTransaction n) where
     arbitrary = ApiConstructTransaction
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
 
-instance Arbitrary (ApiMintBurnData t) where
+instance Arbitrary (ApiMintBurnData n) where
     arbitrary = ApiMintBurnData
         <$> arbitrary
         <*> (ApiT <$> genTokenName)
@@ -1959,10 +1961,10 @@ instance Arbitrary (ApiMintBurnData t) where
 instance Arbitrary ApiStakeKeyIndex where
     arbitrary = ApiStakeKeyIndex <$> arbitrary
 
-instance Arbitrary (ApiMintData t) where
+instance Arbitrary (ApiMintData n) where
     arbitrary = ApiMintData <$> arbitrary <*> arbitrary
 
-instance Arbitrary (ApiPaymentDestination t) where
+instance Arbitrary (ApiPaymentDestination n) where
     arbitrary = oneof
         [ ApiPaymentAddresses <$> arbitrary
         , ApiPaymentAll <$> arbitrary]
@@ -1970,13 +1972,13 @@ instance Arbitrary (ApiPaymentDestination t) where
 instance Arbitrary ApiBurnData where
     arbitrary = ApiBurnData <$> arbitrary
 
-instance Arbitrary (ApiMintBurnOperation t) where
+instance Arbitrary (ApiMintBurnOperation n) where
     arbitrary
         = oneof [ ApiMint <$> arbitrary
                 , ApiBurn <$> arbitrary
                 ]
 
-instance Arbitrary (ApiMintedBurnedTransaction t) where
+instance Arbitrary (ApiMintedBurnedTransaction n) where
     arbitrary = ApiMintedBurnedTransaction <$> arbitrary <*> arbitrary
 
 instance Arbitrary ApiMintedBurnedInfo where
@@ -1998,7 +2000,7 @@ instance Arbitrary ApiMintedBurnedInfo where
             (ApiT script)
 
 
-instance ToSchema (ApiMintedBurnedTransaction t) where
+instance Typeable n => ToSchema (ApiMintedBurnedTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiMintedBurnedTransaction"
@@ -2013,13 +2015,13 @@ instance Arbitrary ApiWithdrawalPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiPutAddressesData t) where
+instance Arbitrary (ApiPutAddressesData n) where
     arbitrary = do
         n <- choose (1,255)
         addrs <- vector n
-        pure $ ApiPutAddressesData ((, Proxy @t) <$> addrs)
+        pure $ ApiPutAddressesData ((, Proxy @n) <$> addrs)
 
-instance Arbitrary (PostTransactionFeeOldData t) where
+instance Arbitrary (PostTransactionFeeOldData n) where
     arbitrary = PostTransactionFeeOldData
         <$> arbitrary
         <*> elements [Just SelfWithdrawal, Nothing]
@@ -2073,7 +2075,7 @@ instance Arbitrary ApiTxMetadata where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary (ApiTransaction t) where
+instance Arbitrary (ApiTransaction n) where
     shrink = genericShrink
     arbitrary = do
         txStatus <- arbitrary
@@ -2188,7 +2190,7 @@ instance Arbitrary ApiUtxoStatistics where
             (ApiT bType)
             boundCountMap
 
-instance Arbitrary (ApiTxInput t) where
+instance Arbitrary (ApiTxInput n) where
     shrink _ = []
     arbitrary = applyArbitrary2 ApiTxInput
 
@@ -2336,16 +2338,16 @@ specification =
         either (error . (msg <>) . show) Prelude.id . Yaml.decodeEither'
     msg = "Whoops! Failed to parse or find the api specification document: "
 
-instance ToSchema (ApiAddress t) where
+instance Typeable n => ToSchema (ApiAddress n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
 
 instance ToSchema ApiAddressInspect where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddressInspect"
 
-instance ToSchema (ApiPutAddressesData t) where
+instance Typeable n => ToSchema (ApiPutAddressesData n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPutAddressesData"
 
-instance ToSchema (ApiSelectCoinsData n) where
+instance Typeable n => ToSchema (ApiSelectCoinsData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiSelectCoinsData"
@@ -2369,19 +2371,19 @@ instance ToSchema ApiWalletMigrationBalance where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationBalance"
 
-instance ToSchema (ApiWalletMigrationPlan n) where
+instance Typeable n => ToSchema (ApiWalletMigrationPlan n) where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationPlan"
 
-instance ToSchema (ApiWalletMigrationPlanPostData t) where
+instance Typeable n => ToSchema (ApiWalletMigrationPlanPostData n) where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletMigrationPlanPostData"
 
-instance ToSchema (ApiWalletMigrationPostData t "lenient") where
+instance Typeable n => ToSchema (ApiWalletMigrationPostData n "lenient") where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiByronWalletMigrationPostData"
 
-instance ToSchema (ApiWalletMigrationPostData t "raw") where
+instance Typeable n => ToSchema (ApiWalletMigrationPostData n "raw") where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiShelleyWalletMigrationPostData"
 
@@ -2466,22 +2468,22 @@ instance ToSchema ApiSerialisedTransaction where
 instance ToSchema (ApiBytesT 'Base64 SerialisedTx) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTx"
 
-instance ToSchema (PostTransactionOldData t) where
+instance Typeable n => ToSchema (PostTransactionOldData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionData"
 
-instance ToSchema (PostTransactionFeeOldData t) where
+instance Typeable n => ToSchema (PostTransactionFeeOldData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionFeeData"
 
-instance ToSchema (PostMintBurnAssetData t) where
+instance Typeable n => ToSchema (PostMintBurnAssetData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostMintBurnAssetData"
 
-instance ToSchema (ApiTransaction t) where
+instance Typeable n => ToSchema (ApiTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiTransaction"
@@ -2596,24 +2598,24 @@ instance ToSchema ApiAccountKey where
 instance ToSchema ApiAccountKeyShared where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKeyShared"
 
-instance ToSchema (ApiStakeKeys n) where
+instance Typeable n => ToSchema (ApiStakeKeys n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiStakeKeys"
 
-instance ToSchema (ApiOurStakeKey n) where
+instance Typeable n => ToSchema (ApiOurStakeKey n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiOurStakeKey"
 
-instance ToSchema (ApiForeignStakeKey n) where
+instance Typeable n => ToSchema (ApiForeignStakeKey n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiForeignStakeKey"
 
 instance ToSchema ApiNullStakeKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNullStakeKey"
 
-instance ToSchema (ApiConstructTransactionData t) where
+instance Typeable n => ToSchema (ApiConstructTransactionData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiConstructTransactionData"
 
-instance ToSchema (ApiConstructTransaction t) where
+instance Typeable n => ToSchema (ApiConstructTransaction n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiConstructTransaction"
 
 instance ToSchema ApiMultiDelegationAction where

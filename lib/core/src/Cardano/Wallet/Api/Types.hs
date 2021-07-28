@@ -574,7 +574,7 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
     , state :: !(ApiT AddressState)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
 data ApiCredential =
@@ -616,13 +616,13 @@ toApiEpochInfo ep = ApiEpochInfo (ApiT ep) . fst <$> timeOfEpoch ep
 data ApiSelectCoinsData (n :: NetworkDiscriminant)
     = ApiSelectForPayment (ApiSelectCoinsPayments n)
     | ApiSelectForDelegation ApiSelectCoinsAction
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic, Show, Typeable)
 
 data ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
     { payments :: NonEmpty (AddressAmount (ApiT Address, Proxy n))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
 
 newtype ApiSelectCoinsAction = ApiSelectCoinsAction
     { delegationAction :: ApiDelegationAction
@@ -656,7 +656,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     , certificates :: Maybe (NonEmpty ApiCertificate)
     , deposits :: ![Quantity "lovelace" Natural]
     , metadata :: !(Maybe ApiBase64)
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
@@ -664,7 +664,7 @@ data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
 data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
@@ -674,14 +674,14 @@ data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
 data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     { address :: !(ApiT Address, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
-    } deriving (Eq, Ord, Generic, Show)
+    } deriving (Eq, Ord, Generic, Show, Typeable)
       deriving anyclass (NFData, Hashable)
 
 data ApiWallet = ApiWallet
@@ -879,7 +879,7 @@ data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransactio
     { transaction :: !(ApiBytesT 'Base64 SerialisedTx)
     , coinSelection :: !(ApiCoinSelection n)
     , fee :: !(Quantity "lovelace" Natural)
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
 -- | Index of the stake key.
@@ -905,7 +905,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , mint :: !(Maybe (ApiT W.TokenMap))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
 data ApiPaymentDestination (n :: NetworkDiscriminant)
@@ -913,7 +913,7 @@ data ApiPaymentDestination (n :: NetworkDiscriminant)
     -- ^ Pay amounts to one or more addresses.
     | ApiPaymentAll !(NonEmpty  (ApiT Address, Proxy n))
     -- ^ Migrate all money to one or more addresses.
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
 -- | Times where transactions are valid.
@@ -948,7 +948,7 @@ data PostTransactionOldData (n :: NetworkDiscriminant) = PostTransactionOldData
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
 
 -- | Legacy transaction API.
 data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOldData
@@ -956,7 +956,7 @@ data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOl
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
 
 type ApiBase64 = ApiBytesT 'Base64 ByteString
 
@@ -1059,7 +1059,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
 -- | The response cardano-wallet returns upon successful submission of a
@@ -1071,7 +1071,7 @@ data ApiMintedBurnedTransaction (n :: NetworkDiscriminant) = ApiMintedBurnedTran
     -- ^ Helpful information about each unique asset minted or burned (where the
     -- identity is the policyId + asset name of the asset).
     }
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 
 data ApiMintedBurnedInfo = ApiMintedBurnedInfo
@@ -1118,7 +1118,7 @@ data ApiWithdrawalPostData
 data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
     , input :: !(ApiT TxIn)
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
 data AddressAmount addr = AddressAmount
@@ -1230,7 +1230,7 @@ newtype ApiWalletMigrationPlanPostData (n :: NetworkDiscriminant) =
     ApiWalletMigrationPlanPostData
     { addresses :: NonEmpty (ApiT Address, Proxy n)
     }
-    deriving (Eq, Generic)
+    deriving (Eq, Generic, Typeable)
     deriving anyclass NFData
     deriving Show via (Quiet (ApiWalletMigrationPlanPostData n))
 
@@ -1238,13 +1238,13 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
     , addresses :: !(NonEmpty (ApiT Address, Proxy n))
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
 newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
     { addresses :: [(ApiT Address, Proxy n)]
     }
-    deriving (Eq, Generic)
+    deriving (Eq, Generic, Typeable)
     deriving anyclass NFData
     deriving Show via (Quiet (ApiPutAddressesData n))
 
@@ -1259,7 +1259,7 @@ data ApiWalletMigrationPlan (n :: NetworkDiscriminant) = ApiWalletMigrationPlan
     , totalFee :: Quantity "lovelace" Natural
     , balanceLeftover :: ApiWalletMigrationBalance
     , balanceSelected :: ApiWalletMigrationBalance
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
 newtype ApiWithdrawRewards = ApiWithdrawRewards Bool
@@ -1690,7 +1690,7 @@ newtype ApiMnemonicT (sizes :: [Nat]) =
     deriving Show via (Quiet (ApiMnemonicT sizes))
 
 -- | A stake key belonging to the current wallet.
-data ApiOurStakeKey n = ApiOurStakeKey
+data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
      { _index :: !Natural
     , _key :: !(ApiT W.RewardAccount, Proxy n)
     , _stake :: !(Quantity "lovelace" Natural)
@@ -1706,7 +1706,7 @@ data ApiOurStakeKey n = ApiOurStakeKey
 --
 -- We /could/ provide the current delegation status for foreign stake
 -- keys.
-data ApiForeignStakeKey n = ApiForeignStakeKey
+data ApiForeignStakeKey (n :: NetworkDiscriminant) = ApiForeignStakeKey
     { _key :: !(ApiT W.RewardAccount, Proxy n)
     , _stake :: !(Quantity "lovelace" Natural)
       -- ^ The total ada this stake key controlls / is associated with. This
@@ -1725,7 +1725,7 @@ newtype ApiNullStakeKey = ApiNullStakeKey
     deriving Show via (Quiet ApiNullStakeKey)
 
 -- | Collection of stake keys associated with a wallet.
-data ApiStakeKeys n = ApiStakeKeys
+data ApiStakeKeys (n :: NetworkDiscriminant) = ApiStakeKeys
     { _ours :: ![ApiOurStakeKey n]
     , _foreign :: ![ApiForeignStakeKey n]
     , _none :: !ApiNullStakeKey
