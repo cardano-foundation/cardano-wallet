@@ -2358,7 +2358,7 @@ instance ToSchema (ApiT SmashServer) where
 instance ToSchema ApiHealthCheck where
     declareNamedSchema _ = declareSchemaForDefinition "ApiHealthCheck"
 
-instance ToSchema (ApiCoinSelection n) where
+instance Typeable n => ToSchema (ApiCoinSelection n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiCoinSelection"
 
 instance ToSchema ApiWallet where
