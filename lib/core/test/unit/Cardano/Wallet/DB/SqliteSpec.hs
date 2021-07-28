@@ -190,7 +190,7 @@ import Data.Typeable
 import Data.Word
     ( Word64 )
 import Database.Persist.Sql
-    ( DBName (..), PersistEntity (..), fieldDB )
+    ( EntityNameDB (..), PersistEntity (..), fieldDB )
 import Numeric.Natural
     ( Natural )
 import System.Directory
@@ -973,7 +973,7 @@ testMigrationTxMetaFee dbName expectedLength caseByCase = do
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.TxMetaFee
-        in fieldName field == unDBName fieldInDB
+        in fieldName field == unEntityNameDB fieldInDB
 
 matchMsgManualMigration :: (DBField -> Bool) -> WalletDBLog -> Bool
 matchMsgManualMigration p = \case
@@ -1016,9 +1016,9 @@ testMigrationCleanupCheckpoints dbName genesisParameters tip = do
     fieldGenesisHash = fieldDB $ persistFieldDef DB.WalGenesisHash
     fieldGenesisStart = fieldDB $ persistFieldDef DB.WalGenesisStart
 
-    isMsgManualMigration :: DBName -> WalletDBLog -> Bool
+    isMsgManualMigration :: EntityNameDB-> WalletDBLog -> Bool
     isMsgManualMigration fieldInDB = matchMsgManualMigration $ \field ->
-        fieldName field == unDBName fieldInDB
+        fieldName field == unEntityNameDB fieldInDB
 
 testMigrationRole
     :: forall k s.
@@ -1051,7 +1051,7 @@ testMigrationRole dbName = do
     isMsgManualMigration :: WalletDBLog -> Bool
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateAddressRole
-        in fieldName field == unDBName fieldInDB
+        in fieldName field == unEntityNameDB fieldInDB
 
 testMigrationSeqStateDerivationPrefix
     :: forall k s.
@@ -1085,7 +1085,7 @@ testMigrationSeqStateDerivationPrefix dbName prefix = do
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
-        in fieldName field == unDBName fieldInDB
+        in fieldName field == unEntityNameDB fieldInDB
 
 testMigrationPassphraseScheme
     :: forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k)
@@ -1129,7 +1129,7 @@ testMigrationPassphraseScheme = do
   where
     isMsgManualMigration = matchMsgManualMigration $ \field ->
         let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
-        in  fieldName field == unDBName fieldInDB
+        in  fieldName field == unEntityNameDB fieldInDB
 
     -- Coming from __test/data/passphraseScheme-v2020-03-16.sqlite__:
     --
