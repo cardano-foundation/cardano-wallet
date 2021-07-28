@@ -81,9 +81,9 @@ library
     , ouroboros-consensus
     , ouroboros-network
     , path-pieces
-    , persistent ==2.11.0.4
-    , persistent-sqlite ==2.11.1.0
-    , persistent-template ==2.9.1.0
+    , persistent >=2.13 && <2.14
+    , persistent-sqlite >=2.13 && <2.14
+    , persistent-template >=2.12 && <2.13
     , pretty-simple
     , profunctors
     , quiet
