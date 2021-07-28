@@ -175,8 +175,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             ]
 
         ["wallet", "create", "from-recovery-phrase", "--help"] `shouldShowUsage`
@@ -187,8 +187,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  WALLET_NAME              Name of the wallet."
             , "  --address-pool-gap INT   number of unused consecutive addresses"
             , "                           to keep track of. (default: 20)"
@@ -202,8 +202,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  WALLET_NAME              Name of the wallet."
             , "  --address-pool-gap INT   number of unused consecutive addresses"
             , "                           to keep track of. (default: 20)"
@@ -217,8 +217,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             ]
 
         ["wallet", "update", "--help"] `shouldShowUsage`
@@ -239,8 +239,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             ]
 
         ["wallet", "utxo", "--help"] `shouldShowUsage`
@@ -249,8 +249,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             ]
 
         ["transaction", "--help"] `shouldShowUsage`
@@ -274,14 +274,14 @@ spec = do
 
         ["transaction", "create", "--help"] `shouldShowUsage`
             [ "Usage:  transaction create [--port INT] WALLET_ID"
-            , "                           --payment PAYMENT [--metadata JSON] "
+            , "                           (--payment PAYMENT) [--metadata JSON] "
             , "                           [--ttl DURATION]"
             , "  Create and submit a new transaction."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  --payment PAYMENT        address to send to and amount to send"
             , "                           separated by @, e.g."
             , "                           '<amount>@<address>'"
@@ -295,14 +295,15 @@ spec = do
             ]
 
         ["transaction", "fees", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction fees [--port INT] WALLET_ID --payment PAYMENT"
-            , "                         [--metadata JSON] [--ttl DURATION]"
+            [ "Usage:  transaction fees [--port INT] WALLET_ID"
+            , "                         (--payment PAYMENT) [--metadata JSON] "
+            , "                         [--ttl DURATION]"
             , "  Estimate fees for a transaction."
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  --payment PAYMENT        address to send to and amount to send"
             , "                           separated by @, e.g."
             , "                           '<amount>@<address>'"
@@ -322,8 +323,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  --start TIME             start time (ISO 8601 date-and-time"
             , "                           format: basic or extended, e.g."
             , "                           2012-09-25T10:15:00Z)."
@@ -340,8 +341,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  BINARY_BLOB              hex-encoded binary blob of"
             , "                           externally-signed transaction."
             ]
@@ -352,8 +353,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             ]
 
         ["transaction", "get", "--help"] `shouldShowUsage`
@@ -362,8 +363,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             ]
 
         ["address", "--help"] `shouldShowUsage`
@@ -393,8 +394,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  --state STRING           only addresses with the given state:"
             , "                           either 'used' or 'unused'."
             ]
@@ -408,8 +409,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  --address-index INDEX    A derivation index for the address"
             ]
 
@@ -420,8 +421,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             ]
 
         ["stake-pool", "list", "--help"] `shouldShowUsage`
@@ -430,8 +431,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  --stake STAKE            The stake you intend to delegate,"
             , "                           which affects the rewards and the"
             , "                           ranking of pools."
@@ -457,8 +458,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             ]
 
         ["network", "parameters", "--help"] `shouldShowUsage`
@@ -467,8 +468,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             ]
 
         ["network", "clock", "--help"] `shouldShowUsage`
@@ -477,8 +478,8 @@ spec = do
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet"
-            , "                           API. (default: 8090)"
+            , "  --port INT               port used for serving the wallet API."
+            , "                           (default: 8090)"
             , "  --force-ntp-check        When set, will block and force an NTP"
             , "                           check with the server. Otherwise, uses"
             , "                           an available cached result."
