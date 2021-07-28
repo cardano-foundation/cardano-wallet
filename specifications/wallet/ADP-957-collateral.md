@@ -23,9 +23,9 @@ of collateral inputs within transactions.
 
 1.  The wallet application, when requested to create a transaction requiring
     collateral, should attempt to select one or more **pure-ada** entries from
-    the wallet's UTxO set to serve as collateral inputs. The wallet application
-    **must not** select UTxO entries that include assets other than ada to
-    serve as collateral.
+    the wallet's UTxO set to serve as collateral inputs, and these must be VK
+    inputs. The wallet application **must not** select UTxO entries that
+    include assets other than ada to serve as collateral.
 
 2.  The wallet application, when requested to create a transaction requiring
     collateral, should attempt to select no fewer than one UTxO entry, and no
