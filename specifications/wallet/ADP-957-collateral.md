@@ -45,46 +45,37 @@ of collateral inputs within transactions.
     must return an error to the caller.
 
 4.  The wallet application, when requested to create a transaction requiring
-    collateral, should select an amount of ada that is less than or equal to a
-    maximum bound that is determined by a user-specified `maxCollateralFactor`
-    parameter:
-
-        collateralAmount ≤ txFee × collateralPercent × maxCollateralFactor
-
-    where:
-
-        maxCollateralFactor ≥ 1
-
-    If it is not possible to satisfy the maximum bound, the wallet application
-    must return an error to the caller.
-
-5.  The wallet application may provide a default value for the
-    `maxCollateralFactor` parameter.
-
-6.  The wallet application, when requested to create a transaction requiring
     collateral, should make a reasonable attempt to select the smallest amount
-    of ada that satisfies the minimum and maximum bounds, but is permitted to
-    select a higher, non-optimal amount (still within bounds) in cases where
-    searching for the optimal solution would entail an unreasonably high
-    performance cost.
+    of ada that satisfies the minimum bound, but is permitted to select a
+    higher, non-optimal amount in cases where searching for the optimal
+    solution would entail an unreasonably high performance cost.
 
-7.  The wallet application must ensure that UTxO entries used for collateral
-    inputs in pending transactions are not available for reuse as collateral
-    inputs in future transactions.
+5.  The wallet application must ensure that UTxO entries used as collateral
+    inputs in pending transactions are **not** available for reuse either as
+    collateral inputs or as ordinary inputs in future transactions.
 
-8.  The wallet application should consider a UTxO entry used for collateral in
-    a pending transaction to be part of the UTxO set that is available for
-    ordinary input selection in future transactions, unless that UTxO entry is
-    also used as an ordinary input in a pending transaction.
+6.  The wallet application must ensure that UTxO entries used as ordinary
+    inputs in pending transactions are **not** available for reuse either as
+    collateral inputs or as ordinary inputs in future transactions.
 
-9.  On processing a transaction in a block, if the transaction is marked as
+7.  The wallet application, when requested to create a transaction requiring
+    collateral, is permitted to select a set of collateral inputs that
+    intersects with the set of ordinary inputs for that transaction:
+
+        inputs t ≠ ∅ ∧ collateral_inputs t ≠ ∅
+
+        =/=> (does not imply)
+
+        inputs t     ∩ collateral_inputs t = ∅
+
+8.  On processing a transaction in a block, if the transaction is marked as
     having passed validation, the wallet application should remove all ordinary
     inputs within that transaction from the wallet's UTxO set:
 
         UTxO       := UTxO ⋪ inputs tx
         pendingTxs := pendingTxs − tx
 
-10. On processing a transaction in a block, if the transaction is marked as NOT
+9.  On processing a transaction in a block, if the transaction is marked as NOT
     having passed validation, the wallet application should remove all
     collateral inputs within that transaction from the wallet's UTxO set:
 
