@@ -94,9 +94,12 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime )
+import Database.Persist.EntityDef
+    ( getEntityDBName, getEntityFields )
+import Database.Persist.Names
+    ( EntityNameDB (..), unFieldNameDB )
 import Database.Persist.Sql
     ( EntityField
-    , EntityNameDB (..)
     , LogFunc
     , Migration
     , PersistEntity (..)
@@ -105,11 +108,8 @@ import Database.Persist.Sql
     , close'
     , fieldDB
     , fieldSqlType
-    , getEntityDBName
-    , getEntityFields
     , runMigrationUnsafeQuiet
     , runSqlConn
-    , unFieldNameDB
     )
 import Database.Persist.Sqlite
     ( SqlBackend, SqlPersistT, wrapConnection )
