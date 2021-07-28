@@ -58,7 +58,11 @@ of collateral inputs within transactions.
     inputs in pending transactions are **not** available for reuse either as
     collateral inputs or as ordinary inputs in future transactions.
 
-7.  The wallet application, when requested to create a transaction requiring
+7.  The wallet application must ensure that neither ordinary inputs nor
+    collateral inputs of pending transactions are included in a wallet's
+    available balance.
+
+8.  The wallet application, when requested to create a transaction requiring
     collateral, is permitted to select a set of collateral inputs that
     intersects with the set of ordinary inputs for that transaction:
 
@@ -68,14 +72,14 @@ of collateral inputs within transactions.
 
         inputs t     ∩ collateral_inputs t = ∅
 
-8.  On processing a transaction in a block, if the transaction is marked as
+9.  On processing a transaction in a block, if the transaction is marked as
     having passed validation, the wallet application should remove all ordinary
     inputs within that transaction from the wallet's UTxO set:
 
         UTxO       := UTxO ⋪ inputs tx
         pendingTxs := pendingTxs − tx
 
-9.  On processing a transaction in a block, if the transaction is marked as NOT
+10. On processing a transaction in a block, if the transaction is marked as NOT
     having passed validation, the wallet application should remove all
     collateral inputs within that transaction from the wallet's UTxO set:
 
