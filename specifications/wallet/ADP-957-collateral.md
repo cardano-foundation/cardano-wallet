@@ -66,11 +66,11 @@ of collateral inputs within transactions.
     collateral, is permitted to select a set of collateral inputs that
     intersects with the set of ordinary inputs for that transaction:
 
-        inputs t ≠ ∅ ∧ collateral_inputs t ≠ ∅
+        inputs t ≠ ∅ ∧ collateralInputs t ≠ ∅
 
         =/=> (does not imply)
 
-        inputs t     ∩ collateral_inputs t = ∅
+        inputs t     ∩ collateralInputs t = ∅
 
 9.  On processing a transaction in a block, if the transaction is marked as
     having passed validation, the wallet application should remove all ordinary
