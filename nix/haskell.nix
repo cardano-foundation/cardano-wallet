@@ -185,6 +185,7 @@ let
         packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
         packages.cardano-wallet-core.components.tests.unit.postInstall = libSodiumPostInstall;
         packages.cardano-wallet-cli.components.tests.unit.postInstall = libSodiumPostInstall;
+        packages.cardano-wallet-launcher.components.tests.unit.postInstall = libSodiumPostInstall;
       })
 
       ({ config, ...}: let
