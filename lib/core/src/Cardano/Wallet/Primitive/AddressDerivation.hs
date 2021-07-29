@@ -46,6 +46,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , DerivationPrefix (..)
     , DerivationIndex (..)
     , liftIndex
+    , hashVerificationKey
 
     -- * Delegation
     , RewardAccount (..)
@@ -85,7 +86,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv, XPub, xpubPublicKey )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -103,7 +104,7 @@ import Control.Monad
 import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
-    ( blake2b256 )
+    ( blake2b224, blake2b256 )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
@@ -151,6 +152,8 @@ import Quiet
 import Safe
     ( readMay, toEnumMay )
 
+import Cardano.Address.Script
+    ( KeyHash (KeyHash), KeyRole )
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -163,11 +166,28 @@ import qualified Data.Text.Encoding as T
                                 HD Hierarchy
 -------------------------------------------------------------------------------}
 
--- | Key Depth in the derivation path, according to BIP-0044 / CIP-1852
+-- | Typically used as a phantom type parameter, a witness to the type of the
+-- key being used.
+--
+-- For example, @key 'RootK XPrv@, represents the private key at the root of the
+-- HD hierarchy.
+--
+-- According to BIP-0044 / CIP-1852, we have the following keys in our HD
+-- hierarchy:
 --
 -- @m | purpose' | cointype' | account' | role | address@
+--
+-- Plus, we also have script keys (which are used in shared wallets) and policy
+-- keys (which are used in minting and burning).
 data Depth
-    = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK | ScriptK
+    = RootK
+    | PurposeK
+    | CoinTypeK
+    | AccountK
+    | RoleK
+    | AddressK
+    | ScriptK
+    | PolicyK
 
 -- | Marker for addresses type engaged. We want to handle four cases here.
 -- The first two are pertinent to UTxO accounting,
@@ -491,6 +511,14 @@ deriveRewardAccount
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
+
+hashVerificationKey
+    :: WalletKey key
+    => KeyRole
+    -> key depth XPub
+    -> KeyHash
+hashVerificationKey keyRole =
+    KeyHash keyRole . blake2b224 . xpubPublicKey . getRawKey
 
 {-------------------------------------------------------------------------------
                                  Passphrases
