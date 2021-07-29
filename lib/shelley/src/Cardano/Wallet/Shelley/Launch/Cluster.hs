@@ -41,6 +41,7 @@ module Cardano.Wallet.Shelley.Launch.Cluster
     , poolConfigsFromEnv
     , clusterEraFromEnv
     , clusterToApiEra
+    , clusterEraToString
     , withSMASH
 
       -- * Configuration
@@ -135,7 +136,7 @@ import Cardano.Wallet.Shelley.Launch
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Monad
-    ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
+    ( forM, forM_, liftM2, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Trans.Except
     ( withExceptT )
 import Control.Retry
@@ -238,10 +239,14 @@ getShelleyTestDataPath = fromMaybe source <$> lookupEnvNonEmpty var
     source = $(getTestData) </> "cardano-node-shelley"
     var = "SHELLEY_TEST_DATA"
 
-logFileConfigFromEnv :: IO LogFileConfig
-logFileConfigFromEnv = LogFileConfig
+logFileConfigFromEnv
+    :: Maybe String
+    -- ^ Optional extra subdir for TESTS_LOGDIR. E.g. @Just "alonzo"@ and
+    -- @Just "mary"@ to keep them separate.
+    -> IO LogFileConfig
+logFileConfigFromEnv subdir = LogFileConfig
     <$> nodeMinSeverityFromEnv
-    <*> testLogDirFromEnv
+    <*> (testLogDirFromEnv subdir)
     <*> pure Info
 
 minSeverityFromEnv :: Severity -> String -> IO Severity
@@ -283,8 +288,12 @@ tokenMetadataServerFromEnv = envFromText "TOKEN_METADATA_SERVER" >>= \case
 
 -- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.
-testLogDirFromEnv :: IO (Maybe FilePath)
-testLogDirFromEnv = traverse makeAbsolute =<< lookupEnvNonEmpty "TESTS_LOGDIR"
+testLogDirFromEnv :: Maybe String -> IO (Maybe FilePath)
+testLogDirFromEnv msubdir = do
+    rel <- lookupEnvNonEmpty "TESTS_LOGDIR"
+    makeAbsolute `traverse` case msubdir of
+        Just subdir -> liftM2 (</>) rel (Just subdir)
+        Nothing -> rel
 
 -- NOTE
 -- Fixture wallets we use in integration tests comes from "initialFunds"
@@ -432,10 +441,12 @@ poolConfigsFromEnv = isEnvSet "NO_POOLS" <&> \case
     True -> []
 
 localClusterConfigFromEnv :: IO LocalClusterConfig
-localClusterConfigFromEnv = LocalClusterConfig
-    <$> poolConfigsFromEnv
-    <*> clusterEraFromEnv
-    <*> logFileConfigFromEnv
+localClusterConfigFromEnv = do
+    era <- clusterEraFromEnv
+    LocalClusterConfig
+        <$> poolConfigsFromEnv
+        <*> (pure era)
+        <*> logFileConfigFromEnv (Just $ clusterEraToString era)
 
 data ClusterEra
     = ByronNoHardFork
@@ -468,6 +479,14 @@ clusterEraFromEnv =
         "alonzo" -> pure AlonzoHardFork
         _ -> die $ var ++ ": unknown era"
     withDefault = fromMaybe maxBound
+
+clusterEraToString :: ClusterEra -> String
+clusterEraToString = \case
+    ByronNoHardFork -> "byron"
+    ShelleyHardFork -> "shelley"
+    AllegraHardFork -> "allegra"
+    MaryHardFork    -> "mary"
+    AlonzoHardFork  -> "alonzo"
 
 data LocalClusterConfig = LocalClusterConfig
     { cfgStakePools :: [PoolConfig]
