@@ -1,0 +1,172 @@
+name: cardano-1.28.0
+
+resolver: lts-17.15
+
+packages:
+# In LTS 18.4, but with a different version
+- base16-bytestring-1.0.1.0 # 1.0.1.0 on lts-18.4
+- Cabal-3.4.0.0 # 3.2.1.0 on lts-18.4
+- containers-0.5.11.0 # 0.6.2.1 on lts-18.4
+- dns-3.0.4 # 4.0.1 on lts-18.4
+- network-3.1.2.1 # 3.1.1.1 on lts-18.4
+- recursion-schemes-5.1.3 # 5.2.2.1 on lts-18.4
+- text-1.2.4.0 # 1.2.4.1 on lts-18.4
+- Win32-2.6.2.0 # 2.6.1.0 on lts-18.4
+
+# Same as on lts-18.4, but somehow stack requires it here
+- binary-0.8.8.0
+- parsec-3.1.14.0
+
+# Not in LTS 18.4
+- async-timer-0.2.0.0
+- beam-core-0.9.1.0
+- beam-migrate-0.5.1.0
+- beam-sqlite-0.5.1.0
+- canonical-json-0.6.0.0
+- composition-prelude-3.0.0.2
+- constraints-extras-0.3.1.0
+- gray-code-0.3.1
+- lazy-search-0.1.2.1
+- lazysmallcheck-0.6
+- libsystemd-journal-1.4.4
+- markov-chain-usage-model-0.0.0
+- micro-recursion-schemes-5.0.2.2
+- monoidal-containers-0.6.0.1
+- moo-1.2
+- nothunks-0.1.2
+- partial-order-0.2.0.0
+- quickcheck-state-machine-0.7.0
+- regex-posix-clib-2.7
+- row-types-1.0.1.0
+- servant-subscriber-0.7.0.0
+- servant-websockets-2.0.0
+- size-based-0.1.2.0
+- statistics-linreg-0.3
+- streaming-binary-0.2.2.0
+- time-interval-0.1.1
+- time-out-0.2
+- transformers-except-0.1.1
+- Unique-0.4.7.6
+
+- git: https://github.com/input-output-hk/cardano-base
+  commit: b6a215c42a28dc8b71b42946fe30256a333d34af
+  subdirs:
+  - binary
+  - binary/test
+  - cardano-crypto-class
+  - cardano-crypto-praos
+  - cardano-crypto-tests
+  - slotting
+  - strict-containers
+
+- git: https://github.com/input-output-hk/cardano-crypto
+  commit: ce8f1934e4b6252084710975bd9bbc0a4648ece4
+
+- git: https://github.com/input-output-hk/cardano-ledger-specs
+  commit: ec9c77edbf5700a4b2ece8f97a1e313df06abc97
+  subdirs:
+  - alonzo/impl
+  - alonzo/test
+  - byron/chain/executable-spec
+  - byron/crypto
+  - byron/crypto/test
+  - byron/ledger/executable-spec
+  - byron/ledger/impl
+  - byron/ledger/impl/test
+  - cardano-ledger-core
+  - semantics/executable-spec
+  - semantics/small-steps-test
+  - shelley/chain-and-ledger/dependencies/non-integer
+  - shelley/chain-and-ledger/executable-spec
+  - shelley/chain-and-ledger/shelley-spec-ledger-test
+  - shelley-ma/impl
+  - shelley-ma/shelley-ma-test
+
+- git: https://github.com/input-output-hk/cardano-node
+  commit: 48429531f0d3d71fadce9a5971bf56a6df396f2d
+  subdirs:
+    - cardano-api
+    - cardano-cli
+    - cardano-config
+    - cardano-node
+
+- git: https://github.com/input-output-hk/cardano-prelude
+  commit: fd773f7a58412131512b9f694ab95653ac430852
+  subdirs:
+  - cardano-prelude
+  - cardano-prelude-test
+
+- git: https://github.com/Quid2/flat.git
+  commit: 95e5d7488451e43062ca84d5376b3adcc465f1cd
+
+- git: https://github.com/input-output-hk/goblins
+  commit: cde90a2b27f79187ca8310b6549331e59595e7ba
+
+- git: https://github.com/input-output-hk/hedgehog-extras
+  commit: edf6945007177a638fbeb8802397f3a6f4e47c14
+
+- git: https://github.com/input-output-hk/iohk-monitoring-framework
+  commit: 808724ff8a19a33d0ed06f9ef59fbd900b08553c
+  subdirs:
+  - contra-tracer
+  - iohk-monitoring
+  - plugins/backend-aggregation
+  - plugins/backend-ekg
+  - plugins/backend-monitoring
+  - plugins/backend-trace-forwarder
+  - plugins/scribe-systemd
+  - tracer-transformers
+
+- git: https://github.com/shmish111/purescript-bridge.git
+  commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
+
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: e50613562d6d4a0f933741fcf590b0f69a1eda67
+  subdirs:
+  - io-sim-classes
+
+- git: https://github.com/input-output-hk/ouroboros-network
+  commit: e338f2cf8e1078fbda9555dd2b169c6737ef6774
+  subdirs:
+    - io-classes
+    - io-sim
+    - monoidal-synchronisation
+    - network-mux
+    - ouroboros-consensus
+    - ouroboros-consensus-test
+    - ouroboros-consensus-byron
+    - ouroboros-consensus-byronspec
+    - ouroboros-consensus-byron-test
+    - ouroboros-consensus-shelley
+    - ouroboros-consensus-shelley-test
+    - ouroboros-consensus-cardano
+    - ouroboros-consensus-cardano-test
+    - ouroboros-network
+    - ouroboros-network-framework
+    - ouroboros-network-testing
+    - typed-protocols
+    - typed-protocols-examples
+
+- git: https://github.com/input-output-hk/plutus
+  commit: 523f349f3d68db07c98150734793ed7003d1f562
+  subdirs:
+    - freer-extras
+    - playground-common
+    - plutus-chain-index
+    - plutus-contract
+    - plutus-core
+    - plutus-ledger
+    - plutus-ledger-api
+    - plutus-pab
+    - plutus-tx
+    - plutus-tx-plugin
+    - plutus-use-cases
+    - prettyprinter-configurable
+    - quickcheck-dynamic
+    - word-array
+
+- git: https://github.com/shmish111/servant-purescript.git
+  commit: a76104490499aa72d40c2790d10e9383e0dbde63
+
+- git: https://github.com/input-output-hk/Win32-network
+  commit: 5b3d08c454f425da5cf045fe7865950d7c806691
