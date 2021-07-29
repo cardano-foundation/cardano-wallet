@@ -32,7 +32,7 @@
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."bimap" or (errorHandler.buildDepError "bimap"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
-          (hsPkgs."cardano-ledger-test" or (errorHandler.buildDepError "cardano-ledger-test"))
+          (hsPkgs."cardano-ledger-byron-test" or (errorHandler.buildDepError "cardano-ledger-byron-test"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
@@ -40,6 +40,7 @@
           (hsPkgs."byron-spec-chain" or (errorHandler.buildDepError "byron-spec-chain"))
           (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
@@ -52,8 +53,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "aecfe77de784e6c75108172802ee59d2d7087eaf";
-      sha256 = "1pdanljh5v1w038fc0s945h1gnrkipnfbj2cqqzwgpnv7zm14swh";
+      rev = "e338f2cf8e1078fbda9555dd2b169c6737ef6774";
+      sha256 = "12x81hpjyw2cpkazfalz6bw2wgr6ax7bnmlxl2rlfakkvsjfgaqd";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus-byronspec; echo source root reset to \$sourceRoot";
     }

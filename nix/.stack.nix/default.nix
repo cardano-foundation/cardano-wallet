@@ -4,8 +4,6 @@
       packages = {
         "OddWord" = (((hackage.OddWord)."1.0.2.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
-        "markov-chain-usage-model" = (((hackage.markov-chain-usage-model)."0.0.0").revisions).default;
-        "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.7.0").revisions).default;
         "hspec" = (((hackage.hspec)."2.8.2").revisions).default;
         "hspec-core" = (((hackage.hspec-core)."2.8.2").revisions).default;
         "base16-bytestring" = (((hackage.base16-bytestring)."1.0.1.0").revisions).default;
@@ -51,7 +49,6 @@
         strict-non-empty-containers = ./strict-non-empty-containers.nix;
         cardano-addresses-cli = ./cardano-addresses-cli.nix;
         cardano-addresses = ./cardano-addresses.nix;
-        flat = ./flat.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
         cardano-crypto-class = ./cardano-crypto-class.nix;
@@ -60,6 +57,8 @@
         cardano-slotting = ./cardano-slotting.nix;
         strict-containers = ./strict-containers.nix;
         cardano-crypto = ./cardano-crypto.nix;
+        cardano-ledger-alonzo = ./cardano-ledger-alonzo.nix;
+        cardano-ledger-alonzo-test = ./cardano-ledger-alonzo-test.nix;
         byron-spec-chain = ./byron-spec-chain.nix;
         cardano-crypto-wrapper = ./cardano-crypto-wrapper.nix;
         cardano-crypto-test = ./cardano-crypto-test.nix;
@@ -73,17 +72,16 @@
         shelley-spec-ledger = ./shelley-spec-ledger.nix;
         shelley-spec-ledger-test = ./shelley-spec-ledger-test.nix;
         cardano-ledger-shelley-ma = ./cardano-ledger-shelley-ma.nix;
-        cardano-ledger-alonzo = ./cardano-ledger-alonzo.nix;
         cardano-ledger-shelley-ma-test = ./cardano-ledger-shelley-ma-test.nix;
         cardano-api = ./cardano-api.nix;
         cardano-cli = ./cardano-cli.nix;
         cardano-config = ./cardano-config.nix;
         cardano-node = ./cardano-node.nix;
-        cardano-node-chairman = ./cardano-node-chairman.nix;
         cardano-prelude = ./cardano-prelude.nix;
         cardano-prelude-test = ./cardano-prelude-test.nix;
-        cardano-sl-x509 = ./cardano-sl-x509.nix;
+        flat = ./flat.nix;
         goblins = ./goblins.nix;
+        hedgehog-extras = ./hedgehog-extras.nix;
         contra-tracer = ./contra-tracer.nix;
         iohk-monitoring = ./iohk-monitoring.nix;
         lobemo-backend-aggregation = ./lobemo-backend-aggregation.nix;
@@ -92,32 +90,46 @@
         lobemo-backend-trace-forwarder = ./lobemo-backend-trace-forwarder.nix;
         lobemo-scribe-systemd = ./lobemo-scribe-systemd.nix;
         tracer-transformers = ./tracer-transformers.nix;
-        plutus-core = ./plutus-core.nix;
-        plutus-ledger-api = ./plutus-ledger-api.nix;
-        plutus-tx = ./plutus-tx.nix;
-        prettyprinter-configurable = ./prettyprinter-configurable.nix;
-        word-array = ./word-array.nix;
-        io-sim = ./io-sim.nix;
+        purescript-bridge = ./purescript-bridge.nix;
+        io-sim-classes = ./io-sim-classes.nix;
         io-classes = ./io-classes.nix;
+        io-sim = ./io-sim.nix;
+        monoidal-synchronisation = ./monoidal-synchronisation.nix;
         network-mux = ./network-mux.nix;
         ouroboros-consensus = ./ouroboros-consensus.nix;
-        monoidal-synchronisation = ./monoidal-synchronisation.nix;
+        ouroboros-consensus-test = ./ouroboros-consensus-test.nix;
         ouroboros-consensus-byron = ./ouroboros-consensus-byron.nix;
-        ouroboros-consensus-cardano = ./ouroboros-consensus-cardano.nix;
+        ouroboros-consensus-byronspec = ./ouroboros-consensus-byronspec.nix;
+        ouroboros-consensus-byron-test = ./ouroboros-consensus-byron-test.nix;
         ouroboros-consensus-shelley = ./ouroboros-consensus-shelley.nix;
+        ouroboros-consensus-shelley-test = ./ouroboros-consensus-shelley-test.nix;
+        ouroboros-consensus-cardano = ./ouroboros-consensus-cardano.nix;
+        ouroboros-consensus-cardano-test = ./ouroboros-consensus-cardano-test.nix;
         ouroboros-network = ./ouroboros-network.nix;
         ouroboros-network-framework = ./ouroboros-network-framework.nix;
         ouroboros-network-testing = ./ouroboros-network-testing.nix;
+        ntp-client = ./ntp-client.nix;
         typed-protocols = ./typed-protocols.nix;
         typed-protocols-examples = ./typed-protocols-examples.nix;
-        cardano-client = ./cardano-client.nix;
-        ntp-client = ./ntp-client.nix;
-        ouroboros-consensus-mock = ./ouroboros-consensus-mock.nix;
+        freer-extras = ./freer-extras.nix;
+        playground-common = ./playground-common.nix;
+        plutus-chain-index = ./plutus-chain-index.nix;
+        plutus-contract = ./plutus-contract.nix;
+        plutus-core = ./plutus-core.nix;
+        plutus-ledger = ./plutus-ledger.nix;
+        plutus-ledger-api = ./plutus-ledger-api.nix;
+        plutus-pab = ./plutus-pab.nix;
+        plutus-tx = ./plutus-tx.nix;
+        plutus-tx-plugin = ./plutus-tx-plugin.nix;
+        plutus-use-cases = ./plutus-use-cases.nix;
+        prettyprinter-configurable = ./prettyprinter-configurable.nix;
+        quickcheck-dynamic = ./quickcheck-dynamic.nix;
+        word-array = ./word-array.nix;
+        servant-purescript = ./servant-purescript.nix;
         Win32-network = ./Win32-network.nix;
-        http-client = ./http-client.nix;
         };
-      compiler.version = "8.10.5";
-      compiler.nix-name = "ghc8105";
+      compiler.version = "8.10.4";
+      compiler.nix-name = "ghc8104";
       };
   resolver = "lts-17.15";
   modules = [
@@ -135,5 +147,5 @@
         })
     { packages = { "$locals" = { ghcOptions = [ "-fwrite-ide-info" ]; }; }; }
     ];
-  compiler = "ghc-8.10.5";
+  compiler = "ghc-8.10.4";
   }
