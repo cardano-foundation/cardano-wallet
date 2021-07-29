@@ -63,6 +63,7 @@ import Test.Integration.Framework.DSL
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyRandomWalletWithPasswd
+    , encryptWalletPasswordWithScrypt
     , eventually
     , expectErrorMessage
     , expectField
@@ -78,6 +79,7 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , genMnemonics
     , getFromResponse
+    , getSaltFromHexScryptPassword
     , json
     , listFilteredByronWallets
     , postByronWallet
@@ -287,8 +289,8 @@ spec = describe "BYRON_WALLETS" $ do
             ]
 
     describe "BYRON_RESTORE_06 - Passphrase" $ do
-        let minLength = passphraseMinLength (Proxy @"raw")
-        let maxLength = passphraseMaxLength (Proxy @"raw")
+        let minLength = passphraseMinLength (Proxy @"user")
+        let maxLength = passphraseMaxLength (Proxy @"user")
         let matrix =
                 [ ( show minLength ++ " char long"
                   , T.pack (replicate minLength 'ź')

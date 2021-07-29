@@ -81,7 +81,6 @@ library
     , resourcet
     , retry
     , say
-    , scrypt
     , serialise
     , string-interpolate
     , template-haskell

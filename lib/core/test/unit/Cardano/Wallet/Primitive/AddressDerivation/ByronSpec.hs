@@ -18,7 +18,7 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
+    ( Depth (..), DerivationType (..), Index (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..)
     , generateKeyFromSeed
@@ -28,6 +28,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic, unsafeXPrv )
 import Control.Monad

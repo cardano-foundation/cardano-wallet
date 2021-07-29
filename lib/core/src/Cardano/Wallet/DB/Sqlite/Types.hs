@@ -35,7 +35,7 @@ import Cardano.Api
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..), PassphraseScheme (..), Role (..) )
+    ( Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
@@ -44,6 +44,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..), PassphraseScheme (..) )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , FeePolicy

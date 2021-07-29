@@ -273,13 +273,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
     , WalletKey (..)
     , fromHex
     , hex
+import Cardano.Wallet.Primitive.Passphrase ( Passphrase (..)
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -343,10 +343,14 @@ import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Crypto.Hash.Utils
     ( blake2b224 )
+import Crypto.Random.Entropy
+    ( getEntropy )
 import Data.Aeson
     ( FromJSON, ToJSON, Value, (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.ByteArray.Encoding
+    ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Either.Extra
@@ -459,7 +463,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.Scrypt as Scrypt
+import qualified Crypto.KDF.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -1280,17 +1284,8 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
             $ hex
             $ Byron.getKey
             $ Byron.generateKeyFromSeed seed pwd
-    pwdH <- liftIO $ T.decodeUtf8 . hex <$> encryptPasswordWithScrypt pwd
+    pwdH <- encryptPassphraseTestingOnly pwd
     emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
-  where
-    encryptPasswordWithScrypt =
-        fmap Scrypt.getEncryptedPass
-        . Scrypt.encryptPassIO Scrypt.defaultParams
-        . Scrypt.Pass
-        . CBOR.toStrictByteString
-        . CBOR.encodeBytes
-        . BA.convert
-
 
 postWallet'
     :: (MonadIO m, MonadUnliftIO m)

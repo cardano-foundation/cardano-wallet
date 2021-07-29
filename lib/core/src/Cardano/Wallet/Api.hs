@@ -632,7 +632,7 @@ type ShelleyMigrations n =
 type MigrateShelleyWallet n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "migrations"
-    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "raw")
+    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "user")
     :> PostAccepted '[JSON] (NonEmpty (ApiTransactionT n))
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/createShelleyWalletMigrationPlan

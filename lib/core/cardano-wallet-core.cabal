@@ -228,6 +228,10 @@ library
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Slotting
       Cardano.Wallet.Primitive.SyncProgress
+      Cardano.Wallet.Primitive.Passphrase
+      Cardano.Wallet.Primitive.Passphrase.Current
+      Cardano.Wallet.Primitive.Passphrase.Legacy
+      Cardano.Wallet.Primitive.Passphrase.Types
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Primitive.Types.Address
       Cardano.Wallet.Primitive.Types.Coin
@@ -462,6 +466,8 @@ test-suite unit
       Cardano.Wallet.Primitive.Migration.PlanningSpec
       Cardano.Wallet.Primitive.Migration.SelectionSpec
       Cardano.Wallet.Primitive.ModelSpec
+      Cardano.Wallet.Primitive.PassphraseSpec
+      Cardano.Wallet.Primitive.Passphrase.LegacySpec
       Cardano.Wallet.Primitive.Slotting.Legacy
       Cardano.Wallet.Primitive.SlottingSpec
       Cardano.Wallet.Primitive.SyncProgressSpec

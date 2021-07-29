@@ -218,8 +218,8 @@ spec = describe "BYRON_CLI_WALLETS" $ do
         it' "ledger" (genMnemonics M24) scenarioSuccess -- ✔️
 
     describe "CLI_BYRON_RESTORE_06 - Passphrase" $ do
-        let minLength = passphraseMinLength (Proxy @"raw")
-        let maxLength = passphraseMaxLength (Proxy @"raw")
+        let minLength = passphraseMinLength (Proxy @"user")
+        let maxLength = passphraseMaxLength (Proxy @"user")
         let matrix =
                 [ ( show minLength ++ " char long"
                   , T.pack (replicate minLength 'ź')
@@ -311,8 +311,8 @@ spec = describe "BYRON_CLI_WALLETS" $ do
             T.unpack e `shouldContain` errMsg403WrongPass
 
     describe "CLI_BYRON_UPDATE_PASS_03 - Pass length incorrect" $ do
-        let minLength = passphraseMinLength (Proxy @"raw")
-        let maxLength = passphraseMaxLength (Proxy @"raw")
+        let minLength = passphraseMinLength (Proxy @"user")
+        let maxLength = passphraseMaxLength (Proxy @"user")
         let passTooShort = replicate (minLength - 1) 'o'
         let errMsgTooShort = "passphrase is too short: expected at least 10 characters"
         let passTooLong = replicate (maxLength + 1) 'o'

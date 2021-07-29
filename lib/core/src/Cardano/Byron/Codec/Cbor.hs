@@ -46,7 +46,9 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub, xpubToBytes )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
+    ( Depth (..), DerivationType (..), Index (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
     ( ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -425,9 +427,9 @@ encryptDerivationPath
         -- ^ Payload to be encrypted
     -> ByteString
         -- ^ Ciphertext with a 128-bit crypto-tag appended.
-encryptDerivationPath (Passphrase passphrase) payload = unsafeSerialize $ do
+encryptDerivationPath passphrase payload = unsafeSerialize $ do
     nonce <- Poly.nonce12 cardanoNonce
-    st1 <- Poly.finalizeAAD <$> Poly.initialize passphrase nonce
+    st1 <- Poly.finalizeAAD <$> Poly.initialize (unPassphrase passphrase) nonce
     let (out, st2) = Poly.encrypt (CBOR.toStrictByteString payload) st1
     return $ out <> BA.convert (Poly.finalize st2)
   where
@@ -449,10 +451,10 @@ decryptDerivationPath
     -> ByteString
         -- ^ Payload to be decrypted
     -> CryptoFailable ByteString
-decryptDerivationPath (Passphrase passphrase) bytes = do
+decryptDerivationPath passphrase bytes = do
     let (payload, tag) = BS.splitAt (BS.length bytes - 16) bytes
     nonce <- Poly.nonce12 cardanoNonce
-    st1 <- Poly.finalizeAAD <$> Poly.initialize passphrase nonce
+    st1 <- Poly.finalizeAAD <$> Poly.initialize (unPassphrase passphrase) nonce
     let (out, st2) = Poly.decrypt payload st1
     when (BA.convert (Poly.finalize st2) /= tag) $
         CryptoFailed CryptoError_MacKeyInvalid

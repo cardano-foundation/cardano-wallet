@@ -50,7 +50,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , Role (..)
     , WalletKey (..)
     , publicKey
@@ -78,6 +77,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..) )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( Passphrase (..), PassphraseScheme (..), WalletPassphraseInfo (..) )
+import Cardano.Wallet.Primitive.Passphrase.Types
+    ( PassphraseHash (..) )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -90,7 +95,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , LinearFunction (LinearFunction)
     , MinimumUTxOValue (..)
-    , PassphraseScheme (..)
     , PoolId (..)
     , ProtocolParameters (..)
     , Range (..)
@@ -104,7 +108,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
-    , WalletPassphraseInfo (..)
     , WithOrigin (..)
     , rangeIsValid
     , unsafeEpochNo
@@ -802,11 +805,11 @@ deriving instance Buildable a => Buildable (Identity a)
 instance Buildable GenTxHistory where
     build (GenTxHistory txs) = blockListF' "-" tupleF txs
 
-instance Buildable (ShelleyKey depth XPrv, Hash "encryption") where
+instance Buildable (ShelleyKey depth XPrv, PassphraseHash) where
     build (_, h) = tupleF (xprvF, prefixF 8 hF <> "..." <> suffixF 8 hF)
       where
         xprvF = "XPrv" :: Builder
-        hF = build (toText (coerce @_ @(Hash "BlockHeader") h))
+        hF = build (toText (Hash @"BlockHeader" (getPassphraseHash h)))
 
 instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain

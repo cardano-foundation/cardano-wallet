@@ -49,7 +49,6 @@ import Cardano.Crypto.Wallet
     , toXPub
     , unXPrv
     , unXPub
-    , xPrvChangePass
     , xprv
     , xpub
     )
@@ -65,7 +64,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
@@ -88,10 +86,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     , rewardAccountKey
     )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..), PassphraseHash (..), changePassphraseXPrv )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Util
     ( invariant )
 import Control.DeepSeq
@@ -171,8 +169,8 @@ unsafeGenerateKeyFromSeedShelley
         -- ^ The actual seed and its recovery / generation passphrase
     -> Passphrase "encryption"
     -> XPrv
-unsafeGenerateKeyFromSeedShelley (root, m2nd) (Passphrase pwd) =
-    generateNew seed' (maybe mempty mnemonicToBytes m2nd) pwd
+unsafeGenerateKeyFromSeedShelley (root, m2nd) pwd =
+    generateNew seed' (maybe mempty mnemonicToBytes m2nd) (unPassphrase pwd)
   where
     mnemonicToBytes (SomeMnemonic mw) = entropyToBytes $ mnemonicToEntropy mw
     seed  = mnemonicToBytes root
@@ -183,7 +181,7 @@ unsafeGenerateKeyFromSeedShelley (root, m2nd) (Passphrase pwd) =
 
 deriveAccountPrivateKeyShelley
     :: Index 'Hardened 'PurposeK
-    -> Passphrase purpose
+    -> Passphrase "encryption"
     -> XPrv
     -> Index 'Hardened 'AccountK
     -> XPrv
@@ -198,7 +196,7 @@ deriveAccountPrivateKeyShelley purpose (Passphrase pwd) rootXPrv (Index accIx) =
 
 deriveAddressPrivateKeyShelley
     :: Enum a
-    => Passphrase purpose
+    => Passphrase "encryption"
     -> XPrv
     -> a
     -> Index derivationType level
@@ -250,8 +248,8 @@ instance SoftDerivation ShelleyKey where
 -------------------------------------------------------------------------------}
 
 instance WalletKey ShelleyKey where
-    changePassphrase (Passphrase oldPwd) (Passphrase newPwd) (ShelleyKey prv) =
-        ShelleyKey $ xPrvChangePass oldPwd newPwd prv
+    changePassphrase oldPwd newPwd (ShelleyKey prv) =
+        ShelleyKey $ changePassphraseXPrv oldPwd newPwd prv
 
     publicKey (ShelleyKey prv) =
         ShelleyKey (toXPub prv)
@@ -406,12 +404,12 @@ toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey
 instance PersistPrivateKey (ShelleyKey 'RootK) where
     serializeXPrv (k, h) =
         ( hex . unXPrv . getKey $ k
-        , hex . getHash $ h
+        , hex . getPassphraseHash $ h
         )
 
     unsafeDeserializeXPrv (k, h) = either err id $ (,)
         <$> fmap ShelleyKey (xprvFromText k)
-        <*> fmap Hash (fromHex h)
+        <*> fmap PassphraseHash (fromHex h)
       where
         xprvFromText = xprv <=< fromHex @ByteString
         err _ = error "unsafeDeserializeXPrv: unable to deserialize ShelleyKey"

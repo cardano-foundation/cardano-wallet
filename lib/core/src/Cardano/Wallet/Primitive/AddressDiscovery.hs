@@ -42,11 +42,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
-    , Passphrase (..)
     , RewardAccount
     )
 import Cardano.Wallet.Primitive.BlockSummary
     ( ChainEvents )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Data.Kind
@@ -179,7 +180,7 @@ type LightDiscoverTxs s =
 
 -- | Function that discovers transactions based on an address.
 newtype DiscoverTxs addr txs s = DiscoverTxs
-    { discoverTxs 
+    { discoverTxs
         :: forall m. Monad m
         => (addr -> m txs) -> s -> m (txs, s)
     }

@@ -286,23 +286,18 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationPrefix (..)
     , DerivationType (..)
-    , ErrWrongPassphrase (..)
     , HardDerivation (..)
     , Index (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , Passphrase
     , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
     , WalletKey (..)
-    , checkPassphrase
     , deriveRewardAccount
-    , encryptPassphrase
     , hashVerificationKey
     , liftIndex
-    , preparePassphrase
     , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -352,6 +347,17 @@ import Cardano.Wallet.Primitive.Model
     , totalUTxO
     , updateState
     )
+import Cardano.Wallet.Primitive.Passphrase
+    ( ErrWrongPassphrase (..)
+    , Passphrase
+    , PassphraseHash
+    , PassphraseScheme (..)
+    , WalletPassphraseInfo (..)
+    , checkPassphrase
+    , currentPassphraseScheme
+    , encryptPassphrase'
+    , preparePassphrase
+    )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
     , TimeInterpreter
@@ -377,7 +383,6 @@ import Cardano.Wallet.Primitive.Types
     , IsDelegatingTo (..)
     , LinearFunction (LinearFunction)
     , NetworkParameters (..)
-    , PassphraseScheme (..)
     , PoolId (..)
     , PoolLifeCycleStatus (..)
     , ProtocolParameters (..)
@@ -391,7 +396,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
-    , WalletPassphraseInfo (..)
     , WithOrigin (..)
     , dlgCertPoolId
     , toSlot
@@ -503,8 +507,6 @@ import Crypto.Hash
     ( Blake2b_256, hash )
 import Data.ByteString
     ( ByteString )
-import Data.Coerce
-    ( coerce )
 import Data.DBVar
     ( modifyDBMaybe )
 import Data.Either
@@ -876,20 +878,18 @@ updateWalletPassphrase
         )
     => ctx
     -> WalletId
-    -> (Passphrase "raw", Passphrase "raw")
+    -> (Passphrase "user", Passphrase "user")
     -> ExceptT ErrUpdatePassphrase IO ()
 updateWalletPassphrase ctx wid (old, new) =
-    withRootKey @ctx @s @k ctx wid (coerce old) ErrUpdatePassphraseWithRootKey
+    withRootKey @ctx @s @k ctx wid old ErrUpdatePassphraseWithRootKey
         $ \xprv scheme -> withExceptT ErrUpdatePassphraseNoSuchWallet $ do
-            -- NOTE
-            -- /!\ Important /!\
-            -- attachPrivateKeyFromPwd does use 'EncryptWithPBKDF2', so
-            -- regardless of the passphrase current scheme, we'll re-encrypt
-            -- it using the new scheme, always.
-            let oldP = preparePassphrase scheme old
-            let newP = preparePassphrase EncryptWithPBKDF2 new
-            let xprv' = changePassphrase oldP newP xprv
-            attachPrivateKeyFromPwd @ctx @s @k ctx wid (xprv', newP)
+            -- IMPORTANT NOTE:
+            -- This use 'EncryptWithPBKDF2', regardless of the passphrase
+            -- current scheme, we'll re-encrypt it using the current scheme,
+            -- always.
+            let new' = (currentPassphraseScheme, new)
+            let xprv' = changePassphrase (scheme, old) new' xprv
+            attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid (xprv', new')
 
 getWalletUtxoSnapshot
     :: forall ctx s k.
@@ -1424,7 +1424,7 @@ createRandomAddress
         )
     => ctx
     -> WalletId
-    -> Passphrase "raw"
+    -> Passphrase "user"
     -> Maybe (Index 'Hardened 'AddressK)
     -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
@@ -2360,7 +2360,7 @@ buildAndSignTransaction
          (         XPrv, Passphrase "encryption")
        )
        -- ^ Reward account derived from the root key (or somewhere else).
-    -> Passphrase "raw"
+    -> Passphrase "user"
     -> TransactionCtx
     -> SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
@@ -3055,17 +3055,17 @@ estimateFee
                                   Key Store
 -------------------------------------------------------------------------------}
 -- | The password here undergoes PBKDF2 encryption using HMAC
--- with the hash algorithm SHA512 which is realized in encryptPassphare
-attachPrivateKeyFromPwd
+-- with the hash algorithm SHA512 which is realized in encryptPassphrase
+attachPrivateKeyFromPwdScheme
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         )
     => ctx
     -> WalletId
-    -> (k 'RootK XPrv, Passphrase "encryption")
+    -> (k 'RootK XPrv, (PassphraseScheme, Passphrase "user"))
     -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \_ -> do
-    hpwd <- liftIO $ encryptPassphrase pwd
+attachPrivateKeyFromPwdScheme ctx wid (xprv, (scheme, pwd)) = db & \_ -> do
+    hpwd <- liftIO $ encryptPassphrase' scheme pwd
     -- NOTE Only new wallets are constructed through this function, so the
     -- passphrase is encrypted with the new scheme (i.e. PBKDF2)
     --
@@ -3075,8 +3075,8 @@ attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \_ -> do
     -- this function with a 'Passphrase' that wasn't prepared for
     -- 'EncryptWithPBKDF2', if this happens, this is a programmer error and we
     -- must fail hard for this would have dramatic effects later on.
-    case checkPassphrase EncryptWithPBKDF2 (coerce pwd) hpwd of
-        Right () -> attachPrivateKey db wid (xprv, hpwd) EncryptWithPBKDF2
+    case checkPassphrase scheme pwd hpwd of
+        Right () -> attachPrivateKey db wid (xprv, hpwd) scheme
         Left{} -> fail
             "Awe crap! The passphrase given to 'attachPrivateKeyFromPwd' wasn't \
             \rightfully constructed. This is a programmer error. Look for calls \
@@ -3084,6 +3084,18 @@ attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \_ -> do
             \prepared using 'EncryptWithScrypt'!"
   where
     db = ctx ^. dbLayer @IO @s @k
+
+attachPrivateKeyFromPwd
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> (k 'RootK XPrv, Passphrase "user")
+    -> ExceptT ErrNoSuchWallet IO ()
+attachPrivateKeyFromPwd ctx wid (xprv, pwd) =
+    attachPrivateKeyFromPwdScheme @ctx @s @k ctx wid
+       (xprv, (currentPassphraseScheme, pwd))
 
 -- | The hash here is the output of Scrypt function with the following parameters:
 -- - logN = 14
@@ -3096,7 +3108,7 @@ attachPrivateKeyFromPwdHash
         )
     => ctx
     -> WalletId
-    -> (k 'RootK XPrv, Hash "encryption")
+    -> (k 'RootK XPrv, PassphraseHash)
     -> ExceptT ErrNoSuchWallet IO ()
 attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \_ ->
     -- NOTE Only legacy wallets are imported through this function, passphrase
@@ -3108,7 +3120,7 @@ attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \_ ->
 attachPrivateKey
     :: DBLayer IO s k
     -> WalletId
-    -> (k 'RootK XPrv, Hash "encryption")
+    -> (k 'RootK XPrv, PassphraseHash)
     -> PassphraseScheme
     -> ExceptT ErrNoSuchWallet IO ()
 attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
@@ -3144,7 +3156,7 @@ withRootKey
     :: forall ctx s k e a. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
-    -> Passphrase "raw"
+    -> Passphrase "user"
     -> (ErrWithRootKey -> e)
     -> (k 'RootK XPrv -> PassphraseScheme -> ExceptT e IO a)
     -> ExceptT e IO a
@@ -3179,7 +3191,7 @@ signMetadataWith
         )
     => ctx
     -> WalletId
-    -> Passphrase "raw"
+    -> Passphrase "user"
     -> (Role, DerivationIndex)
     -> TxMetadata
     -> ExceptT ErrSignMetadataWith IO (Signature TxMetadata)
@@ -3256,7 +3268,7 @@ writePolicyPublicKey
         )
     => ctx
     -> WalletId
-    -> Passphrase "raw"
+    -> Passphrase "user"
     -> ExceptT ErrWritePolicyPublicKey IO (ShelleyKey 'PolicyK XPub)
 writePolicyPublicKey ctx wid pwd = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
@@ -3291,7 +3303,7 @@ getAccountPublicKeyAtIndex
         )
     => ctx
     -> WalletId
-    -> Passphrase "raw"
+    -> Passphrase "user"
     -> DerivationIndex
     -> Maybe DerivationIndex
     -> ExceptT ErrReadAccountPublicKey IO (k 'AccountK XPub)

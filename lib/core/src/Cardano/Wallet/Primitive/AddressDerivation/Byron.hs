@@ -54,7 +54,6 @@ import Cardano.Crypto.Wallet
     , toXPub
     , unXPrv
     , unXPub
-    , xPrvChangePass
     , xprv
     )
 import Cardano.Mnemonic
@@ -67,19 +66,22 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , WalletKey (..)
     , fromHex
     , hex
     )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..)
+    , PassphraseHash (..)
+    , PassphraseScheme (..)
+    , changePassphraseXPrv
+    )
 import Cardano.Wallet.Primitive.Types
     ( testnetMagic )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Util
     ( invariant )
 import Control.DeepSeq
@@ -279,17 +281,17 @@ unsafeMkByronKeyFromMasterKey derivationPath masterKey = ByronKey
 -- expected to have already checked that. Using an incorrect passphrase here
 -- will lead to very bad thing.
 changePassphraseRnd
-    :: Passphrase "encryption"
-    -> Passphrase "encryption"
+    :: (PassphraseScheme, Passphrase "user")
+    -> (PassphraseScheme, Passphrase "user")
     -> ByronKey depth XPrv
     -> ByronKey depth XPrv
-changePassphraseRnd (Passphrase oldPwd) (Passphrase newPwd) key = ByronKey
+changePassphraseRnd old new key = ByronKey
     { getKey = masterKey
     , derivationPath = derivationPath key
     , payloadPassphrase = hdPassphrase (toXPub masterKey)
     }
   where
-    masterKey = xPrvChangePass oldPwd newPwd (getKey key)
+    masterKey = changePassphraseXPrv old new (getKey key)
 
 {-------------------------------------------------------------------------------
                                  HD derivation
@@ -355,12 +357,12 @@ deriveAddressPrivateKey (Passphrase pwd) accountKey idx@(Index addrIx) = ByronKe
 instance PersistPrivateKey (ByronKey 'RootK) where
     serializeXPrv ((ByronKey k _ (Passphrase p)), h) =
         ( hex (unXPrv k) <> ":" <> hex p
-        , hex . getHash $ h
+        , hex . getPassphraseHash $ h
         )
 
     unsafeDeserializeXPrv (k, h) = either err id $ (,)
         <$> fmap mkKey (deserializeKey k)
-        <*> fmap Hash (fromHex h)
+        <*> fmap PassphraseHash (fromHex h)
       where
         err _ = error "unsafeDeserializeXPrv: unable to deserialize ByronKey"
         mkKey (key, pwd) = ByronKey key () pwd
