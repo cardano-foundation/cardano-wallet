@@ -324,6 +324,9 @@ let
   # the windows build.
   libSodiumPostInstall = lib.optionalString stdenv.hostPlatform.isWindows ''
     ln -s ${pkgs.libsodium-vrf}/bin/libsodium-23.dll $out/bin
+    ln -s ${pkgs.buildPackages.gcc.cc}/x86_64-w64-mingw32/lib/libstdc++-6.dll $out/bin
+    ln -s ${pkgs.buildPackages.gcc.cc}/x86_64-w64-mingw32/lib/libgcc_s_seh-1.dll $out/bin
+    ln -s ${pkgs.windows.mcfgthreads}/bin/mcfgthread-12.dll $out/bin
   '';
 
   # This exe component postInstall script adds shell completion
