@@ -4,7 +4,7 @@
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
 resolver: cardano-1.28.0.yaml
-compiler: ghc-8.10.5
+compiler: ghc-8.10.4
 
 packages:
 - lib/core
