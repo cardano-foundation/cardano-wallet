@@ -97,6 +97,7 @@ module Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidDuplicateXPub
     , errMsg403TemplateInvalidScript
     , errMsg403InvalidConstructTx
+    , errMsg403OutputsAlreadyCovered
     ) where
 
 import Prelude
@@ -621,6 +622,9 @@ errMsg400ScriptNotUniformRoles :: String
 errMsg400ScriptNotUniformRoles =
     "All keys of a script must have the same role: either payment or delegation."
 
+errMsg403OutputsAlreadyCovered :: String
+errMsg403OutputsAlreadyCovered =
+    "The transaction to be balanced has already all outputs covered. Please send a transaction that requires more inputs to be picked to be balanced."
 --------------------------------------------------------------------------------
 -- Transaction metadata
 --------------------------------------------------------------------------------

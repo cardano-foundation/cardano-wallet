@@ -1285,7 +1285,9 @@ dummyTransactionLayer = TransactionLayer
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
-        Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing
+        Tx (Hash "") Nothing mempty mempty mempty mempty mempty mempty Nothing
+    , updateTx = \sealed _insAndOuts ->
+            pure (sealed, 10000)
     }
   where
     withEither :: e -> Maybe a -> Either e a

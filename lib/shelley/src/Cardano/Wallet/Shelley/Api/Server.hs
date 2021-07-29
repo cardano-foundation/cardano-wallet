@@ -60,7 +60,10 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Server
-    ( apiError
+    ( ConstructTransactionConfig (..)
+    , apiError
+    , balanceTransaction
+    , byronConstructTransactionConfig
     , constructTransaction
     , createMigrationPlan
     , delegationFee
@@ -308,6 +311,7 @@ server byron icarus shelley multisig spl ntp =
     shelleyTransactions =
              constructTransaction shelley (delegationAddress @n)
         :<|> signTransaction shelley
+        :<|> balanceTransaction shelley shelleyTransactionConfig
         :<|> listTransactions shelley
         :<|> getTransaction shelley
         :<|> deleteTransaction shelley

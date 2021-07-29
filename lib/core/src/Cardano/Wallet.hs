@@ -123,6 +123,7 @@ module Cardano.Wallet
     , ErrWithdrawalNotWorth (..)
     , ErrConstructTx (..)
     , ErrMintBurnAssets (..)
+    , ErrBalanceTx (..)
 
     -- ** Migration
     , createMigrationPlan
@@ -162,6 +163,8 @@ module Cardano.Wallet
     , ErrNoSuchTransaction (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrWitnessTx (..)
+    , ErrCannotJoin (..)
+    , ErrCannotQuit (..)
 
     -- ** Root Key
     , withRootKey
@@ -395,6 +398,7 @@ import Cardano.Wallet.Transaction
     , ErrCannotQuit (..)
     , ErrMkTransaction (..)
     , ErrSignTx (..)
+    , ErrUpdateSealedTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -2624,6 +2628,12 @@ data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
     | ErrSubmitTxImpossible ErrNoSuchTransaction
+    deriving (Show, Eq)
+
+-- | Errors that can occur when balancing transaction.
+data ErrBalanceTx
+    = ErrBalanceTxAllOutputsCovered
+    | ErrBalanceTxUpdateError ErrUpdateSealedTx
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.

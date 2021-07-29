@@ -61,6 +61,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiAddressT
+    , ApiBalanceTransactionPostDataT
     , ApiByronWallet
     , ApiBytesT (..)
     , ApiCoinSelectionT
@@ -189,6 +190,10 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiConstructTransactionDataT Aeson.Value
         -> ClientM (ApiConstructTransactionT Aeson.Value)
+    , balanceTransaction
+        :: ApiT WalletId
+        -> ApiBalanceTransactionPostDataT Aeson.Value
+        -> ClientM (ApiConstructTransactionT Aeson.Value)
     }
 
 data AddressClient = AddressClient
@@ -299,6 +304,7 @@ transactionClient =
     let
         _constructTransaction
             :<|> _signTransaction
+            :<|> _balanceTransaction
             :<|> _listTransactions
             :<|> _getTransaction
             :<|> _deleteTransaction
@@ -318,6 +324,7 @@ transactionClient =
             , deleteTransaction = _deleteTransaction
             , getTransaction = _getTransaction
             , constructTransaction = _constructTransaction
+            , balanceTransaction = _balanceTransaction
             }
 
 fromSerialisedTx :: ApiBytesT base SerialisedTx -> ApiT SealedTx
@@ -349,6 +356,7 @@ byronTransactionClient =
         , deleteTransaction = _deleteTransaction
         , getTransaction = _getTransaction
         , constructTransaction = _constructTransaction
+        , balanceTransaction = error "not supported for byron"
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API
@@ -446,6 +454,7 @@ type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
 type instance ApiTransactionT Aeson.Value = Aeson.Value
 type instance ApiConstructTransactionT Aeson.Value = Aeson.Value
 type instance ApiConstructTransactionDataT Aeson.Value = Aeson.Value
+type instance ApiBalanceTransactionPostDataT Aeson.Value = Aeson.Value
 type instance PostTransactionOldDataT Aeson.Value = Aeson.Value
 type instance PostTransactionFeeOldDataT Aeson.Value = Aeson.Value
 type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value
