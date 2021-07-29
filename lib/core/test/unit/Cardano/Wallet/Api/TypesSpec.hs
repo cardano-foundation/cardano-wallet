@@ -1033,6 +1033,7 @@ spec = parallel $ do
                 x' = ApiSignTransactionPostData
                     { transaction = transaction (x :: ApiSignTransactionPostData)
                     , passphrase = passphrase (x :: ApiSignTransactionPostData)
+                    , withdrawal = withdrawal (x :: ApiSignTransactionPostData)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2000,7 +2001,10 @@ instance Arbitrary a => Arbitrary (AddressAmountNoAssets a) where
     shrink _ = []
 
 instance Arbitrary ApiSignTransactionPostData where
-    arbitrary = ApiSignTransactionPostData <$> arbitrary <*> arbitrary
+    arbitrary = ApiSignTransactionPostData
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary (PostTransactionOldData n) where
     arbitrary = PostTransactionOldData

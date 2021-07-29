@@ -32,9 +32,6 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     , deriveAccountPrivateKeyShelley
     , deriveAddressPrivateKeyShelley
     , deriveAddressPublicKeyShelley
-
-    -- * Reward Account
-    , toRewardAccountRaw
     ) where
 
 import Prelude
@@ -60,6 +57,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
+    , GetRewardAccount (..)
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
@@ -77,6 +75,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromHex
     , hex
     , mutableAccount
+    , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GetPurpose (..), IsOurs (..) )
@@ -377,7 +376,7 @@ instance IsOurs (SeqState n ShelleyKey) RewardAccount
         ourAccount = toRewardAccount $ rewardAccountKey state
 
 instance ToRewardAccount ShelleyKey where
-    toRewardAccount = toRewardAccountRaw . getKey
+    toRewardAccount = RewardAccount . blake2b224 . xpubPublicKey . getKey
     someRewardAccount mw =
         let
             -- NOTE: Accounts from mnemonics are considered to be ITN wallet-like,
@@ -396,8 +395,11 @@ instance ToRewardAccount ShelleyKey where
         acctK = deriveAccountPrivateKey mempty rootK minBound
         stakK = deriveAddressPrivateKey mempty acctK MutableAccount minBound
 
-toRewardAccountRaw :: XPub -> RewardAccount
-toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey
+instance GetRewardAccount (SeqState n ShelleyKey) ShelleyKey where
+    getRewardAccount s = Just (path, (k, toRewardAccount k))
+      where
+          k = rewardAccountKey s
+          path = stakeDerivationPath $ derivationPrefix s
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

@@ -51,6 +51,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
+    , GetRewardAccount (..)
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
@@ -401,6 +402,9 @@ instance PaymentAddress n IcarusKey
 
 instance IsOurs (SeqState n IcarusKey) RewardAccount where
     isOurs _account state = (Nothing, state)
+
+instance GetRewardAccount (SeqState n IcarusKey) IcarusKey where
+    getRewardAccount _ = Nothing
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

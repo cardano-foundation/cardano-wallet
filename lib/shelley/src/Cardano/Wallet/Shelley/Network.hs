@@ -46,12 +46,12 @@ import Prelude
 import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
-    , NodeToClientVersion (..)
-    , SlotNo (..)
     , CardanoMode
     , LocalChainSyncClient (NoLocalChainSyncClient)
     , LocalNodeClientProtocols (..)
     , LocalNodeConnectInfo (..)
+    , NodeToClientVersion (..)
+    , SlotNo (..)
     , connectToLocalNode
     )
 import Cardano.BM.Data.Severity
@@ -88,8 +88,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromStakeCredential
     , fromTip
     , fromTip'
-    , nodeToClientVersions
     , localNodeConnectInfo
+    , nodeToClientVersions
     , optimumNumberOfPools
     , slottingParametersFromGenesis
     , toCardanoEra
@@ -263,9 +263,8 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( Handler (..), IOException )
 
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Ledger.Core as SL.Core
+import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Wallet.Primitive.SyncProgress as SyncProgress
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -467,16 +466,12 @@ withNetworkLayerBase tr net np conn versionData tol action = do
     _cursorSlotNo (Cursor _ point _) = do
         fromWithOrigin (SlotNo 0) $ pointSlot point
 
-    -- NOTE: only shelley format transactions can be submitted for now.
     _postTx localTxSubmissionQ tx = do
         liftIO $ traceWith tr $ MsgPostTx tx
-        cmd <- case unsealShelleyTx tx of
-            Nothing -> throwE $ ErrPostTxProtocolFailure
-               "Byron era transactions are not supported."
-            Just tx' -> pure $ CmdSubmitTx tx'
+        let cmd = CmdSubmitTx $ unsealShelleyTx tx
         liftIO (localTxSubmissionQ `send` cmd) >>= \case
             SubmitSuccess -> pure ()
-            SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
+            SubmitFail e -> throwE $ ErrPostTxValidationError $ T.pack $ show e
 
     _stakeDistribution queue coin = do
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin

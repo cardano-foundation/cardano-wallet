@@ -50,6 +50,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
 
     -- * Delegation
     , RewardAccount (..)
+    , GetRewardAccount(..)
     , ToRewardAccount(..)
     , deriveRewardAccount
 
@@ -498,6 +499,16 @@ class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
 class ToRewardAccount k where
     toRewardAccount :: k 'AddressK XPub -> RewardAccount
     someRewardAccount :: SomeMnemonic -> (XPrv, RewardAccount, NonEmpty DerivationIndex)
+
+-- | Getting the reward account -- if there is one -- from address derivation
+-- state.
+class GetRewardAccount s k where
+    -- | Gets details about the reward account, if there is reward account for
+    -- this kind of address derivation state.
+    getRewardAccount
+        :: s -- ^ Address derivation state.
+        -> Maybe (NonEmpty DerivationIndex, (k 'AddressK XPub, RewardAccount))
+    getRewardAccount _ = Nothing
 
 -- | Derive a reward account from a root private key. It is agreed by standard
 -- that every HD wallet will use only a single reward account. This account is

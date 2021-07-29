@@ -36,10 +36,10 @@ import Data.Set
     ( Set )
 import Fmt
     ( build, fmt, indentF )
-import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
+import Ouroboros.Network.NodeToClient
+    ( NodeToClientVersionData )
 import Test.Hspec
     ( Spec, beforeAll, describe, it, shouldBe, shouldReturn )
 import Test.QuickCheck

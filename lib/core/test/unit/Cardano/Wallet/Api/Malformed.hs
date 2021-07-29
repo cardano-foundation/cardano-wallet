@@ -91,7 +91,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SerialisedTx )
+    ( SealedTx, SerialisedTx )
 import Control.Arrow
     ( first )
 import Data.Aeson.QQ
@@ -1511,6 +1511,9 @@ instance Malformed (BodyParam ApiSlotReference) where
 instance Malformed (BodyParam (ApiBytesT 'Base64 SerialisedTx))
 -- no cases here as all bad requests are served by ErrDecodeSignedTxWrongPayload
 -- in Server.hs. Tested by integration tests.
+
+instance Malformed (BodyParam (ApiT SealedTx)) where
+    malformed = [] -- fixme: add a couple things
 
 instance Malformed (BodyParam ApiPostRandomAddressData) where
     malformed = first (BodyParam . Aeson.encode) <$>

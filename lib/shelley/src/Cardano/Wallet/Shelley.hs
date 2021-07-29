@@ -122,6 +122,7 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Registry
@@ -191,6 +192,8 @@ import UnliftIO.STM
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import Cardano.Wallet.Primitive.Types.Tx
+    ( SealedTx )
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -283,7 +286,7 @@ serveWallet
                 icarusApi  <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
                 shelleyApi <- apiLayer (newTransactionLayer net) nl
-                    (Server.manageRewardBalance proxy)
+                    Server.manageRewardBalance
 
                 let txLayerUdefined = error "TO-DO in ADP-686"
                 multisigApi <- apiLayer txLayerUdefined nl
@@ -371,7 +374,7 @@ serveWallet
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => TransactionLayer k
+        => TransactionLayer k SealedTx
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
         -> (WorkerCtx (ApiLayer s k) -> WalletId -> IO ())
         -> IO (ApiLayer s k)

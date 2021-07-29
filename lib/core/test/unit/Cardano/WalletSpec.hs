@@ -32,6 +32,7 @@ import Cardano.Wallet
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
+    , ErrWitnessTx (..)
     , LocalTxSubmissionConfig (..)
     , SelectionResultWithoutChange
     , WalletLayer (..)
@@ -47,7 +48,6 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyNetworkParameters
     , dummySlottingParameters
     , dummyTimeInterpreter
-    , mkTxId
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
@@ -63,6 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
+    , GetRewardAccount (..)
     , HardDerivation (..)
     , Index
     , Passphrase (..)
@@ -139,24 +140,25 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , isPending
     , sealedTxFromCardano
-    , txOutCoin
+    , unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxInLargeRange, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction
-    ( ErrMkTx (..)
+    ( SignTransactionResult (..)
     , TransactionLayer (..)
     , Withdrawal (..)
     , defaultTransactionCtx
+    , keyStoreLookup
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( forM, forM_, replicateM, void )
+    ( forM_, replicateM, void )
 import Control.Monad.Class.MonadTime
     ( DiffTime
     , MonadMonotonicTime (..)
@@ -182,7 +184,7 @@ import Control.Tracer
 import Crypto.Hash
     ( hash )
 import Data.Bifunctor
-    ( bimap, second )
+    ( bimap )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Short
@@ -200,7 +202,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe )
+    ( catMaybes, fromJust, fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -288,6 +290,7 @@ import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.Wallet.Transaction as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -639,12 +642,16 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
                 (getRawKey $ deriveRewardAccount pwdP rootK, pwdP)
         selection' <- unsafeRunExceptT $
             W.assignChangeAddressesAndUpdateDb wl wid () selection
-        (_,_,_,txOld) <- unsafeRunExceptT $ W.buildAndSignTransaction
-            @_ @_ wl wid credentials (coerce pwd) ctx selection'
+        tx <- unsafeRunExceptT $
+            W.constructTransaction @_ @_ @_ wl wid ctx selection'
+        sigOld <- unsafeRunExceptT $ W.signTransaction @_ @_ @_ wl wid credentials (coerce pwd) tx
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
-        (_,_,_,txNew) <- unsafeRunExceptT $ W.buildAndSignTransaction
-            @_ @_ wl wid credentials newPwd ctx selection'
-        txOld `shouldBe` txNew
+        sigFail <- runExceptT $ W.signTransaction @_ @_ @_ wl wid credentials (coerce pwd) tx
+        case sigFail of
+            Left (ErrWitnessTxWithRootKey{}) -> pure ()
+            _ -> fail "expected ErrWitnessTxWithRootKey"
+        sigNew <- unsafeRunExceptT $ W.signTransaction @_ @_ @_ wl wid credentials (coerce newPwd) tx
+        serialisedTx sigOld `shouldBe` serialisedTx sigNew
   where
     selection = SelectionResult
         { inputsSelected = NE.fromList
@@ -919,8 +926,8 @@ prop_localTxSubmission tc = monadicIO $ do
                 stash var tx
                 pure $ case lookup tx (postTxResults tc) of
                     Just True -> Right ()
-                    Just False -> Left (W.ErrPostTxBadRequest "intended")
-                    Nothing -> Left (W.ErrPostTxProtocolFailure "unexpected")
+                    Just False -> Left (W.ErrPostTxValidationError "intended")
+                    Nothing -> Left (W.ErrPostTxValidationError "unexpected")
         , watchNodeTip = mockNodeTip (numSlots tc) 0
         }
 
@@ -1293,35 +1300,16 @@ setupFixture (wid, wname, wstate) = do
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
-dummyTransactionLayer :: TransactionLayer ShelleyKey
+dummyTransactionLayer :: TransactionLayer ShelleyKey SealedTx
 dummyTransactionLayer = TransactionLayer
-    { mkTransaction = \_era _stakeCredentials keystore _pp _ctx cs -> do
-        let inps' = NE.toList $ second txOutCoin <$> inputsSelected cs
-        -- TODO: (ADP-957)
-        let cinps' = []
-        let tid = mkTxId inps' (outputsCovered cs) mempty Nothing
-        let tx = Tx
-                 { txId = tid
-                 , fee = Nothing
-                 , resolvedInputs = inps'
-                 , resolvedCollateral = cinps'
-                 , outputs = outputsCovered cs
-                 , withdrawals = mempty
-                 , metadata = Nothing
-                 , scriptValidity = Nothing
-                 }
-        wits <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
-            (xprv, pwd) <- withEither (ErrKeyNotFoundForAddress addr) $ keystore addr
-            pure (getKey xprv, pwd)
-
-        -- (tx1, wits1) == (tx2, wits2) <==> fakebinary1 == fakebinary2
-        let validBinary = makeSealedTx tx (NE.toList wits)
-        return (tx, validBinary)
-
-    , mkUnsignedTransaction =
-        error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
-    , mkSignedTransaction =
-        error "dummyTransactionLayer: mkSignedTransaction not implemented"
+    { mkTransactionBody = \_ _ _ctx cs -> do
+        pure $ unsafeSealedTxFromBytes $ B8.pack $ show cs
+    , mkSignedTransaction = \keyStore _sealed ->
+        let txin = TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
+            x = view #witness $ keyStoreLookup keyStore mkWit txin
+            mkWit sk _addr = sk
+            tx = unsafeSealedTxFromBytes (B8.pack $ show $ fromJust x)
+        in SignTransactionResult tx [] [] []
     , calcMinimumCost =
         error "dummyTransactionLayer: calcMinimumCost not implemented"
     , computeSelectionLimit =
@@ -1330,12 +1318,9 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
-    , decodeSignedTx =
-        error "dummyTransactionLayer: decodeSignedTx not implemented"
+    , decodeTx = \_sealed ->
+        Tx (Hash "") Nothing mempty mempty mempty Nothing
     }
-  where
-    withEither :: e -> Maybe a -> Either e a
-    withEither e = maybe (Left e) Right
 
 
 makeSealedTx :: Tx -> [(XPrv, Passphrase "encryption")] -> SealedTx
@@ -1473,6 +1458,9 @@ instance IsOurs DummyState Address where
 
 instance IsOurs DummyState RewardAccount where
     isOurs _ s = (Nothing, s)
+
+instance GetRewardAccount DummyState k where
+    getRewardAccount _ = Nothing
 
 instance IsOwned DummyState ShelleyKey where
     isOwned (DummyState m) (rootK, pwd) addr = do

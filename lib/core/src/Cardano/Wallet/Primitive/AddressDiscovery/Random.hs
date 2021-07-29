@@ -53,6 +53,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
+    , GetRewardAccount (..)
     , Index (..)
     , NetworkDiscriminant
     , Passphrase (..)
@@ -350,6 +351,9 @@ instance KnownAddresses (RndState n) where
             Map.foldrWithKey
                 (\path v result -> mk (toDerivationIndexes path) v : result)
                 []
+
+instance GetRewardAccount (RndState n) k where
+    getRewardAccount _ = Nothing
 
 --------------------------------------------------------------------------------
 --

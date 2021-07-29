@@ -901,7 +901,7 @@ data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
     } deriving (Eq, Generic, Show)
 
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
-    { transaction :: !(ApiBytesT 'Base64 SerialisedTx)
+    { transaction :: !(ApiT SealedTx)
     , coinSelection :: !(ApiCoinSelection n)
     , fee :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show, Typeable)
@@ -964,6 +964,7 @@ data ApiValidityBound
 data ApiSignTransactionPostData = ApiSignTransactionPostData
     { transaction :: !(ApiT SealedTx)
     , passphrase :: !(ApiT (Passphrase "lenient"))
+    , withdrawal :: !(Maybe ApiWithdrawalPostData)
     } deriving (Eq, Generic, Show)
 
 -- | Legacy transaction API.
@@ -2618,16 +2619,6 @@ instance ToJSON (ApiT BoundType) where
 instance FromJSON (ApiT BoundType) where
     parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
 
-{-
-ToJSON/FromJSON instances
-parseJSONBytes :: ByteArray bs => Base -> Value -> Aeson.Parser bs
-parseJSONBytes base = withText (show base ++ " ByteString") $
-    eitherToParser . convertFromBase base . T.encodeUtf8
-
-toJSONBytes :: ByteArrayAccess bs => Base -> bs -> Value
-toJSONBytes base = String . T.decodeLatin1 . convertToBase base
--}
-
 instance (HasBase base, ByteArray bs) => FromJSON (ApiBytesT base bs) where
     parseJSON = withText (show (typeRep (Proxy @base)) ++ " ByteString") $
         eitherToParser . first ShowFmt . fromText @(ApiBytesT base bs)
@@ -2641,9 +2632,11 @@ instance FromJSON (ApiT SealedTx) where
 instance ToJSON (ApiT SealedTx) where
     toJSON = sealedTxBytesValue @'Base64 . getApiT
 
-parseSealedTxBytes :: forall (base :: Base). HasBase base => Value -> Parser SealedTx
-parseSealedTxBytes = (eitherToParser . first ShowFmt . sealedTxFromBytes)
-        <=< (fmap getApiBytesT . parseJSON @(ApiBytesT base ByteString))
+parseSealedTxBytes
+    :: forall (base :: Base). HasBase base => Value -> Parser SealedTx
+parseSealedTxBytes =
+    (eitherToParser . first ShowFmt . sealedTxFromBytes)
+    <=< (fmap getApiBytesT . parseJSON @(ApiBytesT base ByteString))
 
 sealedTxBytesValue :: forall (base :: Base). HasBase base => SealedTx -> Value
 sealedTxBytesValue = toJSON . ApiBytesT @base . view #serialisedTx

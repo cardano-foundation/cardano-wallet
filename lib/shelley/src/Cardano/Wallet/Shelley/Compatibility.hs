@@ -9,6 +9,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -17,6 +18,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
 -- Jörmungandr dual support.
@@ -29,18 +31,13 @@
 -- Conversion functions and static chain settings for Shelley.
 
 module Cardano.Wallet.Shelley.Compatibility
-    ( AnyCardanoEra(..)
-    , CardanoEra(..)
-    , ShelleyEra
-    , AllegraEra
-    , CardanoBlock
-    , NetworkId(..)
-
-    , NodeToClientVersionData
+    ( CardanoBlock
     , StandardCrypto
     , StandardShelley
 
       -- * Protocol Parameters
+    , NetworkId (..)
+    , NodeToClientVersionData
     , nodeToClientVersions
 
       -- * Node Connection
@@ -48,6 +45,15 @@ module Cardano.Wallet.Shelley.Compatibility
 
       -- * Genesis
     , emptyGenesis
+
+      -- * Eras
+    , AnyCardanoEra (..)
+    , AnyShelleyBasedEra (..)
+    , CardanoEra (..)
+    , ShelleyBasedEra (..)
+    , shelleyBasedToCardanoEra
+    , shelleyToCardanoEra
+    , getShelleyBasedEra
 
       -- * Conversions
     , toCardanoHash
@@ -72,6 +78,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoValue
     , fromCardanoValue
     , rewardAccountFromAddress
+    , rewardAccountFromStakeAddress
+    , rewardAccountFromStakeCredential
     , fromShelleyPParams
     , fromShelleyTxId
     , fromAlonzoPParams
@@ -125,22 +133,27 @@ import Prelude
 
 import Cardano.Address
     ( unsafeMkAddress )
-import Cardano.Address.Derivation
-    ( XPub, xpubPublicKey )
 import Cardano.Api
     ( AllegraEra
     , AlonzoEra
     , AnyCardanoEra (..)
     , AsType (..)
     , CardanoEra (..)
+    , CardanoEraStyle (..)
     , CardanoMode
     , ConsensusModeParams (CardanoModeParams)
     , EraInMode (..)
+    , InAnyCardanoEra (..)
+    , InAnyShelleyBasedEra (..)
+    , IsCardanoEra (..)
+    , IsShelleyBasedEra (..)
     , LocalNodeConnectInfo (LocalNodeConnectInfo)
     , MaryEra
     , NetworkId
+    , ShelleyBasedEra (..)
     , ShelleyEra
     , TxInMode (..)
+    , cardanoEraStyle
     , deserialiseFromRawBytes
     )
 import Cardano.Api.Shelley
@@ -187,8 +200,6 @@ import Control.Arrow
     ( left )
 import Control.Monad
     ( when, (>=>) )
-import Crypto.Hash.Utils
-    ( blake2b224 )
 import Data.Bifunctor
     ( bimap )
 import Data.Binary.Get
@@ -302,7 +313,6 @@ import qualified Codec.CBOR.Decoding as CBOR
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
@@ -866,20 +876,6 @@ fromCardanoTx = \case
   where
     getTx (txwal, _, _) = txwal
 
-{-
-fromCardanoTx :: Era era => Cardano.Tx era -> W.Tx
-fromCardanoTx (Cardano.Tx tx@(Cardano.TxBody body) keyWits) = W.Tx
-    { txId = W.Hash $ Cardano.serialiseToRawBytes $ Cardano.getTxId tx
-    , fee = case Cardano.txFee body of
-            Cardano.TxFeeImplicit _ -> Nothing
-            Cardano.TxFeeExplicit _ f -> Just $ coinFromLovelace f
-    , resolvedInputs = error "fixme"
-    , outputs = error "fixme"
-    , withdrawals = error "fixme"
-    , metadata = error "fixme"
-    }
--}
-
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
     :: SLAPI.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
@@ -1101,7 +1097,7 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
 
 -- | Lovelace to coin. Quantities from ledger should always fit in Word64.
 coinFromLovelace :: Cardano.Lovelace -> W.Coin
-coinFromLovelace = W.Coin . unsafeToWord64 . unq . Cardano.lovelaceToQuantity
+coinFromLovelace = W.Coin . unsafeIntToWord . unq . Cardano.lovelaceToQuantity
     where unq (Cardano.Quantity q) = q
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
@@ -1210,7 +1206,7 @@ toCardanoStakeCredential = Cardano.StakeCredentialByKey
     . Cardano.StakeKeyHash
     . SL.KeyHash
     . UnsafeHash
-    . SBS.toShort
+    . toShort
     . W.unRewardAccount
 
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
@@ -1310,35 +1306,21 @@ toStakeCredential :: W.RewardAccount -> SL.StakeCredential crypto
 toStakeCredential = SL.KeyHashObj
     . SL.KeyHash . UnsafeHash . toShort . W.unRewardAccount
 
-toStakeKeyDeregCert :: XPub -> Cardano.Certificate
+toStakeKeyDeregCert :: W.RewardAccount -> Cardano.Certificate
 toStakeKeyDeregCert = Cardano.makeStakeAddressDeregistrationCertificate
-    . Cardano.StakeCredentialByKey
-    . Cardano.StakeKeyHash
-    . SL.KeyHash
-    . UnsafeHash
-    . toShort
-    . blake2b224
-    . xpubPublicKey
+    . toCardanoStakeCredential
 
-toStakeKeyRegCert :: XPub -> Cardano.Certificate
+toStakeKeyRegCert :: W.RewardAccount -> Cardano.Certificate
 toStakeKeyRegCert = Cardano.makeStakeAddressRegistrationCertificate
-    . Cardano.StakeCredentialByKey
-    . Cardano.StakeKeyHash
-    . SL.KeyHash
-    . UnsafeHash
-    . toShort
-    . blake2b224
-    . xpubPublicKey
+    . toCardanoStakeCredential
 
-toStakePoolDlgCert :: XPub -> W.PoolId -> Cardano.Certificate
-toStakePoolDlgCert xpub (W.PoolId pid) =
+toStakePoolDlgCert :: W.RewardAccount -> W.PoolId -> Cardano.Certificate
+toStakePoolDlgCert rewardAcct (W.PoolId pid) =
     Cardano.makeStakeAddressDelegationCertificate
-        (Cardano.StakeCredentialByKey $ Cardano.StakeKeyHash cred)
+        (toCardanoStakeCredential rewardAcct)
         (Cardano.StakePoolKeyHash pool)
   where
-    cred = SL.KeyHash $ UnsafeHash $ toShort $ blake2b224 $ xpubPublicKey xpub
     pool = SL.KeyHash $ UnsafeHash $ toShort pid
-
 
 -- | Extract a stake reference / `RewardAccount` from an address, if it exists.
 --
@@ -1358,25 +1340,75 @@ rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr by
     refToAccount (SL.StakeRefPtr _) = Nothing
     refToAccount SL.StakeRefNull = Nothing
 
+rewardAccountFromStakeAddress :: Cardano.StakeAddress -> W.RewardAccount
+rewardAccountFromStakeAddress (Cardano.StakeAddress _net cred) =
+    case Cardano.fromShelleyStakeCredential cred of
+        Cardano.StakeCredentialByKey keyHash ->
+            W.RewardAccount $ Cardano.serialiseToRawBytes keyHash
+        Cardano.StakeCredentialByScript scriptHash ->
+            W.RewardAccount $ Cardano.serialiseToRawBytes scriptHash
+
+rewardAccountFromStakeCredential :: Cardano.StakeCredential -> W.RewardAccount
+rewardAccountFromStakeCredential = \case
+    Cardano.StakeCredentialByKey keyHash ->
+        W.RewardAccount $ Cardano.serialiseToRawBytes keyHash
+    Cardano.StakeCredentialByScript scriptHash ->
+        W.RewardAccount $ Cardano.serialiseToRawBytes scriptHash
 
 -- | Converts 'SealedTx' to something that can be submitted with the
 -- 'Cardano.Api' local tx submission client.
---
--- Byron transactions are not supported.
-unsealShelleyTx
-    :: W.SealedTx
-    -> Maybe (TxInMode CardanoMode)
+unsealShelleyTx :: W.SealedTx -> TxInMode CardanoMode
 unsealShelleyTx wtx = case W.cardanoTx wtx of
-    Cardano.InAnyCardanoEra ByronEra _tx -> Nothing
+    Cardano.InAnyCardanoEra ByronEra tx ->
+        TxInMode tx ByronEraInCardanoMode
     Cardano.InAnyCardanoEra ShelleyEra tx ->
-        Just $ TxInMode tx ShelleyEraInCardanoMode
+        TxInMode tx ShelleyEraInCardanoMode
     Cardano.InAnyCardanoEra AllegraEra tx ->
-        Just $ TxInMode tx AllegraEraInCardanoMode
+        TxInMode tx AllegraEraInCardanoMode
     Cardano.InAnyCardanoEra MaryEra tx ->
-        Just $ TxInMode tx MaryEraInCardanoMode
+        TxInMode tx MaryEraInCardanoMode
     Cardano.InAnyCardanoEra AlonzoEra tx ->
-        Just $ TxInMode tx AlonzoEraInCardanoMode
+        TxInMode tx AlonzoEraInCardanoMode
 
+-- | Converts a 'ShelleyBasedEra' to the broader 'CardanoEra'.
+shelleyBasedToCardanoEra :: ShelleyBasedEra era -> CardanoEra era
+shelleyBasedToCardanoEra Cardano.ShelleyBasedEraShelley = ShelleyEra
+shelleyBasedToCardanoEra Cardano.ShelleyBasedEraAllegra = AllegraEra
+shelleyBasedToCardanoEra Cardano.ShelleyBasedEraMary    = MaryEra
+shelleyBasedToCardanoEra Cardano.ShelleyBasedEraAlonzo  = AlonzoEra
+
+-- | An existential type like 'AnyCardanoEra', but for 'ShelleyBasedEra'.
+data AnyShelleyBasedEra where
+     AnyShelleyBasedEra :: IsShelleyBasedEra era -- Provide class constraint
+                        => ShelleyBasedEra era   -- and explicit value.
+                        -> AnyShelleyBasedEra    -- and that's it.
+
+instance Show AnyShelleyBasedEra where
+    show (AnyShelleyBasedEra era) = "AnyShelleyBasedEra " ++ show era
+
+anyShelleyBasedEra :: InAnyShelleyBasedEra (Const ()) -> AnyShelleyBasedEra
+anyShelleyBasedEra (InAnyShelleyBasedEra era _) = AnyShelleyBasedEra era
+
+shelleyToCardanoEra :: AnyShelleyBasedEra -> AnyCardanoEra
+shelleyToCardanoEra (AnyShelleyBasedEra era) =
+    AnyCardanoEra (shelleyBasedToCardanoEra era)
+
+getShelleyBasedEra :: AnyCardanoEra -> Maybe AnyShelleyBasedEra
+getShelleyBasedEra (AnyCardanoEra e) = case cardanoEraStyle e of
+    LegacyByronEra -> Nothing
+    ShelleyBasedEra era -> Just
+        (anyShelleyBasedEra (InAnyShelleyBasedEra era (Const ())))
+
+instance (forall era. IsCardanoEra era => Show (thing era)) =>
+    Show (InAnyCardanoEra thing) where
+    show (InAnyCardanoEra era thing) =
+        "InAnyCardanoEra " ++ show era ++ " (" ++ show thing ++ ")"
+
+instance (forall era. IsCardanoEra era => Eq (thing era)) =>
+    Eq (InAnyCardanoEra thing) where
+    InAnyCardanoEra e1 a == InAnyCardanoEra e2 b = case testEquality e1 e2 of
+        Just Refl -> a == b
+        Nothing -> False
 
 {-------------------------------------------------------------------------------
                    Assessing sizes of token bundles

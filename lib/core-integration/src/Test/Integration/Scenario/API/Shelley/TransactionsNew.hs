@@ -45,8 +45,6 @@ import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
-import Data.Aeson
-    ( ToJSON (..), Value (String) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
@@ -236,7 +234,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ApiCoinSelectionOutput destAddr (Quantity amt) (ApiT W.empty)]
 
         -- signing tx
-        let (String serializedTx) = toJSON $ getFromResponse #transaction rConstrTx
+        let serializedTx = getFromResponse #transaction rConstrTx
         let signPayload = Json [json|{
               "transaction": #{serializedTx},
               "passphrase": #{fixturePassphrase}

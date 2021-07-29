@@ -32,7 +32,7 @@ import Quiet
 
 -- | A reward account is used in group-type addresses for delegation.
 --
--- It is the public key of the account address.
+-- It is the hash of the public key corresponding to the account address.
 --
 newtype RewardAccount = RewardAccount { unRewardAccount :: ByteString }
     deriving (Generic, Eq, Ord)
