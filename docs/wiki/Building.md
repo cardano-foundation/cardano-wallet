@@ -4,10 +4,10 @@
 
 |  | **Supported version** | **Dependency?** |
 | --- | --- | --- |
-| [stack][] | >= 1.9.3 | Required, recommended |
-| [ghc][] | == 8.10.4 | Required |
+| [stack][] | >= 2.7.1 | Required, recommended |
+| [ghc][] | == 8.10.7 | Required |
 | [cabal][] | >= 3.4.0.0 | Optional |
-| [nix](./Nix) | >= 2.3.8 | Optional |
+| [nix](./Nix) | >= 2.4 | Optional |
 
 See [`nix/build-tools-overlay.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/build-tools-overlay.nix#L1) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
 
