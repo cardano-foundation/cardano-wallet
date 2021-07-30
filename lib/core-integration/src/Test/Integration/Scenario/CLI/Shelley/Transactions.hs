@@ -125,7 +125,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
 
-        let amt = fromIntegral minUTxOValue
+        let amt = fromIntegral . minUTxOValue . _mainEra $ ctx
         args <- postTxArgs ctx wSrc wDest amt Nothing Nothing
         Stdout feeOut <- postTransactionFeeViaCLI ctx args
         ApiFee (Quantity feeMin) (Quantity feeMax) _ (Quantity 0) <-
@@ -166,7 +166,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         addr <- listAddresses @n ctx wDest
         let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
         let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
-        let amt = fromIntegral minUTxOValue
+        let amt = fromIntegral . minUTxOValue . _mainEra $ ctx
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amt) <> "@" <> addr1
@@ -214,9 +214,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let amt = T.pack . show . minUTxOValue . _mainEra $ ctx
         let args = T.unpack <$>
                 [ wSrc ^. walletId
-                , "--payment", T.pack (show minUTxOValue) <> "@" <> addr
+                , "--payment",  amt <> "@" <> addr
                 ]
 
         (c, out, err) <- postTransactionViaCLI ctx "This password is wrong" args
@@ -282,9 +283,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         addrs:_ <- listAddresses @n ctx wDest
         let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let amt = T.pack . show . minUTxOValue . _mainEra $ ctx
         let args = T.unpack <$>
                 [ "transaction", "create", "--port", port
-                , T.append (wSrc ^. walletId) "0", "--payment", T.pack (show minUTxOValue) <> "@" <> addr
+                , T.append (wSrc ^. walletId) "0", "--payment", amt <> "@" <> addr
                 ]
         -- make sure CLI returns error before asking for passphrase
         (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
@@ -302,9 +304,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
         let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
+        let amt = T.pack . show . minUTxOValue . _mainEra $ ctx
         let args = T.unpack <$>
                 [ "transaction", "create", "--port", port
-                , wSrc ^. walletId, "--payment", T.pack (show minUTxOValue) <> "@" <> addr
+                , wSrc ^. walletId, "--payment", amt <> "@" <> addr
                 ]
         -- make sure CLI returns error before asking for passphrase
         (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
@@ -373,9 +376,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     describe "TRANS_ESTIMATE_08 - Invalid addresses" $ do
         forM_ matrixInvalidAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> runResourceT $ do
             wSrc <- emptyWallet ctx
+            let amt = T.pack . show . minUTxOValue . _mainEra $ ctx
             let args = T.unpack <$>
                     [ wSrc ^. walletId
-                    , "--payment", T.pack (show minUTxOValue) <> "@" <> (T.pack addr)
+                    , "--payment", amt <> "@" <> (T.pack addr)
                     ]
 
             (Exit c, Stdout out, Stderr err) <- postTransactionFeeViaCLI ctx args
@@ -429,7 +433,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
         let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amt) <> "@" <> addrStr
@@ -492,11 +496,11 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 code `shouldBe` ExitFailure 1
 
     it "TRANS_LIST_03 - Can order results" $ \ctx -> runResourceT $ do
-        let a1 = Quantity $ sum $ replicate 10 minUTxOValue
-        let a2 = Quantity $ sum $ replicate 10 (2 * minUTxOValue)
+        let a1 = Quantity $ sum $ replicate 10 (minUTxOValue (_mainEra ctx))
+        let a2 = Quantity $ sum $ replicate 10 (2 * (minUTxOValue (_mainEra ctx)))
         w <- fixtureWalletWith @n ctx $ mconcat
-                [ replicate 10 minUTxOValue
-                , replicate 10 (2 * minUTxOValue)
+                [ replicate 10 (minUTxOValue (_mainEra ctx))
+                , replicate 10 (2 * (minUTxOValue (_mainEra ctx)))
                 ]
         let orderings =
                 [ ( mempty
@@ -601,7 +605,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     it "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
           \ctx -> runResourceT $ do
-              w <- fixtureWalletWith @n ctx [minUTxOValue]
+              w <- fixtureWalletWith @n ctx [(minUTxOValue (_mainEra ctx))]
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
@@ -626,7 +630,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     it "TRANS_LIST_RANGE_02 - \
        \Transaction at time t is NOT selected by range [t + 𝛿t, ...)" $
           \ctx -> runResourceT $ do
-              w <- fixtureWalletWith @n ctx [minUTxOValue]
+              w <- fixtureWalletWith @n ctx [(minUTxOValue (_mainEra ctx))]
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let tl = utcIso8601ToText $ utcTimeSucc t
@@ -641,7 +645,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     it "TRANS_LIST_RANGE_03 - \
        \Transaction at time t is NOT selected by range (..., t - 𝛿t]" $
           \ctx -> runResourceT $ do
-              w <- fixtureWalletWith @n ctx [minUTxOValue]
+              w <- fixtureWalletWith @n ctx [(minUTxOValue (_mainEra ctx))]
               let walId = w ^. walletId
               t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let te = utcIso8601ToText $ utcTimePred t
@@ -658,7 +662,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
         let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
-        let amt = minUTxOValue :: Natural
+        let amt = (minUTxOValue (_mainEra ctx)) :: Natural
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amt) <> "@" <> addrStr
@@ -726,7 +730,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
         let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
-        let amt = minUTxOValue :: Natural
+        let amt = (minUTxOValue (_mainEra ctx)) :: Natural
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amt) <> "@" <> addrStr
@@ -754,7 +758,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let wSrcId = T.unpack (wSrc ^. walletId)
 
         -- post transaction
-        txJson <- postTxViaCLI ctx wSrc wDest minUTxOValue Nothing Nothing
+        txJson <- postTxViaCLI ctx wSrc wDest (minUTxOValue (_mainEra ctx)) Nothing Nothing
         verify txJson
             [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
@@ -809,7 +813,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             -- post tx
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
-            txJson <- postTxViaCLI ctx wSrc wDest minUTxOValue Nothing Nothing
+            txJson <- postTxViaCLI ctx wSrc wDest (minUTxOValue (_mainEra ctx)) Nothing Nothing
 
             -- try to forget from different wallet
             widDiff <- emptyWallet' ctx
@@ -862,7 +866,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
             let args = T.unpack <$>
                     [ "transaction", T.pack action, "--port", port
-                    , wSrc ^. walletId, "--payment", T.pack (show minUTxOValue) <> "@" <> addr
+                    , wSrc ^. walletId, "--payment", T.pack (show . minUTxOValue . _mainEra $ ctx) <> "@" <> addr
                     ]
             -- make sure CLI returns error before asking for passphrase
             (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args

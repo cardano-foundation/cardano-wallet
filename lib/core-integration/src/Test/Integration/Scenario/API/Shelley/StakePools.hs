@@ -275,7 +275,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
         -- Try to use rewards
         addrs <- listAddresses @n ctx dest
-        let coin = minUTxOValue :: Natural
+        let coin = minUTxOValue (_mainEra ctx) :: Natural
         let addr = (addrs !! 1) ^. #id
         let payload = [json|
                 { "payments":
@@ -871,9 +871,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             let initBalance =
                     [ costOfJoining ctx
                     + depositAmt ctx
-                    + minUTxOValue
+                    + minUTxOValue (_mainEra ctx)
                     + costOfQuitting ctx
-                    + minUTxOValue
+                    + minUTxOValue (_mainEra ctx)
                     ]
             w <- fixtureWalletWith @n ctx initBalance
 

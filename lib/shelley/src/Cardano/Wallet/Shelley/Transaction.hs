@@ -119,6 +119,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , maxTokenBundleSerializedLengthBytes
     , sealShelleyTx
     , toAllegraTxOut
+    , toAlonzoTxOut
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
@@ -1269,7 +1270,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         Cardano.TxInsCollateralNone
 
     , txProtocolParams =
-        -- TODO: [ADP-952] We presumably need to provide the protocol params if
+        -- TODO: [ADP-1058] We presumably need to provide the protocol params if
         -- our tx uses scripts?
         Cardano.BuildTxWith Nothing
 
@@ -1316,7 +1317,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         ShelleyBasedEraShelley -> toShelleyTxOut
         ShelleyBasedEraAllegra -> toAllegraTxOut
         ShelleyBasedEraMary -> toMaryTxOut
-        ShelleyBasedEraAlonzo -> error "toAlonzoTxOut unimplemented" -- TODO: [ADP-952] toAlonzoTxOut
+        ShelleyBasedEraAlonzo -> toAlonzoTxOut
 
     metadataSupported :: Cardano.TxMetadataSupportedInEra era
     metadataSupported = case era of

@@ -22,10 +22,9 @@
 -- On Buildkite, the execution environment available to stack is defined in
 -- nix/stack-shell.nix.
 
+import Options.Applicative
 import Prelude hiding
     ( FilePath )
-
-import Options.Applicative
 import Turtle hiding
     ( arg, match, opt, option, skip )
 
@@ -48,7 +47,7 @@ import Data.ByteString
 import Data.Char
     ( isSpace )
 import Data.Maybe
-    ( fromMaybe, isJust, mapMaybe, maybeToList )
+    ( catMaybes, fromMaybe, isJust, mapMaybe, maybeToList )
 import Safe
     ( headMay, readMay )
 import System.Exit
@@ -142,17 +141,39 @@ buildStep dryRun bk nightly = do
     pkgs <- listLocalPackages
     let cabalFlags = concatMap (flag "release") pkgs
 
-    titled "Build LTS Snapshot"
-        (build Standard ["--only-snapshot"]) .&&.
-      titled "Build dependencies"
-        (build Standard (["--only-dependencies"] ++ cabalFlags)) .&&.
-      titled "Build"
-        (build Fast (["--test", "--no-run-tests"] ++ cabalFlags)) .&&.
-      titled "Test"
-        (timeout 60 (test Fast cabalFlags)) .&&.
-      titled "Checking golden test files"
-        (checkUnclean dryRun "lib/core/test/data")
+    let shouldRunIntegration = case qaLevel nightly bk of
+            QuickTest -> False
+            FullTest -> True
+            NightlyTest -> True
+
+    let justWhen pred x = if pred then Just x else Nothing
+
+    foldl1 (.&&.) $ catMaybes
+        [ pure $ titled "Build LTS Snapshot"
+            (build Standard ["--only-snapshot"])
+        , pure $ titled "Build dependencies"
+            $ build Standard
+            $ "--only-dependencies" : cabalFlags
+        , pure $ titled "Build"
+            $ build Fast
+            $ "--test" : "--no-run-tests" : cabalFlags
+        , pure
+            $ titled "Tests (except integration)"
+            $ timeout 60
+            $ test Fast
+            $ cabalFlags <> skip "integration"
+        , justWhen shouldRunIntegration $ titled "Integration tests on latest era"
+            $ timeout 60
+            $ integration Fast cabalFlags
+        , justWhen shouldRunIntegration $ titled "Integration tests on past era (Mary)"
+            $ timeout 60
+            $ ((export "LOCAL_CLUSTER_ERA" "mary") >>)
+            $ integration Fast cabalFlags
+        , pure $ titled "Checking golden test files"
+            (checkUnclean dryRun "lib/core/test/data")
+        ]
   where
+
     build opt args =
         run dryRun "stack" $ concat
             [ color "always"
@@ -173,10 +194,16 @@ buildStep dryRun bk nightly = do
             , [ "--no-terminal" ]
             , [ "test" ]
             , fast opt
-            , case qaLevel nightly bk of
-                QuickTest -> skip "integration"
-                FullTest -> mempty
-                NightlyTest -> mempty
+            , ta (jobs 3)
+            , args
+            ]
+
+    integration opt args =
+        run dryRun "stack" $ concat
+            [ color "always"
+            , [ "--no-terminal" ]
+            , [ "test", "cardano-wallet:integration" ]
+            , fast opt
             , ta (jobs 3)
             , args
             ]
@@ -464,7 +491,7 @@ saveStackWork cfg = saveZippedCache stackWorkCache cfg tar
   where
     nullTerminate = (<> "\0") . B8.pack . FP.encodeString
     dirs = nullTerminate <$> find (ends ".stack-work") "."
-    tar = TB.inproc "tar" (exclude ++ ["--null", "-T", "-", "-c"]) dirs
+    tar = TB.inproc "tar" (exclude ++ ["--null", "-T", "-", "-c"]) $ dirs
     exclude = ["--exclude", ".stack-work/logs"]
 
 saveZippedCache :: FilePath -> CICacheConfig -> Shell ByteString -> IO ()

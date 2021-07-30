@@ -107,11 +107,12 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         let wDest = getFromResponse id rInit
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": #{minUTxOValue},
+                        "quantity": #{minUTxOValue' },
                         "unit": "lovelace"
                     }
                 }],
@@ -126,9 +127,9 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
                 ]
 
         -- delete wallet
@@ -145,9 +146,9 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest') Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
                 ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
@@ -166,7 +167,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": #{minUTxOValue},
+                            "quantity": #{minUTxOValue (_mainEra ctx) },
                             "unit": "lovelace"
                         }
                     }],
@@ -223,7 +224,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": #{minUTxOValue},
+                            "quantity": #{minUTxOValue (_mainEra ctx) },
                             "unit": "lovelace"
                         }
                     }]

@@ -66,6 +66,7 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterLog
     , RunningNode (..)
     , clusterEraFromEnv
+    , clusterEraToString
     , clusterToApiEra
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
@@ -410,7 +411,8 @@ withTracers
 withTracers testDir action = do
     let getLogOutputs getMinSev name = do
             minSev <- getMinSev
-            logDir <- fromMaybe testDir <$> testLogDirFromEnv
+            eraStr <- clusterEraToString <$> clusterEraFromEnv
+            logDir <- fromMaybe testDir <$> testLogDirFromEnv (Just eraStr)
             pure
                 [ LogToFile (logDir </> name) (min minSev Info)
                 , LogToStdStreams minSev

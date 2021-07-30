@@ -231,6 +231,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
         -- create wallet
         mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
         let payldCrt = payloadWith "!st created" mnemonics
@@ -251,7 +252,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": #{minUTxOValue},
+                        "quantity": #{minUTxOValue' },
                         "unit": "lovelace"
                     }
                 }],
@@ -266,9 +267,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField (#balance . #total)
-                    (`shouldBe` Quantity minUTxOValue)
+                    (`shouldBe` Quantity minUTxOValue')
                 , expectField (#balance . #available)
-                    (`shouldBe` Quantity minUTxOValue)
+                    (`shouldBe` Quantity minUTxOValue')
                 , expectField (#assets . #available)
                     (`shouldBe` mempty)
                 , expectField (#assets . #total)
@@ -287,9 +288,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
                 ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> runResourceT $ do
@@ -875,7 +876,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": #{minUTxOValue},
+                            "quantity": #{minUTxOValue (_mainEra ctx)},
                             "unit": "lovelace"
                         }
                     }],

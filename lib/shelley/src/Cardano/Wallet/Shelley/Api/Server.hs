@@ -33,6 +33,7 @@ import Cardano.Wallet
     , networkLayer
     , normalizeDelegationAddress
     , normalizeSharedAddress
+    , transactionLayer
     )
 import Cardano.Wallet.Api
     ( Addresses
@@ -500,10 +501,11 @@ server byron icarus shelley multisig spl ntp =
     network' :: Server Network
     network' =
         getNetworkInformation syncTolerance nl
-        :<|> getNetworkParameters genesis nl
+        :<|> getNetworkParameters genesis nl tl
         :<|> getNetworkClock ntp
       where
         nl = icarus ^. networkLayer
+        tl = icarus ^. transactionLayer @IcarusKey
         genesis@(_,_,syncTolerance) = icarus ^. genesisData
 
     proxy :: Server Proxy_

@@ -2521,12 +2521,14 @@ getNetworkInformation st nl = liftIO $ do
 getNetworkParameters
     :: (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO Block
+    -> TransactionLayer k
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, genesisNp, _st) nl = do
+getNetworkParameters (_block0, genesisNp, _st) nl tl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
     let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
-    liftIO $ toApiNetworkParameters np (interpretQuery ti . toApiEpochInfo)
+    let txConstraints = (view #constraints tl) pp
+    liftIO $ toApiNetworkParameters np txConstraints (interpretQuery ti . toApiEpochInfo)
   where
     ti :: TimeInterpreter IO
     ti = neverFails

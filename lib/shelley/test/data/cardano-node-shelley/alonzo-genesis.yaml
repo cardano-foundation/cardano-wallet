@@ -1,7 +1,9 @@
-# Taken from https://hydra.iohk.io/build/6782523/download/1/index.html
-# and not sanity-checked for appropriateness for when we turn on Alonzo
-# in our test cluster.
-adaPerUTxOWord: 0
+# Originally taken from https://hydra.iohk.io/build/6782523/download/1/index.html
+
+adaPerUTxOWord: 34482 # Gets us close to a 1 ada minUTxOValue
+
+# Probably needs to be sanity-checked if we start using plutus scripts in
+# our integration tests:
 executionPrices:
   prMem: 1
   prSteps: 1
@@ -11,6 +13,7 @@ maxTxExUnits:
 maxBlockExUnits:
   exUnitsMem: 1
   exUnitsSteps: 1
-maxValueSize: 1000
+
+maxValueSize: 4000
 collateralPercentage: 100
 maxCollateralInputs: 1

@@ -172,7 +172,7 @@ module Test.Integration.Framework.DSL
     , delegating
     , getSlotParams
     , arbitraryStake
-    
+
     -- * CLI
     , commandName
     , command
@@ -231,6 +231,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelection
     , ApiEpochInfo
+    , ApiEra (..)
     , ApiFee
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
@@ -654,8 +655,10 @@ walletId =
 --
 
 -- | Min UTxO parameter for the test cluster.
-minUTxOValue :: Natural
-minUTxOValue = 1_000_000
+minUTxOValue :: ApiEra -> Natural
+minUTxOValue e
+    | e >= ApiAlonzo = 999_978 -- From 34482 lovelace per word
+    | otherwise   = 1_000_000
 
 -- | Parameter in test cluster shelley genesis.
 --
@@ -1417,7 +1420,7 @@ fixtureMultiAssetRandomWallet ctx = do
     -- pick out assets to send
     let assetsSrc = wMA ^. #assets . #total . #getApiT
     assetsSrc `shouldNotBe` mempty
-    let val = minUTxOValue <$ pickAnAsset assetsSrc
+    let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
     rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wB) Default Empty
     let addrs = getFromResponse id rL
@@ -1458,7 +1461,7 @@ fixtureMultiAssetIcarusWallet ctx = do
     -- pick out assets to send
     let assetsSrc = wMA ^. #assets . #total . #getApiT
     assetsSrc `shouldNotBe` mempty
-    let val = minUTxOValue <$ pickAnAsset assetsSrc
+    let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
     rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wB) Default Empty
     let addrs = getFromResponse id rL

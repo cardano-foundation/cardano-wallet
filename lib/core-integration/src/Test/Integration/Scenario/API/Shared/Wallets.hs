@@ -1039,7 +1039,7 @@ spec = describe "SHARED_WALLETS" $ do
         let destination = (sharedAddrs !! 1) ^. #id
 
         wShelley <- fixtureWallet ctx
-        let amt = minUTxOValue
+        let amt = minUTxOValue (_mainEra ctx)
         let payloadTx = Json [json|{
                 "payments": [{
                     "address": #{destination},

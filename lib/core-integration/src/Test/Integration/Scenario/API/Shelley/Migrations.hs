@@ -19,7 +19,8 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..)
+    ( ApiEra (..)
+    , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
@@ -220,8 +221,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- ada quantity is large enough to allow minting to succeed, but
             -- small enough to make the migration algorithm categorize the
             -- entry as a freerider.
-            --
-            let perEntryAdaQuantity = Coin 3_300_000
+
+            let perEntryAdaQuantity = Coin $ case _mainEra ctx of
+                    e | e >= ApiAlonzo -> 3_100_000
+                      | otherwise      -> 3_300_000
+
             let perEntryAssetCount = 10
             let batchSize = 20
             liftIO $ _mintSeaHorseAssets ctx

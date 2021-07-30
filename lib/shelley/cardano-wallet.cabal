@@ -1,5 +1,5 @@
 name:                cardano-wallet
-version:             2021.6.11
+version:             2021.7.30
 synopsis:            Wallet backend protocol-specific bits implemented using Shelley nodes
 description:         Please see README.md
 homepage:            https://github.com/input-output-hk/cardano-wallet

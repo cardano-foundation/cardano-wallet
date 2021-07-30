@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -173,10 +172,12 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             expectCliListField
                 addrNum (#state . #getApiT) (`shouldBe` Unused) j
 
+        let amt = minUTxOValue . _mainEra $ ctx
+
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
             let dest = encodeAddress @n (getApiT $ fst $ (j !! addrNum) ^. #id)
-            let args = [wSrc, "--payment" , (show minUTxOValue) <> "@" <> (T.unpack dest)]
+            let args = [wSrc, "--payment" , show amt <> "@" <> (T.unpack dest)]
             (cTx, _, _) <- postTransactionViaCLI ctx "cardano-wallet" args
             cTx `shouldBe` ExitSuccess
 
@@ -185,7 +186,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             w <- expectValidJSON (Proxy @ApiWallet) o2
             expectCliField
                 (#balance . #available)
-                (`shouldBe` Quantity (10 * 1_000_000)) w
+                (`shouldBe` Quantity (10 * amt)) w
 
         -- verify new address_pool_gap has been created
         (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI ctx [widDest]

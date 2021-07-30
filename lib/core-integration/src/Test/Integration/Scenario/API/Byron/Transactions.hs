@@ -65,7 +65,7 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( Context
+    ( Context (..)
     , Headers (..)
     , Payload (..)
     , between
@@ -144,11 +144,12 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wSrc ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let val = minUTxOValue' <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
-        payload <- mkTxPayloadMA @n destination (minUTxOValue * 2) [val] fixturePassphrase
+        payload <- mkTxPayloadMA @n destination (minUTxOValue' * 2) [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Byron wSrc) Default payload
@@ -175,11 +176,12 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wSrc ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let minUTxOValue' = minUTxOValue (_mainEra ctx)
+        let val = minUTxOValue' <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
-        payload <- mkTxPayloadMA @n destination minUTxOValue [val] fixturePassphrase
+        payload <- mkTxPayloadMA @n destination minUTxOValue' [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Byron wSrc) Default payload
@@ -197,7 +199,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wSrc ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let val = minUTxOValue <$ pickAnAsset assetsSrc
+        let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
@@ -309,7 +311,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         (wByron, wShelley) <- (,) <$> srcFixture ctx <*> fixtureWallet ctx
         addrs <- listAddresses @n ctx wShelley
 
-        let amt = minUTxOValue :: Natural
+        let amt = minUTxOValue (_mainEra ctx) :: Natural
         let destination = (addrs !! 1) ^. #id
         let payload = Json [json|{
                 "payments": [{
@@ -380,7 +382,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": #{minUTxOValue},
+                            "quantity": #{minUTxOValue (_mainEra ctx)},
                             "unit": "lovelace"
                         }
                     }],
@@ -412,7 +414,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                     "payments": [{
                         "address": #{destination},
                         "amount": {
-                            "quantity": #{minUTxOValue},
+                            "quantity": #{minUTxOValue (_mainEra ctx)},
                             "unit": "lovelace"
                         }
                     }]
