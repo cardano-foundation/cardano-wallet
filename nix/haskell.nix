@@ -217,12 +217,14 @@ let
         '';
       }
 
+      ({ lib, pkgs, ... }: {
+        # Use our forked libsodium from iohk-nix crypto overlay.
+        packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
+        packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf ] ];
+      })
+
       # Build fixes for library dependencies
       {
-        # Use our forked libsodium
-        packages.cardano-crypto-praos.components.library.pkgconfig = [ [ pkgs.libsodium-vrf ] ];
-        packages.cardano-crypto-class.components.library.pkgconfig = [ [ pkgs.libsodium-vrf ] ];
-
         # Packages we wish to ignore version bounds of.
         # This is similar to jailbreakCabal, however it
         # does not require any messing with cabal files.
