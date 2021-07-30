@@ -1780,7 +1780,16 @@ components:
         active_slot_coefficient: *percentage
         decentralization_level: *percentage
         desired_pool_number: *stakePoolsNumber
-        minimum_utxo_value: *amount
+        minimum_utxo_value:
+          <<: *amount
+          description: |
+            The minimum ada / Lovelace quantity required for new transaction outputs.
+
+            It is only applicable for pure-ada outputs. If outputs contain other assets
+            or a datum hash, the true minimum will be higher than this value.
+
+            With Alonzo, `minimum_utxo_value` is not a real protocol parameter, but rather
+            derived from from the Alonzo genesis `adaPerUTxOWord`.
         eras: *ApiEraInfo
 
     ApiSelectCoinsPayments: &ApiSelectCoinsPayments
