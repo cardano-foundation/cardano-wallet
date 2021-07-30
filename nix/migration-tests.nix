@@ -58,6 +58,8 @@ let
       sha256 = "0ladc7bpy6fwvlsp2zjw3h8rm384w3qf93gvb1s6nn2n912sp7ck"; }
     { rev = "v2021-06-11";
       sha256 = "0civfzjhcglc7r1382r55gwnk0rn2f9nsnqpyscs049jwsw5r7sq"; }
+    { rev = "v2021-07-30";
+      sha256 = "0051ynb12fx3nn63fx0dd5n6mbkra5r5d71xkj735r900kdgpxgw"; }
   ];
 
   # Download the sources for a release.
