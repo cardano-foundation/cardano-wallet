@@ -3719,13 +3719,14 @@ instance IsServerError ErrSelectAssets where
                         , pretty . Flat $ missingOutputAssets e
                         ]
                 UnableToConstructChange e ->
-                    apiError err403 CannotCoverFee $ mconcat
-                        [ "I am unable to finalize the transaction, as there is "
-                        , "not enough ada I can use to pay for fees, or to "
-                        , "satisfy the minimum ada quantities of change outputs. "
-                        , "I need about pretty ", pretty (shortfall e), " ada to "
-                        , "proceed; try increasing your wallet balance as such, "
-                        , "or try sending a different, smaller payment."
+                    apiError err403 CannotCoverFee $ T.unwords
+                        [ "I am unable to finalize the transaction, as there"
+                        , "is not enough ada available to pay for the fee and"
+                        , "also pay for the minimum ada quantities of all"
+                        , "change outputs. I need approximately"
+                        , pretty (shortfall e)
+                        , "ada to proceed. Try increasing your wallet balance"
+                        , "or sending a smaller amount."
                         ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
