@@ -3,7 +3,7 @@
 #
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/8632a891c1abca5a0357116336e66c20a5c9542d/snapshots/cardano-1.28.0-pre.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/65c9fb895ac74b3d2295466193a77328bcac836f/snapshots/cardano-1.28.0.yaml
 compiler: ghc-8.10.5
 
 packages:
@@ -22,8 +22,6 @@ allow-newer: true
 extra-deps:
 - OddWord-1.0.2.0
 - command-0.1.1
-- markov-chain-usage-model-0.0.0
-- quickcheck-state-machine-0.7.0
 - hspec-2.8.2
 - hspec-core-2.8.2
 

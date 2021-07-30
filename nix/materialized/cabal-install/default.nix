@@ -125,5 +125,56 @@
             };
           };
         })
+    ({ lib, ... }:
+      {
+        packages = {
+          "containers".components.library.planned = lib.mkOverride 900 true;
+          "binary".components.library.planned = lib.mkOverride 900 true;
+          "ghc-prim".components.library.planned = lib.mkOverride 900 true;
+          "stm".components.library.planned = lib.mkOverride 900 true;
+          "hsc2hs".components.exes."hsc2hs".planned = lib.mkOverride 900 true;
+          "edit-distance".components.library.planned = lib.mkOverride 900 true;
+          "th-compat".components.library.planned = lib.mkOverride 900 true;
+          "zlib".components.library.planned = lib.mkOverride 900 true;
+          "Cabal".components.library.planned = lib.mkOverride 900 true;
+          "base64-bytestring".components.library.planned = lib.mkOverride 900 true;
+          "regex-base".components.library.planned = lib.mkOverride 900 true;
+          "HTTP".components.library.planned = lib.mkOverride 900 true;
+          "hashable".components.library.planned = lib.mkOverride 900 true;
+          "transformers".components.library.planned = lib.mkOverride 900 true;
+          "ed25519".components.library.planned = lib.mkOverride 900 true;
+          "random".components.library.planned = lib.mkOverride 900 true;
+          "process".components.library.planned = lib.mkOverride 900 true;
+          "async".components.library.planned = lib.mkOverride 900 true;
+          "network".components.library.planned = lib.mkOverride 900 true;
+          "pretty".components.library.planned = lib.mkOverride 900 true;
+          "cabal-install".components.exes."cabal".planned = lib.mkOverride 900 true;
+          "template-haskell".components.library.planned = lib.mkOverride 900 true;
+          "integer-gmp".components.library.planned = lib.mkOverride 900 true;
+          "array".components.library.planned = lib.mkOverride 900 true;
+          "resolv".components.library.planned = lib.mkOverride 900 true;
+          "echo".components.library.planned = lib.mkOverride 900 true;
+          "cryptohash-sha256".components.library.planned = lib.mkOverride 900 true;
+          "tar".components.library.planned = lib.mkOverride 900 true;
+          "bytestring".components.library.planned = lib.mkOverride 900 true;
+          "unix".components.library.planned = lib.mkOverride 900 true;
+          "text".components.library.planned = lib.mkOverride 900 true;
+          "base".components.library.planned = lib.mkOverride 900 true;
+          "rts".components.library.planned = lib.mkOverride 900 true;
+          "regex-posix".components.library.planned = lib.mkOverride 900 true;
+          "network-uri".components.library.planned = lib.mkOverride 900 true;
+          "mtl".components.library.planned = lib.mkOverride 900 true;
+          "time".components.library.planned = lib.mkOverride 900 true;
+          "base16-bytestring".components.library.planned = lib.mkOverride 900 true;
+          "deepseq".components.library.planned = lib.mkOverride 900 true;
+          "filepath".components.library.planned = lib.mkOverride 900 true;
+          "splitmix".components.library.planned = lib.mkOverride 900 true;
+          "lukko".components.library.planned = lib.mkOverride 900 true;
+          "parsec".components.library.planned = lib.mkOverride 900 true;
+          "ghc-boot-th".components.library.planned = lib.mkOverride 900 true;
+          "directory".components.library.planned = lib.mkOverride 900 true;
+          "hackage-security".components.library.planned = lib.mkOverride 900 true;
+          };
+        })
     ];
   }

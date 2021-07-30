@@ -12,7 +12,7 @@ module Cardano.Wallet.DB.Sqlite.TypesSpec
 import Prelude
 
 import Cardano.Wallet.DB.Sqlite.Types
-    ()
+    ( stdGenFromString )
 import Cardano.Wallet.Gen
     ( genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Types
@@ -21,6 +21,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
+import Data.Either
+    ( isLeft )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Time.Clock.POSIX
@@ -33,8 +35,14 @@ import Data.Word.Odd
     ( Word31 )
 import Database.Persist.Class
     ( PersistField (..) )
+import System.Random
+    ( StdGen, mkStdGen )
+import System.Random.Internal
+    ( StdGen (..) )
+import System.Random.SplitMix
+    ( seedSMGen )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
@@ -53,6 +61,19 @@ spec = do
         persistRoundtrip $ Proxy @SlotNo
         persistRoundtrip $ Proxy @POSIXTime
         persistRoundtrip $ Proxy @TokenQuantity
+        persistRoundtrip $ Proxy @StdGen
+
+    describe "Backwards compatible instance PersistField StdGen" $ do
+        it "rnd_state empty" $
+            stdGenFromString "1233322640 1"
+                `shouldBe` Right
+                (StdGen $ seedSMGen 1233322640 1)
+        it "rnd_state" $
+            stdGenFromString "444941957 1872071452"
+                `shouldBe` Right
+                (StdGen $ seedSMGen 444941957 1872071452)
+        it "malformed" $
+            stdGenFromString "1233322640" `shouldSatisfy` isLeft
 
     describe "Coverage checks for generators" $ do
         it "TokenQuantity" $
@@ -114,3 +135,6 @@ instance Arbitrary Word31 where
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityFullRange
     shrink = shrinkTokenQuantityFullRange
+
+instance Arbitrary StdGen where
+    arbitrary = mkStdGen <$> arbitrary

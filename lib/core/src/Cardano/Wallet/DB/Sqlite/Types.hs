@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -85,6 +86,8 @@ import Data.ByteArray.Encoding
     ( Base (..), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -116,8 +119,10 @@ import GHC.Generics
     ( Generic )
 import Network.URI
     ( parseAbsoluteURI )
-import System.Random
-    ( StdGen )
+import System.Random.Internal
+    ( StdGen (..) )
+import System.Random.SplitMix
+    ( seedSMGen, unseedSMGen )
 import Text.Read
     ( readMaybe )
 import Web.HttpApiData
@@ -549,12 +554,28 @@ instance PersistFieldSql Role where
 ----------------------------------------------------------------------------
 -- StdGen
 
-instance PersistField StdGen where
-    toPersistValue = toPersistValue . show
-    fromPersistValue = fromPersistValueRead
-
 instance PersistFieldSql StdGen where
     sqlType _ = sqlType (Proxy @Text)
+
+instance PersistField StdGen where
+    toPersistValue = toPersistValue . stdGenToString
+    fromPersistValue = fromPersistValue >=> stdGenFromString
+
+-- | In @random < 1.2@ there used to be an @instance Read StdGen@, but no
+-- longer.
+--
+-- The format used to look like this:
+-- @
+-- 5889121503043413025 17512980752375952679
+-- @
+stdGenFromString :: String -> Either Text StdGen
+stdGenFromString s = case mapMaybe readMaybe (words s) of
+    [i, j] -> Right $ StdGen $ seedSMGen i j
+    _ -> Left "StdGen should be formatted as two space-separated integers"
+
+-- | Equivalent to the old @random < 1.2@ 'StdGen' 'Show' instance.
+stdGenToString :: StdGen -> String
+stdGenToString (StdGen (unseedSMGen -> (i, j))) = unwords $ map show [i, j]
 
 ----------------------------------------------------------------------------
 -- PoolId

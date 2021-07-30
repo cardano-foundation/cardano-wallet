@@ -66,6 +66,10 @@
       url = "https://github.com/input-output-hk/plutus";
       rev = "523f349f3d68db07c98150734793ed7003d1f562";
       sha256 = "0vp6wiv1fz5bzvw90pdwv96nck78m5s91xiwjhkksq06l1yqr3ps";
-      });
+      }) // {
+      url = "https://github.com/input-output-hk/plutus";
+      rev = "523f349f3d68db07c98150734793ed7003d1f562";
+      sha256 = "0vp6wiv1fz5bzvw90pdwv96nck78m5s91xiwjhkksq06l1yqr3ps";
+      };
     postUnpack = "sourceRoot+=/word-array; echo source root reset to \$sourceRoot";
     }

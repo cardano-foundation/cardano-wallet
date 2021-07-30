@@ -164,5 +164,86 @@
   modules = [
     ({ lib, ... }:
       { packages = { "iohk-nix-utils" = { flags = {}; }; }; })
+    ({ lib, ... }:
+      {
+        packages = {
+          "tagged".components.library.planned = lib.mkOverride 900 true;
+          "math-functions".components.library.planned = lib.mkOverride 900 true;
+          "optional-args".components.library.planned = lib.mkOverride 900 true;
+          "containers".components.library.planned = lib.mkOverride 900 true;
+          "iohk-nix-utils".components.exes."rewrite-libs".planned = lib.mkOverride 900 true;
+          "semigroupoids".components.library.planned = lib.mkOverride 900 true;
+          "bifunctors".components.library.planned = lib.mkOverride 900 true;
+          "streaming-commons".components.library.planned = lib.mkOverride 900 true;
+          "binary".components.library.planned = lib.mkOverride 900 true;
+          "ghc-prim".components.library.planned = lib.mkOverride 900 true;
+          "StateVar".components.library.planned = lib.mkOverride 900 true;
+          "stm".components.library.planned = lib.mkOverride 900 true;
+          "extra".components.library.planned = lib.mkOverride 900 true;
+          "hsc2hs".components.exes."hsc2hs".planned = lib.mkOverride 900 true;
+          "indexed-traversable".components.library.planned = lib.mkOverride 900 true;
+          "zlib".components.library.planned = lib.mkOverride 900 true;
+          "comonad".components.library.planned = lib.mkOverride 900 true;
+          "Cabal".components.library.planned = lib.mkOverride 900 true;
+          "managed".components.library.planned = lib.mkOverride 900 true;
+          "clock".components.library.planned = lib.mkOverride 900 true;
+          "hashable".components.library.planned = lib.mkOverride 900 true;
+          "file-embed".components.library.planned = lib.mkOverride 900 true;
+          "colour".components.library.planned = lib.mkOverride 900 true;
+          "transformers".components.library.planned = lib.mkOverride 900 true;
+          "system-fileio".components.library.planned = lib.mkOverride 900 true;
+          "optparse-applicative".components.library.planned = lib.mkOverride 900 true;
+          "unix-compat".components.library.planned = lib.mkOverride 900 true;
+          "random".components.library.planned = lib.mkOverride 900 true;
+          "process".components.library.planned = lib.mkOverride 900 true;
+          "scientific".components.library.planned = lib.mkOverride 900 true;
+          "async".components.library.planned = lib.mkOverride 900 true;
+          "network".components.library.planned = lib.mkOverride 900 true;
+          "pretty".components.library.planned = lib.mkOverride 900 true;
+          "iohk-nix-utils".components.exes."set-git-rev".planned = lib.mkOverride 900 true;
+          "vector".components.library.planned = lib.mkOverride 900 true;
+          "template-haskell".components.library.planned = lib.mkOverride 900 true;
+          "integer-gmp".components.library.planned = lib.mkOverride 900 true;
+          "array".components.library.planned = lib.mkOverride 900 true;
+          "safe".components.library.planned = lib.mkOverride 900 true;
+          "ansi-terminal".components.library.planned = lib.mkOverride 900 true;
+          "exceptions".components.library.planned = lib.mkOverride 900 true;
+          "hostname".components.library.planned = lib.mkOverride 900 true;
+          "integer-logarithms".components.library.planned = lib.mkOverride 900 true;
+          "ansi-wl-pprint".components.library.planned = lib.mkOverride 900 true;
+          "mwc-random".components.library.planned = lib.mkOverride 900 true;
+          "bytestring".components.library.planned = lib.mkOverride 900 true;
+          "contravariant".components.library.planned = lib.mkOverride 900 true;
+          "case-insensitive".components.library.planned = lib.mkOverride 900 true;
+          "unix".components.library.planned = lib.mkOverride 900 true;
+          "text".components.library.planned = lib.mkOverride 900 true;
+          "iohk-nix-utils".components.library.planned = lib.mkOverride 900 true;
+          "base".components.library.planned = lib.mkOverride 900 true;
+          "rts".components.library.planned = lib.mkOverride 900 true;
+          "unordered-containers".components.library.planned = lib.mkOverride 900 true;
+          "foldl".components.library.planned = lib.mkOverride 900 true;
+          "data-default-class".components.library.planned = lib.mkOverride 900 true;
+          "parser-combinators".components.library.planned = lib.mkOverride 900 true;
+          "mtl".components.library.planned = lib.mkOverride 900 true;
+          "time".components.library.planned = lib.mkOverride 900 true;
+          "distributive".components.library.planned = lib.mkOverride 900 true;
+          "megaparsec".components.library.planned = lib.mkOverride 900 true;
+          "deepseq".components.library.planned = lib.mkOverride 900 true;
+          "filepath".components.library.planned = lib.mkOverride 900 true;
+          "system-filepath".components.library.planned = lib.mkOverride 900 true;
+          "temporary".components.library.planned = lib.mkOverride 900 true;
+          "system-filepath".components.setup.planned = lib.mkOverride 900 true;
+          "splitmix".components.library.planned = lib.mkOverride 900 true;
+          "turtle".components.library.planned = lib.mkOverride 900 true;
+          "parsec".components.library.planned = lib.mkOverride 900 true;
+          "ghc-boot-th".components.library.planned = lib.mkOverride 900 true;
+          "profunctors".components.library.planned = lib.mkOverride 900 true;
+          "base-orphans".components.library.planned = lib.mkOverride 900 true;
+          "directory".components.library.planned = lib.mkOverride 900 true;
+          "th-abstraction".components.library.planned = lib.mkOverride 900 true;
+          "primitive".components.library.planned = lib.mkOverride 900 true;
+          "transformers-compat".components.library.planned = lib.mkOverride 900 true;
+          };
+        })
     ];
   }

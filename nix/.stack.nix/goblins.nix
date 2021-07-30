@@ -65,5 +65,9 @@
       url = "https://github.com/input-output-hk/goblins";
       rev = "cde90a2b27f79187ca8310b6549331e59595e7ba";
       sha256 = "17c88rbva3iw82yg9srlxjv2ia5wjb9cyqw44hik565f5v9svnyg";
-      });
+      }) // {
+      url = "https://github.com/input-output-hk/goblins";
+      rev = "cde90a2b27f79187ca8310b6549331e59595e7ba";
+      sha256 = "17c88rbva3iw82yg9srlxjv2ia5wjb9cyqw44hik565f5v9svnyg";
+      };
     }

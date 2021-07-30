@@ -145,7 +145,7 @@ buildStep dryRun bk nightly = do
     titled "Build LTS Snapshot"
         (build Standard ["--only-snapshot"]) .&&.
       titled "Build dependencies"
-        (build Standard ["--only-dependencies"]) .&&.
+        (build Standard (["--only-dependencies"] ++ cabalFlags)) .&&.
       titled "Build"
         (build Fast (["--test", "--no-run-tests"] ++ cabalFlags)) .&&.
       titled "Test"

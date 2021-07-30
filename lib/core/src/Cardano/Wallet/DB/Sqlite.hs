@@ -214,7 +214,6 @@ import Database.Persist.Sql
     , SelectOpt (..)
     , Single (..)
     , Update (..)
-    , deleteCascadeWhere
     , deleteWhere
     , deleteWhereCount
     , insertMany_
@@ -1388,7 +1387,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> Right <$> do
-                    deleteCascadeWhere [WalId ==. wid]
+                    deleteWhere [WalId ==. wid]
                     deleteLooseTransactions
                     dropCache wid
 
@@ -2031,7 +2030,7 @@ deleteCheckpoints
     -> [Filter Checkpoint]
     -> SqlPersistT IO ()
 deleteCheckpoints wid filters = do
-    deleteCascadeWhere ((CheckpointWalletId ==. wid) : filters)
+    deleteWhere ((CheckpointWalletId ==. wid) : filters)
 
 -- | Prune checkpoints in the database to keep it tidy
 pruneCheckpoints
@@ -2123,7 +2122,7 @@ deleteDelegationCertificates
     -> [Filter DelegationCertificate]
     -> SqlPersistT IO ()
 deleteDelegationCertificates wid filters = do
-    deleteCascadeWhere ((CertWalletId ==. wid) : filters)
+    deleteWhere ((CertWalletId ==. wid) : filters)
 
 selectUTxO
     :: Checkpoint

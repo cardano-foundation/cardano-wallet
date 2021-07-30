@@ -1,5 +1,7 @@
 { roots =
   [ "^Main\\.main\$"
+  , "^Restore\\.main\$"
+  , "^Latency\\.main\$"
   , "^Paths_.*"
   , "^Cardano.Startup.Windows\\..*\$"
   , "^Cardano\\.CLI\\.(getDataDir|requireFilePath|stateDirOption)\$"

@@ -44,7 +44,7 @@ import Data.Time.Clock
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 import Database.Persist.TH
-    ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
+    ( mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
     ( Generic (..) )
 import System.Random
@@ -62,7 +62,6 @@ import qualified Data.ByteString.Char8 as B8
 
 share
     [ mkPersist sqlSettings'
-    , mkDeleteCascade sqlSettings'
     , mkMigrate "migrateAll"
     ]
     [persistLowerCase|

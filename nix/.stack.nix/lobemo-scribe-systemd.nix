@@ -50,6 +50,10 @@
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
       rev = "808724ff8a19a33d0ed06f9ef59fbd900b08553c";
       sha256 = "0298dpl29gxzs9as9ha6y0w18hqwc00ipa3hzkxv7nlfrjjz8hmz";
-      });
+      }) // {
+      url = "https://github.com/input-output-hk/iohk-monitoring-framework";
+      rev = "808724ff8a19a33d0ed06f9ef59fbd900b08553c";
+      sha256 = "0298dpl29gxzs9as9ha6y0w18hqwc00ipa3hzkxv7nlfrjjz8hmz";
+      };
     postUnpack = "sourceRoot+=/plugins/scribe-systemd; echo source root reset to \$sourceRoot";
     }

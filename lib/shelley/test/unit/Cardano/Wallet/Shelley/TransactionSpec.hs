@@ -207,11 +207,11 @@ spec = do
     -- not the distribution of generated token bundles has changed.
     --
     estimateMaxInputsTests @ShelleyKey
-        [(1,114),(5,108),(10,103),(20,89),(50,37)]
+        [(1,114),(5,107),(10,101),(20,87),(50,36)]
     estimateMaxInputsTests @ByronKey
-        [(1,73),(5,69),(10,64),(20,54),(50,17)]
+        [(1,73),(5,68),(10,64),(20,53),(50,17)]
     estimateMaxInputsTests @IcarusKey
-        [(1,73),(5,69),(10,64),(20,54),(50,17)]
+        [(1,73),(5,68),(10,64),(20,53),(50,17)]
 
     describe "fee calculations" $ do
         let pp :: ProtocolParameters
@@ -609,6 +609,8 @@ estimateMaxInputsTests cases = do
                 -- NOTE: These tests broke in the GHC 8.6 -> 8.10 bump,
                 -- presumably due to some change in the arbitrary generation.
                 -- It would be better if they weren't so fragile.
+                --
+                -- They also broke when bumping to lts-18.4.
                 let outs = [ generatePure r arbitrary | r <- [ 1 .. nOuts ] ]
                 length outs `shouldBe` nOuts
                 _estimateMaxNumberOfInputs @k (Quantity 16384) defaultTransactionCtx outs

@@ -36,7 +36,7 @@ import Data.Time.Clock.POSIX
 import Data.Word
     ( Word32, Word64, Word8 )
 import Database.Persist.TH
-    ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
+    ( mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
     ( Generic (..) )
 import System.Random
@@ -47,7 +47,6 @@ import qualified Cardano.Wallet.Primitive.Types as W
 
 share
     [ mkPersist sqlSettings'
-    , mkDeleteCascade sqlSettings'
     , mkMigrate "migrateAll"
     ]
     [persistLowerCase|

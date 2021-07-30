@@ -95,7 +95,11 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-crypto";
-      rev = "07397f0e50da97eaa0575d93bee7ac4b2b2576ec";
-      sha256 = "06sdx5ndn2g722jhpicmg96vsrys89fl81k8290b3lr6b1b0w4m3";
-      });
+      rev = "ce8f1934e4b6252084710975bd9bbc0a4648ece4";
+      sha256 = "1v2laq04piyj511b2m77hxjh9l1yd6k9kc7g6bjala4w3zdwa4ni";
+      }) // {
+      url = "https://github.com/input-output-hk/cardano-crypto";
+      rev = "ce8f1934e4b6252084710975bd9bbc0a4648ece4";
+      sha256 = "1v2laq04piyj511b2m77hxjh9l1yd6k9kc7g6bjala4w3zdwa4ni";
+      };
     }
