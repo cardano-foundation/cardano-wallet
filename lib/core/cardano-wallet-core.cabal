@@ -378,6 +378,7 @@ test-suite unit
       Cardano.Wallet.Primitive.Slotting.Legacy
       Cardano.Wallet.Primitive.SlottingSpec
       Cardano.Wallet.Primitive.SyncProgressSpec
+      Cardano.Wallet.Primitive.Types.CoinSpec
       Cardano.Wallet.Primitive.Types.HashSpec
       Cardano.Wallet.Primitive.Types.TokenBundleSpec
       Cardano.Wallet.Primitive.Types.TokenMapSpec
