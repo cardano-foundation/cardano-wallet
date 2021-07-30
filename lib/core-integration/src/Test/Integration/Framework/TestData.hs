@@ -303,9 +303,9 @@ errMsg400StartTimeLaterThanEndTime startTime endTime = mconcat
 
 errMsg403Fee :: String
 errMsg403Fee =
-    "I am unable to finalize the transaction, as there is not enough ada I can \
-    \use to pay for fees, or to satisfy the minimum ada quantities of change \
-    \outputs."
+    "I am unable to finalize the transaction, as there is not enough ada \
+    \available to pay for the fee and also pay for the minimum ada quantities \
+    \of all change outputs."
 
 errMsg403NotAByronWallet :: String
 errMsg403NotAByronWallet =
