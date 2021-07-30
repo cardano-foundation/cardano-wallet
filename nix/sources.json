@@ -17,10 +17,10 @@
         "homepage": null,
         "owner": "input-output-hk",
         "repo": "iohk-nix",
-        "rev": "cbd497f5844249ef8fe617166337d59f2a6ebe90",
-        "sha256": "1idlgzphvljjpzva9h504sdaqjqbdg5svp3cinnc2r4s6dlkshl8",
+        "rev": "6d54c33f904c0012820bad823090bdeb2540a8d1",
+        "sha256": "1gwzy2v9jmv66kfxd13yngvmb09b8s0p2y6gvfjb91ial580390m",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/iohk-nix/archive/cbd497f5844249ef8fe617166337d59f2a6ebe90.tar.gz",
+        "url": "https://github.com/input-output-hk/iohk-nix/archive/6d54c33f904c0012820bad823090bdeb2540a8d1.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "sphinxcontrib-haddock": {

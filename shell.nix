@@ -44,6 +44,7 @@ let
         curlFull
         jq
         yq
+        cabalWrapped
       ] ++ lib.filter
         (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
         (lib.attrValues haskell-build-tools));

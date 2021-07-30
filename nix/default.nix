@@ -36,8 +36,10 @@ let
     haskellNix.nixpkgsArgs.overlays
     # haskell-nix.haskellLib.extra: some useful extra utility functions for haskell.nix
     ++ iohkNixMain.overlays.haskell-nix-extra
-    # iohkNix: nix utilities and niv:
+    # iohkNix: iohkNix.lib and niv packages:
     ++ iohkNixMain.overlays.iohkNix
+    # iohkNix: utils
+    ++ iohkNixMain.overlays.utils
     # iohkNix: crypto
     ++ iohkNixMain.overlays.crypto
     # our own overlays:
