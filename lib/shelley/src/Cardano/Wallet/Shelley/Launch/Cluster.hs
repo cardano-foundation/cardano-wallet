@@ -936,6 +936,7 @@ genConfig dir systemStart clusterEra logCfg = do
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesisFile
         >>= withAddedKey "ByronGenesisFile" byronGenesisFile
         >>= withAddedKey "AlonzoGenesisFile" alonzoGenesisFile
+        >>= enableAlonzoIfNeeded
         >>= withHardForks clusterEra
         >>= withAddedKey "minSeverity" Debug
         >>= withScribes scribes
@@ -1008,6 +1009,11 @@ genConfig dir systemStart clusterEra logCfg = do
             [ ("Test" <> T.pack (show hardFork) <> "AtEpoch", Yaml.Number 0)
             | hardFork <- [ShelleyHardFork .. era] ]
 
+
+    enableAlonzoIfNeeded =
+        if clusterEra == AlonzoHardFork
+        then withAddedKey "TestEnableDevelopmentNetworkProtocols" True
+        else return
 -- | Generate a topology file from a list of peers.
 genTopology :: FilePath -> [Int] -> IO FilePath
 genTopology dir peers = do
