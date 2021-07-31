@@ -57,6 +57,7 @@
         strict-non-empty-containers = ./strict-non-empty-containers.nix;
         cardano-addresses-cli = ./cardano-addresses-cli.nix;
         cardano-addresses = ./cardano-addresses.nix;
+        base-deriving-via = ./base-deriving-via.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
         cardano-crypto-class = ./cardano-crypto-class.nix;
@@ -64,6 +65,7 @@
         cardano-crypto-tests = ./cardano-crypto-tests.nix;
         cardano-slotting = ./cardano-slotting.nix;
         strict-containers = ./strict-containers.nix;
+        measures = ./measures.nix;
         cardano-crypto = ./cardano-crypto.nix;
         cardano-ledger-alonzo = ./cardano-ledger-alonzo.nix;
         cardano-ledger-alonzo-test = ./cardano-ledger-alonzo-test.nix;
@@ -100,7 +102,6 @@
         lobemo-scribe-systemd = ./lobemo-scribe-systemd.nix;
         tracer-transformers = ./tracer-transformers.nix;
         purescript-bridge = ./purescript-bridge.nix;
-        io-sim-classes = ./io-sim-classes.nix;
         io-classes = ./io-classes.nix;
         io-sim = ./io-sim.nix;
         monoidal-synchronisation = ./monoidal-synchronisation.nix;

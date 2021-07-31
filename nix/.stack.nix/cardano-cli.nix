@@ -146,12 +146,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "48429531f0d3d71fadce9a5971bf56a6df396f2d";
-      sha256 = "0arhmmxb86ggfc73rbyz1fj43glj9z2f8w5416cix2wxkvlm8bys";
+      rev = "ba70f27ac982b1eae70ba19450b840b5a8cbcba4";
+      sha256 = "1147fbnxn0j2f58khpqazixy0s1z9jc4qb6515mfpl99a6lmq0rl";
       }) // {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "48429531f0d3d71fadce9a5971bf56a6df396f2d";
-      sha256 = "0arhmmxb86ggfc73rbyz1fj43glj9z2f8w5416cix2wxkvlm8bys";
+      rev = "ba70f27ac982b1eae70ba19450b840b5a8cbcba4";
+      sha256 = "1147fbnxn0j2f58khpqazixy0s1z9jc4qb6515mfpl99a6lmq0rl";
       };
     postUnpack = "sourceRoot+=/cardano-cli; echo source root reset to \$sourceRoot";
     }

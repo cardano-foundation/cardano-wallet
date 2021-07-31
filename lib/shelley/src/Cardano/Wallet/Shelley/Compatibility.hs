@@ -978,12 +978,12 @@ fromAlonzoValidatedTx (Alonzo.ValidatedTx bod _wits _isValidating aux) =
     fromAlonzoTxBodyAndAux bod aux
 
 fromAlonzoTx
-    :: SLAPI.Tx (Cardano.ShelleyLedgerEra AlonzoEra)
+    :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
        )
-fromAlonzoTx (SL.Tx bod _wits aux) =
+fromAlonzoTx (Alonzo.ValidatedTx bod _wits _isValidating aux) =
     fromAlonzoTxBodyAndAux bod aux
 
 fromCardanoValue :: Cardano.Value -> TokenBundle.TokenBundle
@@ -1144,7 +1144,7 @@ unsealShelleyTx wrap = wrap
 
 sealShelleyTx
     :: forall era b c. (O.ShelleyBasedEra (Cardano.ShelleyLedgerEra era))
-    => (SLAPI.Tx (Cardano.ShelleyLedgerEra era) -> (W.Tx, b, c))
+    => (SL.Core.Tx (Cardano.ShelleyLedgerEra era) -> (W.Tx, b, c))
     -> Cardano.Tx era
     -> (W.Tx, W.SealedTx)
 sealShelleyTx fromTx (Cardano.ShelleyTx _era tx) =

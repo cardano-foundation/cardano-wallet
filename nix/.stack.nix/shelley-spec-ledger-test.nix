@@ -50,7 +50,7 @@
           (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."process-extras" or (errorHandler.buildDepError "process-extras"))
-          (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
+          (hsPkgs."plutus-ledger-api" or (errorHandler.buildDepError "plutus-ledger-api"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
@@ -63,6 +63,7 @@
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+          (hsPkgs."tree-diff" or (errorHandler.buildDepError "tree-diff"))
           ];
         buildable = true;
         };
@@ -107,6 +108,7 @@
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+            (hsPkgs."tree-diff" or (errorHandler.buildDepError "tree-diff"))
             ];
           buildable = true;
           };
@@ -141,12 +143,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "ec9c77edbf5700a4b2ece8f97a1e313df06abc97";
-      sha256 = "1ia8x9dnw36y0xazg7xg263ax9mamw9w4sg460cmibj3wv49im4w";
+      rev = "bc5e54f0611a416db1e906d3783e4b973429f5eb";
+      sha256 = "1j7b6aglr1j51qmfn4nx7mamv81qyl8411fwsx6bw2cpghvizpmg";
       }) // {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "ec9c77edbf5700a4b2ece8f97a1e313df06abc97";
-      sha256 = "1ia8x9dnw36y0xazg7xg263ax9mamw9w4sg460cmibj3wv49im4w";
+      rev = "bc5e54f0611a416db1e906d3783e4b973429f5eb";
+      sha256 = "1j7b6aglr1j51qmfn4nx7mamv81qyl8411fwsx6bw2cpghvizpmg";
       };
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/shelley-spec-ledger-test; echo source root reset to \$sourceRoot";
     }
