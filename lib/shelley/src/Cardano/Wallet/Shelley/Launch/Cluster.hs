@@ -130,7 +130,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut )
 import Cardano.Wallet.Shelley.Compatibility
-    ( NodeVersionData, StandardShelley, nodeToClientVersion )
+    ( StandardShelley )
 import Cardano.Wallet.Shelley.Launch
     ( TempDirLog (..), envFromText, isEnvSet, lookupEnvNonEmpty )
 import Cardano.Wallet.Unsafe
@@ -176,7 +176,7 @@ import Data.Time.Clock.POSIX
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
+    ( NodeToClientVersionData (..) )
 import System.Directory
     ( copyFile, createDirectory, createDirectoryIfMissing, makeAbsolute )
 import System.Environment
@@ -503,7 +503,7 @@ data RunningNode = RunningNode
     -- ^ Socket path
     Block
     -- ^ Genesis block
-    (NetworkParameters, NodeVersionData)
+    (NetworkParameters, NodeToClientVersionData)
 
 -- | Execute an action after starting a cluster of stake pools. The cluster also
 -- contains a single BFT node that is pre-configured with keys available in the
@@ -645,7 +645,7 @@ withBFTNode
     -- this.
     -> NodeParams
     -- ^ Parameters used to generate config files.
-    -> (CardanoNodeConn -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
+    -> (CardanoNodeConn -> Block -> (NetworkParameters, NodeToClientVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
 withBFTNode tr baseDir params action =
@@ -908,7 +908,7 @@ genConfig
     -- ^ Last era to hard fork into.
     -> LogFileConfig
     -- ^ Minimum severity level for logging and optional /extra/ logging output
-    -> IO (FilePath, Block, NetworkParameters, NodeVersionData)
+    -> IO (FilePath, Block, NetworkParameters, NodeToClientVersionData)
 genConfig dir systemStart clusterEra logCfg = do
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
@@ -977,10 +977,7 @@ genConfig dir systemStart clusterEra logCfg = do
         @_ @(ShelleyGenesis StandardShelley) shelleyGenesisFile
     let networkMagic = sgNetworkMagic shelleyGenesis
     let shelleyParams = fst $ Shelley.fromGenesisData shelleyGenesis []
-    let versionData =
-            ( NodeToClientVersionData $ NetworkMagic networkMagic
-            , nodeToClientCodecCBORTerm nodeToClientVersion
-            )
+    let versionData = NodeToClientVersionData $ NetworkMagic networkMagic
 
     pure
         ( dir </> "node.config"

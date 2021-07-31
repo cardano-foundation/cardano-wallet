@@ -55,8 +55,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..), NetworkParameters (..), ProtocolMagic (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( NodeVersionData, nodeToClientVersion )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
@@ -80,7 +78,7 @@ import Options.Applicative
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
+    ( NodeToClientVersionData (..) )
 import System.Environment
     ( lookupEnv )
 import System.Exit
@@ -92,7 +90,6 @@ import UnliftIO.Temporary
 
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Shelley.Compatibility as Shelley
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -156,12 +153,13 @@ networkConfigurationOption = mainnet <|> testnet <|> staging
 someCustomDiscriminant
     :: (forall (pm :: Nat). KnownNat pm => Proxy pm -> SomeNetworkDiscriminant)
     -> ProtocolMagic
-    -> (SomeNetworkDiscriminant, NodeVersionData)
+    -> (SomeNetworkDiscriminant, NodeToClientVersionData)
 someCustomDiscriminant mkSomeNetwork pm@(ProtocolMagic n) =
     case someNatVal (fromIntegral n) of
         Just (SomeNat proxy) ->
             ( mkSomeNetwork proxy
-            , Shelley.testnetVersionData pm
+            , NodeToClientVersionData $
+                NetworkMagic $ fromIntegral $ W.getProtocolMagic pm
             )
         _ -> error "networkDiscriminantFlag: failed to convert \
             \ProtocolMagic to SomeNat."
@@ -169,14 +167,11 @@ someCustomDiscriminant mkSomeNetwork pm@(ProtocolMagic n) =
 parseGenesisData
     :: NetworkConfiguration
     -> ExceptT String IO
-        (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
+        (SomeNetworkDiscriminant, NetworkParameters, NodeToClientVersionData, Block)
 parseGenesisData = \case
     MainnetConfig -> do
         let nm = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
-        let mainnetVersionData =
-                ( NodeToClientVersionData nm
-                , nodeToClientCodecCBORTerm nodeToClientVersion
-                )
+        let mainnetVersionData = NodeToClientVersionData nm
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
             , Byron.mainnetNetworkParameters

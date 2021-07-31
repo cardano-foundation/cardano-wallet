@@ -81,7 +81,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromStakeCredential
     , fromTip
     , fromTip'
-    , nodeToClientVersion
+    , nodeToClientVersions
     , optimumNumberOfPools
     , slottingParametersFromGenesis
     , toCardanoEra
@@ -213,8 +213,6 @@ import Ouroboros.Network.Client.Wallet
     , mapChainSyncLog
     , send
     )
-import Ouroboros.Network.CodecCBORTerm
-    ( CodecCBORTerm )
 import Ouroboros.Network.Driver.Simple
     ( TraceSendRecv, runPeer, runPipelinedPeer )
 import Ouroboros.Network.Mux
@@ -242,7 +240,7 @@ import Ouroboros.Network.Protocol.ChainSync.Client
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
     ( chainSyncClientPeerPipelined )
 import Ouroboros.Network.Protocol.Handshake.Version
-    ( simpleSingletonVersions )
+    ( combineVersions, simpleSingletonVersions )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client
     ( localStateQueryClientPeer )
 import Ouroboros.Network.Protocol.LocalStateQuery.Type
@@ -300,7 +298,7 @@ withNetworkLayer
         -- ^ Initial blockchain parameters
     -> CardanoNodeConn
         -- ^ Socket for communicating with the node
-    -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
+    -> NodeToClientVersionData
         -- ^ Codecs for the node's client
     -> SyncTolerance
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
@@ -315,11 +313,11 @@ withNetworkLayerBase
     => Tracer IO NetworkLayerLog
     -> W.NetworkParameters
     -> CardanoNodeConn
-    -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
+    -> NodeToClientVersionData
     -> SyncTolerance
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
-withNetworkLayerBase tr np conn (versionData, _) tol action = do
+withNetworkLayerBase tr np conn versionData tol action = do
     -- NOTE: We keep client connections running for accessing the node tip,
     -- submitting transactions, querying parameters and delegations/rewards.
     --
@@ -615,7 +613,7 @@ withNetworkLayerBase tr np conn (versionData, _) tol action = do
 
 -- | Type representing a network client running two mini-protocols to sync
 -- from the chain and, submit transactions.
-type NetworkClient m = OuroborosApplication
+type NetworkClient m = NodeToClientVersion -> OuroborosApplication
     'InitiatorMode
         -- Initiator ~ Client (as opposed to Responder / Server)
     LocalAddress
@@ -643,10 +641,10 @@ mkWalletClient
     -> m (NetworkClient m)
 mkWalletClient tr cfg gp chainSyncQ = do
     stash <- atomically newTQueue
-    pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
+    pure $ \v -> nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
-                runPipelinedPeer nullTracer (cChainSyncCodec $ codecs cfg) channel
+                runPipelinedPeer nullTracer (cChainSyncCodec $ codecs v cfg) channel
                 $ chainSyncClientPeerPipelined
                 $ chainSyncWithBlocks tr' (fromTip' gp) chainSyncQ stash
 
@@ -655,8 +653,7 @@ mkWalletClient tr cfg gp chainSyncQ = do
 
         , localStateQueryProtocol =
             doNothingProtocol
-        })
-        nodeToClientVersion
+        }) v
   where
     tr' = contramap (mapChainSyncLog showB showP) tr
     showB = showP . blockPoint
@@ -680,7 +677,7 @@ mkDelegationRewardsClient
     -> TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)
         -- ^ Communication channel with the LocalStateQuery client
     -> NetworkClient m
-mkDelegationRewardsClient tr cfg queryRewardQ =
+mkDelegationRewardsClient tr cfg queryRewardQ v =
     nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             doNothingProtocol
@@ -693,18 +690,19 @@ mkDelegationRewardsClient tr cfg queryRewardQ =
                 $ \channel -> runPeer tr' codec channel
                 $ localStateQueryClientPeer
                 $ localStateQuery queryRewardQ
-        })
-        nodeToClientVersion
+        }) v
   where
     tr' = contramap (MsgLocalStateQuery DelegationRewardsClient) tr
-    codec = cStateQueryCodec (serialisedCodecs cfg)
+    codec = cStateQueryCodec (serialisedCodecs v cfg)
 
 {-------------------------------------------------------------------------------
                                      Codecs
 -------------------------------------------------------------------------------}
 
-codecVersion :: BlockNodeToClientVersion (CardanoBlock StandardCrypto)
-codecVersion = verMap ! nodeToClientVersion
+codecVersion
+    :: NodeToClientVersion
+    -> BlockNodeToClientVersion (CardanoBlock StandardCrypto)
+codecVersion version = verMap ! version
     where verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock StandardCrypto))
 
 codecConfig :: W.SlottingParameters -> CodecConfig (CardanoBlock c)
@@ -719,17 +717,21 @@ codecConfig sp = CardanoCodecConfig
 -- | A group of codecs which will deserialise block data.
 codecs
     :: MonadST m
-    => CodecConfig (CardanoBlock StandardCrypto)
+    => NodeToClientVersion
+    -> CodecConfig (CardanoBlock StandardCrypto)
     -> ClientCodecs (CardanoBlock StandardCrypto) m
-codecs cfg = clientCodecs cfg codecVersion nodeToClientVersion
+codecs nodeToClientVersion cfg =
+    clientCodecs cfg (codecVersion nodeToClientVersion) nodeToClientVersion
 
 -- | A group of codecs which won't deserialise block data. Often only the block
 -- headers are needed. It's more efficient and easier not to deserialise.
 serialisedCodecs
     :: MonadST m
-    => CodecConfig (CardanoBlock StandardCrypto)
+    => NodeToClientVersion
+    -> CodecConfig (CardanoBlock StandardCrypto)
     -> DefaultCodecs (CardanoBlock StandardCrypto) m
-serialisedCodecs cfg = defaultCodecs cfg codecVersion nodeToClientVersion
+serialisedCodecs nodeToClientVersion cfg =
+    defaultCodecs cfg (codecVersion nodeToClientVersion) nodeToClientVersion
 
 {-------------------------------------------------------------------------------
                                      Tip sync
@@ -818,10 +820,10 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate onE
     link =<< async (observeForever (readTVar tipVar) onTipUpdate)
 
 
-    let client = nodeToClientProtocols (const $ return $ NodeToClientProtocols
+    let client v = nodeToClientProtocols (const $ return $ NodeToClientProtocols
             { localChainSyncProtocol =
                 let
-                    codec = cChainSyncCodec $ codecs cfg
+                    codec = cChainSyncCodec $ codecs v cfg
                 in
                 InitiatorProtocolOnly $ MuxPeerRaw
                     $ \channel -> runPeer nullTracer codec channel
@@ -831,7 +833,7 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate onE
             , localTxSubmissionProtocol =
                 let
                     tr' = contramap MsgTxSubmission tr
-                    codec = cTxSubmissionCodec $ serialisedCodecs cfg
+                    codec = cTxSubmissionCodec $ (serialisedCodecs v) cfg
                 in
                 InitiatorProtocolOnly $ MuxPeerRaw
                     $ \channel -> runPeer tr' codec channel
@@ -841,14 +843,13 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate onE
             , localStateQueryProtocol =
                 let
                     tr' = contramap (MsgLocalStateQuery TipSyncClient) tr
-                    codec = cStateQueryCodec $ serialisedCodecs cfg
+                    codec = cStateQueryCodec $ (serialisedCodecs v) cfg
                 in
                 InitiatorProtocolOnly $ MuxPeerRaw
                     $ \channel -> runPeer tr' codec channel
                     $ localStateQueryClientPeer
                     $ localStateQuery localStateQueryQ
-            })
-            nodeToClientVersion
+            }) v
     return (client, snd <$> readTVar tipVar)
     -- FIXME: We can remove the era from the tip sync client now.
 
@@ -1071,7 +1072,10 @@ connectClient
     -> CardanoNodeConn
     -> IO ()
 connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
-    let versions = simpleSingletonVersions nodeToClientVersion vData client
+    let versions = combineVersions
+            [ simpleSingletonVersions v vData (client v)
+            | v <- nodeToClientVersions
+            ]
     let tracers = NetworkConnectTracers
             { nctMuxTracer = nullTracer
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr

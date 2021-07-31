@@ -18,8 +18,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..) )
-import Cardano.Wallet.Shelley.Compatibility
-    ( NodeVersionData )
 import Cardano.Wallet.Shelley.Launch
     ( CardanoNodeConn, withSystemTempDir )
 import Cardano.Wallet.Shelley.Launch.Cluster
@@ -36,6 +34,8 @@ import Data.Set
     ( Set )
 import Fmt
     ( build, fmt, indentF )
+import Ouroboros.Network.NodeToClient
+    ( NodeToClientVersionData )
 import Test.Hspec
     ( Spec, beforeAll, describe, it, shouldBe, shouldReturn )
 import Test.QuickCheck
@@ -225,7 +225,7 @@ spec = describe "NetworkLayer regression test #1708" $ do
 
 withTestNode
     :: Tracer IO ClusterLog
-    -> (NetworkParameters -> CardanoNodeConn -> NodeVersionData -> IO a)
+    -> (NetworkParameters -> CardanoNodeConn -> NodeToClientVersionData -> IO a)
     -> IO a
 withTestNode tr action = do
     cfg <- singleNodeParams Error Nothing
