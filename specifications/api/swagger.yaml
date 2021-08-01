@@ -2758,6 +2758,10 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
         transaction: *serialisedTransaction
+        withdrawal:
+          oneOf:
+            - <<: *transactionWithdrawalRequestSelf
+            - <<: *transactionRedemptionRequest
 
     # ADP-908 Deprecated
     ApiPostTransactionDataByron: &ApiPostTransactionDataByron
@@ -5166,12 +5170,16 @@ paths:
       description: |
         <p align="right">status: <strong>under development</strong></p>
 
-        Sign a transaction body and return the full transaction. That
-        is, create witnesses using the keys available to this wallet
-        and attach them to the body.
+        Signs a serialised transaction, returning the modified
+        transaction.
 
-        If a full transaction is passed in the request, then new
-        witnesses will be added to the existing witness set.
+        This endpoint will add new witnesses using the keys available
+        to this wallet. Any existing witnesses will remain in the
+        witness set.
+
+        If the source transaction includes a reward account withdrawal
+        from another wallet, then the `withdrawal` field must be set
+        accordingly in this request.
       parameters:
         - *parametersWalletId
       requestBody:
@@ -5733,12 +5741,12 @@ paths:
       description: |
         <p align="right">status: <strong>under development</strong></p>
 
-        Sign a transaction body and return the full transaction. That
-        is, create witnesses using the keys available to this wallet
-        and attach them to the body.
+        Signs a serialised transaction, returning the modified
+        transaction.
 
-        If a full transaction is passed in the request, then new
-        witnesses will be added to the existing witness set.
+        This endpoint will add new witnesses using the keys available
+        to this wallet. Any existing witnesses will remain in the
+        witness set.
       parameters:
         - *parametersWalletId
       requestBody:
