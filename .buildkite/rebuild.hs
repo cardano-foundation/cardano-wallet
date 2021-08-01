@@ -71,7 +71,7 @@ main = do
             whenRun optDryRun $ do
                 cacheGetStep cacheConfig
                 cleanBuildDirectory (fromMaybe "." optBuildDirectory)
-            buildResult <- buildStep optDryRun bk nightly
+            buildResult <- buildStep optDryRun (qaLevel nightly bk)
             when (shouldUploadCoverage bk) $ uploadCoverageStep optDryRun
             whenRun optDryRun $ cachePutStep cacheConfig
             if buildResult == ExitSuccess
@@ -94,7 +94,7 @@ data Command = Build | CleanupCache | PurgeCache deriving (Show)
 
 data DryRun = Run | DryRun deriving (Show, Eq)
 
-data QA = QuickTest | FullTest | NightlyTest deriving (Show, Eq)
+data QA = QuickTest | FullTest | NightlyTest deriving (Show, Eq, Ord)
 
 data Jobs = Serial | Parallel Int deriving (Show, Eq)
 
@@ -136,77 +136,58 @@ parseOpts = execParser opts
         <> command "purge-cache" (info (pure PurgeCache) idm)
         )
 
-buildStep :: DryRun -> Maybe BuildkiteEnv -> Bool -> IO ExitCode
-buildStep dryRun bk nightly = do
-    pkgs <- listLocalPackages
-    let cabalFlags = concatMap (flag "release") pkgs
+buildStep :: DryRun -> QA -> IO ExitCode
+buildStep dryRun qa = listLocalPackages >>= buildStep' dryRun qa
 
-    let shouldRunIntegration = case qaLevel nightly bk of
-            QuickTest -> False
-            FullTest -> True
-            NightlyTest -> True
-
-    let justWhen pred x = if pred then Just x else Nothing
-
-    foldl1 (.&&.) $ catMaybes
-        [ pure $ titled "Build LTS Snapshot"
-            (build Standard ["--only-snapshot"])
-        , pure $ titled "Build dependencies"
-            $ build Standard
-            $ "--only-dependencies" : cabalFlags
-        , pure $ titled "Build"
-            $ build Fast
-            $ "--test" : "--no-run-tests" : cabalFlags
-        , pure
-            $ titled "Tests (except integration)"
-            $ timeout 60
-            $ test Fast
-            $ cabalFlags <> skip "integration"
-        , justWhen shouldRunIntegration $ titled "Integration tests on latest era"
-            $ timeout 60
-            $ integration Fast cabalFlags
-        , justWhen shouldRunIntegration $ titled "Integration tests on past era (Mary)"
-            $ timeout 60
-            $ ((export "LOCAL_CLUSTER_ERA" "mary") >>)
-            $ integration Fast cabalFlags
-        , pure $ titled "Checking golden test files"
-            (checkUnclean dryRun "lib/core/test/data")
-        ]
+buildStep' :: DryRun -> QA -> [Text] -> IO ExitCode
+buildStep' dryRun qa pkgs = foldl1 (.&&.)
+    [ titled "Build LTS Snapshot" $
+        build Standard ["--only-snapshot"]
+    , titled "Build dependencies" $
+        build Standard ["--only-dependencies"]
+    , titled "Build" $
+        projectBuild ["--test", "--no-run-tests"]
+    , titled "Tests (except integration)" $
+        timeout 60 $ do
+            test (skip integration) []
+    , titled "Checking golden test files" $
+        checkUnclean dryRun "lib/core/test/data"
+    , when' runIntegration $ titled "Integration tests on latest era" $
+        timeout 60 $ do
+            unset "LOCAL_CLUSTER_ERA"
+            test [] [integration]
+    , when' runIntegration $ titled "Integration tests on past era (Mary)" $
+        timeout 60 $ do
+            export "LOCAL_CLUSTER_ERA" "mary"
+            test [] [integration]
+    ]
   where
+    projectOpt = Fast
+    runIntegration = qa > QuickTest
+    integration = "cardano-wallet:integration"
 
-    build opt args =
+    benchFlags = [ "--bench", "--no-run-benchmarks"]
+
+    runStack cmd opt args =
         run dryRun "stack" $ concat
             [ color "always"
             , [ "--no-terminal" ]
-            , [ "build" ]
-            , [ "--bench" ]
-            , [ "--no-run-benchmarks" ]
-            , [ "--haddock" ]
-            , [ "--haddock-internal" ]
-            , [ "--no-haddock-deps" ]
+            , [ cmd ]
+            , concatMap (flag "release") pkgs
             , fast opt
             , args
             ]
 
-    test opt args =
-        run dryRun "stack" $ concat
-            [ color "always"
-            , [ "--no-terminal" ]
-            , [ "test" ]
-            , fast opt
-            , ta (jobs 3)
-            , args
-            ]
+    build opt args = runStack "build" opt $
+        [ "--haddock"
+        , "--haddock-internal"
+        , "--no-haddock-deps"
+        ] ++ args
 
-    integration opt args =
-        run dryRun "stack" $ concat
-            [ color "always"
-            , [ "--no-terminal" ]
-            , [ "test", "cardano-wallet:integration" ]
-            , fast opt
-            , ta (jobs 3)
-            , args
-            ]
+    projectBuild args = build projectOpt $ benchFlags ++ args
+
+    test testArgs targets = runStack "test" projectOpt $
+        ta (jobs 3 ++ testArgs) ++ benchFlags ++ targets
 
     color arg = ["--color", arg]
     fast  arg = case arg of Standard -> []; Fast -> ["--fast"]
@@ -217,6 +198,10 @@ buildStep dryRun bk nightly = do
     flag name pkg = ["--flag", pkg <> ":" <> name]
 
     serialTests = "SERIAL"
+
+-- | Like 'when', but for shell programs.
+when' :: MonadIO m => Bool -> m ExitCode -> m ExitCode
+when' t action = if t then action else pure ExitSuccess
 
 -- Stack with caching needs a build directory that is the same across
 -- all BuildKite agents. The build directory option can be used to
