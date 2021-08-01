@@ -3,7 +3,7 @@
 # Creates a development environment for Cabal builds or ghci sessions,
 # with various build tools included.
 #
-# Short instructions are in ./cabal-nix.project.
+# Short instructions are in ./cabal.project.
 #
 # Full instructions - https://github.com/input-output-hk/cardano-wallet/wiki/Building#cabalnix-build
 #

@@ -9,7 +9,7 @@
 out=hie-direct.yaml
 ghci=custom.ghci
 builddir=dist-newstyle
-cabal_opts=("--project-file=cabal-nix.project" "--builddir=$builddir")
+cabal_opts=("--builddir=$builddir")
 
 set -euo pipefail
 
