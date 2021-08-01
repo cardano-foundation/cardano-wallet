@@ -37,7 +37,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Passphrase
-    ( checkPassphrase, encryptPassphrase, preparePassphrase )
+    ( PassphraseHash (..)
+    , checkPassphrase
+    , encryptPassphrase
+    , preparePassphrase
+    )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( ErrWrongPassphrase (..)
     , Passphrase (..)
@@ -280,12 +284,12 @@ instance Arbitrary (Index 'WholeDomain 'AccountK) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Passphrase "raw") where
+instance Arbitrary (Passphrase "user") where
     arbitrary = do
         n <- choose (passphraseMinLength p, passphraseMaxLength p)
         bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
         return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy "raw"
+      where p = Proxy :: Proxy "user"
 
     shrink (Passphrase bytes)
         | BA.length bytes <= passphraseMinLength p = []
@@ -295,11 +299,11 @@ instance Arbitrary (Passphrase "raw") where
             $ B8.take (passphraseMinLength p)
             $ BA.convert bytes
             ]
-      where p = Proxy :: Proxy "raw"
+      where p = Proxy :: Proxy "user"
 
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = preparePassphrase EncryptWithPBKDF2
-        <$> arbitrary @(Passphrase "raw")
+        <$> arbitrary @(Passphrase "user")
 
 instance {-# OVERLAPS #-} Arbitrary (Passphrase "generation") where
     shrink (Passphrase "") = []
@@ -309,11 +313,11 @@ instance {-# OVERLAPS #-} Arbitrary (Passphrase "generation") where
         InfiniteList bytes _ <- arbitrary
         return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
 
-instance Arbitrary (Hash "encryption") where
+instance Arbitrary PassphraseHash where
     shrink _ = []
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
-        return $ Hash $ BS.pack $ take 32 bytes
+        pure $ PassphraseHash $ BA.convert $ BS.pack $ take 32 bytes
 
 instance Arbitrary PassphraseScheme where
     arbitrary = genericArbitrary
@@ -422,7 +426,7 @@ instance Arbitrary SomeMnemonic where
 -- p = 1
 -- These parameters are in Scrypt.defaultParams
 encryptPasswordWithScrypt
-    :: Passphrase "raw"
+    :: Passphrase "user"
     -> IO (Hash "encryption")
 encryptPasswordWithScrypt p = do
     hashed <- Scrypt.encryptPassIO Scrypt.defaultParams

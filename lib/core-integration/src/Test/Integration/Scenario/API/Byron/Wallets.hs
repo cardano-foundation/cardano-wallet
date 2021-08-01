@@ -26,11 +26,13 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..), PaymentAddress )
+    ( PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.Passphrase
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Control.Monad
@@ -63,7 +65,6 @@ import Test.Integration.Framework.DSL
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyRandomWalletWithPasswd
-    , encryptWalletPasswordWithScrypt
     , eventually
     , expectErrorMessage
     , expectField
@@ -79,7 +80,6 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , genMnemonics
     , getFromResponse
-    , getSaltFromHexScryptPassword
     , json
     , listFilteredByronWallets
     , postByronWallet

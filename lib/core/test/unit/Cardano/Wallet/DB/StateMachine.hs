@@ -319,26 +319,26 @@ class PersistPrivateKey k => MockPrivKey k where
         -> (k XPrv, PassphraseHash)
 
     -- | Unstuff the DBLayer private key into the mock type.
-    toMockPrivKey
-        :: (k XPrv, PassphraseHash)
-        -> MPrivKey
-    toMockPrivKey (_, PassphraseHash h) =
-        B8.unpack h
+    toMockPrivKey :: (k XPrv, PassphraseHash) -> MPrivKey
+    toMockPrivKey (_, h) = B8.unpack (BA.convert h)
 
 zeroes :: ByteString
 zeroes = B8.replicate 256 '0'
 
 instance MockPrivKey (ShelleyKey 'RootK) where
-    fromMockPrivKey s = (k, BA.convert (B8.pack s))
+    fromMockPrivKey s = (k, unMockPrivKeyHash s)
       where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
 
 instance MockPrivKey (SharedKey 'RootK) where
-    fromMockPrivKey s = (k, BA.convert (B8.pack s))
+    fromMockPrivKey s = (k, unMockPrivKeyHash s)
       where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
 
 instance MockPrivKey (ByronKey 'RootK) where
-    fromMockPrivKey s = (k, BA.convert (B8.pack s))
+    fromMockPrivKey s = (k, unMockPrivKeyHash s)
       where (k, _) = unsafeDeserializeXPrv (zeroes <> ":", mempty)
+
+unMockPrivKeyHash :: MPrivKey -> PassphraseHash
+unMockPrivKeyHash = PassphraseHash .  BA.convert . B8.pack
 
 unMockTxId :: HasCallStack => Hash "Tx" -> SealedTx
 unMockTxId = mockSealedTx . getHash

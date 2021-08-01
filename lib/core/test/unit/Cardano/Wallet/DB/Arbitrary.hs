@@ -77,12 +77,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
-import Cardano.Wallet.Primitive.Passphrase
-    ( Passphrase (..) )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..), PassphraseScheme (..), WalletPassphraseInfo (..) )
-import Cardano.Wallet.Primitive.Passphrase.Types
-    ( PassphraseHash (..) )
+    ( Passphrase (..)
+    , PassphraseHash (..)
+    , PassphraseScheme (..)
+    , WalletPassphraseInfo (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -767,8 +767,10 @@ instance Arbitrary RewardAccount where
         RewardAccount . BS.pack <$> vector 28
 
 instance Arbitrary (Hash purpose) where
-    arbitrary = do
-        Hash . convertToBase Base16 . BS.pack <$> vector 16
+    arbitrary = Hash . convertToBase Base16 . BS.pack <$> vector 16
+
+instance Arbitrary PassphraseHash where
+    arbitrary = PassphraseHash . convertToBase Base16 . BS.pack <$> vector 16
 
 instance Arbitrary PoolId where
     arbitrary = do
@@ -809,7 +811,7 @@ instance Buildable (ShelleyKey depth XPrv, PassphraseHash) where
     build (_, h) = tupleF (xprvF, prefixF 8 hF <> "..." <> suffixF 8 hF)
       where
         xprvF = "XPrv" :: Builder
-        hF = build (toText (Hash @"BlockHeader" (getPassphraseHash h)))
+        hF = build (toText (Hash @"BlockHeader" (BA.convert h)))
 
 instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain
