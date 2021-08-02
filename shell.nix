@@ -36,6 +36,7 @@ let
         project.hsPkgs.pretty-simple.components.exes.pretty-simple
       ]) ++ (with pkgs.buildPackages.buildPackages; [
         go-jira
+        haskellPackages.ghcid
         niv
         pkgconfig
         python3Packages.openapi-spec-validator
