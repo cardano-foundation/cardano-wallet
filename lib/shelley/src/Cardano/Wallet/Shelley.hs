@@ -173,8 +173,6 @@ import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..) )
-import Ouroboros.Network.CodecCBORTerm
-    ( CodecCBORTerm )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..) )
 import System.Exit
@@ -245,11 +243,7 @@ serveWallet
     -- ^ Socket for communicating with the node
     -> Block
     -- ^ The genesis block, or some starting point.
-    -> ( NetworkParameters
-       , ( NodeToClientVersionData
-         , CodecCBORTerm Text NodeToClientVersionData
-         )
-       )
+    -> ( NetworkParameters, NodeToClientVersionData)
     -- ^ Network parameters needed to connect to the underlying network.
     --
     -- See also: 'Cardano.Wallet.Shelley.Compatibility#KnownNetwork'.

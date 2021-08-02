@@ -36,13 +36,12 @@ module Cardano.Wallet.Shelley.Compatibility
     , CardanoBlock
     , NetworkId
 
-    , NodeVersionData
+    , NodeToClientVersionData
     , StandardCrypto
     , StandardShelley
 
       -- * Protocol Parameters
-    , nodeToClientVersion
-    , testnetVersionData
+    , nodeToClientVersions
 
       -- * Genesis
     , emptyGenesis
@@ -243,16 +242,11 @@ import Ouroboros.Consensus.Shelley.Ledger.Block
     ( ShelleyBlock (..) )
 import Ouroboros.Network.Block
     ( BlockNo (..), ChainHash, Point (..), Tip (..), getTipPoint )
-import Ouroboros.Network.CodecCBORTerm
-    ( CodecCBORTerm )
-import Ouroboros.Network.Magic
-    ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
     , LocalAddress (..)
     , NodeToClientVersion (..)
     , NodeToClientVersionData (..)
-    , nodeToClientCodecCBORTerm
     )
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
@@ -312,9 +306,6 @@ import qualified Shelley.Spec.Ledger.API as SLAPI
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
-type NodeVersionData =
-    (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
-
 --------------------------------------------------------------------------------
 --
 -- Chain Parameters
@@ -348,20 +339,8 @@ emptyGenesis gp = W.Block
 -- Network Parameters
 
 -- | The protocol client version. Distinct from the codecs version.
-nodeToClientVersion :: NodeToClientVersion
-nodeToClientVersion = NodeToClientV_9
-
--- | Settings for configuring a TestNet network client
-testnetVersionData
-    :: W.ProtocolMagic
-    -> NodeVersionData
-testnetVersionData pm =
-    ( NodeToClientVersionData
-        { networkMagic =
-            NetworkMagic $ fromIntegral $ W.getProtocolMagic pm
-        }
-    , nodeToClientCodecCBORTerm nodeToClientVersion
-    )
+nodeToClientVersions :: [NodeToClientVersion]
+nodeToClientVersions = [NodeToClientV_8, NodeToClientV_9]
 
 --------------------------------------------------------------------------------
 --

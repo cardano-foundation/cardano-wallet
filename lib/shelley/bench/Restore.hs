@@ -133,7 +133,11 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( HasNetworkId (..), NodeVersionData, emptyGenesis, fromCardanoBlock )
+    ( HasNetworkId (..)
+    , NodeToClientVersionData
+    , emptyGenesis
+    , fromCardanoBlock
+    )
 import Cardano.Wallet.Shelley.Launch
     ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Shelley.Network
@@ -585,7 +589,7 @@ bench_restoration
     -> Trace IO Text -- ^ For wallet tracing
     -> CardanoNodeConn  -- ^ Socket path
     -> NetworkParameters
-    -> NodeVersionData
+    -> NodeToClientVersionData
     -> Text -- ^ Benchmark name (used for naming resulting files)
     -> [(WalletId, WalletName, s)]
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
@@ -707,7 +711,7 @@ prepareNode
     -> Proxy n
     -> CardanoNodeConn
     -> NetworkParameters
-    -> NodeVersionData
+    -> NodeToClientVersionData
     -> IO ()
 prepareNode tr proxy socketPath np vData = do
     traceWith tr $ MsgSyncStart proxy
@@ -728,7 +732,7 @@ waitForWalletsSyncTo
     -> WalletLayer IO s k
     -> [WalletId]
     -> GenesisParameters
-    -> NodeVersionData
+    -> NodeToClientVersionData
     -> IO ()
 waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData = do
     posixNow <- utcTimeToPOSIXSeconds <$> getCurrentTime
