@@ -261,6 +261,7 @@ test-suite unit
     , cardano-crypto
     , cardano-numeric
     , cardano-ledger-byron-test
+    , cardano-ledger-byron
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
@@ -281,6 +282,7 @@ test-suite unit
     , foldl
     , generic-arbitrary
     , generic-lens
+    , hedgehog-quickcheck
     , hspec >= 2.8.2
     , hspec-core >= 2.8.2
     , http-api-data

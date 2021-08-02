@@ -29,6 +29,7 @@ import Test.QuickCheck
     , coverTable
     , forAll
     , property
+    , sample'
     , scale
     , shuffle
     , sized
@@ -36,10 +37,12 @@ import Test.QuickCheck
     , vector
     , (===)
     )
+import Test.QuickCheck.Hedgehog
+    ( hedgehog )
 
+import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Binary as B
-import qualified Data.Binary.BitPut as B
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Test.Cardano.Chain.Common.Gen as Byron
@@ -72,18 +75,18 @@ instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
     shrink = shrinkTokenBundleSmallRangePositive
 
-instance Arbitrary Address where
-    arbitrary = genBootstrapAddress
+-- instance Arbitrary Address where
+--     arbitrary = genBootstrapAddress
 
-genBootstrapAddress :: Gen Address
-genBootstrapAddress = do
-    let header = BSL.toStrict $ B.runBitPut $ B.putBit True
-    payload <- BS.pack <$> vector 42
+-- genBootstrapAddress :: Gen Address
+-- genBootstrapAddress = do
+--     let header = BSL.toStrict $ B.runBitPut $ B.putBit True
+--     payload <- BS.pack <$> vector 42
 
-    pure $ Address $ header <> payload
+--     pure $ Address $ header <> payload
 
--- test :: IO [Either AddrNotSuitableForCollateral Address]
--- test = do
---     addrs <- sample genBootstrapAddress
---     pure $
---         fmap classifyCollateralAddress 
+test :: IO [Byron.Address]
+test = -- do
+    sample' $ hedgehog Byron.genAddress
+    -- pure $
+    --     fmap classifyCollateralAddress 
