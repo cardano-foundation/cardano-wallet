@@ -5,7 +5,11 @@ Compatible with [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-o
 
 ## API Changes
 
-<!-- Copy-paste most recent diff excerpt from https://bump.sh/doc/cardano-wallet-diff/changes -->
+<!--
+  Copy-paste most recent diff excerpt from https://bump.sh/doc/cardano-wallet-diff/changes
+
+  A markdown formatted list can be found by running ./scripts/gh/show-bump.sh
+  -->
 
 
 <!-- A CHANGELOG, organized in three sections:
@@ -59,7 +63,6 @@ $ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}} version
 
 Name                           | Role                | Approval
 ---                            | ---                 | ---:
-Matthias Benkort @KtorZ        | Technical Architect | :hourglass:
 Rodney Lorrimar @rvl           | Technical Team Lead | :hourglass:
 Piotr Stachyra @piotr-iohk     | QA Engineer         | :hourglass:
 Laurence Jenkins @LaurenceIO   | Release Manager     | :hourglass:
