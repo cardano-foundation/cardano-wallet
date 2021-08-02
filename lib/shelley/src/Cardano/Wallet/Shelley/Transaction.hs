@@ -1309,7 +1309,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         Cardano.TxMintNone
     }
   where
-    toErrMkTx :: Cardano.TxBodyError era -> ErrMkTx
+    toErrMkTx :: Cardano.TxBodyError -> ErrMkTx
     toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
 
     toShelleyBasedTxOut :: TxOut -> Cardano.TxOut era

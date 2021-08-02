@@ -43,12 +43,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "b6a215c42a28dc8b71b42946fe30256a333d34af";
-      sha256 = "1l9nqsg6kfkfadlbvyl4afdf8v408zf0fn6dkihqf56g2mnk4i04";
+      rev = "c028519d1180e42d6ab3ddf97d6fa57395966c2e";
+      sha256 = "11n2731y1z3ggp2lvphsbrxcppk29knknynza4259694ws533kqz";
       }) // {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "b6a215c42a28dc8b71b42946fe30256a333d34af";
-      sha256 = "1l9nqsg6kfkfadlbvyl4afdf8v408zf0fn6dkihqf56g2mnk4i04";
+      rev = "c028519d1180e42d6ab3ddf97d6fa57395966c2e";
+      sha256 = "11n2731y1z3ggp2lvphsbrxcppk29knknynza4259694ws533kqz";
       };
     postUnpack = "sourceRoot+=/cardano-crypto-praos; echo source root reset to \$sourceRoot";
     }

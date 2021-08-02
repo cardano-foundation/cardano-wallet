@@ -73,11 +73,11 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/Win32-network";
-      rev = "5b3d08c454f425da5cf045fe7865950d7c806691";
-      sha256 = "0npyihbaqlih9abdbaj451lm1h0kl5braczy8vn41s3ivbbnvpcw";
+      rev = "3825d3abf75f83f406c1f7161883c438dac7277d";
+      sha256 = "19wahfv726fa3mqajpqdqhnl9ica3xmf68i254q45iyjcpj1psqx";
       }) // {
       url = "https://github.com/input-output-hk/Win32-network";
-      rev = "5b3d08c454f425da5cf045fe7865950d7c806691";
-      sha256 = "0npyihbaqlih9abdbaj451lm1h0kl5braczy8vn41s3ivbbnvpcw";
+      rev = "3825d3abf75f83f406c1f7161883c438dac7277d";
+      sha256 = "19wahfv726fa3mqajpqdqhnl9ica3xmf68i254q45iyjcpj1psqx";
       };
     }
