@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- |
@@ -19,12 +20,14 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
-import Cardano.Wallet.Primitive.Types.Address (Address(..))
-import Cardano.Wallet.Primitive.Types.Tx (TxIn(..), TxOut(..))
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn (..), TxOut (..) )
 
 import qualified Cardano.Ledger.Address as L
 import qualified Cardano.Ledger.Credential as L
@@ -58,8 +61,11 @@ asCollateral (_txIn, txOut) = do
 -- | Returns the total ADA value of the TokenBundle iff the TokenBundle only
 -- contains ADA and no other tokens.
 pureAdaValue :: TokenBundle -> Maybe Coin
-pureAdaValue tokens | TokenBundle.isCoin tokens = Just $ TokenBundle.coin tokens
-                    | otherwise                 = Nothing
+pureAdaValue toks
+    | TokenBundle.isCoin toks
+        = Just $ TokenBundle.coin toks
+    | otherwise
+        = Nothing
 
 -- | Reasons why an address might be considered unsuitable for a collateral
 -- input.
@@ -70,6 +76,7 @@ data AddrNotSuitableForCollateral
     -- ^ The address is some form of script address
     | IsAMalformedOrUnknownAddr
     -- ^ The address could not be parsed
+    deriving (Eq, Show)
 
 -- | Analyze an address to determine if it's funds are suitable for use as a
 -- collateral input.
@@ -103,5 +110,4 @@ classifyCollateralAddress addr =
                     Right addr
 
     where
-
         addrBytes = unAddress addr

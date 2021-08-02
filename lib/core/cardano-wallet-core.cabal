@@ -41,6 +41,7 @@ library
     , cardano-api
     , cardano-crypto
     , cardano-numeric
+    , cardano-ledger-core
     , cardano-slotting
     , cborg
     , containers
@@ -253,11 +254,14 @@ test-suite unit
       base
     , aeson
     , aeson-qq
+    , binary
+    , binary-strict
     , bytestring
     , cardano-addresses
     , cardano-api
     , cardano-crypto
     , cardano-numeric
+    , cardano-ledger-byron-test
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
@@ -371,6 +375,7 @@ test-suite unit
       Cardano.Wallet.Primitive.Delegation.StateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
+      Cardano.Wallet.Primitive.CoinSelection.CollateralSpec
       Cardano.Wallet.Primitive.MigrationSpec
       Cardano.Wallet.Primitive.Migration.PlanningSpec
       Cardano.Wallet.Primitive.Migration.SelectionSpec
