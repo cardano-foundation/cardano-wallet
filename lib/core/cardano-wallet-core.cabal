@@ -255,7 +255,6 @@ test-suite unit
     , aeson
     , aeson-qq
     , binary
-    , binary-strict
     , bytestring
     , cardano-addresses
     , cardano-api

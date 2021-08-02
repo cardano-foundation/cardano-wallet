@@ -32,6 +32,25 @@ extra-deps:
     - command-line
     - core
 
+- git: https://github.com/input-output-hk/cardano-ledger-specs
+  commit: ec9c77edbf5700a4b2ece8f97a1e313df06abc97
+  subdirs:
+    - alonzo/impl
+    - byron/chain/executable-spec
+    - byron/crypto
+    - byron/crypto/test
+    - byron/ledger/executable-spec
+    - byron/ledger/impl
+    - byron/ledger/impl/test
+    - cardano-ledger-core
+    - semantics/executable-spec
+    - semantics/small-steps-test
+    - shelley/chain-and-ledger/dependencies/non-integer
+    - shelley/chain-and-ledger/executable-spec
+    - shelley/chain-and-ledger/shelley-spec-ledger-test
+    - shelley-ma/impl
+    - shelley-ma/shelley-ma-test
+
 flags:
   # Avoid a system library which causes difficulty with cross-compilation
   zip:
