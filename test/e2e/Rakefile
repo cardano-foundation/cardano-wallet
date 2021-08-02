@@ -233,9 +233,7 @@ task :get_latest_configs, [:env] do |task, args|
     # remove environment names from genesis files
     config = File.read(config_file)
     config_edited = config.gsub(/#{env}-([^-]+)-genesis.json/, 'genesis-\1.json')
-    config_hash = JSON.parse(config_edited)
-    config_hash["TestEnableDevelopmentNetworkProtocols"] = true
-    File.open(config_file, "w") { |file| file.puts config_hash.to_json }
+    File.open(config_file, "w") { |file| file.puts config_edited }
   end
 end
 
