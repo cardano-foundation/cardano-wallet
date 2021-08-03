@@ -110,8 +110,10 @@ spec = do
 
     parallel $ describe "selectCollateralLargest" $ do
 
-        it "prop_selectCollateralLargest" $
-            property prop_selectCollateralLargest
+        it "prop_selectCollateralLargest_general" $
+            property prop_selectCollateralLargest_general
+        it "prop_selectCollateralLargest_optimal" $
+            property prop_selectCollateralLargest_optimal
 
         unitTests_selectCollateralLargest_optimal
         unitTests_selectCollateralLargest_insufficient
@@ -439,11 +441,28 @@ unitTests_selectCollateralSmallest_constrainedSearchSpace = unitTests
 -- Selecting collateral by giving priority to largest values first
 --------------------------------------------------------------------------------
 
-prop_selectCollateralLargest
+prop_selectCollateralLargest_general :: Property
+prop_selectCollateralLargest_general =
+    checkCoverage $
+    forAll (arbitrary @(Map LongInputId Coin))
+        $ \coinsAvailable ->
+    forAll (scale (* 4) genMinimumSelectionAmount)
+        $ \(MinimumSelectionAmount minimumSelectionAmount) ->
+    forAll (choose (1, 4))
+        $ \maximumSelectionSize ->
+    let params = SelectCollateralParams
+            { coinsAvailable
+            , maximumSelectionSize
+            , minimumSelectionAmount
+            , searchSpaceLimit = UnsafeNoSearchSpaceLimit
+            } in
+    prop_selectCollateral_common params $ selectCollateralLargest params
+
+prop_selectCollateralLargest_optimal
     :: SingleBitCoinMap
     -> MinimumSelectionAmount
     -> Property
-prop_selectCollateralLargest
+prop_selectCollateralLargest_optimal
     (SingleBitCoinMap coinsAvailable)
     (MinimumSelectionAmount minimumSelectionAmount) =
     checkCoverage $
