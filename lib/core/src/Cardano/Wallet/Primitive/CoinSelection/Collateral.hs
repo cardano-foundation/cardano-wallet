@@ -326,6 +326,13 @@ numberOfSubsequencesOfSize = choose
 -- To check how many results would be returned without actually generating
 -- them, use the 'numberOfSubsequencesOfSize' function.
 --
+-- Properties:
+--
+--    >>> all (== k) (length <$> xs `subsequencesOfSize` k)
+--
+--    >>> length (xs `subsequencesOfSize` k) ==
+--    >>>     length xs `numberOfSubsequencesOfSize` k
+--
 subsequencesOfSize
     :: [a]
     -- ^ The sequence from which to generate subsequences.
