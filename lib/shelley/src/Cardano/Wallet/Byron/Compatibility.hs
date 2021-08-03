@@ -19,6 +19,7 @@
 module Cardano.Wallet.Byron.Compatibility
     ( -- * Chain Parameters
       mainnetNetworkParameters
+    , maryTokenBundleMaxSize
 
       -- * Genesis
     , emptyGenesis
@@ -134,6 +135,7 @@ mainnetNetworkParameters = W.NetworkParameters
                 W.LinearFee (Quantity 155381) (Quantity 43.946)
             , getTxMaxSize =
                 Quantity 4096
+            , getTokenBundleMaxSize = maryTokenBundleMaxSize
             }
         , desiredNumberOfStakePools = 0
         , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
@@ -142,6 +144,16 @@ mainnetNetworkParameters = W.NetworkParameters
         , maxCollateralInputs = 0
         }
     }
+
+-- | The max size of token bundles hard-coded in Mary.
+--
+-- The concept was introduced in Mary, and hard-coded to this value. In Alonzo
+-- it became an updateable protocol parameter.
+--
+-- NOTE: A bit weird to define in "Cardano.Wallet.Byron.Compatibility", but we
+-- need it both here and in "Cardano.Wallet.Shelley.Compatibility".
+maryTokenBundleMaxSize :: W.TokenBundleMaxSize
+maryTokenBundleMaxSize = W.TokenBundleMaxSize $ Quantity 4000
 
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with
@@ -317,8 +329,8 @@ fromBlockCount (BlockCount k) =
     W.EpochLength (10 * fromIntegral k)
 
 -- NOTE: Unsafe conversion from Natural -> Word16
-fromMaxTxSize :: Natural -> Quantity "byte" Word16
-fromMaxTxSize =
+fromMaxSize :: Natural -> Quantity "byte" Word16
+fromMaxSize =
     Quantity . fromIntegral
 
 protocolParametersFromPP
@@ -329,7 +341,8 @@ protocolParametersFromPP eraInfo pp = W.ProtocolParameters
     { decentralizationLevel = minBound
     , txParameters = W.TxParameters
         { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
-        , getTxMaxSize = fromMaxTxSize $ Update.ppMaxTxSize pp
+        , getTxMaxSize = fromMaxSize $ Update.ppMaxTxSize pp
+        , getTokenBundleMaxSize = maryTokenBundleMaxSize
         }
     , desiredNumberOfStakePools = 0
     , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0

@@ -84,7 +84,11 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), ProtocolParameters (..), TxParameters (..) )
+    ( FeePolicy (..)
+    , ProtocolParameters (..)
+    , TokenBundleMaxSize (..)
+    , TxParameters (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -116,7 +120,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromAlonzoTx
     , fromMaryTx
     , fromShelleyTx
-    , maxTokenBundleSerializedLengthBytes
     , sealShelleyTx
     , toAllegraTxOut
     , toAlonzoTxOut
@@ -152,7 +155,7 @@ import Data.ByteString
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Kind
@@ -537,8 +540,9 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
             TokenBundleSizeWithinLimit -> False
             OutputTokenBundleSizeExceedsLimit -> True
           where
-            assessSize =
-                assessTokenBundleSize Compatibility.tokenBundleSizeAssessor
+            assessSize = assessTokenBundleSize
+                . Compatibility.tokenBundleSizeAssessor
+                $ pp ^. (#txParameters . #getTokenBundleMaxSize)
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
@@ -645,9 +649,12 @@ txConstraints protocolParams witnessTag = TxConstraints
     txOutputSize bundle =
         marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
 
-    txOutputMaximumSize = (<>)
-        (TxSize $ fromIntegral maxTokenBundleSerializedLengthBytes)
-        (txOutputSize mempty)
+    txOutputMaximumSize = (txOutputSize mempty <>)
+        . TxSize
+        . fromIntegral
+        . getQuantity
+        . unTokenBundleMaxSize
+        $ view (#txParameters . #getTokenBundleMaxSize) protocolParams
 
     txOutputMaximumTokenQuantity =
         TokenQuantity $ fromIntegral $ maxBound @Word64

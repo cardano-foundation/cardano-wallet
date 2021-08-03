@@ -1500,7 +1500,8 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
     mSel <- performSelection
         (view #txOutputMinimumAdaQuantity $ constraints tl pp)
         (calcMinimumCost tl pp tx)
-        (tokenBundleSizeAssessor tl)
+        (tokenBundleSizeAssessor tl
+            (pp ^. (#txParameters . #getTokenBundleMaxSize)))
         (selectionCriteria)
     case mSel of
         Left e -> liftIO $

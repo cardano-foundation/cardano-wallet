@@ -46,7 +46,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionCriteria, SelectionResult, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId, ProtocolParameters, SlotNo (..) )
+    ( PoolId, ProtocolParameters, SlotNo (..), TokenBundleMaxSize (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -144,7 +144,7 @@ data TransactionLayer k = TransactionLayer
         -- This also includes necessary deposits.
 
     , tokenBundleSizeAssessor
-        :: TokenBundleSizeAssessor
+        :: TokenBundleMaxSize -> TokenBundleSizeAssessor
         -- ^ A function to assess the size of a token bundle.
 
     , constraints

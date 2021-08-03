@@ -1,495 +1,538 @@
 {
-    "seed": 8200085738080019476,
+    "seed": -2075796740179725367,
     "samples": [
         {
             "slot_length": {
-                "quantity": 8155,
+                "quantity": 3912,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 93.1,
+                "quantity": 9.49,
                 "unit": "percent"
             },
-            "genesis_block_hash": "157f45187329040a29705e1f0011432b3a1453021051174e6e613b2c7a3c6b27",
-            "blockchain_start_time": "1904-04-05T08:00:00Z",
-            "desired_pool_number": 8615,
+            "maximum_token_bundle_size": {
+                "quantity": 17212,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "3527c75e0c67394fc972f70a126f5c615024215533640a4715872c557b3b3a5c",
+            "blockchain_start_time": "1859-08-17T21:12:41.441409028378Z",
+            "desired_pool_number": 18841,
             "epoch_length": {
-                "quantity": 2696,
+                "quantity": 5361,
                 "unit": "slot"
             },
             "eras": {
-                "shelley": {
-                    "epoch_start_time": "1901-06-12T22:00:00Z",
-                    "epoch_number": 2042
-                },
+                "shelley": null,
                 "mary": {
-                    "epoch_start_time": "1871-06-15T05:16:51Z",
-                    "epoch_number": 834
-                },
-                "byron": {
-                    "epoch_start_time": "1869-02-15T13:05:56.571118275438Z",
-                    "epoch_number": 14045
-                },
-                "allegra": null,
-                "alonzo": {
-                    "epoch_start_time": "1865-05-19T00:30:26Z",
-                    "epoch_number": 14358
-                }
-            },
-            "active_slot_coefficient": {
-                "quantity": 95.79170149057838,
-                "unit": "percent"
-            },
-            "security_parameter": {
-                "quantity": 4175,
-                "unit": "block"
-            },
-            "minimum_utxo_value": {
-                "quantity": 190,
-                "unit": "lovelace"
-            },
-            "maximum_collateral_input_count": 21799
-        },
-        {
-            "slot_length": {
-                "quantity": 5857,
-                "unit": "second"
-            },
-            "decentralization_level": {
-                "quantity": 48.02,
-                "unit": "percent"
-            },
-            "genesis_block_hash": "53325802262b3ddb085b4528175a1d6251271c54725465cca059383f9857393a",
-            "blockchain_start_time": "1900-07-18T07:00:00Z",
-            "desired_pool_number": 4629,
-            "epoch_length": {
-                "quantity": 17296,
-                "unit": "slot"
-            },
-            "eras": {
-                "shelley": {
-                    "epoch_start_time": "1908-02-08T19:10:52Z",
-                    "epoch_number": 17078
-                },
-                "mary": {
-                    "epoch_start_time": "1879-08-27T14:05:55.421874771069Z",
-                    "epoch_number": 27295
-                },
-                "byron": {
-                    "epoch_start_time": "1874-10-23T22:39:52.912256280644Z",
-                    "epoch_number": 27754
-                },
-                "allegra": {
-                    "epoch_start_time": "1896-05-07T00:00:00Z",
-                    "epoch_number": 321
-                },
-                "alonzo": {
-                    "epoch_start_time": "1891-03-13T11:12:09Z",
-                    "epoch_number": 10472
-                }
-            },
-            "active_slot_coefficient": {
-                "quantity": 76.21836433275718,
-                "unit": "percent"
-            },
-            "security_parameter": {
-                "quantity": 21981,
-                "unit": "block"
-            },
-            "minimum_utxo_value": {
-                "quantity": 46,
-                "unit": "lovelace"
-            },
-            "maximum_collateral_input_count": 11109
-        },
-        {
-            "slot_length": {
-                "quantity": 9518,
-                "unit": "second"
-            },
-            "decentralization_level": {
-                "quantity": 1.15,
-                "unit": "percent"
-            },
-            "genesis_block_hash": "5645182a1c75307440164209231c2e0b40601664622a6f594a492d2b2d265a7b",
-            "blockchain_start_time": "1896-01-23T00:28:04Z",
-            "desired_pool_number": 32315,
-            "epoch_length": {
-                "quantity": 31945,
-                "unit": "slot"
-            },
-            "eras": {
-                "shelley": {
-                    "epoch_start_time": "1903-10-13T16:15:24Z",
-                    "epoch_number": 6138
-                },
-                "mary": {
-                    "epoch_start_time": "1881-12-23T21:32:40.215134033255Z",
-                    "epoch_number": 6697
-                },
-                "byron": {
-                    "epoch_start_time": "1863-12-07T19:26:20.73407464615Z",
-                    "epoch_number": 25822
-                },
-                "allegra": {
-                    "epoch_start_time": "1868-10-12T13:00:00Z",
-                    "epoch_number": 5059
-                },
-                "alonzo": null
-            },
-            "active_slot_coefficient": {
-                "quantity": 41.867685196680945,
-                "unit": "percent"
-            },
-            "security_parameter": {
-                "quantity": 13901,
-                "unit": "block"
-            },
-            "minimum_utxo_value": {
-                "quantity": 6,
-                "unit": "lovelace"
-            },
-            "maximum_collateral_input_count": 8091
-        },
-        {
-            "slot_length": {
-                "quantity": 5813,
-                "unit": "second"
-            },
-            "decentralization_level": {
-                "quantity": 2.88,
-                "unit": "percent"
-            },
-            "genesis_block_hash": "764e770a75216b2a5c090660cac139542b2f535f3d009b36575a6659614b5b6c",
-            "blockchain_start_time": "1883-08-24T04:49:04.14682307819Z",
-            "desired_pool_number": 15417,
-            "epoch_length": {
-                "quantity": 13066,
-                "unit": "slot"
-            },
-            "eras": {
-                "shelley": {
-                    "epoch_start_time": "1900-08-16T18:52:54.681927443662Z",
-                    "epoch_number": 9528
-                },
-                "mary": {
-                    "epoch_start_time": "1888-08-06T19:00:00Z",
-                    "epoch_number": 24298
-                },
-                "byron": {
-                    "epoch_start_time": "1864-09-14T07:16:21.394038965579Z",
-                    "epoch_number": 3693
-                },
-                "allegra": {
-                    "epoch_start_time": "1872-10-12T13:00:00Z",
-                    "epoch_number": 25894
-                },
-                "alonzo": null
-            },
-            "active_slot_coefficient": {
-                "quantity": 85.47294682324198,
-                "unit": "percent"
-            },
-            "security_parameter": {
-                "quantity": 27074,
-                "unit": "block"
-            },
-            "minimum_utxo_value": {
-                "quantity": 180,
-                "unit": "lovelace"
-            },
-            "maximum_collateral_input_count": 3524
-        },
-        {
-            "slot_length": {
-                "quantity": 4328,
-                "unit": "second"
-            },
-            "decentralization_level": {
-                "quantity": 4.95,
-                "unit": "percent"
-            },
-            "genesis_block_hash": "607b0a25657e071d4269313e4d686c108c033725902262a27966590d7a421074",
-            "blockchain_start_time": "1859-07-13T07:00:00Z",
-            "desired_pool_number": 23122,
-            "epoch_length": {
-                "quantity": 22125,
-                "unit": "slot"
-            },
-            "eras": {
-                "shelley": {
-                    "epoch_start_time": "1880-09-01T03:00:30Z",
-                    "epoch_number": 5599
-                },
-                "mary": {
-                    "epoch_start_time": "1906-09-21T22:49:38Z",
-                    "epoch_number": 1567
+                    "epoch_start_time": "1886-08-05T20:05:50.663122272864Z",
+                    "epoch_number": 2820
                 },
                 "byron": null,
                 "allegra": {
-                    "epoch_start_time": "1898-02-18T00:00:00Z",
-                    "epoch_number": 21654
+                    "epoch_start_time": "1894-02-26T17:00:00Z",
+                    "epoch_number": 24232
                 },
                 "alonzo": {
-                    "epoch_start_time": "1870-03-27T09:01:12.304770557736Z",
-                    "epoch_number": 10952
+                    "epoch_start_time": "1885-05-14T04:00:00Z",
+                    "epoch_number": 21841
                 }
             },
             "active_slot_coefficient": {
-                "quantity": 42.77841093780804,
+                "quantity": 81.0795015876604,
                 "unit": "percent"
             },
             "security_parameter": {
-                "quantity": 13210,
+                "quantity": 1900,
                 "unit": "block"
             },
             "minimum_utxo_value": {
-                "quantity": 213,
+                "quantity": 52,
                 "unit": "lovelace"
             },
-            "maximum_collateral_input_count": 20685
+            "maximum_collateral_input_count": 8010
         },
         {
             "slot_length": {
-                "quantity": 9591,
+                "quantity": 5760,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 47.63,
+                "quantity": 85.94,
                 "unit": "percent"
             },
-            "genesis_block_hash": "405d3f4414090167585d537413fa2a24010a014c49535f3d3378804b892fd9dd",
-            "blockchain_start_time": "1905-02-02T16:51:30.618780600904Z",
-            "desired_pool_number": 29332,
+            "maximum_token_bundle_size": {
+                "quantity": 15495,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "346823300f6c9c034f58127c3b37696c0b502979027e79332a16480257425011",
+            "blockchain_start_time": "1859-03-21T06:44:07.130700000866Z",
+            "desired_pool_number": 856,
             "epoch_length": {
-                "quantity": 4598,
+                "quantity": 20352,
                 "unit": "slot"
             },
             "eras": {
                 "shelley": {
-                    "epoch_start_time": "1883-12-05T07:00:00Z",
-                    "epoch_number": 3266
-                },
-                "mary": {
-                    "epoch_start_time": "1862-04-29T02:00:00Z",
-                    "epoch_number": 19227
-                },
-                "byron": {
-                    "epoch_start_time": "1872-11-26T01:44:05Z",
-                    "epoch_number": 28800
-                },
-                "allegra": {
-                    "epoch_start_time": "1892-10-09T14:19:57Z",
-                    "epoch_number": 23243
-                },
-                "alonzo": {
-                    "epoch_start_time": "1901-10-09T15:21:06Z",
-                    "epoch_number": 2531
-                }
-            },
-            "active_slot_coefficient": {
-                "quantity": 67.46455375450789,
-                "unit": "percent"
-            },
-            "security_parameter": {
-                "quantity": 27678,
-                "unit": "block"
-            },
-            "minimum_utxo_value": {
-                "quantity": 223,
-                "unit": "lovelace"
-            },
-            "maximum_collateral_input_count": 28920
-        },
-        {
-            "slot_length": {
-                "quantity": 4980,
-                "unit": "second"
-            },
-            "decentralization_level": {
-                "quantity": 78.68,
-                "unit": "percent"
-            },
-            "genesis_block_hash": "213e7577070e5679536a2b6d476a52004b143419631eea7a794f6c4a151f7541",
-            "blockchain_start_time": "1902-06-17T16:00:00Z",
-            "desired_pool_number": 22290,
-            "epoch_length": {
-                "quantity": 6796,
-                "unit": "slot"
-            },
-            "eras": {
-                "shelley": {
-                    "epoch_start_time": "1885-09-17T19:36:48.380334907335Z",
-                    "epoch_number": 5864
+                    "epoch_start_time": "1893-05-16T23:22:04Z",
+                    "epoch_number": 3521
                 },
                 "mary": null,
                 "byron": {
-                    "epoch_start_time": "1862-03-29T05:38:54Z",
-                    "epoch_number": 19779
+                    "epoch_start_time": "1902-07-03T19:39:30.08356171179Z",
+                    "epoch_number": 31415
                 },
-                "allegra": {
-                    "epoch_start_time": "1870-01-11T23:00:00Z",
-                    "epoch_number": 11335
-                },
+                "allegra": null,
                 "alonzo": null
             },
             "active_slot_coefficient": {
-                "quantity": 80.14330634596737,
+                "quantity": 63.00933079698585,
                 "unit": "percent"
             },
             "security_parameter": {
-                "quantity": 245,
+                "quantity": 19100,
                 "unit": "block"
             },
             "minimum_utxo_value": {
-                "quantity": 151,
+                "quantity": 208,
                 "unit": "lovelace"
             },
-            "maximum_collateral_input_count": 22739
+            "maximum_collateral_input_count": 27037
         },
         {
             "slot_length": {
-                "quantity": 550,
+                "quantity": 5211,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 81.66,
+                "quantity": 86.13,
                 "unit": "percent"
             },
-            "genesis_block_hash": "233c2e7d323c102220090a51e12f0b3221330665082f6b3514122242577b6c0e",
-            "blockchain_start_time": "1890-01-13T02:42:05Z",
-            "desired_pool_number": 5009,
+            "maximum_token_bundle_size": {
+                "quantity": 15111,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "5d264d02353a347fcf2516451c454e3e0b7f42323cd6f764164e38175523506c",
+            "blockchain_start_time": "1881-03-11T01:15:50.193521559141Z",
+            "desired_pool_number": 13225,
             "epoch_length": {
-                "quantity": 29350,
+                "quantity": 1034,
                 "unit": "slot"
             },
             "eras": {
                 "shelley": {
-                    "epoch_start_time": "1907-04-05T00:34:36Z",
-                    "epoch_number": 32601
+                    "epoch_start_time": "1887-12-28T04:55:48Z",
+                    "epoch_number": 17717
                 },
                 "mary": {
-                    "epoch_start_time": "1899-12-19T09:00:00Z",
-                    "epoch_number": 11548
+                    "epoch_start_time": "1877-09-03T13:14:45.50758955313Z",
+                    "epoch_number": 8242
+                },
+                "byron": {
+                    "epoch_start_time": "1860-02-26T04:00:00Z",
+                    "epoch_number": 15014
+                },
+                "allegra": {
+                    "epoch_start_time": "1873-11-10T09:00:00Z",
+                    "epoch_number": 7413
+                },
+                "alonzo": {
+                    "epoch_start_time": "1876-07-06T14:00:00Z",
+                    "epoch_number": 29672
+                }
+            },
+            "active_slot_coefficient": {
+                "quantity": 30.63463628517504,
+                "unit": "percent"
+            },
+            "security_parameter": {
+                "quantity": 15903,
+                "unit": "block"
+            },
+            "minimum_utxo_value": {
+                "quantity": 36,
+                "unit": "lovelace"
+            },
+            "maximum_collateral_input_count": 20917
+        },
+        {
+            "slot_length": {
+                "quantity": 9284,
+                "unit": "second"
+            },
+            "decentralization_level": {
+                "quantity": 63.83,
+                "unit": "percent"
+            },
+            "maximum_token_bundle_size": {
+                "quantity": 30083,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "48a81813082f5700552f5f367c7a28f82a0f174669140042335a5470175f026d",
+            "blockchain_start_time": "1870-02-10T13:00:00Z",
+            "desired_pool_number": 14192,
+            "epoch_length": {
+                "quantity": 9569,
+                "unit": "slot"
+            },
+            "eras": {
+                "shelley": {
+                    "epoch_start_time": "1897-06-19T23:00:00Z",
+                    "epoch_number": 2699
+                },
+                "mary": {
+                    "epoch_start_time": "1897-12-27T02:32:52Z",
+                    "epoch_number": 15042
+                },
+                "byron": {
+                    "epoch_start_time": "1862-12-13T01:00:00Z",
+                    "epoch_number": 4700
+                },
+                "allegra": {
+                    "epoch_start_time": "1890-04-24T00:00:00Z",
+                    "epoch_number": 18160
+                },
+                "alonzo": {
+                    "epoch_start_time": "1860-02-24T18:00:00Z",
+                    "epoch_number": 4124
+                }
+            },
+            "active_slot_coefficient": {
+                "quantity": 73.12889449595565,
+                "unit": "percent"
+            },
+            "security_parameter": {
+                "quantity": 18092,
+                "unit": "block"
+            },
+            "minimum_utxo_value": {
+                "quantity": 211,
+                "unit": "lovelace"
+            },
+            "maximum_collateral_input_count": 12916
+        },
+        {
+            "slot_length": {
+                "quantity": 7756,
+                "unit": "second"
+            },
+            "decentralization_level": {
+                "quantity": 82.1,
+                "unit": "percent"
+            },
+            "maximum_token_bundle_size": {
+                "quantity": 31378,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "3f2b066ccd7f1f1e2f748487120f06b450111a723d7143746c377c5522ef4546",
+            "blockchain_start_time": "1886-05-01T22:11:33.012912767847Z",
+            "desired_pool_number": 9042,
+            "epoch_length": {
+                "quantity": 5990,
+                "unit": "slot"
+            },
+            "eras": {
+                "shelley": null,
+                "mary": {
+                    "epoch_start_time": "1860-06-21T01:17:30Z",
+                    "epoch_number": 18035
+                },
+                "byron": {
+                    "epoch_start_time": "1879-09-23T13:21:06Z",
+                    "epoch_number": 2424
+                },
+                "allegra": {
+                    "epoch_start_time": "1860-01-25T00:28:16Z",
+                    "epoch_number": 9504
+                },
+                "alonzo": {
+                    "epoch_start_time": "1872-05-10T10:00:00Z",
+                    "epoch_number": 7179
+                }
+            },
+            "active_slot_coefficient": {
+                "quantity": 16.162099951002507,
+                "unit": "percent"
+            },
+            "security_parameter": {
+                "quantity": 5594,
+                "unit": "block"
+            },
+            "minimum_utxo_value": {
+                "quantity": 195,
+                "unit": "lovelace"
+            },
+            "maximum_collateral_input_count": 26510
+        },
+        {
+            "slot_length": {
+                "quantity": 9930,
+                "unit": "second"
+            },
+            "decentralization_level": {
+                "quantity": 80.18,
+                "unit": "percent"
+            },
+            "maximum_token_bundle_size": {
+                "quantity": 26590,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "623d27740e4f225525d3338b48134a0b1bce2407be0f4a131c2c2e4119215215",
+            "blockchain_start_time": "1888-01-10T16:34:29Z",
+            "desired_pool_number": 22976,
+            "epoch_length": {
+                "quantity": 20159,
+                "unit": "slot"
+            },
+            "eras": {
+                "shelley": {
+                    "epoch_start_time": "1874-03-10T16:47:22Z",
+                    "epoch_number": 28731
+                },
+                "mary": {
+                    "epoch_start_time": "1884-06-29T06:11:33Z",
+                    "epoch_number": 1804
+                },
+                "byron": {
+                    "epoch_start_time": "1862-07-09T10:34:43.213941275376Z",
+                    "epoch_number": 3390
+                },
+                "allegra": {
+                    "epoch_start_time": "1873-08-16T18:00:00Z",
+                    "epoch_number": 20662
+                },
+                "alonzo": {
+                    "epoch_start_time": "1898-11-14T00:00:00Z",
+                    "epoch_number": 21007
+                }
+            },
+            "active_slot_coefficient": {
+                "quantity": 89.16218816284436,
+                "unit": "percent"
+            },
+            "security_parameter": {
+                "quantity": 32212,
+                "unit": "block"
+            },
+            "minimum_utxo_value": {
+                "quantity": 181,
+                "unit": "lovelace"
+            },
+            "maximum_collateral_input_count": 26964
+        },
+        {
+            "slot_length": {
+                "quantity": 3480,
+                "unit": "second"
+            },
+            "decentralization_level": {
+                "quantity": 72.43,
+                "unit": "percent"
+            },
+            "maximum_token_bundle_size": {
+                "quantity": 1336,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "1e079e590637376f4e2a0d557b28235513361840a60d253159437a106c2036bc",
+            "blockchain_start_time": "1882-02-08T03:00:00Z",
+            "desired_pool_number": 26982,
+            "epoch_length": {
+                "quantity": 23750,
+                "unit": "slot"
+            },
+            "eras": {
+                "shelley": null,
+                "mary": {
+                    "epoch_start_time": "1877-08-21T12:00:00Z",
+                    "epoch_number": 11390
+                },
+                "byron": {
+                    "epoch_start_time": "1862-04-29T06:00:00Z",
+                    "epoch_number": 10390
+                },
+                "allegra": {
+                    "epoch_start_time": "1903-09-03T22:12:32Z",
+                    "epoch_number": 29988
+                },
+                "alonzo": {
+                    "epoch_start_time": "1862-10-18T07:00:00Z",
+                    "epoch_number": 31289
+                }
+            },
+            "active_slot_coefficient": {
+                "quantity": 48.373012126573435,
+                "unit": "percent"
+            },
+            "security_parameter": {
+                "quantity": 4531,
+                "unit": "block"
+            },
+            "minimum_utxo_value": {
+                "quantity": 35,
+                "unit": "lovelace"
+            },
+            "maximum_collateral_input_count": 25903
+        },
+        {
+            "slot_length": {
+                "quantity": 7649,
+                "unit": "second"
+            },
+            "decentralization_level": {
+                "quantity": 0.34,
+                "unit": "percent"
+            },
+            "maximum_token_bundle_size": {
+                "quantity": 28835,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "050ef6671859152073226e1d622cfd144c001b7b9f0b78490e66131653352177",
+            "blockchain_start_time": "1888-11-01T18:00:00Z",
+            "desired_pool_number": 32491,
+            "epoch_length": {
+                "quantity": 3833,
+                "unit": "slot"
+            },
+            "eras": {
+                "shelley": {
+                    "epoch_start_time": "1866-11-24T06:20:03.169905262605Z",
+                    "epoch_number": 12992
+                },
+                "mary": {
+                    "epoch_start_time": "1861-11-12T19:03:45Z",
+                    "epoch_number": 6364
+                },
+                "byron": {
+                    "epoch_start_time": "1867-08-17T14:59:20Z",
+                    "epoch_number": 8951
+                },
+                "allegra": {
+                    "epoch_start_time": "1908-06-28T00:00:00Z",
+                    "epoch_number": 12634
+                },
+                "alonzo": {
+                    "epoch_start_time": "1862-05-29T11:03:18Z",
+                    "epoch_number": 16207
+                }
+            },
+            "active_slot_coefficient": {
+                "quantity": 30.557198580986544,
+                "unit": "percent"
+            },
+            "security_parameter": {
+                "quantity": 14379,
+                "unit": "block"
+            },
+            "minimum_utxo_value": {
+                "quantity": 147,
+                "unit": "lovelace"
+            },
+            "maximum_collateral_input_count": 16128
+        },
+        {
+            "slot_length": {
+                "quantity": 2913,
+                "unit": "second"
+            },
+            "decentralization_level": {
+                "quantity": 98.98,
+                "unit": "percent"
+            },
+            "maximum_token_bundle_size": {
+                "quantity": 10247,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "45171903c0d50235468d3c7f8b024d07585a3e0aa66933c04f183b8e35746111",
+            "blockchain_start_time": "1906-09-16T15:39:15Z",
+            "desired_pool_number": 9056,
+            "epoch_length": {
+                "quantity": 13792,
+                "unit": "slot"
+            },
+            "eras": {
+                "shelley": {
+                    "epoch_start_time": "1905-06-05T20:05:19.693313679389Z",
+                    "epoch_number": 20520
+                },
+                "mary": {
+                    "epoch_start_time": "1878-03-20T07:41:40Z",
+                    "epoch_number": 696
                 },
                 "byron": null,
-                "allegra": null,
+                "allegra": {
+                    "epoch_start_time": "1876-04-22T01:46:41.385874962542Z",
+                    "epoch_number": 19799
+                },
                 "alonzo": {
-                    "epoch_start_time": "1883-12-12T12:04:04.451470660062Z",
-                    "epoch_number": 5895
+                    "epoch_start_time": "1874-12-25T18:13:44Z",
+                    "epoch_number": 11568
                 }
             },
             "active_slot_coefficient": {
-                "quantity": 94.6285439489238,
+                "quantity": 81.74752611097162,
                 "unit": "percent"
             },
             "security_parameter": {
-                "quantity": 24946,
+                "quantity": 18330,
                 "unit": "block"
             },
             "minimum_utxo_value": {
-                "quantity": 187,
+                "quantity": 242,
                 "unit": "lovelace"
             },
-            "maximum_collateral_input_count": 26382
+            "maximum_collateral_input_count": 1662
         },
         {
             "slot_length": {
-                "quantity": 5043,
+                "quantity": 4422,
                 "unit": "second"
             },
             "decentralization_level": {
-                "quantity": 73.28,
+                "quantity": 84.87,
                 "unit": "percent"
             },
-            "genesis_block_hash": "b51d6137617e70329065451a1a3a64727a76280ce9b86f252e0a1003ed67626f",
-            "blockchain_start_time": "1882-11-19T00:00:00Z",
-            "desired_pool_number": 17425,
+            "maximum_token_bundle_size": {
+                "quantity": 22675,
+                "unit": "byte"
+            },
+            "genesis_block_hash": "422716e45a526d523830090842587e5946326968a608566a0a05146d63404e4f",
+            "blockchain_start_time": "1902-02-05T14:00:00Z",
+            "desired_pool_number": 31744,
             "epoch_length": {
-                "quantity": 18819,
+                "quantity": 7754,
                 "unit": "slot"
             },
             "eras": {
                 "shelley": {
-                    "epoch_start_time": "1876-10-17T20:34:17Z",
-                    "epoch_number": 27234
+                    "epoch_start_time": "1885-11-09T12:49:12Z",
+                    "epoch_number": 13844
                 },
-                "mary": null,
+                "mary": {
+                    "epoch_start_time": "1861-11-18T02:47:44.439734569655Z",
+                    "epoch_number": 275
+                },
                 "byron": {
-                    "epoch_start_time": "1876-06-17T17:26:03Z",
-                    "epoch_number": 28217
+                    "epoch_start_time": "1862-09-26T00:00:00Z",
+                    "epoch_number": 28043
                 },
                 "allegra": {
-                    "epoch_start_time": "1878-04-23T21:18:14Z",
-                    "epoch_number": 8429
+                    "epoch_start_time": "1878-08-25T22:43:53Z",
+                    "epoch_number": 19042
                 },
                 "alonzo": null
             },
             "active_slot_coefficient": {
-                "quantity": 73.71998048398571,
+                "quantity": 82.14792342635161,
                 "unit": "percent"
             },
             "security_parameter": {
-                "quantity": 19217,
+                "quantity": 28021,
                 "unit": "block"
             },
             "minimum_utxo_value": {
-                "quantity": 109,
+                "quantity": 44,
                 "unit": "lovelace"
             },
-            "maximum_collateral_input_count": 29104
-        },
-        {
-            "slot_length": {
-                "quantity": 6193,
-                "unit": "second"
-            },
-            "decentralization_level": {
-                "quantity": 24.54,
-                "unit": "percent"
-            },
-            "genesis_block_hash": "7b10600e0832076eea06161c2462725348150b465a69f66f043b931b4b57063d",
-            "blockchain_start_time": "1895-05-20T06:00:02.073186221244Z",
-            "desired_pool_number": 18671,
-            "epoch_length": {
-                "quantity": 5024,
-                "unit": "slot"
-            },
-            "eras": {
-                "shelley": {
-                    "epoch_start_time": "1900-06-05T10:00:00Z",
-                    "epoch_number": 13612
-                },
-                "mary": {
-                    "epoch_start_time": "1873-02-10T07:15:56.100763635114Z",
-                    "epoch_number": 10507
-                },
-                "byron": {
-                    "epoch_start_time": "1873-03-22T20:35:19.325469543196Z",
-                    "epoch_number": 16291
-                },
-                "allegra": {
-                    "epoch_start_time": "1859-04-16T18:26:21Z",
-                    "epoch_number": 11590
-                },
-                "alonzo": {
-                    "epoch_start_time": "1898-02-11T17:46:03Z",
-                    "epoch_number": 22799
-                }
-            },
-            "active_slot_coefficient": {
-                "quantity": 78.58601787599983,
-                "unit": "percent"
-            },
-            "security_parameter": {
-                "quantity": 10464,
-                "unit": "block"
-            },
-            "minimum_utxo_value": {
-                "quantity": 145,
-                "unit": "lovelace"
-            },
-            "maximum_collateral_input_count": 2304
+            "maximum_collateral_input_count": 9351
         }
     ]
 }

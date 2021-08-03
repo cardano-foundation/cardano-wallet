@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlottingParameters (..)
     , StartTime (..)
+    , TokenBundleMaxSize (..)
     , TxParameters (..)
     , emptyEraInfo
     )
@@ -107,6 +108,7 @@ dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters
     { getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
     , getTxMaxSize = Quantity 8192
+    , getTokenBundleMaxSize = TokenBundleMaxSize (Quantity 4000)
     }
 
 dummyNetworkParameters :: NetworkParameters

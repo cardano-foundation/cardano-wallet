@@ -78,6 +78,7 @@ spec = describe "SHELLEY_NETWORK" $ do
             , expectField #activeSlotCoefficient (`shouldBe` Quantity 50.0)
             , expectField #maximumCollateralInputCount
                   (`shouldBe` maximumCollateralInputCountByEra (_mainEra ctx))
+            , expectField #maximumTokenBundleSize (`shouldBe` Quantity 4000)
             ]
             ++ map (expectEraField (`shouldNotBe` Nothing)) knownEras
             ++ map (expectEraField (`shouldBe` Nothing)) unknownEras

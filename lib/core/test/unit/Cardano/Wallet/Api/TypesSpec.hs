@@ -333,7 +333,7 @@ import Data.Time.Clock.POSIX
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word32, Word8 )
+    ( Word16, Word32, Word8 )
 import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
@@ -1210,6 +1210,8 @@ spec = parallel $ do
                         desiredPoolNumber (x :: ApiNetworkParameters)
                     , minimumUtxoValue =
                         minimumUtxoValue (x :: ApiNetworkParameters)
+                    , maximumTokenBundleSize =
+                        maximumTokenBundleSize (x :: ApiNetworkParameters)
                     , eras =
                         eras (x :: ApiNetworkParameters)
                     , maximumCollateralInputCount =
@@ -1467,6 +1469,11 @@ instance Arbitrary (Quantity "assets" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
+
+instance Arbitrary (Quantity "byte" Word16) where
+    shrink (Quantity 0) = []
+    shrink _ = [Quantity 0]
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word16)
 
 instance Arbitrary (Quantity "percent" Percentage) where
     shrink (Quantity p) = Quantity <$> shrinkPercentage p
