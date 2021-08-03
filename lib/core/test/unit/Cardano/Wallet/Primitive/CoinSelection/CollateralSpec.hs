@@ -157,6 +157,58 @@ spec = do
         unitTests_takeUntil
 
 --------------------------------------------------------------------------------
+-- Properties common to all collateral selection strategies
+--------------------------------------------------------------------------------
+
+prop_selectCollateral_common
+    :: (Ord inputId, Show inputId)
+    => SelectCollateralParams inputId
+    -> Either (SelectCollateralError inputId) (SelectCollateralResult inputId)
+    -> Property
+prop_selectCollateral_common params eitherErrorResult =
+    cover 20.0 (isLeft  eitherErrorResult) "Failure" $
+    cover 20.0 (isRight eitherErrorResult) "Success" $
+    counterexample ("Params: " <> show (Pretty params)) $
+    either
+        (prop_selectCollateral_error  params)
+        (prop_selectCollateral_result params)
+        (eitherErrorResult)
+
+prop_selectCollateral_error
+    :: (Ord inputId, Show inputId)
+    => SelectCollateralParams inputId
+    -> SelectCollateralError inputId
+    -> Property
+prop_selectCollateral_error params err =
+    counterexample ("Error: " <> show (Pretty err)) $
+    conjoin
+        [ F.fold (largestCombinationAvailable err)
+            < minimumSelectionAmount params
+        , F.length (largestCombinationAvailable err)
+            <= maximumSelectionSize params
+        , largestCombinationAvailable err
+            `Map.isSubmapOf` coinsAvailable params
+        ]
+
+prop_selectCollateral_result
+    :: (Ord inputId, Show inputId)
+    => SelectCollateralParams inputId
+    -> SelectCollateralResult inputId
+    -> Property
+prop_selectCollateral_result params result =
+    counterexample ("Result: " <> show (Pretty result)) $
+    conjoin
+        [ F.fold (coinsAvailable params)
+            >= minimumSelectionAmount params
+        , F.fold (coinsSelected result)
+            >= minimumSelectionAmount params
+        , F.length (coinsSelected result)
+            <= maximumSelectionSize params
+        , coinsSelected result
+            `Map.isSubmapOf` coinsAvailable params
+        ]
+
+--------------------------------------------------------------------------------
 -- Selecting collateral by giving priority to smallest values first
 --------------------------------------------------------------------------------
 
@@ -167,57 +219,46 @@ prop_selectCollateralSmallest_optimal
 prop_selectCollateralSmallest_optimal
     (SingleBitCoinMap coinsAvailable)
     (MinimumSelectionAmount minimumSelectionAmount) =
-
     checkCoverage $
-
-    -- Check that we cover both success and failure:
-    cover 20.0 (isLeft result)
-        "Failure" $
-    cover 20.0 (isRight result)
-        "Success" $
-
-    -- Check that we cover a range of optimal coin counts:
-    coverTable "Optimal coin count"
-        ((, 8.0) . show @Int <$> [1 .. 4]) $
-    tabulate "Optimal coin count"
-        [show optimalCoinCount] $
-
-    counterexample ("Result: " <> show result) $
-
-    case result of
-        Left e -> conjoin
-            [ F.fold coinsAvailable
-                < minimumSelectionAmount
-            , F.fold (largestCombinationAvailable e)
-                < minimumSelectionAmount
-            , F.length (largestCombinationAvailable e)
-                <= maximumSelectionSize
-            , largestCombinationAvailable e
-                `Map.isSubmapOf` coinsAvailable
-            ]
-        Right r -> conjoin
-            [ F.fold coinsAvailable
-                >= minimumSelectionAmount
-            , Map.size (coinsSelected r)
-                == optimalCoinCount
-            , F.fold (coinsSelected r)
-                == minimumSelectionAmount
-            , coinsSelected r
-                `Map.isSubmapOf` coinsAvailable
-            ]
+    conjoin
+        [ prop_selectCollateral_common params eitherErrorResult
+        , prop_extra
+        ]
   where
-    optimalCoinCount :: Int
-    optimalCoinCount = Bits.popCount (unCoin minimumSelectionAmount)
+    prop_extra :: Property
+    prop_extra =
+        coverOptimalCoinCount $
+        case eitherErrorResult of
+            Left _ -> conjoin
+                [ F.fold coinsAvailable < minimumSelectionAmount
+                ]
+            Right r -> conjoin
+                [ F.length (coinsSelected r) == optimalCoinCount
+                , F.fold   (coinsSelected r) == minimumSelectionAmount
+                ]
 
-    maximumSelectionSize :: Int
-    maximumSelectionSize = optimalCoinCount
-
-    result = selectCollateralSmallest SelectCollateralParams
+    params = SelectCollateralParams
         { coinsAvailable
         , maximumSelectionSize
         , minimumSelectionAmount
         , searchSpaceLimit = UnsafeNoSearchSpaceLimit
         }
+
+    eitherErrorResult = selectCollateralSmallest params
+
+    -- Specify a maximum number of collateral entries that makes it possible to
+    -- make a selection that's exactly equal to the minimum collateral amount:
+    maximumSelectionSize :: Int
+    maximumSelectionSize = optimalCoinCount
+
+    optimalCoinCount :: Int
+    optimalCoinCount = Bits.popCount (unCoin minimumSelectionAmount)
+
+    coverOptimalCoinCount
+        = coverTable title ((, 8.0) . show @Int <$> [1 .. 4])
+        . tabulate title [show optimalCoinCount]
+      where
+        title = "Optimal coin count"
 
 prop_selectCollateralSmallest_constrainedSelectionCount
     :: SingleBitCoinMap
@@ -226,56 +267,45 @@ prop_selectCollateralSmallest_constrainedSelectionCount
 prop_selectCollateralSmallest_constrainedSelectionCount
     (SingleBitCoinMap coinsAvailable)
     (MinimumSelectionAmount minimumSelectionAmount) =
-
     checkCoverage $
-
-    -- Check that we cover both success and failure:
-    cover 20.0 (isLeft result)
-        "Failure" $
-    cover 20.0 (isRight result)
-        "Success" $
-
-    -- Check that we cover a range of optimal coin counts:
-    coverTable "Optimal coin count"
-        ((, 8.0) . show @Int <$> [1 .. 4]) $
-    tabulate "Optimal coin count"
-        [show optimalCoinCount] $
-
-    counterexample ("Result: " <> show result) $
-
-    case result of
-        Left e -> conjoin
-            [ F.fold (largestCombinationAvailable e)
-                < minimumSelectionAmount
-            , F.length (largestCombinationAvailable e)
-                <= maximumSelectionSize
-            , largestCombinationAvailable e
-                `Map.isSubmapOf` coinsAvailable
-            ]
-        Right r ->
-            -- Check that we cover a range of selected coin counts:
-            let numberOfCoinsSelected = F.length (coinsSelected r) in
-            cover 10.0 (numberOfCoinsSelected == 1)
-                "Number of coins selected = 1" $
-            cover 10.0 (numberOfCoinsSelected == 2)
-                "Number of coins selected = 2" $
-            cover 10.0 (numberOfCoinsSelected == maximumSelectionSize)
-                "Number of coins selected = maximum allowed" $
-            conjoin
-                [ F.fold coinsAvailable
-                    >= minimumSelectionAmount
-                , Map.size (coinsSelected r)
-                    < optimalCoinCount
-                , F.fold (coinsSelected r)
-                    > minimumSelectionAmount
-                , F.fold (coinsSelected r)
-                    < minimumSelectionAmount `scaleCoin` 2
-                , coinsSelected r
-                    `Map.isSubmapOf` coinsAvailable
-                ]
+    conjoin
+        [ prop_selectCollateral_common params eitherErrorResult
+        , prop_extra
+        ]
   where
-    optimalCoinCount :: Int
-    optimalCoinCount = Bits.popCount (unCoin minimumSelectionAmount)
+    prop_extra :: Property
+    prop_extra =
+        coverOptimalCoinCount $
+        case eitherErrorResult of
+            Left _ ->
+                -- No extra conditions in addition to standard conditions.
+                property True
+            Right r ->
+                -- Check that we cover a range of selected coin counts:
+                let numberOfCoinsSelected = F.length (coinsSelected r) in
+                cover 10.0 (numberOfCoinsSelected == 1)
+                    "Number of coins selected = 1" $
+                cover 10.0 (numberOfCoinsSelected == 2)
+                    "Number of coins selected = 2" $
+                cover 10.0 (numberOfCoinsSelected == maximumSelectionSize)
+                    "Number of coins selected = maximum allowed" $
+                conjoin
+                    [ Map.size (coinsSelected r)
+                        < optimalCoinCount
+                    , F.fold (coinsSelected r)
+                        > minimumSelectionAmount
+                    , F.fold (coinsSelected r)
+                        < minimumSelectionAmount `scaleCoin` 2
+                    ]
+
+    params = SelectCollateralParams
+        { coinsAvailable
+        , maximumSelectionSize
+        , minimumSelectionAmount
+        , searchSpaceLimit = UnsafeNoSearchSpaceLimit
+        }
+
+    eitherErrorResult = selectCollateralSmallest params
 
     -- Deliberately constrain the maximum number of collateral entries so that
     -- it's impossible to make a selection that's exactly equal to the minimum
@@ -283,12 +313,14 @@ prop_selectCollateralSmallest_constrainedSelectionCount
     maximumSelectionSize :: Int
     maximumSelectionSize = optimalCoinCount - 1
 
-    result = selectCollateralSmallest SelectCollateralParams
-        { coinsAvailable
-        , maximumSelectionSize
-        , minimumSelectionAmount
-        , searchSpaceLimit = UnsafeNoSearchSpaceLimit
-        }
+    optimalCoinCount :: Int
+    optimalCoinCount = Bits.popCount (unCoin minimumSelectionAmount)
+
+    coverOptimalCoinCount
+        = coverTable title ((, 8.0) . show @Int <$> [1 .. 4])
+        . tabulate title [show optimalCoinCount]
+      where
+        title = "Optimal coin count"
 
 unitTests_selectCollateralSmallest_optimal :: Spec
 unitTests_selectCollateralSmallest_optimal = unitTests
@@ -389,60 +421,42 @@ prop_selectCollateralLargest
 prop_selectCollateralLargest
     (SingleBitCoinMap coinsAvailable)
     (MinimumSelectionAmount minimumSelectionAmount) =
-
     checkCoverage $
-
-    -- Check that we cover both success and failure:
-    cover 20.0 (isLeft result)
-        "Failure" $
-    cover 20.0 (isRight result)
-        "Success" $
-
-    counterexample ("Result: " <> show result) $
-
-    case result of
-        Left e -> conjoin
-            [ F.fold coinsAvailable
-                < minimumSelectionAmount
-            , F.fold (largestCombinationAvailable e)
-                < minimumSelectionAmount
-            , F.length (largestCombinationAvailable e)
-                <= maximumSelectionSize
-            , largestCombinationAvailable e
-                `Map.isSubmapOf` coinsAvailable
-            ]
-        Right r ->
-            -- Check that we cover a range of selected coin counts:
-            let numberOfCoinsSelected = F.length (coinsSelected r) in
-            cover 10.0 (numberOfCoinsSelected == 1)
-                "Number of coins selected = 1" $
-            cover 10.0 (numberOfCoinsSelected == 2)
-                "Number of coins selected = 2" $
-            cover 10.0 (numberOfCoinsSelected == maximumSelectionSize)
-                "Number of coins selected = maximum allowed" $
-            conjoin
-                [ F.fold coinsAvailable
-                    >= minimumSelectionAmount
-                , F.fold (coinsSelected r)
-                    >= minimumSelectionAmount
-                , F.length (coinsSelected r)
-                    <= maximumSelectionSize
-                , coinsSelected r
-                    `Map.isSubmapOf` coinsAvailable
-                ]
+    conjoin
+        [ prop_selectCollateral_common params eitherErrorResult
+        , prop_extra
+        ]
   where
-    optimalCoinCount :: Int
-    optimalCoinCount = Bits.popCount (unCoin minimumSelectionAmount)
+    prop_extra :: Property
+    prop_extra =
+        case eitherErrorResult of
+            Left _ ->
+                property $ F.fold coinsAvailable < minimumSelectionAmount
+            Right r ->
+                -- Check that we cover a range of selected coin counts:
+                let numberOfCoinsSelected = F.length (coinsSelected r) in
+                cover 10.0 (numberOfCoinsSelected == 1)
+                    "Number of coins selected = 1" $
+                cover 10.0 (numberOfCoinsSelected == 2)
+                    "Number of coins selected = 2" $
+                cover 10.0 (numberOfCoinsSelected == maximumSelectionSize)
+                    "Number of coins selected = maximum allowed"
+                True
 
-    maximumSelectionSize :: Int
-    maximumSelectionSize = optimalCoinCount
+    eitherErrorResult = selectCollateralLargest params
 
-    result = selectCollateralLargest SelectCollateralParams
+    params = SelectCollateralParams
         { coinsAvailable
         , maximumSelectionSize
         , minimumSelectionAmount
         , searchSpaceLimit = UnsafeNoSearchSpaceLimit
         }
+
+    maximumSelectionSize :: Int
+    maximumSelectionSize = optimalCoinCount
+
+    optimalCoinCount :: Int
+    optimalCoinCount = Bits.popCount (unCoin minimumSelectionAmount)
 
 unitTests_selectCollateralLargest_optimal :: Spec
 unitTests_selectCollateralLargest_optimal = unitTests
