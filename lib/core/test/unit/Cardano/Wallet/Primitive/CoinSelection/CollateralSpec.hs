@@ -38,7 +38,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive, shrinkCoinPositive )
 import Control.Monad
-    ( forM_ )
+    ( forM_, replicateM )
 import Data.Either
     ( isLeft, isRight )
 import Data.Generics.Internal.VL.Lens
@@ -64,6 +64,7 @@ import Test.QuickCheck
     , Gen
     , NonNegative (..)
     , Property
+    , arbitraryBoundedEnum
     , checkCoverage
     , choose
     , conjoin
@@ -525,7 +526,7 @@ unitTests_selectCollateralLargest_insufficient = unitTests
 --------------------------------------------------------------------------------
 
 newtype SingleBitCoinMap = SingleBitCoinMap
-    { unSingleBitCoinMap :: Map TestInputId Coin
+    { unSingleBitCoinMap :: Map ShortInputId Coin
     }
     deriving (Eq, Show)
 
@@ -625,7 +626,7 @@ prop_submaps_unions =
 unitTests_submaps :: Spec
 unitTests_submaps = unitTests
     "unitTests_submaps"
-    (submaps @TestInputId @Int)
+    (submaps @ShortInputId @Int)
     (mkTest <$> tests)
   where
     mkTest (params, result) = UnitTestData {params, result}
@@ -930,10 +931,37 @@ unitTests title f unitTestData =
 (▶) :: a -> b -> (a, b)
 (▶) = (,)
 
-data TestInputId
+--------------------------------------------------------------------------------
+-- Input identification numbers: short
+--------------------------------------------------------------------------------
+
+data ShortInputId
     = A | B | C | D | E | F | G | H | I | J | K | L | M
     | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
-    deriving (Enum, Eq, Ord, Show)
+    deriving (Bounded, Enum, Eq, Ord, Show)
+
+instance Arbitrary ShortInputId where
+    arbitrary = genShortInputId
+
+genShortInputId :: Gen ShortInputId
+genShortInputId = arbitraryBoundedEnum
+
+--------------------------------------------------------------------------------
+-- Input identification numbers: long
+--------------------------------------------------------------------------------
+
+newtype LongInputId = LongInputId { unLongInputId :: [ShortInputId] }
+    deriving (Eq, Ord)
+
+instance Show LongInputId where
+    show (LongInputId chars) =
+        F.foldr' (\c output -> show c <> output) "" chars
+
+instance Arbitrary LongInputId where
+    arbitrary = genLongInputId
+
+genLongInputId :: Gen LongInputId
+genLongInputId = LongInputId <$> replicateM 4 genShortInputId
 
 --------------------------------------------------------------------------------
 -- Miscellaneous
