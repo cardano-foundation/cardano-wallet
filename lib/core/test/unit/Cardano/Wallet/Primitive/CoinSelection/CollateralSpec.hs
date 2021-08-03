@@ -97,6 +97,8 @@ spec = do
 
     parallel $ describe "selectCollateralSmallest" $ do
 
+        it "prop_selectCollateralSmallest_general" $
+            property prop_selectCollateralSmallest_general
         it "prop_selectCollateralSmallest_optimal" $
             property prop_selectCollateralSmallest_optimal
         it "prop_selectCollateralSmallest_constrainedSelectionCount" $
@@ -217,6 +219,23 @@ prop_selectCollateral_result params result =
 --------------------------------------------------------------------------------
 -- Selecting collateral by giving priority to smallest values first
 --------------------------------------------------------------------------------
+
+prop_selectCollateralSmallest_general :: Property
+prop_selectCollateralSmallest_general =
+    checkCoverage $
+    forAll (arbitrary @(Map LongInputId Coin))
+        $ \coinsAvailable ->
+    forAll (scale (* 4) genMinimumSelectionAmount)
+        $ \(MinimumSelectionAmount minimumSelectionAmount) ->
+    forAll (choose (1, 4))
+        $ \maximumSelectionSize ->
+    let params = SelectCollateralParams
+            { coinsAvailable
+            , maximumSelectionSize
+            , minimumSelectionAmount
+            , searchSpaceLimit = SearchSpaceLimit 1_000_000
+            } in
+    prop_selectCollateral_common params $ selectCollateralSmallest params
 
 prop_selectCollateralSmallest_optimal
     :: SingleBitCoinMap
@@ -969,6 +988,10 @@ genLongInputId = LongInputId <$> replicateM 4 genShortInputId
 
 scaleCoin :: Coin -> Word64 -> Coin
 scaleCoin (Coin c) w = Coin (c * w)
+
+instance Arbitrary Coin where
+    arbitrary = genCoinPositive
+    shrink = shrinkCoinPositive
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
