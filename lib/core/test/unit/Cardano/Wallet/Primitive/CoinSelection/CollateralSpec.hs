@@ -1,5 +1,7 @@
 {-# OPTIONS -fplugin=Overloaded -fplugin-opt=Overloaded:Numerals #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{- HLINT ignore "Use camelCase" -}
+{- HLINT ignore "Hoist not" -}
 
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DeriveFunctor #-}
