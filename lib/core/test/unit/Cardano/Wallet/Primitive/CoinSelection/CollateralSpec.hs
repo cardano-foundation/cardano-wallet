@@ -689,11 +689,12 @@ prop_subsequencesOfSize =
             (_, _) ->
                 conjoin
                     [ length subsequences
-                        === expectedNumberOfSubsequences
+                        == expectedNumberOfSubsequences
                     , length subsequences
-                        === Set.size subsets
+                        == Set.size subsets
                     , Set.unions subsets
-                        === xs
+                        == xs
+                    , all (== k) (length <$> subsequences)
                     ]
       where
         n = Set.size xs
