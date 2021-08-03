@@ -233,7 +233,9 @@ subsequencesOfSize xs k
     | k > length xs =
         []
     | otherwise =
-        subsequencesBySize xs !! k
+        case drop k (subsequencesBySize xs) of
+            result : _ -> result
+            [] -> []
   where
     subsequencesBySize [] = [[[]]]
     subsequencesBySize (y : ys) =
