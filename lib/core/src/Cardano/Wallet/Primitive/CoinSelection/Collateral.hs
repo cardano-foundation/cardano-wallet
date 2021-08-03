@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -70,6 +71,8 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Math.Combinatorics.Exact.Binomial as MathExact
+import qualified Numeric.SpecFunctions as MathFast
 
 --------------------------------------------------------------------------------
 -- Public API
@@ -225,8 +228,10 @@ selectCollateralSmallest params =
         guardSearchSpaceSize :: Maybe a -> Maybe a
         guardSearchSpaceSize =
             case (requiredSearchSpaceSize, searchSpaceLimit) of
-                (r, SearchSpaceLimit m) | r > m -> const Nothing
-                _ -> id
+                (Nothing, _                       )         -> const Nothing
+                (Just r , SearchSpaceLimit m      ) | r > m -> const Nothing
+                (Just _ , SearchSpaceLimit _      )         -> id
+                (Just _ , UnsafeNoSearchSpaceLimit)         -> id
           where
             requiredSearchSpaceSize =
                 numberOfCoinsToConsider `numberOfSubsequencesOfSize` size
@@ -307,17 +312,32 @@ submaps m = Set.map (Map.restrictKeys m) (Set.powerSet (Map.keysSet m))
 -- would use an excessive amount of time and space, and if so, avoid calling
 -- it.
 --
+-- Returns 'Nothing' if the result is larger than 'maxBound :: Int'.
+--
 numberOfSubsequencesOfSize
     :: Int
     -- ^ Indicates the size of the sequence.
     -> Int
     -- ^ Indicates the size of subsequences.
-    -> Int
-numberOfSubsequencesOfSize = choose
+    -> Maybe Int
+numberOfSubsequencesOfSize n k
+    | n < 0             = Nothing
+    | k < 0             = Nothing
+    | resultOutOfBounds = Nothing
+    | otherwise         = Just (fromIntegral resultExact)
   where
-    choose _ 0 = 1
-    choose 0 _ = 0
-    choose n k = choose (n - 1) (k - 1) * n `div` k
+    resultExact :: Integer
+    resultExact = MathExact.choose
+        (fromIntegral @Int @Integer n)
+        (fromIntegral @Int @Integer k)
+
+    resultFast :: Double
+    resultFast = MathFast.choose n k
+
+    resultOutOfBounds :: Bool
+    resultOutOfBounds = (||)
+        (resultFast < 0)
+        (resultFast > fromIntegral @Int @Double (maxBound @Int))
 
 -- | Generates all subsequences of size 'k' from a particular sequence.
 --

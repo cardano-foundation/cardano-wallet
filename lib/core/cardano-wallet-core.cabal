@@ -52,6 +52,7 @@ library
     , directory
     , either
     , errors
+    , exact-combinatorics
     , exceptions
     , extra
     , fast-logger
@@ -69,6 +70,7 @@ library
     , io-classes
     , iohk-monitoring
     , lattices
+    , math-functions
     , memory
     , MonadRandom
     , monad-logger
