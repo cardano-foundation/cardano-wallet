@@ -6,6 +6,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -139,6 +140,8 @@ spec = do
             property prop_subsequencesOfSize
 
         unitTests_subsequencesOfSize
+        unitTests_numberOfSubsequencesOfSize_withinBounds
+        unitTests_numberOfSubsequencesOfSize_outOfBounds
 
     parallel $ describe "firstRight" $ do
 
@@ -735,6 +738,39 @@ unitTests_subsequencesOfSize = unitTests
           , 5
           , []
           )
+        ]
+
+unitTests_numberOfSubsequencesOfSize_withinBounds :: Spec
+unitTests_numberOfSubsequencesOfSize_withinBounds = unitTests
+    "unitTests_numberOfSubsequencesOfSize_withinBounds"
+    (uncurry numberOfSubsequencesOfSize)
+    (mkTest <$> tests)
+  where
+    mkTest (n, k, output) =
+        UnitTestData {params = (n, k), result = Just output}
+    tests =
+        [ (100, 1,          100)
+        , (100, 2,         4950)
+        , (100, 3,       161700)
+        , (100, 4,      3921225)
+        , (100, 5,     75287520)
+        , (100, 6,   1192052400)
+        , (100, 7,  16007560800)
+        , (100, 8, 186087894300)
+        ]
+
+unitTests_numberOfSubsequencesOfSize_outOfBounds :: Spec
+unitTests_numberOfSubsequencesOfSize_outOfBounds = unitTests
+    "unitTests_numberOfSubsequencesOfSize_outOfBounds"
+    (uncurry numberOfSubsequencesOfSize)
+    (mkTest <$> tests)
+  where
+    mkTest (n, k) =
+        UnitTestData {params = (n, k), result = Nothing}
+    tests =
+        [ (1_000_000,   10)
+        , (1_000_000,  100)
+        , (1_000_000, 1000)
         ]
 
 --------------------------------------------------------------------------------
