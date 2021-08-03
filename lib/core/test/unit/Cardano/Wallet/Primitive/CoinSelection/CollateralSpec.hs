@@ -388,7 +388,7 @@ unitTests_selectCollateralSmallest_constrainedSearchSpace = unitTests
         [A ▶ 1, B ▶ 2, C ▶ 4, D ▶ 8, E ▶ 16, F ▶ 32, G ▶ 64, H ▶ 128]
     maximumSelectionSize =
         Map.size coinsAvailable
-    searchSpaceLimit = SearchSpaceLimit $
+    Just searchSpaceLimit = SearchSpaceLimit <$>
         maximumSelectionSize `numberOfSubsequencesOfSize` 2
     mkTest (minimumSelectionAmount, coinsSelected) = UnitTestData
         { params = SelectCollateralParams
@@ -700,7 +700,7 @@ prop_subsequencesOfSize =
         n = Set.size xs
         subsequences = Set.toList xs `subsequencesOfSize` k
         subsets = Set.fromList (Set.fromList <$> subsequences)
-        expectedNumberOfSubsequences = n `numberOfSubsequencesOfSize` k
+        Just expectedNumberOfSubsequences = n `numberOfSubsequencesOfSize` k
 
 unitTests_subsequencesOfSize :: Spec
 unitTests_subsequencesOfSize = unitTests
