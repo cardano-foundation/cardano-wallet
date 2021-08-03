@@ -30,8 +30,8 @@ steps:
   - label: 'Check Cabal Configure (Haskell.nix shellFor)'
     command:
       - 'nix-shell --run "cabal update"'
-      - 'nix-shell --run "cabal configure --project-file=cabal-nix.project --enable-tests --enable-benchmarks"'
-      - 'nix-shell --run "cabal configure --project-file=cabal-nix.project -frelease --enable-tests --enable-benchmarks"'
+      - 'nix-shell --run "cabal configure --enable-tests --enable-benchmarks"'
+      - 'nix-shell --run "cabal configure -frelease --enable-tests --enable-benchmarks"'
     agents:
       system: x86_64-linux
 
@@ -42,7 +42,7 @@ steps:
 
   - label: 'Check auto-generated Nix'
     commands:
-      - './nix/regenerate.sh --cache /dev/null'
+      - './nix/regenerate.sh'
       - 'nix-build ./nix -A iohkNix.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
     agents:
       system: x86_64-linux

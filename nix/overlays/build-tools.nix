@@ -74,6 +74,10 @@ in {
       // { inherit regenerateMaterialized; }
       // mapExes hsPkgs);
 
+  # These overrides are picked up by cabalWrapped in iohk-nix
+  cabal = pkgs.haskell-build-tools.cabal-install;
+  cabal-install = pkgs.haskell-build-tools.cabal-install;
+
   # Override this package set from iohk-nix with local materializations.
   # This is a little bit messy, unfortunately.
   iohk-nix-utils = let

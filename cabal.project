@@ -1,3 +1,36 @@
+--------------------------------------------------------------------------------
+-- Cabal project file
+-- -----------------------------------------------------------------------------
+--
+-- Example build command:
+--
+--   cabal build all --enable-tests --enable-benchmarks -O0
+--
+-- -----------------------------------------------------------------------------
+-- How to use with the nix-shell
+--
+-- The advantage of building under nix-shell is that the correct
+-- versions of all build and test dependencies are set up for you in the
+-- nix-shell environment.
+--
+-- All dependencies, including Haskell package dependencies, have been
+-- built on Hydra and are transparently downloaded from the IOHK
+-- cache.
+--
+-- The Haskell package set in shell.nix is automatically generated
+-- from stack.yaml.
+--
+-- To build, start "nix-shell", then run Cabal inside:
+--     nix-shell
+--     cabal build all -O0
+--
+-- To build with profiling enabled, use:
+--    nix-shell --arg profiling true
+--    cabal configure --enable-tests --enable-benchmarks --enable-profiling
+--    cabal build all
+--
+--------------------------------------------------------------------------------
+
 index-state: 2021-06-30T00:00:00Z
 with-compiler: ghc-8.10.5
 

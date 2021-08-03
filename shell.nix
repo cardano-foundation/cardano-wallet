@@ -3,7 +3,7 @@
 # Creates a development environment for Cabal builds or ghci sessions,
 # with various build tools included.
 #
-# Short instructions are in ./cabal-nix.project.
+# Short instructions are in ./cabal.project.
 #
 # Full instructions - https://github.com/input-output-hk/cardano-wallet/wiki/Building#cabalnix-build
 #
@@ -36,6 +36,7 @@ let
         project.hsPkgs.pretty-simple.components.exes.pretty-simple
       ]) ++ (with pkgs.buildPackages.buildPackages; [
         go-jira
+        haskellPackages.ghcid
         niv
         pkgconfig
         python3Packages.openapi-spec-validator
@@ -44,6 +45,7 @@ let
         curlFull
         jq
         yq
+        cabalWrapped
       ] ++ lib.filter
         (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
         (lib.attrValues haskell-build-tools));
