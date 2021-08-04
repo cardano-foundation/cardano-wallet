@@ -183,6 +183,8 @@ prop_selectCollateral_common params eitherErrorResult =
     cover 20.0 (isLeft  eitherErrorResult) "Failure" $
     cover 20.0 (isRight eitherErrorResult) "Success" $
     counterexample ("Params: " <> show (Pretty params)) $
+    -- We have properties that the error state should satisfy, and some
+    -- properties that the "happy path" should satisfy.
     either
         (prop_selectCollateral_error  params)
         (prop_selectCollateral_result params)
@@ -196,10 +198,27 @@ prop_selectCollateral_error
 prop_selectCollateral_error params err =
     counterexample ("Error: " <> show (Pretty err)) $
     conjoin
+        -- If we fail to find collateral for some criteria, we return a set of
+        -- coins that represents the largest combination of coins available to
+        -- us, as an indication of "the best we could do", given the upper bound
+        -- on the number of coins that can be selected, as specified in the
+        -- criteria.
+        --
+        -- We want to assert some properties about the set returned:
+
+        -- 1. That the total value of the coins returned in the set is less than
+        -- the target amount of collateral. After all, if we could return enough
+        -- coins to satisfy the collateral requirement, why would we return an
+        -- error?
         [ F.fold (largestCombinationAvailable err)
             < minimumSelectionAmount params
+        -- 2. That the largest combination of coins available to us has a size
+        -- that is consistent with the upper bound on the number of coins that
+        -- could be selected, according to the criteria.
         , F.length (largestCombinationAvailable err)
             <= maximumSelectionSize params
+        -- 3. That the largest combination of coins available only includes
+        -- coins from the input set.
         , largestCombinationAvailable err
             `Map.isSubmapOf` coinsAvailable params
         ]
@@ -212,12 +231,22 @@ prop_selectCollateral_result
 prop_selectCollateral_result params result =
     counterexample ("Result: " <> show (Pretty result)) $
     conjoin
+        -- If we succeed in finding collateral for some criteria, we want to
+        -- assert that:
+
+        -- 1. There were enough coins in the input set to satisfy the collateral
+        -- target (it was possible to find a solution).
         [ F.fold (coinsAvailable params)
             >= minimumSelectionAmount params
+        -- 2. That the coins selected do in fact satisfy the collateral target.
         , F.fold (coinsSelected result)
             >= minimumSelectionAmount params
+        -- 3. That the number of coins selected does not exceed the maximum
+        -- selection size criteria.
         , F.length (coinsSelected result)
             <= maximumSelectionSize params
+        -- 4. That the coins selected are a subset of the input set (we chose
+        -- only coins we have access to via the input).
         , coinsSelected result
             `Map.isSubmapOf` coinsAvailable params
         ]
@@ -401,6 +430,12 @@ prop_selectCollateralSmallest_constrainedSelectionCount
       where
         title = "Optimal coin count"
 
+-- | In the ideal situation, selectCollateralSmallest should choose the set of
+-- coins that:
+--   - Meets the minimum selection amount, and
+--   - favours smaller coin quantities.
+--
+-- i.e. the optimal solution.
 unitTests_selectCollateralSmallest_optimal :: Spec
 unitTests_selectCollateralSmallest_optimal = unitTests
     "unitTests_selectCollateralSmallest_optimal"
@@ -429,6 +464,9 @@ unitTests_selectCollateralSmallest_optimal = unitTests
         , (8, [                    D ▶ 8])
         ]
 
+-- | When the selection size is constrained, such that choosing the optimal
+-- answer is not possible, selectCollateralSmallest should choose the smallest
+-- coin value that still meets the minimum selection amount.
 unitTests_selectCollateralSmallest_constrainedSelectionCount :: Spec
 unitTests_selectCollateralSmallest_constrainedSelectionCount = unitTests
     "unitTests_selectCollateralSmallest_constrainedSelectionCount"
@@ -457,6 +495,10 @@ unitTests_selectCollateralSmallest_constrainedSelectionCount = unitTests
         , (8, [D ▶ 8])
         ]
 
+-- | When the search space of selectCollateralSmallest is restricted to be
+-- smaller than what is needed to find the optimal answer, it should
+-- nevertheless select a reasonable answer, provided it can meet the minimum
+-- selection amount requirement.
 unitTests_selectCollateralSmallest_constrainedSearchSpace :: Spec
 unitTests_selectCollateralSmallest_constrainedSearchSpace = unitTests
     "unitTests_selectCollateralSmallest_constrainedSearchSpace"
@@ -567,6 +609,7 @@ prop_selectCollateralLargest_optimal
     optimalCoinCount :: Int
     optimalCoinCount = Bits.popCount (unCoin minimumSelectionAmount)
 
+-- | TODO
 unitTests_selectCollateralLargest_optimal :: Spec
 unitTests_selectCollateralLargest_optimal = unitTests
     "unitTests_selectCollateralLargest_optimal"
@@ -599,6 +642,9 @@ unitTests_selectCollateralLargest_optimal = unitTests
         , (  1, [F ▶ 32                 ])
         ]
 
+-- | Given that we are unable to select an appropriate amount of collateral,
+-- return the set of coins available with the largest sum, respecting
+-- constraints on the maximum selection size.
 unitTests_selectCollateralLargest_insufficient :: Spec
 unitTests_selectCollateralLargest_insufficient = unitTests
     "unitTests_selectCollateralLargest_insufficient"
