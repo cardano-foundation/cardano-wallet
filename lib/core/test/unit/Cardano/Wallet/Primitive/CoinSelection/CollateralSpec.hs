@@ -1,4 +1,3 @@
-{-# OPTIONS -fplugin=Overloaded -fplugin-opt=Overloaded:Numerals #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 {- HLINT ignore "Hoist not" -}
@@ -411,12 +410,12 @@ unitTests_selectCollateralSmallest_optimal = unitTests
         [A ▶ 1, B ▶ 2, C ▶ 4, D ▶ 8, E ▶ 16, F ▶ 32, G ▶ 64, H ▶ 128]
     mkTest (minimumSelectionAmount, coinsSelected) = UnitTestData
         { params = SelectCollateralParams
-            { coinsAvailable
+            { coinsAvailable = Coin <$> coinsAvailable
             , maximumSelectionSize = Map.size coinsAvailable
-            , minimumSelectionAmount
+            , minimumSelectionAmount = Coin minimumSelectionAmount
             , searchSpaceLimit = UnsafeNoSearchSpaceLimit
             }
-        , result = Right SelectCollateralResult {coinsSelected}
+        , result = Right $ SelectCollateralResult $ Coin <$> coinsSelected
         }
     tests =
         [ (1, [A ▶ 1                    ])
@@ -439,12 +438,12 @@ unitTests_selectCollateralSmallest_constrainedSelectionCount = unitTests
         [A ▶ 1, B ▶ 2, C ▶ 4, D ▶ 8, E ▶ 16, F ▶ 32, G ▶ 64, H ▶ 128]
     mkTest (minimumSelectionAmount, coinsSelected) = UnitTestData
         { params = SelectCollateralParams
-            { coinsAvailable
+            { coinsAvailable = Coin <$> coinsAvailable
             , maximumSelectionSize = 1
-            , minimumSelectionAmount
+            , minimumSelectionAmount = Coin minimumSelectionAmount
             , searchSpaceLimit = UnsafeNoSearchSpaceLimit
             }
-        , result = Right SelectCollateralResult { coinsSelected }
+        , result = Right $ SelectCollateralResult $ Coin <$> coinsSelected
         }
     tests =
         [ (1, [A ▶ 1])
@@ -471,12 +470,12 @@ unitTests_selectCollateralSmallest_constrainedSearchSpace = unitTests
         maximumSelectionSize `numberOfSubsequencesOfSize` 2
     mkTest (minimumSelectionAmount, coinsSelected) = UnitTestData
         { params = SelectCollateralParams
-            { coinsAvailable
+            { coinsAvailable = Coin <$> coinsAvailable
             , maximumSelectionSize
-            , minimumSelectionAmount
+            , minimumSelectionAmount = Coin minimumSelectionAmount
             , searchSpaceLimit
             }
-        , result = Right SelectCollateralResult {coinsSelected}
+        , result = Right $ SelectCollateralResult $ Coin <$> coinsSelected
         }
     tests =
         [ (129, [A ▶ 1, H ▶ 128])
@@ -577,12 +576,12 @@ unitTests_selectCollateralLargest_optimal = unitTests
         [A ▶ 1, B ▶ 2, C ▶ 4, D ▶ 8, E ▶ 16, F ▶ 32, G ▶ 64, H ▶ 128]
     mkTest (minimumSelectionAmount, coinsSelected) = UnitTestData
         { params = SelectCollateralParams
-            { coinsAvailable
+            { coinsAvailable = Coin <$> coinsAvailable
             , maximumSelectionSize = 3
-            , minimumSelectionAmount
+            , minimumSelectionAmount = Coin minimumSelectionAmount
             , searchSpaceLimit = UnsafeNoSearchSpaceLimit
             }
-        , result = Right SelectCollateralResult { coinsSelected }
+        , result = Right $ SelectCollateralResult $ Coin <$> coinsSelected
         }
     tests =
         [ (224, [F ▶ 32, G ▶ 64, H ▶ 128])
@@ -610,12 +609,13 @@ unitTests_selectCollateralLargest_insufficient = unitTests
     mkTest (minimumSelectionAmount, largestCombinationAvailable) =
         UnitTestData
         { params = SelectCollateralParams
-            { coinsAvailable
+            { coinsAvailable = Coin <$> coinsAvailable
             , maximumSelectionSize = 3
-            , minimumSelectionAmount
+            , minimumSelectionAmount = Coin minimumSelectionAmount
             , searchSpaceLimit = UnsafeNoSearchSpaceLimit
             }
-        , result = Left SelectCollateralError {largestCombinationAvailable}
+        , result = Left $
+            SelectCollateralError $ Coin <$> largestCombinationAvailable
         }
     tests =
         [ ( 225, [F ▶ 32, G ▶ 64, H ▶ 128])

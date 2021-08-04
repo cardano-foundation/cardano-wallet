@@ -82,7 +82,6 @@ library
     , OddWord
     , ouroboros-consensus
     , ouroboros-network
-    , overloaded
     , path-pieces
     , persistent >=2.13 && <2.14
     , persistent-sqlite >=2.13 && <2.14
@@ -302,7 +301,6 @@ test-suite unit
     , regex-pcre-builtin
     , OddWord
     , ouroboros-consensus
-    , overloaded
     , QuickCheck
     , quickcheck-classes
     , quickcheck-state-machine >= 0.6.0
