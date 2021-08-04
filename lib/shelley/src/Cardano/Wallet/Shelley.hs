@@ -140,6 +140,7 @@ import Cardano.Wallet.Shelley.Pools
     , monitorMetadata
     , monitorStakePools
     , newStakePoolLayer
+    , runCacheWorker
     )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
@@ -371,7 +372,11 @@ serveWallet
                     killThread tid
                     startMetadataThread
 
-            spl <- newStakePoolLayer gcStatus nl db restartMetadataThread
+            (worker, spl) <- newStakePoolLayer gcStatus nl db restartMetadataThread
+
+            void $ forkFinally (runCacheWorker worker)
+                (traceAfterThread (contramap (MsgFollowLog . MsgExitRewardCaching) poolsEngineTracer))
+
             action spl
 
     apiLayer

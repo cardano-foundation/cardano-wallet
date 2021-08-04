@@ -25,6 +25,7 @@
 module Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
     , newStakePoolLayer
+    , CacheWorker (..)
     , monitorStakePools
     , monitorMetadata
 
@@ -168,8 +169,11 @@ import UnliftIO.STM
     ( TBQueue
     , TVar
     , newTBQueue
+    , newTVarIO
     , readTBQueue
     , readTVarIO
+    , readTVar
+    , retrySTM
     , writeTBQueue
     , writeTVar
     )
@@ -222,9 +226,10 @@ newStakePoolLayer
     -> NetworkLayer IO (CardanoBlock sc)
     -> DBLayer IO
     -> IO ()
-    -> IO StakePoolLayer
+    -> IO (CacheWorker, StakePoolLayer)
 newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
-    pure $ StakePoolLayer
+    (worker, _stakeDistribution) <- nooooCacheWorker hour (stakeDistribution nl) 
+    pure $ (worker, StakePoolLayer
         { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
         , knownPools = _knownPools
         , listStakePools = _listPools
@@ -232,7 +237,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         , putSettings = _putSettings
         , getSettings = _getSettings
         , getGCMetadataStatus = _getGCMetadataStatus
-        }
+        })
   where
     _getPoolLifeCycleStatus
         :: PoolId -> IO PoolLifeCycleStatus
@@ -308,6 +313,38 @@ sortRandomOn seed f
     = map snd
     . L.sortOn (\(nonce,a) -> (f a, nonce))
     . zip (randoms seed :: [Int])
+
+-- | A worker (an action of type @IO ()@) that
+-- runs a function periodically and caches the result.
+newtype CacheWorker = CacheWorker { runCacheWorker :: IO () }
+
+-- | For testing: Don't actually cache anything.
+nooooCacheWorker :: Int -> IO a -> IO (CacheWorker, IO a)
+nooooCacheWorker _ action = pure (CacheWorker $ pure (), action)
+
+-- | Create a new cache and a worker to fill it.
+newCacheWorker
+    :: Int -- ^ time period in seconds
+    -> IO a -- ^ action whose result we want to cache
+    -> IO (CacheWorker, IO a)
+newCacheWorker seconds action = do
+    cache <- newTVarIO Nothing
+    let worker :: IO ()
+        worker = forever $ do
+            threadDelay (3 * 1_000_000) -- 3 seconds grace period
+            a <- action
+            STM.atomically $ writeCache cache a
+            threadDelay (max 0 (seconds-3) * 1_000_000)
+    return (CacheWorker $ worker, STM.atomically $ readCache cache)
+    -- TODO: make cache worker more intelligent
+  where
+    readCache v = maybe retrySTM pure =<< readTVar v
+    writeCache v = writeTVar v . Just
+
+
+-- | Number of seconds contained in one hour.
+hour :: Int
+hour = 60*60
 
 {-------------------------------------------------------------------------------
     Rewards and scoring
@@ -899,6 +936,7 @@ gcDelistedPools gcStatus tr DBLayer{..} fetchDelisted = forever $ do
 data StakePoolLog
     = MsgExitMonitoring AfterThreadLog
     | MsgChainMonitoring ChainFollowLog
+    | MsgExitRewardCaching AfterThreadLog
     | MsgStakePoolGarbageCollection PoolGarbageCollectionInfo
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgStakePoolRetirement PoolRetirementCertificate
@@ -926,6 +964,7 @@ instance HasSeverityAnnotation StakePoolLog where
     getSeverityAnnotation = \case
         MsgExitMonitoring msg -> getSeverityAnnotation msg
         MsgChainMonitoring msg -> getSeverityAnnotation msg
+        MsgExitRewardCaching msg -> getSeverityAnnotation msg
         MsgStakePoolGarbageCollection{} -> Debug
         MsgStakePoolRegistration{} -> Debug
         MsgStakePoolRetirement{} -> Debug
@@ -941,6 +980,8 @@ instance ToText StakePoolLog where
         MsgExitMonitoring msg ->
             "Stake pool monitor exit: " <> toText msg
         MsgChainMonitoring msg -> toText msg
+        MsgExitRewardCaching msg ->
+            "Stake pool reward cache exit: " <> toText msg
         MsgStakePoolGarbageCollection info -> mconcat
             [ "Performing garbage collection of retired stake pools. "
             , "Currently in epoch "
