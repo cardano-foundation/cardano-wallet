@@ -27,7 +27,21 @@ steps:
     agents:
       system: x86_64-linux
 
+  - label: 'Check Cabal Configure'
+    command: 'nix-shell nix/cabal-shell.nix --run "scripts/buildkite/cabal-ci.sh configure"'
+    agents:
+      system: x86_64-linux
+
+  - label: 'Check auto-generated Nix'
+    key: nix
+    commands:
+      - './nix/regenerate.sh'
+      - 'nix-build ./nix -A iohkNix.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
+    agents:
+      system: x86_64-linux
+
   - label: 'Check Cabal Configure (Haskell.nix shellFor)'
+    depends_on: nix
     command:
       - 'nix-shell --run "cabal update"'
       - 'nix-shell --run "cabal configure --enable-tests --enable-benchmarks"'
@@ -35,34 +49,26 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: 'Check Cabal Configure'
-    command: 'nix-shell nix/cabal-shell.nix --run "scripts/buildkite/cabal-ci.sh configure"'
-    agents:
-      system: x86_64-linux
-
-  - label: 'Check auto-generated Nix'
-    commands:
-      - './nix/regenerate.sh'
-      - 'nix-build ./nix -A iohkNix.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
-    agents:
-      system: x86_64-linux
-
   - label: 'Check Stylish Haskell'
+    depends_on: nix
     command: 'nix-shell --run .buildkite/check-stylish.sh'
     agents:
       system: x86_64-linux
 
   - label: 'HLint'
+    depends_on: nix
     command: 'nix-shell --run "hlint lib"'
     agents:
       system: x86_64-linux
 
   - label: 'Validate OpenAPI Specification'
+    depends_on: nix
     command: 'nix-shell --run "openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
     agents:
       system: x86_64-linux
 
   - label: 'Docker Image'
+    depends_on: nix
     command:
       - "nix-build .buildkite/docker-build-push.nix --argstr dockerHubRepoName inputoutput/cardano-wallet -o docker-build-push"
       - "./docker-build-push"
@@ -72,11 +78,13 @@ steps:
       - exit_status: '*'
 
   - label: 'TODO list'
+    depends_on: nix
     command: 'nix-shell --run scripts/todo-list.sh'
     agents:
       system: x86_64-linux
 
   - label: 'Lint bash shell scripts'
+    depends_on: nix
     command: './scripts/shellcheck.sh'
     agents:
       system: x86_64-linux
