@@ -6,6 +6,8 @@
         "command" = (((hackage.command)."0.1.1").revisions).default;
         "hspec" = (((hackage.hspec)."2.8.2").revisions).default;
         "hspec-core" = (((hackage.hspec-core)."2.8.2").revisions).default;
+        "overloaded" = (((hackage.overloaded)."0.3.1").revisions).default;
+        "symbols" = (((hackage.symbols)."0.3.0.0").revisions).default;
         "base16-bytestring" = (((hackage.base16-bytestring)."1.0.1.0").revisions).default;
         "Cabal" = (((hackage.Cabal)."3.4.0.0").revisions).default;
         "containers" = (((hackage.containers)."0.5.11.0").revisions).default;
