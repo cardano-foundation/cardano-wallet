@@ -49,6 +49,7 @@ library
     , cryptonite
     , deepseq
     , directory
+    , either
     , extra
     , filepath
     , fmt
