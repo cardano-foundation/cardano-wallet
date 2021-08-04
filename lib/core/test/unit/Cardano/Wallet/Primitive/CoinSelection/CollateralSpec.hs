@@ -15,6 +15,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
+-- |
+-- Copyright: © 2021 IOHK
+-- License: Apache-2.0
+--
 module Cardano.Wallet.Primitive.CoinSelection.CollateralSpec where
 
 import Prelude hiding
@@ -222,6 +226,12 @@ prop_selectCollateral_result params result =
 -- Selecting collateral by giving priority to smallest values first
 --------------------------------------------------------------------------------
 
+-- Tests that general properties hold for a wide variety of:
+--
+--  - available coin maps
+--  - minimum selection amounts
+--  - maximum selection sizes
+--
 prop_selectCollateralSmallest_general :: Property
 prop_selectCollateralSmallest_general =
     checkCoverage $
@@ -239,6 +249,40 @@ prop_selectCollateralSmallest_general =
             } in
     prop_selectCollateral_common params $ selectCollateralSmallest params
 
+-- In this test, we only consider sets of available coins that when sorted into
+-- ascending order are prefixes of the following sequence, consisting of the
+-- powers of two sorted into ascending order:
+--
+--     [2^0, 2^1, 2^2, 2^3, ...] = [1, 2, 4, 8, ...]
+--
+-- When expressed in binary, the powers of two have the following form:
+--
+--     [1, 10, 100, 1000, ...]
+--
+-- When considering a given minimum selection amount 'm', we can determine
+-- which binary bits within 'm' are set to '1', and how many.
+--
+-- In the case where we request an optimal selection (one where the total
+-- selected value is minimized), the above information allows us to predict:
+--
+--    - the expected number of selected coins;
+--    - the expected total value of the selected coins;
+--    - the expected identities of the selected coins.
+--
+-- This property provides us with a way to test that selections are optimal
+-- without having to reproduce parts of the selection algorithm in the test.
+--
+-- Example:
+--
+-- Consider a minimum selection amount of 42. This is equivalent to the binary
+-- value 101010.
+--
+-- From this information alone, we can expect that the optimal selection:
+--
+--    - has exactly three coins;
+--    - has a total value of 42;
+--    - consists of the coins with binary values {10, 1000, 100000}.
+--
 prop_selectCollateralSmallest_optimal
     :: SingleBitCoinMap
     -> MinimumSelectionAmount
@@ -287,6 +331,14 @@ prop_selectCollateralSmallest_optimal
       where
         title = "Optimal coin count"
 
+-- This test is similar to 'prop_selectCollateralSmallest_optimal', except that
+-- we deliberately constrain the maximum selection count so that it is not
+-- possible to produce an optimal selection (one where the total selected value
+-- is minimized).
+--
+-- With this constraint in place, we can expect that the returned selection has
+-- a total value that is greater than the minimum selection amount.
+--
 prop_selectCollateralSmallest_constrainedSelectionCount
     :: SingleBitCoinMap
     -> MinimumSelectionAmount
@@ -441,6 +493,12 @@ unitTests_selectCollateralSmallest_constrainedSearchSpace = unitTests
 -- Selecting collateral by giving priority to largest values first
 --------------------------------------------------------------------------------
 
+-- Tests that general properties hold for a wide variety of:
+--
+--  - available coin maps
+--  - minimum selection amounts
+--  - maximum selection sizes
+--
 prop_selectCollateralLargest_general :: Property
 prop_selectCollateralLargest_general =
     checkCoverage $
@@ -458,6 +516,13 @@ prop_selectCollateralLargest_general =
             } in
     prop_selectCollateral_common params $ selectCollateralLargest params
 
+-- In this test, we test that 'selectCollateralLargest' only fails if:
+--
+--    sum of available coins < minimum selection amount
+--
+-- (This assertion is not part of the general properties that apply to all
+-- selection strategies, so we must test it separately.)
+--
 prop_selectCollateralLargest_optimal
     :: SingleBitCoinMap
     -> MinimumSelectionAmount
@@ -484,8 +549,8 @@ prop_selectCollateralLargest_optimal
                 cover 10.0 (numberOfCoinsSelected == 2)
                     "Number of coins selected = 2" $
                 cover 10.0 (numberOfCoinsSelected == maximumSelectionSize)
-                    "Number of coins selected = maximum allowed"
-                True
+                    "Number of coins selected = maximum allowed" $
+                property $ F.fold coinsAvailable >= minimumSelectionAmount
 
     eitherErrorResult = selectCollateralLargest params
 
@@ -563,6 +628,16 @@ unitTests_selectCollateralLargest_insufficient = unitTests
 -- Maps with single-bit coins (coins that are powers of two)
 --------------------------------------------------------------------------------
 
+-- | Represents a map of coins whose values are unique powers of two.
+--
+-- Maps of this type have coin values that when sorted into ascending order are
+-- prefixes of the following sequence, consisting of the powers of two sorted
+-- into ascending order:
+--
+--     [2^0, 2^1, 2^2, 2^3, ...] = [1, 2, 4, 8, ...]
+--
+-- Input identifiers are assigned randomly.
+--
 newtype SingleBitCoinMap = SingleBitCoinMap
     { unSingleBitCoinMap :: Map ShortInputId Coin
     }
@@ -601,6 +676,10 @@ prop_shrinkSingleBitCoinMap m =
 -- Minimum selection amounts
 --------------------------------------------------------------------------------
 
+-- | Represents a minimum selection amount.
+--
+-- Minimum selection amounts are always strictly positive (non-zero).
+--
 newtype MinimumSelectionAmount = MinimumSelectionAmount
     { unMinimumSelectionAmount :: Coin }
     deriving (Eq, Ord, Show)
@@ -621,6 +700,8 @@ shrinkMinimumSelectionAmount (MinimumSelectionAmount c) =
 -- Shrinking lists to prefixes
 --------------------------------------------------------------------------------
 
+-- | Shrinks a list to a sequence of shorter prefixes.
+--
 shrinkListToPrefixes :: [a] -> [[a]]
 shrinkListToPrefixes xs
     | n <= 1 =
@@ -781,6 +862,9 @@ unitTests_subsequencesOfSize = unitTests
           )
         ]
 
+-- This test allows us to demonstrate that `numberOfSubsequencesOfSize` exits
+-- quickly in the event that the computed result is large, but within bounds.
+--
 unitTests_numberOfSubsequencesOfSize_withinBounds :: Spec
 unitTests_numberOfSubsequencesOfSize_withinBounds = unitTests
     "unitTests_numberOfSubsequencesOfSize_withinBounds"
@@ -800,6 +884,9 @@ unitTests_numberOfSubsequencesOfSize_withinBounds = unitTests
         , (100, 8, 186087894300)
         ]
 
+-- This test allows us to demonstrate that `numberOfSubsequencesOfSize` exits
+-- quickly in the event that the computed result is out of bounds.
+--
 unitTests_numberOfSubsequencesOfSize_outOfBounds :: Spec
 unitTests_numberOfSubsequencesOfSize_outOfBounds = unitTests
     "unitTests_numberOfSubsequencesOfSize_outOfBounds"
@@ -966,6 +1053,17 @@ unitTests title f unitTestData =
     testNumbers :: [Int]
     testNumbers = [1 ..]
 
+-- A convenient shorthand for expressing a key-value pair, which makes it
+-- possible to express maps with the following concise syntax:
+--
+--    >>> [A ▶ 10, B ▶ 20, C ▶ 30] :: Map ShortInputId Coin
+--
+--    fromList
+--        [ ( A, Coin 10 )
+--        , ( B, Coin 20 )
+--        , ( C, Coin 30 )
+--        ]
+--
 (▶) :: a -> b -> (a, b)
 (▶) = (,)
 
@@ -999,7 +1097,11 @@ instance Arbitrary LongInputId where
     arbitrary = genLongInputId
 
 genLongInputId :: Gen LongInputId
-genLongInputId = LongInputId <$> replicateM 4 genShortInputId
+genLongInputId =
+    -- By generating identifiers consisting of 4 characters, we can ensure
+    -- that we don't get many key collisions when generating maps that are
+    -- reasonably sized, while still keeping counterexamples readable:
+    LongInputId <$> replicateM 4 genShortInputId
 
 --------------------------------------------------------------------------------
 -- Miscellaneous
