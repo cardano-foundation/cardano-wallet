@@ -1,4 +1,5 @@
 Usage:  key child DERIVATION-PATH
+
   Derive child keys from a parent public/private key
 
 Available options:

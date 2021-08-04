@@ -1,4 +1,5 @@
 Usage:  wallet get [--port INT] WALLET_ID
+
   Fetch the wallet with specified id.
 
 Available options:

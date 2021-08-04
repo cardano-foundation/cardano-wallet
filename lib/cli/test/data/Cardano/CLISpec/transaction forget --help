@@ -1,4 +1,5 @@
 Usage:  transaction forget [--port INT] WALLET_ID TRANSACTION_ID
+
   Forget a pending transaction with specified id.
 
 Available options:

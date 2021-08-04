@@ -1,4 +1,5 @@
 Usage:  key from-recovery-phrase STYLE
+
   Convert a recovery phrase to an extended private key
 
 Available options:
@@ -8,5 +9,5 @@ Available options:
 The recovery phrase is read from stdin.
 
 Example:
-  [1m$ unit recovery-phrase generate \[0m
-  [1m| unit key from-recovery-phrase Icarus[0m
+  [0;1m$ unit recovery-phrase generate \[0m
+  [0;1m| unit key from-recovery-phrase Icarus[0m

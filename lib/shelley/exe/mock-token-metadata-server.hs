@@ -33,8 +33,8 @@ import Options.Applicative
     , showHelpOnEmpty
     , str
     )
-import Text.PrettyPrint.ANSI.Leijen
-    ( hang, indent, linebreak, text, (</>) )
+import Options.Applicative.Help.Pretty
+    ( hang, indent, line, text, (</>) )
 
 data MetadataServerArgs = MetadataServerArgs
     { sourceJson :: FilePath
@@ -90,13 +90,13 @@ parserInfo = info (helper <*> argsParser) $ mconcat
             ]
         , p [ "You can make test requests to the metadata server using curl: " ]
         , code $ hang 2 $
-            "curl -i -H \"Content-type: application/json\" \\" <> linebreak <>
+            "curl -i -H \"Content-type: application/json\" \\" <> line <>
             "--data '{\"subjects\":[\"entry1\", \"entry2\", ...]," <>
             "\"properties\":[\"name\",\"description\"]}' \\"
-            <> linebreak <> "http://localhost:PORT/metadata/query"
+            <> line <> "http://localhost:PORT/metadata/query"
         ]
     p = (<> sep) . foldr ((</>) . text) mempty . words . mconcat
-    sep = linebreak <> linebreak
+    sep = line <> line
     code d = indent 2 d <> sep
 
     argsParser = MetadataServerArgs <$> fileArg <*> portOpt

@@ -1,4 +1,5 @@
 Usage:  transaction get [--port INT] WALLET_ID TRANSACTION_ID
+
   Get a transaction with specified id.
 
 Available options:

@@ -1,4 +1,5 @@
 Usage:  recovery-phrase generate [--size INT]
+
   Generate an English recovery phrase
 
 Available options:

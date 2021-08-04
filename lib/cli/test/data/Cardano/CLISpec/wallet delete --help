@@ -1,4 +1,5 @@
 Usage:  wallet delete [--port INT] WALLET_ID
+
   Deletes wallet with specified wallet id.
 
 Available options:

@@ -1,4 +1,5 @@
 Usage:  network clock [--port INT] [--force-ntp-check]
+
   View NTP offset.
 
 Available options:

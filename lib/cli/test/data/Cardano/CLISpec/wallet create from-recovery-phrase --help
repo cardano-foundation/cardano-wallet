@@ -1,6 +1,8 @@
-Usage:  wallet create from-recovery-phrase [--port INT]
-                                           WALLET_NAME 
-                                           [--address-pool-gap INT]
+Usage:  wallet create from-recovery-phrase 
+                                             [--port INT]
+                                             WALLET_NAME
+                                             [--address-pool-gap INT]
+
   Create a new wallet using a recovery phrase.
 
 Available options:
