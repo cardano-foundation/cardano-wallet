@@ -3,12 +3,25 @@
 #
 # See https://github.com/go-jira/jira for documentation on how to use
 # go-jira and edit these config files.
-# You will need to put your login details in ~/.jira.d/config.yml.
+#
+# 1. Get an API key from here:
+#   https://jira.iohk.io/secure/ViewProfile.jspa?selectedTab=com.atlassian.pats.pats-plugin:jira-user-personal-access-tokens
+#
+# Then add your login details to ~/.jira.d/config.yml. You can't just
+# paste your API key into this file. You need to select a password
+# source, as per the go-jira docs.
+#
+# # ~/.jira.d/config.yml
+# authentication-method: bearer-token
+# login: your.name@iohk.io
+# password-source: keyring
+# password-name: jira.iohk.io
 #
 ######################################################################
 
 endpoint: https://jira.iohk.io
 project: ADP
+authentication-method: bearer-token
 
 custom-commands:
   - name: bugs
