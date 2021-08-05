@@ -52,6 +52,7 @@ library
     , directory
     , either
     , errors
+    , exact-combinatorics
     , exceptions
     , extra
     , fast-logger
@@ -69,6 +70,7 @@ library
     , io-classes
     , iohk-monitoring
     , lattices
+    , math-functions
     , memory
     , MonadRandom
     , monad-logger
@@ -179,6 +181,7 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.AddressDiscovery.Shared
       Cardano.Wallet.Primitive.SyncProgress
+      Cardano.Wallet.Primitive.CoinSelection.Collateral
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
       Cardano.Wallet.Primitive.Delegation.UTxO
       Cardano.Wallet.Primitive.Migration
@@ -369,6 +372,7 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
       Cardano.Wallet.Primitive.Delegation.StateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
+      Cardano.Wallet.Primitive.CoinSelection.CollateralSpec
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
       Cardano.Wallet.Primitive.MigrationSpec
       Cardano.Wallet.Primitive.Migration.PlanningSpec
@@ -377,6 +381,7 @@ test-suite unit
       Cardano.Wallet.Primitive.Slotting.Legacy
       Cardano.Wallet.Primitive.SlottingSpec
       Cardano.Wallet.Primitive.SyncProgressSpec
+      Cardano.Wallet.Primitive.Types.CoinSpec
       Cardano.Wallet.Primitive.Types.HashSpec
       Cardano.Wallet.Primitive.Types.TokenBundleSpec
       Cardano.Wallet.Primitive.Types.TokenMapSpec
