@@ -151,6 +151,7 @@ spec = do
 
         unitTests_subsequencesOfSize
         unitTests_numberOfSubsequencesOfSize_withinBounds
+        unitTests_numberOfSubsequencesOfSize_bounds
         unitTests_numberOfSubsequencesOfSize_outOfBounds
 
     parallel $ describe "firstRight" $ do
@@ -874,14 +875,41 @@ unitTests_numberOfSubsequencesOfSize_withinBounds = unitTests
     mkTest (n, k, output) =
         UnitTestData {params = (n, k), result = Just output}
     tests =
-        [ (100, 1,          100)
-        , (100, 2,         4950)
-        , (100, 3,       161700)
-        , (100, 4,      3921225)
-        , (100, 5,     75287520)
-        , (100, 6,   1192052400)
-        , (100, 7,  16007560800)
-        , (100, 8, 186087894300)
+        [ (100,  1,                 100)
+        , (100,  2,                4950)
+        , (100,  4,             3921225)
+        , (100,  8,        186087894300)
+        , (100, 16, 1345860629046814650)
+        ]
+
+-- This test allows us to demonstrate that `numberOfSubsequencesOfSize` gives
+-- correct answers when inputs are close to or at boundary values.
+--
+unitTests_numberOfSubsequencesOfSize_bounds :: Spec
+unitTests_numberOfSubsequencesOfSize_bounds = unitTests
+    "unitTests_numberOfSubsequencesOfSize_withinBounds"
+    (uncurry numberOfSubsequencesOfSize)
+    (mkTest <$> tests)
+  where
+    mkTest (n, k, output) =
+        UnitTestData {params = (n, k), result = Just output}
+    tests =
+        [ (           0,            0,            1)
+        , (           0,            1,            0)
+        , (           0, maxBound - 1,            0)
+        , (           0, maxBound    ,            0)
+        , (           1,            0,            1)
+        , (           1,            1,            1)
+        , (           1, maxBound - 1,            0)
+        , (           1, maxBound    ,            0)
+        , (maxBound - 1,            0,            1)
+        , (maxBound - 1,            1, maxBound - 1)
+        , (maxBound - 1, maxBound - 1,            1)
+        , (maxBound - 1, maxBound    ,            0)
+        , (maxBound    ,            0,            1)
+        , (maxBound    ,            1, maxBound    )
+        , (maxBound    , maxBound - 1, maxBound    )
+        , (maxBound    , maxBound    ,            1)
         ]
 
 -- This test allows us to demonstrate that `numberOfSubsequencesOfSize` exits

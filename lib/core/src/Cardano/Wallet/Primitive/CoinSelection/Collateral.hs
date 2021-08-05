@@ -1,3 +1,5 @@
+{- HLINT ignore "Evaluate" -}
+
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLists #-}
@@ -321,23 +323,26 @@ numberOfSubsequencesOfSize
     -- ^ Indicates the size of subsequences.
     -> Maybe Int
 numberOfSubsequencesOfSize n k
-    | n < 0             = Nothing
-    | k < 0             = Nothing
-    | resultOutOfBounds = Nothing
-    | otherwise         = Just (fromIntegral resultExact)
+    | k <  0 || n <   0      = Nothing
+    | k == 0 || k ==  n      = Just 1
+    | k == 1 || k == (n - 1) = Just n
+    | resultOutOfBounds      = Nothing
+    | otherwise              = Just (fromIntegral resultExact)
   where
     resultExact :: Integer
     resultExact = MathExact.choose
         (fromIntegral @Int @Integer n)
         (fromIntegral @Int @Integer k)
 
-    resultFast :: Double
-    resultFast = MathFast.choose n k
+    resultFast :: Integer
+    resultFast = floor (MathFast.choose n k)
 
     resultOutOfBounds :: Bool
-    resultOutOfBounds = (||)
-        (resultFast < 0)
-        (resultFast > fromIntegral @Int @Double (maxBound @Int))
+    resultOutOfBounds = False
+        || resultFast  < 0
+        || resultFast  > fromIntegral @Int @Integer (maxBound @Int)
+        || resultExact < 0
+        || resultExact > fromIntegral @Int @Integer (maxBound @Int)
 
 -- | Generates all subsequences of size 'k' from a particular sequence.
 --
