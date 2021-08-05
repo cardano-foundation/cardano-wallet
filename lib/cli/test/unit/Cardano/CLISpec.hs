@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -63,14 +64,10 @@ import Options.Applicative
     , prefs
     , renderFailure
     )
-import System.Environment
-    ( getProgName )
 import System.FilePath
     ( (</>) )
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
-import System.IO.Unsafe
-    ( unsafePerformIO )
 import Test.Hspec
     ( HasCallStack
     , Spec
@@ -80,6 +77,8 @@ import Test.Hspec
     , shouldBe
     , shouldSatisfy
     )
+import Test.Hspec.Goldens
+    ( Settings (..), textGolden )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Large (..)
@@ -90,6 +89,8 @@ import Test.QuickCheck
     )
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import Test.Utils.Paths
+    ( getTestData )
 import UnliftIO.Concurrent
     ( forkFinally )
 import UnliftIO.MVar
@@ -105,473 +106,42 @@ spec :: Spec
 spec = do
     describe "Specification / Usage Overview" $ do
 
-        ["--help"] `shouldShowUsage`
-            [ "The CLI is a proxy to the wallet server, which is required for"
-            , "most commands. Commands are turned into corresponding API calls,"
-            , "and submitted to an up-and-running server. Some commands do not"
-            , "require an active server and can be run offline (e.g."
-            , "'recovery-phrase generate')."
-            , ""
-            , "Usage:  COMMAND"
-            , "  Cardano Wallet Command-Line Interface (CLI)"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "Available commands:"
-            , "  recovery-phrase          About recovery phrases"
-            , "  key                      About public/private keys"
-            , "  wallet                   About wallets"
-            , "  transaction              About transactions"
-            , "  address                  About addresses"
-            , "  stake-pool               About stake pools"
-            , "  network                  About the network"
-            ]
-
-        ["recovery-phrase", "--help"] `shouldShowUsage`
-            [ "Usage:  recovery-phrase COMMAND"
-            , "  About recovery phrases"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "Available commands:"
-            , "  generate                 Generate an English recovery phrase"
-            ]
-
-        ["recovery-phrase", "generate", "--help"] `shouldShowUsage`
-            [ "Usage:  recovery-phrase generate [--size INT]"
-            , "  Generate an English recovery phrase"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --size INT               Number of mnemonic words to generate."
-            , "                           Must be a multiple of 3. (default: 24)"
-            ]
-
-        ["wallet", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet COMMAND"
-            , "  About wallets"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "Available commands:"
-            , "  list                     List all known wallets."
-            , "  create                   Create a new wallet."
-            , "  get                      Fetch the wallet with specified id."
-            , "  update                   Update a wallet."
-            , "  delete                   Deletes wallet with specified wallet"
-            , "                           id."
-            , "  utxo                     Get UTxO statistics for the wallet"
-            , "                           with specified id."
-            , "  utxo-snapshot            Get UTxO snapshot for wallet with"
-            , "                           specified id."
-            ]
-
-        ["wallet", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet list [--port INT]"
-            , "  List all known wallets."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            ]
-
-        ["wallet", "create", "from-recovery-phrase", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet create from-recovery-phrase [--port INT]"
-            , "                                           WALLET_NAME "
-            , "                                           [--address-pool-gap INT]"
-            , "  Create a new wallet using a recovery phrase."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  WALLET_NAME              Name of the wallet."
-            , "  --address-pool-gap INT   number of unused consecutive addresses"
-            , "                           to keep track of. (default: 20)"
-            ]
-
-        ["wallet", "create", "from-public-key", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet create from-public-key [--port INT] WALLET_NAME "
-            , "                                      [--address-pool-gap INT]"
-            , "                                      ACCOUNT_PUBLIC_KEY"
-            , "  Create a wallet using a public account key."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  WALLET_NAME              Name of the wallet."
-            , "  --address-pool-gap INT   number of unused consecutive addresses"
-            , "                           to keep track of. (default: 20)"
-            , "  ACCOUNT_PUBLIC_KEY       64-byte (128-character) hex-encoded"
-            , "                           public account key."
-            ]
-
-        ["wallet", "get", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet get [--port INT] WALLET_ID"
-            , "  Fetch the wallet with specified id."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            ]
-
-        ["wallet", "update", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet update COMMAND"
-            , "  Update a wallet."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "Available commands:"
-            , "  name                     Update a wallet's name."
-            , "  passphrase               Update a wallet's passphrase."
-            ]
-
-        ["wallet", "delete", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet delete [--port INT] WALLET_ID"
-            , "  Deletes wallet with specified wallet id."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            ]
-
-        ["wallet", "utxo", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet utxo [--port INT] WALLET_ID"
-            , "  Get UTxO statistics for the wallet with specified id."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            ]
-
-        ["transaction", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction COMMAND"
-            , "  About transactions"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "Available commands:"
-            , "  create                   Create and submit a new transaction."
-            , "  fees                     Estimate fees for a transaction."
-            , "  list                     List the transactions associated with"
-            , "                           a wallet."
-            , "  submit                   Submit an externally-signed"
-            , "                           transaction."
-            , "  forget                   Forget a pending transaction with"
-            , "                           specified id."
-            , "  get                      Get a transaction with specified id."
-            ]
-
-        ["transaction", "create", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction create [--port INT] WALLET_ID"
-            , "                           (--payment PAYMENT) [--metadata JSON] "
-            , "                           [--ttl DURATION]"
-            , "  Create and submit a new transaction."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  --payment PAYMENT        address to send to and amount to send"
-            , "                           separated by @, e.g."
-            , "                           '<amount>@<address>'"
-            , "  --metadata JSON          Application-specific transaction"
-            , "                           metadata as a JSON object. The value"
-            , "                           must match the schema defined in the"
-            , "                           cardano-wallet OpenAPI specification."
-            , "  --ttl DURATION           Time-to-live value. Expressed in"
-            , "                           seconds with a trailing 's'. Default"
-            , "                           is 3600s (2 hours)."
-            ]
-
-        ["transaction", "fees", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction fees [--port INT] WALLET_ID"
-            , "                         (--payment PAYMENT) [--metadata JSON] "
-            , "                         [--ttl DURATION]"
-            , "  Estimate fees for a transaction."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  --payment PAYMENT        address to send to and amount to send"
-            , "                           separated by @, e.g."
-            , "                           '<amount>@<address>'"
-            , "  --metadata JSON          Application-specific transaction"
-            , "                           metadata as a JSON object. The value"
-            , "                           must match the schema defined in the"
-            , "                           cardano-wallet OpenAPI specification."
-            , "  --ttl DURATION           Time-to-live value. Expressed in"
-            , "                           seconds with a trailing 's'. Default"
-            , "                           is 3600s (2 hours)."
-            ]
-
-        ["transaction", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction list [--port INT] WALLET_ID [--start TIME] "
-            , "                         [--end TIME] [--order ORDER]"
-            , "  List the transactions associated with a wallet."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  --start TIME             start time (ISO 8601 date-and-time"
-            , "                           format: basic or extended, e.g."
-            , "                           2012-09-25T10:15:00Z)."
-            , "  --end TIME               end time (ISO 8601 date-and-time"
-            , "                           format: basic or extended, e.g."
-            , "                           2016-11-21T10:15:00Z)."
-            , "  --order ORDER            specifies a sort order, either"
-            , "                           'ascending' or 'descending'."
-            ]
-
-        ["transaction", "submit", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction submit [--port INT] BINARY_BLOB"
-            , "  Submit an externally-signed transaction."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  BINARY_BLOB              hex-encoded binary blob of"
-            , "                           externally-signed transaction."
-            ]
-
-        ["transaction", "forget", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction forget [--port INT] WALLET_ID TRANSACTION_ID"
-            , "  Forget a pending transaction with specified id."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            ]
-
-        ["transaction", "get", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction get [--port INT] WALLET_ID TRANSACTION_ID"
-            , "  Get a transaction with specified id."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            ]
-
-        ["address", "--help"] `shouldShowUsage`
-            [ "Usage:  address COMMAND"
-            , "  About addresses"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "Available commands:"
-            , "  list                     List all known addresses of a given"
-            , "                           wallet."
-            , "  create                   Create a new random address. Only"
-            , "                           available for random wallets. The"
-            , "                           address index is optional, give none"
-            , "                           to let the wallet generate a random"
-            , "                           one."
-            , "  import                   Import a random address generated"
-            , "                           elsewhere. Only available for random"
-            , "                           wallets. The address must belong to"
-            , "                           the target wallet."
-            ]
-
-        ["address", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  address list [--port INT] [--state STRING] WALLET_ID"
-            , "  List all known addresses of a given wallet."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  --state STRING           only addresses with the given state:"
-            , "                           either 'used' or 'unused'."
-            ]
-
-        ["address", "create", "--help"] `shouldShowUsage`
-            [ "Usage:  address create [--port INT] [--address-index INDEX]"
-            , "                       WALLET_ID"
-            , "  Create a new random address. Only available for random wallets."
-            , "  The address index is optional, give none to let the wallet"
-            , "  generate a random one."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  --address-index INDEX    A derivation index for the address"
-            ]
-
-        ["address", "import", "--help"] `shouldShowUsage`
-            [ "Usage:  address import [--port INT] WALLET_ID ADDRESS"
-            , "  Import a random address generated elsewhere. Only available for"
-            , "  random wallets. The address must belong to the target wallet."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            ]
-
-        ["stake-pool", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  stake-pool list [--port INT] [--stake STAKE]"
-            , "  List all known stake pools."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  --stake STAKE            The stake you intend to delegate,"
-            , "                           which affects the rewards and the"
-            , "                           ranking of pools."
-            ]
-
-        ["network", "--help"] `shouldShowUsage`
-            [ "Usage:  network COMMAND"
-            , "  About the network"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "Available commands:"
-            , "  information              View network information."
-            , "  parameters               View network parameters for the"
-            , "                           current epoch."
-            , "  clock                    View NTP offset."
-            ]
-
-        ["network", "information", "--help"] `shouldShowUsage`
-            [ "Usage:  network information [--port INT]"
-            , "  View network information."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            ]
-
-        ["network", "parameters", "--help"] `shouldShowUsage`
-            [ "Usage:  network parameters [--port INT]"
-            , "  View network parameters for the current epoch."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            ]
-
-        ["network", "clock", "--help"] `shouldShowUsage`
-            [ "Usage:  network clock [--port INT] [--force-ntp-check]"
-            , "  View NTP offset."
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  --port INT               port used for serving the wallet API."
-            , "                           (default: 8090)"
-            , "  --force-ntp-check        When set, will block and force an NTP"
-            , "                           check with the server. Otherwise, uses"
-            , "                           an available cached result."
-            ]
-
-        ["key", "--help"] `shouldShowUsage`
-            [ "Usage:  key COMMAND"
-            , "  About public/private keys"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "Available commands:"
-            , "  from-recovery-phrase     Convert a recovery phrase to an"
-            , "                           extended private key"
-            , "  child                    Derive child keys from a parent"
-            , "                           public/private key"
-            , "  public                   Get the public counterpart of a"
-            , "                           private key"
-            , "  inspect                  Show information about a key"
-            , "  hash                     Get the hash of a public key"
-            , ""
-            , "Example:"
-            , "  \ESC[1m$ "<>progName<>" recovery-phrase generate --size 15 \\\ESC[0m"
-            , "    \ESC[1m| "<>progName<>" key from-recovery-phrase Shelley > root.prv\ESC[0m"
-            , "  "
-            , "  \ESC[1m$ cat root.prv \\\ESC[0m"
-            , "    \ESC[1m| "<>progName<>" key child 1852H/1815H/0H \\\ESC[0m"
-            , "    \ESC[1m| tee acct.prv \\\ESC[0m"
-            , "    \ESC[1m| "<>progName<>" key public --with-chain-code > acct.pub\ESC[0m"
-            , "  "
-            , "  \ESC[1m$ "<>progName<>" key inspect <<< $(cat acct.prv)\ESC[0m"
-            , "  {"
-            , "      \"key_type\": \"private\","
-            , "      \"chain_code\": \"67bef6f80df02c7452e20e76ffb4bb57cae8aac2adf042b21a6b19e4f7b1f511\","
-            , "      \"extended_key\": \"90ead3efad7aacac242705ede323665387f49ed847bed025eb333708ccf6aa54403482a867daeb18f38c57d6cddd7e6fd6aed4a3209f7425a3d1c5d9987a9c5f\""
-            , "  }"
-            , "  "
-            , "  \ESC[1m$ "<>progName<>" key inspect <<< $(cat acct.pub)\ESC[0m"
-            , "  {"
-            , "      \"key_type\": \"public\","
-            , "      \"chain_code\": \"67bef6f80df02c7452e20e76ffb4bb57cae8aac2adf042b21a6b19e4f7b1f511\","
-            , "      \"extended_key\": \"d306350ee88f51fb710252e27f0c40006c58e994761b383e02d400e2be59b3cc\""
-            , "  }"
-            ]
-
-        ["key", "from-recovery-phrase", "--help"] `shouldShowUsage`
-            [ "Usage:  key from-recovery-phrase STYLE"
-            , "  Convert a recovery phrase to an extended private key"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  STYLE                    Byron | Icarus | Shelley | Shared"
-            , ""
-            , "The recovery phrase is read from stdin."
-            , ""
-            , "Example:"
-            , "  \ESC[1m$ "<>progName<>" recovery-phrase generate \\\ESC[0m"
-            , "  \ESC[1m| "<>progName<>" key from-recovery-phrase Icarus\ESC[0m"
-            ]
-
-        ["key", "child", "--help"] `shouldShowUsage`
-            [ "Usage:  key child DERIVATION-PATH"
-            , "  Derive child keys from a parent public/private key"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , "  DERIVATION-PATH          Slash-separated derivation path."
-            , "                           Hardened indexes are marked with a 'H'"
-            , "                           (e.g. 1852H/1815H/0H/0)."
-            , ""
-            , "The parent key is read from stdin."
-            ]
-
-        ["key", "public", "--help"] `shouldShowUsage`
-            [ "Usage:  key public (--without-chain-code | --with-chain-code)"
-            , "  Get the public counterpart of a private key"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "The private key is read from stdin.To get extended public key pass '--with-chain-code'.To get public key pass '--without-chain-code'."
-            ]
-
-        ["key", "inspect", "--help"] `shouldShowUsage`
-            [ "Usage:  key inspect "
-            , "  Show information about a key"
-            , ""
-            , "Available options:"
-            , "  -h,--help                Show this help text"
-            , ""
-            , "The parent key is read from stdin."
+        -- IDEA: We could traverse the optparse-applicative structure
+        -- to get this list automatically.
+        let goldenDir = $(getTestData) </> "Cardano" </> "CLISpec"
+        mapM_ (usageGolden goldenDir)
+            [ ["--help"]
+            , ["recovery-phrase", "--help"]
+            , ["recovery-phrase", "generate", "--help"]
+            , ["wallet", "--help"]
+            , ["wallet", "list", "--help"]
+            , ["wallet", "create", "from-recovery-phrase", "--help"]
+            , ["wallet", "create", "from-public-key", "--help"]
+            , ["wallet", "get", "--help"]
+            , ["wallet", "update", "--help"]
+            , ["wallet", "delete", "--help"]
+            , ["wallet", "utxo", "--help"]
+            , ["transaction", "--help"]
+            , ["transaction", "create", "--help"]
+            , ["transaction", "fees", "--help"]
+            , ["transaction", "list", "--help"]
+            , ["transaction", "submit", "--help"]
+            , ["transaction", "forget", "--help"]
+            , ["transaction", "get", "--help"]
+            , ["address", "--help"]
+            , ["address", "list", "--help"]
+            , ["address", "create", "--help"]
+            , ["address", "import", "--help"]
+            , ["stake-pool", "list", "--help"]
+            , ["network", "--help"]
+            , ["network", "information", "--help"]
+            , ["network", "parameters", "--help"]
+            , ["network", "clock", "--help"]
+            , ["key", "--help"]
+            , ["key", "from-recovery-phrase", "--help"]
+            , ["key", "child", "--help"]
+            , ["key", "public", "--help"]
+            , ["key", "inspect", "--help"]
             ]
 
     describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -783,8 +353,8 @@ parser = cli $ mempty
     <> cmdStakePool (stakePoolClient @()) -- Type of pool not important here.
     <> cmdNetwork networkClient
 
-shouldShowUsage :: HasCallStack => [String] -> [String] -> Spec
-shouldShowUsage args expected = it (unwords args) $
+usageGolden :: HasCallStack => FilePath -> [String] -> Spec
+usageGolden dir args = it (unwords args) $
     case execParserPure defaultPrefs parser args of
         Success _ -> expectationFailure
             "expected parser to show usage but it has succeeded"
@@ -792,12 +362,8 @@ shouldShowUsage args expected = it (unwords args) $
             "expected parser to show usage but it offered completion"
         Failure failure -> do
             let (usage, _) = renderFailure failure mempty
-            (lines usage) `shouldBe` expected
-
--- | Get program name to avoid hard-coding it in documentation excerpt.
-progName :: String
-progName = unsafePerformIO getProgName
-{-# NOINLINE progName #-}
+            let settings = Settings { goldenDirectory = dir }
+            textGolden settings (unwords args) (T.pack usage)
 
 {-------------------------------------------------------------------------------
                                Arbitrary Instances

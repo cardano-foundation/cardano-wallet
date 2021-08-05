@@ -36,6 +36,7 @@ library
     , file-embed
     , formatting
     , hspec
+    , directory
     , hspec-core
     , hspec-expectations
     , hspec-golden-aeson
@@ -59,6 +60,7 @@ library
       src
   exposed-modules:
       Test.Hspec.Extra
+      Test.Hspec.Goldens
       Test.QuickCheck.Extra
       Test.Utils.FilePath
       Test.Utils.Laws

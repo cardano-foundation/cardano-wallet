@@ -1,0 +1,12 @@
+Usage:  key from-recovery-phrase STYLE
+  Convert a recovery phrase to an extended private key
+
+Available options:
+  -h,--help                Show this help text
+  STYLE                    Byron | Icarus | Shelley | Shared
+
+The recovery phrase is read from stdin.
+
+Example:
+  [1m$ unit.exe recovery-phrase generate \[0m
+  [1m| unit.exe key from-recovery-phrase Icarus[0m
