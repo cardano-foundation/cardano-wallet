@@ -25,11 +25,13 @@ import Prelude hiding
 
 import Cardano.Wallet.Primitive.CoinSelection.Collateral
     ( SearchSpaceLimit (..)
+    , SelectCollateral
     , SelectCollateralError (..)
     , SelectCollateralParams (..)
     , SelectCollateralResult (..)
     , firstRight
     , numberOfSubsequencesOfSize
+    , selectCollateral
     , selectCollateralLargest
     , selectCollateralSmallest
     , submaps
@@ -97,6 +99,11 @@ import qualified Data.Text.Lazy as TL
 
 spec :: Spec
 spec = do
+
+    parallel $ describe "selectCollateral" $ do
+
+        it "prop_selectCollateral_general" $
+            property prop_selectCollateral_general
 
     parallel $ describe "selectCollateralSmallest" $ do
 
@@ -171,69 +178,19 @@ spec = do
         unitTests_takeUntil
 
 --------------------------------------------------------------------------------
--- Properties common to all collateral selection strategies
+-- Properties that are general to all collateral selection strategies
 --------------------------------------------------------------------------------
 
-prop_selectCollateral_common
-    :: (Ord inputId, Show inputId)
-    => SelectCollateralParams inputId
-    -> Either (SelectCollateralError inputId) (SelectCollateralResult inputId)
-    -> Property
-prop_selectCollateral_common params eitherErrorResult =
-    cover 20.0 (isLeft  eitherErrorResult) "Failure" $
-    cover 20.0 (isRight eitherErrorResult) "Success" $
-    counterexample ("Params: " <> show (Pretty params)) $
-    either
-        (prop_selectCollateral_error  params)
-        (prop_selectCollateral_result params)
-        (eitherErrorResult)
-
-prop_selectCollateral_error
-    :: (Ord inputId, Show inputId)
-    => SelectCollateralParams inputId
-    -> SelectCollateralError inputId
-    -> Property
-prop_selectCollateral_error params err =
-    counterexample ("Error: " <> show (Pretty err)) $
-    conjoin
-        [ F.fold (largestCombinationAvailable err)
-            < minimumSelectionAmount params
-        , F.length (largestCombinationAvailable err)
-            <= maximumSelectionSize params
-        , largestCombinationAvailable err
-            `Map.isSubmapOf` coinsAvailable params
-        ]
-
-prop_selectCollateral_result
-    :: (Ord inputId, Show inputId)
-    => SelectCollateralParams inputId
-    -> SelectCollateralResult inputId
-    -> Property
-prop_selectCollateral_result params result =
-    counterexample ("Result: " <> show (Pretty result)) $
-    conjoin
-        [ F.fold (coinsAvailable params)
-            >= minimumSelectionAmount params
-        , F.fold (coinsSelected result)
-            >= minimumSelectionAmount params
-        , F.length (coinsSelected result)
-            <= maximumSelectionSize params
-        , coinsSelected result
-            `Map.isSubmapOf` coinsAvailable params
-        ]
-
---------------------------------------------------------------------------------
--- Selecting collateral by giving priority to smallest values first
---------------------------------------------------------------------------------
-
--- Tests that general properties hold for a wide variety of:
+-- Using the given collateral selection function, tests that general properties
+-- hold for a wide variety of:
 --
 --  - available coin maps
 --  - minimum selection amounts
 --  - maximum selection sizes
 --
-prop_selectCollateralSmallest_general :: Property
-prop_selectCollateralSmallest_general =
+prop_selectCollateral_general_withFunction
+    :: SelectCollateral LongInputId -> Property
+prop_selectCollateral_general_withFunction selectCollateralFn =
     checkCoverage $
     forAll (arbitrary @(Map LongInputId Coin))
         $ \coinsAvailable ->
@@ -247,7 +204,75 @@ prop_selectCollateralSmallest_general =
             , minimumSelectionAmount
             , searchSpaceLimit = SearchSpaceLimit 1_000_000
             } in
-    prop_selectCollateral_common params $ selectCollateralSmallest params
+    prop_selectCollateral_general_withResult params $ selectCollateralFn params
+
+prop_selectCollateral_general_withResult
+    :: (Ord inputId, Show inputId)
+    => SelectCollateralParams inputId
+    -> Either (SelectCollateralError inputId) (SelectCollateralResult inputId)
+    -> Property
+prop_selectCollateral_general_withResult params eitherErrorResult =
+    cover 20.0 (isLeft  eitherErrorResult) "Failure" $
+    cover 20.0 (isRight eitherErrorResult) "Success" $
+    counterexample ("Params: " <> show (Pretty params)) $
+    either
+        (prop_selectCollateral_onFailure params)
+        (prop_selectCollateral_onSuccess params)
+        (eitherErrorResult)
+
+prop_selectCollateral_onFailure
+    :: (Ord inputId, Show inputId)
+    => SelectCollateralParams inputId
+    -> SelectCollateralError inputId
+    -> Property
+prop_selectCollateral_onFailure params err =
+    counterexample ("Error: " <> show (Pretty err)) $
+    conjoin
+        [ F.fold (largestCombinationAvailable err)
+            < minimumSelectionAmount params
+        , F.length (largestCombinationAvailable err)
+            <= maximumSelectionSize params
+        , largestCombinationAvailable err
+            `Map.isSubmapOf` coinsAvailable params
+        ]
+
+prop_selectCollateral_onSuccess
+    :: (Ord inputId, Show inputId)
+    => SelectCollateralParams inputId
+    -> SelectCollateralResult inputId
+    -> Property
+prop_selectCollateral_onSuccess params result =
+    counterexample ("Result: " <> show (Pretty result)) $
+    conjoin
+        [ F.fold (coinsAvailable params)
+            >= minimumSelectionAmount params
+        , F.fold (coinsSelected result)
+            >= minimumSelectionAmount params
+        , F.length (coinsSelected result)
+            <= maximumSelectionSize params
+        , coinsSelected result
+            `Map.isSubmapOf` coinsAvailable params
+        ]
+
+--------------------------------------------------------------------------------
+-- Selecting collateral (top-level function)
+--------------------------------------------------------------------------------
+
+-- Tests that general properties hold for 'selectCollateral'.
+--
+prop_selectCollateral_general :: Property
+prop_selectCollateral_general =
+    prop_selectCollateral_general_withFunction selectCollateral
+
+--------------------------------------------------------------------------------
+-- Selecting collateral by giving priority to smallest values first
+--------------------------------------------------------------------------------
+
+-- Tests that general properties hold for 'selectCollateralSmallest'.
+--
+prop_selectCollateralSmallest_general :: Property
+prop_selectCollateralSmallest_general =
+    prop_selectCollateral_general_withFunction selectCollateralSmallest
 
 -- In this test, we only consider sets of available coins that when sorted into
 -- ascending order are prefixes of the following sequence, consisting of the
@@ -292,7 +317,7 @@ prop_selectCollateralSmallest_optimal
     (MinimumSelectionAmount minimumSelectionAmount) =
     checkCoverage $
     conjoin
-        [ prop_selectCollateral_common params eitherErrorResult
+        [ prop_selectCollateral_general_withResult params eitherErrorResult
         , prop_extra
         ]
   where
@@ -348,7 +373,7 @@ prop_selectCollateralSmallest_constrainedSelectionCount
     (MinimumSelectionAmount minimumSelectionAmount) =
     checkCoverage $
     conjoin
-        [ prop_selectCollateral_common params eitherErrorResult
+        [ prop_selectCollateral_general_withResult params eitherErrorResult
         , prop_extra
         ]
   where
@@ -493,28 +518,11 @@ unitTests_selectCollateralSmallest_constrainedSearchSpace = unitTests
 -- Selecting collateral by giving priority to largest values first
 --------------------------------------------------------------------------------
 
--- Tests that general properties hold for a wide variety of:
---
---  - available coin maps
---  - minimum selection amounts
---  - maximum selection sizes
+-- Tests that general properties hold for 'selectCollateralLargest'.
 --
 prop_selectCollateralLargest_general :: Property
 prop_selectCollateralLargest_general =
-    checkCoverage $
-    forAll (arbitrary @(Map LongInputId Coin))
-        $ \coinsAvailable ->
-    forAll (scale (* 4) genMinimumSelectionAmount)
-        $ \(MinimumSelectionAmount minimumSelectionAmount) ->
-    forAll (choose (1, 4))
-        $ \maximumSelectionSize ->
-    let params = SelectCollateralParams
-            { coinsAvailable
-            , maximumSelectionSize
-            , minimumSelectionAmount
-            , searchSpaceLimit = UnsafeNoSearchSpaceLimit
-            } in
-    prop_selectCollateral_common params $ selectCollateralLargest params
+    prop_selectCollateral_general_withFunction selectCollateralLargest
 
 -- In this test, we test that 'selectCollateralLargest' only fails if:
 --
@@ -532,7 +540,7 @@ prop_selectCollateralLargest_optimal
     (MinimumSelectionAmount minimumSelectionAmount) =
     checkCoverage $
     conjoin
-        [ prop_selectCollateral_common params eitherErrorResult
+        [ prop_selectCollateral_general_withResult params eitherErrorResult
         , prop_extra
         ]
   where
