@@ -164,9 +164,9 @@ spec = do
         it "prop_takeUntil_identity" $
             property prop_takeUntil_identity
         it "prop_takeUntil_head" $
-            property prop_takeUntil_identity
+            property prop_takeUntil_head
         it "prop_takeUntil_takeWhile" $
-            property prop_takeUntil_identity
+            property prop_takeUntil_takeWhile
 
         unitTests_takeUntil
 
