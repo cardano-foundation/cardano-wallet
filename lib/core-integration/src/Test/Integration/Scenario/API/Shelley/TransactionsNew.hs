@@ -189,6 +189,7 @@ import Test.Integration.Framework.TestData
     , errMsg403MissingWitsInTransaction
     , errMsg403MultiaccountTransaction
     , errMsg403MultidelegationTransaction
+    , errMsg403NonNullReward
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
     , errMsg404NoSuchPool
@@ -2715,6 +2716,91 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NotDelegating
+            ]
+
+    it "TRANS_NEW_QUIT_02a - Cannot quit with rewards without explicit withdrawal"
+        $ \ctx -> runResourceT $ do
+        (w, _) <- rewardWallet ctx
+
+        pool1:_:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool]
+                ctx (Link.listStakePools arbitraryStake) Empty
+
+        let payload = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool1},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        unsignedTx1 <- view #transaction . snd
+            <$> unsafeRequest @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley w) payload
+        signedTx1 <- signTx ctx w unsignedTx1 [ expectResponseCode HTTP.status202 ]
+        submitTxWithWid ctx w signedTx1 >>= flip verify
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        waitForTxImmutability ctx
+
+        let payload2 = Json [json|{
+                "delegations": [{
+                    "quit": {
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley w) Default payload2
+            >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NonNullReward
+            ]
+
+    it "TRANS_NEW_QUIT_02b - Can quit with rewards with explicit withdrawal"
+        $ \ctx -> runResourceT $ do
+        (w, _) <- rewardWallet ctx
+
+        pool1:_:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool]
+                ctx (Link.listStakePools arbitraryStake) Empty
+
+        let payload = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool1},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        unsignedTx1 <- getFromResponse #transaction
+            <$> request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley w) Default payload
+        signedTx1 <- signTx ctx w unsignedTx1 [ expectResponseCode HTTP.status202 ]
+        submitTxWithWid ctx w signedTx1 >>= flip verify
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        waitForTxImmutability ctx
+
+        let payload2 = Json [json|{
+                "delegations": [{
+                    "quit": {
+                        "stake_key_index": "0H"
+                    }
+                }],
+                "withdrawal": "self"
+            }|]
+        unsignedTx2 <- getFromResponse (#transaction)
+            <$> request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley w) Default payload2
+        signedTx2 <- signTx ctx w unsignedTx2 [ expectResponseCode HTTP.status202 ]
+        submitTxWithWid ctx w signedTx2 >>= flip verify
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
             ]
 
     it "TRANS_NEW_CREATE_MULTI_TX - Tx including payments, delegation, metadata, withdrawals, validity_interval" $ \ctx -> runResourceT $ do
