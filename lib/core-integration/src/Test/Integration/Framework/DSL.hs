@@ -2026,7 +2026,8 @@ faucetUtxoAmt = ada 100_000
     ada = (*) (1_000_000)
 
 getFromResponse
-    :: Lens' s a
+    :: HasCallStack
+    => Lens' s a
     -> (HTTP.Status, Either RequestException s)
     -> a
 getFromResponse getter (_, res) = case res of

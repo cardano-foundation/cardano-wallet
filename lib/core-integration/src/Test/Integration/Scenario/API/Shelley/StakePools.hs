@@ -122,6 +122,7 @@ import Test.Integration.Framework.DSL
     , quitStakePoolUnsigned
     , replaceStakeKey
     , request
+    , rewardWallet
     , triggerMaintenanceAction
     , unsafeRequest
     , unsafeResponse
@@ -522,6 +523,21 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NotDelegating
+            ]
+
+    it "STAKE_POOLS_QUIT_03 - Can quit with rewards"
+        $ \ctx -> runResourceT $ do
+        (w, _) <- rewardWallet ctx
+
+        pool:_:_ <- map (view #id) . snd
+            <$> unsafeRequest @[ApiStakePool]
+                ctx (Link.listStakePools arbitraryStake) Empty
+        joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
+            ]
+        waitForTxImmutability ctx
+        quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+            [ expectResponseCode HTTP.status202
             ]
 
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> runResourceT $ do
