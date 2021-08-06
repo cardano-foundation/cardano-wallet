@@ -25,11 +25,13 @@ import Prelude hiding
 
 import Cardano.Wallet.Primitive.CoinSelection.Collateral
     ( SearchSpaceLimit (..)
+    , SearchSpaceRequirement (..)
     , SelectCollateral
     , SelectCollateralError (..)
     , SelectCollateralParams (..)
     , SelectCollateralResult (..)
     , firstRight
+    , guardSearchSpaceSize
     , numberOfSubsequencesOfSize
     , selectCollateral
     , selectCollateralLargest
@@ -176,6 +178,10 @@ spec = do
             property prop_takeUntil_takeWhile
 
         unitTests_takeUntil
+
+    parallel $ describe "guardSearchSpaceSize" $ do
+
+        unitTests_guardSearchSpaceSize
 
 --------------------------------------------------------------------------------
 -- Properties that are general to all collateral selection strategies
@@ -1059,6 +1065,59 @@ unitTests_takeUntil = unitTests
           , [0, 1, 2, 4, 8, 16, 32, 64]
           )
         ]
+
+--------------------------------------------------------------------------------
+-- Guarding search space size
+--------------------------------------------------------------------------------
+
+-- Tests that 'guardSearchSpaceSize' really does avoid performing a computation
+-- if the required search space is greater than the search space limit.
+--
+unitTests_guardSearchSpaceSize :: Spec
+unitTests_guardSearchSpaceSize =
+  unitTests
+    "unitTests_guardSearchSpaceSize"
+    (\(r, l, c) -> guardSearchSpaceSize @String r l c)
+    (mkTest <$> tests)
+  where
+    mkTest (requirement, limit, computation, result) =
+        UnitTestData
+            { params = (requirement, limit, computation)
+            , result
+            }
+    tests =
+        [ ( SearchSpaceRequirementUnknown
+          , SearchSpaceLimit 1
+          , shouldNotBeEvaluated
+          , Nothing
+          )
+        , ( SearchSpaceRequirementUnknown
+          , UnsafeNoSearchSpaceLimit
+          , Just "apple"
+          , Just "apple"
+          )
+        , ( SearchSpaceRequirement 100
+          , SearchSpaceLimit 99
+          , shouldNotBeEvaluated
+          , Nothing
+          )
+        , ( SearchSpaceRequirement 100
+          , SearchSpaceLimit 100
+          , Just "banana"
+          , Just "banana"
+          )
+        , ( SearchSpaceRequirement 100
+          , SearchSpaceLimit 101
+          , Just "cherry"
+          , Just "cherry"
+          )
+        , ( SearchSpaceRequirement 100
+          , UnsafeNoSearchSpaceLimit
+          , Just "dragonfruit"
+          , Just "dragonfruit"
+          )
+        ]
+    shouldNotBeEvaluated = error "💥 BANG!"
 
 --------------------------------------------------------------------------------
 -- Unit test support

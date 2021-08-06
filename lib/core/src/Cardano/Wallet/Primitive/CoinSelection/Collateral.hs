@@ -35,6 +35,10 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
     -- ** Selecting collateral by giving priority to largest values first
     , selectCollateralLargest
 
+    -- ** Guarding search space size
+    , SearchSpaceRequirement (..)
+    , guardSearchSpaceSize
+
     -- ** Generating submaps
     , submaps
 
@@ -216,27 +220,22 @@ selectCollateralSmallest params =
 
     smallestValidCombinationOfSize :: Int -> Maybe (Map inputId Coin)
     smallestValidCombinationOfSize size =
-        guardSearchSpaceSize
-            $ coinsToConsider
+        guardSearchSpaceSize searchSpaceRequirement searchSpaceLimit result
+      where
+        result :: Maybe (Map inputId Coin)
+        result = coinsToConsider
             & (`subsequencesOfSize` size)
             & fmap (\ics -> (ics, F.foldMap snd ics))
             & L.sortOn snd
             & L.dropWhile ((< minimumSelectionAmount) . snd)
             & listToMaybe
             & fmap (Map.fromList . fst)
-      where
-        -- If the number of combinations of the given size exceeds the maximum
-        -- search space size, then return 'Nothing'.
-        guardSearchSpaceSize :: Maybe a -> Maybe a
-        guardSearchSpaceSize =
-            case (requiredSearchSpaceSize, searchSpaceLimit) of
-                (Nothing, _                       )         -> const Nothing
-                (Just r , SearchSpaceLimit m      ) | r > m -> const Nothing
-                (Just _ , SearchSpaceLimit _      )         -> id
-                (Just _ , UnsafeNoSearchSpaceLimit)         -> id
-          where
-            requiredSearchSpaceSize =
-                numberOfCoinsToConsider `numberOfSubsequencesOfSize` size
+
+        searchSpaceRequirement :: SearchSpaceRequirement
+        searchSpaceRequirement = maybe
+            SearchSpaceRequirementUnknown
+            SearchSpaceRequirement
+            (numberOfCoinsToConsider `numberOfSubsequencesOfSize` size)
 
     SelectCollateralParams
         { coinsAvailable
@@ -303,6 +302,42 @@ selectCollateralLargest params =
 --
 submaps :: forall a b. (Ord a, Ord b) => Map a b -> Set (Map a b)
 submaps m = Set.map (Map.restrictKeys m) (Set.powerSet (Map.keysSet m))
+
+--------------------------------------------------------------------------------
+-- Guarding search space size
+--------------------------------------------------------------------------------
+
+data SearchSpaceRequirement
+    = SearchSpaceRequirement Int
+      -- ^ Indicates a known search space requirement.
+    | SearchSpaceRequirementUnknown
+      -- ^ Indicates that the search space requirement is unknown.
+
+guardSearchSpaceSize
+    :: SearchSpaceRequirement
+    -- ^ The search space requirement
+    -> SearchSpaceLimit
+    -- ^ The search space limit
+    -> Maybe a
+    -- ^ A computation that potentially yields a value
+    -> Maybe a
+    -- ^ The guarded computation
+guardSearchSpaceSize requirement limit =
+    case requirement of
+        -- When the search space requirement is unknown, err on the side of
+        -- caution and avoid evaluating the computation, unless the caller
+        -- has explicitly specified that there is no limit:
+        SearchSpaceRequirementUnknown ->
+            case limit of
+                SearchSpaceLimit _       -> const Nothing
+                UnsafeNoSearchSpaceLimit -> id
+        -- When the search space requirement is known, only evaluate the
+        -- computation if the requirement is not greater than the limit:
+        SearchSpaceRequirement r ->
+            case limit of
+                SearchSpaceLimit l | l < r -> const Nothing
+                SearchSpaceLimit _         -> id
+                UnsafeNoSearchSpaceLimit   -> id
 
 --------------------------------------------------------------------------------
 -- Generating subsequences
