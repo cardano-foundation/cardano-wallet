@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Primitive.CollateralSpec where
 
@@ -23,8 +25,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode )
 import Control.Monad
     ( replicateM_ )
-import Data.Bits
-    ( (.&.) )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -33,6 +33,10 @@ import Data.Function
     ( (&) )
 import Data.Maybe
     ( fromJust, isJust, isNothing )
+import Data.Word
+    ( Word8 )
+import Data.Word.Odd
+    ( Word4 )
 import Numeric
     ( showHex )
 import Test.Hspec
@@ -65,6 +69,7 @@ import qualified Cardano.Ledger.Hashes as L
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
+import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Test.Cardano.Chain.Common.Gen as Byron
@@ -109,6 +114,35 @@ data Credential
     | CredentialScriptHash
     deriving (Eq, Show)
 
+addressTypeToHeaderNibble :: AddressType -> Word4
+addressTypeToHeaderNibble = \case
+    BaseAddress CredentialKeyHash CredentialKeyHash       -> 0b0000
+    BaseAddress CredentialScriptHash CredentialKeyHash    -> 0b0001
+    BaseAddress CredentialKeyHash CredentialScriptHash    -> 0b0010
+    BaseAddress CredentialScriptHash CredentialScriptHash -> 0b0011
+    PointerAddress CredentialKeyHash                      -> 0b0100
+    PointerAddress CredentialScriptHash                   -> 0b0101
+    EnterpriseAddress CredentialKeyHash                   -> 0b0110
+    EnterpriseAddress CredentialScriptHash                -> 0b0111
+    BootstrapAddress                                      -> 0b1000
+    StakeAddress CredentialKeyHash                        -> 0b1110
+    StakeAddress CredentialScriptHash                     -> 0b1111
+
+addressTypeFromHeaderNibble :: Word4 -> Maybe AddressType
+addressTypeFromHeaderNibble = \case
+    0b0000 -> Just (BaseAddress CredentialKeyHash CredentialKeyHash)
+    0b0001 -> Just (BaseAddress CredentialScriptHash CredentialKeyHash)
+    0b0010 -> Just (BaseAddress CredentialKeyHash CredentialScriptHash)
+    0b0011 -> Just (BaseAddress CredentialScriptHash CredentialScriptHash)
+    0b0100 -> Just (PointerAddress CredentialKeyHash)
+    0b0101 -> Just (PointerAddress CredentialScriptHash)
+    0b0110 -> Just (EnterpriseAddress CredentialKeyHash)
+    0b0111 -> Just (EnterpriseAddress CredentialScriptHash)
+    0b1000 -> Just (BootstrapAddress)
+    0b1110 -> Just (StakeAddress CredentialKeyHash)
+    0b1111 -> Just (StakeAddress CredentialScriptHash)
+    _      -> Nothing
+
 -- To parse the address type, we can inspect the first four bits (nibble) of the
 -- address:
 
@@ -116,51 +150,21 @@ data Credential
 getHeader :: B.Get AddressType
 getHeader = do
     headerAndNetwork <- B.getWord8
-    let
-        header =
-            -- Mask for just the address type nibble
-            headerAndNetwork .&. 0b11110000
-    case header of
-        0b00000000 -> pure $ BaseAddress CredentialKeyHash CredentialKeyHash
-        0b00010000 -> pure $ BaseAddress CredentialScriptHash CredentialKeyHash
-        0b00100000 -> pure $ BaseAddress CredentialKeyHash CredentialScriptHash
-        0b00110000 -> pure $ BaseAddress CredentialScriptHash CredentialScriptHash
-        0b01000000 -> pure $ PointerAddress CredentialKeyHash
-        0b01010000 -> pure $ PointerAddress CredentialScriptHash
-        0b01100000 -> pure $ EnterpriseAddress CredentialKeyHash
-        0b01110000 -> pure $ EnterpriseAddress CredentialScriptHash
-        0b10000000 -> pure BootstrapAddress
-        0b11100000 -> pure $ StakeAddress CredentialKeyHash
-        0b11110000 -> pure $ StakeAddress CredentialScriptHash
-        _          -> fail "Unknown address type."
+    let headerNibble =
+            fromIntegral @Word8 @Word4 (headerAndNetwork `Bits.shiftR` 4)
+    maybe
+        (fail "Unknown address type.")
+        (pure)
+        (addressTypeFromHeaderNibble headerNibble)
 
 -- For testing purposes, it is also helpful to have a way of writing the
 -- AddressType back to a binary stream.
 
 -- | Write an AddressType to a binary stream.
 putHeader :: AddressType -> B.Put
-putHeader (BaseAddress CredentialKeyHash CredentialKeyHash) =
-    B.putWord8 0b00000000
-putHeader (BaseAddress CredentialScriptHash CredentialKeyHash) =
-    B.putWord8 0b00010000
-putHeader (BaseAddress CredentialKeyHash CredentialScriptHash) =
-    B.putWord8 0b00100000
-putHeader (BaseAddress CredentialScriptHash CredentialScriptHash) =
-    B.putWord8 0b00110000
-putHeader (PointerAddress CredentialKeyHash) =
-    B.putWord8 0b01000000
-putHeader (PointerAddress CredentialScriptHash) =
-    B.putWord8 0b01010000
-putHeader (EnterpriseAddress CredentialKeyHash) =
-    B.putWord8 0b01100000
-putHeader (EnterpriseAddress CredentialScriptHash) =
-    B.putWord8 0b01110000
-putHeader BootstrapAddress =
-    B.putWord8 0b10000000
-putHeader (StakeAddress CredentialKeyHash) =
-    B.putWord8 0b11100000
-putHeader (StakeAddress CredentialScriptHash) =
-    B.putWord8 0b11110000
+putHeader t =
+    B.putWord8 $
+    fromIntegral @Word4 @Word8 (addressTypeToHeaderNibble t) `Bits.shiftL` 4
 
 -- We want to test that these functions work, so we write a set of properties to
 -- test.
@@ -206,6 +210,13 @@ prop_genAddressType_coverage =
         , ("BootstrapAddress"                                      , 5)
         ] $
         tabulate "Address types" [show addrType] $ True === True
+
+-- | Test that address type header nibble encoding & decoding roundtrips
+-- successfully.
+prop_addressTypeHeaderNibble_roundtrips :: Property
+prop_addressTypeHeaderNibble_roundtrips =
+    forAll genAddressType $ \t ->
+        addressTypeFromHeaderNibble (addressTypeToHeaderNibble t) === Just t
 
 -- | Test that putting then getting an AddressType results in the original
 -- AddressType (we can roundtrip successfully).
@@ -637,7 +648,7 @@ unit_classifyCollateralAddress_delegationAddrGolden =
 --   - Given that the implementation of "TokenBundle.toCoin" is correct,
 --   - and that "asCollateral" is equivalent to a simple composition of
 --     "classifyCollateralAddress" and "TokenBundle.toCoin",
--- 
+--
 -- We can say that the implementation of "asCollateral" is also correct, so long
 -- as the composition operator is guranteed not to change the properties we are
 -- interested in. We can prove the equivalence like so:
@@ -679,8 +690,10 @@ spec = do
     parallel $ do
         describe "address types" $ do
             describe "generators" $
-              it "generates values with sufficient coverage" $
-                  property prop_genAddressType_coverage
+                it "generates values with sufficient coverage" $
+                    property prop_genAddressType_coverage
+            it "property prop_addressTypeHeaderNibble_roundtrips" $
+                property prop_addressTypeHeaderNibble_roundtrips
             it "serialise/deserialise roundtrips" $
                 property prop_header_roundtrips
             it "classifies byron address type correctly" $
