@@ -68,9 +68,8 @@ data AddrNotSuitableForCollateral
 -- | Analyze an address to determine if its funds are suitable for use as a
 -- collateral input.
 --
--- This function returns an Either instead of a Maybe because I think it's
--- important these functions return why they failed. It is extremely useful for
--- debugging programs.
+-- This function returns an Either instead of a Maybe so that we can test
+-- that it has failed for the right reason.
 classifyCollateralAddress
     :: Address
     -> Either AddrNotSuitableForCollateral Address
