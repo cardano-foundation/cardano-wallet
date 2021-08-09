@@ -1,13 +1,14 @@
+{-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- For a UTxO to be considered a suitable collateral input, it must:
 --    - Be a pure ADA UTxO (no tokens)
 --    - Require a verification key witness to be spent
---    - Have an output address that is not any of:
---      - a native script address
---      - a plutus script address
+--    - Not be locked by a script
 --
 -- UTxOs of this kind are sometimes referred to as "VK" inputs.
 
@@ -15,6 +16,12 @@ module Cardano.Wallet.Primitive.Collateral
     ( classifyCollateralAddress
     , asCollateral
     , AddrNotSuitableForCollateral(..)
+    , AddressType(..)
+    , Credential(..)
+    , getAddressType
+    , putAddressType
+    , addressTypeToHeaderNibble
+    , addressTypeFromHeaderNibble
     ) where
 
 import Prelude
@@ -25,12 +32,156 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
+import Data.Word
+    ( Word8 )
+import Data.Word.Odd
+    ( Word4 )
 
-import qualified Cardano.Ledger.Address as L
-import qualified Cardano.Ledger.Credential as L
-import qualified Cardano.Ledger.Crypto as L
-import qualified Cardano.Ledger.Keys as L
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Data.Binary.Get as B
+import qualified Data.Binary.Put as B
+import qualified Data.Bits as Bits
+import qualified Data.ByteString.Lazy as BL
+
+-- In the realm of cardano-ledger-specs, we recognize the following types of
+-- addresses:
+--   (see https://hydra.iohk.io/build/6752483/download/1/ledger-spec.pdf):
+--
+-- | Address type       | Payment Credential | Stake Credential | Header, first nibble |
+-- |--------------------+--------------------+------------------+----------------------|
+-- | Base address       | keyhash            | keyhash          |                 0000 |
+-- |                    | scripthash         | keyhash          |                 0001 |
+-- |                    | keyhash            | scripthash       |                 0010 |
+-- |                    | scripthash         | scripthash       |                 0011 |
+-- | Pointer address    | keyhash            | ptr              |                 0100 |
+-- |                    | scripthash         | ptr              |                 0101 |
+-- | Enterprise address | keyhash            | -                |                 0110 |
+-- |                    | scripthash         | 0                |                 0111 |
+-- | Bootstrap address  | keyhash            | -                |                 1000 |
+-- | Stake address      | -                  | keyhash          |                 1110 |
+-- |                    | -                  | scripthash       |                 1111 |
+-- | Future formats     | ?                  | ?                |            1001-1101 |
+--
+-- We represent these types of addresses with the following data types:
+
+-- | The type of the address.
+data AddressType
+    = BaseAddress Credential Credential
+    | PointerAddress Credential
+    | EnterpriseAddress Credential
+    | StakeAddress Credential
+    | BootstrapAddress
+    -- ^ A Bootstrap (a.k.a. Byron) address
+    deriving (Eq, Show)
+
+-- | The type of the credential used in an address.
+data Credential
+    = CredentialKeyHash
+    | CredentialScriptHash
+    deriving (Eq, Show)
+
+-- To parse the address type, we can inspect the first four bits (nibble) of the
+-- address:
+
+-- | Return the binary representation of an @AddressType@.
+addressTypeToHeaderNibble :: AddressType -> Word4
+addressTypeToHeaderNibble = \case
+    BaseAddress CredentialKeyHash CredentialKeyHash       -> 0b0000
+    BaseAddress CredentialScriptHash CredentialKeyHash    -> 0b0001
+    BaseAddress CredentialKeyHash CredentialScriptHash    -> 0b0010
+    BaseAddress CredentialScriptHash CredentialScriptHash -> 0b0011
+    PointerAddress CredentialKeyHash                      -> 0b0100
+    PointerAddress CredentialScriptHash                   -> 0b0101
+    EnterpriseAddress CredentialKeyHash                   -> 0b0110
+    EnterpriseAddress CredentialScriptHash                -> 0b0111
+    BootstrapAddress                                      -> 0b1000
+    StakeAddress CredentialKeyHash                        -> 0b1110
+    StakeAddress CredentialScriptHash                     -> 0b1111
+
+-- | Construct an @AddressType@ from the binary representation.
+addressTypeFromHeaderNibble :: Word4 -> Maybe AddressType
+addressTypeFromHeaderNibble = \case
+    0b0000 -> Just (BaseAddress CredentialKeyHash CredentialKeyHash)
+    0b0001 -> Just (BaseAddress CredentialScriptHash CredentialKeyHash)
+    0b0010 -> Just (BaseAddress CredentialKeyHash CredentialScriptHash)
+    0b0011 -> Just (BaseAddress CredentialScriptHash CredentialScriptHash)
+    0b0100 -> Just (PointerAddress CredentialKeyHash)
+    0b0101 -> Just (PointerAddress CredentialScriptHash)
+    0b0110 -> Just (EnterpriseAddress CredentialKeyHash)
+    0b0111 -> Just (EnterpriseAddress CredentialScriptHash)
+    0b1000 -> Just (BootstrapAddress)
+    0b1110 -> Just (StakeAddress CredentialKeyHash)
+    0b1111 -> Just (StakeAddress CredentialScriptHash)
+    _      -> Nothing
+
+-- | Get an AddressType from a binary stream.
+getAddressType :: B.Get AddressType
+getAddressType = do
+    headerAndNetwork <- B.getWord8
+    let headerNibble =
+            fromIntegral @Word8 @Word4 (headerAndNetwork `Bits.shiftR` 4)
+    maybe
+        (fail "Unknown address type.")
+        (pure)
+        (addressTypeFromHeaderNibble headerNibble)
+
+-- For testing purposes, it is also helpful to have a way of writing the
+-- AddressType back to a binary stream.
+
+-- | Write an AddressType to a binary stream.
+putAddressType :: AddressType -> B.Put
+putAddressType t =
+    B.putWord8 $
+    fromIntegral @Word4 @Word8 (addressTypeToHeaderNibble t) `Bits.shiftL` 4
+
+-- The funds associated with an address are considered suitable for use as
+-- collateral iff the payment credential column of that address is "key hash".
+
+-- | Reasons why an address might be considered unsuitable for a collateral
+-- input.
+data AddrNotSuitableForCollateral
+    = IsScriptAddr
+    -- ^ The address is some form of script address
+    | IsStakeAddr
+    -- ^ The address is some form of stake address
+    | IsMalformedOrUnknownAddr
+    -- ^ The address could not be parsed
+    deriving (Eq, Show)
+
+-- | Analyze an address to determine if its funds are suitable for use as a
+-- collateral input. Slight caveat: this function presumes that the given
+-- address is well-formed, it does not validate the address.
+--
+-- This function returns an Either instead of a Maybe so that we can test
+-- that it has failed for the right reason.
+classifyCollateralAddress
+    :: Address
+    -> Either AddrNotSuitableForCollateral Address
+classifyCollateralAddress addr@(Address addrBytes) =
+    case B.runGetOrFail getAddressType (BL.fromStrict addrBytes) of
+        Left (_, _, _err) ->
+            Left IsMalformedOrUnknownAddr
+        Right (_, _, addrType) ->
+            case addrType of
+                (BaseAddress CredentialKeyHash _) ->
+                     Right addr
+                (BaseAddress CredentialScriptHash _) ->
+                     Left IsScriptAddr
+
+                (PointerAddress CredentialKeyHash) ->
+                     Right addr
+                (PointerAddress CredentialScriptHash) ->
+                     Left IsScriptAddr
+
+                (EnterpriseAddress CredentialKeyHash) ->
+                     Right addr
+                (EnterpriseAddress CredentialScriptHash) ->
+                     Left IsScriptAddr
+
+                (StakeAddress _) ->
+                     Left IsStakeAddr
+                BootstrapAddress ->
+                     Right addr
 
 -- | If the given @TxOut@ represents a UTxO that is suitable for use as
 -- a collateral input, returns @Just@ along with the total ADA value of the
@@ -53,52 +204,3 @@ asCollateral txOut = do
             Nothing
         Right _addr ->
             Just coin
-
--- | Reasons why an address might be considered unsuitable for a collateral
--- input.
-data AddrNotSuitableForCollateral
-    = IsScriptAddr
-    -- ^ The address is some form of script address
-    | IsStakeAddr
-    -- ^ The address is some form of stake address
-    | IsMalformedOrUnknownAddr
-    -- ^ The address could not be parsed
-    deriving (Eq, Show)
-
--- | Analyze an address to determine if its funds are suitable for use as a
--- collateral input.
---
--- This function returns an Either instead of a Maybe so that we can test
--- that it has failed for the right reason.
-classifyCollateralAddress
-    :: Address
-    -> Either AddrNotSuitableForCollateral Address
-classifyCollateralAddress addr@(Address addrBytes) =
-    case L.deserialiseAddr addrBytes of
-        -- If we couldn't deserialise the address, it's either a stake address,
-        -- a malformed address, or an address the Ledger doesn't know about.
-        Nothing ->
-            -- Test if it's a stake address (a.k.a. reward account address)
-            case L.deserialiseRewardAcnt addrBytes of
-                Nothing ->
-                    Left IsMalformedOrUnknownAddr
-                Just (_ :: L.RewardAcnt L.StandardCrypto) ->
-                    Left IsStakeAddr
-
-        -- This is a bootstrap address, therefore a suitable collateral input.
-        Just (L.AddrBootstrap _bootstrapAddr) ->
-            Right addr
-
-        -- Otherwise, we further analyze the address.
-        Just (L.Addr _network payCred _stakeRef) ->
-            case (payCred :: L.Credential 'L.Payment L.StandardCrypto) of
-                -- Check if this is a script address.
-                L.ScriptHashObj _scriptHash ->
-                    -- This is a native script address or a Plutus script
-                    -- address, therefore not a suitable collateral input.
-                    Left IsScriptAddr
-
-                -- Otherwise, this is an address that is suitable to be
-                -- a collateral input
-                L.KeyHashObj (_keyHash :: L.KeyHash 'L.Payment L.StandardCrypto)
-                    -> Right addr
