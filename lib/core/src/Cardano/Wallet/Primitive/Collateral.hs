@@ -45,11 +45,11 @@ asCollateral txOut = do
     coin <- TokenBundle.toCoin $ tokens txOut
 
     case classifyCollateralAddress (address txOut) of
-        Left IsAScriptAddr ->
+        Left IsScriptAddr ->
             Nothing
-        Left IsAStakeAddr ->
+        Left IsStakeAddr ->
             Nothing
-        Left IsAMalformedOrUnknownAddr ->
+        Left IsMalformedOrUnknownAddr ->
             Nothing
         Right _addr ->
             Just coin
@@ -57,11 +57,11 @@ asCollateral txOut = do
 -- | Reasons why an address might be considered unsuitable for a collateral
 -- input.
 data AddrNotSuitableForCollateral
-    = IsAScriptAddr
+    = IsScriptAddr
     -- ^ The address is some form of script address
-    | IsAStakeAddr
+    | IsStakeAddr
     -- ^ The address is some form of stake address
-    | IsAMalformedOrUnknownAddr
+    | IsMalformedOrUnknownAddr
     -- ^ The address could not be parsed
     deriving (Eq, Show)
 
@@ -81,9 +81,9 @@ classifyCollateralAddress addr@(Address addrBytes) =
             -- Test if it's a stake address (a.k.a. reward account address)
             case L.deserialiseRewardAcnt addrBytes of
                 Nothing ->
-                    Left IsAMalformedOrUnknownAddr
+                    Left IsMalformedOrUnknownAddr
                 Just (_ :: L.RewardAcnt L.StandardCrypto) ->
-                    Left IsAStakeAddr
+                    Left IsStakeAddr
 
         -- This is a bootstrap address, therefore a suitable collateral input.
         Just (L.AddrBootstrap _bootstrapAddr) ->
@@ -96,7 +96,7 @@ classifyCollateralAddress addr@(Address addrBytes) =
                 L.ScriptHashObj _scriptHash ->
                     -- This is a native script address or a Plutus script
                     -- address, therefore not a suitable collateral input.
-                    Left IsAScriptAddr
+                    Left IsScriptAddr
 
                 -- Otherwise, this is an address that is suitable to be
                 -- a collateral input
