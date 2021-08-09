@@ -170,7 +170,7 @@ putHeader (StakeAddress CredentialScriptHash) =
 -- We want to test that these functions work, so we write a set of properties to
 -- test.
 --
--- First we write our generator, which customizes it's frequency so that every
+-- First we write our generator, which customizes its frequency so that every
 -- branch of the AddressType type is evenly covered.
 
 -- | Generate an AddressType.
