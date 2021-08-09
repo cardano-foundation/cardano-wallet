@@ -1,0 +1,19 @@
+Usage:  address COMMAND
+
+  About addresses
+
+Available options:
+  -h,--help                Show this help text
+
+Available commands:
+  list                     List all known addresses of a given
+                           wallet.
+  create                   Create a new random address. Only
+                           available for random wallets. The
+                           address index is optional, give none
+                           to let the wallet generate a random
+                           one.
+  import                   Import a random address generated
+                           elsewhere. Only available for random
+                           wallets. The address must belong to
+                           the target wallet.

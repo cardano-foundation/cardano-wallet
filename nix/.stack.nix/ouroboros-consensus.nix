@@ -27,6 +27,7 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."base-deriving-via" or (errorHandler.buildDepError "base-deriving-via"))
           (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."bimap" or (errorHandler.buildDepError "bimap"))
           (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
@@ -44,6 +45,7 @@
           (hsPkgs."filelock" or (errorHandler.buildDepError "filelock"))
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
+          (hsPkgs."measures" or (errorHandler.buildDepError "measures"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."psqueues" or (errorHandler.buildDepError "psqueues"))
@@ -77,12 +79,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "f026e71e8925dc2cb1a55a9a77b54bbeb1273ef0";
-      sha256 = "0wmlrkdi7q868872p4ah35z51511yqkr8pj90fwadlr6ipkbpkl9";
+      rev = "e9cda57df7ea6969edbc3bfc4e117668277d09c8";
+      sha256 = "1a91z6yvlhzlqrf7fy51fmmpm3ssk684h6pjgg022cdlsq56yif2";
       }) // {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "f026e71e8925dc2cb1a55a9a77b54bbeb1273ef0";
-      sha256 = "0wmlrkdi7q868872p4ah35z51511yqkr8pj90fwadlr6ipkbpkl9";
+      rev = "e9cda57df7ea6969edbc3bfc4e117668277d09c8";
+      sha256 = "1a91z6yvlhzlqrf7fy51fmmpm3ssk684h6pjgg022cdlsq56yif2";
       };
     postUnpack = "sourceRoot+=/ouroboros-consensus; echo source root reset to \$sourceRoot";
     }

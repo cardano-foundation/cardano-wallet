@@ -69,6 +69,7 @@ test-suite unit
       base
     , cardano-wallet-cli
     , cardano-wallet-core
+    , cardano-wallet-test-utils
     , containers
     , filepath
     , hspec

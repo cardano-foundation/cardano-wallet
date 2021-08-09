@@ -55,6 +55,7 @@
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."cardano-wallet-cli" or (errorHandler.buildDepError "cardano-wallet-cli"))
             (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
+            (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
