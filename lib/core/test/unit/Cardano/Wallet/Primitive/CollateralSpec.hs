@@ -2,7 +2,6 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Primitive.CollateralSpec where
 
@@ -10,8 +9,14 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Collateral
     ( AddrNotSuitableForCollateral (..)
+    , AddressType (..)
+    , Credential (..)
+    , addressTypeFromHeaderNibble
+    , addressTypeToHeaderNibble
     , asCollateral
     , classifyCollateralAddress
+    , getAddressType
+    , putAddressType
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -33,10 +38,6 @@ import Data.Function
     ( (&) )
 import Data.Maybe
     ( fromJust, isJust, isNothing )
-import Data.Word
-    ( Word8 )
-import Data.Word.Odd
-    ( Word4 )
 import Numeric
     ( showHex )
 import Test.Hspec
@@ -69,7 +70,6 @@ import qualified Cardano.Ledger.Hashes as L
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
-import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Test.Cardano.Chain.Common.Gen as Byron
@@ -77,100 +77,11 @@ import qualified Test.Shelley.Spec.Ledger.Serialisation.EraIndepGenerators as L
 import qualified Test.Shelley.Spec.Ledger.Serialisation.Generators.Genesis as L
     ( genRewardAcnt )
 
--- In the realm of cardano-ledger-specs, we recognize the following types of
--- addresses:
---   (see https://hydra.iohk.io/build/6752483/download/1/ledger-spec.pdf):
---
--- | Address type       | Payment Credential | Stake Credential | Header, first nibble |
--- |--------------------+--------------------+------------------+----------------------|
--- | Base address       | keyhash            | keyhash          |                 0000 |
--- |                    | scripthash         | keyhash          |                 0001 |
--- |                    | keyhash            | scripthash       |                 0010 |
--- |                    | scripthash         | scripthash       |                 0011 |
--- | Pointer address    | keyhash            | ptr              |                 0100 |
--- |                    | scripthash         | ptr              |                 0101 |
--- | Enterprise address | keyhash            | -                |                 0110 |
--- |                    | scripthash         | 0                |                 0111 |
--- | Bootstrap address  | keyhash            | -                |                 1000 |
--- | Stake address      | -                  | keyhash          |                 1110 |
--- |                    | -                  | scripthash       |                 1111 |
--- | Future formats     | ?                  | ?                |            1001-1101 |
---
--- We represent these types of addresses with the following data types:
-
--- | The type of the address.
-data AddressType
-    = BaseAddress Credential Credential
-    | PointerAddress Credential
-    | EnterpriseAddress Credential
-    | StakeAddress Credential
-    | BootstrapAddress
-    -- ^ A Bootstrap (a.k.a. Byron) address
-    deriving (Eq, Show)
-
--- | The type of the credential used in an address.
-data Credential
-    = CredentialKeyHash
-    | CredentialScriptHash
-    deriving (Eq, Show)
-
-addressTypeToHeaderNibble :: AddressType -> Word4
-addressTypeToHeaderNibble = \case
-    BaseAddress CredentialKeyHash CredentialKeyHash       -> 0b0000
-    BaseAddress CredentialScriptHash CredentialKeyHash    -> 0b0001
-    BaseAddress CredentialKeyHash CredentialScriptHash    -> 0b0010
-    BaseAddress CredentialScriptHash CredentialScriptHash -> 0b0011
-    PointerAddress CredentialKeyHash                      -> 0b0100
-    PointerAddress CredentialScriptHash                   -> 0b0101
-    EnterpriseAddress CredentialKeyHash                   -> 0b0110
-    EnterpriseAddress CredentialScriptHash                -> 0b0111
-    BootstrapAddress                                      -> 0b1000
-    StakeAddress CredentialKeyHash                        -> 0b1110
-    StakeAddress CredentialScriptHash                     -> 0b1111
-
-addressTypeFromHeaderNibble :: Word4 -> Maybe AddressType
-addressTypeFromHeaderNibble = \case
-    0b0000 -> Just (BaseAddress CredentialKeyHash CredentialKeyHash)
-    0b0001 -> Just (BaseAddress CredentialScriptHash CredentialKeyHash)
-    0b0010 -> Just (BaseAddress CredentialKeyHash CredentialScriptHash)
-    0b0011 -> Just (BaseAddress CredentialScriptHash CredentialScriptHash)
-    0b0100 -> Just (PointerAddress CredentialKeyHash)
-    0b0101 -> Just (PointerAddress CredentialScriptHash)
-    0b0110 -> Just (EnterpriseAddress CredentialKeyHash)
-    0b0111 -> Just (EnterpriseAddress CredentialScriptHash)
-    0b1000 -> Just (BootstrapAddress)
-    0b1110 -> Just (StakeAddress CredentialKeyHash)
-    0b1111 -> Just (StakeAddress CredentialScriptHash)
-    _      -> Nothing
-
--- To parse the address type, we can inspect the first four bits (nibble) of the
--- address:
-
--- | Get an AddressType from a binary stream.
-getHeader :: B.Get AddressType
-getHeader = do
-    headerAndNetwork <- B.getWord8
-    let headerNibble =
-            fromIntegral @Word8 @Word4 (headerAndNetwork `Bits.shiftR` 4)
-    maybe
-        (fail "Unknown address type.")
-        (pure)
-        (addressTypeFromHeaderNibble headerNibble)
-
--- For testing purposes, it is also helpful to have a way of writing the
--- AddressType back to a binary stream.
-
--- | Write an AddressType to a binary stream.
-putHeader :: AddressType -> B.Put
-putHeader t =
-    B.putWord8 $
-    fromIntegral @Word4 @Word8 (addressTypeToHeaderNibble t) `Bits.shiftL` 4
-
--- We want to test that these functions work, so we write a set of properties to
--- test.
+-- To begin with, we will write our generators and tests for the @AddressType@
+-- type.
 --
 -- First we write our generator, which customizes its frequency so that every
--- branch of the AddressType type is evenly covered.
+-- branch of the AddressType type is evenly covered:
 
 -- | Generate an AddressType.
 genAddressType :: Gen AddressType
@@ -223,7 +134,8 @@ prop_addressTypeHeaderNibble_roundtrips =
 prop_header_roundtrips :: Property
 prop_header_roundtrips =
     forAll genAddressType $ \addrType ->
-        B.runGet getHeader (B.runPut $ putHeader addrType) === addrType
+        B.runGet getAddressType (B.runPut $ putAddressType addrType)
+        === addrType
 
 -- We an also write properties for the general types of addresses, and ensure
 -- that we are classifying them correctly.
@@ -234,7 +146,7 @@ prop_addressType_byron :: Property
 prop_addressType_byron =
     forAll genByronAddr $ \byronAddr -> do
         let (Address addrBytes) = asAddress byronAddr
-        B.runGet getHeader (BL.fromStrict addrBytes) === BootstrapAddress
+        B.runGet getAddressType (BL.fromStrict addrBytes) === BootstrapAddress
 
 -- | Test that for any stake address, we classify it as a stake address
 -- (although not necessarily the correct one, as it's a bit difficult to assert
@@ -244,11 +156,11 @@ prop_addressType_stake =
     forAll genStakeAddr $ \stakeAddr -> do
         let
             (Address addrBytes) = asStakeAddress stakeAddr
-            addrType = B.runGet getHeader (BL.fromStrict addrBytes)
         disjoin
           [ addrType === StakeAddress CredentialKeyHash
           , addrType === StakeAddress CredentialScriptHash
           ]
+            addrType = B.runGet getAddressType (BL.fromStrict addrBytes)
 
 -- | Test that for any shelley keyhash address, we classify it as a shelley
 -- keyhash address (although not necessarily the correct one, as it's a bit
@@ -258,13 +170,13 @@ prop_addressType_shelleyKeyHash =
     forAll genShelleyKeyHashAddr $ \shelleyKeyHashAddr -> do
         let
             (Address addrBytes) = asAddress shelleyKeyHashAddr
-            addrType = B.runGet getHeader (BL.fromStrict addrBytes)
         disjoin
           [ addrType === BaseAddress CredentialKeyHash CredentialKeyHash
           , addrType === BaseAddress CredentialKeyHash CredentialScriptHash
           , addrType === PointerAddress CredentialKeyHash
           , addrType === EnterpriseAddress CredentialKeyHash
           ]
+            addrType = B.runGet getAddressType (BL.fromStrict addrBytes)
 
 -- | Test that for any shelley scripthash address, we classify it as a shelley
 -- scripthash address (although not necessarily the correct one, as it's a bit
@@ -274,13 +186,13 @@ prop_addressType_shelleyScriptHash =
     forAll genShelleyScriptHashAddr $ \shelleyScriptHashAddr -> do
         let
             (Address addrBytes) = asAddress shelleyScriptHashAddr
-            addrType = B.runGet getHeader (BL.fromStrict addrBytes)
         disjoin
           [ addrType === BaseAddress CredentialScriptHash CredentialKeyHash
           , addrType === BaseAddress CredentialScriptHash CredentialScriptHash
           , addrType === PointerAddress CredentialScriptHash
           , addrType === EnterpriseAddress CredentialScriptHash
           ]
+            addrType = B.runGet getAddressType (BL.fromStrict addrBytes)
 
 -- To be extra sure, we also test our code with some golden addresses we
 -- generated with "cardano-addresses":
@@ -346,7 +258,7 @@ prop_genAddress_coverage :: Property
 prop_genAddress_coverage =
     withMaxSuccess 1000 $
     forAll genAnyAddress $ \(Address addrBytes) -> do
-        let addrType = runGetMaybe getHeader $ BL.fromStrict addrBytes
+        let addrType = runGetMaybe getAddressType $ BL.fromStrict addrBytes
         coverTable "Address types"
             [ ("Just (BaseAddress CredentialKeyHash CredentialKeyHash)"
               , 5)
@@ -409,7 +321,7 @@ simplifyAddress (Address addrBytes) = do
     -- "deserialiseAddr" will not parse stake addresses.
     _ <- L.deserialiseAddr addrBytes :: Maybe (L.Addr CC.StandardCrypto)
 
-    bytes <- case runGetMaybe getHeader (BL.fromStrict addrBytes) of
+    bytes <- case runGetMaybe getAddressType (BL.fromStrict addrBytes) of
         Just BootstrapAddress ->
             -- We cannot easily simplify bootstrap addresses
             Nothing
@@ -418,13 +330,13 @@ simplifyAddress (Address addrBytes) = do
             Nothing
         Just addr@(BaseAddress _ _) -> do
             Just $ B.runPut $ do
-                putHeader addr
+                putAddressType addr
                 -- payload for base addr is two 28-byte bytestrings
                 putNullBytes 28
                 putNullBytes 28
         Just addr@(PointerAddress _) ->
             Just $ B.runPut $ do
-                putHeader addr
+                putAddressType addr
                 -- payload for pointer addr is one 28-byte bytestring followed
                 -- by three unsigned ints of variable size (in this case two
                 -- bytes each).
@@ -434,7 +346,7 @@ simplifyAddress (Address addrBytes) = do
                 putNullBytes 2
         Just addr@(EnterpriseAddress _) ->
             Just $ B.runPut $ do
-                putHeader addr
+                putAddressType addr
                 -- payload for enterprise addr is one 28-byte bytestring
                 putNullBytes 28
         Nothing ->
@@ -508,10 +420,10 @@ prop_simplifyAddress_typeMaintained =
                 Just (Address simplifiedBytes) ->
                     let
                         originalAddressType =
-                            B.runGet getHeader (BL.fromStrict addrBytes)
+                            B.runGet getAddressType (BL.fromStrict addrBytes)
 
                         simplifiedAddressType =
-                            B.runGet getHeader (BL.fromStrict simplifiedBytes)
+                            B.runGet getAddressType (BL.fromStrict simplifiedBytes)
                     in
                         originalAddressType === simplifiedAddressType
 
@@ -539,59 +451,53 @@ prop_classifyCollateralAddress =
     withMaxSuccess 2000 $
     forAllShrink genAnyAddress shrinkAddress $ \addr@(Address addrBytes) -> do
         let
-            addrType = runGetMaybe getHeader $ BL.fromStrict addrBytes
+            addrType = runGetMaybe getAddressType $ BL.fromStrict addrBytes
             validAddress = isValidAddress addr
 
         checkCoverage $
-            cover 30 validAddress "valid address"  $
-            cover 10 (not validAddress) "invalid address"  $
-            if not validAddress
-            then
-                -- It will always fail to classify invalid addresses
-                classifyCollateralAddress addr
-                    === Left IsMalformedOrUnknownAddr
-            else
-                case addrType of
-                    -- Only unrecognized addresses are classified as malformed
-                    -- or unknown (i.e. we otherwise classify any known address
-                    -- according to it's type)
-                    Nothing ->
-                        classifyCollateralAddress addr
-                            === Left IsMalformedOrUnknownAddr
+            cover 30 validAddress "valid address" $
+            cover 10 (not validAddress) "invalid address" $
+            case addrType of
+                -- Only unrecognized addresses are classified as malformed
+                -- or unknown (i.e. we otherwise classify any known address
+                -- according to it's type)
+                Nothing ->
+                    classifyCollateralAddress addr
+                        === Left IsMalformedOrUnknownAddr
 
-                    -- Stake addresses are not suitable for collateral
-                    Just (StakeAddress _) ->
-                        classifyCollateralAddress addr
-                            === Left IsStakeAddr
+                -- Stake addresses are not suitable for collateral
+                Just (StakeAddress _) ->
+                    classifyCollateralAddress addr
+                        === Left IsStakeAddr
 
-                    -- Script addresses are not suitable for collateral
-                    Just (BaseAddress CredentialScriptHash _) ->
-                        classifyCollateralAddress addr
-                            === Left IsScriptAddr
-                    Just (PointerAddress CredentialScriptHash) ->
-                        classifyCollateralAddress addr
-                            === Left IsScriptAddr
-                    Just (EnterpriseAddress CredentialScriptHash) ->
-                        classifyCollateralAddress addr
-                            === Left IsScriptAddr
+                -- Script addresses are not suitable for collateral
+                Just (BaseAddress CredentialScriptHash _) ->
+                    classifyCollateralAddress addr
+                        === Left IsScriptAddr
+                Just (PointerAddress CredentialScriptHash) ->
+                    classifyCollateralAddress addr
+                        === Left IsScriptAddr
+                Just (EnterpriseAddress CredentialScriptHash) ->
+                    classifyCollateralAddress addr
+                        === Left IsScriptAddr
 
-                    -- The following addresses all have a key hash payment
-                    -- credential and are thus suitable for collateral
-                    Just (BaseAddress CredentialKeyHash _) ->
-                        classifyCollateralAddress addr
-                            === Right addr
-                    Just (PointerAddress CredentialKeyHash) ->
-                        classifyCollateralAddress addr
-                            === Right addr
-                    Just (EnterpriseAddress CredentialKeyHash) ->
-                        classifyCollateralAddress addr
-                            === Right addr
-                    Just BootstrapAddress ->
-                        classifyCollateralAddress addr
-                            === Right addr
+                -- The following addresses all have a key hash payment
+                -- credential and are thus suitable for collateral
+                Just (BaseAddress CredentialKeyHash _) ->
+                    classifyCollateralAddress addr
+                        === Right addr
+                Just (PointerAddress CredentialKeyHash) ->
+                    classifyCollateralAddress addr
+                        === Right addr
+                Just (EnterpriseAddress CredentialKeyHash) ->
+                    classifyCollateralAddress addr
+                        === Right addr
+                Just BootstrapAddress ->
+                    classifyCollateralAddress addr
+                        === Right addr
 
-                & counterexample ("AddressType: " <> show addrType)
-                & counterexample ("Address hex: " <> asHex addrBytes)
+            & counterexample ("AddressType: " <> show addrType)
+            & counterexample ("Address hex: " <> asHex addrBytes)
 
 -- | Returns True if the given address parses as a known address.
 isValidAddress :: Address -> Bool
