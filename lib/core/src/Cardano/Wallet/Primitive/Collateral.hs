@@ -98,7 +98,7 @@ classifyCollateralAddress addr@(Address addrBytes) =
                     -- address, therefore not a suitable collateral input.
                     Left IsAScriptAddr
 
-                -- Otherwise, this is an address that corresponds with a
-                -- suitable collateral input
+                -- Otherwise, this is an address that is suitable to be
+                -- a collateral input
                 L.KeyHashObj (_keyHash :: L.KeyHash 'L.Payment L.StandardCrypto)
                     -> Right addr
