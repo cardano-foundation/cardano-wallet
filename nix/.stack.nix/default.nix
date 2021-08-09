@@ -57,12 +57,15 @@
         strict-non-empty-containers = ./strict-non-empty-containers.nix;
         cardano-addresses-cli = ./cardano-addresses-cli.nix;
         cardano-addresses = ./cardano-addresses.nix;
+        criterion = ./criterion.nix;
+        optparse-applicative = ./optparse-applicative.nix;
         base-deriving-via = ./base-deriving-via.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
         cardano-crypto-class = ./cardano-crypto-class.nix;
         cardano-crypto-praos = ./cardano-crypto-praos.nix;
         cardano-crypto-tests = ./cardano-crypto-tests.nix;
+        orphans-deriving-via = ./orphans-deriving-via.nix;
         cardano-slotting = ./cardano-slotting.nix;
         strict-containers = ./strict-containers.nix;
         measures = ./measures.nix;
