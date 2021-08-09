@@ -549,7 +549,7 @@ prop_classifyCollateralAddress =
             then
                 -- It will always fail to classify invalid addresses
                 classifyCollateralAddress addr
-                    === Left IsAMalformedOrUnknownAddr
+                    === Left IsMalformedOrUnknownAddr
             else
                 case addrType of
                     -- Only unrecognized addresses are classified as malformed
@@ -557,23 +557,23 @@ prop_classifyCollateralAddress =
                     -- according to it's type)
                     Nothing ->
                         classifyCollateralAddress addr
-                            === Left IsAMalformedOrUnknownAddr
+                            === Left IsMalformedOrUnknownAddr
 
                     -- Stake addresses are not suitable for collateral
                     Just (StakeAddress _) ->
                         classifyCollateralAddress addr
-                            === Left IsAStakeAddr
+                            === Left IsStakeAddr
 
                     -- Script addresses are not suitable for collateral
                     Just (BaseAddress CredentialScriptHash _) ->
                         classifyCollateralAddress addr
-                            === Left IsAScriptAddr
+                            === Left IsScriptAddr
                     Just (PointerAddress CredentialScriptHash) ->
                         classifyCollateralAddress addr
-                            === Left IsAScriptAddr
+                            === Left IsScriptAddr
                     Just (EnterpriseAddress CredentialScriptHash) ->
                         classifyCollateralAddress addr
-                            === Left IsAScriptAddr
+                            === Left IsScriptAddr
 
                     -- The following addresses all have a key hash payment
                     -- credential and are thus suitable for collateral
@@ -624,7 +624,7 @@ unit_classifyCollateralAddress_stakeAddrGolden =
     let
         addr = Address . BL.toStrict $ stakeAddrGolden
     in
-        classifyCollateralAddress addr `shouldBe` Left IsAStakeAddr
+        classifyCollateralAddress addr `shouldBe` Left IsStakeAddr
 
 unit_classifyCollateralAddress_pointerAddrGolden :: Expectation
 unit_classifyCollateralAddress_pointerAddrGolden =
