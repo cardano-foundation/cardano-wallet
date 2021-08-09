@@ -1,9 +1,10 @@
+
 # This resolver file contains a ghc-8.10-based stackage LTS, with a
 # released cardano-node version, and supporting libraries.
 #
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/f752e8c112a92c339692d861b445bf5eb77ac067/snapshots/cardano-alonzo-white-1.4.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/c2aa1078ca8261d98cfce16d1131fbc687f6692b/snapshots/cardano-alonzo-purple-1.0.1.yaml
 compiler: ghc-8.10.5
 
 packages:
