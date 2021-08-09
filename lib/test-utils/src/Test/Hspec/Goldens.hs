@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Small module for writing text-based golden tests.
 --
@@ -25,21 +25,24 @@ module Test.Hspec.Goldens
 
 import Prelude
 
-import Control.Applicative
-    ( (<|>) )
-import Control.Exception
-    ( try )
-import Data.Maybe
-    ( isJust )
+import Data.Either.Combinators
+    ( rightToMaybe )
 import Data.Text
     ( Text )
+import Fmt
+    ( Builder, fmt, (+|), (+||), (|+), (||+) )
 import System.Environment
     ( lookupEnv )
 import System.FilePath
-    ( (</>) )
-import System.Info
-    ( os )
+    ( (<.>), (</>) )
+import System.IO.Error
+    ( ioeGetErrorType, isDoesNotExistErrorType )
 import Test.Hspec
+    ( Expectation, expectationFailure, shouldBe )
+import Test.Utils.Platform
+    ( isWindows )
+import UnliftIO.Exception
+    ( IOException, try, tryJust )
 
 import qualified Data.Text.IO as TIO
 
@@ -52,42 +55,48 @@ textGolden
     -> String -- ^ Filename for the test
     -> Text  -- ^ Value to compare with the golden file
     -> Expectation
-textGolden settings title value = do
-    let f = goldenDirectory settings </> title
-    overwrite <- isJust <$> lookupEnv "OVERWRITE_GOLDENS"
-    readGolden f >>= \case
-        Right expected | not overwrite -> value `shouldBe` expected
-                       | otherwise     -> writeGoldenAndFail f value "Overwriting goldens"
-        Left _ -> do
+textGolden settings title value =
+    (,) <$> lookupEnv "OVERWRITE_GOLDENS" <*> readGolden >>= \case
+        (Nothing, (_, Just expected)) ->
+            value `shouldBe` expected
+        (Just _overwrite, (f, Just _expected)) ->
+            writeGoldenAndFail f value "Overwriting goldens"
+        (_, (f, Nothing)) ->
             writeGoldenAndFail f value "No existing golden file found"
 
   where
-    -- If running on windows, will try to read the windows-specific golden
-    -- first.
-    readGolden :: FilePath -> IO (Either IOError Text)
-    readGolden f
-        | os == "mingw32" = try $ TIO.readFile (f <> ".win") <|> TIO.readFile f
-        | otherwise       = try $ TIO.readFile f
+    golden = goldenDirectory settings </> title
+    -- If running on windows, we will use the windows-specific golden first,
+    -- if it exists.
+    goldenWin = if isWindows then Just (golden <.> "win") else Nothing
 
-    -- NOTE: Not the most elegant error handling, but using e.g. ExceptT seemed
-    -- to get unnecessarily complicated and not interplay with the IO `shouldBe`
-    -- expectation.
+    -- | Gets the contents of a golden text file, if it exists, and returns the
+    -- path of the actual file which was read.
+    readGolden :: IO (FilePath, Maybe Text)
+    readGolden = case goldenWin of
+        Just win -> readTextFile win >>= \case
+            Just text -> pure (win, Just text)
+            Nothing -> (golden,) <$> readTextFile golden
+        Nothing -> (golden,) <$> readTextFile golden
+
+    readTextFile :: FilePath -> IO (Maybe Text)
+    readTextFile = fmap rightToMaybe . tryJust handler . TIO.readFile
+      where
+        handler e
+            | isDoesNotExistErrorType (ioeGetErrorType e) = Just e
+            | otherwise = Nothing
+
     writeGoldenAndFail
         :: FilePath
         -> Text
         -> String -- ^ Error message prefix on failure
         -> IO ()
-    writeGoldenAndFail f v errMsg = do
-        try @IOError (TIO.writeFile f v) >>= \case
-            Right () -> expectationFailure $ mconcat
-                [ errMsg
-                , "... "
-                , "Now written to disk. Please check for correctness and "
-                , "commit."
-                ]
-            Left writeError -> expectationFailure $ mconcat
-                [ errMsg
-                , "... "
-                , "Unable to write the new value to disk because of:\n"
-                , show writeError
-                ]
+    writeGoldenAndFail f v errMsg =
+        try (TIO.writeFile f v) >>= expectationFailure . fmt . msg
+      where
+        msg :: Either IOException () -> Builder
+        msg res = errMsg|+"... "+|case res of
+            Right () ->
+                "Now written to disk. Please check for correctness and commit."
+            Left err ->
+                "Unable to write the new value to disk because of:\n"+||err||+""

@@ -37,6 +37,8 @@ library
     , formatting
     , hspec
     , directory
+    , either
+    , fmt
     , hspec-core
     , hspec-expectations
     , hspec-golden-aeson
