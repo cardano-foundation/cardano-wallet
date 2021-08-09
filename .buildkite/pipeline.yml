@@ -43,9 +43,9 @@ steps:
   - label: 'Check Cabal Configure (Haskell.nix shellFor)'
     depends_on: nix
     command:
-      - 'nix-shell --run "cabal update"'
-      - 'nix-shell --run "cabal configure --enable-tests --enable-benchmarks"'
-      - 'nix-shell --run "cabal configure -frelease --enable-tests --enable-benchmarks"'
+      - 'nix-shell --run "echo --- Cabal update ; cabal update"'
+      - 'nix-shell --run "echo +++ Cabal configure ; cabal configure --enable-tests --enable-benchmarks"'
+      - 'nix-shell --run "echo +++ Cabal configure -frelease ; cabal configure -frelease --enable-tests --enable-benchmarks"'
     agents:
       system: x86_64-linux
 
@@ -57,13 +57,13 @@ steps:
 
   - label: 'HLint'
     depends_on: nix
-    command: 'nix-shell --run "hlint lib"'
+    command: 'nix-shell --run "echo +++ HLint ; hlint lib"'
     agents:
       system: x86_64-linux
 
   - label: 'Validate OpenAPI Specification'
     depends_on: nix
-    command: 'nix-shell --run "openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
+    command: 'nix-shell --run "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
     agents:
       system: x86_64-linux
 
@@ -85,6 +85,8 @@ steps:
 
   - label: 'Lint bash shell scripts'
     depends_on: nix
-    command: './scripts/shellcheck.sh'
+    commands:
+      - 'echo +++ Shellcheck'
+      - './scripts/shellcheck.sh'
     agents:
       system: x86_64-linux

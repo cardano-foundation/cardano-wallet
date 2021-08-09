@@ -149,17 +149,17 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
         projectBuild ["--test", "--no-run-tests"]
     , titled "Tests (except integration)" $
         timeout 60 $ do
-            test (skip integration) []
+            test (skip integration)
     , titled "Checking golden test files" $
         checkUnclean dryRun "lib/core/test/data"
     , when' runIntegration $ titled "Integration tests on latest era" $
         timeout 60 $ do
             unset "LOCAL_CLUSTER_ERA"
-            test [] [integration]
+            test [integration]
     , when' runIntegration $ titled "Integration tests on past era (Mary)" $
         timeout 60 $ do
             export "LOCAL_CLUSTER_ERA" "mary"
-            test [] [integration]
+            test [integration]
     ]
   where
     projectOpt = Fast
@@ -186,8 +186,8 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
 
     projectBuild args = build projectOpt $ benchFlags ++ args
 
-    test testArgs targets = runStack "test" projectOpt $
-        ta (jobs 3 ++ testArgs) ++ benchFlags ++ targets
+    test args = runStack "test" projectOpt $
+        ta (jobs 3) ++ benchFlags ++ args
 
     color arg = ["--color", arg]
     fast  arg = case arg of Standard -> []; Fast -> ["--fast"]
