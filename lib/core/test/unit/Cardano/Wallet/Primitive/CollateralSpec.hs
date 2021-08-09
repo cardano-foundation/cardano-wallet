@@ -150,75 +150,101 @@ prop_addressType_byron =
 
 -- | Test that for any stake address, we classify it as a stake address
 -- (although not necessarily the correct one, as it's a bit difficult to assert
--- that the credential type is correct).
+-- that the credential type is correct, we do at least test that each type is
+-- chosen sometimes using the coverage check).
 prop_addressType_stake :: Property
 prop_addressType_stake =
     forAll genStakeAddr $ \stakeAddr -> do
         let
             (Address addrBytes) = asStakeAddress stakeAddr
-        disjoin
-          [ addrType === StakeAddress CredentialKeyHash
-          , addrType === StakeAddress CredentialScriptHash
-          ]
             addrType = B.runGet getAddressType (BL.fromStrict addrBytes)
+        coverTable "Address types"
+            [ ("StakeAddress CredentialKeyHash"                        , 30)
+            , ("StakeAddress CredentialScriptHash"                     , 30)
+            ] $
+            tabulate "Address types" [show addrType] $
+            disjoin
+              [ addrType === StakeAddress CredentialKeyHash
+              , addrType === StakeAddress CredentialScriptHash
+              ]
 
 -- | Test that for any shelley keyhash address, we classify it as a shelley
 -- keyhash address (although not necessarily the correct one, as it's a bit
--- difficult to assert that the exact type is correct).
+-- difficult to assert that the exact type is correct, we do at least test that
+-- each type is chosen sometimes using the coverage check).
 prop_addressType_shelleyKeyHash :: Property
 prop_addressType_shelleyKeyHash =
     forAll genShelleyKeyHashAddr $ \shelleyKeyHashAddr -> do
         let
             (Address addrBytes) = asAddress shelleyKeyHashAddr
-        disjoin
-          [ addrType === BaseAddress CredentialKeyHash CredentialKeyHash
-          , addrType === BaseAddress CredentialKeyHash CredentialScriptHash
-          , addrType === PointerAddress CredentialKeyHash
-          , addrType === EnterpriseAddress CredentialKeyHash
-          ]
             addrType = B.runGet getAddressType (BL.fromStrict addrBytes)
+        coverTable "Address types"
+            [ ("BaseAddress CredentialKeyHash CredentialKeyHash", 10)
+            , ("BaseAddress CredentialKeyHash CredentialScriptHash", 10)
+            , ("PointerAddress CredentialKeyHash", 10)
+            , ("EnterpriseAddress CredentialKeyHash", 10)
+            ] $
+            tabulate "Address types" [show addrType] $
+            disjoin
+              [ addrType === BaseAddress CredentialKeyHash CredentialKeyHash
+              , addrType === BaseAddress CredentialKeyHash CredentialScriptHash
+              , addrType === PointerAddress CredentialKeyHash
+              , addrType === EnterpriseAddress CredentialKeyHash
+              ]
 
 -- | Test that for any shelley scripthash address, we classify it as a shelley
 -- scripthash address (although not necessarily the correct one, as it's a bit
--- difficult to assert that the exact type is correct).
+-- difficult to assert that the exact type is correct, we do at least test that
+-- each type is chosen sometimes using the coverage check).
 prop_addressType_shelleyScriptHash :: Property
 prop_addressType_shelleyScriptHash =
     forAll genShelleyScriptHashAddr $ \shelleyScriptHashAddr -> do
         let
             (Address addrBytes) = asAddress shelleyScriptHashAddr
-        disjoin
-          [ addrType === BaseAddress CredentialScriptHash CredentialKeyHash
-          , addrType === BaseAddress CredentialScriptHash CredentialScriptHash
-          , addrType === PointerAddress CredentialScriptHash
-          , addrType === EnterpriseAddress CredentialScriptHash
-          ]
             addrType = B.runGet getAddressType (BL.fromStrict addrBytes)
+        coverTable "Address types"
+            [ ("BaseAddress CredentialScriptHash CredentialKeyHash", 10)
+            , ("BaseAddress CredentialScriptHash CredentialScriptHash", 10)
+            , ("PointerAddress CredentialScriptHash", 10)
+            , ("EnterpriseAddress CredentialScriptHash", 10)
+            ] $
+            tabulate "Address types" [show addrType] $
+            disjoin
+              [ addrType
+                === BaseAddress CredentialScriptHash CredentialKeyHash
+              , addrType
+                === BaseAddress CredentialScriptHash CredentialScriptHash
+              , addrType
+                === PointerAddress CredentialScriptHash
+              , addrType
+                === EnterpriseAddress CredentialScriptHash
+              ]
 
 -- To be extra sure, we also test our code with some golden addresses we
 -- generated with "cardano-addresses":
 
 unit_addressType_byronGolden :: Expectation
 unit_addressType_byronGolden =
-    B.runGet getHeader byronAddrGolden `shouldBe` BootstrapAddress
+    B.runGet getAddressType byronAddrGolden `shouldBe` BootstrapAddress
 
 unit_addressType_shelleyEnterprisePaymentGolden :: Expectation
 unit_addressType_shelleyEnterprisePaymentGolden =
-    B.runGet getHeader shelleyEnterprisePaymentAddrGolden
+    B.runGet getAddressType shelleyEnterprisePaymentAddrGolden
         `shouldBe` EnterpriseAddress CredentialKeyHash
 
 unit_addressType_stakeAddrGolden :: Expectation
 unit_addressType_stakeAddrGolden =
-    B.runGet getHeader stakeAddrGolden
+    B.runGet getAddressType stakeAddrGolden
         `shouldBe` StakeAddress CredentialKeyHash
 
 unit_addressType_pointerAddrGolden :: Expectation
 unit_addressType_pointerAddrGolden =
-    B.runGet getHeader pointerAddrGolden
+    B.runGet getAddressType pointerAddrGolden
         `shouldBe` PointerAddress CredentialKeyHash
 
 unit_addressType_delegationAddrGolden :: Expectation
 unit_addressType_delegationAddrGolden =
-    B.runGet getHeader delegationAddrGolden
+    B.runGet getAddressType delegationAddrGolden
         `shouldBe` BaseAddress CredentialKeyHash CredentialKeyHash
 
 -- TODO generate more unit tests for each type of address.
