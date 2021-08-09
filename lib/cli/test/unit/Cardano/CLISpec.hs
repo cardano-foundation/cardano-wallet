@@ -64,6 +64,8 @@ import Options.Applicative
     , prefs
     , renderFailure
     )
+import System.Environment
+    ( getProgName )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -354,7 +356,8 @@ parser = cli $ mempty
     <> cmdNetwork networkClient
 
 usageGolden :: HasCallStack => FilePath -> [String] -> Spec
-usageGolden dir args = it (unwords args) $
+usageGolden dir args = it (unwords args) $ do
+    exe <- T.pack <$> getProgName
     case execParserPure defaultPrefs parser args of
         Success _ -> expectationFailure
             "expected parser to show usage but it has succeeded"
@@ -362,7 +365,10 @@ usageGolden dir args = it (unwords args) $
             "expected parser to show usage but it offered completion"
         Failure failure -> do
             let (usage, _) = renderFailure failure mempty
-            let settings = Settings { goldenDirectory = dir }
+            let settings = Settings
+                    { goldenDirectory = dir
+                    , postProcess = T.replace exe "cardano-wallet" . (<> "\n")
+                    }
             textGolden settings (unwords args) (T.pack usage)
 
 {-------------------------------------------------------------------------------

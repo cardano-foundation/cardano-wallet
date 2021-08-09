@@ -44,11 +44,19 @@ import Test.Utils.Platform
 import UnliftIO.Exception
     ( IOException, try, tryJust )
 
+import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
-newtype Settings = Settings
+data Settings = Settings
     { goldenDirectory :: FilePath
+    , postProcess :: Text -> Text
     }
+
+-- | Wrapper for text which is easier to read in HSpec failure messages.
+newtype GoldenText = GoldenText { getGoldenText :: Text } deriving Eq
+
+instance Show GoldenText where
+    show = T.unpack . getGoldenText
 
 textGolden
     :: Settings
@@ -58,7 +66,7 @@ textGolden
 textGolden settings title value =
     (,) <$> lookupEnv "OVERWRITE_GOLDENS" <*> readGolden >>= \case
         (Nothing, (_, Just expected)) ->
-            value `shouldBe` expected
+            GoldenText (postProcess settings value) `shouldBe` expected
         (Just _overwrite, (f, Just _expected)) ->
             writeGoldenAndFail f value "Overwriting goldens"
         (_, (f, Nothing)) ->
@@ -72,8 +80,8 @@ textGolden settings title value =
 
     -- | Gets the contents of a golden text file, if it exists, and returns the
     -- path of the actual file which was read.
-    readGolden :: IO (FilePath, Maybe Text)
-    readGolden = case goldenWin of
+    readGolden :: IO (FilePath, Maybe GoldenText)
+    readGolden = fmap (fmap GoldenText) <$> case goldenWin of
         Just win -> readTextFile win >>= \case
             Just text -> pure (win, Just text)
             Nothing -> (golden,) <$> readTextFile golden
@@ -91,9 +99,11 @@ textGolden settings title value =
         -> Text
         -> String -- ^ Error message prefix on failure
         -> IO ()
-    writeGoldenAndFail f v errMsg =
-        try (TIO.writeFile f v) >>= expectationFailure . fmt . msg
+    writeGoldenAndFail f text errMsg =
+        try (TIO.writeFile f text') >>= expectationFailure . fmt . msg
       where
+        text' = postProcess settings text
+
         msg :: Either IOException () -> Builder
         msg res = errMsg|+"... "+|case res of
             Right () ->
