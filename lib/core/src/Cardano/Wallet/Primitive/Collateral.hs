@@ -65,7 +65,7 @@ data AddrNotSuitableForCollateral
     -- ^ The address could not be parsed
     deriving (Eq, Show)
 
--- | Analyze an address to determine if it's funds are suitable for use as a
+-- | Analyze an address to determine if its funds are suitable for use as a
 -- collateral input.
 --
 -- This function returns an Either instead of a Maybe because I think it's
