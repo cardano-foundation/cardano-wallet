@@ -24,7 +24,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..) )
+    ( TxOut (..) )
 
 import qualified Cardano.Ledger.Address as L
 import qualified Cardano.Ledger.Credential as L
