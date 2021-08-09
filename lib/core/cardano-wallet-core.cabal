@@ -41,6 +41,7 @@ library
     , cardano-api
     , cardano-crypto
     , cardano-numeric
+    , cardano-ledger-core
     , cardano-slotting
     , cborg
     , containers
@@ -180,6 +181,7 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery.Shared
       Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+      Cardano.Wallet.Primitive.CoinSelection.Collateral
       Cardano.Wallet.Primitive.Delegation.UTxO
       Cardano.Wallet.Primitive.Migration
       Cardano.Wallet.Primitive.Migration.Planning
@@ -252,11 +254,17 @@ test-suite unit
       base
     , aeson
     , aeson-qq
+    , base58-bytestring
+    , binary
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-binary
     , cardano-crypto
     , cardano-numeric
+    , cardano-ledger-byron
+    , cardano-ledger-byron-test
+    , cardano-ledger-core
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
@@ -277,6 +285,7 @@ test-suite unit
     , foldl
     , generic-arbitrary
     , generic-lens
+    , hedgehog-quickcheck
     , hspec >= 2.8.2
     , hspec-core >= 2.8.2
     , http-api-data
@@ -308,6 +317,7 @@ test-suite unit
     , scrypt
     , servant
     , servant-server
+    , shelley-spec-ledger-test
     , should-not-typecheck
     , splitmix
     , strict-non-empty-containers
@@ -370,6 +380,7 @@ test-suite unit
       Cardano.Wallet.Primitive.Delegation.StateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
+      Cardano.Wallet.Primitive.CoinSelection.CollateralSpec
       Cardano.Wallet.Primitive.MigrationSpec
       Cardano.Wallet.Primitive.Migration.PlanningSpec
       Cardano.Wallet.Primitive.Migration.SelectionSpec
