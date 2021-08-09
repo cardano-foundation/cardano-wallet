@@ -24,7 +24,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..) )
+    ( TxOut (..) )
 
 import qualified Cardano.Ledger.Address as L
 import qualified Cardano.Ledger.Credential as L
@@ -32,27 +32,27 @@ import qualified Cardano.Ledger.Crypto as L
 import qualified Cardano.Ledger.Keys as L
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 
--- | If the given @(TxIn, TxOut)@ represents a UTxO that is suitable for use as
+-- | If the given @TxOut@ represents a UTxO that is suitable for use as
 -- a collateral input, returns @Just@ along with the total ADA value of the
 -- UTxO. Otherwise returns @Nothing@ if it is not a suitable collateral value.
 asCollateral
-    :: (TxIn, TxOut)
-    -- ^ TxIn, TxOut representing a UTxO
+    :: TxOut
+    -- ^ TxOut from a UTxO entry
     -> Maybe Coin
     -- ^ The total ADA value of that UTxO if it is suitable for collateral,
     -- otherwise Nothing.
-asCollateral (_txIn, txOut) = do
-   coin <- TokenBundle.toCoin $ tokens txOut
+asCollateral txOut = do
+    coin <- TokenBundle.toCoin $ tokens txOut
 
-   case classifyCollateralAddress (address txOut) of
-     Left IsAScriptAddr ->
-         Nothing
-     Left IsAStakeAddr ->
-         Nothing
-     Left IsAMalformedOrUnknownAddr ->
-         Nothing
-     Right _addr ->
-         Just coin
+    case classifyCollateralAddress (address txOut) of
+        Left IsAScriptAddr ->
+            Nothing
+        Left IsAStakeAddr ->
+            Nothing
+        Left IsAMalformedOrUnknownAddr ->
+            Nothing
+        Right _addr ->
+            Just coin
 
 -- | Reasons why an address might be considered unsuitable for a collateral
 -- input.

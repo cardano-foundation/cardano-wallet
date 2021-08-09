@@ -15,14 +15,12 @@ import Cardano.Wallet.Primitive.Collateral
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..) )
+    ( TxOut (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode )
 import Control.Monad
@@ -57,9 +55,7 @@ import Test.QuickCheck
     , frequency
     , oneof
     , property
-    , scale
     , tabulate
-    , vector
     , withMaxSuccess
     , (===)
     )
@@ -75,7 +71,6 @@ import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Test.Cardano.Chain.Common.Gen as Byron
 import qualified Test.Shelley.Spec.Ledger.Serialisation.EraIndepGenerators as L
@@ -660,9 +655,9 @@ unit_classifyCollateralAddress_delegationAddrGolden =
 
 -- | Assert that the "asCollateral" function is equivalent to the "composition"
 -- of "classifyCollateralAddress" and "TokenBundle.toCoin".
-prop_equivalence :: (TxIn, TxOut) -> Property
-prop_equivalence (txIn, txOut@(TxOut addr toks)) =
-    asCollateral (txIn, txOut)
+prop_equivalence :: TxOut -> Property
+prop_equivalence txOut@(TxOut addr toks) =
+    asCollateral txOut
     ===
     (either (const Nothing) Just (classifyCollateralAddress addr)
      >> TokenBundle.toCoin toks)
@@ -684,11 +679,6 @@ prop_equivalence (txIn, txOut@(TxOut addr toks)) =
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
     shrink = shrinkTokenBundleSmallRangePositive
-
-instance Arbitrary TxIn where
-    arbitrary = TxIn
-        <$> (Hash . B8.pack <$> vector 32)
-        <*> scale (`mod` 3) arbitrary
 
 instance Arbitrary TxOut where
     arbitrary = TxOut <$> genAnyAddress <*> arbitrary
