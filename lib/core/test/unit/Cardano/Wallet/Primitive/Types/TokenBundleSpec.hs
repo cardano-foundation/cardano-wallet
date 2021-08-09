@@ -87,6 +87,10 @@ spec =
         it "prop_equipartitionQuantitiesWithUpperBound_sum" $
             property prop_equipartitionQuantitiesWithUpperBound_sum
 
+    describe "Behaviour" $
+        it "toCoin only returns when token bundle has only ADA" $
+            property prop_toCoin_onlyAda
+
 --------------------------------------------------------------------------------
 -- Arithmetic properties
 --------------------------------------------------------------------------------
@@ -172,6 +176,24 @@ prop_equipartitionQuantitiesWithUpperBound_sum m maxQuantity =
     maxQuantity > TokenQuantity.zero ==>
         F.fold (TokenBundle.equipartitionQuantitiesWithUpperBound m maxQuantity)
             === m
+
+--------------------------------------------------------------------------------
+-- Behavioural properties
+-------------------------------------------------------------------------------
+
+prop_toCoin_onlyAda :: TokenBundle -> Property
+prop_toCoin_onlyAda bundle =
+    let
+        result = TokenBundle.toCoin bundle
+    in
+        checkCoverage $
+        cover 30 (not (TokenBundle.isCoin bundle))
+            "Token bundle has at least 1 non-ada asset" $
+        cover 30 (TokenBundle.isCoin bundle)
+            "Token bundle has no non-ada assets" $
+        if TokenBundle.isCoin bundle
+        then result === Just (TokenBundle.coin bundle)
+        else result === Nothing
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances
