@@ -20,6 +20,7 @@ let
   testData = {
     core = ../lib/core/test/data;
     shelley = ../lib/shelley/test/data;
+    cli = ../lib/cli/test/data;
   };
 
   name = "cardano-wallet-${project.version}-tests-win64";
@@ -37,7 +38,9 @@ in pkgs.runCommand name {
   done
 
   # Copy test data to location expected by test suites.
-  cp -Rv --no-preserve=mode ${testData.core}/* ${testData.shelley}/* test/data
+  ${pkgs.lib.concatMapStringsSep "\n" (dir: ''
+  cp -Rv --no-preserve=mode ${dir}/* test/data
+  '') (pkgs.lib.attrValues testData)}
 
   # Copy in test executables and rename.
   # Add each one to tests.bat.
