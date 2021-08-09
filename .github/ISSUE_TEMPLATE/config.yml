@@ -1,0 +1,21 @@
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+
+blank_issues_enabled: false
+contact_links:
+  - name: IOHK Technical Support
+    url: https://iohk.zendesk.com/hc/en-us
+    about: |
+      Users: Please feel welcome to ask for help from the IOHK
+      Technical Support team. They are knowledgeable about commonly
+      experienced issues and workarounds.
+  - name: Cardano Forums
+    url: https://forum.cardano.org/
+    about: |
+      General discussion about Cardano and `cardano-wallet`.
+
+      If you are an application developer seeking assistance with
+      using `cardano-wallet` or its associated APIs, please use the
+      [Developers Category](https://forum.cardano.org/c/developers/29).
+  - name: Security issues
+    url: mailto:fixme@iohk.io
+    about: Please report security vulnerabilities here.
