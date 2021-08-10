@@ -17,11 +17,9 @@ module Cardano.Wallet.Primitive.Collateral
     -- * Data types
       AddressType(..)
     , Credential(..)
-    , AddrNotSuitableForCollateral(..)
 
     -- * Classifying address types
     , asCollateral
-    , classifyCollateralAddress
     , addressSuitableForCollateral
     , addressTypeSuitableForCollateral
 
@@ -182,52 +180,6 @@ addressTypeSuitableForCollateral = \case
     StakeAddress CredentialKeyHash                        -> False
     StakeAddress CredentialScriptHash                     -> False
     BootstrapAddress                                      -> True
-
--- | Reasons why an address might be considered unsuitable for a collateral
--- input.
-data AddrNotSuitableForCollateral
-    = IsScriptAddr
-    -- ^ The address is some form of script address
-    | IsStakeAddr
-    -- ^ The address is some form of stake address
-    | IsMalformedOrUnknownAddr
-    -- ^ The address could not be parsed
-    deriving (Eq, Show)
-
--- | Analyze an address to determine if its funds are suitable for use as a
--- collateral input. Slight caveat: this function presumes that the given
--- address is well-formed, it does not validate the address.
---
--- This function returns an Either instead of a Maybe so that we can test
--- that it has failed for the right reason.
-classifyCollateralAddress
-    :: Address
-    -> Either AddrNotSuitableForCollateral Address
-classifyCollateralAddress addr@(Address addrBytes) =
-    case B.runGetOrFail getAddressType (BL.fromStrict addrBytes) of
-        Left (_, _, _err) ->
-            Left IsMalformedOrUnknownAddr
-        Right (_, _, addrType) ->
-            case addrType of
-                (BaseAddress CredentialKeyHash _) ->
-                     Right addr
-                (BaseAddress CredentialScriptHash _) ->
-                     Left IsScriptAddr
-
-                (PointerAddress CredentialKeyHash) ->
-                     Right addr
-                (PointerAddress CredentialScriptHash) ->
-                     Left IsScriptAddr
-
-                (EnterpriseAddress CredentialKeyHash) ->
-                     Right addr
-                (EnterpriseAddress CredentialScriptHash) ->
-                     Left IsScriptAddr
-
-                (StakeAddress _) ->
-                     Left IsStakeAddr
-                BootstrapAddress ->
-                     Right addr
 
 -- | If the given @TxOut@ represents a UTxO that is suitable for use as
 -- a collateral input, returns @Just@ along with the total ADA value of the
