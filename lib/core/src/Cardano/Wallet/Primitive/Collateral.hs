@@ -164,26 +164,17 @@ addressType (Address bytes) =
 -- considered suitable for use as collateral.
 addressTypeSuitableForCollateral :: AddressType -> Bool
 addressTypeSuitableForCollateral = \case
-    BaseAddress CredentialKeyHash _ ->
-         True
-    BaseAddress CredentialScriptHash _ ->
-         False
-
-    PointerAddress CredentialKeyHash ->
-         True
-    PointerAddress CredentialScriptHash ->
-         False
-
-    EnterpriseAddress CredentialKeyHash ->
-         True
-    EnterpriseAddress CredentialScriptHash ->
-         False
-
-    StakeAddress _ ->
-         False
-
-    BootstrapAddress ->
-         True
+    BaseAddress CredentialKeyHash CredentialKeyHash       -> True
+    BaseAddress CredentialKeyHash CredentialScriptHash    -> True
+    BaseAddress CredentialScriptHash CredentialKeyHash    -> False
+    BaseAddress CredentialScriptHash CredentialScriptHash -> False
+    PointerAddress CredentialKeyHash                      -> True
+    PointerAddress CredentialScriptHash                   -> False
+    EnterpriseAddress CredentialKeyHash                   -> True
+    EnterpriseAddress CredentialScriptHash                -> False
+    StakeAddress CredentialKeyHash                        -> False
+    StakeAddress CredentialScriptHash                     -> False
+    BootstrapAddress                                      -> True
 
 -- | Reasons why an address might be considered unsuitable for a collateral
 -- input.
