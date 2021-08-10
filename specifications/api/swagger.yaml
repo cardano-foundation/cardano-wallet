@@ -1651,6 +1651,11 @@ x-minimumCoins: &minimumCoins
   minItems: 0
   items: *amount
 
+x-collateralInputCount: &collateralInputCount
+  type: integer
+  minimum: 0
+  example: 3
+
 #############################################################################
 #                                                                           #
 #                              DEFINITIONS                                  #
@@ -1810,6 +1815,7 @@ components:
         - desired_pool_number
         - minimum_utxo_value
         - eras
+        - maximum_collateral_input_count
       properties:
         genesis_block_hash: *blockId
         blockchain_start_time: *date
@@ -1830,6 +1836,10 @@ components:
             With Alonzo, `minimum_utxo_value` is not a real protocol parameter, but rather
             derived from from the Alonzo genesis `adaPerUTxOWord`.
         eras: *ApiEraInfo
+        maximum_collateral_input_count:
+          <<: *collateralInputCount
+          description: |
+            The maximum number of collateral inputs that can be used in a single transaction.
 
     ApiSelectCoinsPayments: &ApiSelectCoinsPayments
       type: object

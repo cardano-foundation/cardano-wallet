@@ -31,6 +31,7 @@ import Test.Integration.Framework.DSL
     , epochLengthValue
     , expectField
     , expectResponseCode
+    , maximumCollateralInputCountByEra
     , minUTxOValue
     , request
     , securityParameterValue
@@ -75,6 +76,8 @@ spec = describe "SHELLEY_NETWORK" $ do
             , expectField #epochLength (`shouldBe` Quantity epochLengthValue)
             , expectField #securityParameter (`shouldBe` Quantity securityParameterValue)
             , expectField #activeSlotCoefficient (`shouldBe` Quantity 50.0)
+            , expectField #maximumCollateralInputCount
+                  (`shouldBe` maximumCollateralInputCountByEra (_mainEra ctx))
             ]
             ++ map (expectEraField (`shouldNotBe` Nothing)) knownEras
             ++ map (expectEraField (`shouldBe` Nothing)) unknownEras

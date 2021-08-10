@@ -1009,6 +1009,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , desiredPoolNumber :: !Word16
     , minimumUtxoValue :: !(Quantity "lovelace" Natural)
     , eras :: !ApiEraInfo
+    , maximumCollateralInputCount :: !Word16
     } deriving (Eq, Generic, Show)
 
 data ApiEraInfo = ApiEraInfo
@@ -1054,6 +1055,8 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
             MinimumUTxOValueCostPerWord _perWord ->
                 txOutputMinimumAdaQuantity txConstraints TokenMap.empty
         , eras = apiEras
+        , maximumCollateralInputCount =
+              view #maxCollateralInputs pp
         }
   where
     toApiCoin = Quantity . fromIntegral . unCoin
