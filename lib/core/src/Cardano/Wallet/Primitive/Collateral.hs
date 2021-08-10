@@ -22,6 +22,7 @@ module Cardano.Wallet.Primitive.Collateral
     -- * Classifying address types
     , asCollateral
     , classifyCollateralAddress
+    , addressSuitableForCollateral
     , addressTypeSuitableForCollateral
 
     -- * Reading address types
@@ -143,6 +144,12 @@ putAddressType :: AddressType -> B.Put
 putAddressType t =
     B.putWord8 $
     fromIntegral @Word4 @Word8 (addressTypeToHeaderNibble t) `Bits.shiftL` 4
+
+-- | Indicates whether or not the given address is suitable for collateral.
+--
+addressSuitableForCollateral :: Address -> Bool
+addressSuitableForCollateral =
+    maybe False addressTypeSuitableForCollateral . addressType
 
 -- By inspecting the bit pattern of an Address, we can determine its address
 -- type.
