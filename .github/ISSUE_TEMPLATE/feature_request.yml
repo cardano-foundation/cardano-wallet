@@ -1,0 +1,29 @@
+name: 🆕 Suggest an improvement or new feature
+description: How could cardano-wallet be improved?
+labels: ["IMPROVEMENT", "ADDING FEATURE"]
+body:
+  - type: textarea
+    attributes:
+      label: The problem that you wish to solve
+      description: >-
+        Please describe your situation or application and what you
+        would like to achieve with Cardano.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Description
+      description: >-
+        Your idea for an improvement or new feature which would solve
+        this problem.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Implementation suggestions
+      description: >-
+        If you have any suggestions for how to implement this
+        improvement, please add them.
+
+        If you have a way to work around a missing feature, include
+        that info here.

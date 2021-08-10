@@ -1,0 +1,62 @@
+name: 🔥 Failing Test Case
+description: A failing test case scenario found locally or in CI which is preventing PRs from being merged.
+title: "Flaky test: "
+labels: "Test failure"
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thanks for helping us stay on top of flaky tests by filling
+        out this form.
+  - type: checkboxes
+    attributes:
+      label: 'Please ensure:'
+      options:
+        - label: This is actually a flaky test already present in the code and not caused by your PR.
+          required: true
+  - type: textarea
+    attributes:
+      label: Context
+      description: >-
+        Any information that is useful to understand the impact or
+        cause of the failing test. References to your PR or other
+        tickets are welcome.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Job name
+    validations:
+      required: true
+      description: >-
+        Name of the build job/workflow step. Please be specific with Cabal package
+        and component names if possible.
+  - type: input
+    attributes:
+      label: Test case name(s)
+      description: If applicable.
+  - type: textarea
+    attributes:
+      label: Error message
+      description: >-
+        For failing unit or integration tests, please copy and paste the output
+        of the test runner here.
+
+        For properties, also provide the counter-example given by QuickCheck.
+
+        For build system errors, ensure that you have found and copied
+        the *relevant* portion of the logs. Often the real error is to
+        be found somewhere above subsequent errors.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Build link
+      description: >-
+        The URL of a build job in CI where the error occurs. Please
+        link to a specific build number. In Hydra, please link to the
+        job page rather than the logs.
+      placeholder: https://hydra.iohk.io/job/Cardano/cardano-wallet-bors-staging/cardano-wallet-linux64
+    validations:
+      required: true

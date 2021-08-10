@@ -1,0 +1,133 @@
+name: 🐛 Report a bug
+description: Create a bug report
+labels: BUG
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        # Thanks for reporting a bug! ⛰
+
+        Help us understand and replicate the issue by filling in this form.
+
+
+        If you are unsure about how to fill out any fields in this
+        form, or are don't know whether the behaviour that you see is
+        actually a bug, then please contact
+        [IOHK Technical Support](https://iohk.zendesk.com/hc/en-us) first,
+        and they will guide you through the process.
+
+
+        If you know that the issue is already tracked in
+        [IOHK Jira](https://jira.iohk.io/) (i.e. has an `ADP-` issue number)
+        then please do not also submit it here. See the
+        [release notes](https://github.com/input-output-hk/cardano-wallet/releases)
+        for known issues.
+  - type: checkboxes
+    attributes:
+      label: Just checking...
+      description: >-
+        Before filling out this form, please ensure that:
+
+        1. You have reason to believe that this is caused by cardano-wallet and not
+        [Daedalus](https://github.com/input-output-hk/daedalus) or
+        [cardano-node](https://github.com/input-output-hk/cardano-node).
+
+        2. You are using the latest
+        [`cardano-wallet` release](https://github.com/input-output-hk/cardano-wallet/releases).
+
+        3. You are using the correct version of cardano-node according to the
+        [cardano-wallet version matrix](https://github.com/input-output-hk/cardano-wallet#latest-releases)
+        or [release notes](https://github.com/input-output-hk/cardano-wallet/releases).
+      options:
+        - label: This is a `cardano-wallet` bug.
+          required: true
+        - label: I am using the latest `cardano-wallet` release.
+          required: true
+        - label: I am using the *correct* `cardano-node` version for that release of `cardano-wallet`.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Use the output from `cardano-wallet version`.
+      placeholder: vYYYY-MM-DD (git revision 0abcdef)
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: >-
+        Operating system on which you are running `cardano-wallet`.
+
+        Please include the operating system version.
+
+
+        For Linux please also specify your distribution name and
+        version, and the output of `uname -a`.
+      placeholder: 'Example: macOS Big Sur'
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      description: >-
+        How did you install <tt>cardano-wallet</tt>? Please provide
+        further information in the _Description_ if necessary.
+      options:
+        - Built from source
+        - Binary from GitHub release page
+        - IOHK Docker image
+        - Own Docker image (please specify)
+        - Nix
+        - via Daedalus installer
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: network
+    attributes:
+      label: Network configuration
+      description: >-
+        Which network are you connecting to? It could be one of
+        [these deployments](https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html) for example.
+      placeholder: 'Example: mainnet'
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: >-
+        Any information that is useful to understand the bug and the subsystem
+        it appeared in. References to documentation and or other tickets are
+        welcome.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: >-
+        Describe the issue and how to replicate it using the template below.
+
+        If possible, please attach logs from when the issue occurred,
+        if you believe that they could be relevant to the problem.
+      value: |
+        ## Steps to Reproduce
+
+        <!-- Steps to reproduce the behavior. -->
+
+        1.
+        2.
+        3.
+        ...
+
+        ### Expected behavior
+
+        <!-- A clear and concise description of what you expected to happen. -->
+
+        ### Actual behavior
+
+        <!-- A clear and concise description of what you observe
+        instead. If applicable, add screenshots to help explain your
+        problem. -->
+    validations:
+      required: true
