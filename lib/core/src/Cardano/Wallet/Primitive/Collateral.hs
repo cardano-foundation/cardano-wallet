@@ -238,9 +238,8 @@ asCollateral
     -> Maybe Coin
     -- ^ The total ADA value of that UTxO if it is suitable for collateral,
     -- otherwise Nothing.
-asCollateral txOut = do
-    coin <- TokenBundle.toCoin $ tokens txOut
-    addrType <- addressType (address txOut)
-    if addressTypeSuitableForCollateral addrType
-    then Just coin
-    else Nothing
+asCollateral txOut
+    | addressSuitableForCollateral (address txOut) =
+        TokenBundle.toCoin (tokens txOut)
+    | otherwise =
+        Nothing
