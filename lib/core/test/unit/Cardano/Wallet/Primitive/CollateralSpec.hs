@@ -7,15 +7,14 @@ module Cardano.Wallet.Primitive.CollateralSpec where
 import Prelude
 
 import Cardano.Wallet.Primitive.Collateral
-    ( AddrNotSuitableForCollateral (..)
-    , AddressType (..)
+    ( AddressType (..)
     , Credential (..)
+    , addressSuitableForCollateral
     , addressType
     , addressTypeFromHeaderNibble
     , addressTypeSuitableForCollateral
     , addressTypeToHeaderNibble
     , asCollateral
-    , classifyCollateralAddress
     , getAddressType
     , putAddressType
     )
@@ -268,7 +267,7 @@ prop_addressType_equivalance =
 -- collateral iff the payment credential column of that address is "key hash".
 --
 -- So, there are a few properties we would like to assert about our
--- "classifyCollateralAddress" function:
+-- "addressSuitableForCollateral" function:
 --
 -- 1. That our classification function always considers addresses with a keyhash
 --    payment credential as suitable for collateral.
@@ -487,8 +486,8 @@ shrinkAddress addr =
 
 -- | Assert that, for any valid address, we only classify addresses with a key
 -- hash payment credential as being suitable for collateral.
-prop_classifyCollateralAddress :: Property
-prop_classifyCollateralAddress =
+prop_addressSuitableForCollateral :: Property
+prop_addressSuitableForCollateral =
     withMaxSuccess 2000 $
     forAllShrink genAnyAddress shrinkAddress $ \addr@(Address addrBytes) -> do
         let
@@ -503,39 +502,30 @@ prop_classifyCollateralAddress =
                 -- or unknown (i.e. we otherwise classify any known address
                 -- according to it's type)
                 Nothing ->
-                    classifyCollateralAddress addr
-                        === Left IsMalformedOrUnknownAddr
+                    addressSuitableForCollateral addr === False
 
                 -- Stake addresses are not suitable for collateral
                 Just (StakeAddress _) ->
-                    classifyCollateralAddress addr
-                        === Left IsStakeAddr
+                    addressSuitableForCollateral addr === False
 
                 -- Script addresses are not suitable for collateral
                 Just (BaseAddress CredentialScriptHash _) ->
-                    classifyCollateralAddress addr
-                        === Left IsScriptAddr
+                    addressSuitableForCollateral addr === False
                 Just (PointerAddress CredentialScriptHash) ->
-                    classifyCollateralAddress addr
-                        === Left IsScriptAddr
+                    addressSuitableForCollateral addr === False
                 Just (EnterpriseAddress CredentialScriptHash) ->
-                    classifyCollateralAddress addr
-                        === Left IsScriptAddr
+                    addressSuitableForCollateral addr === False
 
                 -- The following addresses all have a key hash payment
                 -- credential and are thus suitable for collateral
                 Just (BaseAddress CredentialKeyHash _) ->
-                    classifyCollateralAddress addr
-                        === Right addr
+                    addressSuitableForCollateral addr === True
                 Just (PointerAddress CredentialKeyHash) ->
-                    classifyCollateralAddress addr
-                        === Right addr
+                    addressSuitableForCollateral addr === True
                 Just (EnterpriseAddress CredentialKeyHash) ->
-                    classifyCollateralAddress addr
-                        === Right addr
+                    addressSuitableForCollateral addr === True
                 Just BootstrapAddress ->
-                    classifyCollateralAddress addr
-                        === Right addr
+                    addressSuitableForCollateral addr === True
 
             & counterexample ("AddressType: " <> show addrType)
             & counterexample ("Address hex: " <> asHex addrBytes)
@@ -549,73 +539,73 @@ isValidAddress (Address addrBytes) =
     isJust (L.deserialiseRewardAcnt addrBytes
         :: Maybe (L.RewardAcnt CC.StandardCrypto))
 
--- To be extra sure, we also test classifyCollateralAddress with some golden
+-- To be extra sure, we also test addressSuitableForCollateral with some golden
 -- addresses:
 
-unit_classifyCollateralAddress_byronGolden :: Expectation
-unit_classifyCollateralAddress_byronGolden =
+unit_addressSuitableForCollateral_byronGolden :: Expectation
+unit_addressSuitableForCollateral_byronGolden =
     let
         addr = Address . BL.toStrict $ byronAddrGolden
     in
-        classifyCollateralAddress addr `shouldBe` Right addr
+        addressSuitableForCollateral addr `shouldBe` True
 
-unit_classifyCollateralAddress_shelleyEnterprisePaymentGolden :: Expectation
-unit_classifyCollateralAddress_shelleyEnterprisePaymentGolden =
+unit_addressSuitableForCollateral_shelleyEnterprisePaymentGolden :: Expectation
+unit_addressSuitableForCollateral_shelleyEnterprisePaymentGolden =
     let
         addr = Address . BL.toStrict $ shelleyEnterprisePaymentAddrGolden
     in
-        classifyCollateralAddress addr `shouldBe` Right addr
+        addressSuitableForCollateral addr `shouldBe` True
 
-unit_classifyCollateralAddress_stakeAddrGolden :: Expectation
-unit_classifyCollateralAddress_stakeAddrGolden =
+unit_addressSuitableForCollateral_stakeAddrGolden :: Expectation
+unit_addressSuitableForCollateral_stakeAddrGolden =
     let
         addr = Address . BL.toStrict $ stakeAddrGolden
     in
-        classifyCollateralAddress addr `shouldBe` Left IsStakeAddr
+        addressSuitableForCollateral addr `shouldBe` False
 
-unit_classifyCollateralAddress_pointerAddrGolden :: Expectation
-unit_classifyCollateralAddress_pointerAddrGolden =
+unit_addressSuitableForCollateral_pointerAddrGolden :: Expectation
+unit_addressSuitableForCollateral_pointerAddrGolden =
     let
         addr = Address . BL.toStrict $ pointerAddrGolden
     in
-        classifyCollateralAddress addr `shouldBe` Right addr
+        addressSuitableForCollateral addr `shouldBe` True
 
-unit_classifyCollateralAddress_delegationAddrGolden :: Expectation
-unit_classifyCollateralAddress_delegationAddrGolden =
+unit_addressSuitableForCollateral_delegationAddrGolden :: Expectation
+unit_addressSuitableForCollateral_delegationAddrGolden =
     let
         addr = Address . BL.toStrict $ delegationAddrGolden
     in
-        classifyCollateralAddress addr `shouldBe` Right addr
+        addressSuitableForCollateral addr `shouldBe` True
 
 -- We wish to extend these properties to the "addressType" function, so we write
 -- a simple equivalence property:
-prop_addressTypeSuitableForCollateral_equivalence :: Property
-prop_addressTypeSuitableForCollateral_equivalence =
+prop_addressSuitableForCollateral_equivalence :: Property
+prop_addressSuitableForCollateral_equivalence =
     forAllShrink genAnyAddress shrinkAddress $ \addr ->
         maybe False addressTypeSuitableForCollateral (addressType addr)
-        === either (const False) (const True) (classifyCollateralAddress addr)
+        === addressSuitableForCollateral addr
 
--- We want to assert many of the same properties about "asCollateral" as we did
--- "classifyCollateralAddress". Rather than testing these properties twice, we
--- use the following logic:
+-- We want to assert many of the same properties about "asCollateral" as we do
+-- for "addressSuitableForCollateral". Rather than testing these properties
+-- twice, we use the following logic:
 --
---   - Given that the implementation of "classifyCollateralAddress" is correct,
+--   - Given that the implementation of "addressSuitableForCollateral" is
+--     correct,
 --   - Given that the implementation of "TokenBundle.toCoin" is correct,
 --   - and that "asCollateral" is equivalent to a simple composition of
---     "classifyCollateralAddress" and "TokenBundle.toCoin",
+--     "addressSuitableForCollateral" and "TokenBundle.toCoin",
 --
--- We can say that the implementation of "asCollateral" is also correct, so long
--- as the composition operator is guranteed not to change the properties we are
--- interested in. We can prove the equivalence like so:
+-- We can say that the implementation of "asCollateral" is also correct, so
+-- long as the composition operator is guranteed not to change the properties
+-- we are interested in. We can prove the equivalence like so:
 
 -- | Assert that the "asCollateral" function is equivalent to the "composition"
--- of "classifyCollateralAddress" and "TokenBundle.toCoin".
+-- of "addressSuitableForCollateral" and "TokenBundle.toCoin".
 prop_equivalence :: TxOut -> Property
 prop_equivalence txOut@(TxOut addr toks) =
-    asCollateral txOut
+    isJust (asCollateral txOut)
     ===
-    (either (const Nothing) Just (classifyCollateralAddress addr)
-     >> TokenBundle.toCoin toks)
+    (addressSuitableForCollateral addr && TokenBundle.isCoin toks)
 
 -- The composition operator we are using here is the Maybe instance of (>>).
 -- Initially, the Either is demoted to a Maybe, which we know maintains the
@@ -623,10 +613,10 @@ prop_equivalence txOut@(TxOut addr toks) =
 -- here, the composition operator discards the value inside the Maybe, and so
 -- the next argument can only depend on the falsity of the Maybe (indeed, it
 -- must). Thus the falsity of the properties is maintained (i.e. "asCollateral"
--- will accept/reject an UTxO correctly, so long as "classifyCollateralAddress"
--- classifies an address correctly, which is tested above). "asCollateral" will
--- return the correct coin value so long as "TokenBundle.toCoin" is working
--- correctly (tested elsewhere).
+-- will accept/reject an UTxO correctly, so long as
+-- "addressSuitableForCollateral" assesses an address correctly, which is
+-- tested above). "asCollateral" will return the correct coin value so long as
+-- "TokenBundle.toCoin" is working correctly (tested elsewhere).
 --
 -- I wish I knew how to formally prove things using category theory concepts
 -- like monadic composition...
@@ -676,20 +666,20 @@ spec = do
                     property prop_simplifyAddress_validAddress
                 it "shrink maintains type" $
                     property prop_simplifyAddress_typeMaintained
-            describe "classifyCollateralAddress" $ do
-                it "classifies any address correctly" $
-                    property prop_classifyCollateralAddress
+            describe "addressSuitableForCollateral" $ do
+                it "assesses all addresses correctly" $
+                    property prop_addressSuitableForCollateral
                 it "golden" $ do
-                    unit_classifyCollateralAddress_byronGolden
-                    unit_classifyCollateralAddress_shelleyEnterprisePaymentGolden
-                    unit_classifyCollateralAddress_stakeAddrGolden
-                    unit_classifyCollateralAddress_pointerAddrGolden
-                    unit_classifyCollateralAddress_delegationAddrGolden
+                    unit_addressSuitableForCollateral_byronGolden
+                    unit_addressSuitableForCollateral_shelleyEnterprisePaymentGolden
+                    unit_addressSuitableForCollateral_stakeAddrGolden
+                    unit_addressSuitableForCollateral_pointerAddrGolden
+                    unit_addressSuitableForCollateral_delegationAddrGolden
             describe "addressTypeSuitableForCollateral" $ do
-                it "satisfies same properties as classifyCollateralAddress" $
-                    property prop_addressTypeSuitableForCollateral_equivalence
+                it "satisfies same properties as addressSuitableForCollateral" $
+                    property prop_addressSuitableForCollateral_equivalence
             describe "asCollateral" $
-                it "satisfies same properties as classifyCollateralAddress" $
+                it "satisfies same properties as addressSuitableForCollateral" $
                     property prop_equivalence
 
 -- The following golden keys were generated from the recovery phrase:
