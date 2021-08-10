@@ -543,11 +543,11 @@ prop_classifyCollateralAddress =
 -- | Returns True if the given address parses as a known address.
 isValidAddress :: Address -> Bool
 isValidAddress (Address addrBytes) =
-  isJust (L.deserialiseAddr addrBytes
-          :: Maybe (L.Addr CC.StandardCrypto))
-  ||
-  isJust (L.deserialiseRewardAcnt addrBytes
-          :: Maybe (L.RewardAcnt CC.StandardCrypto))
+    isJust (L.deserialiseAddr addrBytes
+        :: Maybe (L.Addr CC.StandardCrypto))
+    ||
+    isJust (L.deserialiseRewardAcnt addrBytes
+        :: Maybe (L.RewardAcnt CC.StandardCrypto))
 
 -- To be extra sure, we also test classifyCollateralAddress with some golden
 -- addresses:
