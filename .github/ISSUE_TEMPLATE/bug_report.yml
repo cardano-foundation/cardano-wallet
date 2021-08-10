@@ -40,7 +40,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: Use the output from `cardano-wallet version`.
+      description: Copy and paste the output of running the CLI command: `cardano-wallet version`.
       placeholder: vYYYY-MM-DD (git revision 0abcdef)
     validations:
       required: true
@@ -49,9 +49,11 @@ body:
     attributes:
       label: Platform
       description: |
-        Operating system on which you are running
-        `cardano-wallet`. Please include the version. For Linux,
-        please specify your distribution.
+        Operating system on which you are running `cardano-wallet`.
+        Please include the operating system version.
+
+        For Linux please also specify your distribution name and
+        version, and the output of `uname -a`.
       placeholder: Example: macOS Big Sur
     validations:
       required: true
@@ -86,7 +88,7 @@ body:
       label: Context
       description: |
         Any information that is useful to understand the bug and the subsystem
-        it evolves in. References to documentation and or other tickets are
+        it appeared in. References to documentation and or other tickets are
         welcome.
   - type: textarea
     id: description

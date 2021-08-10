@@ -9,7 +9,7 @@ Before you submit, don't forget to:
    ✓ Assign one or several reviewer(s).
    ✓ Link to a Jira issue, and/or other GitHub issues or PRs.
 
-- Don't waste reviewers' time:
+- Try to make your intent clear for reviewers:
    ✓ If it's a draft, select the Create Draft PR option.
    ✓ Self-review your changes to make sure nothing unexpected slipped through.
 

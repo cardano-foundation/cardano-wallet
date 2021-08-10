@@ -39,7 +39,8 @@ body:
     attributes:
       label: Error message
       description: |
-        For failing unit or integration tests, put here the output of the test runner.
+        For failing unit or integration tests, please copy and paste the output
+        of the test runner here.
 
         For properties, also provide the counter-example given by QuickCheck.
 

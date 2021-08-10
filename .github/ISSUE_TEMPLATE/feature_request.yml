@@ -7,7 +7,7 @@ body:
       label: The problem that you wish to solve
       description: |
         Please describe your situation or application and what you
-        need to achieve with Cardano.
+        would like to achieve with Cardano.
     validations:
       required: true
   - type: textarea
