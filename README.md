@@ -69,9 +69,9 @@ See **Installation Instructions** for each available [release](https://github.co
 > | cardano-wallet | cardano-node (compatible versions) | SMASH (compatible versions)
 > | --- | --- | ---
 > | `master` branch | [alonzo-purple-1.0.1](https://github.com/input-output-hk/cardano-node/releases/tag/alonzo-purple-1.0.1) | [1.4.0](https://github.com/input-output-hk/smash/releases/tag/1.4.0)
+> | [v2021-08-11](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2021-08-11) | [alonzo-purple-1.0.1](https://github.com/input-output-hk/cardano-node/releases/tag/alonzo-purple-1.0.1) | [1.4.0](https://github.com/input-output-hk/smash/releases/tag/1.4.0)
 > | [v2021-07-30](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2021-07-30) | [1.28.0](https://github.com/input-output-hk/cardano-node/releases/tag/1.28.0) | [1.4.0](https://github.com/input-output-hk/smash/releases/tag/1.4.0)
 > | [v2021-06-11](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2021-06-11) | [1.27.0](https://github.com/input-output-hk/cardano-node/releases/tag/1.27.0) | [1.4.0](https://github.com/input-output-hk/smash/releases/tag/1.4.0)
-> | [v2021-05-26](https://github.com/input-output-hk/cardano-wallet/releases/tag/v2021-05-26) | [1.26.2](https://github.com/input-output-hk/cardano-node/releases/tag/1.26.2) | [1.4.0](https://github.com/input-output-hk/smash/releases/tag/1.4.0)
 
 ## How to build from sources
 

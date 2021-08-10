@@ -164,7 +164,6 @@ import Test.QuickCheck
     , Property
     , applyFun
     , arbitraryBoundedEnum
-    , arbitrarySizedNatural
     , checkCoverage
     , choose
     , conjoin
@@ -178,7 +177,6 @@ import Test.QuickCheck
     , label
     , oneof
     , property
-    , shrinkIntegral
     , shrinkList
     , sublistOf
     , suchThat
@@ -3479,10 +3477,6 @@ instance Arbitrary a => Arbitrary (AssetCount a) where
 instance Arbitrary AssetId where
     arbitrary = genAssetId
     shrink = shrinkAssetId
-
-instance Arbitrary Natural where
-    arbitrary = arbitrarySizedNatural
-    shrink = shrinkIntegral
 
 instance Arbitrary MakeChangeData where
     arbitrary = genMakeChangeData
