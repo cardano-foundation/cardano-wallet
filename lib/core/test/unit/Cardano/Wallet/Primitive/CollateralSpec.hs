@@ -457,7 +457,7 @@ prop_simplifyAddress_typeMaintained =
                 "could simplify address"  $
             case simplifyAddress addr of
                 Nothing ->
-                    True === True
+                    property True
                 Just (Address simplifiedBytes) ->
                     let
                         originalAddressType =
