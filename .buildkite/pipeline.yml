@@ -35,7 +35,7 @@ steps:
   - label: 'Check auto-generated Nix'
     key: nix
     commands:
-      - './nix/regenerate.sh'
+      - './nix/regenerate.sh --cache /dev/null'
       - 'nix-build ./nix -A iohkNix.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
     agents:
       system: x86_64-linux

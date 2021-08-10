@@ -146,7 +146,7 @@
       compiler.version = "8.10.5";
       compiler.nix-name = "ghc8105";
       };
-  resolver = "lts-18.4";
+  resolver = "lts-18.5";
   modules = [
     ({ lib, ... }:
       {
