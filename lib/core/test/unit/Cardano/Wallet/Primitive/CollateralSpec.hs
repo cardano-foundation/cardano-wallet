@@ -596,26 +596,34 @@ prop_addressSuitableForCollateral_equivalence =
 --     "addressSuitableForCollateral" and "TokenBundle.toCoin",
 --
 -- We can say that the implementation of "asCollateral" is also correct, so
--- long as the composition operator is guranteed not to change the properties
+-- long as the composition operator is guaranteed not to change the properties
 -- we are interested in. We can prove the equivalence like so:
+
+-- | Assert that if the "composition" of "addressSuitableForCollateral" and
+-- "TokenBundle.toCoin" returns, "asCollateral" should also return.
+prop_equivalence_bool :: TxOut -> Property
+prop_equivalence_bool txOut@(TxOut addr toks) =
+    isJust (asCollateral txOut)
+    ===
+    (addressSuitableForCollateral addr && TokenBundle.isCoin toks)
 
 -- | Assert that the "asCollateral" function is equivalent to the "composition"
 -- of "addressSuitableForCollateral" and "TokenBundle.toCoin".
 prop_equivalence :: TxOut -> Property
 prop_equivalence txOut@(TxOut addr toks) =
-    isJust (asCollateral txOut)
+    asCollateral txOut
     ===
-    (addressSuitableForCollateral addr && TokenBundle.isCoin toks)
+    (guard (addressSuitableForCollateral addr) >> TokenBundle.toCoin toks)
 
--- The composition operator we are using here is the Maybe instance of (>>).
--- Initially, the Either is demoted to a Maybe, which we know maintains the
--- falsity of the value (Left = Nothing = False, Right = Just = True). From
--- here, the composition operator discards the value inside the Maybe, and so
--- the next argument can only depend on the falsity of the Maybe (indeed, it
+-- The composition operator we are using here is the Maybe instance of (>>). The
+-- guard lifts the Boolean to a Maybe, maintaining the falsity of
+-- "addressSuitableForCollateral" (Nothing = False, Just = True).
+-- From here, the composition operator discards the value inside the Maybe, and
+-- so the next argument can only depend on the falsity of the Maybe (indeed, it
 -- must). Thus the falsity of the properties is maintained (i.e. "asCollateral"
 -- will accept/reject an UTxO correctly, so long as
--- "addressSuitableForCollateral" assesses an address correctly, which is
--- tested above). "asCollateral" will return the correct coin value so long as
+-- "addressSuitableForCollateral" assesses an address correctly, which is tested
+-- above). "asCollateral" will return the correct coin value so long as
 -- "TokenBundle.toCoin" is working correctly (tested elsewhere).
 --
 -- I wish I knew how to formally prove things using category theory concepts
@@ -678,7 +686,9 @@ spec = do
             describe "addressTypeSuitableForCollateral" $ do
                 it "satisfies same properties as addressSuitableForCollateral" $
                     property prop_addressSuitableForCollateral_equivalence
-            describe "asCollateral" $
+            describe "asCollateral" $ do
+                it "satisfies same boolean properties as addressSuitableForCollateral" $
+                    property prop_equivalence_bool
                 it "satisfies same properties as addressSuitableForCollateral" $
                     property prop_equivalence
 
