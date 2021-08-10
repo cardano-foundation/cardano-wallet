@@ -4,16 +4,18 @@ labels: BUG
 body:
   - type: markdown
     attributes:
-      value: |
+      value: >-
         # Thanks for reporting a bug! ⛰
 
         Help us understand and replicate the issue by filling in this form.
+
 
         If you are unsure about how to fill out any fields in this
         form, or are don't know whether the behaviour that you see is
         actually a bug, then please contact
         [IOHK Technical Support](https://iohk.zendesk.com/hc/en-us) first,
         and they will guide you through the process.
+
 
         If you know that the issue is already tracked in
         [IOHK Jira](https://jira.iohk.io/) (i.e. has an `ADP-` issue number)
@@ -23,12 +25,19 @@ body:
   - type: checkboxes
     attributes:
       label: Just checking...
-      description: |
+      description: >-
         Before filling out this form, please ensure that:
 
-        1. You have reason to believe that this is caused by cardano-wallet and not [Daedalus](https://github.com/input-output-hk/daedalus) or [cardano-node](https://github.com/input-output-hk/cardano-node).
-        2. You are using the latest [`cardano-wallet` release](https://github.com/input-output-hk/cardano-wallet/releases).
-        3. You are using the correct version of cardano-node according to the [cardano-wallet version matrix](https://github.com/input-output-hk/cardano-wallet#latest-releases) or [release notes](https://github.com/input-output-hk/cardano-wallet/releases).
+        1. You have reason to believe that this is caused by cardano-wallet and not
+        [Daedalus](https://github.com/input-output-hk/daedalus) or
+        [cardano-node](https://github.com/input-output-hk/cardano-node).
+
+        2. You are using the latest
+        [`cardano-wallet` release](https://github.com/input-output-hk/cardano-wallet/releases).
+
+        3. You are using the correct version of cardano-node according to the
+        [cardano-wallet version matrix](https://github.com/input-output-hk/cardano-wallet#latest-releases)
+        or [release notes](https://github.com/input-output-hk/cardano-wallet/releases).
       options:
         - label: This is a `cardano-wallet` bug.
           required: true
@@ -40,7 +49,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: Copy and paste the output of running the CLI command: `cardano-wallet version`.
+      description: Use the output from `cardano-wallet version`.
       placeholder: vYYYY-MM-DD (git revision 0abcdef)
     validations:
       required: true
@@ -48,22 +57,24 @@ body:
     id: platform
     attributes:
       label: Platform
-      description: |
+      description: >-
         Operating system on which you are running `cardano-wallet`.
+
         Please include the operating system version.
+
 
         For Linux please also specify your distribution name and
         version, and the output of `uname -a`.
-      placeholder: Example: macOS Big Sur
+      placeholder: 'Example: macOS Big Sur'
     validations:
       required: true
   - type: dropdown
     id: installation
     attributes:
       label: Installation method
-      description: |
-        How did you install cardano-wallet? Please provide further
-        information in Description if necessary.
+      description: >-
+        How did you install <tt>cardano-wallet</tt>? Please provide
+        further information in the _Description_ if necessary.
       options:
         - Built from source
         - Binary from GitHub release page
@@ -78,15 +89,15 @@ body:
     id: network
     attributes:
       label: Network configuration
-      description: |
+      description: >-
         Which network are you connecting to? It could be one of
         [these deployments](https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html) for example.
-      placeholder: Example: mainnet
+      placeholder: 'Example: mainnet'
   - type: textarea
     id: context
     attributes:
       label: Context
-      description: |
+      description: >-
         Any information that is useful to understand the bug and the subsystem
         it appeared in. References to documentation and or other tickets are
         welcome.
@@ -94,7 +105,7 @@ body:
     id: description
     attributes:
       label: Description
-      description: |
+      description: >-
         Describe the issue and how to replicate it using the template below.
 
         If possible, please attach logs from when the issue occurred,

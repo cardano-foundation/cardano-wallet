@@ -5,7 +5,7 @@ body:
   - type: textarea
     attributes:
       label: The problem that you wish to solve
-      description: |
+      description: >-
         Please describe your situation or application and what you
         would like to achieve with Cardano.
     validations:
@@ -13,7 +13,7 @@ body:
   - type: textarea
     attributes:
       label: Description
-      description: |
+      description: >-
         Your idea for an improvement or new feature which would solve
         this problem.
     validations:
@@ -21,7 +21,7 @@ body:
   - type: textarea
     attributes:
       label: Implementation suggestions
-      description: |
+      description: >-
         If you have any suggestions for how to implement this
         improvement, please add them.
 

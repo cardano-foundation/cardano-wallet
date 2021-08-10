@@ -5,7 +5,7 @@ labels: "Test failure"
 body:
   - type: markdown
     attributes:
-      value: |
+      value: >-
         Thanks for helping us stay on top of flaky tests by filling
         out this form.
   - type: checkboxes
@@ -17,7 +17,7 @@ body:
   - type: textarea
     attributes:
       label: Context
-      description: |
+      description: >-
         Any information that is useful to understand the impact or
         cause of the failing test. References to your PR or other
         tickets are welcome.
@@ -28,7 +28,7 @@ body:
       label: Job name
     validations:
       required: true
-      description: |
+      description: >-
         Name of the build job/workflow step. Please be specific with Cabal package
         and component names if possible.
   - type: input
@@ -38,7 +38,7 @@ body:
   - type: textarea
     attributes:
       label: Error message
-      description: |
+      description: >-
         For failing unit or integration tests, please copy and paste the output
         of the test runner here.
 
@@ -53,7 +53,7 @@ body:
   - type: input
     attributes:
       label: Build link
-      description: |
+      description: >-
         The URL of a build job in CI where the error occurs. Please
         link to a specific build number. In Hydra, please link to the
         job page rather than the logs.
