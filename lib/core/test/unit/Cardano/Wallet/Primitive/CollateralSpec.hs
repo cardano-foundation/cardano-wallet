@@ -97,10 +97,10 @@ genAddressType =
 
 -- | Generate a credential.
 genCredential :: Gen Credential
-genCredential =
-    oneof [ pure CredentialKeyHash
-          , pure CredentialScriptHash
-          ]
+genCredential = oneof
+    [ pure CredentialKeyHash
+    , pure CredentialScriptHash
+    ]
 
 -- | Test that our generator covers every type of address, so we know our
 -- property tests are sensible.
