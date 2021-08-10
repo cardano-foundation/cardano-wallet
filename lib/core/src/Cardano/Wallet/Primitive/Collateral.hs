@@ -144,7 +144,7 @@ putAddressType t =
     B.putWord8 $
     fromIntegral @Word4 @Word8 (addressTypeToHeaderNibble t) `Bits.shiftL` 4
 
--- By inspecting the bit pattern of an Address, we can determine it's address
+-- By inspecting the bit pattern of an Address, we can determine its address
 -- type.
 
 -- | Get the address type of a given address.
