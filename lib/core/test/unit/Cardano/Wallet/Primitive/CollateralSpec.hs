@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Cardano.Wallet.Primitive.CollateralSpec where
 
@@ -11,7 +10,9 @@ import Cardano.Wallet.Primitive.Collateral
     ( AddrNotSuitableForCollateral (..)
     , AddressType (..)
     , Credential (..)
+    , addressType
     , addressTypeFromHeaderNibble
+    , addressTypeSuitableForCollateral
     , addressTypeToHeaderNibble
     , asCollateral
     , classifyCollateralAddress
@@ -96,10 +97,10 @@ genAddressType =
 
 -- | Generate a credential.
 genCredential :: Gen Credential
-genCredential =
-    oneof [ pure CredentialKeyHash
-          , pure CredentialScriptHash
-          ]
+genCredential = oneof
+    [ pure CredentialKeyHash
+    , pure CredentialScriptHash
+    ]
 
 -- | Test that our generator covers every type of address, so we know our
 -- property tests are sensible.
@@ -248,6 +249,20 @@ unit_addressType_delegationAddrGolden =
         `shouldBe` BaseAddress CredentialKeyHash CredentialKeyHash
 
 -- TODO generate more unit tests for each type of address.
+
+-- | Assert that @addressType@ and @getAdressType@ are the same.
+prop_addressType_equivalance :: Property
+prop_addressType_equivalance =
+    forAllShrink genAnyAddress shrinkAddress $ \addr@(Address addrBytes) ->
+        let
+            addrType =
+                case B.runGetOrFail getAddressType (BL.fromStrict addrBytes) of
+                    Left _ ->
+                        Nothing
+                    Right (_, _, x) ->
+                        Just x
+        in
+            addressType addr === addrType
 
 -- The funds associated with an address are considered suitable for use as
 -- collateral iff the payment credential column of that address is "key hash".
@@ -442,7 +457,7 @@ prop_simplifyAddress_typeMaintained =
                 "could simplify address"  $
             case simplifyAddress addr of
                 Nothing ->
-                    True === True
+                    property True
                 Just (Address simplifiedBytes) ->
                     let
                         originalAddressType =
@@ -528,11 +543,11 @@ prop_classifyCollateralAddress =
 -- | Returns True if the given address parses as a known address.
 isValidAddress :: Address -> Bool
 isValidAddress (Address addrBytes) =
-  isJust (L.deserialiseAddr addrBytes
-          :: Maybe (L.Addr CC.StandardCrypto))
-  ||
-  isJust (L.deserialiseRewardAcnt addrBytes
-          :: Maybe (L.RewardAcnt CC.StandardCrypto))
+    isJust (L.deserialiseAddr addrBytes
+        :: Maybe (L.Addr CC.StandardCrypto))
+    ||
+    isJust (L.deserialiseRewardAcnt addrBytes
+        :: Maybe (L.RewardAcnt CC.StandardCrypto))
 
 -- To be extra sure, we also test classifyCollateralAddress with some golden
 -- addresses:
@@ -571,6 +586,14 @@ unit_classifyCollateralAddress_delegationAddrGolden =
         addr = Address . BL.toStrict $ delegationAddrGolden
     in
         classifyCollateralAddress addr `shouldBe` Right addr
+
+-- We wish to extend these properties to the "addressType" function, so we write
+-- a simple equivalence property:
+prop_addressTypeSuitableForCollateral_equivalence :: Property
+prop_addressTypeSuitableForCollateral_equivalence =
+    forAllShrink genAnyAddress shrinkAddress $ \addr ->
+        maybe False addressTypeSuitableForCollateral (addressType addr)
+        === either (const False) (const True) (classifyCollateralAddress addr)
 
 -- We want to assert many of the same properties about "asCollateral" as we did
 -- "classifyCollateralAddress". Rather than testing these properties twice, we
@@ -642,14 +665,17 @@ spec = do
                 unit_addressType_stakeAddrGolden
                 unit_addressType_pointerAddrGolden
                 unit_addressType_delegationAddrGolden
+            describe "addressType" $ do
+                it "satisfies same properties as getAddressType" $
+                    property prop_addressType_equivalance
         describe "collateral suitability" $ do
             describe "generators and shrinkers" $ do
-              it "generates values with sufficient coverage" $
-                  property prop_genAddress_coverage
-              it "shrink maintains validity" $
-                  property prop_simplifyAddress_validAddress
-              it "shrink maintains type" $
-                  property prop_simplifyAddress_typeMaintained
+                it "generates values with sufficient coverage" $
+                    property prop_genAddress_coverage
+                it "shrink maintains validity" $
+                    property prop_simplifyAddress_validAddress
+                it "shrink maintains type" $
+                    property prop_simplifyAddress_typeMaintained
             describe "classifyCollateralAddress" $ do
                 it "classifies any address correctly" $
                     property prop_classifyCollateralAddress
@@ -659,6 +685,9 @@ spec = do
                     unit_classifyCollateralAddress_stakeAddrGolden
                     unit_classifyCollateralAddress_pointerAddrGolden
                     unit_classifyCollateralAddress_delegationAddrGolden
+            describe "addressTypeSuitableForCollateral" $ do
+                it "satisfies same properties as classifyCollateralAddress" $
+                    property prop_addressTypeSuitableForCollateral_equivalence
             describe "asCollateral" $
                 it "satisfies same properties as classifyCollateralAddress" $
                     property prop_equivalence
@@ -711,16 +740,16 @@ genShelleyAddr =
     L.Addr <$> arbitrary <*> arbitrary <*> arbitrary
 
 genShelleyScriptHashAddr :: Gen (L.Addr CC.StandardCrypto)
-genShelleyScriptHashAddr =
-    L.Addr <$> arbitrary
-           <*> (L.ScriptHashObj . L.ScriptHash <$> L.genHash)
-           <*> arbitrary
+genShelleyScriptHashAddr = L.Addr
+    <$> arbitrary
+    <*> (L.ScriptHashObj . L.ScriptHash <$> L.genHash)
+    <*> arbitrary
 
 genShelleyKeyHashAddr :: Gen (L.Addr CC.StandardCrypto)
-genShelleyKeyHashAddr =
-    L.Addr <$> arbitrary
-           <*> (L.KeyHashObj <$> arbitrary)
-           <*> arbitrary
+genShelleyKeyHashAddr = L.Addr
+    <$> arbitrary
+    <*> (L.KeyHashObj <$> arbitrary)
+    <*> arbitrary
 
 genByronAddr :: Gen (L.Addr CC.StandardCrypto)
 genByronAddr =
