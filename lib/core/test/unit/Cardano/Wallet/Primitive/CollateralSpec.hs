@@ -670,12 +670,12 @@ spec = do
                     property prop_addressType_equivalance
         describe "collateral suitability" $ do
             describe "generators and shrinkers" $ do
-              it "generates values with sufficient coverage" $
-                  property prop_genAddress_coverage
-              it "shrink maintains validity" $
-                  property prop_simplifyAddress_validAddress
-              it "shrink maintains type" $
-                  property prop_simplifyAddress_typeMaintained
+                it "generates values with sufficient coverage" $
+                    property prop_genAddress_coverage
+                it "shrink maintains validity" $
+                    property prop_simplifyAddress_validAddress
+                it "shrink maintains type" $
+                    property prop_simplifyAddress_typeMaintained
             describe "classifyCollateralAddress" $ do
                 it "classifies any address correctly" $
                     property prop_classifyCollateralAddress
