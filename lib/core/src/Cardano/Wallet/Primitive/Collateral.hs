@@ -13,15 +13,25 @@
 -- UTxOs of this kind are sometimes referred to as "VK" inputs.
 
 module Cardano.Wallet.Primitive.Collateral
-    ( classifyCollateralAddress
-    , asCollateral
-    , AddrNotSuitableForCollateral(..)
-    , AddressType(..)
+    (
+    -- * Data types
+      AddressType(..)
     , Credential(..)
-    , getAddressType
-    , putAddressType
-    , addressTypeToHeaderNibble
+    , AddrNotSuitableForCollateral(..)
+
+    -- * Classifying address types
+    , asCollateral
+    , classifyCollateralAddress
+    , addressTypeSuitableForCollateral
+
+    -- * Reading address types
     , addressTypeFromHeaderNibble
+    , getAddressType
+    , addressType
+
+    -- * Writing address types
+    , addressTypeToHeaderNibble
+    , putAddressType
     ) where
 
 import Prelude
@@ -83,21 +93,6 @@ data Credential
 -- To parse the address type, we can inspect the first four bits (nibble) of the
 -- address:
 
--- | Return the binary representation of an @AddressType@.
-addressTypeToHeaderNibble :: AddressType -> Word4
-addressTypeToHeaderNibble = \case
-    BaseAddress CredentialKeyHash CredentialKeyHash       -> 0b0000
-    BaseAddress CredentialScriptHash CredentialKeyHash    -> 0b0001
-    BaseAddress CredentialKeyHash CredentialScriptHash    -> 0b0010
-    BaseAddress CredentialScriptHash CredentialScriptHash -> 0b0011
-    PointerAddress CredentialKeyHash                      -> 0b0100
-    PointerAddress CredentialScriptHash                   -> 0b0101
-    EnterpriseAddress CredentialKeyHash                   -> 0b0110
-    EnterpriseAddress CredentialScriptHash                -> 0b0111
-    BootstrapAddress                                      -> 0b1000
-    StakeAddress CredentialKeyHash                        -> 0b1110
-    StakeAddress CredentialScriptHash                     -> 0b1111
-
 -- | Construct an @AddressType@ from the binary representation.
 addressTypeFromHeaderNibble :: Word4 -> Maybe AddressType
 addressTypeFromHeaderNibble = \case
@@ -125,8 +120,23 @@ getAddressType = do
         (pure)
         (addressTypeFromHeaderNibble headerNibble)
 
--- For testing purposes, it is also helpful to have a way of writing the
--- AddressType back to a binary stream.
+-- For testing and other purposes, it is also helpful to have a way of writing
+-- the AddressType back to a binary stream.
+
+-- | Return the binary representation of an @AddressType@.
+addressTypeToHeaderNibble :: AddressType -> Word4
+addressTypeToHeaderNibble = \case
+    BaseAddress CredentialKeyHash CredentialKeyHash       -> 0b0000
+    BaseAddress CredentialScriptHash CredentialKeyHash    -> 0b0001
+    BaseAddress CredentialKeyHash CredentialScriptHash    -> 0b0010
+    BaseAddress CredentialScriptHash CredentialScriptHash -> 0b0011
+    PointerAddress CredentialKeyHash                      -> 0b0100
+    PointerAddress CredentialScriptHash                   -> 0b0101
+    EnterpriseAddress CredentialKeyHash                   -> 0b0110
+    EnterpriseAddress CredentialScriptHash                -> 0b0111
+    BootstrapAddress                                      -> 0b1000
+    StakeAddress CredentialKeyHash                        -> 0b1110
+    StakeAddress CredentialScriptHash                     -> 0b1111
 
 -- | Write an AddressType to a binary stream.
 putAddressType :: AddressType -> B.Put
@@ -134,8 +144,46 @@ putAddressType t =
     B.putWord8 $
     fromIntegral @Word4 @Word8 (addressTypeToHeaderNibble t) `Bits.shiftL` 4
 
+-- By inspecting the bit pattern of an Address, we can determine it's address
+-- type.
+
+-- | Get the address type of a given address.
+addressType :: Address -> Maybe AddressType
+addressType (Address bytes) =
+    case B.runGetOrFail getAddressType (BL.fromStrict bytes) of
+        Left _ ->
+            Nothing
+        Right (_, _, addrType) ->
+            Just addrType
+
 -- The funds associated with an address are considered suitable for use as
 -- collateral iff the payment credential column of that address is "key hash".
+
+-- | A simple function which determines if an @AddressType@ is suitable for use
+-- as collateral. Only @AddressType@s with a "key hash" payment credential are
+-- considered suitable for use as collateral.
+addressTypeSuitableForCollateral :: AddressType -> Bool
+addressTypeSuitableForCollateral = \case
+    BaseAddress CredentialKeyHash _ ->
+         True
+    BaseAddress CredentialScriptHash _ ->
+         False
+
+    PointerAddress CredentialKeyHash ->
+         True
+    PointerAddress CredentialScriptHash ->
+         False
+
+    EnterpriseAddress CredentialKeyHash ->
+         True
+    EnterpriseAddress CredentialScriptHash ->
+         False
+
+    StakeAddress _ ->
+         False
+
+    BootstrapAddress ->
+         True
 
 -- | Reasons why an address might be considered unsuitable for a collateral
 -- input.
@@ -194,13 +242,7 @@ asCollateral
     -- otherwise Nothing.
 asCollateral txOut = do
     coin <- TokenBundle.toCoin $ tokens txOut
-
-    case classifyCollateralAddress (address txOut) of
-        Left IsScriptAddr ->
-            Nothing
-        Left IsStakeAddr ->
-            Nothing
-        Left IsMalformedOrUnknownAddr ->
-            Nothing
-        Right _addr ->
-            Just coin
+    addrType <- addressType (address txOut)
+    if addressTypeSuitableForCollateral addrType
+    then Just coin
+    else Nothing

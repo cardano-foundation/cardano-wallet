@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Cardano.Wallet.Primitive.CollateralSpec where
 
@@ -11,7 +10,9 @@ import Cardano.Wallet.Primitive.Collateral
     ( AddrNotSuitableForCollateral (..)
     , AddressType (..)
     , Credential (..)
+    , addressType
     , addressTypeFromHeaderNibble
+    , addressTypeSuitableForCollateral
     , addressTypeToHeaderNibble
     , asCollateral
     , classifyCollateralAddress
@@ -248,6 +249,20 @@ unit_addressType_delegationAddrGolden =
         `shouldBe` BaseAddress CredentialKeyHash CredentialKeyHash
 
 -- TODO generate more unit tests for each type of address.
+
+-- | Assert that @addressType@ and @getAdressType@ are the same.
+prop_addressType_equivalance :: Property
+prop_addressType_equivalance =
+    forAllShrink genAnyAddress shrinkAddress $ \addr@(Address addrBytes) ->
+        let
+            addrType =
+                case B.runGetOrFail getAddressType (BL.fromStrict addrBytes) of
+                    Left _ ->
+                        Nothing
+                    Right (_, _, x) ->
+                        Just x
+        in
+            addressType addr === addrType
 
 -- The funds associated with an address are considered suitable for use as
 -- collateral iff the payment credential column of that address is "key hash".
@@ -572,6 +587,14 @@ unit_classifyCollateralAddress_delegationAddrGolden =
     in
         classifyCollateralAddress addr `shouldBe` Right addr
 
+-- We wish to extend these properties to the "addressType" function, so we write
+-- a simple equivalence property:
+prop_addressTypeSuitableForCollateral_equivalence :: Property
+prop_addressTypeSuitableForCollateral_equivalence =
+    forAllShrink genAnyAddress shrinkAddress $ \addr ->
+        maybe False addressTypeSuitableForCollateral (addressType addr)
+        === either (const False) (const True) (classifyCollateralAddress addr)
+
 -- We want to assert many of the same properties about "asCollateral" as we did
 -- "classifyCollateralAddress". Rather than testing these properties twice, we
 -- use the following logic:
@@ -642,6 +665,9 @@ spec = do
                 unit_addressType_stakeAddrGolden
                 unit_addressType_pointerAddrGolden
                 unit_addressType_delegationAddrGolden
+            describe "addressType" $ do
+                it "satisfies same properties as getAddressType" $
+                    property prop_addressType_equivalance
         describe "collateral suitability" $ do
             describe "generators and shrinkers" $ do
               it "generates values with sufficient coverage" $
@@ -659,6 +685,9 @@ spec = do
                     unit_classifyCollateralAddress_stakeAddrGolden
                     unit_classifyCollateralAddress_pointerAddrGolden
                     unit_classifyCollateralAddress_delegationAddrGolden
+            describe "addressTypeSuitableForCollateral" $ do
+                it "satisfies same properties as classifyCollateralAddress" $
+                    property prop_addressTypeSuitableForCollateral_equivalence
             describe "asCollateral" $
                 it "satisfies same properties as classifyCollateralAddress" $
                     property prop_equivalence
