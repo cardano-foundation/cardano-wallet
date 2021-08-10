@@ -29,7 +29,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Unsafe
     ( unsafeBech32Decode )
 import Control.Monad
-    ( replicateM_ )
+    ( guard, replicateM_ )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -120,7 +120,7 @@ prop_genAddressType_coverage =
         , ("StakeAddress CredentialScriptHash"                     , 5)
         , ("BootstrapAddress"                                      , 5)
         ] $
-        tabulate "Address types" [show addrType] $ True === True
+        tabulate "Address types" [show addrType] $ property True
 
 -- | Test that address type header nibble encoding & decoding roundtrips
 -- successfully.
@@ -159,14 +159,14 @@ prop_addressType_stake =
             (Address addrBytes) = asStakeAddress stakeAddr
             addrType = B.runGet getAddressType (BL.fromStrict addrBytes)
         coverTable "Address types"
-            [ ("StakeAddress CredentialKeyHash"                        , 30)
-            , ("StakeAddress CredentialScriptHash"                     , 30)
+            [ ("StakeAddress CredentialKeyHash"   , 30)
+            , ("StakeAddress CredentialScriptHash", 30)
             ] $
             tabulate "Address types" [show addrType] $
             disjoin
-              [ addrType === StakeAddress CredentialKeyHash
-              , addrType === StakeAddress CredentialScriptHash
-              ]
+                [ addrType === StakeAddress CredentialKeyHash
+                , addrType === StakeAddress CredentialScriptHash
+                ]
 
 -- | Test that for any shelley keyhash address, we classify it as a shelley
 -- keyhash address (although not necessarily the correct one, as it's a bit
@@ -186,11 +186,11 @@ prop_addressType_shelleyKeyHash =
             ] $
             tabulate "Address types" [show addrType] $
             disjoin
-              [ addrType === BaseAddress CredentialKeyHash CredentialKeyHash
-              , addrType === BaseAddress CredentialKeyHash CredentialScriptHash
-              , addrType === PointerAddress CredentialKeyHash
-              , addrType === EnterpriseAddress CredentialKeyHash
-              ]
+                [ addrType === BaseAddress CredentialKeyHash CredentialKeyHash
+                , addrType === BaseAddress CredentialKeyHash CredentialScriptHash
+                , addrType === PointerAddress CredentialKeyHash
+                , addrType === EnterpriseAddress CredentialKeyHash
+                ]
 
 -- | Test that for any shelley scripthash address, we classify it as a shelley
 -- scripthash address (although not necessarily the correct one, as it's a bit
@@ -210,15 +210,15 @@ prop_addressType_shelleyScriptHash =
             ] $
             tabulate "Address types" [show addrType] $
             disjoin
-              [ addrType
-                === BaseAddress CredentialScriptHash CredentialKeyHash
-              , addrType
-                === BaseAddress CredentialScriptHash CredentialScriptHash
-              , addrType
-                === PointerAddress CredentialScriptHash
-              , addrType
-                === EnterpriseAddress CredentialScriptHash
-              ]
+                [ addrType
+                  === BaseAddress CredentialScriptHash CredentialKeyHash
+                , addrType
+                  === BaseAddress CredentialScriptHash CredentialScriptHash
+                , addrType
+                  === PointerAddress CredentialScriptHash
+                , addrType
+                  === EnterpriseAddress CredentialScriptHash
+                ]
 
 -- To be extra sure, we also test our code with some golden addresses we
 -- generated with "cardano-addresses":
@@ -277,7 +277,7 @@ prop_addressType_equivalance =
 --
 -- That's it really. We also want to assert that our generators cover the full
 -- range of possible address types, including future and unknown formats. So we
--- start by creating a generator that customizes it's frequency to ensure that
+-- start by creating a generator that customizes its frequency to ensure that
 -- every type of address is evenly covered (i.e. "genByronAddr" only generates
 -- one type of address so is given lower frequency than "genShelleyAddr", which
 -- must generate eight types of addresses). We also include Addresses that are
@@ -286,12 +286,12 @@ prop_addressType_equivalance =
 -- | Generate an Address, covers the full range of address types plus invalid
 -- addresses.
 genAnyAddress :: Gen Address
-genAnyAddress =
-    frequency [ (10, asAddress <$> genShelleyAddr)
-              , (1, asAddress <$> genByronAddr)
-              , (2, asStakeAddress <$> genStakeAddr)
-              , (3, Address <$> arbitrary)
-              ]
+genAnyAddress = frequency
+    [ (10, asAddress <$> genShelleyAddr)
+    , (1, asAddress <$> genByronAddr)
+    , (2, asStakeAddress <$> genStakeAddr)
+    , (3, Address <$> arbitrary)
+    ]
 
 -- | Check that @genAnyAddress@ has sufficient coverage.
 prop_genAddress_coverage :: Property
@@ -423,7 +423,7 @@ prop_simplifyAddress_validAddress =
                 "could simplify address"  $
             case simplifyAddress addr of
                 Nothing ->
-                    True === True
+                    property True
                 Just (Address simplifiedBytes) ->
                     let
                         originalAddress :: Maybe (L.Addr CC.StandardCrypto)
@@ -467,7 +467,7 @@ prop_simplifyAddress_typeMaintained =
                     in
                         originalAddressType === simplifiedAddressType
 
--- From this function we can generator a QuickCheck shrinker:
+-- From this function we can generate a QuickCheck shrinker:
 
 -- | Try to shrink an address by simplifying it.
 shrinkAddress :: Address -> [Address]
@@ -500,7 +500,7 @@ prop_addressSuitableForCollateral =
             case addrType of
                 -- Only unrecognized addresses are classified as malformed
                 -- or unknown (i.e. we otherwise classify any known address
-                -- according to it's type)
+                -- according to its type)
                 Nothing ->
                     addressSuitableForCollateral addr === False
 
@@ -698,7 +698,8 @@ spec = do
 -- cat recovery-phrase.txt | cardano-address key from-recovery-phrase Byron > root.prv
 -- cat root.prv | cardano-address key child 14H/42H | tee addr.prv | cardano-address key public --with-chain-code | cardano-address address bootstrap --root $(cat root.prv | cardano-address key public --with-chain-code) --network-tag testnet 14H/42H
 byronAddrGolden :: BL.ByteString
-byronAddrGolden = BL.fromStrict . fromJust . decodeBase58 bitcoinAlphabet $ "37btjrVyb4KFsMoVwPRZ5aJko48uBFFUnJ46eV3vC3uBCC65mj5BfbGP6jYDfhojm8MAayHo4RPvWH4x852FcJq8SHazCx31FJM2TfDpV9Azrc8UKD"
+byronAddrGolden = BL.fromStrict . fromJust . decodeBase58 bitcoinAlphabet $ 
+    "37btjrVyb4KFsMoVwPRZ5aJko48uBFFUnJ46eV3vC3uBCC65mj5BfbGP6jYDfhojm8MAayHo4RPvWH4x852FcJq8SHazCx31FJM2TfDpV9Azrc8UKD"
 
 -- cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley > root.prv
 -- cat root.prv | cardano-address key child 1852H/1815H/0H/2/0 > stake.prv
@@ -719,7 +720,8 @@ pointerAddrGolden  = unsafeBech32Decode
 -- cat root.prv | cardano-address key child 1852H/1815H/0H/0/0 > addr.prv
 -- cat addr.prv | cardano-address key public --with-chain-code | cardano-address address payment --network-tag testnet | cardano-address address delegation $(cat stake.prv | cardano-address key public --with-chain-code)
 delegationAddrGolden :: BL.ByteString
-delegationAddrGolden = unsafeBech32Decode "addr_test1qpdylg53ekxh2404mfgw4pt4gfm7dc9dkc74ck0gtrld8uyh9dhl3d8cc52zacu6wapdf2pfnepf5n7pp2vfaz7ge8eqd4nn9s"
+delegationAddrGolden = unsafeBech32Decode 
+    "addr_test1qpdylg53ekxh2404mfgw4pt4gfm7dc9dkc74ck0gtrld8uyh9dhl3d8cc52zacu6wapdf2pfnepf5n7pp2vfaz7ge8eqd4nn9s"
 
 -- cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley > root.prv
 -- cat root.prv | cardano-address key child 1852H/1815H/0H/0/0 > addr.prv
