@@ -580,6 +580,7 @@ fromShelleyPParams eraInfo pp = W.ProtocolParameters
         MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
     , stakeKeyDeposit = stakeKeyDepositFromPParams pp
     , eras = fromBound <$> eraInfo
+    , maxCollateralInputs = minBound
     }
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
@@ -600,11 +601,11 @@ fromAlonzoPParams eraInfo pp = W.ProtocolParameters
         . toWalletCoin $ Alonzo._coinsPerUTxOWord pp
     , stakeKeyDeposit = stakeKeyDepositFromPParams pp
     , eras = fromBound <$> eraInfo
+    , maxCollateralInputs = unsafeToWord $ Alonzo._maxCollateralInputs pp
     }
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
         W.EpochNo $ fromIntegral e
-
 
 -- | Extract the current network decentralization level from the given set of
 -- protocol parameters.
@@ -975,7 +976,7 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
 
     -- Lovelace to coin. Quantities from ledger should always fit in Word64.
     mkCoin :: Cardano.Lovelace -> W.Coin
-    mkCoin = W.Coin . unsafeToWord64 . unQuantity . Cardano.lovelaceToQuantity
+    mkCoin = W.Coin . unsafeToWord . unQuantity . Cardano.lovelaceToQuantity
 
     -- Do Integer to Natural conversion. Quantities from ledger TxOuts can
     -- never be negative (but unminted values could be negative).
@@ -1055,22 +1056,28 @@ toWalletCoin = W.Coin . unsafeCoinToWord64
 
 -- | The reverse of 'word64ToCoin', where overflow is fatal.
 unsafeCoinToWord64 :: SL.Coin -> Word64
-unsafeCoinToWord64 (SL.Coin c) = unsafeToWord64 c
+unsafeCoinToWord64 (SL.Coin c) = unsafeToWord c
 
--- | Convert an int to 'Word64'.
+-- | Convert an int to a word.
 --
--- Only use it for values which have come from the ledger, and should fit in a
--- 'Word64', according to the spec.
+-- Only use it for values which have come from the ledger, and should fit in the
+-- given type, according to the spec.
 --
 -- If this conversion would under/overflow, there is not much we can do except
 -- to hastily exit.
-unsafeToWord64 :: Integral n => n -> Word64
-unsafeToWord64 n
-    | n < 0 = crash "underflow"
-    | n > fromIntegral (maxBound :: Word64) = crash "overflow"
+unsafeToWord
+    :: forall n w
+    . ( Integral n
+      , Bounded w
+      , Integral w
+      )
+    => n -> w
+unsafeToWord n
+    | n < fromIntegral (minBound :: w) = crash "underflow"
+    | n > fromIntegral (maxBound :: w) = crash "overflow"
     | otherwise = fromIntegral n
   where
-    crash x = error ("Internal error: Word64 " ++ x)
+    crash x = error ("Internal error: unsafeToWord " ++ x)
 
 fromPoolMetadata :: SL.PoolMetadata -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
 fromPoolMetadata meta =

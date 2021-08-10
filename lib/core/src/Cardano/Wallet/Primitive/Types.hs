@@ -1031,6 +1031,10 @@ data ProtocolParameters = ProtocolParameters
         -- (such as registering a stake pool).
     , eras
         :: EraInfo EpochNo
+    , maxCollateralInputs
+        :: Word16
+        -- ^ Limit on the maximum number of collateral inputs present in a
+        -- transaction.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters
