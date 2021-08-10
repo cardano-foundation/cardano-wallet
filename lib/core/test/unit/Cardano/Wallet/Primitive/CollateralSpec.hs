@@ -746,10 +746,10 @@ genShelleyScriptHashAddr = L.Addr
     <*> arbitrary
 
 genShelleyKeyHashAddr :: Gen (L.Addr CC.StandardCrypto)
-genShelleyKeyHashAddr =
-    L.Addr <$> arbitrary
-           <*> (L.KeyHashObj <$> arbitrary)
-           <*> arbitrary
+genShelleyKeyHashAddr = L.Addr
+    <$> arbitrary
+    <*> (L.KeyHashObj <$> arbitrary)
+    <*> arbitrary
 
 genByronAddr :: Gen (L.Addr CC.StandardCrypto)
 genByronAddr =
