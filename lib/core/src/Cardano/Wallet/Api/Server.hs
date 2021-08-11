@@ -1920,18 +1920,36 @@ mkApiTransactionFromInfo
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> TransactionInfo
     -> m (ApiTransaction n)
-mkApiTransactionFromInfo ti (TransactionInfo txid fee ins outs ws meta depth txtime txmeta) = do
-    apiTx <- liftIO $ mkApiTransaction ti txid fee (drop2nd <$> ins) outs ws (meta, txtime) txmeta $
-        case meta ^. #status of
+mkApiTransactionFromInfo ti info = do
+    apiTx <- liftIO $ mkApiTransaction ti
+        (txInfoId)
+        (txInfoFee)
+        (txInfoInputs <&> drop2nd)
+        (txInfoOutputs)
+        (txInfoWithdrawals)
+        (txInfoMeta, txInfoTime)
+        (txInfoMetadata) $
+        case txInfoMeta ^. #status of
             Pending  -> #pendingSince
             InLedger -> #insertedAt
             Expired  -> #pendingSince
-    return $ case meta ^. #status of
+    return $ case txInfoMeta ^. #status of
         Pending  -> apiTx
-        InLedger -> apiTx { depth = Just depth  }
+        InLedger -> apiTx {depth = Just txInfoDepth}
         Expired  -> apiTx
   where
-      drop2nd (a,_,c) = (a,c)
+    TransactionInfo
+        { txInfoId
+        , txInfoDepth
+        , txInfoFee
+        , txInfoInputs
+        , txInfoOutputs
+        , txInfoWithdrawals
+        , txInfoMeta
+        , txInfoMetadata
+        , txInfoTime
+        } = info
+    drop2nd (a,_,c) = (a,c)
 
 postTransactionFeeOld
     :: forall ctx s k n.
@@ -2733,16 +2751,22 @@ mkApiCoinSelection
     -> Maybe W.TxMetadata
     -> UnsignedTx input output change withdrawal
     -> ApiCoinSelection n
-mkApiCoinSelection deps mcerts meta (UnsignedTx inputs outputs change wdrls) =
+mkApiCoinSelection deps mcerts meta unsignedTx =
     ApiCoinSelection
-        (mkApiCoinSelectionInput <$> inputs)
-        (mkApiCoinSelectionOutput <$> outputs)
-        (mkApiCoinSelectionChange <$> change)
-        (mkApiCoinSelectionWithdrawal <$> wdrls)
+        (mkApiCoinSelectionInput <$> unsignedInputs)
+        (mkApiCoinSelectionOutput <$> unsignedOutputs)
+        (mkApiCoinSelectionChange <$> unsignedChange)
+        (mkApiCoinSelectionWithdrawal <$> unsignedWithdrawals)
         (fmap (uncurry mkCertificates) mcerts)
         (fmap mkApiCoin deps)
         (ApiBytesT . serialiseToCBOR <$> meta)
   where
+    UnsignedTx
+        { unsignedInputs
+        , unsignedOutputs
+        , unsignedChange
+        , unsignedWithdrawals
+        } = unsignedTx
     mkCertificates
         :: DelegationAction
         -> NonEmpty DerivationIndex

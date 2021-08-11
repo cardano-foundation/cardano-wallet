@@ -729,19 +729,21 @@ fromGenesisData g initialFunds =
         }
       where
         mkTx (addr, c) = W.Tx
-            pseudoHash
-            Nothing
-            []
-            [W.TxOut
-                (fromShelleyAddress addr)
-                (TokenBundle.fromCoin $ fromShelleyCoin c)
-            ]
-            mempty
-            Nothing
+            { txId = pseudoHash
+            , fee = Nothing
+            , resolvedInputs = []
+            , resolvedCollateralInputs = []
+            , outputs =
+                [W.TxOut
+                    (fromShelleyAddress addr)
+                    (TokenBundle.fromCoin $ fromShelleyCoin c)
+                ]
+            , withdrawals = mempty
+            , metadata = Nothing
+            }
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
                 SL.initialFundsPseudoTxIn @crypto addr
-
 
 --
 -- Stake pools
@@ -833,12 +835,21 @@ fromShelleyTx
        )
 fromShelleyTx tx =
     ( W.Tx
-        (fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod)
-        (Just $ fromShelleyCoin fee)
-        (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
-        (map fromShelleyTxOut (toList outs))
-        (fromShelleyWdrl wdrls)
-        (fromShelleyMD <$> SL.strictMaybeToMaybe mmd)
+        { txId =
+            fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod
+        , fee =
+            Just $ fromShelleyCoin fee
+        , resolvedInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            []
+        , outputs =
+            map fromShelleyTxOut (toList outs)
+        , withdrawals =
+            fromShelleyWdrl wdrls
+        , metadata =
+            fromShelleyMD <$> SL.strictMaybeToMaybe mmd
+        }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
@@ -853,12 +864,22 @@ fromAllegraTx
        )
 fromAllegraTx tx =
     ( W.Tx
-        (fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod)
-        (Just $ fromShelleyCoin fee)
-        (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
-        (map fromShelleyTxOut (toList outs))
-        (fromShelleyWdrl wdrls)
-        (fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd)
+        { txId =
+            fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod
+        , fee =
+            Just $ fromShelleyCoin fee
+        , resolvedInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            -- TODO: (ADP-957)
+            []
+        , outputs =
+            map fromShelleyTxOut (toList outs)
+        , withdrawals =
+            fromShelleyWdrl wdrls
+        , metadata =
+            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd
+        }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
@@ -878,12 +899,21 @@ fromMaryTx
        )
 fromMaryTx tx =
     ( W.Tx
-        (fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra MaryEra) bod)
-        (Just $ fromShelleyCoin fee)
-        (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
-        (map fromMaryTxOut (toList outs))
-        (fromShelleyWdrl wdrls)
-        (fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad)
+        { txId
+            = fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra MaryEra) bod
+        , fee =
+            Just $ fromShelleyCoin fee
+        , resolvedInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            []
+        , outputs =
+            map fromMaryTxOut (toList outs)
+        , withdrawals =
+            fromShelleyWdrl wdrls
+        , metadata =
+            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
+        }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
@@ -912,12 +942,22 @@ fromAlonzoTxBodyAndAux
        )
 fromAlonzoTxBodyAndAux bod mad =
     ( W.Tx
-        (fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod)
-        (Just $ fromShelleyCoin fee)
-        (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
-        (map fromAlonzoTxOut (toList outs))
-        (fromShelleyWdrl wdrls)
-        (fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad)
+        { txId =
+            fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
+        , fee =
+            Just $ fromShelleyCoin fee
+        , resolvedInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
+        , resolvedCollateralInputs =
+            -- TODO: (ADP-957)
+            []
+        , outputs =
+            map fromAlonzoTxOut (toList outs)
+        , withdrawals =
+            fromShelleyWdrl wdrls
+        , metadata =
+            fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
+        }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )

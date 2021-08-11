@@ -150,7 +150,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
-    , TxMeta (TxMeta, amount, direction)
+    , TxMeta (..)
     , TxOut (..)
     , TxStatus (..)
     , toTxHistory
@@ -170,7 +170,7 @@ import Data.ByteString
 import Data.Coerce
     ( coerce )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Maybe
@@ -538,8 +538,8 @@ fileModeSpec =  do
 
                 let mockApply h mockTxs = do
                         Just cpA <- atomically $ readCheckpoint testWid
-                        let slotA = slotNo $ currentTip cpA
-                        let Quantity bhA = blockHeight $ currentTip cpA
+                        let slotA = view #slotNo $ currentTip cpA
+                        let Quantity bhA = view #blockHeight $ currentTip cpA
                         let hashA = headerHash $ currentTip cpA
                         let fakeBlock = Block
                                 (BlockHeader
@@ -559,12 +559,18 @@ fileModeSpec =  do
                             unsafeRunExceptT $ prune testWid (Quantity 2160)
 
                 let mockApplyBlock1 = mockApply (dummyHash "block1")
-                        [ Tx (dummyHash "tx1")
-                            Nothing
-                            [(TxIn (dummyHash "faucet") 0, Coin 4)]
-                            [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
-                            mempty
-                            Nothing
+                        [ Tx
+                            { txId = dummyHash "tx1"
+                            , fee = Nothing
+                            , resolvedInputs =
+                                [(TxIn (dummyHash "faucet") 0, Coin 4)]
+                            -- TODO: (ADP-957)
+                            , resolvedCollateralInputs = []
+                            , outputs =
+                                [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
+                            , withdrawals = mempty
+                            , metadata = Nothing
+                            }
                         ]
 
                 -- Slot 1 0
@@ -573,14 +579,19 @@ fileModeSpec =  do
 
                 -- Slot 200
                 mockApply (dummyHash "block2a")
-                    [ Tx (dummyHash "tx2a")
-                        Nothing
-                        [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
-                        [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
-                        , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
-                        ]
-                        mempty
-                        Nothing
+                    [ Tx
+                        { txId = dummyHash "tx2a"
+                        , fee = Nothing
+                        , resolvedInputs = [(TxIn (dummyHash "tx1") 0, Coin 4)]
+                        -- TODO: (ADP-957)
+                        , resolvedCollateralInputs = []
+                        , outputs =
+                            [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
+                            , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
+                            ]
+                        , withdrawals = mempty
+                        , metadata = Nothing
+                        }
                     ]
 
                 -- Slot 300
@@ -591,7 +602,7 @@ fileModeSpec =  do
                 atomically . void . unsafeRunExceptT $
                     rollbackTo testWid (SlotNo 200)
                 Just cp <- atomically $ readCheckpoint testWid
-                slotNo (currentTip cp) `shouldBe` (SlotNo 0)
+                view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 
                 getTxsInLedger db `shouldReturn` []
 
@@ -1179,17 +1190,27 @@ testWid :: WalletId
 testWid = WalletId (hash ("test" :: ByteString))
 
 testTxs :: [(Tx, TxMeta)]
-testTxs =
-    [ ( Tx (mockHash @String "tx2")
-        Nothing
-        [ (TxIn (mockHash @String "tx1") 0, Coin 1)]
-        [ TxOut (Address "addr") (coinToBundle 1) ]
-        mempty
-        Nothing
-      , TxMeta
-        InLedger Incoming (SlotNo 140) (Quantity 0) (Coin 1337144) Nothing
-      )
-    ]
+testTxs = [(tx, txMeta)]
+  where
+    tx = Tx
+        { txId = mockHash @String "tx2"
+        , fee = Nothing
+        , resolvedInputs = [(TxIn (mockHash @String "tx1") 0, Coin 1)]
+        , resolvedCollateralInputs =
+            -- TODO: (ADP-957)
+            []
+        , outputs = [TxOut (Address "addr") (coinToBundle 1)]
+        , withdrawals = mempty
+        , metadata = Nothing
+        }
+    txMeta = TxMeta
+        { status = InLedger
+        , direction = Incoming
+        , slotNo = SlotNo 140
+        , blockHeight = Quantity 0
+        , amount = Coin 1337144
+        , expiry = Nothing
+        }
 
 gp :: GenesisParameters
 gp = dummyGenesisParameters

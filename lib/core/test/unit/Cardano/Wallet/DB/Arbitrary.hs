@@ -376,17 +376,19 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid fees ins outs wdrls md) =
-        [ mkTx fees ins' outs' wdrls' md'
-        | (ins', outs', wdrls', md') <- shrink (ins, outs, wdrls, md)
+    shrink (Tx _tid fees ins cins outs wdrls md) =
+        [ mkTx fees ins' cins' outs' wdrls' md'
+        | (ins', cins', outs', wdrls', md') <-
+            shrink (ins, cins, outs, wdrls, md)
         ]
 
     arbitrary = do
         ins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
+        cins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
         fees <- arbitrary
-        mkTx fees ins outs wdrls <$> arbitrary
+        mkTx fees ins cins outs wdrls <$> arbitrary
 
 instance Arbitrary TxIn where
     arbitrary = TxIn

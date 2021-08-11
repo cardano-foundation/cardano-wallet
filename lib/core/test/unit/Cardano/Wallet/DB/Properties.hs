@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -537,16 +538,15 @@ prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
     prop = do
         let txs = unGenTxHistory txGen
         run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
-        forM_ txs $ \((Tx txId _ _ _ _ _), txMeta) -> do
-            (Just (TransactionInfo txId' _ _ _ _ txMeta' _ _ _)) <-
+        forM_ txs $ \(Tx {txId}, txMeta) -> do
+            (Just (TransactionInfo {txInfoId, txInfoMeta})) <-
                 run $ atomically $ unsafeRunExceptT $ getTx wid txId
-
-            monitor $ counterexample $
-                "\nInserted\n" <> pretty txMeta <> " for txId: " <> pretty txId
-            monitor $ counterexample $
-                "\nRead\n" <> pretty txMeta' <> " for txId: " <> pretty txId'
+            monitor $ counterexample $ "\nInserted\n"
+                <> pretty txMeta <> " for txId: " <> pretty txId
+            monitor $ counterexample $ "\nRead\n"
+                <> pretty txInfoMeta <> " for txId: " <> pretty txInfoId
             assertWith "Inserted is included in Read"
-                (txMeta == txMeta' && txId' == txId)
+                (txMeta == txInfoMeta && txId == txInfoId)
 
 prop_getTxAfterPutInvalidTxId
     :: GenState s
@@ -588,7 +588,7 @@ prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (wid, cp, meta) txGen wid' =
     prop = liftIO $ do
         let txs = unGenTxHistory txGen
         atomically (runExceptT $ putTxHistory wid txs) `shouldReturn` Right ()
-        forM_ txs $ \((Tx txId _ _ _ _ _), _) -> do
+        forM_ txs $ \(Tx {txId}, _) -> do
             let err = ErrNoSuchWallet wid'
             atomically (runExceptT $ getTx wid' txId) `shouldReturn` Left err
 

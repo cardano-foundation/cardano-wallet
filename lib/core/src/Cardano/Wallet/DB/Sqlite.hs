@@ -1929,6 +1929,9 @@ txHistoryFromEntity ti tip metas ins outs ws =
                 W.Coin . fromIntegral <$> mfee
             , W.txInfoInputs =
                 map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
+            , W.txInfoCollateralInputs =
+                -- TODO: (ADP-957)
+                []
             , W.txInfoOutputs =
                 map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
             , W.txInfoWithdrawals =

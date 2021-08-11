@@ -167,6 +167,13 @@ data Tx = Tx
         -- The transaction id is computed from the binary representation of a
         -- tx, for which inputs are serialized in a specific order.
 
+    , resolvedCollateralInputs
+        :: ![(TxIn, Coin)]
+        -- ^ NOTE: The order of collateral inputs matters in the transaction
+        -- representation.  The transaction id is computed from the binary
+        -- representation of a tx, for which collateral inputs are serialized
+        -- in a specific order.
+
     , outputs
         :: ![TxOut]
         -- ^ NOTE: Order of outputs matters in the transaction representations.
@@ -193,13 +200,20 @@ data Tx = Tx
 instance NFData Tx
 
 instance Buildable Tx where
-    build (Tx tid _fee ins outs ws md) = mempty
-        <> build tid
-        <> build ("\n" :: String)
-        <> blockListF' "inputs" build (fst <$> ins)
-        <> blockListF' "outputs" build outs
-        <> blockListF' "withdrawals" tupleF (Map.toList ws)
-        <> nameF "metadata" (maybe "" build md)
+    build t = mconcat
+        [ build (view #txId t)
+        , build ("\n" :: String)
+        , blockListF' "inputs"
+            build (fst <$> view #resolvedInputs t)
+        , blockListF' "collateral-inputs"
+            build (fst <$> view #resolvedCollateralInputs t)
+        , blockListF' "outputs"
+            build (view #outputs t)
+        , blockListF' "withdrawals"
+            tupleF (Map.toList $ view #withdrawals t)
+        , nameF "metadata"
+            (maybe "" build $ view #metadata t)
+        ]
 
 txIns :: Set Tx -> Set TxIn
 txIns = foldMap (Set.fromList . inputs)
@@ -350,6 +364,9 @@ data UnsignedTx input output change withdrawal = UnsignedTx
         -- (each UTxO being unique, including at least one UTxO in the
         -- transaction body makes it seemingly unique).
 
+    , unsignedCollateralInputs
+        :: [input]
+
     , unsignedOutputs
         :: [output]
         -- Unlike inputs, it is perfectly reasonable to have empty outputs. The
@@ -427,6 +444,8 @@ data TransactionInfo = TransactionInfo
     , txInfoInputs :: ![(TxIn, Coin, Maybe TxOut)]
     -- ^ Transaction inputs and (maybe) corresponding outputs of the
     -- source. Source information can only be provided for outgoing payments.
+    , txInfoCollateralInputs :: ![(TxIn, Coin, Maybe TxOut)]
+    -- ^ Collateral inputs and (maybe) corresponding outputs.
     , txInfoOutputs :: ![TxOut]
     -- ^ Payment destination.
     , txInfoWithdrawals :: !(Map RewardAccount Coin)
@@ -448,11 +467,15 @@ fromTransactionInfo :: TransactionInfo -> Tx
 fromTransactionInfo info = Tx
     { txId = txInfoId info
     , fee = txInfoFee info
-    , resolvedInputs = (\(a,b,_) -> (a,b)) <$> txInfoInputs info
+    , resolvedInputs = drop3rd <$> txInfoInputs info
+    , resolvedCollateralInputs = drop3rd <$> txInfoCollateralInputs info
     , outputs = txInfoOutputs info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     }
+  where
+    drop3rd :: (a, b, c) -> (a, b)
+    drop3rd (a, b, _) = (a, b)
 
 -- | Test whether the given metadata map is empty.
 txMetadataIsNull :: TxMetadata -> Bool
