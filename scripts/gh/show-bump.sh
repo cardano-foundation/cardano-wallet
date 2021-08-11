@@ -1,6 +1,8 @@
-#!/usr/bin/env bash
+#! /usr/bin/env nix-shell
+#! nix-shell -i bash -p nix coreutils gnugrep gnused html-xml-utils
+# shellcheck shell=bash disable=SC2016
+
 # Needs gnused and W3C html-xml-utils
-# shellcheck disable=SC2016
 
 set -euo pipefail
 
