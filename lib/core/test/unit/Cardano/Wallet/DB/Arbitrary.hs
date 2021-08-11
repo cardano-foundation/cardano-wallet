@@ -637,6 +637,7 @@ instance Arbitrary ProtocolParameters where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary MinimumUTxOValue where
     shrink = genericShrink

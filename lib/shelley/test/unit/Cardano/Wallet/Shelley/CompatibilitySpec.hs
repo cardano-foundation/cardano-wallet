@@ -81,10 +81,12 @@ import Cardano.Wallet.Shelley.Compatibility
     , interval0
     , interval1
     , invertUnitInterval
+    , isInternalError
     , toCardanoHash
     , toCardanoValue
     , toPoint
     , tokenBundleSizeAssessor
+    , unsafeIntToWord
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
@@ -115,7 +117,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word16, Word32, Word64 )
 import GHC.TypeLits
     ( natVal )
 import Ouroboros.Network.Block
@@ -130,7 +132,9 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
     , Gen
+    , NonNegative (..)
     , Property
+    , Small (..)
     , checkCoverage
     , choose
     , conjoin
@@ -144,6 +148,10 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Monadic
+    ( assert, monadicIO, monitor, run )
+import UnliftIO.Exception
+    ( evaluate, tryJust )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Address as SL
@@ -161,11 +169,14 @@ import qualified Shelley.Spec.Ledger.PParams as SL
 
 spec :: Spec
 spec = do
-    describe "Conversions" $
+    describe "Conversions" $ do
         it "toPoint' . fromTip' == getTipPoint" $ property $ \gh tip -> do
             let fromTip' = fromTip gh
             let toPoint' = toPoint gh :: W.BlockHeader -> Point (CardanoBlock StandardCrypto)
             toPoint' (fromTip' tip) === (getTipPoint tip)
+
+        it "unsafeIntToWord" $
+            property prop_unsafeIntToWord
 
     describe "Shelley StakeAddress" $ do
         prop "roundtrip / Mainnet" $ \x ->
@@ -365,6 +376,30 @@ spec = do
         testScriptPreimages Cardano.SimpleScriptV1
         testScriptPreimages Cardano.SimpleScriptV2
         testTimelockScriptImagesLang
+
+--------------------------------------------------------------------------------
+-- Conversions
+--------------------------------------------------------------------------------
+
+prop_unsafeIntToWord :: TrickyInt Integer Word16 -> Property
+prop_unsafeIntToWord (TrickyInt n wrong) = monadicIO $ do
+    res <- runEither (unsafeIntToWord @Integer @Word16 n)
+    monitor (counterexample ("res = " ++ show res))
+    assert $ case res of
+        Right correct -> fromIntegral correct == n
+        Left _ -> fromIntegral wrong /= n
+  where
+    runEither = run . tryJust (Just . isInternalError) . evaluate
+
+data TrickyInt n w = TrickyInt n w deriving (Show, Eq)
+
+instance (Arbitrary n, Integral n, Num w) => Arbitrary (TrickyInt n w) where
+    arbitrary = do
+        d <- arbitrary
+        x <- getSmall . getNonNegative <$> arbitrary :: Gen Int
+        s <- frequency [(20, pure 1), (5, pure (-1)), (1, pure 0)]
+        let n = s * ((2 ^ x) + d)
+        pure $ TrickyInt n (fromIntegral n)
 
 --------------------------------------------------------------------------------
 -- Assessing the sizes of token bundles

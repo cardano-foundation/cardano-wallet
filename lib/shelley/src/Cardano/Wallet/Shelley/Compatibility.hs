@@ -72,6 +72,9 @@ module Cardano.Wallet.Shelley.Compatibility
     , rewardAccountFromAddress
     , fromShelleyPParams
     , fromAlonzoPParams
+    , unsafeIntToWord
+    , internalError
+    , isInternalError
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -173,6 +176,8 @@ import Control.Applicative
     ( (<|>) )
 import Control.Arrow
     ( left )
+import Control.Exception
+    ( ErrorCall, displayException )
 import Control.Monad
     ( when, (>=>) )
 import Crypto.Hash.Utils
@@ -197,6 +202,8 @@ import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( asum, toList )
+import Data.List
+    ( isPrefixOf )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -209,10 +216,12 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Data.Typeable
+    ( Typeable, typeRep )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..), Builder, fmt, (+|), (+||), (|+), (||+) )
 import GHC.Records
     ( HasField (..) )
 import GHC.Stack
@@ -566,7 +575,8 @@ fromMaxTxSize =
     Quantity . fromIntegral
 
 fromShelleyPParams
-    :: W.EraInfo Bound
+    :: HasCallStack
+    => W.EraInfo Bound
     -> SLAPI.PParams era
     -> W.ProtocolParameters
 fromShelleyPParams eraInfo pp = W.ProtocolParameters
@@ -580,13 +590,15 @@ fromShelleyPParams eraInfo pp = W.ProtocolParameters
         MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
     , stakeKeyDeposit = stakeKeyDepositFromPParams pp
     , eras = fromBound <$> eraInfo
+    , maxCollateralInputs = minBound
     }
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
         W.EpochNo $ fromIntegral e
 
 fromAlonzoPParams
-    :: W.EraInfo Bound
+    :: HasCallStack
+    => W.EraInfo Bound
     -> Alonzo.PParams StandardAlonzo
     -> W.ProtocolParameters
 fromAlonzoPParams eraInfo pp = W.ProtocolParameters
@@ -600,11 +612,11 @@ fromAlonzoPParams eraInfo pp = W.ProtocolParameters
         . toWalletCoin $ Alonzo._coinsPerUTxOWord pp
     , stakeKeyDeposit = stakeKeyDepositFromPParams pp
     , eras = fromBound <$> eraInfo
+    , maxCollateralInputs = unsafeIntToWord $ Alonzo._maxCollateralInputs pp
     }
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
         W.EpochNo $ fromIntegral e
-
 
 -- | Extract the current network decentralization level from the given set of
 -- protocol parameters.
@@ -965,7 +977,7 @@ fromAlonzoTx
 fromAlonzoTx (Alonzo.ValidatedTx bod _wits _isValidating aux) =
     fromAlonzoTxBodyAndAux bod aux
 
-fromCardanoValue :: Cardano.Value -> TokenBundle.TokenBundle
+fromCardanoValue :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
 fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
   where
     extract value =
@@ -975,7 +987,7 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
 
     -- Lovelace to coin. Quantities from ledger should always fit in Word64.
     mkCoin :: Cardano.Lovelace -> W.Coin
-    mkCoin = W.Coin . unsafeToWord64 . unQuantity . Cardano.lovelaceToQuantity
+    mkCoin = W.Coin . unsafeIntToWord . unQuantity . Cardano.lovelaceToQuantity
 
     -- Do Integer to Natural conversion. Quantities from ledger TxOuts can
     -- never be negative (but unminted values could be negative).
@@ -984,7 +996,7 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
       where
         checkBounds n
           | n >= 0 = fromIntegral n
-          | otherwise = error "Internal error: negative token quantity"
+          | otherwise = internalError "negative token quantity"
 
     mkBundle assets =
         [ (TokenBundle.AssetId (mkPolicyId p) (mkTokenName n) , mkQuantity q)
@@ -1050,27 +1062,52 @@ fromShelleyRegistrationCert = \case
     SL.DCertGenesis{} -> Nothing
     SL.DCertMir{}     -> Nothing
 
-toWalletCoin :: SL.Coin -> W.Coin
+toWalletCoin :: HasCallStack => SL.Coin -> W.Coin
 toWalletCoin = W.Coin . unsafeCoinToWord64
 
 -- | The reverse of 'word64ToCoin', where overflow is fatal.
-unsafeCoinToWord64 :: SL.Coin -> Word64
-unsafeCoinToWord64 (SL.Coin c) = unsafeToWord64 c
+unsafeCoinToWord64 :: HasCallStack => SL.Coin -> Word64
+unsafeCoinToWord64 (SL.Coin c) = unsafeIntToWord c
 
--- | Convert an int to 'Word64'.
+-- | Convert an integer type of any range to a machine word.
 --
--- Only use it for values which have come from the ledger, and should fit in a
--- 'Word64', according to the spec.
+-- Only use it for values which have come from the ledger, and should fit in the
+-- given type, according to the spec.
 --
 -- If this conversion would under/overflow, there is not much we can do except
 -- to hastily exit.
-unsafeToWord64 :: Integral n => n -> Word64
-unsafeToWord64 n
-    | n < 0 = crash "underflow"
-    | n > fromIntegral (maxBound :: Word64) = crash "overflow"
+unsafeIntToWord
+    :: forall from to
+     . ( HasCallStack
+       , Integral from
+       , Bounded to
+       , Integral to
+       , Typeable from
+       , Typeable to
+       , Show from)
+    => from -> to
+unsafeIntToWord n
+    | n < fromIntegral (minBound :: to) = crash "underflow"
+    | n > fromIntegral (maxBound :: to) = crash "overflow"
     | otherwise = fromIntegral n
   where
-    crash x = error ("Internal error: Word64 " ++ x)
+    crash :: Builder -> to
+    crash err = internalError $ err |+" converting value "+|| n ||+
+        " from " +|| typeRep (Proxy @from) ||+
+        " to "+|| typeRep (Proxy @to) ||+"!"
+
+-- | Calls the 'error' function, which will usually crash the program.
+internalError :: HasCallStack => Builder -> a
+internalError msg = error $ fmt $ "INTERNAL ERROR: "+|msg
+
+-- | Tests whether an 'Exception' was caused by 'internalError'.
+isInternalError :: ErrorCall -> Bool
+isInternalError e = "INTERNAL ERROR" `isPrefixOf` displayException e
+
+-- | Take the first 'Just' from a list of 'Maybe', or die trying.
+-- There is no alternative.
+tina :: HasCallStack => Builder -> [Maybe a] -> a
+tina msg = fromMaybe (internalError msg) . asum
 
 fromPoolMetadata :: SL.PoolMetadata -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
 fromPoolMetadata meta =
@@ -1103,11 +1140,8 @@ fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
 fromUnitInterval x =
     either bomb id . mkPercentage . toRational . SL.unboundRational $ x
   where
-    bomb = error $ mconcat
-        [ "fromUnitInterval: "
-        , "encountered invalid parameter value: "
-        , show x
-        ]
+    bomb = internalError $
+        "fromUnitInterval: encountered invalid parameter value: "+||x||+""
 
 -- | SealedTx are the result of rightfully constructed shelley transactions so, it
 -- is relatively safe to unserialize them from CBOR.
@@ -1165,7 +1199,7 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
     safeCast :: Word64 -> Integer
     safeCast = fromIntegral
 
-toShelleyTxOut :: W.TxOut -> Cardano.TxOut ShelleyEra
+toShelleyTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ShelleyEra
 toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
     Cardano.TxOut
         addrInEra
@@ -1173,8 +1207,7 @@ toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOutDatumHashNone
   where
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
-    addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
-        asum
+    addrInEra = tina "toCardanoTxOut: malformed address"
         [ Cardano.AddressInEra
             (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
             <$> deserialiseFromRawBytes AsShelleyAddress addr
@@ -1183,7 +1216,7 @@ toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
             <$> deserialiseFromRawBytes AsByronAddress addr
         ]
 
-toAllegraTxOut :: W.TxOut -> Cardano.TxOut AllegraEra
+toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AllegraEra
 toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
     Cardano.TxOut
         addrInEra
@@ -1191,8 +1224,7 @@ toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOutDatumHashNone
   where
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
-    addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
-        asum
+    addrInEra = tina "toCardanoTxOut: malformed address"
         [ Cardano.AddressInEra
             (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra)
             <$> deserialiseFromRawBytes AsShelleyAddress addr
@@ -1201,15 +1233,14 @@ toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
             <$> deserialiseFromRawBytes AsByronAddress addr
         ]
 
-toMaryTxOut :: W.TxOut -> Cardano.TxOut MaryEra
+toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut MaryEra
 toMaryTxOut (W.TxOut (W.Address addr) tokens) =
     Cardano.TxOut
         addrInEra
         (Cardano.TxOutValue Cardano.MultiAssetInMaryEra $ toCardanoValue tokens)
         Cardano.TxOutDatumHashNone
   where
-    addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
-        asum
+    addrInEra = tina "toCardanoTxOut: malformed address"
         [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
             <$> deserialiseFromRawBytes AsShelleyAddress addr
 
@@ -1217,7 +1248,7 @@ toMaryTxOut (W.TxOut (W.Address addr) tokens) =
             <$> deserialiseFromRawBytes AsByronAddress addr
         ]
 
-toAlonzoTxOut :: W.TxOut -> Cardano.TxOut AlonzoEra
+toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AlonzoEra
 toAlonzoTxOut (W.TxOut (W.Address addr) tokens) =
     Cardano.TxOut
         addrInEra
@@ -1225,8 +1256,7 @@ toAlonzoTxOut (W.TxOut (W.Address addr) tokens) =
         datumHash
   where
     datumHash = Cardano.TxOutDatumHashNone
-    addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
-        asum
+    addrInEra = tina "toCardanoTxOut: malformed address"
         [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
             <$> deserialiseFromRawBytes AsShelleyAddress addr
 
@@ -1234,7 +1264,7 @@ toAlonzoTxOut (W.TxOut (W.Address addr) tokens) =
             <$> deserialiseFromRawBytes AsByronAddress addr
         ]
 
-toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
+toCardanoValue :: HasCallStack => TokenBundle.TokenBundle -> Cardano.Value
 toCardanoValue tb = Cardano.valueFromList $
     (Cardano.AdaAssetId, coinToQuantity coin) :
     map (bimap toCardanoAssetId toQuantity) bundle
@@ -1243,14 +1273,13 @@ toCardanoValue tb = Cardano.valueFromList $
     toCardanoAssetId (TokenBundle.AssetId pid name) =
         Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
 
-    toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) = just "PolicyId" $
-        Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid
-    toCardanoAssetName (W.UnsafeTokenName name) = just "TokenName" $
-        Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
+    toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) = just "PolicyId"
+        [Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid]
+    toCardanoAssetName (W.UnsafeTokenName name) = just "TokenName"
+        [Cardano.deserialiseFromRawBytes Cardano.AsAssetName name]
 
-    just :: String -> Maybe a -> a
-    just t = fromMaybe $ error $
-        "toMaryTxOut: Internal error: unable to deserialise " ++ t
+    just :: Builder -> [Maybe a] -> a
+    just t = tina ("toCardanoValue: unable to deserialise "+|t)
 
     coinToQuantity = fromIntegral . W.unCoin
     toQuantity = fromIntegral . W.unTokenQuantity
@@ -1578,14 +1607,12 @@ instance Buildable LocalAddress where
 -- >>> invertUnitInterval . invertUnitInterval == id
 -- >>> intervalValue (invertUnitInterval i) + intervalValue i == 1
 --
-invertUnitInterval :: SL.UnitInterval -> SL.UnitInterval
+invertUnitInterval :: HasCallStack => SL.UnitInterval -> SL.UnitInterval
 invertUnitInterval = unsafeBoundRational . (1 - ) . SL.unboundRational
   where
     unsafeBoundRational :: Rational -> SL.UnitInterval
-    unsafeBoundRational =
-        fromMaybe (error "invertUnitInterval: the impossible happened")
-        . SL.boundRational
-
+    unsafeBoundRational = tina "invertUnitInterval: the impossible happened"
+        . pure . SL.boundRational
 
 interval1 :: SL.UnitInterval
 interval1 = maxBound
