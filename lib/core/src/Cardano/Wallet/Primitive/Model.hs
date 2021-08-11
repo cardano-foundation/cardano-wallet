@@ -76,7 +76,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , inputs
-    , txIns
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -107,6 +106,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -299,7 +299,16 @@ availableUTxO
     -> Wallet s
     -> UTxO
 availableUTxO pending (Wallet u _ _) =
-    u  `excluding` txIns pending
+    u `excluding` entriesToExclude
+  where
+    entriesToExclude :: Set TxIn
+    entriesToExclude = F.foldMap' entriesToExcludeForTx pending
+
+    entriesToExcludeForTx :: Tx -> Set TxIn
+    entriesToExcludeForTx tx = Set.fromList $ fst <$> mconcat
+        [ tx ^. #resolvedInputs
+        , tx ^. #resolvedCollateral
+        ]
 
 -- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
 totalUTxO
