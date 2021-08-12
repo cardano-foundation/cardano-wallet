@@ -186,6 +186,7 @@ import Cardano.Wallet.Api.Server.Tls
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
+    , AddressAmountNoAssets (..)
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
@@ -235,6 +236,7 @@ import Cardano.Wallet.Api.Types
     , ApiStakeKeys (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiTxCollateral (..)
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
@@ -1862,6 +1864,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
         (txId tx)
         (tx ^. #fee)
         (NE.toList $ second Just <$> sel ^. #inputsSelected)
+        ([] {- TODO: ADP-957 -})
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
@@ -1926,6 +1929,7 @@ mkApiTransactionFromInfo ti info = do
         (txInfoId)
         (txInfoFee)
         (txInfoInputs <&> drop2nd)
+        (txInfoCollateralInputs <&> drop2nd)
         (txInfoOutputs)
         (txInfoWithdrawals)
         (txInfoMeta, txInfoTime)
@@ -1944,6 +1948,7 @@ mkApiTransactionFromInfo ti info = do
         , txInfoDepth
         , txInfoFee
         , txInfoInputs
+        , txInfoCollateralInputs
         , txInfoOutputs
         , txInfoWithdrawals
         , txInfoMeta
@@ -2125,6 +2130,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         (txId tx)
         (tx ^. #fee)
         (NE.toList $ second Just <$> sel ^. #inputsSelected)
+        ([] {- joining a stake pool does not require collateral -})
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
@@ -2210,6 +2216,7 @@ quitStakePool ctx (ApiT wid) body = do
         (txId tx)
         (tx ^. #fee)
         (NE.toList $ second Just <$> sel ^. #inputsSelected)
+        ([] {- quitting a stake pool does not require collateral -})
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
@@ -2458,6 +2465,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                 (txId tx)
                 (tx ^. #fee)
                 (NE.toList $ second Just <$> selection ^. #inputsSelected)
+                ([] {- migrations never require collateral -})
                 (tx ^. #outputs)
                 (tx ^. #withdrawals)
                 (txMeta, txTime)
@@ -2850,21 +2858,24 @@ mkApiTransaction
     -> Hash "Tx"
     -> Maybe Coin
     -> [(TxIn, Maybe TxOut)]
+    -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
     -> Map RewardAccount Coin
     -> (W.TxMeta, UTCTime)
     -> Maybe W.TxMetadata
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> IO (ApiTransaction n)
-mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeReference = do
-    timeRef <- (#time .~ timestamp) <$> makeApiBlockReference
-        (neverFails "makeApiBlockReference shouldn't fail getting the time of \
-            \transactions with slots in the past" ti)
-        (meta ^. #slotNo)
-        (natural $ meta ^. #blockHeight)
+mkApiTransaction
+    ti txid mfee ins cins outs ws (meta, timestamp) txMeta setTimeReference = do
+        timeRef <- (#time .~ timestamp) <$> makeApiBlockReference
+            (neverFails
+                "makeApiBlockReference shouldn't fail getting the time of \
+                \transactions with slots in the past" ti)
+            (meta ^. #slotNo)
+            (natural $ meta ^. #blockHeight)
 
-    expRef <- traverse makeApiSlotReference' (meta ^. #expiry)
-    return $ tx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
+        expRef <- traverse makeApiSlotReference' (meta ^. #expiry)
+        return $ tx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
   where
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
@@ -2881,7 +2892,14 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         , expiresAt = Nothing
         , depth = Nothing
         , direction = ApiT (meta ^. #direction)
-        , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
+        , inputs =
+            [ ApiTxInput (fmap toAddressAmount o) (ApiT i)
+            | (i, o) <- ins
+            ]
+        , collateral =
+            [ ApiTxCollateral (fmap toAddressAmountNoAssets o) (ApiT i)
+            | (i, o) <- cins
+            ]
         , outputs = toAddressAmount <$> outs
         , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
         , mint = mempty  -- TODO: ADP-xxx
@@ -2947,6 +2965,12 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
         AddressAmount (ApiT addr, Proxy @n) (mkApiCoin coin) (ApiT assets)
+
+    toAddressAmountNoAssets
+        :: TxOut
+        -> AddressAmountNoAssets (ApiT Address, Proxy n)
+    toAddressAmountNoAssets (TxOut addr (TokenBundle.TokenBundle coin _)) =
+        AddressAmountNoAssets (ApiT addr, Proxy @n) (mkApiCoin coin)
 
 mkApiCoin
     :: Coin

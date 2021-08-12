@@ -992,6 +992,24 @@ x-transactionInputs: &transactionInputs
         type: integer
         minimum: 0
 
+x-transactionCollateral: &transactionCollateral
+  description: |
+    A list of transaction inputs used for collateral.
+  type: array
+  minItems: 0
+  items:
+    type: object
+    required:
+      - id
+      - index
+    properties:
+      address: *addressId
+      amount: *amount
+      id: *transactionId
+      index:
+        type: integer
+        minimum: 0
+
 x-derivationSegment: &derivationSegment
   description: |
     An individual segment within a derivation path.
@@ -2042,6 +2060,7 @@ components:
         direction: *transactionDirection
         inputs: *transactionInputs
         outputs: *transactionOutputs
+        collateral: *transactionCollateral
         withdrawals: *transactionWithdrawals
         mint: *transactionMint
         status: *transactionStatus

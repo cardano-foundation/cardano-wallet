@@ -105,10 +105,12 @@ module Cardano.Wallet.Api.Types
     , ApiMaintenanceActionPostData (..)
     , MaintenanceAction (..)
     , ApiFee (..)
+    , ApiTxCollateral (..)
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , AddressAmount (..)
+    , AddressAmountNoAssets (..)
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiErrorCode (..)
@@ -1076,6 +1078,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
+    , collateral :: ![ApiTxCollateral n]
     , withdrawals :: ![ApiWithdrawal n]
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
@@ -1142,12 +1145,25 @@ data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
+data ApiTxCollateral (n :: NetworkDiscriminant) = ApiTxCollateral
+    { source :: !(Maybe (AddressAmountNoAssets (ApiT Address, Proxy n)))
+    , input :: !(ApiT TxIn)
+    } deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
 data AddressAmount addr = AddressAmount
     { address :: !addr
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
+
+data AddressAmountNoAssets addr = AddressAmountNoAssets
+    { address :: !addr
+    , amount :: !(Quantity "lovelace" Natural)
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 coinToQuantity :: Integral n => Coin -> Quantity "lovelace" n
 coinToQuantity = Quantity . fromIntegral . unCoin
@@ -2786,6 +2802,11 @@ instance FromJSON (ApiT W.TokenBundle) where
 instance ToJSON a => ToJSON (AddressAmount a) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON a => FromJSON (AddressAmountNoAssets a) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON a => ToJSON (AddressAmountNoAssets a) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance
     ( DecodeAddress n
     , DecodeStakeAddress n
@@ -2841,6 +2862,16 @@ instance DecodeAddress n => FromJSON (ApiTxInput n) where
 
 instance EncodeAddress n => ToJSON (ApiTxInput n) where
     toJSON (ApiTxInput s i) =
+        Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
+      where
+        fromValue (Object o) = o
+        fromValue _ = mempty
+
+instance DecodeAddress n => FromJSON (ApiTxCollateral n) where
+    parseJSON v = ApiTxCollateral <$> optional (parseJSON v) <*> parseJSON v
+
+instance EncodeAddress n => ToJSON (ApiTxCollateral n) where
+    toJSON (ApiTxCollateral s i) =
         Object (maybe mempty (fromValue . toJSON) s <> fromValue (toJSON i))
       where
         fromValue (Object o) = o
