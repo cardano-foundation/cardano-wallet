@@ -197,6 +197,7 @@ import Cardano.Wallet.Api.Types
     , ApiBytesT (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
+    , ApiCoinSelectionCollateral (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
@@ -2756,6 +2757,7 @@ mkApiCoinSelection deps mcerts meta unsignedTx =
         (mkApiCoinSelectionInput <$> unsignedInputs)
         (mkApiCoinSelectionOutput <$> unsignedOutputs)
         (mkApiCoinSelectionChange <$> unsignedChange)
+        (mkApiCoinSelectionCollateral <$> unsignedCollateralInputs)
         (mkApiCoinSelectionWithdrawal <$> unsignedWithdrawals)
         (fmap (uncurry mkCertificates) mcerts)
         (fmap mkApiCoin deps)
@@ -2763,6 +2765,7 @@ mkApiCoinSelection deps mcerts meta unsignedTx =
   where
     UnsignedTx
         { unsignedInputs
+        , unsignedCollateralInputs
         , unsignedOutputs
         , unsignedChange
         , unsignedWithdrawals
@@ -2817,6 +2820,17 @@ mkApiCoinSelection deps mcerts meta unsignedTx =
                 ApiT $ view #assets txChange
             , derivationPath =
                 ApiT <$> view #derivationPath txChange
+            }
+
+    mkApiCoinSelectionCollateral :: input -> ApiCoinSelectionCollateral n
+    mkApiCoinSelectionCollateral
+        (TxIn txid index, TxOut addr (TokenBundle amount _), path) =
+        ApiCoinSelectionCollateral
+            { id = ApiT txid
+            , index = index
+            , address = (ApiT addr, Proxy @n)
+            , amount = coinToQuantity amount
+            , derivationPath = ApiT <$> path
             }
 
     mkApiCoinSelectionWithdrawal :: withdrawal -> ApiCoinSelectionWithdrawal n

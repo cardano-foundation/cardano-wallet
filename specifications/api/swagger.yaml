@@ -1212,6 +1212,27 @@ x-transactionResolvedInputs: &transactionResolvedInputs
         type: integer
         minimum: 0
 
+x-transactionResolvedCollateral: &transactionResolvedCollateral
+  description: A list of transaction inputs used for collateral
+  type: array
+  minItems: 0
+  items:
+    type: object
+    required:
+      - id
+      - index
+      - address
+      - amount
+      - derivation_path
+    properties:
+      address: *addressId
+      amount: *amount
+      id: *transactionId
+      derivation_path: *derivationPath
+      index:
+        type: integer
+        minimum: 0
+
 x-transactionResolvedWithdrawals: &transactionResolvedWithdrawals
   description: A list of withdrawals from stake addresses.
   type: array
@@ -1845,6 +1866,7 @@ components:
         inputs: *transactionResolvedInputs
         outputs: *transactionOutputs
         change: *transactionChange
+        collateral: *transactionResolvedCollateral
         withdrawals: *transactionResolvedWithdrawals
         certificates:
           type: array

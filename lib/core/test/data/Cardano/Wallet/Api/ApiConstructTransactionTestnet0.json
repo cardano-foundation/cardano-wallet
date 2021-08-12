@@ -47,25 +47,92 @@
                 "inputs": [
                     {
                         "amount": {
-                            "quantity": 8,
+                            "quantity": 5,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "67b35053321712c03c456d444d27a5a35d52d6623d0830334175498c6d6f3a12",
+                        "id": "493f333478510049266fdc50060ad753412e2d2256372c331e376e2d1cc6802a",
                         "derivation_path": [
-                            "2",
-                            "7",
-                            "2",
-                            "7",
+                            "0",
                             "1",
-                            "1",
-                            "0"
+                            "2",
+                            "6",
+                            "3"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            }
+                        ],
+                        "index": 5
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "0255733377291d2f13e17409087412347c26661d0c29670d052d213645551c74",
+                        "derivation_path": [
+                            "7",
+                            "3"
                         ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e42",
-                                "quantity": 9,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                                "quantity": 8,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 5,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 7,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 4,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 4,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 11,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 6
+                    },
+                    {
+                        "amount": {
+                            "quantity": 6,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "0d7c79443446762d2a2139370a5a1cb2066b5f757603cc8400de5f54430b6644",
+                        "derivation_path": [
+                            "2"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 4,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 2,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
                             }
                         ],
                         "index": 1
@@ -96,53 +163,87 @@
                 "change": [
                     {
                         "amount": {
-                            "quantity": 3,
+                            "quantity": 2,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
-                            "5",
-                            "2",
-                            "0",
+                            "1",
+                            "1",
                             "7",
                             "8"
                         ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 10,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 6,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 3,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 7,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 16,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 4,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "quantity": 1,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
                     },
                     {
                         "amount": {
-                            "quantity": 6,
+                            "quantity": 8,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "3",
+                            "6"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 3,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "6",
+                            "1",
+                            "3",
+                            "0"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 8,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "6",
+                            "3",
+                            "1",
+                            "8",
+                            "4",
+                            "0",
+                            "2"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "3"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 3,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 8,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
@@ -150,58 +251,34 @@
                             "5",
                             "3",
                             "8",
-                            "5",
-                            "3"
+                            "8",
+                            "1",
+                            "1",
+                            "0"
                         ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 10,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            }
-                        ]
+                        "assets": []
                     }
                 ],
-                "outputs": [
+                "outputs": [],
+                "metadata": "sWWQNtgbrQ==",
+                "collateral": [
                     {
                         "amount": {
-                            "quantity": 3,
+                            "quantity": 5,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 2,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 8,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 4,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 0,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 0,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
+                        "id": "f44607283f37617575006d751e4317657e0f176d02783a0a3c310a63610b417e",
+                        "derivation_path": [
+                            "2",
+                            "3",
+                            "7",
+                            "5",
+                            "0",
+                            "3",
+                            "5"
+                        ],
+                        "index": 6
                     },
                     {
                         "amount": {
@@ -209,37 +286,17 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 3,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 7,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 3,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 10,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
+                        "id": "521c792637042529711002587e290fd237785d245e5b0fc0305e4c69500a5e7a",
+                        "derivation_path": [
+                            "4",
+                            "4",
+                            "5",
+                            "4",
+                            "2"
+                        ],
+                        "index": 4
                     }
-                ],
-                "metadata": "sWWQNtgbrQ=="
+                ]
             }
         },
         {
@@ -287,16 +344,40 @@
                 "inputs": [
                     {
                         "amount": {
-                            "quantity": 3,
+                            "quantity": 1,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "6c9a0912725df41620498372b07337176d346db6686641493c760f03e546177d",
+                        "id": "44631633592359414c42f1073e146f690937252d5f7c271ae23f22e50b184957",
                         "derivation_path": [
-                            "7"
+                            "0",
+                            "7",
+                            "4",
+                            "8",
+                            "5",
+                            "8",
+                            "4"
                         ],
                         "assets": [],
-                        "index": 2
+                        "index": 7
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "13c0874108735dd63b5b677d7e353c4f7229093052706feab5582c405bc72e07",
+                        "derivation_path": [
+                            "3",
+                            "6",
+                            "0",
+                            "7",
+                            "3",
+                            "8"
+                        ],
+                        "assets": [],
+                        "index": 4
                     },
                     {
                         "amount": {
@@ -304,15 +385,151 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "11007fce37ef1fcc4144480d7e7a322a16622c6f3317690f324970221d3118c4",
+                        "id": "039b06686157e2430a2043396233324502179f26766b7a505cd5422f732bb8fc",
                         "derivation_path": [
-                            "3",
+                            "1"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 6
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "3350144938d32e0a68266743097cb15c2062657d0b9d4a79374a1132164e3422",
+                        "derivation_path": [
+                            "5",
                             "1",
-                            "2",
-                            "7"
+                            "4",
+                            "3",
+                            "2"
                         ],
                         "assets": [],
-                        "index": 7
+                        "index": 3
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "625b63362d03285bf659702d7a010c9b755acd502c0b40317d15e010260d1c10",
+                        "derivation_path": [
+                            "8",
+                            "3",
+                            "1",
+                            "4"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 4,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 1,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 1,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 7,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 1
+                    },
+                    {
+                        "amount": {
+                            "quantity": 0,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "11280ef93c0c36201642743f4a04c16d59704f2a04705bb924f15a6fb2000670",
+                        "derivation_path": [
+                            "1",
+                            "6",
+                            "8"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 5,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 5
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "476e19b3571d58132c597b513629552f393a15371363261c6d4cf73413342b43",
+                        "derivation_path": [
+                            "7",
+                            "1",
+                            "8",
+                            "4",
+                            "1"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 1,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 5,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 13,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 7,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 8
                     }
                 ],
                 "deposits": [
@@ -394,31 +611,79 @@
                 "change": [
                     {
                         "amount": {
-                            "quantity": 2,
+                            "quantity": 6,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
                             "5",
+                            "3",
                             "4",
-                            "3"
+                            "2",
+                            "6",
+                            "7",
+                            "2"
                         ],
                         "assets": []
                     },
                     {
                         "amount": {
-                            "quantity": 7,
+                            "quantity": 1,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
                             "5",
+                            "5",
+                            "3",
+                            "6"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "3",
+                            "8"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "2",
+                            "0",
+                            "8",
                             "6",
-                            "4",
-                            "4",
-                            "4",
-                            "1",
-                            "3"
+                            "0",
+                            "4"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 2,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "8",
+                            "6",
+                            "5"
                         ],
                         "assets": []
                     }
@@ -426,65 +691,44 @@
                 "outputs": [
                     {
                         "amount": {
-                            "quantity": 3,
+                            "quantity": 6,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "assets": []
-                    },
+                    }
+                ],
+                "collateral": [
                     {
                         "amount": {
-                            "quantity": 0,
+                            "quantity": 5,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 8,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            }
-                        ]
+                        "id": "4d11484d647a1625196e25374b20766c50977b094c07d18161065c5e1de019b4",
+                        "derivation_path": [
+                            "8",
+                            "6",
+                            "2",
+                            "3",
+                            "5",
+                            "4"
+                        ],
+                        "index": 2
                     },
                     {
                         "amount": {
-                            "quantity": 1,
+                            "quantity": 5,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 10,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 17,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 10,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
+                        "id": "2d327b465f0e725e8e4c7c09fb0f5d2ace26a312677b4a6c1730564c6f004359",
+                        "derivation_path": [
+                            "7",
+                            "5",
+                            "1"
+                        ],
+                        "index": 7
                     }
                 ]
             }
@@ -544,131 +788,147 @@
                 "inputs": [
                     {
                         "amount": {
-                            "quantity": 2,
+                            "quantity": 4,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "7476715609740c710d3b360f9c62522d5b5a6409d32203ce5d1d2b3f270c5377",
+                        "id": "6b6118aa6c5e792e5857da24531d52397f0b033c737864180f596b2b0bb41221",
                         "derivation_path": [
-                            "6",
+                            "1",
+                            "5",
                             "1",
                             "0",
+                            "3",
                             "2",
-                            "6",
-                            "7"
+                            "5"
                         ],
                         "assets": [],
-                        "index": 0
+                        "index": 3
                     },
                     {
                         "amount": {
-                            "quantity": 8,
+                            "quantity": 0,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "2b126239e21a0003676c6e680b41a47a717a5a2ebc312e25544b4153196e2837",
+                        "id": "0e05fe4943041439873e8d376782668416c037053d9113844640995c62322244",
                         "derivation_path": [
-                            "6",
-                            "7",
-                            "3",
-                            "3",
-                            "3",
-                            "0",
-                            "7"
+                            "8"
                         ],
                         "assets": [
                             {
-                                "asset_name": "546f6b656e44",
+                                "asset_name": "546f6b656e42",
+                                "quantity": 9,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 5,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 5,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 1,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 10,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
                                 "quantity": 3,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ],
                         "index": 2
                     },
                     {
                         "amount": {
-                            "quantity": 4,
+                            "quantity": 2,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "1172006e5637452e3f03437471073922a2156d7c0340400d72316a18384eb31c",
+                        "id": "0f7a460ddf681130072491c579098e0c16752a1a7a545813133e0444c0305019",
                         "derivation_path": [
                             "8",
+                            "4",
+                            "7",
+                            "2",
                             "1",
-                            "1"
+                            "6",
+                            "2"
                         ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 4,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                "quantity": 10,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 7,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
                             },
                             {
                                 "asset_name": "546f6b656e42",
-                                "quantity": 7,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "quantity": 5,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 9,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 3,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ],
-                        "index": 0
+                        "index": 6
                     },
                     {
                         "amount": {
-                            "quantity": 4,
+                            "quantity": 7,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "37744c5a246f494b40613f114164528028fb1b32544c58407604b233484a294f",
+                        "id": "7408314eaa02316d7a4911bd5e6a5978213b704b3196693b640844663e3b3853",
                         "derivation_path": [
-                            "5",
-                            "4",
-                            "5",
-                            "7",
-                            "4",
-                            "6"
-                        ],
-                        "assets": [],
-                        "index": 7
-                    },
-                    {
-                        "amount": {
-                            "quantity": 4,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "0020714327536b790e555b2176551d8f57737e1d3d162d24032f2503506f8afb",
-                        "derivation_path": [
-                            "5",
-                            "1",
-                            "3",
-                            "0",
-                            "2",
-                            "2"
-                        ],
-                        "assets": [],
-                        "index": 1
-                    },
-                    {
-                        "amount": {
-                            "quantity": 5,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "6652c013de646f19680ccc6f2f63df3e550ae5381b7d672bc76f61005b1c5106",
-                        "derivation_path": [
-                            "0",
-                            "3",
                             "8",
-                            "7",
-                            "0"
+                            "8",
+                            "4"
                         ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e42",
                                 "quantity": 5,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ],
-                        "index": 5
+                        "index": 7
                     }
                 ],
                 "deposits": [
@@ -725,296 +985,71 @@
                 "change": [
                     {
                         "amount": {
-                            "quantity": 4,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "5",
-                            "2",
-                            "8",
-                            "5",
-                            "8",
-                            "0",
-                            "2"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 17,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 8,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 5,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 5,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
                             "quantity": 7,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
-                            "4",
+                            "6",
+                            "6",
                             "4",
                             "6"
                         ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 5,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 1,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 4,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 2,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 5,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "5"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 3,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 14,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 1,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 8,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 8,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 6,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "7",
-                            "6",
-                            "6",
-                            "6",
-                            "3"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 4,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 2,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 9,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 3,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 8,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "0",
-                            "1",
-                            "0",
-                            "1",
-                            "5",
-                            "6",
-                            "2"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 7,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 4,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 8,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 10,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 10,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 8,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
                                 "quantity": 6,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 4,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
                     },
-                    {
-                        "amount": {
-                            "quantity": 4,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "5",
-                            "5",
-                            "1"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 1,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            }
-                        ]
-                    }
-                ],
-                "outputs": [
                     {
                         "amount": {
                             "quantity": 1,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
+                        "derivation_path": [
+                            "8",
+                            "6",
+                            "6",
+                            "0",
+                            "5",
+                            "8",
+                            "4"
+                        ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 8,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                "quantity": 14,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
                                 "asset_name": "546f6b656e42",
-                                "quantity": 3,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 10,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 12,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 15,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 8,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 5,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 3,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 3,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
                                 "quantity": 1,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 7,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 11,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 3,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
                     },
                     {
                         "amount": {
@@ -1022,6 +1057,165 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
+                        "derivation_path": [
+                            "6",
+                            "3",
+                            "6",
+                            "3"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "0",
+                            "8",
+                            "6",
+                            "6",
+                            "8"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 5,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 4,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 4,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 5,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 1,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "5",
+                            "7",
+                            "4",
+                            "1"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 0,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "8",
+                            "4"
+                        ],
+                        "assets": []
+                    }
+                ],
+                "outputs": [
+                    {
+                        "amount": {
+                            "quantity": 8,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 5,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 10,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 14,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 7,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 3,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 1,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
                         "assets": []
                     },
                     {
@@ -1031,6 +1225,103 @@
                         },
                         "address": "<addr>",
                         "assets": []
+                    }
+                ],
+                "collateral": [
+                    {
+                        "amount": {
+                            "quantity": 8,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "4f40181109557d5b1a62621c7d01f1343d5eac06015fa3f6110c2d4942097c28",
+                        "derivation_path": [
+                            "4",
+                            "1"
+                        ],
+                        "index": 7
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "3c584b74667ffd591a2b0a4626494d702e41583d7fb40d76232045a26129033c",
+                        "derivation_path": [
+                            "4",
+                            "0",
+                            "8"
+                        ],
+                        "index": 7
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "5e4a79db7e5b2e5866776a6a4b1209aa2374497a407f29540fe10334234c1926",
+                        "derivation_path": [
+                            "2",
+                            "6",
+                            "8",
+                            "5",
+                            "6",
+                            "6"
+                        ],
+                        "index": 5
+                    },
+                    {
+                        "amount": {
+                            "quantity": 7,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "492f26483b6b19141625a1065f4e0d6ff06d2f4d1e53684c3a332dfa323d5226",
+                        "derivation_path": [
+                            "0",
+                            "2",
+                            "8",
+                            "8",
+                            "1"
+                        ],
+                        "index": 3
+                    },
+                    {
+                        "amount": {
+                            "quantity": 0,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "083b2e7e086ca1bb575d641a104607016e45193ffc3e185fff363123e4ce3e3e",
+                        "derivation_path": [
+                            "5",
+                            "7",
+                            "2",
+                            "1",
+                            "2",
+                            "1",
+                            "7"
+                        ],
+                        "index": 0
+                    },
+                    {
+                        "amount": {
+                            "quantity": 0,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "6734523045046d165f6b463f061478744441c45f6b4d4953080e70227e737a1a",
+                        "derivation_path": [
+                            "1",
+                            "3",
+                            "7",
+                            "6",
+                            "3",
+                            "2"
+                        ],
+                        "index": 8
                     }
                 ]
             }
@@ -1099,26 +1390,171 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "646c2c58490a6ce23d0a66137d152921c22ae77e092e412c326b0d3f22174a23",
+                        "id": "707f363348056c935a1470450699997f231c3668352b30570a7e58052917c823",
+                        "derivation_path": [
+                            "4",
+                            "2",
+                            "8"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 1,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 11,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 3,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 4,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 3,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 3,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 2
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "497b0b495d1323303f2441401b5a155d0f45744756035f365eac2a2e41425b24",
                         "derivation_path": [
                             "6",
-                            "5",
-                            "5",
-                            "5"
+                            "4",
+                            "7"
                         ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 7,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 10,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                                "quantity": 5,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
                             }
                         ],
-                        "index": 3
+                        "index": 7
+                    },
+                    {
+                        "amount": {
+                            "quantity": 7,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "1173f666017427256784460b67ab747a6d516b0db92d34323f340e037115974c",
+                        "derivation_path": [
+                            "4",
+                            "2"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 7
+                    },
+                    {
+                        "amount": {
+                            "quantity": 3,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "76406d4457bf6e485a9b567c43591b1a0c5f437a7f093e385d091d96d430252e",
+                        "derivation_path": [
+                            "4",
+                            "6",
+                            "1",
+                            "3",
+                            "7",
+                            "4"
+                        ],
+                        "assets": [],
+                        "index": 0
+                    },
+                    {
+                        "amount": {
+                            "quantity": 2,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "1d055a30122f6179342622790009a7711442566011d4149942b23c181c0d284e",
+                        "derivation_path": [
+                            "8",
+                            "5",
+                            "1",
+                            "1",
+                            "3",
+                            "3"
+                        ],
+                        "assets": [],
+                        "index": 6
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "580970bd2207535e1c632fd4102b530e11004f2303724862edff735870961769",
+                        "derivation_path": [
+                            "1",
+                            "3",
+                            "0",
+                            "4"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 5,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 0
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "115734ae40501734cb68584909641a46443c784448414f344776c1c72403360e",
+                        "derivation_path": [
+                            "2",
+                            "4",
+                            "1",
+                            "6"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            }
+                        ],
+                        "index": 5
                     }
                 ],
                 "deposits": [
@@ -1201,51 +1637,115 @@
                         ]
                     }
                 ],
-                "change": [],
-                "outputs": [
+                "change": [
+                    {
+                        "amount": {
+                            "quantity": 7,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "6",
+                            "2",
+                            "3",
+                            "8"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "0"
+                        ],
+                        "assets": []
+                    },
                     {
                         "amount": {
                             "quantity": 4,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
+                        "derivation_path": [
+                            "5",
+                            "5",
+                            "3",
+                            "1",
+                            "0"
+                        ],
                         "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 4,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 6,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
                             {
                                 "asset_name": "546f6b656e42",
-                                "quantity": 1,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "quantity": 5,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
                     },
                     {
                         "amount": {
-                            "quantity": 4,
+                            "quantity": 1,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
+                        "derivation_path": [
+                            "5",
+                            "6",
+                            "4"
+                        ],
                         "assets": [
                             {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 8,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                                "asset_name": "546f6b656e41",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 3,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 2,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
                     },
                     {
                         "amount": {
-                            "quantity": 2,
+                            "quantity": 0,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 6,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
+                        "derivation_path": [
+                            "5",
+                            "7",
+                            "0"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 1,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            }
+                        ]
                     },
                     {
                         "amount": {
@@ -1253,28 +1753,28 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
+                        "derivation_path": [
+                            "8",
+                            "8",
+                            "1",
+                            "5"
+                        ],
                         "assets": [
                             {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 2,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                "asset_name": "546f6b656e42",
+                                "quantity": 12,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 2,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "asset_name": "546f6b656e43",
+                                "quantity": 6,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             }
                         ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 6,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
                     }
-                ]
+                ],
+                "outputs": [],
+                "collateral": []
             }
         },
         {
@@ -1343,57 +1843,17 @@
                 "inputs": [
                     {
                         "amount": {
-                            "quantity": 0,
+                            "quantity": 6,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "4f1061464b36c7543b736439061a1c0a45133b16411f17293b4e7b32521bd810",
+                        "id": "47ba42264d353b6f7d414b166e071b226e120539000119ac765d742673384250",
                         "derivation_path": [
                             "6",
-                            "0"
+                            "7"
                         ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 10,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 5,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 9,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 8,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ],
-                        "index": 3
-                    },
-                    {
-                        "amount": {
-                            "quantity": 4,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "64221e7e3177592f0e49270806114c7165016e5971765d71f0571c466e787e11",
-                        "derivation_path": [
-                            "5"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 2,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            }
-                        ],
-                        "index": 0
+                        "assets": [],
+                        "index": 1
                     },
                     {
                         "amount": {
@@ -1401,56 +1861,25 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "057fe61c34217d114e5fc8317e4329560a5019760a213d7f51826aba2f03402c",
+                        "id": "27579a6e2ed834421165626a69507505bb3663383d2e146a252f5c347b201206",
                         "derivation_path": [
-                            "5",
+                            "3",
                             "1",
-                            "1",
-                            "8",
-                            "5",
-                            "0",
                             "2"
                         ],
                         "assets": [
                             {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 6,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ],
-                        "index": 3
-                    },
-                    {
-                        "amount": {
-                            "quantity": 4,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "32112320185267315771134f473c5c0564236e6d25511e4c02fe403f347b545b",
-                        "derivation_path": [
-                            "4",
-                            "6",
-                            "0",
-                            "6"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 10,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                "asset_name": "546f6b656e43",
+                                "quantity": 8,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
-                                "asset_name": "546f6b656e44",
+                                "asset_name": "546f6b656e43",
                                 "quantity": 6,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 10,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ],
-                        "index": 7
+                        "index": 2
                     }
                 ],
                 "deposits": [
@@ -1466,121 +1895,208 @@
                 "change": [
                     {
                         "amount": {
-                            "quantity": 6,
+                            "quantity": 2,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
-                            "1",
+                            "3",
                             "3"
                         ],
                         "assets": []
                     },
                     {
                         "amount": {
-                            "quantity": 2,
+                            "quantity": 3,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
                             "4",
-                            "6",
+                            "2",
+                            "7",
+                            "4",
                             "3"
-                        ],
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 2,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "0",
-                            "0",
-                            "6",
-                            "5"
                         ],
                         "assets": [
                             {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 7,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 8,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "3",
-                            "1",
-                            "8",
-                            "8",
-                            "8"
-                        ],
-                        "assets": [
+                                "asset_name": "546f6b656e41",
+                                "quantity": 6,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 12,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
                             {
                                 "asset_name": "546f6b656e43",
-                                "quantity": 10,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                                "quantity": 8,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 6,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 2,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 2,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 4,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 0,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "3",
-                            "2",
-                            "3"
-                        ],
-                        "assets": []
                     }
                 ],
                 "outputs": [
                     {
                         "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 0,
+                            "quantity": 4,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "assets": [
                             {
                                 "asset_name": "546f6b656e42",
-                                "quantity": 6,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
+                                "quantity": 1,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 0,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
                             {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 15,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
+                                "asset_name": "546f6b656e43",
+                                "quantity": 5,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 1,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
                                 "asset_name": "546f6b656e43",
+                                "quantity": 6,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
                                 "quantity": 7,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 11,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
+                    }
+                ],
+                "collateral": [
+                    {
+                        "amount": {
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "3d32610a2559166260213d0a1419c4195144734342a53f0242380067070c1174",
+                        "derivation_path": [
+                            "1",
+                            "7",
+                            "6"
+                        ],
+                        "index": 0
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "3e7d0a6a3322180b740650e65c9345547d20a4bc02204f4f315f3a432533317e",
+                        "derivation_path": [
+                            "4",
+                            "0",
+                            "2",
+                            "6",
+                            "7",
+                            "0"
+                        ],
+                        "index": 2
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "915627174e707c4cccc13bff167fe6644f4f406c0c6b505f7bf81b7f2ca94f59",
+                        "derivation_path": [
+                            "5",
+                            "5",
+                            "0",
+                            "3",
+                            "3",
+                            "6"
+                        ],
+                        "index": 5
+                    },
+                    {
+                        "amount": {
+                            "quantity": 3,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "6e2e390fa53a083e6a454a1b76066d4b15396e6358210322f27d4a799b29125e",
+                        "derivation_path": [
+                            "4",
+                            "3",
+                            "6"
+                        ],
+                        "index": 8
+                    },
+                    {
+                        "amount": {
+                            "quantity": 3,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "c5210c0a3ad3204165d7fb233a095f374fb853662e356d37664107567c09e633",
+                        "derivation_path": [
+                            "6",
+                            "1",
+                            "8"
+                        ],
+                        "index": 5
                     }
                 ]
             }
@@ -1643,22 +2159,61 @@
                 "inputs": [
                     {
                         "amount": {
-                            "quantity": 4,
+                            "quantity": 3,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "2702191634976f7ced332796102f790b583f004960080644709e1a2916260f40",
+                        "id": "0f6f0f16d5251e0b4a0d5948fb721541201945462658137b0e24406145606e1e",
                         "derivation_path": [
-                            "3",
+                            "2",
+                            "2",
                             "8",
-                            "6",
                             "4",
-                            "8",
-                            "1",
-                            "5"
+                            "0",
+                            "0"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 1,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 3
+                    },
+                    {
+                        "amount": {
+                            "quantity": 6,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "2653107496573a6f118966250249387b7118b92a77814e240aabe42d193b7e78",
+                        "derivation_path": [
+                            "5",
+                            "0",
+                            "1"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 4,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            }
+                        ],
+                        "index": 3
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "3f7468696c11022114577d0d0f5e1a67356adb3f277075421d4f7431616a384f",
+                        "derivation_path": [
+                            "1"
                         ],
                         "assets": [],
-                        "index": 1
+                        "index": 5
                     }
                 ],
                 "deposits": [
@@ -1698,51 +2253,68 @@
                 "change": [
                     {
                         "amount": {
-                            "quantity": 8,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "7",
-                            "2",
-                            "6",
-                            "4",
-                            "6",
-                            "3",
-                            "0"
-                        ],
-                        "assets": []
-                    }
-                ],
-                "outputs": [
-                    {
-                        "amount": {
                             "quantity": 4,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
+                        "derivation_path": [
+                            "6"
+                        ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 4,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                "quantity": 5,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
                                 "asset_name": "546f6b656e42",
-                                "quantity": 7,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                "quantity": 8,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 9,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                                "quantity": 2,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
                             },
                             {
                                 "asset_name": "546f6b656e42",
-                                "quantity": 7,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "quantity": 1,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 5,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 3,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 3,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
+                    }
+                ],
+                "outputs": [],
+                "collateral": [
+                    {
+                        "amount": {
+                            "quantity": 2,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "8d01533209290f1c7c38440f1c372e1c675725cb6571b1491b48580a5e9cd27a",
+                        "derivation_path": [
+                            "1",
+                            "2",
+                            "3",
+                            "8"
+                        ],
+                        "index": 5
                     }
                 ]
             }
@@ -1772,193 +2344,94 @@
                 "inputs": [
                     {
                         "amount": {
-                            "quantity": 8,
+                            "quantity": 6,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "281a273154584f1a2e42d23246452e07358667655c2d0719456fa815653a6a87",
+                        "id": "0c64172d7030344b3235bd232a35506c105b17300506673b7795086919783c37",
                         "derivation_path": [
-                            "6"
+                            "8",
+                            "1",
+                            "7",
+                            "3",
+                            "2"
                         ],
                         "assets": [
                             {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 4,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
                                 "asset_name": "546f6b656e43",
-                                "quantity": 10,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 6,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 13,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 9,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 4,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "quantity": 2,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ],
                         "index": 2
                     },
                     {
                         "amount": {
-                            "quantity": 1,
+                            "quantity": 7,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "3a563371251b25797e294c0b7e564ca36f143f785c184843ac315c7b011da11b",
+                        "id": "522f0334217b9a4456235b1ded587457100aeb693a7c301372344835d7314430",
                         "derivation_path": [
-                            "6",
                             "0",
-                            "8"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 7,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 3,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 9,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ],
-                        "index": 3
-                    },
-                    {
-                        "amount": {
-                            "quantity": 3,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "7f380033701d573449591e677e7f1d7455463d96301f9d10372e7a605a2e5bda",
-                        "derivation_path": [
-                            "8",
-                            "4",
-                            "7",
-                            "4",
                             "2"
                         ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 7,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 4,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 3,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 4,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 2,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ],
-                        "index": 0
+                        "assets": [],
+                        "index": 6
                     },
                     {
                         "amount": {
-                            "quantity": 1,
+                            "quantity": 0,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "0b7ea919306d1110192b0e1989624fac540a0d2465882f57d3551e6e3202ff3e",
+                        "id": "7cfd6e374bb651581a1722297c76073c0abb1856956e5771480d074e22487a34",
                         "derivation_path": [
-                            "7",
+                            "1",
+                            "4",
+                            "1",
                             "7"
                         ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e43",
                                 "quantity": 7,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 4,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 8,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                "quantity": 11,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
                             },
                             {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 8,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                "asset_name": "546f6b656e42",
+                                "quantity": 3,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
                             },
                             {
-                                "asset_name": "546f6b656e43",
+                                "asset_name": "546f6b656e42",
                                 "quantity": 6,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             },
                             {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 9,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
+                                "asset_name": "546f6b656e43",
                                 "quantity": 8,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ],
-                        "index": 0
+                        "index": 2
                     },
                     {
                         "amount": {
-                            "quantity": 5,
+                            "quantity": 7,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "23276c19847a5937907f7e101218d6183e5f32561e74653e19bf0c3017481877",
+                        "id": "4fc79f2d254d152471083022623f465b323143f04b5c19b6cb0c1b377664f5f0",
                         "derivation_path": [
-                            "7",
-                            "2",
-                            "6",
-                            "3",
-                            "4"
+                            "1"
                         ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 8,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            }
-                        ],
+                        "assets": [],
                         "index": 8
                     },
                     {
@@ -1967,13 +2440,18 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "3062056f261b09356144550659286e17224560655220f8002b66811c14262720",
+                        "id": "71106e13097c487b7178436dfd25204a225d362a241d2df4707de90d16220538",
                         "derivation_path": [
-                            "1",
                             "3"
                         ],
-                        "assets": [],
-                        "index": 7
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 5,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
+                        "index": 8
                     }
                 ],
                 "deposits": [
@@ -2021,11 +2499,87 @@
                         },
                         "address": "<addr>",
                         "derivation_path": [
+                            "6"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 7,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "4",
                             "6",
-                            "3",
+                            "7",
+                            "1"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 5,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 9,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 2,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 2,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "7"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 7,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
                             "4",
                             "1",
-                            "3"
+                            "6"
                         ],
                         "assets": []
                     }
@@ -2033,44 +2587,79 @@
                 "outputs": [
                     {
                         "amount": {
-                            "quantity": 8,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 3,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 2,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 5,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 4,
+                            "quantity": 1,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "assets": [
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 4,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                "quantity": 7,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 10,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 9,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
                             },
                             {
                                 "asset_name": "546f6b656e43",
                                 "quantity": 10,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 5,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 11,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 3,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 7,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 4,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 5,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 1,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 5,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
                     },
@@ -2080,18 +2669,63 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "assets": []
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 1,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 17,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            }
+                        ]
                     },
                     {
                         "amount": {
-                            "quantity": 4,
+                            "quantity": 5,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "assets": []
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 3,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            }
+                        ]
                     }
                 ],
-                "metadata": "c7Z4+/9r2XXHnWN2+17M8KqapfHHyJUSJw=="
+                "metadata": "c7Z4+/9r2XXHnWN2+17M8KqapfHHyJUSJw==",
+                "collateral": [
+                    {
+                        "amount": {
+                            "quantity": 6,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "0590f1170cd00b021b8a4f533e121b78de6e4b6f3e02f83c444e7069023cadee",
+                        "derivation_path": [
+                            "3"
+                        ],
+                        "index": 6
+                    }
+                ]
             }
         },
         {
@@ -2105,216 +2739,59 @@
                 "inputs": [
                     {
                         "amount": {
-                            "quantity": 1,
+                            "quantity": 2,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "1b2bdd3e96270b3f291040215c6208144b0635512714737a79ef4f452a3c575f",
+                        "id": "523c5e125b695f32037653086424625d110c726e5d0d68181b293e07316944aa",
                         "derivation_path": [
-                            "8",
-                            "0",
-                            "8",
                             "5",
-                            "0",
-                            "7",
                             "3"
                         ],
                         "assets": [
                             {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 3,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
                                 "asset_name": "546f6b656e43",
-                                "quantity": 4,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            }
+                        ],
+                        "index": 7
+                    },
+                    {
+                        "amount": {
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "242f0f1a617770833645070bda52a97b14f864fe261e2378193158ff0d404c51",
+                        "derivation_path": [
+                            "4",
+                            "2",
+                            "8"
+                        ],
+                        "assets": [
                             {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 8,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
+                                "asset_name": "546f6b656e42",
                                 "quantity": 9,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 1,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
                                 "asset_name": "546f6b656e43",
-                                "quantity": 2,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 4,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 6,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ],
-                        "index": 4
-                    },
-                    {
-                        "amount": {
-                            "quantity": 5,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "443d135d738c65420a22c57a33382a7c1202734f01033e291f416a236f512074",
-                        "derivation_path": [
-                            "7",
-                            "7"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 8,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                "quantity": 9,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
                                 "asset_name": "546f6b656e41",
-                                "quantity": 6,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 10,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 3,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 1,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            }
-                        ],
-                        "index": 0
-                    },
-                    {
-                        "amount": {
-                            "quantity": 5,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "49e3d48f70431b491a683bb9170e9415094f3f24326ba0762d12576b1d6b427a",
-                        "derivation_path": [
-                            "7",
-                            "2",
-                            "0",
-                            "0",
-                            "1",
-                            "2",
-                            "3"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 6,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 8,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 2,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 7,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 10,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ],
-                        "index": 8
-                    },
-                    {
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "7634145e1310125327470843364b792540f321150969216e32acd61320564e39",
-                        "derivation_path": [
-                            "0"
-                        ],
-                        "assets": [],
-                        "index": 0
-                    },
-                    {
-                        "amount": {
-                            "quantity": 5,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "545e3a355c69130d0645167c4d014d520c647b7e6b216f312f756a3865fe3558",
-                        "derivation_path": [
-                            "1"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 4,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 2,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
                                 "quantity": 5,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            },
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 7,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
                             },
                             {
                                 "asset_name": "546f6b656e43",
-                                "quantity": 9,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "quantity": 1,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
                             }
                         ],
-                        "index": 3
-                    },
-                    {
-                        "amount": {
-                            "quantity": 3,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "160b0b7a284addda211db42f976b60174d51e1584642c7453223222d040231bb",
-                        "derivation_path": [
-                            "7",
-                            "2",
-                            "2",
-                            "4"
-                        ],
-                        "assets": [],
-                        "index": 1
+                        "index": 6
                     }
                 ],
                 "deposits": [
@@ -2342,27 +2819,186 @@
                 "change": [
                     {
                         "amount": {
-                            "quantity": 5,
+                            "quantity": 6,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
-                            "0"
+                            "8"
                         ],
-                        "assets": []
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 4,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 1,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 7,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 10,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 4,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
                     }
                 ],
                 "outputs": [
                     {
                         "amount": {
-                            "quantity": 7,
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 11,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 7,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 2,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 7,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 10,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 12,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 5,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 3,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 4,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 13,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 2,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 3,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 1,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            }
+                        ]
                     }
                 ],
-                "metadata": "7FX7qT3UGXBz/W5Zbg4ksw=="
+                "metadata": "7FX7qT3UGXBz/W5Zbg4ksw==",
+                "collateral": [
+                    {
+                        "amount": {
+                            "quantity": 0,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "0046583459253a056c32580665622a134a58045b10243c36080834648b3be17c",
+                        "derivation_path": [
+                            "7",
+                            "8",
+                            "4",
+                            "1"
+                        ],
+                        "index": 2
+                    }
+                ]
             }
         },
         {
@@ -2447,118 +3083,68 @@
                 "inputs": [
                     {
                         "amount": {
-                            "quantity": 2,
+                            "quantity": 3,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "187b013637313811204be833773a325c460956627c760406a8260449387e0b41",
+                        "id": "4510e77f1b7c6a816f142038fe9b163a6e7f8a4c791a3637071e975f3bcf393f",
                         "derivation_path": [
-                            "3",
                             "6",
-                            "0",
-                            "7",
-                            "7",
+                            "8",
+                            "8",
                             "2",
+                            "7",
+                            "7",
                             "0"
                         ],
-                        "assets": [],
-                        "index": 2
-                    },
-                    {
-                        "amount": {
-                            "quantity": 6,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "530d997f144664524f7771207c6343599f5ead3e1112aa0558096c143f4548cf",
-                        "derivation_path": [
-                            "0",
-                            "8",
-                            "5"
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 3,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            }
                         ],
-                        "assets": [],
                         "index": 0
                     },
                     {
                         "amount": {
-                            "quantity": 5,
+                            "quantity": 0,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "318b48eb527436767c506c0d440f1810333f7c2f41350f8a0eff2e4663395c2b",
+                        "id": "7e56764a9033413b39613fd5217546b32f1e2cf6aa55043f1b67524c3660c53c",
                         "derivation_path": [
-                            "5",
-                            "5",
-                            "7",
-                            "8",
-                            "4",
-                            "5"
-                        ],
-                        "assets": [],
-                        "index": 5
-                    },
-                    {
-                        "amount": {
-                            "quantity": 4,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "504db0037c4b093742845f719c2360497212350caa08635c346d5a181e0d0b54",
-                        "derivation_path": [
-                            "1",
-                            "7",
-                            "5",
-                            "3",
-                            "7",
-                            "3",
-                            "0"
-                        ],
-                        "assets": [],
-                        "index": 3
-                    },
-                    {
-                        "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "a2188558365925bb2c4e40372a3e106921467b13125968c8604f1e3247a8425e",
-                        "derivation_path": [
-                            "1",
                             "6",
+                            "3",
+                            "8",
+                            "2",
                             "7",
-                            "5",
-                            "7",
-                            "3"
+                            "2",
+                            "4"
                         ],
                         "assets": [
                             {
                                 "asset_name": "546f6b656e42",
-                                "quantity": 9,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 6,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                "quantity": 4,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
                                 "asset_name": "546f6b656e43",
-                                "quantity": 7,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                "quantity": 10,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             },
                             {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 7,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                                "asset_name": "546f6b656e41",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             },
                             {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 8,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "asset_name": "546f6b656e43",
+                                "quantity": 1,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ],
-                        "index": 8
+                        "index": 5
                     }
                 ],
                 "deposits": [
@@ -2642,36 +3228,104 @@
                 "change": [
                     {
                         "amount": {
-                            "quantity": 7,
+                            "quantity": 5,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
-                            "2",
-                            "5",
-                            "4",
-                            "1",
-                            "4"
+                            "7",
+                            "0",
+                            "6"
                         ],
                         "assets": []
                     },
                     {
                         "amount": {
-                            "quantity": 4,
+                            "quantity": 3,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
                             "7",
-                            "7",
+                            "5"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 8,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
                             "6",
-                            "8"
+                            "4",
+                            "6",
+                            "7",
+                            "4",
+                            "8",
+                            "5"
                         ],
                         "assets": [
                             {
-                                "asset_name": "546f6b656e43",
+                                "asset_name": "546f6b656e41",
                                 "quantity": 4,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 20,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 13,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 1,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 10,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 3,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
+                    },
+                    {
+                        "amount": {
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "7",
+                            "3",
+                            "4",
+                            "5"
+                        ],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 3,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 6,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
                     }
@@ -2679,15 +3333,7 @@
                 "outputs": [
                     {
                         "amount": {
-                            "quantity": 2,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 0,
+                            "quantity": 6,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
@@ -2701,27 +3347,89 @@
                         "address": "<addr>",
                         "assets": [
                             {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 3,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
+                                "asset_name": "546f6b656e42",
                                 "quantity": 1,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
                             }
                         ]
                     },
                     {
                         "amount": {
-                            "quantity": 3,
+                            "quantity": 4,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 12,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 5,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
+                            },
+                            {
+                                "asset_name": "546f6b656e43",
+                                "quantity": 2,
+                                "policy_id": "11111111111111111111111111111111111111111111111111111111"
+                            },
+                            {
+                                "asset_name": "546f6b656e41",
+                                "quantity": 4,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ]
                     }
                 ],
-                "metadata": "ca3zzXAsHXfNU+R9KhOjzNxisssnDyA="
+                "metadata": "ca3zzXAsHXfNU+R9KhOjzNxisssnDyA=",
+                "collateral": [
+                    {
+                        "amount": {
+                            "quantity": 2,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "736ba124367a327447147849f5256c3a155e6f6fdec8d86c867e54a540400f3d",
+                        "derivation_path": [
+                            "7",
+                            "2",
+                            "7",
+                            "4"
+                        ],
+                        "index": 4
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "b70d6f15416003571ac594ec1e406841787618bf336e4f24590470d103765a58",
+                        "derivation_path": [
+                            "4",
+                            "4",
+                            "1",
+                            "8",
+                            "5"
+                        ],
+                        "index": 7
+                    }
+                ]
             }
         },
         {
@@ -2784,93 +3492,19 @@
                 "inputs": [
                     {
                         "amount": {
-                            "quantity": 1,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "8f387d2d09553f0d515e6d7b5a4b4a6a230a2c57132e16541471545f75274550",
-                        "derivation_path": [
-                            "4",
-                            "8",
-                            "3"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 4,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            }
-                        ],
-                        "index": 1
-                    },
-                    {
-                        "amount": {
-                            "quantity": 7,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "045b2d7d52632a8f5eaa6bb5322f3b595f5e08124d116442250b20042f4cfa74",
-                        "derivation_path": [
-                            "4",
-                            "5",
-                            "5",
-                            "1",
-                            "6"
-                        ],
-                        "assets": [],
-                        "index": 4
-                    },
-                    {
-                        "amount": {
-                            "quantity": 0,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "ac5c61628d3588366255614049301fff7e796f74416d788f2f15355a0d0d9218",
-                        "derivation_path": [
-                            "6",
-                            "5",
-                            "8",
-                            "3",
-                            "2"
-                        ],
-                        "assets": [],
-                        "index": 7
-                    },
-                    {
-                        "amount": {
                             "quantity": 4,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "6a2f158c49ff525cb25a07662eda0741206646207c6d3d56005e0e6555547776",
+                        "id": "51185253e55ecc2b4209473662221d39207d4eec57477a501430696717f57b74",
                         "derivation_path": [
-                            "7",
-                            "3",
-                            "7",
+                            "4",
                             "8",
+                            "5",
                             "1"
                         ],
                         "assets": [],
-                        "index": 1
-                    },
-                    {
-                        "amount": {
-                            "quantity": 2,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "id": "3836172c287433e11f7c40567c4654ec4720677616355d3d31215b513e5a4f52",
-                        "derivation_path": [
-                            "8",
-                            "7",
-                            "8",
-                            "5",
-                            "1",
-                            "0"
-                        ],
-                        "assets": [],
-                        "index": 0
+                        "index": 5
                     },
                     {
                         "amount": {
@@ -2878,11 +3512,23 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "id": "4c1dc3907b311116f567336a48347a330a4dfd45190a720769e719873677647d",
+                        "id": "6a456b756d275f685092399c7aef23725a194bec4bf233903e4e145e192b0f2b",
                         "derivation_path": [
-                            "0"
+                            "0",
+                            "5",
+                            "5",
+                            "2",
+                            "6",
+                            "0",
+                            "2"
                         ],
-                        "assets": [],
+                        "assets": [
+                            {
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "22222222222222222222222222222222222222222222222222222222"
+                            }
+                        ],
                         "index": 3
                     }
                 ],
@@ -2912,176 +3558,44 @@
                 "change": [
                     {
                         "amount": {
-                            "quantity": 4,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "7",
-                            "7",
-                            "2"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 1,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 6,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 2,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 6,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "2"
-                        ],
-                        "assets": []
-                    },
-                    {
-                        "amount": {
-                            "quantity": 8,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "4",
-                            "8"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e42",
-                                "quantity": 10,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 8,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "4"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 9,
-                                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                            }
-                        ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 4,
+                            "quantity": 2,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
                         "derivation_path": [
                             "3",
-                            "0"
+                            "3"
                         ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 8,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 8,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 7,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
+                        "assets": []
                     },
-                    {
-                        "amount": {
-                            "quantity": 6,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "derivation_path": [
-                            "1"
-                        ],
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 8,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 2,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 10,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
-                    }
-                ],
-                "outputs": [
                     {
                         "amount": {
                             "quantity": 0,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 7,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            },
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 8,
-                                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                            },
-                            {
-                                "asset_name": "546f6b656e41",
-                                "quantity": 4,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 10,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            }
-                        ]
+                        "derivation_path": [
+                            "1",
+                            "5"
+                        ],
+                        "assets": []
                     },
                     {
                         "amount": {
-                            "quantity": 6,
+                            "quantity": 5,
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
+                        "derivation_path": [
+                            "8",
+                            "6",
+                            "0"
+                        ],
                         "assets": [
                             {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 4,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                "asset_name": "546f6b656e42",
+                                "quantity": 2,
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             }
                         ]
                     },
@@ -3091,13 +3605,69 @@
                             "unit": "lovelace"
                         },
                         "address": "<addr>",
-                        "assets": [
-                            {
-                                "asset_name": "546f6b656e43",
-                                "quantity": 4,
-                                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                            }
-                        ]
+                        "derivation_path": [
+                            "6",
+                            "8",
+                            "6",
+                            "4",
+                            "6",
+                            "6",
+                            "3"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "2",
+                            "6",
+                            "6",
+                            "1",
+                            "3",
+                            "7"
+                        ],
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 5,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "derivation_path": [
+                            "4"
+                        ],
+                        "assets": []
+                    }
+                ],
+                "outputs": [
+                    {
+                        "amount": {
+                            "quantity": 7,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 0,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": []
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "assets": []
                     },
                     {
                         "amount": {
@@ -3107,24 +3677,11 @@
                         "address": "<addr>",
                         "assets": [
                             {
-                                "asset_name": "546f6b656e43",
+                                "asset_name": "546f6b656e41",
                                 "quantity": 5,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                            },
-                            {
-                                "asset_name": "546f6b656e44",
-                                "quantity": 15,
-                                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                                "policy_id": "00000000000000000000000000000000000000000000000000000000"
                             }
                         ]
-                    },
-                    {
-                        "amount": {
-                            "quantity": 8,
-                            "unit": "lovelace"
-                        },
-                        "address": "<addr>",
-                        "assets": []
                     },
                     {
                         "amount": {
@@ -3135,7 +3692,95 @@
                         "assets": []
                     }
                 ],
-                "metadata": "RoI8gg1mS53jlEtcfUioH29iT7BknoM="
+                "metadata": "RoI8gg1mS53jlEtcfUioH29iT7BknoM=",
+                "collateral": [
+                    {
+                        "amount": {
+                            "quantity": 7,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "42136a165d91db0f962c62b7011676392170570946780c3617273d403c5d0b53",
+                        "derivation_path": [
+                            "3",
+                            "6",
+                            "5"
+                        ],
+                        "index": 4
+                    },
+                    {
+                        "amount": {
+                            "quantity": 2,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "371143735c2cbd7f5423595c46572afd360f10e80f18730b7121155fe5450204",
+                        "derivation_path": [
+                            "1"
+                        ],
+                        "index": 8
+                    },
+                    {
+                        "amount": {
+                            "quantity": 4,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "586d203a6b610a310c5d584368396d3f7d272c56de06751f2d1656094bcc4d2e",
+                        "derivation_path": [
+                            "6",
+                            "4",
+                            "0",
+                            "7",
+                            "6",
+                            "6",
+                            "4"
+                        ],
+                        "index": 7
+                    },
+                    {
+                        "amount": {
+                            "quantity": 7,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "127c341c7964161362187545c2295d6d4e61522c630fd0239e336f2ef00c2a7b",
+                        "derivation_path": [
+                            "2",
+                            "7",
+                            "0",
+                            "3",
+                            "7",
+                            "4",
+                            "4"
+                        ],
+                        "index": 3
+                    },
+                    {
+                        "amount": {
+                            "quantity": 6,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "67690b267d44354216393b5a356e068e293a60260f421621265746304f31d056",
+                        "derivation_path": [
+                            "7"
+                        ],
+                        "index": 6
+                    },
+                    {
+                        "amount": {
+                            "quantity": 1,
+                            "unit": "lovelace"
+                        },
+                        "address": "<addr>",
+                        "id": "7f2815731e99252b535023fc609376612a5938042d22332d400a211529635a5c",
+                        "derivation_path": [
+                            "4"
+                        ],
+                        "index": 6
+                    }
+                ]
             }
         }
     ]

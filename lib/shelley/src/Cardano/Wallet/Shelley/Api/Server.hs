@@ -19,7 +19,6 @@ module Cardano.Wallet.Shelley.Api.Server
 
 import Prelude
 
-
 import Cardano.Address
     ( unAddress )
 import Cardano.Address.Script

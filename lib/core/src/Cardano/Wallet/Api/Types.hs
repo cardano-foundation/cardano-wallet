@@ -65,11 +65,12 @@ module Cardano.Wallet.Api.Types
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
     , ApiSelectCoinsAction (..)
-    , ApiCoinSelection (..)
     , ApiMintBurnOperation (..)
     , ApiMintData(..)
     , ApiBurnData(..)
+    , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
+    , ApiCoinSelectionCollateral (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
@@ -655,6 +656,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
     , outputs :: ![ApiCoinSelectionOutput n]
     , change :: ![ApiCoinSelectionChange n]
+    , collateral :: ![ApiCoinSelectionCollateral n]
     , withdrawals :: ![ApiCoinSelectionWithdrawal n]
     , certificates :: Maybe (NonEmpty ApiCertificate)
     , deposits :: ![Quantity "lovelace" Natural]
@@ -686,6 +688,17 @@ data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     , assets :: !(ApiT W.TokenMap)
     } deriving (Eq, Ord, Generic, Show, Typeable)
       deriving anyclass (NFData, Hashable)
+
+data ApiCoinSelectionCollateral (n :: NetworkDiscriminant) =
+    ApiCoinSelectionCollateral
+        { id :: !(ApiT (Hash "Tx"))
+        , index :: !Word32
+        , address :: !(ApiT Address, Proxy n)
+        , derivationPath :: NonEmpty (ApiT DerivationIndex)
+        , amount :: !(Quantity "lovelace" Natural)
+        }
+    deriving (Eq, Generic, Show, Typeable)
+    deriving anyclass NFData
 
 data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
@@ -2116,6 +2129,11 @@ instance EncodeAddress n => ToJSON (ApiCoinSelectionChange n) where
 instance DecodeAddress n => FromJSON (ApiCoinSelectionInput n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiCoinSelectionInput n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiCoinSelectionCollateral n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiCoinSelectionCollateral n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionOutput n) where

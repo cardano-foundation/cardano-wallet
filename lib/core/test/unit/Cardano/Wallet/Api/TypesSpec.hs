@@ -72,6 +72,7 @@ import Cardano.Wallet.Api.Types
     , ApiCertificate (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
+    , ApiCoinSelectionCollateral (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
@@ -444,6 +445,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionChange ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionCollateral ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionOutput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionWithdrawal ('Testnet 0))
@@ -800,6 +802,8 @@ spec = parallel $ do
                         (x :: ApiCoinSelection ('Testnet 0))
                     , change = change
                         (x :: ApiCoinSelection ('Testnet 0))
+                    , collateral = collateral
+                        (x :: ApiCoinSelection ('Testnet 0))
                     , withdrawals = withdrawals
                         (x :: ApiCoinSelection ('Testnet 0))
                     , certificates = certificates
@@ -840,6 +844,22 @@ spec = parallel $ do
                         (x :: ApiCoinSelectionInput ('Testnet 0))
                     , derivationPath = derivationPath
                         (x :: ApiCoinSelectionInput ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiCoinSelectionCollateral" $ property $ \x ->
+            let
+                x' = ApiCoinSelectionCollateral
+                    { id = id
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
+                    , index = index
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
+                    , address = address
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
+                    , amount = amount
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
+                    , derivationPath = derivationPath
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1353,6 +1373,7 @@ instance Arbitrary (ApiCoinSelection n) where
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
         <*> arbitrary
     shrink = genericShrink
 
@@ -1370,6 +1391,15 @@ instance Arbitrary (ApiCoinSelectionInput n) where
         <*> arbitrary
         <*> fmap (, Proxy @n) arbitrary
         <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+    shrink _ = []
+
+instance Arbitrary (ApiCoinSelectionCollateral n) where
+    arbitrary = ApiCoinSelectionCollateral
+        <$> arbitrary
+        <*> arbitrary
+        <*> fmap (, Proxy @n) arbitrary
         <*> arbitrary
         <*> arbitrary
     shrink _ = []
