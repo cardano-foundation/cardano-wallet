@@ -130,6 +130,20 @@ TxIn
     Primary txInputTxId txInputSourceTxId txInputSourceIndex
     deriving Show Generic
 
+-- A collateral input associated with TxMeta.
+--
+-- There is no wallet ID because these values depend only on the transaction,
+-- not the wallet. txCollateralInputTxId is referred to by TxMeta
+TxCollateralIn
+    txCollateralInputTxId         TxId   sql=tx_id
+    txCollateralInputOrder        Int    sql=order
+    txCollateralInputSourceTxId   TxId   sql=source_tx_id
+    txCollateralInputSourceIndex  Word32 sql=source_index
+    txCollateralInputSourceAmount W.Coin sql=source_amount
+
+    Primary txCollateralInputTxId txCollateralInputSourceTxId txCollateralInputSourceIndex
+    deriving Show Generic
+
 -- A transaction output associated with TxMeta.
 --
 -- There is no wallet ID because these values depend only on the transaction,
