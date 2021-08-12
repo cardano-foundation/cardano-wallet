@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
@@ -134,7 +133,7 @@ import Data.List.NonEmpty
 import Data.Map
     ( Map )
 import Data.Map.Merge.Strict
-    ( dropMissing, traverseMissing, mapMissing, zipWithMatched )
+    ( dropMissing, mapMissing, traverseMissing, zipWithMatched )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Ord
@@ -171,8 +170,8 @@ import UnliftIO.STM
     , newTBQueue
     , newTVarIO
     , readTBQueue
-    , readTVarIO
     , readTVar
+    , readTVarIO
     , retrySTM
     , writeTBQueue
     , writeTVar
@@ -229,7 +228,7 @@ newStakePoolLayer
     -> IO (CacheWorker, StakePoolLayer)
 newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
     (worker, _stakeDistribution) <- nooooCacheWorker hour (stakeDistribution nl) 
-    pure $ (worker, StakePoolLayer
+    pure (worker, StakePoolLayer
         { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
         , knownPools = _knownPools
         , listStakePools = _listPools
@@ -275,9 +274,8 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
         -> IO [Api.ApiStakePool]
-    _listPools currentEpoch userStake = do
-        mnlData <- stakeDistribution nl
-        case mnlData of
+    _listPools currentEpoch userStake =
+        stakeDistribution nl >>= \case
                 -- we seem to be in the Byron era and cannot stake
             Nothing -> pure []
             Just nlData -> do
