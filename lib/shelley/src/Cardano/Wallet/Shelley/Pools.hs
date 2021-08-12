@@ -146,6 +146,8 @@ import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock.POSIX
     ( getPOSIXTime, posixDayLength )
+import Data.Time.Clock
+    ( NominalDiffTime )
 import Data.Tuple.Extra
     ( dupe )
 import Data.Void
@@ -158,6 +160,8 @@ import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
     ( RandomGen, randoms )
+import UnliftIO
+    ( MonadIO )
 import UnliftIO.Concurrent
     ( forkFinally, killThread, threadDelay )
 import UnliftIO.Exception
@@ -317,31 +321,37 @@ sortRandomOn seed f
 newtype CacheWorker = CacheWorker { runCacheWorker :: IO () }
 
 -- | For testing: Don't actually cache anything.
-nooooCacheWorker :: Int -> IO a -> IO (CacheWorker, IO a)
+nooooCacheWorker :: NominalDiffTime -> IO a -> IO (CacheWorker, IO a)
 nooooCacheWorker _ action = pure (CacheWorker $ pure (), action)
 
 -- | Create a new cache and a worker to fill it.
 newCacheWorker
-    :: Int -- ^ time period in seconds
+    :: NominalDiffTime -- ^ cache time to live (TTL)
     -> IO a -- ^ action whose result we want to cache
     -> IO (CacheWorker, IO a)
-newCacheWorker seconds action = do
+newCacheWorker ttl action = do
     cache <- newTVarIO Nothing
     let worker :: IO ()
         worker = forever $ do
-            threadDelay (3 * 1_000_000) -- 3 seconds grace period
+            threadWait 3 -- 3 seconds grace period
             a <- action
             STM.atomically $ writeCache cache a
-            threadDelay (max 0 (seconds-3) * 1_000_000)
-    return (CacheWorker $ worker, STM.atomically $ readCache cache)
+            threadWait $ max 0 (ttl-3)
+    return (CacheWorker worker, STM.atomically $ readCache cache)
     -- TODO: make cache worker more intelligent
   where
     readCache v = maybe retrySTM pure =<< readTVar v
     writeCache v = writeTVar v . Just
 
+-- | Variant of 'threadDelay' where the argument has type 'NominalDiffTime'.
+--
+-- The resolution for delaying threads is microseconds.
+threadWait :: MonadIO m => NominalDiffTime -> m ()
+threadWait s = threadDelay $ round (s / microsecond)
+  where microsecond = 1e-6 :: NominalDiffTime
 
 -- | Number of seconds contained in one hour.
-hour :: Int
+hour :: NominalDiffTime
 hour = 60*60
 
 {-------------------------------------------------------------------------------
