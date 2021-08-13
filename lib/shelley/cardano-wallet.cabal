@@ -108,6 +108,7 @@ library
       Cardano.Wallet.Shelley.Launch
       Cardano.Wallet.Shelley.Launch.Cluster
       Cardano.Wallet.Shelley.Pools
+      Control.Cache
 
 executable cardano-wallet
   default-language:
