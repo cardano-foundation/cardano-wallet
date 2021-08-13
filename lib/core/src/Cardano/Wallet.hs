@@ -1299,11 +1299,17 @@ selectionToUnsignedTx
     -> (UnsignedTx input output change withdrawal)
 selectionToUnsignedTx wdrl sel s =
     UnsignedTx
-        (fullyQualifiedInputs $ inputsSelected sel)
-        (fullyQualifiedInputs collateralInputs)
-        (outputsCovered sel)
-        (fullyQualifiedChange $ changeGenerated sel)
-        (fullyQualifiedWithdrawal wdrl)
+        { unsignedInputs =
+            fullyQualifiedInputs $ inputsSelected sel
+        , unsignedOutputs =
+            outputsCovered sel
+        , unsignedChange =
+            fullyQualifiedChange $ changeGenerated sel
+        , unsignedCollateral =
+            fullyQualifiedInputs collateralInputs
+        , unsignedWithdrawals =
+            fullyQualifiedWithdrawal wdrl
+        }
   where
     collateralInputs :: [(TxIn, TxOut)]
     collateralInputs =
