@@ -414,7 +414,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SerialisedTx (..)
-    , TransactionInfo (TransactionInfo)
+    , TransactionInfo
     , Tx (..)
     , TxChange (..)
     , TxIn (..)
@@ -1926,35 +1926,23 @@ mkApiTransactionFromInfo
     -> m (ApiTransaction n)
 mkApiTransactionFromInfo ti info = do
     apiTx <- liftIO $ mkApiTransaction ti
-        (txInfoId)
-        (txInfoFee)
-        (txInfoInputs <&> drop2nd)
-        (txInfoCollateralInputs <&> drop2nd)
-        (txInfoOutputs)
-        (txInfoWithdrawals)
-        (txInfoMeta, txInfoTime)
-        (txInfoMetadata) $
-        case txInfoMeta ^. #status of
+        (info ^. #txInfoId)
+        (info ^. #txInfoFee)
+        (info ^. #txInfoInputs <&> drop2nd)
+        (info ^. #txInfoCollateralInputs <&> drop2nd)
+        (info ^. #txInfoOutputs)
+        (info ^. #txInfoWithdrawals)
+        (info ^. #txInfoMeta, info ^. #txInfoTime)
+        (info ^. #txInfoMetadata) $
+        case info ^. (#txInfoMeta . #status) of
             Pending  -> #pendingSince
             InLedger -> #insertedAt
             Expired  -> #pendingSince
-    return $ case txInfoMeta ^. #status of
+    return $ case info ^. (#txInfoMeta . #status) of
         Pending  -> apiTx
-        InLedger -> apiTx {depth = Just txInfoDepth}
+        InLedger -> apiTx {depth = Just $ info ^. #txInfoDepth}
         Expired  -> apiTx
   where
-    TransactionInfo
-        { txInfoId
-        , txInfoDepth
-        , txInfoFee
-        , txInfoInputs
-        , txInfoCollateralInputs
-        , txInfoOutputs
-        , txInfoWithdrawals
-        , txInfoMeta
-        , txInfoMetadata
-        , txInfoTime
-        } = info
     drop2nd (a,_,c) = (a,c)
 
 postTransactionFeeOld
