@@ -24,7 +24,6 @@
 module Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
     , newStakePoolLayer
-    , CacheWorker (..)
     , monitorStakePools
     , monitorMetadata
 
@@ -58,6 +57,8 @@ import Cardano.Wallet.Api.Types
     ( ApiT (..), HealthCheckSMASH (..), toApiEpochInfo )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
+import Cardano.Wallet.Logging
+    ( LoggedException (..) )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..), ChainFollower (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -110,6 +111,8 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
+import Control.Cache
+    ( CacheWorker )
 import Control.Monad
     ( forM, forM_, forever, void, when )
 import Control.Monad.IO.Class
@@ -160,23 +163,18 @@ import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
     ( RandomGen, randoms )
-import UnliftIO
-    ( MonadIO )
 import UnliftIO.Concurrent
     ( forkFinally, killThread, threadDelay )
 import UnliftIO.Exception
-    ( finally )
+    ( SomeException, finally )
 import UnliftIO.IORef
     ( IORef, newIORef, readIORef, writeIORef )
 import UnliftIO.STM
     ( TBQueue
     , TVar
     , newTBQueue
-    , newTVarIO
     , readTBQueue
-    , readTVar
     , readTVarIO
-    , retrySTM
     , writeTBQueue
     , writeTVar
     )
@@ -224,14 +222,17 @@ data StakePoolLayer = StakePoolLayer
     }
 
 newStakePoolLayer
-    :: forall sc. ()
+    :: forall crypto. ()
     => TVar PoolMetadataGCStatus
-    -> NetworkLayer IO (CardanoBlock sc)
+    -> NetworkLayer IO (CardanoBlock crypto)
     -> DBLayer IO
+    -> (forall a. NominalDiffTime -> NominalDiffTime -> IO a -> IO (CacheWorker, IO a))
     -> IO ()
     -> IO (CacheWorker, StakePoolLayer)
-newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
-    (worker, _stakeDistribution) <- nooooCacheWorker hour (stakeDistribution nl) 
+newStakePoolLayer gcStatus nl db@DBLayer {..} mkCacheWorker restartSyncThread = do
+    let ttl = 60 * 60 :: NominalDiffTime -- one hour
+        grace = 3 :: NominalDiffTime
+    (worker, _stakeDistribution) <- mkCacheWorker ttl grace (stakeDistribution nl) 
     pure (worker, StakePoolLayer
         { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
         , knownPools = _knownPools
@@ -315,44 +316,6 @@ sortRandomOn seed f
     = map snd
     . L.sortOn (\(nonce,a) -> (f a, nonce))
     . zip (randoms seed :: [Int])
-
--- | A worker (an action of type @IO ()@) that
--- runs a function periodically and caches the result.
-newtype CacheWorker = CacheWorker { runCacheWorker :: IO () }
-
--- | For testing: Don't actually cache anything.
-nooooCacheWorker :: NominalDiffTime -> IO a -> IO (CacheWorker, IO a)
-nooooCacheWorker _ action = pure (CacheWorker $ pure (), action)
-
--- | Create a new cache and a worker to fill it.
-newCacheWorker
-    :: NominalDiffTime -- ^ cache time to live (TTL)
-    -> IO a -- ^ action whose result we want to cache
-    -> IO (CacheWorker, IO a)
-newCacheWorker ttl action = do
-    cache <- newTVarIO Nothing
-    let worker :: IO ()
-        worker = forever $ do
-            threadWait 3 -- 3 seconds grace period
-            a <- action
-            STM.atomically $ writeCache cache a
-            threadWait $ max 0 (ttl-3)
-    return (CacheWorker worker, STM.atomically $ readCache cache)
-    -- TODO: make cache worker more intelligent
-  where
-    readCache v = maybe retrySTM pure =<< readTVar v
-    writeCache v = writeTVar v . Just
-
--- | Variant of 'threadDelay' where the argument has type 'NominalDiffTime'.
---
--- The resolution for delaying threads is microseconds.
-threadWait :: MonadIO m => NominalDiffTime -> m ()
-threadWait s = threadDelay $ round (s / microsecond)
-  where microsecond = 1e-6 :: NominalDiffTime
-
--- | Number of seconds contained in one hour.
-hour :: NominalDiffTime
-hour = 60*60
 
 {-------------------------------------------------------------------------------
     Rewards and scoring
@@ -945,6 +908,8 @@ data StakePoolLog
     = MsgExitMonitoring AfterThreadLog
     | MsgChainMonitoring ChainFollowLog
     | MsgExitRewardCaching AfterThreadLog
+    | MsgExitLocalStateQueryCaching AfterThreadLog
+    | MsgLocalStateQueryException (LoggedException SomeException)
     | MsgStakePoolGarbageCollection PoolGarbageCollectionInfo
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgStakePoolRetirement PoolRetirementCertificate
@@ -973,6 +938,8 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgExitMonitoring msg -> getSeverityAnnotation msg
         MsgChainMonitoring msg -> getSeverityAnnotation msg
         MsgExitRewardCaching msg -> getSeverityAnnotation msg
+        MsgExitLocalStateQueryCaching msg -> getSeverityAnnotation msg
+        MsgLocalStateQueryException{} -> Warning
         MsgStakePoolGarbageCollection{} -> Debug
         MsgStakePoolRegistration{} -> Debug
         MsgStakePoolRetirement{} -> Debug
@@ -990,6 +957,10 @@ instance ToText StakePoolLog where
         MsgChainMonitoring msg -> toText msg
         MsgExitRewardCaching msg ->
             "Stake pool reward cache exit: " <> toText msg
+        MsgExitLocalStateQueryCaching msg ->
+            "Local state query cache exit: " <> toText msg
+        MsgLocalStateQueryException e ->
+            "Local state query exception: " <> toText e
         MsgStakePoolGarbageCollection info -> mconcat
             [ "Performing garbage collection of retired stake pools. "
             , "Currently in epoch "

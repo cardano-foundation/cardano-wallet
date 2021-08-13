@@ -75,7 +75,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB.Sqlite
     ( DBFactoryLog, DefaultFieldValues (..), PersistAddressBook )
 import Cardano.Wallet.Logging
-    ( trMessageText )
+    ( trMessageText, LoggedException (..) )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -140,7 +140,6 @@ import Cardano.Wallet.Shelley.Pools
     , monitorMetadata
     , monitorStakePools
     , newStakePoolLayer
-    , runCacheWorker
     )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
@@ -150,6 +149,8 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
     ( Const (..) )
+import Control.Cache
+    ( CacheWorker (..), newCacheWorker, NominalDiffTime )
 import Control.Monad
     ( forM_, void )
 import Control.Tracer
@@ -194,6 +195,7 @@ import UnliftIO.STM
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Control.Retry as Retry
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -364,6 +366,7 @@ serveWallet
                 (monitorStakePools tr np nl db)
                 (traceAfterThread (contramap MsgExitMonitoring tr))
 
+            -- set up thread for querying and caching stake pool metadata
             -- fixme: needs to be simplified as part of ADP-634
             let startMetadataThread = forkIOWithUnmask $ \unmask ->
                     unmask $ monitorMetadata gcStatus tr sp db
@@ -372,10 +375,26 @@ serveWallet
                     killThread tid
                     startMetadataThread
 
-            (worker, spl) <- newStakePoolLayer gcStatus nl db restartMetadataThread
+            -- Set up caching for local state query (LSQ) of StakePoolSummary
+            -- TODO later:
+            --  I suppose that handling retries and logging exceptions
+            --  that occur while retrying may be a job for Cardano.Wallet.Registry
+            let policy  = Retry.exponentialBackoff 30_000_000 <> Retry.limitRetries 3
+                traceEx = Retry.logRetries (\_ -> pure True) $ \_ e _ ->
+                    traceWith tr $ MsgLocalStateQueryException $ LoggedException e
+                withRetries :: forall a. IO a -> IO a
+                withRetries maction = Retry.recovering policy
+                    (Retry.skipAsyncExceptions ++ [traceEx]) (\_ -> maction)
+                mkCacheWorker
+                    :: forall a. NominalDiffTime -> NominalDiffTime
+                    -> IO a -> IO (CacheWorker, IO a)
+                mkCacheWorker t1 t2 = newCacheWorker t1 t2 . withRetries
 
-            void $ forkFinally (runCacheWorker worker)
-                (traceAfterThread (contramap (MsgFollowLog . MsgExitRewardCaching) poolsEngineTracer))
+            (worker, spl) <-
+                newStakePoolLayer gcStatus nl db mkCacheWorker restartMetadataThread
+
+            void $ forkFinally (runWorker worker)
+                (traceAfterThread (contramap MsgExitLocalStateQueryCaching tr))
 
             action spl
 
