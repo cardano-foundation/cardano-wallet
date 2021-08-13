@@ -2748,24 +2748,26 @@ mkApiCoinSelection
     -> Maybe W.TxMetadata
     -> UnsignedTx input output change withdrawal
     -> ApiCoinSelection n
-mkApiCoinSelection deps mcerts meta unsignedTx =
+mkApiCoinSelection deps mcerts metadata unsignedTx =
     ApiCoinSelection
-        (mkApiCoinSelectionInput <$> unsignedInputs)
-        (mkApiCoinSelectionOutput <$> unsignedOutputs)
-        (mkApiCoinSelectionChange <$> unsignedChange)
-        (mkApiCoinSelectionCollateral <$> unsignedCollateralInputs)
-        (mkApiCoinSelectionWithdrawal <$> unsignedWithdrawals)
-        (fmap (uncurry mkCertificates) mcerts)
-        (fmap mkApiCoin deps)
-        (ApiBytesT . serialiseToCBOR <$> meta)
+        { inputs = mkApiCoinSelectionInput
+            <$> unsignedTx ^. #unsignedInputs
+        , outputs = mkApiCoinSelectionOutput
+            <$> unsignedTx ^. #unsignedOutputs
+        , change = mkApiCoinSelectionChange
+            <$> unsignedTx ^. #unsignedChange
+        , collateral = mkApiCoinSelectionCollateral
+            <$> unsignedTx ^. #unsignedCollateralInputs
+        , withdrawals = mkApiCoinSelectionWithdrawal
+            <$> unsignedTx ^. #unsignedWithdrawals
+        , certificates = uncurry mkCertificates
+            <$> mcerts
+        , deposits = mkApiCoin
+            <$> deps
+        , metadata = ApiBytesT. serialiseToCBOR
+            <$> metadata
+        }
   where
-    UnsignedTx
-        { unsignedInputs
-        , unsignedCollateralInputs
-        , unsignedOutputs
-        , unsignedChange
-        , unsignedWithdrawals
-        } = unsignedTx
     mkCertificates
         :: DelegationAction
         -> NonEmpty DerivationIndex

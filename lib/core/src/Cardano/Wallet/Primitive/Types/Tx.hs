@@ -383,7 +383,7 @@ data UnsignedTx input output change withdrawal = UnsignedTx
     , unsignedWithdrawals
         :: [withdrawal]
     }
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 -- | The effect of a @Transaction@ on the wallet balance.
 data Direction
