@@ -194,8 +194,8 @@ genesisBlockFromTxOuts gp outs = W.Block
     mkTx out@(W.TxOut (W.Address bytes) _) = W.Tx
         { txId = W.Hash $ blake2b256 bytes
         , fee = Nothing
+        , resolvedCollateral = []
         , resolvedInputs = []
-        , resolvedCollateralInputs = []
         , outputs = [out]
         , withdrawals = mempty
         , metadata = Nothing
@@ -250,11 +250,11 @@ fromTxAux txAux = case taTx txAux of
 
         , fee = Nothing
 
+        , resolvedCollateral = []
+
         -- TODO: Review 'W.Tx' to not require resolved inputs but only inputs
         , resolvedInputs =
             (, W.Coin 0) . fromTxIn <$> NE.toList inputs
-
-        , resolvedCollateralInputs = []
 
         , outputs =
             fromTxOut <$> NE.toList outputs

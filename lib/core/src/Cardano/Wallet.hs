@@ -1306,13 +1306,13 @@ selectionToUnsignedTx wdrl sel s =
         , unsignedChange =
             fullyQualifiedChange $ changeGenerated sel
         , unsignedCollateral =
-            fullyQualifiedInputs collateralInputs
+            fullyQualifiedInputs collateral
         , unsignedWithdrawals =
             fullyQualifiedWithdrawal wdrl
         }
   where
-    collateralInputs :: [(TxIn, TxOut)]
-    collateralInputs =
+    collateral :: [(TxIn, TxOut)]
+    collateral =
         -- TODO: (ADP-957)
         []
 

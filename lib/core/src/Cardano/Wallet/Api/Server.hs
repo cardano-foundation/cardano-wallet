@@ -1863,8 +1863,8 @@ postTransactionOld ctx genChange (ApiT wid) body = do
         (timeInterpreter $ ctx ^. networkLayer)
         (txId tx)
         (tx ^. #fee)
-        (NE.toList $ second Just <$> sel ^. #inputsSelected)
         ([] {- TODO: ADP-957 -})
+        (NE.toList $ second Just <$> sel ^. #inputsSelected)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
@@ -1928,8 +1928,8 @@ mkApiTransactionFromInfo ti info = do
     apiTx <- liftIO $ mkApiTransaction ti
         (info ^. #txInfoId)
         (info ^. #txInfoFee)
+        (info ^. #txInfoCollateral <&> drop2nd)
         (info ^. #txInfoInputs <&> drop2nd)
-        (info ^. #txInfoCollateralInputs <&> drop2nd)
         (info ^. #txInfoOutputs)
         (info ^. #txInfoWithdrawals)
         (info ^. #txInfoMeta, info ^. #txInfoTime)
@@ -2117,8 +2117,8 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
         (tx ^. #fee)
-        (NE.toList $ second Just <$> sel ^. #inputsSelected)
         ([] {- joining a stake pool does not require collateral -})
+        (NE.toList $ second Just <$> sel ^. #inputsSelected)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
@@ -2203,8 +2203,8 @@ quitStakePool ctx (ApiT wid) body = do
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
         (tx ^. #fee)
-        (NE.toList $ second Just <$> sel ^. #inputsSelected)
         ([] {- quitting a stake pool does not require collateral -})
+        (NE.toList $ second Just <$> sel ^. #inputsSelected)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
@@ -2452,8 +2452,8 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                 (timeInterpreter (ctx ^. networkLayer))
                 (txId tx)
                 (tx ^. #fee)
-                (NE.toList $ second Just <$> selection ^. #inputsSelected)
                 ([] {- migrations never require collateral -})
+                (NE.toList $ second Just <$> selection ^. #inputsSelected)
                 (tx ^. #outputs)
                 (tx ^. #withdrawals)
                 (txMeta, txTime)
@@ -2757,7 +2757,7 @@ mkApiCoinSelection deps mcerts metadata unsignedTx =
         , change = mkApiCoinSelectionChange
             <$> unsignedTx ^. #unsignedChange
         , collateral = mkApiCoinSelectionCollateral
-            <$> unsignedTx ^. #unsignedCollateralInputs
+            <$> unsignedTx ^. #unsignedCollateral
         , withdrawals = mkApiCoinSelectionWithdrawal
             <$> unsignedTx ^. #unsignedWithdrawals
         , certificates = uncurry mkCertificates
@@ -2856,7 +2856,7 @@ mkApiTransaction
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> IO (ApiTransaction n)
 mkApiTransaction
-    ti txid mfee ins cins outs ws (meta, timestamp) txMeta setTimeReference = do
+    ti txid mfee cins ins outs ws (meta, timestamp) txMeta setTimeReference = do
         timeRef <- (#time .~ timestamp) <$> makeApiBlockReference
             (neverFails
                 "makeApiBlockReference shouldn't fail getting the time of \

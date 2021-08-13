@@ -139,8 +139,8 @@ mkTx fees ins cins outs wdrls md =
     Tx
       { txId = (mkTxId ins outs wdrls md)
       , fee = fees
+      , resolvedCollateral = cins
       , resolvedInputs = ins
-      , resolvedCollateralInputs = cins
       , outputs = outs
       , withdrawals = wdrls
       , metadata = md

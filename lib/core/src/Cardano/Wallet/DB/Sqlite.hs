@@ -111,7 +111,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , SeqStatePendingIx (..)
     , SharedState (..)
     , StakeKeyCertificate (..)
-    , TxCollateralIn (..)
+    , TxCollateral (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
@@ -1813,7 +1813,7 @@ mkTxHistory
     -> [(W.Tx, W.TxMeta)]
     ->  ( [TxMeta]
         , [TxIn]
-        , [TxCollateralIn]
+        , [TxCollateral]
         , [TxOut]
         , [TxOutToken]
         , [TxWithdrawal]
@@ -1831,7 +1831,7 @@ mkTxHistory wid txs = flatTxHistory
     flatTxHistory ::
         [ ( TxMeta
           , ( [TxIn]
-            , [TxCollateralIn]
+            , [TxCollateral]
             , [(TxOut, [TxOutToken])]
             )
           , [TxWithdrawal]
@@ -1839,7 +1839,7 @@ mkTxHistory wid txs = flatTxHistory
         ] ->
         ( [TxMeta]
         , [TxIn]
-        , [TxCollateralIn]
+        , [TxCollateral]
         , [TxOut]
         , [TxOutToken]
         , [TxWithdrawal]
@@ -1856,12 +1856,12 @@ mkTxHistory wid txs = flatTxHistory
 mkTxInputsOutputs ::
     (W.Hash "Tx", W.Tx) ->
     ( [TxIn]
-    , [TxCollateralIn]
+    , [TxCollateral]
     , [(TxOut, [TxOutToken])]
     )
 mkTxInputsOutputs tx =
     ( (dist mkTxIn . ordered W.resolvedInputs) tx
-    , (dist mkTxCollateralIn . ordered W.resolvedCollateralInputs) tx
+    , (dist mkTxCollateral . ordered W.resolvedCollateral) tx
     , (dist mkTxOut . ordered W.outputs) tx )
   where
     mkTxIn tid (ix, (txIn, amt)) = TxIn
@@ -1871,12 +1871,12 @@ mkTxInputsOutputs tx =
         , txInputSourceIndex = W.inputIx txIn
         , txInputSourceAmount = amt
         }
-    mkTxCollateralIn tid (ix, (txCollateralIn, amt)) = TxCollateralIn
-        { txCollateralInputTxId = TxId tid
-        , txCollateralInputOrder = ix
-        , txCollateralInputSourceTxId = TxId (W.inputId txCollateralIn)
-        , txCollateralInputSourceIndex = W.inputIx txCollateralIn
-        , txCollateralInputSourceAmount = amt
+    mkTxCollateral tid (ix, (txCollateral, amt)) = TxCollateral
+        { txCollateralTxId = TxId tid
+        , txCollateralOrder = ix
+        , txCollateralSourceTxId = TxId (W.inputId txCollateral)
+        , txCollateralSourceIndex = W.inputIx txCollateral
+        , txCollateralSourceAmount = amt
         }
     mkTxOut tid (ix, txOut) = (out, tokens)
       where
@@ -1944,7 +1944,7 @@ txHistoryFromEntity
     -> W.BlockHeader
     -> [TxMeta]
     -> [(TxIn, Maybe (TxOut, [TxOutToken]))]
-    -> [(TxCollateralIn, Maybe (TxOut, [TxOutToken]))]
+    -> [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
     -> [(TxOut, [TxOutToken])]
     -> [TxWithdrawal]
     -> m [W.TransactionInfo]
@@ -1960,11 +1960,11 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
                 getTxId txid
             , W.txInfoFee =
                 W.Coin . fromIntegral <$> mfee
+            , W.txInfoCollateral =
+                map mkTxCollateral $
+                filter ((== txid) . txCollateralTxId . fst) cins
             , W.txInfoInputs =
                 map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
-            , W.txInfoCollateralInputs =
-                map mkTxCollateralIn $
-                filter ((== txid) . txCollateralInputTxId . fst) cins
             , W.txInfoOutputs =
                 map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
             , W.txInfoWithdrawals =
@@ -1991,12 +1991,12 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
         , txInputSourceAmount tx
         , mkTxOut <$> out
         )
-    mkTxCollateralIn (tx, out) =
+    mkTxCollateral (tx, out) =
         ( W.TxIn
-            { W.inputId = getTxId (txCollateralInputSourceTxId tx)
-            , W.inputIx = txCollateralInputSourceIndex tx
+            { W.inputId = getTxId (txCollateralSourceTxId tx)
+            , W.inputIx = txCollateralSourceIndex tx
             }
-        , txCollateralInputSourceAmount tx
+        , txCollateralSourceAmount tx
         , mkTxOut <$> out
         )
     mkTxOut (out, tokens) = W.TxOut
@@ -2116,7 +2116,7 @@ updateTxMetas wid filters =
 putTxs
     :: [TxMeta]
     -> [TxIn]
-    -> [TxCollateralIn]
+    -> [TxCollateral]
     -> [TxOut]
     -> [TxOutToken]
     -> [TxWithdrawal]
@@ -2129,13 +2129,13 @@ putTxs metas txins txcins txouts txoutTokens ws = do
         [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
         | i@TxIn{..} <- txins ]
     dbChunked' repsertMany
-        [ ( TxCollateralInKey
-            txCollateralInputTxId
-            txCollateralInputSourceTxId
-            txCollateralInputSourceIndex
+        [ ( TxCollateralKey
+            txCollateralTxId
+            txCollateralSourceTxId
+            txCollateralSourceIndex
           , i
           )
-        | i@TxCollateralIn{..} <- txcins ]
+        | i@TxCollateral{..} <- txcins ]
     dbChunked' repsertMany
         [ (TxOutKey txOutputTxId txOutputIndex, o)
         | o@TxOut{..} <- txouts ]
@@ -2208,7 +2208,7 @@ selectTxs
     :: [TxId]
     -> SqlPersistT IO
         ( [(TxIn, Maybe (TxOut, [TxOutToken]))]
-        , [(TxCollateralIn, Maybe (TxOut, [TxOutToken]))]
+        , [(TxCollateral, Maybe (TxOut, [TxOutToken]))]
         , [(TxOut, [TxOutToken])]
         , [TxWithdrawal]
         )
@@ -2219,9 +2219,9 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             [TxInputTxId <-. txids]
             [Asc TxInputTxId, Asc TxInputOrder]
 
-        collateralInputs <- fmap entityVal <$> selectList
-            [TxCollateralInputTxId <-. txids]
-            [Asc TxCollateralInputTxId, Asc TxCollateralInputOrder]
+        collateral <- fmap entityVal <$> selectList
+            [TxCollateralTxId <-. txids]
+            [Asc TxCollateralTxId, Asc TxCollateralOrder]
 
         resolvedInputs <- fmap toOutputMap $
             combineChunked inputs $ \inputsChunk ->
@@ -2230,11 +2230,11 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
                         [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
                         [Asc TxOutputTxId, Asc TxOutputIndex]
 
-        resolvedCollateralInputs <- fmap toOutputMap $
-            combineChunked collateralInputs $ \collateralInputsChunk ->
+        resolvedCollateral <- fmap toOutputMap $
+            combineChunked collateral $ \collateralChunk ->
                 traverse readTxOutTokens . fmap entityVal =<< selectList
                     [TxOutputTxId <-.
-                        (txCollateralInputSourceTxId <$> collateralInputsChunk)]
+                        (txCollateralSourceTxId <$> collateralChunk)]
                     [Asc TxOutputTxId, Asc TxOutputIndex]
 
         outputs <- traverse readTxOutTokens . fmap entityVal =<<
@@ -2248,9 +2248,9 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
 
         pure
             ( inputs
-                `resolveInputWith`resolvedInputs
-            , collateralInputs
-                `resolveCollateralInputWith` resolvedCollateralInputs
+                `resolveInputWith` resolvedInputs
+            , collateral
+                `resolveCollateralWith` resolvedCollateral
             , outputs
             , withdrawals
             )
@@ -2281,16 +2281,16 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
         , let key = (txInputSourceTxId i, txInputSourceIndex i)
         ]
 
-    resolveCollateralInputWith
-        :: [TxCollateralIn]
+    resolveCollateralWith
+        :: [TxCollateral]
         -> Map (TxId, Word32) txOut
-        -> [(TxCollateralIn, Maybe txOut)]
-    resolveCollateralInputWith collateralInputs resolvedCollateralInputs =
-        [ (i, Map.lookup key resolvedCollateralInputs)
-        | i <- collateralInputs
+        -> [(TxCollateral, Maybe txOut)]
+    resolveCollateralWith collateral resolvedCollateral =
+        [ (i, Map.lookup key resolvedCollateral)
+        | i <- collateral
         , let key =
-                ( txCollateralInputSourceTxId i
-                , txCollateralInputSourceIndex i
+                ( txCollateralSourceTxId i
+                , txCollateralSourceIndex i
                 )
         ]
 

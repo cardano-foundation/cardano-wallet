@@ -565,7 +565,7 @@ fileModeSpec =  do
                             , resolvedInputs =
                                 [(TxIn (dummyHash "faucet") 0, Coin 4)]
                             -- TODO: (ADP-957)
-                            , resolvedCollateralInputs = []
+                            , resolvedCollateral = []
                             , outputs =
                                 [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
                             , withdrawals = mempty
@@ -584,7 +584,7 @@ fileModeSpec =  do
                         , fee = Nothing
                         , resolvedInputs = [(TxIn (dummyHash "tx1") 0, Coin 4)]
                         -- TODO: (ADP-957)
-                        , resolvedCollateralInputs = []
+                        , resolvedCollateral = []
                         , outputs =
                             [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
                             , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
@@ -1195,10 +1195,10 @@ testTxs = [(tx, txMeta)]
     tx = Tx
         { txId = mockHash @String "tx2"
         , fee = Nothing
-        , resolvedInputs = [(TxIn (mockHash @String "tx1") 0, Coin 1)]
-        , resolvedCollateralInputs =
+        , resolvedCollateral =
             -- TODO: (ADP-957)
             []
+        , resolvedInputs = [(TxIn (mockHash @String "tx1") 0, Coin 1)]
         , outputs = [TxOut (Address "addr") (coinToBundle 1)]
         , withdrawals = mempty
         , metadata = Nothing

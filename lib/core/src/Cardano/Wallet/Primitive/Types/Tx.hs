@@ -161,18 +161,18 @@ data Tx = Tx
         -- explicitly in Shelley, but not in Byron although in Byron they can
         -- easily be re-computed from the delta between outputs and inputs.
 
-    , resolvedInputs
-        :: ![(TxIn, Coin)]
-        -- ^ NOTE: Order of inputs matters in the transaction representation.
-        -- The transaction id is computed from the binary representation of a
-        -- tx, for which inputs are serialized in a specific order.
-
-    , resolvedCollateralInputs
+    , resolvedCollateral
         :: ![(TxIn, Coin)]
         -- ^ NOTE: The order of collateral inputs matters in the transaction
         -- representation.  The transaction id is computed from the binary
         -- representation of a tx, for which collateral inputs are serialized
         -- in a specific order.
+
+    , resolvedInputs
+        :: ![(TxIn, Coin)]
+        -- ^ NOTE: Order of inputs matters in the transaction representation.
+        -- The transaction id is computed from the binary representation of a
+        -- tx, for which inputs are serialized in a specific order.
 
     , outputs
         :: ![TxOut]
@@ -203,10 +203,10 @@ instance Buildable Tx where
     build t = mconcat
         [ build (view #txId t)
         , build ("\n" :: String)
+        , blockListF' "collateral"
+            build (fst <$> view #resolvedCollateral t)
         , blockListF' "inputs"
             build (fst <$> view #resolvedInputs t)
-        , blockListF' "collateral-inputs"
-            build (fst <$> view #resolvedCollateralInputs t)
         , blockListF' "outputs"
             build (view #outputs t)
         , blockListF' "withdrawals"
@@ -357,15 +357,16 @@ instance ToText TxStatus where
 -- See 'Tx' for a signed transaction.
 --
 data UnsignedTx input output change withdrawal = UnsignedTx
-    { unsignedInputs
+    { unsignedCollateral
+        :: [input]
+        -- Inputs used for collateral.
+
+    , unsignedInputs
         :: NonEmpty input
         -- Inputs are *necessarily* non-empty because Cardano requires at least
         -- one UTxO input per transaction to prevent replayable transactions.
         -- (each UTxO being unique, including at least one UTxO in the
         -- transaction body makes it seemingly unique).
-
-    , unsignedCollateralInputs
-        :: [input]
 
     , unsignedOutputs
         :: [output]
@@ -441,11 +442,11 @@ data TransactionInfo = TransactionInfo
     -- ^ Transaction ID of this transaction
     , txInfoFee :: !(Maybe Coin)
     -- ^ Explicit transaction fee
+    , txInfoCollateral :: ![(TxIn, Coin, Maybe TxOut)]
+    -- ^ Collateral inputs and (maybe) corresponding outputs.
     , txInfoInputs :: ![(TxIn, Coin, Maybe TxOut)]
     -- ^ Transaction inputs and (maybe) corresponding outputs of the
     -- source. Source information can only be provided for outgoing payments.
-    , txInfoCollateralInputs :: ![(TxIn, Coin, Maybe TxOut)]
-    -- ^ Collateral inputs and (maybe) corresponding outputs.
     , txInfoOutputs :: ![TxOut]
     -- ^ Payment destination.
     , txInfoWithdrawals :: !(Map RewardAccount Coin)
@@ -467,8 +468,8 @@ fromTransactionInfo :: TransactionInfo -> Tx
 fromTransactionInfo info = Tx
     { txId = txInfoId info
     , fee = txInfoFee info
+    , resolvedCollateral = drop3rd <$> txInfoCollateral info
     , resolvedInputs = drop3rd <$> txInfoInputs info
-    , resolvedCollateralInputs = drop3rd <$> txInfoCollateralInputs info
     , outputs = txInfoOutputs info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info

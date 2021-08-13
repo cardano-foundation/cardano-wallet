@@ -731,8 +731,8 @@ fromGenesisData g initialFunds =
         mkTx (addr, c) = W.Tx
             { txId = pseudoHash
             , fee = Nothing
+            , resolvedCollateral = []
             , resolvedInputs = []
-            , resolvedCollateralInputs = []
             , outputs =
                 [W.TxOut
                     (fromShelleyAddress addr)
@@ -839,10 +839,10 @@ fromShelleyTx tx =
             fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod
         , fee =
             Just $ fromShelleyCoin fee
+        , resolvedCollateral =
+            []
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
-        , resolvedCollateralInputs =
-            []
         , outputs =
             map fromShelleyTxOut (toList outs)
         , withdrawals =
@@ -868,11 +868,11 @@ fromAllegraTx tx =
             fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
-        , resolvedCollateralInputs =
+        , resolvedCollateral =
             -- TODO: (ADP-957)
             []
+        , resolvedInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
         , outputs =
             map fromShelleyTxOut (toList outs)
         , withdrawals =
@@ -903,10 +903,10 @@ fromMaryTx tx =
             = fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra MaryEra) bod
         , fee =
             Just $ fromShelleyCoin fee
+        , resolvedCollateral =
+            []
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
-        , resolvedCollateralInputs =
-            []
         , outputs =
             map fromMaryTxOut (toList outs)
         , withdrawals =
@@ -946,11 +946,11 @@ fromAlonzoTxBodyAndAux bod mad =
             fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
         , fee =
             Just $ fromShelleyCoin fee
-        , resolvedInputs =
-            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
-        , resolvedCollateralInputs =
+        , resolvedCollateral =
             -- TODO: (ADP-957)
             []
+        , resolvedInputs =
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
         , outputs =
             map fromAlonzoTxOut (toList outs)
         , withdrawals =
