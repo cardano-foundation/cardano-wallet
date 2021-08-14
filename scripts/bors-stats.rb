@@ -330,7 +330,10 @@ def include_worthy_comment(c)
     (c.bodyText.include? 'Canceled'),
     (c.bodyText.include? 'Merge conflict'),
     (c.bodyText.include? 'Rejected by too few approved reviews'),
-    (c.bodyText.include? 'Already running a review')
+    (c.bodyText.include? 'Already running a review'),
+    (c.bodyText.include? 'This PR was included in a batch that was canceled, it will be automatically retried'),
+    (c.bodyText.include? 'This PR was included in a batch that successfully built, but then failed to merge into master'),
+    (c.bodyText.include?  '🔒 Permission denied')
   ].any?
 end
 
