@@ -70,7 +70,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
-newtype UTxO = UTxO { getUTxO :: Map TxIn TxOut }
+newtype UTxO = UTxO { unUTxO :: Map TxIn TxOut }
     deriving stock (Show, Generic, Eq, Ord)
     deriving newtype (Semigroup, Monoid)
 
@@ -102,7 +102,7 @@ instance Buildable UTxO where
 -- | Compute the balance of a UTxO
 balance :: UTxO -> TokenBundle
 balance =
-    Map.foldl' fn mempty . getUTxO
+    Map.foldl' fn mempty . unUTxO
   where
     fn :: TokenBundle -> TxOut -> TokenBundle
     fn tot out = tot `TB.add` view #tokens out
@@ -208,7 +208,7 @@ log10 = Log10
 -- | Compute UtxoStatistics from UTxOs
 computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
 computeUtxoStatistics btype =
-    computeStatistics (pure . unCoin . txOutCoin) btype . Map.elems . getUTxO
+    computeStatistics (pure . unCoin . txOutCoin) btype . Map.elems . unUTxO
 
 -- | A more generic function for computing UTxO statistics on some other type of
 -- data that maps to UTxO's values.

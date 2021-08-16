@@ -411,7 +411,7 @@ spec = do
                       , changeGenerated = chgs
                       , utxoRemaining = UTxOIndex.empty
                       }
-                  inps = Map.toList $ getUTxO utxo
+                  inps = Map.toList $ unUTxO utxo
         it "1 input, 2 outputs" $ do
             let pairs = [dummyWit 0]
             let amtInp = 10000000
@@ -505,7 +505,7 @@ spec = do
                     , changeGenerated = chgs
                     , utxoRemaining = UTxOIndex.empty
                     }
-                  inps = Map.toList $ getUTxO utxo
+                  inps = Map.toList $ unUTxO utxo
         it "1 input, 2 outputs" $ do
             let pairs = [dummyWit 0]
             let amtInp = 10000000
@@ -628,7 +628,7 @@ prop_decodeSignedShelleyTxRoundtrip
     -> Property
 prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md slotNo pairs) = do
     let anyEra = Cardano.anyCardanoEra (Cardano.cardanoEra @era)
-    let inps = Map.toList $ getUTxO utxo
+    let inps = Map.toList $ unUTxO utxo
     let cs = mkSelection inps
     let fee = toCardanoLovelace $ selectionDelta txOutCoin cs
     let Right unsigned = mkUnsignedTx shelleyEra slotNo cs md mempty [] fee
@@ -658,7 +658,7 @@ prop_decodeSignedByronTxRoundtrip
 prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs) = do
     let era = Cardano.AnyCardanoEra Cardano.AllegraEra
     let shelleyEra = Cardano.ShelleyBasedEraAllegra
-    let inps = Map.toList $ getUTxO utxo
+    let inps = Map.toList $ unUTxO utxo
     let cs = mkSelection inps
     let fee = toCardanoLovelace $ selectionDelta txOutCoin cs
     let Right unsigned = mkUnsignedTx shelleyEra slotNo cs Nothing mempty [] fee
@@ -731,7 +731,7 @@ instance Arbitrary DecodeShelleySetup where
         outs <- vectorOf n arbitrary
         md <- arbitrary
         slot <- arbitrary
-        let numInps = Map.size $ getUTxO utxo
+        let numInps = Map.size $ unUTxO utxo
         pairs <- vectorOf numInps arbitrary
         pure $ DecodeShelleySetup utxo outs md slot pairs
 
@@ -747,7 +747,7 @@ instance Arbitrary DecodeByronSetup where
         n <- choose (1,10)
         outs <- vectorOf n arbitrary
         net <- arbitrary
-        let numInps = Map.size $ getUTxO utxo
+        let numInps = Map.size $ unUTxO utxo
         slot <- arbitrary
         pairs <- vectorOf numInps arbitrary
         pure $ DecodeByronSetup utxo outs slot net pairs

@@ -423,7 +423,7 @@ prop_selectRandom_one_withAdaOnly u = checkCoverage $ monadicIO $ do
             assert $ u /= u'
   where
     utxoHasNoAdaOnlyEntries =
-        Map.null $ Map.filter txOutIsAdaOnly $ getUTxO $ UTxOIndex.toUTxO u
+        Map.null $ Map.filter txOutIsAdaOnly $ unUTxO $ UTxOIndex.toUTxO u
 
 -- | Attempt to select a random element with a specific asset.
 --

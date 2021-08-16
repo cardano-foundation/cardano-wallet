@@ -1761,7 +1761,7 @@ mkCheckpointEntity wid wal =
         , let tokenList = snd (TokenBundle.toFlatList tokens)
         , (AssetId policy token, quantity) <- tokenList
         ]
-    utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
+    utxoMap = Map.assocs (W.unUTxO (W.utxo wal))
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.

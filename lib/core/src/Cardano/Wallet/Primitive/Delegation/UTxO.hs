@@ -30,7 +30,7 @@ stakeKeyCoinDistr
     -> UTxO
     -> Map (Maybe RewardAccount) Coin
 stakeKeyCoinDistr stakeRef =
-    Map.fromListWith (<>) . map classifyOut . Map.elems . getUTxO
+    Map.fromListWith (<>) . map classifyOut . Map.elems . unUTxO
   where
     classifyOut :: TxOut -> (Maybe RewardAccount, Coin)
     classifyOut (TxOut addr b) = (stakeRef addr, TokenBundle.getCoin b)
