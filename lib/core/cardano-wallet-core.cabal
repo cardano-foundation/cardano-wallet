@@ -209,6 +209,7 @@ library
       Cardano.Wallet.Unsafe
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
+      Control.Concurrent.Concierge
       Crypto.Hash.Utils
       Data.Function.Utils
       Data.Time.Text
