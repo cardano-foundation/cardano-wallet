@@ -1299,11 +1299,23 @@ selectionToUnsignedTx
     -> (UnsignedTx input output change withdrawal)
 selectionToUnsignedTx wdrl sel s =
     UnsignedTx
-        (fullyQualifiedInputs $ inputsSelected sel)
-        (outputsCovered sel)
-        (fullyQualifiedChange $ changeGenerated sel)
-        (fullyQualifiedWithdrawal wdrl)
+        { unsignedInputs =
+            fullyQualifiedInputs $ inputsSelected sel
+        , unsignedOutputs =
+            outputsCovered sel
+        , unsignedChange =
+            fullyQualifiedChange $ changeGenerated sel
+        , unsignedCollateral =
+            fullyQualifiedInputs collateral
+        , unsignedWithdrawals =
+            fullyQualifiedWithdrawal wdrl
+        }
   where
+    collateral :: [(TxIn, TxOut)]
+    collateral =
+        -- TODO: (ADP-957)
+        []
+
     qualifyAddresses
         :: forall a t. (Traversable t)
         => (a -> Address)

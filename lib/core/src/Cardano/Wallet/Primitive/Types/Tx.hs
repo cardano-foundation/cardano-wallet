@@ -161,6 +161,13 @@ data Tx = Tx
         -- explicitly in Shelley, but not in Byron although in Byron they can
         -- easily be re-computed from the delta between outputs and inputs.
 
+    , resolvedCollateral
+        :: ![(TxIn, Coin)]
+        -- ^ NOTE: The order of collateral inputs matters in the transaction
+        -- representation.  The transaction id is computed from the binary
+        -- representation of a tx, for which collateral inputs are serialized
+        -- in a specific order.
+
     , resolvedInputs
         :: ![(TxIn, Coin)]
         -- ^ NOTE: Order of inputs matters in the transaction representation.
@@ -193,13 +200,20 @@ data Tx = Tx
 instance NFData Tx
 
 instance Buildable Tx where
-    build (Tx tid _fee ins outs ws md) = mempty
-        <> build tid
-        <> build ("\n" :: String)
-        <> blockListF' "inputs" build (fst <$> ins)
-        <> blockListF' "outputs" build outs
-        <> blockListF' "withdrawals" tupleF (Map.toList ws)
-        <> nameF "metadata" (maybe "" build md)
+    build t = mconcat
+        [ build (view #txId t)
+        , build ("\n" :: String)
+        , blockListF' "collateral"
+            build (fst <$> view #resolvedCollateral t)
+        , blockListF' "inputs"
+            build (fst <$> view #resolvedInputs t)
+        , blockListF' "outputs"
+            build (view #outputs t)
+        , blockListF' "withdrawals"
+            tupleF (Map.toList $ view #withdrawals t)
+        , nameF "metadata"
+            (maybe "" build $ view #metadata t)
+        ]
 
 txIns :: Set Tx -> Set TxIn
 txIns = foldMap (Set.fromList . inputs)
@@ -343,7 +357,11 @@ instance ToText TxStatus where
 -- See 'Tx' for a signed transaction.
 --
 data UnsignedTx input output change withdrawal = UnsignedTx
-    { unsignedInputs
+    { unsignedCollateral
+        :: [input]
+        -- Inputs used for collateral.
+
+    , unsignedInputs
         :: NonEmpty input
         -- Inputs are *necessarily* non-empty because Cardano requires at least
         -- one UTxO input per transaction to prevent replayable transactions.
@@ -366,7 +384,7 @@ data UnsignedTx input output change withdrawal = UnsignedTx
     , unsignedWithdrawals
         :: [withdrawal]
     }
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 -- | The effect of a @Transaction@ on the wallet balance.
 data Direction
@@ -424,6 +442,8 @@ data TransactionInfo = TransactionInfo
     -- ^ Transaction ID of this transaction
     , txInfoFee :: !(Maybe Coin)
     -- ^ Explicit transaction fee
+    , txInfoCollateral :: ![(TxIn, Coin, Maybe TxOut)]
+    -- ^ Collateral inputs and (maybe) corresponding outputs.
     , txInfoInputs :: ![(TxIn, Coin, Maybe TxOut)]
     -- ^ Transaction inputs and (maybe) corresponding outputs of the
     -- source. Source information can only be provided for outgoing payments.
@@ -448,11 +468,15 @@ fromTransactionInfo :: TransactionInfo -> Tx
 fromTransactionInfo info = Tx
     { txId = txInfoId info
     , fee = txInfoFee info
-    , resolvedInputs = (\(a,b,_) -> (a,b)) <$> txInfoInputs info
+    , resolvedCollateral = drop3rd <$> txInfoCollateral info
+    , resolvedInputs = drop3rd <$> txInfoInputs info
     , outputs = txInfoOutputs info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     }
+  where
+    drop3rd :: (a, b, c) -> (a, b)
+    drop3rd (a, b, _) = (a, b)
 
 -- | Test whether the given metadata map is empty.
 txMetadataIsNull :: TxMetadata -> Bool

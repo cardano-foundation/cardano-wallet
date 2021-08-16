@@ -192,8 +192,15 @@ genesisBlockFromTxOuts gp outs = W.Block
     , transactions = mkTx <$> outs
     }
   where
-    mkTx out@(W.TxOut (W.Address bytes) _) =
-        W.Tx (W.Hash $ blake2b256 bytes) Nothing [] [out] mempty Nothing
+    mkTx out@(W.TxOut (W.Address bytes) _) = W.Tx
+        { txId = W.Hash $ blake2b256 bytes
+        , fee = Nothing
+        , resolvedCollateral = []
+        , resolvedInputs = []
+        , outputs = [out]
+        , withdrawals = mempty
+        , metadata = Nothing
+        }
 
 --------------------------------------------------------------------------------
 --
@@ -243,6 +250,8 @@ fromTxAux txAux = case taTx txAux of
         { txId = W.Hash $ CC.hashToBytes $ serializeCborHash tx
 
         , fee = Nothing
+
+        , resolvedCollateral = []
 
         -- TODO: Review 'W.Tx' to not require resolved inputs but only inputs
         , resolvedInputs =

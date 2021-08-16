@@ -131,12 +131,21 @@ dummyProtocolParameters = ProtocolParameters
 mkTx
     :: Maybe Coin
     -> [(TxIn, Coin)]
+    -> [(TxIn, Coin)]
     -> [TxOut]
     -> Map RewardAccount Coin
     -> Maybe TxMetadata
     -> Tx
-mkTx fees ins outs wdrls md =
-    Tx (mkTxId ins outs wdrls md) fees ins outs wdrls md
+mkTx fees ins cins outs wdrls md =
+    Tx
+      { txId = (mkTxId ins outs wdrls md)
+      , fee = fees
+      , resolvedCollateral = cins
+      , resolvedInputs = ins
+      , outputs = outs
+      , withdrawals = wdrls
+      , metadata = md
+      }
 
 -- | txId calculation for testing purposes.
 mkTxId

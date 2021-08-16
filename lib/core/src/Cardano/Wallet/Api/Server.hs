@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -186,6 +187,7 @@ import Cardano.Wallet.Api.Server.Tls
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
+    , AddressAmountNoAssets (..)
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
@@ -197,6 +199,7 @@ import Cardano.Wallet.Api.Types
     , ApiBytesT (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
+    , ApiCoinSelectionCollateral (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
@@ -234,6 +237,7 @@ import Cardano.Wallet.Api.Types
     , ApiStakeKeys (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiTxCollateral (..)
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
@@ -411,7 +415,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SerialisedTx (..)
-    , TransactionInfo (TransactionInfo)
+    , TransactionInfo
     , Tx (..)
     , TxChange (..)
     , TxIn (..)
@@ -507,6 +511,8 @@ import Data.Word
     ( Word32 )
 import Fmt
     ( blockListF, indentF, pretty )
+import GHC.Generics
+    ( Generic )
 import GHC.Stack
     ( HasCallStack )
 import Network.HTTP.Media.RenderHeader
@@ -1858,14 +1864,19 @@ postTransactionOld ctx genChange (ApiT wid) body = do
 
     liftIO $ mkApiTransaction
         (timeInterpreter $ ctx ^. networkLayer)
-        (txId tx)
-        (tx ^. #fee)
-        (NE.toList $ second Just <$> sel ^. #inputsSelected)
-        (tx ^. #outputs)
-        (tx ^. #withdrawals)
-        (txMeta, txTime)
-        (tx ^. #metadata)
-        #pendingSince
+        (#pendingSince)
+        MkApiTransactionParams
+            { txId = tx ^. #txId
+            , txFee = tx ^. #fee
+              -- TODO: ADP-957:
+            , txCollateral = []
+            , txInputs = NE.toList $ second Just <$> sel ^. #inputsSelected
+            , txOutputs = tx ^. #outputs
+            , txWithdrawals = tx ^. #withdrawals
+            , txMeta
+            , txMetadata = tx ^. #metadata
+            , txTime
+            }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -1920,18 +1931,30 @@ mkApiTransactionFromInfo
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> TransactionInfo
     -> m (ApiTransaction n)
-mkApiTransactionFromInfo ti (TransactionInfo txid fee ins outs ws meta depth txtime txmeta) = do
-    apiTx <- liftIO $ mkApiTransaction ti txid fee (drop2nd <$> ins) outs ws (meta, txtime) txmeta $
-        case meta ^. #status of
-            Pending  -> #pendingSince
-            InLedger -> #insertedAt
-            Expired  -> #pendingSince
-    return $ case meta ^. #status of
+mkApiTransactionFromInfo ti info = do
+    apiTx <- liftIO $ mkApiTransaction ti status
+        MkApiTransactionParams
+            { txId = info ^. #txInfoId
+            , txFee = info ^. #txInfoFee
+            , txCollateral = info ^. #txInfoCollateral <&> drop2nd
+            , txInputs = info ^. #txInfoInputs <&> drop2nd
+            , txOutputs = info ^. #txInfoOutputs
+            , txWithdrawals = info ^. #txInfoWithdrawals
+            , txMeta = info ^. #txInfoMeta
+            , txMetadata = info ^. #txInfoMetadata
+            , txTime = info ^. #txInfoTime
+            }
+    return $ case info ^. (#txInfoMeta . #status) of
         Pending  -> apiTx
-        InLedger -> apiTx { depth = Just depth  }
+        InLedger -> apiTx {depth = Just $ info ^. #txInfoDepth}
         Expired  -> apiTx
   where
-      drop2nd (a,_,c) = (a,c)
+    drop2nd (a,_,c) = (a,c)
+    status :: Lens' (ApiTransaction n) (Maybe ApiBlockReference)
+    status = case info ^. (#txInfoMeta . #status) of
+        Pending  -> #pendingSince
+        InLedger -> #insertedAt
+        Expired  -> #pendingSince
 
 postTransactionFeeOld
     :: forall ctx s k n.
@@ -2103,14 +2126,19 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
-        (txId tx)
-        (tx ^. #fee)
-        (NE.toList $ second Just <$> sel ^. #inputsSelected)
-        (tx ^. #outputs)
-        (tx ^. #withdrawals)
-        (txMeta, txTime)
-        Nothing
-        #pendingSince
+        (#pendingSince)
+        MkApiTransactionParams
+            { txId = tx ^. #txId
+            , txFee = tx ^. #fee
+              -- Joining a stake pool does not require collateral:
+            , txCollateral = []
+            , txInputs = NE.toList $ second Just <$> sel ^. #inputsSelected
+            , txOutputs = tx ^. #outputs
+            , txWithdrawals = tx ^. #withdrawals
+            , txMeta
+            , txMetadata = Nothing
+            , txTime
+            }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -2188,14 +2216,19 @@ quitStakePool ctx (ApiT wid) body = do
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
-        (txId tx)
-        (tx ^. #fee)
-        (NE.toList $ second Just <$> sel ^. #inputsSelected)
-        (tx ^. #outputs)
-        (tx ^. #withdrawals)
-        (txMeta, txTime)
-        Nothing
-        #pendingSince
+        (#pendingSince)
+        MkApiTransactionParams
+            { txId = tx ^. #txId
+            , txFee = tx ^. #fee
+              -- Quitting a stake pool does not require collateral:
+            , txCollateral = []
+            , txInputs = NE.toList $ second Just <$> sel ^. #inputsSelected
+            , txOutputs = tx ^. #outputs
+            , txWithdrawals = tx ^. #withdrawals
+            , txMeta
+            , txMetadata = Nothing
+            , txTime
+            }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -2436,14 +2469,20 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                 W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
             liftIO $ mkApiTransaction
                 (timeInterpreter (ctx ^. networkLayer))
-                (txId tx)
-                (tx ^. #fee)
-                (NE.toList $ second Just <$> selection ^. #inputsSelected)
-                (tx ^. #outputs)
-                (tx ^. #withdrawals)
-                (txMeta, txTime)
-                (Nothing)
                 (#pendingSince)
+                MkApiTransactionParams
+                    { txId = tx ^. #txId
+                    , txFee = tx ^. #fee
+                      -- Migrations never require collateral:
+                    , txCollateral = []
+                    , txInputs =
+                        NE.toList $ second Just <$> selection ^. #inputsSelected
+                    , txOutputs = tx ^. #outputs
+                    , txWithdrawals = tx ^. #withdrawals
+                    , txMeta
+                    , txMetadata = Nothing
+                    , txTime
+                    }
   where
     addresses = getApiT . fst <$> view #addresses postData
     pwd = coerce $ getApiT $ postData ^. #passphrase
@@ -2553,7 +2592,7 @@ postExternalTransaction
     -> Handler ApiTxId
 postExternalTransaction ctx (ApiBytesT (SerialisedTx bytes)) = do
     tx <- liftHandler $ W.submitExternalTx @ctx @k ctx bytes
-    return $ ApiTxId (ApiT (txId tx))
+    return $ ApiTxId (ApiT (tx ^. #txId))
 
 signMetadata
     :: forall ctx s k n.
@@ -2733,15 +2772,25 @@ mkApiCoinSelection
     -> Maybe W.TxMetadata
     -> UnsignedTx input output change withdrawal
     -> ApiCoinSelection n
-mkApiCoinSelection deps mcerts meta (UnsignedTx inputs outputs change wdrls) =
+mkApiCoinSelection deps mcerts metadata unsignedTx =
     ApiCoinSelection
-        (mkApiCoinSelectionInput <$> inputs)
-        (mkApiCoinSelectionOutput <$> outputs)
-        (mkApiCoinSelectionChange <$> change)
-        (mkApiCoinSelectionWithdrawal <$> wdrls)
-        (fmap (uncurry mkCertificates) mcerts)
-        (fmap mkApiCoin deps)
-        (ApiBytesT . serialiseToCBOR <$> meta)
+        { inputs = mkApiCoinSelectionInput
+            <$> unsignedTx ^. #unsignedInputs
+        , outputs = mkApiCoinSelectionOutput
+            <$> unsignedTx ^. #unsignedOutputs
+        , change = mkApiCoinSelectionChange
+            <$> unsignedTx ^. #unsignedChange
+        , collateral = mkApiCoinSelectionCollateral
+            <$> unsignedTx ^. #unsignedCollateral
+        , withdrawals = mkApiCoinSelectionWithdrawal
+            <$> unsignedTx ^. #unsignedWithdrawals
+        , certificates = uncurry mkCertificates
+            <$> mcerts
+        , deposits = mkApiCoin
+            <$> deps
+        , metadata = ApiBytesT. serialiseToCBOR
+            <$> metadata
+        }
   where
     mkCertificates
         :: DelegationAction
@@ -2795,6 +2844,17 @@ mkApiCoinSelection deps mcerts meta (UnsignedTx inputs outputs change wdrls) =
                 ApiT <$> view #derivationPath txChange
             }
 
+    mkApiCoinSelectionCollateral :: input -> ApiCoinSelectionCollateral n
+    mkApiCoinSelectionCollateral
+        (TxIn txid index, TxOut addr (TokenBundle amount _), path) =
+        ApiCoinSelectionCollateral
+            { id = ApiT txid
+            , index = index
+            , address = (ApiT addr, Proxy @n)
+            , amount = coinToQuantity amount
+            , derivationPath = ApiT <$> path
+            }
+
     mkApiCoinSelectionWithdrawal :: withdrawal -> ApiCoinSelectionWithdrawal n
     mkApiCoinSelectionWithdrawal (rewardAcct, wdrl, path) =
         ApiCoinSelectionWithdrawal
@@ -2806,49 +2866,65 @@ mkApiCoinSelection deps mcerts meta (UnsignedTx inputs outputs change wdrls) =
                 ApiT <$> path
             }
 
+data MkApiTransactionParams = MkApiTransactionParams
+    { txId :: Hash "Tx"
+    , txFee :: Maybe Coin
+    , txCollateral :: [(TxIn, Maybe TxOut)]
+    , txInputs :: [(TxIn, Maybe TxOut)]
+    , txOutputs :: [TxOut]
+    , txWithdrawals :: Map RewardAccount Coin
+    , txMeta :: W.TxMeta
+    , txMetadata :: Maybe W.TxMetadata
+    , txTime :: UTCTime
+    }
+    deriving (Eq, Generic, Show)
+
 mkApiTransaction
     :: forall n. ()
     => TimeInterpreter (ExceptT PastHorizonException IO)
-    -> Hash "Tx"
-    -> Maybe Coin
-    -> [(TxIn, Maybe TxOut)]
-    -> [TxOut]
-    -> Map RewardAccount Coin
-    -> (W.TxMeta, UTCTime)
-    -> Maybe W.TxMetadata
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
+    -> MkApiTransactionParams
     -> IO (ApiTransaction n)
-mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeReference = do
-    timeRef <- (#time .~ timestamp) <$> makeApiBlockReference
-        (neverFails "makeApiBlockReference shouldn't fail getting the time of \
-            \transactions with slots in the past" ti)
-        (meta ^. #slotNo)
-        (natural $ meta ^. #blockHeight)
+mkApiTransaction timeInterpreter setTimeReference tx = do
+    timeRef <- (#time .~ (tx ^. #txTime)) <$> makeApiBlockReference
+        (neverFails
+            "makeApiBlockReference shouldn't fail getting the time of \
+            \transactions with slots in the past" timeInterpreter)
+        (tx ^. (#txMeta . #slotNo))
+        (natural (tx ^. (#txMeta . #blockHeight)))
 
-    expRef <- traverse makeApiSlotReference' (meta ^. #expiry)
-    return $ tx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
+    expRef <- traverse makeApiSlotReference' (tx ^. (#txMeta . #expiry))
+    return $ apiTx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
   where
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
-    makeApiSlotReference' = makeApiSlotReference (unsafeExtendSafeZone ti)
+    makeApiSlotReference' = makeApiSlotReference
+        $ unsafeExtendSafeZone timeInterpreter
 
-    tx :: ApiTransaction n
-    tx = ApiTransaction
-        { id = ApiT txid
-        , amount = Quantity . fromIntegral $ meta ^. #amount . #unCoin
-        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) mfee
+    apiTx :: ApiTransaction n
+    apiTx = ApiTransaction
+        { id = ApiT $ tx ^. #txId
+        , amount = Quantity . fromIntegral $ tx ^. (#txMeta . #amount . #unCoin)
+        , fee = Quantity $ maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
         , deposit = Quantity depositIfAny
         , insertedAt = Nothing
         , pendingSince = Nothing
         , expiresAt = Nothing
         , depth = Nothing
-        , direction = ApiT (meta ^. #direction)
-        , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
-        , outputs = toAddressAmount <$> outs
-        , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
+        , direction = ApiT (tx ^. (#txMeta . #direction))
+        , inputs =
+            [ ApiTxInput (fmap toAddressAmount o) (ApiT i)
+            | (i, o) <- tx ^. #txInputs
+            ]
+        , collateral =
+            [ ApiTxCollateral (fmap toAddressAmountNoAssets o) (ApiT i)
+            | (i, o) <- tx ^. #txCollateral
+            ]
+        , outputs = toAddressAmount <$> tx ^. #txOutputs
+        , withdrawals = mkApiWithdrawal @n <$> Map.toList (tx ^. #txWithdrawals)
         , mint = mempty  -- TODO: ADP-xxx
-        , status = ApiT (meta ^. #status)
-        , metadata = ApiTxMetadata $ ApiT <$> txMeta
+        , status = ApiT (tx ^. (#txMeta . #status))
+        , metadata = ApiTxMetadata $ ApiT <$> (tx ^. #txMetadata)
         }
 
     depositIfAny :: Natural
@@ -2860,7 +2936,7 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         -- greater or equal to totalOut; any remainder is actually a
         -- deposit. Said differently, if totalIn > 0, then necessarily 'fee' on
         -- metadata should be 'Just{}'
-        | meta ^. #direction == W.Outgoing =
+        | tx ^. (#txMeta . #direction) == W.Outgoing =
             if totalIn < totalOut
             then 0 -- This should not be possible in practice. See FIXME below.
             else totalIn - totalOut
@@ -2894,14 +2970,14 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         --     ]
         totalIn :: Natural
         totalIn
-            = sum (txOutValue <$> mapMaybe snd ins)
-            + sum (fromIntegral . unCoin <$> Map.elems ws)
+            = sum (txOutValue <$> mapMaybe snd (tx ^. #txInputs))
+            + sum (fromIntegral . unCoin <$> Map.elems (tx ^. #txWithdrawals))
             -- FIXME: ADP-460 + reclaims.
 
         totalOut :: Natural
         totalOut
-            = sum (txOutValue <$> outs)
-            + maybe 0 (fromIntegral . unCoin) mfee
+            = sum (txOutValue <$> tx ^. #txOutputs)
+            + maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
 
         txOutValue :: TxOut -> Natural
         txOutValue = fromIntegral . unCoin . txOutCoin
@@ -2909,6 +2985,12 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
         AddressAmount (ApiT addr, Proxy @n) (mkApiCoin coin) (ApiT assets)
+
+    toAddressAmountNoAssets
+        :: TxOut
+        -> AddressAmountNoAssets (ApiT Address, Proxy n)
+    toAddressAmountNoAssets (TxOut addr (TokenBundle.TokenBundle coin _)) =
+        AddressAmountNoAssets (ApiT addr, Proxy @n) (mkApiCoin coin)
 
 mkApiCoin
     :: Coin
@@ -3679,7 +3761,8 @@ instance IsServerError ErrSelectAssets where
         ErrSelectAssetsAlreadyWithdrawing tx ->
             apiError err403 AlreadyWithdrawing $ mconcat
                 [ "I already know of a pending transaction with withdrawals: "
-                , toText (txId tx), ". Note that when I withdraw rewards, I "
+                , toText (tx ^. #txId)
+                , ". Note that when I withdraw rewards, I "
                 , "need to withdraw them fully for the Ledger to accept it. "
                 , "There's therefore no point creating another conflicting "
                 , "transaction; if, for some reason, you really want a new "

@@ -52,6 +52,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
+    , AddressAmountNoAssets (..)
     , AnyAddress (..)
     , ApiAccountKey (..)
     , ApiAccountKeyShared (..)
@@ -72,6 +73,7 @@ import Cardano.Wallet.Api.Types
     , ApiCertificate (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
+    , ApiCoinSelectionCollateral (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
@@ -128,6 +130,7 @@ import Cardano.Wallet.Api.Types
     , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTransaction (..)
+    , ApiTxCollateral (..)
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
@@ -444,6 +447,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionChange ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionCollateral ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionOutput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionWithdrawal ('Testnet 0))
@@ -464,6 +468,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiStakePool
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @(AddressAmount (ApiT Address, Proxy ('Testnet 0)))
+            jsonRoundtripAndGolden $ Proxy @(AddressAmountNoAssets (ApiT Address, Proxy ('Testnet 0)))
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiPutAddressesData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
@@ -800,6 +805,8 @@ spec = parallel $ do
                         (x :: ApiCoinSelection ('Testnet 0))
                     , change = change
                         (x :: ApiCoinSelection ('Testnet 0))
+                    , collateral = collateral
+                        (x :: ApiCoinSelection ('Testnet 0))
                     , withdrawals = withdrawals
                         (x :: ApiCoinSelection ('Testnet 0))
                     , certificates = certificates
@@ -840,6 +847,22 @@ spec = parallel $ do
                         (x :: ApiCoinSelectionInput ('Testnet 0))
                     , derivationPath = derivationPath
                         (x :: ApiCoinSelectionInput ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiCoinSelectionCollateral" $ property $ \x ->
+            let
+                x' = ApiCoinSelectionCollateral
+                    { id = id
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
+                    , index = index
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
+                    , address = address
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
+                    , amount = amount
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
+                    , derivationPath = derivationPath
+                        (x :: ApiCoinSelectionCollateral ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1052,21 +1075,38 @@ spec = parallel $ do
         it "ApiTransaction" $ property $ \x ->
             let
                 x' = ApiTransaction
-                    { id = id (x :: ApiTransaction ('Testnet 0))
-                    , amount = amount (x :: ApiTransaction ('Testnet 0))
-                    , fee = fee (x :: ApiTransaction ('Testnet 0))
-                    , deposit = deposit (x :: ApiTransaction ('Testnet 0))
-                    , insertedAt = insertedAt (x :: ApiTransaction ('Testnet 0))
-                    , pendingSince = pendingSince (x :: ApiTransaction ('Testnet 0))
-                    , expiresAt = expiresAt (x :: ApiTransaction ('Testnet 0))
-                    , depth = depth (x :: ApiTransaction ('Testnet 0))
-                    , direction = direction (x :: ApiTransaction ('Testnet 0))
-                    , inputs = inputs (x :: ApiTransaction ('Testnet 0))
-                    , outputs = outputs (x :: ApiTransaction ('Testnet 0))
-                    , status = status (x :: ApiTransaction ('Testnet 0))
-                    , withdrawals = withdrawals (x :: ApiTransaction ('Testnet 0))
-                    , mint = mint (x :: ApiTransaction ('Testnet 0))
-                    , metadata = metadata (x :: ApiTransaction ('Testnet 0))
+                    { id = id
+                        (x :: ApiTransaction ('Testnet 0))
+                    , amount = amount
+                        (x :: ApiTransaction ('Testnet 0))
+                    , fee = fee
+                        (x :: ApiTransaction ('Testnet 0))
+                    , deposit = deposit
+                        (x :: ApiTransaction ('Testnet 0))
+                    , insertedAt = insertedAt
+                        (x :: ApiTransaction ('Testnet 0))
+                    , pendingSince = pendingSince
+                        (x :: ApiTransaction ('Testnet 0))
+                    , expiresAt = expiresAt
+                        (x :: ApiTransaction ('Testnet 0))
+                    , depth = depth
+                        (x :: ApiTransaction ('Testnet 0))
+                    , direction = direction
+                        (x :: ApiTransaction ('Testnet 0))
+                    , inputs = inputs
+                        (x :: ApiTransaction ('Testnet 0))
+                    , outputs = outputs
+                        (x :: ApiTransaction ('Testnet 0))
+                    , collateral = collateral
+                        (x :: ApiTransaction ('Testnet 0))
+                    , status = status
+                        (x :: ApiTransaction ('Testnet 0))
+                    , withdrawals = withdrawals
+                        (x :: ApiTransaction ('Testnet 0))
+                    , mint = mint
+                        (x :: ApiTransaction ('Testnet 0))
+                    , metadata = metadata
+                        (x :: ApiTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1092,9 +1132,24 @@ spec = parallel $ do
         it "AddressAmount" $ property $ \x ->
             let
                 x' = AddressAmount
-                    { address = address (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
-                    , amount = amount (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
-                    , assets = assets (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
+                    { address = address
+                        (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
+                    , amount = amount
+                        (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
+                    , assets = assets
+                        (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "AddressAmountNoAssets" $ property $ \x ->
+            let
+                x' = AddressAmountNoAssets
+                    { address = address
+                        (x :: AddressAmountNoAssets
+                            (ApiT Address, Proxy ('Testnet 0)))
+                    , amount = amount
+                        (x :: AddressAmountNoAssets
+                            (ApiT Address, Proxy ('Testnet 0)))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1353,6 +1408,7 @@ instance Arbitrary (ApiCoinSelection n) where
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
         <*> arbitrary
     shrink = genericShrink
 
@@ -1370,6 +1426,15 @@ instance Arbitrary (ApiCoinSelectionInput n) where
         <*> arbitrary
         <*> fmap (, Proxy @n) arbitrary
         <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+    shrink _ = []
+
+instance Arbitrary (ApiCoinSelectionCollateral n) where
+    arbitrary = ApiCoinSelectionCollateral
+        <$> arbitrary
+        <*> arbitrary
+        <*> fmap (, Proxy @n) arbitrary
         <*> arbitrary
         <*> arbitrary
     shrink _ = []
@@ -1923,6 +1988,10 @@ instance Arbitrary a => Arbitrary (AddressAmount a) where
     arbitrary = applyArbitrary3 AddressAmount
     shrink _ = []
 
+instance Arbitrary a => Arbitrary (AddressAmountNoAssets a) where
+    arbitrary = applyArbitrary2 AddressAmountNoAssets
+    shrink _ = []
+
 instance Arbitrary ApiSignTransactionPostData where
     arbitrary = ApiSignTransactionPostData <$> arbitrary <*> arbitrary
 
@@ -2104,6 +2173,7 @@ instance Arbitrary (ApiTransaction n) where
             <*> arbitrary
             <*> genInputs
             <*> genOutputs
+            <*> genCollateral
             <*> genWithdrawals
             <*> arbitrary
             <*> pure txStatus
@@ -2114,6 +2184,8 @@ instance Arbitrary (ApiTransaction n) where
         genOutputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
         genWithdrawals =
+            Test.QuickCheck.scale (`mod` 3) arbitrary
+        genCollateral =
             Test.QuickCheck.scale (`mod` 3) arbitrary
 
 instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
@@ -2193,6 +2265,10 @@ instance Arbitrary ApiUtxoStatistics where
 instance Arbitrary (ApiTxInput n) where
     shrink _ = []
     arbitrary = applyArbitrary2 ApiTxInput
+
+instance Arbitrary (ApiTxCollateral n) where
+    shrink _ = []
+    arbitrary = applyArbitrary2 ApiTxCollateral
 
 instance Arbitrary (Quantity "slot" Natural) where
     shrink (Quantity 0) = []
