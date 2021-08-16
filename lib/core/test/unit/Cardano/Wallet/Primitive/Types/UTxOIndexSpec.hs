@@ -128,7 +128,7 @@ spec =
             property prop_insert_delete
         it "prop_insert_lookup" $
             property prop_insert_lookup
-        it "prop_insert_lookup" $
+        it "prop_insert_size" $
             property prop_insert_size
 
     parallel $ describe "Index Selection" $ do
