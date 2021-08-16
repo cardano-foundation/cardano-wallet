@@ -1,8 +1,8 @@
 module Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxOSmall
+    ( genUTxO
     , genUTxOLarge
     , genUTxOLargeN
-    , shrinkUTxOSmall
+    , shrinkUTxO
     ) where
 
 import Prelude
@@ -16,40 +16,34 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Control.Monad
     ( replicateM )
 import Test.QuickCheck
-    ( Gen, choose, frequency, shrinkList )
+    ( Gen, choose, shrinkList, sized )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
 import qualified Data.Map.Strict as Map
 
 --------------------------------------------------------------------------------
--- Small UTxO sets
+-- UTxO sets generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genUTxOSmall :: Gen UTxO
-genUTxOSmall = do
-    entryCount <- frequency
-        [ (1, pure 0)
-        , (1, pure 1)
-        , (32, choose (2, 64))
-        ]
-    UTxO . Map.fromList <$> replicateM entryCount genEntrySmallRange
+genUTxO :: Gen UTxO
+genUTxO = sized $ \size -> do
+    entryCount <- choose (0, size)
+    UTxO . Map.fromList <$> replicateM entryCount genEntry
 
-shrinkUTxOSmall :: UTxO -> [UTxO]
-shrinkUTxOSmall
+shrinkUTxO :: UTxO -> [UTxO]
+shrinkUTxO
     = take 16
     . fmap (UTxO . Map.fromList)
-    . shrinkList shrinkEntrySmallRange
+    . shrinkList shrinkEntry
     . Map.toList
     . unUTxO
 
-genEntrySmallRange :: Gen (TxIn, TxOut)
-genEntrySmallRange = (,)
-    <$> genTxIn
-    <*> genTxOut
+genEntry :: Gen (TxIn, TxOut)
+genEntry = (,) <$> genTxIn <*> genTxOut
 
-shrinkEntrySmallRange :: (TxIn, TxOut) -> [(TxIn, TxOut)]
-shrinkEntrySmallRange (i, o) = uncurry (,) <$> shrinkInterleaved
+shrinkEntry :: (TxIn, TxOut) -> [(TxIn, TxOut)]
+shrinkEntry (i, o) = uncurry (,) <$> shrinkInterleaved
     (i, shrinkTxIn)
     (o, shrinkTxOut)
 

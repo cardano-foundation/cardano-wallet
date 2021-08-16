@@ -1,14 +1,14 @@
 module Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndexSmall
+    ( genUTxOIndex
     , genUTxOIndexLarge
     , genUTxOIndexLargeN
-    , shrinkUTxOIndexSmall
+    , shrinkUTxOIndex
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
-    ( genUTxOLarge, genUTxOLargeN, genUTxOSmall, shrinkUTxOSmall )
+    ( genUTxO, genUTxOLarge, genUTxOLargeN, shrinkUTxO )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Test.QuickCheck
@@ -17,15 +17,14 @@ import Test.QuickCheck
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 
 --------------------------------------------------------------------------------
--- Small indices
+-- Indices generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genUTxOIndexSmall :: Gen UTxOIndex
-genUTxOIndexSmall = UTxOIndex.fromUTxO <$> genUTxOSmall
+genUTxOIndex :: Gen UTxOIndex
+genUTxOIndex = UTxOIndex.fromUTxO <$> genUTxO
 
-shrinkUTxOIndexSmall :: UTxOIndex -> [UTxOIndex]
-shrinkUTxOIndexSmall =
-    fmap UTxOIndex.fromUTxO . shrinkUTxOSmall  . UTxOIndex.toUTxO
+shrinkUTxOIndex :: UTxOIndex -> [UTxOIndex]
+shrinkUTxOIndex = fmap UTxOIndex.fromUTxO . shrinkUTxO . UTxOIndex.toUTxO
 
 --------------------------------------------------------------------------------
 -- Large indices

@@ -22,7 +22,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndexSmall, shrinkUTxOIndexSmall )
+    ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     ( InvariantStatus (..), SelectionFilter (..), UTxOIndex, checkInvariant )
 import Control.Monad.Random.Class
@@ -685,8 +685,8 @@ instance Arbitrary AssetId where
     shrink = shrinkAssetId
 
 instance Arbitrary UTxOIndex where
-    arbitrary = genUTxOIndexSmall
-    shrink = shrinkUTxOIndexSmall
+    arbitrary = genUTxOIndex
+    shrink = shrinkUTxOIndex
 
 instance Arbitrary TxIn where
     arbitrary = genTxIn
