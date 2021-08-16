@@ -7,18 +7,12 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxInLargeRange, genTxOut, shrinkTxIn, shrinkTxOut )
+import Cardano.Wallet.Primitive.Types.UTxO.Gen
+    ( genUTxOLarge, genUTxOLargeN, genUTxOSmall, shrinkUTxOSmall )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
-import Control.Monad
-    ( replicateM )
 import Test.QuickCheck
-    ( Gen, choose, frequency, shrinkList )
-import Test.QuickCheck.Extra
-    ( shrinkInterleaved )
+    ( Gen )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 
@@ -27,47 +21,18 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 --------------------------------------------------------------------------------
 
 genUTxOIndexSmall :: Gen UTxOIndex
-genUTxOIndexSmall = do
-    entryCount <- frequency
-        [ (1, pure 0)
-        , (1, pure 1)
-        , (32, choose (2, 64))
-        ]
-    UTxOIndex.fromSequence <$> replicateM entryCount genEntrySmallRange
+genUTxOIndexSmall = UTxOIndex.fromUTxO <$> genUTxOSmall
 
 shrinkUTxOIndexSmall :: UTxOIndex -> [UTxOIndex]
-shrinkUTxOIndexSmall
-    = take 16
-    . fmap UTxOIndex.fromSequence
-    . shrinkList shrinkEntrySmallRange
-    . UTxOIndex.toList
-
-genEntrySmallRange :: Gen (TxIn, TxOut)
-genEntrySmallRange = (,)
-    <$> genTxIn
-    <*> genTxOut
-
-shrinkEntrySmallRange :: (TxIn, TxOut) -> [(TxIn, TxOut)]
-shrinkEntrySmallRange (i, o) = uncurry (,) <$> shrinkInterleaved
-    (i, shrinkTxIn)
-    (o, shrinkTxOut)
+shrinkUTxOIndexSmall =
+    fmap UTxOIndex.fromUTxO . shrinkUTxOSmall  . UTxOIndex.toUTxO
 
 --------------------------------------------------------------------------------
 -- Large indices
 --------------------------------------------------------------------------------
 
 genUTxOIndexLarge :: Gen UTxOIndex
-genUTxOIndexLarge = do
-    entryCount <- choose (1024, 4096)
-    genUTxOIndexLargeN entryCount
+genUTxOIndexLarge = UTxOIndex.fromUTxO <$> genUTxOLarge
 
 genUTxOIndexLargeN :: Int -> Gen UTxOIndex
-genUTxOIndexLargeN entryCount = do
-    UTxOIndex.fromSequence <$> replicateM entryCount genEntryLargeRange
-
-genEntryLargeRange :: Gen (TxIn, TxOut)
-genEntryLargeRange = (,)
-    <$> genTxInLargeRange
-    -- Note that we don't need to choose outputs from a large range, as inputs
-    -- are already chosen from a large range:
-    <*> genTxOut
+genUTxOIndexLargeN n = UTxOIndex.fromUTxO <$> genUTxOLargeN n
