@@ -21,7 +21,6 @@
 
 endpoint: https://jira.iohk.io
 project: ADP
-authentication-method: bearer-token
 
 custom-commands:
   - name: bugs
