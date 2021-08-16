@@ -11,6 +11,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+{- HLINT ignore "Use newtype instead of data" -}
+
 module Cardano.Wallet.Api
     ( -- * API
       Api
@@ -146,6 +148,8 @@ module Cardano.Wallet.Api
     , ApiLayer (..)
     , HasWorkerRegistry
     , workerRegistry
+    , WalletLock (..)
+    , walletLocks
     , HasDBFactory
     , dbFactory
     , tokenMetadataClient
@@ -247,6 +251,8 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
+import Control.Concurrent.Concierge
+    ( Concierge )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.ByteString
@@ -1073,14 +1079,21 @@ data ApiLayer s (k :: Depth -> Type -> Type)
         (TransactionLayer k)
         (DBFactory IO s k)
         (WorkerRegistry WalletId (DBLayer IO s k))
+        (Concierge IO WalletLock)
         (TokenMetadataClient IO)
     deriving (Generic)
+
+-- | Locks that are held by the wallet in order to enforce
+-- sequential executation of some API actions.
+-- Used with "Control.Concurrent.Concierge".
+data WalletLock = PostTransactionOld WalletId
+    deriving (Eq, Ord, Show)
 
 instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k) where
     type WorkerCtx (ApiLayer s k) = WalletLayer IO s k
     type WorkerMsg (ApiLayer s k) = WalletWorkerLog
     type WorkerKey (ApiLayer s k) = WalletId
-    hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _) =
+    hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 
 {-------------------------------------------------------------------------------
@@ -1114,6 +1127,12 @@ tokenMetadataClient
     => Lens' ctx (TokenMetadataClient IO)
 tokenMetadataClient =
     typed @(TokenMetadataClient IO)
+
+walletLocks
+    :: forall ctx. (HasType (Concierge IO WalletLock) ctx)
+    => Lens' ctx (Concierge IO WalletLock)
+walletLocks =
+    typed @(Concierge IO WalletLock)
 
 {-------------------------------------------------------------------------------
                               Type Families

@@ -178,8 +178,10 @@ import Cardano.Wallet.Api
     , HasDBFactory
     , HasTokenMetadataClient
     , HasWorkerRegistry
+    , WalletLock (..)
     , dbFactory
     , tokenMetadataClient
+    , walletLocks
     , workerRegistry
     )
 import Cardano.Wallet.Api.Server.Tls
@@ -578,6 +580,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Registry as Registry
+import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -1850,7 +1853,8 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             , txTimeToLive = ttl
             }
 
-    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
+      atomicallyWithHandler (ctx ^. walletLocks) (PostTransactionOld wid) $ do
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         sel <- liftHandler
             $ W.selectAssets @_ @s @k wrk w txCtx outs (const Prelude.id)
@@ -3093,7 +3097,8 @@ newApiLayer tr g0 nw tl df tokenMeta coworker = do
     re <- Registry.empty
     let trTx = contramap MsgSubmitSealedTx tr
     let trW = contramap MsgWalletWorker tr
-    let ctx = ApiLayer trTx trW g0 nw tl df re tokenMeta
+    locks <- Concierge.newConcierge
+    let ctx = ApiLayer trTx trW g0 nw tl df re locks tokenMeta
     listDatabases df >>= mapM_ (startWalletWorker ctx coworker)
     return ctx
 
@@ -3215,6 +3220,14 @@ withWorkerCtx ctx wid onMissing onNotResponding action =
   where
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
+
+{-------------------------------------------------------------------------------
+    Atomic handler operations
+-------------------------------------------------------------------------------}
+atomicallyWithHandler
+    :: Ord lock
+    => Concierge.Concierge IO lock -> lock -> Handler a -> Handler a
+atomicallyWithHandler c l = Handler . Concierge.atomicallyWith c l . runHandler'
 
 {-------------------------------------------------------------------------------
                                 Error Handling
