@@ -300,6 +300,7 @@ test-suite unit
     , http-types
     , iohk-monitoring
     , io-classes
+    , io-sim
     , lattices
     , lens
     , memory
@@ -408,6 +409,7 @@ test-suite unit
       Cardano.Wallet.RegistrySpec
       Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec
+      Control.Concurrent.ConciergeSpec
       Data.Function.UtilsSpec
       Data.QuantitySpec
       Data.Time.TextSpec

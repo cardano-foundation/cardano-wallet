@@ -173,6 +173,7 @@
             (hsPkgs."http-types" or (errorHandler.buildDepError "http-types"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+            (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
             (hsPkgs."lattices" or (errorHandler.buildDepError "lattices"))
             (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
