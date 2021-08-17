@@ -2,12 +2,12 @@
 
 module Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxHash
-    , genTxIndexSmallRange
+    , genTxIndex
     , genTxInSmallRange
     , genTxInLargeRange
     , genTxOutSmallRange
     , shrinkTxHash
-    , shrinkTxIndexSmallRange
+    , shrinkTxIndex
     , shrinkTxInSmallRange
     , shrinkTxOutSmallRange
     )
@@ -69,18 +69,18 @@ genTxHashLargeRange :: Gen (Hash "Tx")
 genTxHashLargeRange = Hash . B8.pack <$> replicateM 32 arbitrary
 
 --------------------------------------------------------------------------------
--- Transaction indices chosen from a small range (to allow collisions)
+-- Transaction indices generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genTxIndexSmallRange :: Gen Word32
-genTxIndexSmallRange = elements txIndices
+genTxIndex :: Gen Word32
+genTxIndex = sized $ \size -> elements $ take (max 1 size) txIndices
 
-shrinkTxIndexSmallRange :: Word32 -> [Word32]
-shrinkTxIndexSmallRange 0 = []
-shrinkTxIndexSmallRange _ = [0]
+shrinkTxIndex :: Word32 -> [Word32]
+shrinkTxIndex 0 = []
+shrinkTxIndex _ = [0]
 
 txIndices :: [Word32]
-txIndices = [0 .. 7]
+txIndices = [0 ..]
 
 --------------------------------------------------------------------------------
 -- Transaction inputs chosen from a small range (to allow collisions)
@@ -89,12 +89,12 @@ txIndices = [0 .. 7]
 genTxInSmallRange :: Gen TxIn
 genTxInSmallRange = TxIn
     <$> genTxHash
-    <*> genTxIndexSmallRange
+    <*> genTxIndex
 
 shrinkTxInSmallRange :: TxIn -> [TxIn]
 shrinkTxInSmallRange (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
     (h, shrinkTxHash)
-    (i, shrinkTxIndexSmallRange)
+    (i, shrinkTxIndex)
 
 --------------------------------------------------------------------------------
 -- Transaction inputs chosen from a large range (to minimize collisions)
@@ -105,7 +105,7 @@ genTxInLargeRange = TxIn
     <$> genTxHashLargeRange
     -- Note that we don't need to choose indices from a large range, as hashes
     -- are already chosen from a large range:
-    <*> genTxIndexSmallRange
+    <*> genTxIndex
 
 --------------------------------------------------------------------------------
 -- Transaction outputs chosen from a small range (to allow collisions)
