@@ -3,12 +3,12 @@
 module Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxHash
     , genTxIndex
-    , genTxInSmallRange
+    , genTxIn
     , genTxInLargeRange
     , genTxOutSmallRange
     , shrinkTxHash
     , shrinkTxIndex
-    , shrinkTxInSmallRange
+    , shrinkTxIn
     , shrinkTxOutSmallRange
     )
     where
@@ -38,7 +38,7 @@ import Data.Word
 import Test.QuickCheck
     ( Gen, arbitrary, elements, sized, suchThat )
 import Test.QuickCheck.Extra
-    ( shrinkInterleaved )
+    ( genSized2With, shrinkInterleaved )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Char8 as B8
@@ -83,16 +83,14 @@ txIndices :: [Word32]
 txIndices = [0 ..]
 
 --------------------------------------------------------------------------------
--- Transaction inputs chosen from a small range (to allow collisions)
+-- Transaction inputs generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genTxInSmallRange :: Gen TxIn
-genTxInSmallRange = TxIn
-    <$> genTxHash
-    <*> genTxIndex
+genTxIn :: Gen TxIn
+genTxIn = genSized2With TxIn genTxHash genTxIndex
 
-shrinkTxInSmallRange :: TxIn -> [TxIn]
-shrinkTxInSmallRange (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
+shrinkTxIn :: TxIn -> [TxIn]
+shrinkTxIn (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
     (h, shrinkTxHash)
     (i, shrinkTxIndex)
 
