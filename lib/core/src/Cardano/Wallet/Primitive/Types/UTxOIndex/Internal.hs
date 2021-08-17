@@ -205,7 +205,7 @@ fromSequence = flip insertMany empty
 -- index from scratch, and therefore should only be used sparingly.
 --
 fromUTxO :: UTxO -> UTxOIndex
-fromUTxO = Map.foldlWithKey' (\u i o -> insertUnsafe i o u) empty . getUTxO
+fromUTxO = Map.foldlWithKey' (\u i o -> insertUnsafe i o u) empty . unUTxO
 
 --------------------------------------------------------------------------------
 -- Deconstruction

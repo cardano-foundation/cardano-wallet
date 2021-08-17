@@ -18,15 +18,11 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxInSmallRange
-    , genTxOutSmallRange
-    , shrinkTxInSmallRange
-    , shrinkTxOutSmallRange
-    )
+    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndexSmall, shrinkUTxOIndexSmall )
+    ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     ( InvariantStatus (..), SelectionFilter (..), UTxOIndex, checkInvariant )
 import Control.Monad.Random.Class
@@ -423,7 +419,7 @@ prop_selectRandom_one_withAdaOnly u = checkCoverage $ monadicIO $ do
             assert $ u /= u'
   where
     utxoHasNoAdaOnlyEntries =
-        Map.null $ Map.filter txOutIsAdaOnly $ getUTxO $ UTxOIndex.toUTxO u
+        Map.null $ Map.filter txOutIsAdaOnly $ unUTxO $ UTxOIndex.toUTxO u
 
 -- | Attempt to select a random element with a specific asset.
 --
@@ -553,7 +549,7 @@ prop_selectRandomWithPriority u =
             "have match for asset 1 but not for asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && haveMatchForAsset2)
             "have match for asset 2 but not for asset 1"
-        monitor $ cover 4 (haveMatchForAsset1 && haveMatchForAsset2)
+        monitor $ cover 1 (haveMatchForAsset1 && haveMatchForAsset2)
             "have match for both asset 1 and asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && not haveMatchForAsset2)
             "have match for neither asset 1 nor asset 2"
@@ -689,16 +685,16 @@ instance Arbitrary AssetId where
     shrink = shrinkAssetId
 
 instance Arbitrary UTxOIndex where
-    arbitrary = genUTxOIndexSmall
-    shrink = shrinkUTxOIndexSmall
+    arbitrary = genUTxOIndex
+    shrink = shrinkUTxOIndex
 
 instance Arbitrary TxIn where
-    arbitrary = genTxInSmallRange
-    shrink = shrinkTxInSmallRange
+    arbitrary = genTxIn
+    shrink = shrinkTxIn
 
 instance Arbitrary TxOut where
-    arbitrary = genTxOutSmallRange
-    shrink = shrinkTxOutSmallRange
+    arbitrary = genTxOut
+    shrink = shrinkTxOut
 
 instance Arbitrary SelectionFilter where
     arbitrary = genSelectionFilterSmallRange

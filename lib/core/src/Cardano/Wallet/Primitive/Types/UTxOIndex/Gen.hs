@@ -1,78 +1,37 @@
 module Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndexSmall
+    ( genUTxOIndex
     , genUTxOIndexLarge
     , genUTxOIndexLargeN
-    , shrinkUTxOIndexSmall
+    , shrinkUTxOIndex
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut )
-import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxInLargeRange
-    , genTxInSmallRange
-    , genTxOutSmallRange
-    , shrinkTxInSmallRange
-    , shrinkTxOutSmallRange
-    )
+import Cardano.Wallet.Primitive.Types.UTxO.Gen
+    ( genUTxO, genUTxOLarge, genUTxOLargeN, shrinkUTxO )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
-import Control.Monad
-    ( replicateM )
 import Test.QuickCheck
-    ( Gen, choose, frequency, shrinkList )
-import Test.QuickCheck.Extra
-    ( shrinkInterleaved )
+    ( Gen )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 
 --------------------------------------------------------------------------------
--- Small indices
+-- Indices generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genUTxOIndexSmall :: Gen UTxOIndex
-genUTxOIndexSmall = do
-    entryCount <- frequency
-        [ (1, pure 0)
-        , (1, pure 1)
-        , (32, choose (2, 64))
-        ]
-    UTxOIndex.fromSequence <$> replicateM entryCount genEntrySmallRange
+genUTxOIndex :: Gen UTxOIndex
+genUTxOIndex = UTxOIndex.fromUTxO <$> genUTxO
 
-shrinkUTxOIndexSmall :: UTxOIndex -> [UTxOIndex]
-shrinkUTxOIndexSmall
-    = take 16
-    . fmap UTxOIndex.fromSequence
-    . shrinkList shrinkEntrySmallRange
-    . UTxOIndex.toList
-
-genEntrySmallRange :: Gen (TxIn, TxOut)
-genEntrySmallRange = (,)
-    <$> genTxInSmallRange
-    <*> genTxOutSmallRange
-
-shrinkEntrySmallRange :: (TxIn, TxOut) -> [(TxIn, TxOut)]
-shrinkEntrySmallRange (i, o) = uncurry (,) <$> shrinkInterleaved
-    (i, shrinkTxInSmallRange)
-    (o, shrinkTxOutSmallRange)
+shrinkUTxOIndex :: UTxOIndex -> [UTxOIndex]
+shrinkUTxOIndex = fmap UTxOIndex.fromUTxO . shrinkUTxO . UTxOIndex.toUTxO
 
 --------------------------------------------------------------------------------
 -- Large indices
 --------------------------------------------------------------------------------
 
 genUTxOIndexLarge :: Gen UTxOIndex
-genUTxOIndexLarge = do
-    entryCount <- choose (1024, 4096)
-    genUTxOIndexLargeN entryCount
+genUTxOIndexLarge = UTxOIndex.fromUTxO <$> genUTxOLarge
 
 genUTxOIndexLargeN :: Int -> Gen UTxOIndex
-genUTxOIndexLargeN entryCount = do
-    UTxOIndex.fromSequence <$> replicateM entryCount genEntryLargeRange
-
-genEntryLargeRange :: Gen (TxIn, TxOut)
-genEntryLargeRange = (,)
-    <$> genTxInLargeRange
-    -- Note that we don't need to choose outputs from a large range, as inputs
-    -- are already chosen from a large range:
-    <*> genTxOutSmallRange
+genUTxOIndexLargeN n = UTxOIndex.fromUTxO <$> genUTxOLargeN n

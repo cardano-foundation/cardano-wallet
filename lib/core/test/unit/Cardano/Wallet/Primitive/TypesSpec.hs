@@ -905,7 +905,7 @@ prop_2_1_3 :: (Set TxOut, UTxO) -> Property
 prop_2_1_3 (outs, u) =
     cover 50 cond "u ⋂ outs ≠ ∅" (property prop)
   where
-    cond = not $ Set.fromList (Map.elems (getUTxO u)) `Set.disjoint` outs
+    cond = not $ Set.fromList (Map.elems (unUTxO u)) `Set.disjoint` outs
     prop = (u `restrictedTo` outs) `isSubsetOf` u
 
 prop_2_1_4 :: (Set TxIn, UTxO, UTxO) -> Property
@@ -1042,7 +1042,7 @@ propUtxoWeightsEqualSize
     -> ShowFmt UTxO
     -> Property
 propUtxoWeightsEqualSize bType (ShowFmt utxo) =
-    sum (histElems bars) === fromIntegral (Map.size $ getUTxO utxo)
+    sum (histElems bars) === fromIntegral (Map.size $ unUTxO utxo)
     & cover 75 (utxo /= mempty) "UTxO /= empty"
     & counterexample ("Coefficients: " <> pretty (histElems bars))
   where

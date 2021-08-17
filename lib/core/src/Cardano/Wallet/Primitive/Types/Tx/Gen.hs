@@ -1,22 +1,22 @@
 {-# LANGUAGE DataKinds #-}
 
 module Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxHashSmallRange
-    , genTxIndexSmallRange
-    , genTxInSmallRange
+    ( genTxHash
+    , genTxIndex
+    , genTxIn
     , genTxInLargeRange
-    , genTxOutSmallRange
-    , shrinkTxHashSmallRange
-    , shrinkTxIndexSmallRange
-    , shrinkTxInSmallRange
-    , shrinkTxOutSmallRange
+    , genTxOut
+    , shrinkTxHash
+    , shrinkTxIndex
+    , shrinkTxIn
+    , shrinkTxOut
     )
     where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddressSmallRange, shrinkAddressSmallRange )
+    ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -36,30 +36,30 @@ import Data.Text.Class
 import Data.Word
     ( Word32 )
 import Test.QuickCheck
-    ( Gen, arbitrary, elements, suchThat )
+    ( Gen, arbitrary, elements, sized, suchThat )
 import Test.QuickCheck.Extra
-    ( shrinkInterleaved )
+    ( genSized2With, shrinkInterleaved )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
--- Transaction hashes chosen from a small range (to allow collisions)
+-- Transaction hashes generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genTxHashSmallRange :: Gen (Hash "Tx")
-genTxHashSmallRange = elements txHashes
+genTxHash :: Gen (Hash "Tx")
+genTxHash = sized $ \size -> elements $ take (max 1 size) txHashes
 
-shrinkTxHashSmallRange :: Hash "Tx" -> [Hash "Tx"]
-shrinkTxHashSmallRange x
+shrinkTxHash :: Hash "Tx" -> [Hash "Tx"]
+shrinkTxHash x
     | x == simplest = []
     | otherwise = [simplest]
   where
     simplest = head txHashes
 
 txHashes :: [Hash "Tx"]
-txHashes = mkTxHash <$> ['0' .. '7']
+txHashes = mkTxHash <$> ['0' .. '9'] <> ['A' .. 'F']
 
 --------------------------------------------------------------------------------
 -- Transaction hashes chosen from a large range (to minimize collisions)
@@ -69,32 +69,30 @@ genTxHashLargeRange :: Gen (Hash "Tx")
 genTxHashLargeRange = Hash . B8.pack <$> replicateM 32 arbitrary
 
 --------------------------------------------------------------------------------
--- Transaction indices chosen from a small range (to allow collisions)
+-- Transaction indices generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genTxIndexSmallRange :: Gen Word32
-genTxIndexSmallRange = elements txIndices
+genTxIndex :: Gen Word32
+genTxIndex = sized $ \size -> elements $ take (max 1 size) txIndices
 
-shrinkTxIndexSmallRange :: Word32 -> [Word32]
-shrinkTxIndexSmallRange 0 = []
-shrinkTxIndexSmallRange _ = [0]
+shrinkTxIndex :: Word32 -> [Word32]
+shrinkTxIndex 0 = []
+shrinkTxIndex _ = [0]
 
 txIndices :: [Word32]
-txIndices = [0 .. 7]
+txIndices = [0 ..]
 
 --------------------------------------------------------------------------------
--- Transaction inputs chosen from a small range (to allow collisions)
+-- Transaction inputs generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genTxInSmallRange :: Gen TxIn
-genTxInSmallRange = TxIn
-    <$> genTxHashSmallRange
-    <*> genTxIndexSmallRange
+genTxIn :: Gen TxIn
+genTxIn = genSized2With TxIn genTxHash genTxIndex
 
-shrinkTxInSmallRange :: TxIn -> [TxIn]
-shrinkTxInSmallRange (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
-    (h, shrinkTxHashSmallRange)
-    (i, shrinkTxIndexSmallRange)
+shrinkTxIn :: TxIn -> [TxIn]
+shrinkTxIn (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
+    (h, shrinkTxHash)
+    (i, shrinkTxIndex)
 
 --------------------------------------------------------------------------------
 -- Transaction inputs chosen from a large range (to minimize collisions)
@@ -105,20 +103,20 @@ genTxInLargeRange = TxIn
     <$> genTxHashLargeRange
     -- Note that we don't need to choose indices from a large range, as hashes
     -- are already chosen from a large range:
-    <*> genTxIndexSmallRange
+    <*> genTxIndex
 
 --------------------------------------------------------------------------------
--- Transaction outputs chosen from a small range (to allow collisions)
+-- Transaction outputs generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genTxOutSmallRange :: Gen TxOut
-genTxOutSmallRange = TxOut
-    <$> genAddressSmallRange
+genTxOut :: Gen TxOut
+genTxOut = TxOut
+    <$> genAddress
     <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
 
-shrinkTxOutSmallRange :: TxOut -> [TxOut]
-shrinkTxOutSmallRange (TxOut a b) = uncurry TxOut <$> shrinkInterleaved
-    (a, shrinkAddressSmallRange)
+shrinkTxOut :: TxOut -> [TxOut]
+shrinkTxOut (TxOut a b) = uncurry TxOut <$> shrinkInterleaved
+    (a, shrinkAddress)
     (b, filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
@@ -128,7 +126,7 @@ tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
 -- Internal utilities
 --------------------------------------------------------------------------------
 
--- The input must be a character in the range [0-9] or [A-Z].
+-- The input must be a character in the range [0-9] or [A-F].
 --
 mkTxHash :: Char -> Hash "Tx"
 mkTxHash c

@@ -104,15 +104,11 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOutSmallRange, shrinkTxOutSmallRange )
+    ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndexLarge
-    , genUTxOIndexLargeN
-    , genUTxOIndexSmall
-    , shrinkUTxOIndexSmall
-    )
+    ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
@@ -452,9 +448,9 @@ prop_Small_UTxOIndex_coverage (Small index) =
         -- Entry counts:
         $ cover 1 (entryCount == 0)
             "UTxO set size = 0 entries"
-        $ cover 60 (entryCount > 16)
+        $ cover 40 (entryCount > 16)
             "UTxO set size > 16 entries"
-        $ cover 20 (entryCount > 32)
+        $ cover 10 (entryCount > 32)
             "UTxO set size > 32 entries"
         True
   where
@@ -583,12 +579,12 @@ type PerformSelectionResult =
     Either SelectionError (SelectionResult TokenBundle)
 
 genSelectionCriteria :: Gen UTxOIndex -> Gen SelectionCriteria
-genSelectionCriteria genUTxOIndex = do
-    utxoAvailable <- genUTxOIndex
+genSelectionCriteria genUTxOIndex' = do
+    utxoAvailable <- genUTxOIndex'
     outputCount <- max 1 <$>
         choose (1, UTxOIndex.size utxoAvailable `div` 8)
     outputsToCover <- NE.fromList <$>
-        replicateM outputCount genTxOutSmallRange
+        replicateM outputCount genTxOut
     selectionLimit <- frequency
         [ (5, pure NoLimit)
         , (1, pure $ MaximumInputLimit 0)
@@ -3517,8 +3513,8 @@ instance Arbitrary TokenQuantity where
     shrink = shrinkTokenQuantityPositive
 
 instance Arbitrary TxOut where
-    arbitrary = genTxOutSmallRange
-    shrink = shrinkTxOutSmallRange
+    arbitrary = genTxOut
+    shrink = shrinkTxOut
 
 newtype Large a = Large
     { getLarge :: a }
@@ -3533,7 +3529,7 @@ instance Arbitrary (Large SelectionCriteria) where
     -- No shrinking
 
 instance Arbitrary (Small SelectionCriteria) where
-    arbitrary = Small <$> genSelectionCriteria genUTxOIndexSmall
+    arbitrary = Small <$> genSelectionCriteria genUTxOIndex
     -- No shrinking
 
 instance Arbitrary (Large UTxOIndex) where
@@ -3541,8 +3537,8 @@ instance Arbitrary (Large UTxOIndex) where
     -- No shrinking
 
 instance Arbitrary (Small UTxOIndex) where
-    arbitrary = Small <$> genUTxOIndexSmall
-    shrink = fmap Small . shrinkUTxOIndexSmall . getSmall
+    arbitrary = Small <$> genUTxOIndex
+    shrink = fmap Small . shrinkUTxOIndex . getSmall
 
 instance Arbitrary Coin where
     arbitrary = genCoinPositive

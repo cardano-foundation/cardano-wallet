@@ -1,6 +1,6 @@
 module Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddressSmallRange
-    , shrinkAddressSmallRange
+    ( genAddress
+    , shrinkAddress
     )
     where
 
@@ -9,22 +9,26 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Test.QuickCheck
-    ( Gen, elements )
+    ( Gen, elements, sized )
 
 import qualified Data.ByteString.Char8 as B8
 
 --------------------------------------------------------------------------------
--- Addresses chosen from a small range (to allow collisions)
+-- Addresses generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genAddressSmallRange :: Gen (Address)
-genAddressSmallRange = elements addresses
+genAddress :: Gen (Address)
+genAddress = sized $ \size -> elements $ take (max 1 size) addresses
 
-shrinkAddressSmallRange :: Address -> [Address]
-shrinkAddressSmallRange a = filter (< a) addresses
+shrinkAddress :: Address -> [Address]
+shrinkAddress a
+    | a == simplest = []
+    | otherwise = [simplest]
+  where
+    simplest = head addresses
 
 addresses :: [Address]
-addresses = mkAddress <$> ['0' .. '7']
+addresses = mkAddress <$> ['0' ..]
 
 --------------------------------------------------------------------------------
 -- Internal utilities
