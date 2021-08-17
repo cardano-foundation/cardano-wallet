@@ -153,9 +153,9 @@ jobs:
           status: ${{ job.status }}
           steps: ${{ toJson(steps) }}
           # channel: '#adrestia-secret-fort'
-          channel: '@rvl'
+          channel: '@piotr.stachyra'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         # Only notify when state changes between failure/success for
         # interesting branches/tags.
-        if: ${{ steps.previous.do_notify && (github.ref == 'refs/heads/master' || github.ref == 'refs/tags/v' || github.ref == 'refs/heads/rvl/adp-753/ci-notify') }}
+        if: ${{ steps.previous.outputs.do_notify && (github.ref == 'refs/heads/master' || github.ref == 'refs/tags/v' || github.ref == 'refs/heads/rvl/adp-753/ci-notify') }}
