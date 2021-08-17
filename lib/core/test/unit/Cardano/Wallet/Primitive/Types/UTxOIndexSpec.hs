@@ -18,11 +18,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn
-    , genTxOutSmallRange
-    , shrinkTxIn
-    , shrinkTxOutSmallRange
-    )
+    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -697,8 +693,8 @@ instance Arbitrary TxIn where
     shrink = shrinkTxIn
 
 instance Arbitrary TxOut where
-    arbitrary = genTxOutSmallRange
-    shrink = shrinkTxOutSmallRange
+    arbitrary = genTxOut
+    shrink = shrinkTxOut
 
 instance Arbitrary SelectionFilter where
     arbitrary = genSelectionFilterSmallRange

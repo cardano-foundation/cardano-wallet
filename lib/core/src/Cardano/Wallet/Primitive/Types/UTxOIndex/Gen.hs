@@ -10,12 +10,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxInLargeRange
-    , genTxInSmallRange
-    , genTxOutSmallRange
-    , shrinkTxInSmallRange
-    , shrinkTxOutSmallRange
-    )
+    ( genTxIn, genTxInLargeRange, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Control.Monad
@@ -49,13 +44,13 @@ shrinkUTxOIndexSmall
 
 genEntrySmallRange :: Gen (TxIn, TxOut)
 genEntrySmallRange = (,)
-    <$> genTxInSmallRange
-    <*> genTxOutSmallRange
+    <$> genTxIn
+    <*> genTxOut
 
 shrinkEntrySmallRange :: (TxIn, TxOut) -> [(TxIn, TxOut)]
 shrinkEntrySmallRange (i, o) = uncurry (,) <$> shrinkInterleaved
-    (i, shrinkTxInSmallRange)
-    (o, shrinkTxOutSmallRange)
+    (i, shrinkTxIn)
+    (o, shrinkTxOut)
 
 --------------------------------------------------------------------------------
 -- Large indices
@@ -75,4 +70,4 @@ genEntryLargeRange = (,)
     <$> genTxInLargeRange
     -- Note that we don't need to choose outputs from a large range, as inputs
     -- are already chosen from a large range:
-    <*> genTxOutSmallRange
+    <*> genTxOut

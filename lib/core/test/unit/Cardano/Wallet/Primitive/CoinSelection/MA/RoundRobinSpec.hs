@@ -104,7 +104,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOutSmallRange, shrinkTxOutSmallRange )
+    ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -588,7 +588,7 @@ genSelectionCriteria genUTxOIndex = do
     outputCount <- max 1 <$>
         choose (1, UTxOIndex.size utxoAvailable `div` 8)
     outputsToCover <- NE.fromList <$>
-        replicateM outputCount genTxOutSmallRange
+        replicateM outputCount genTxOut
     selectionLimit <- frequency
         [ (5, pure NoLimit)
         , (1, pure $ MaximumInputLimit 0)
@@ -3517,8 +3517,8 @@ instance Arbitrary TokenQuantity where
     shrink = shrinkTokenQuantityPositive
 
 instance Arbitrary TxOut where
-    arbitrary = genTxOutSmallRange
-    shrink = shrinkTxOutSmallRange
+    arbitrary = genTxOut
+    shrink = shrinkTxOut
 
 newtype Large a = Large
     { getLarge :: a }

@@ -5,11 +5,11 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , genTxIndex
     , genTxIn
     , genTxInLargeRange
-    , genTxOutSmallRange
+    , genTxOut
     , shrinkTxHash
     , shrinkTxIndex
     , shrinkTxIn
-    , shrinkTxOutSmallRange
+    , shrinkTxOut
     )
     where
 
@@ -106,16 +106,16 @@ genTxInLargeRange = TxIn
     <*> genTxIndex
 
 --------------------------------------------------------------------------------
--- Transaction outputs chosen from a small range (to allow collisions)
+-- Transaction outputs generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genTxOutSmallRange :: Gen TxOut
-genTxOutSmallRange = TxOut
+genTxOut :: Gen TxOut
+genTxOut = TxOut
     <$> genAddress
     <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
 
-shrinkTxOutSmallRange :: TxOut -> [TxOut]
-shrinkTxOutSmallRange (TxOut a b) = uncurry TxOut <$> shrinkInterleaved
+shrinkTxOut :: TxOut -> [TxOut]
+shrinkTxOut (TxOut a b) = uncurry TxOut <$> shrinkInterleaved
     (a, shrinkAddress)
     (b, filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
 
