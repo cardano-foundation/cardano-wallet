@@ -59,6 +59,7 @@ module Test.Integration.Framework.DSL
     , securityParameterValue
     , epochLengthValue
     , defaultTxTTL
+    , maximumCollateralInputCountByEra
 
     -- * Create wallets
     , restoreWalletFromPubKey
@@ -374,7 +375,7 @@ import Data.Time
 import Data.Time.Text
     ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word16, Word32, Word64 )
 import Fmt
     ( indentF, (+|), (|+) )
 import Language.Haskell.TH.Quote
@@ -678,6 +679,15 @@ epochLengthValue = 100
 -- given.
 defaultTxTTL :: NominalDiffTime
 defaultTxTTL = 7200
+
+maximumCollateralInputCountByEra :: ApiEra -> Word16
+maximumCollateralInputCountByEra = \case
+    ApiByron   -> 0
+    ApiShelley -> 0
+    ApiAllegra -> 0
+    ApiMary    -> 0
+    -- value from alonzo-genesis.yaml:
+    ApiAlonzo  -> 1
 
 --
 -- Helpers
