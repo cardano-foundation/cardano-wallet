@@ -7,13 +7,17 @@ title: Architecture
 
 {{< mermaid >}}
 erDiagram
-  CARDANO-NODE ||--o{ CARDANO-WALLET : sends-blocks-and-receives-txs
-  CARDANO-NODE ||--o{ CARDANO-DB-SYNC : sends-blocks
-  CARDANO-NODE ||--o{ CARDANO-SUBMIT-API : receives-txs
+  CARDANO-NODE ||--|{ CARDANO-WALLET : depends-on
+  CARDANO-NODE ||--|{ CARDANO-DB-SYNC : depends-on
 
-  CARDANO-DB-SYNC ||--|| POSTGRESQL : dumps-into
+  CARDANO-DB-SYNC ||--|{ SMASH : depends-on
+  CARDANO-DB-SYNC ||--|{ CARDANO-GRAPHQL : depends-on
+  CARDANO-DB-SYNC ||--|{ CARDANO-ROSETTA : depends-on
 
-  POSTGRESQL ||--|| CARDANO-GRAPHQL : is-queried
+  CARDANO-GRAPHQL ||--|{ EXPLORER : depends-on
+
+  SMASH ||--|{ CARDANO-WALLET: connects-to
+  CARDANO-WALLET ||--|{ DAEDALUS : depends-on
 
 {{< /mermaid >}}
 
@@ -43,7 +47,7 @@ This application stores blockchain data fetched from [cardano-node][cardano-node
 Supported environments: Linux (64-bits), MacOS (64-bits), Docker
 {{< /hint >}}
 
-### [cardano-graphql][cardano-graphql] 
+### [cardano-graphql][cardano-graphql]
 
 A GraphQL API for Cardano, which also serves as the backend of
 [Cardano Explorer](https://explorer.cardano.org/).
@@ -74,7 +78,7 @@ Users with an existing integration to [cardano-rest][] are encouraged to look at
 
 {{<mermaid>}}
 graph TD
-QMakeTx{Do you need to <br/> make transactions?} 
+QMakeTx{Do you need to <br/> make transactions?}
 QManageUTxO{Do you want to <br/>implement your own wallet?}
 QAlreadyIntegrated{Do you already have<br/>an integration with<br/>cardano-sl?}
 
