@@ -1,12 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 
 module Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxHashSmallRange
+    ( genTxHash
     , genTxIndexSmallRange
     , genTxInSmallRange
     , genTxInLargeRange
     , genTxOutSmallRange
-    , shrinkTxHashSmallRange
+    , shrinkTxHash
     , shrinkTxIndexSmallRange
     , shrinkTxInSmallRange
     , shrinkTxOutSmallRange
@@ -36,7 +36,7 @@ import Data.Text.Class
 import Data.Word
     ( Word32 )
 import Test.QuickCheck
-    ( Gen, arbitrary, elements, suchThat )
+    ( Gen, arbitrary, elements, sized, suchThat )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
@@ -45,21 +45,21 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
--- Transaction hashes chosen from a small range (to allow collisions)
+-- Transaction hashes generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genTxHashSmallRange :: Gen (Hash "Tx")
-genTxHashSmallRange = elements txHashes
+genTxHash :: Gen (Hash "Tx")
+genTxHash = sized $ \size -> elements $ take (max 1 size) txHashes
 
-shrinkTxHashSmallRange :: Hash "Tx" -> [Hash "Tx"]
-shrinkTxHashSmallRange x
+shrinkTxHash :: Hash "Tx" -> [Hash "Tx"]
+shrinkTxHash x
     | x == simplest = []
     | otherwise = [simplest]
   where
     simplest = head txHashes
 
 txHashes :: [Hash "Tx"]
-txHashes = mkTxHash <$> ['0' .. '7']
+txHashes = mkTxHash <$> ['0' .. '9'] <> ['A' .. 'F']
 
 --------------------------------------------------------------------------------
 -- Transaction hashes chosen from a large range (to minimize collisions)
@@ -88,12 +88,12 @@ txIndices = [0 .. 7]
 
 genTxInSmallRange :: Gen TxIn
 genTxInSmallRange = TxIn
-    <$> genTxHashSmallRange
+    <$> genTxHash
     <*> genTxIndexSmallRange
 
 shrinkTxInSmallRange :: TxIn -> [TxIn]
 shrinkTxInSmallRange (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
-    (h, shrinkTxHashSmallRange)
+    (h, shrinkTxHash)
     (i, shrinkTxIndexSmallRange)
 
 --------------------------------------------------------------------------------
@@ -128,7 +128,7 @@ tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
 -- Internal utilities
 --------------------------------------------------------------------------------
 
--- The input must be a character in the range [0-9] or [A-Z].
+-- The input must be a character in the range [0-9] or [A-F].
 --
 mkTxHash :: Char -> Hash "Tx"
 mkTxHash c
