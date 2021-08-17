@@ -38,7 +38,7 @@ Ensure that you have Nix installed and the IOHK binary cache enabled
 Then run this command from the `cardano-wallet` git repo:
 
 ```
-docker load -i $(nix-build -A dockerImage.shelley --no-out-link)
+docker load -i $(nix-build -A dockerImage --no-out-link)
 ```
 
 If you have no local changes, the build should be downloaded from
