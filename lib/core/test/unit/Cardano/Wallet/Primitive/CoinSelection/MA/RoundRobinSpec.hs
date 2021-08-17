@@ -448,9 +448,9 @@ prop_Small_UTxOIndex_coverage (Small index) =
         -- Entry counts:
         $ cover 1 (entryCount == 0)
             "UTxO set size = 0 entries"
-        $ cover 60 (entryCount > 16)
+        $ cover 40 (entryCount > 16)
             "UTxO set size > 16 entries"
-        $ cover 20 (entryCount > 32)
+        $ cover 10 (entryCount > 32)
             "UTxO set size > 32 entries"
         True
   where

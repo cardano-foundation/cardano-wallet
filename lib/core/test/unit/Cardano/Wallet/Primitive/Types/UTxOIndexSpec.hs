@@ -549,7 +549,7 @@ prop_selectRandomWithPriority u =
             "have match for asset 1 but not for asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && haveMatchForAsset2)
             "have match for asset 2 but not for asset 1"
-        monitor $ cover 4 (haveMatchForAsset1 && haveMatchForAsset2)
+        monitor $ cover 1 (haveMatchForAsset1 && haveMatchForAsset2)
             "have match for both asset 1 and asset 2"
         monitor $ cover 4 (not haveMatchForAsset1 && not haveMatchForAsset2)
             "have match for neither asset 1 nor asset 2"
