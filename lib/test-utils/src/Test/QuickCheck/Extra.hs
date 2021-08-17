@@ -10,6 +10,8 @@
 module Test.QuickCheck.Extra
     ( reasonablySized
     , shrinkInterleaved
+    , genSized2
+    , genSized2With
     ) where
 
 import Prelude
@@ -37,6 +39,44 @@ import Test.QuickCheck
 --
 reasonablySized :: Gen a -> Gen a
 reasonablySized = scale (ceiling . sqrt @Double . fromIntegral)
+
+-- | Resizes a generator by taking the nth root of the size parameter.
+--
+-- This combinator can restore size linearity to generators composed of 'n'
+-- independent generators in the case that each generator generates values
+-- from a range that depends on the size parameter.
+--
+-- Example:
+--
+-- Suppose that we have a single generator composed of **three** independent
+-- generators, where each generator depends on the size parameter.
+--
+-- If the current value of the size parameter is 1000, then to generate a range
+-- of up to 1000 different composite values, we can resize each individual
+-- generator so that it generates up to 10 different values:
+--
+-- >>> genComposite = Composite
+-- >>>     <$> scaleToRoot 3 genA
+-- >>>     <*> scaleToRoot 3 genB
+-- >>>     <*> scaleToRoot 3 genC
+--
+scaleToRoot :: Int -> Gen a -> Gen a
+scaleToRoot n = scale
+    $ floor @Double @Int
+    . (** (1.0 / fromIntegral @Int @Double n))
+    . fromIntegral @Int @Double
+
+-- | Generates a 2-tuple whose range depends linearly on the size parameter.
+--
+genSized2 :: Gen a -> Gen b -> Gen (a, b)
+genSized2 genA genB = (,)
+    <$> scaleToRoot 2 genA
+    <*> scaleToRoot 2 genB
+
+-- | Similar to 'genSized2', but with a custom constructor.
+--
+genSized2With :: (a -> b -> c) -> Gen a -> Gen b -> Gen c
+genSized2With f genA genB = uncurry f <$> genSized2 genA genB
 
 -- | Shrink the given pair in interleaved fashion.
 --
