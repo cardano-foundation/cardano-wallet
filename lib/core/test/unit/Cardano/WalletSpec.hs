@@ -106,7 +106,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddressSmallRange )
+    ( genAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -1077,7 +1077,7 @@ genMigrationUTxO mockTxConstraints = do
 
         genTxOut :: Gen TxOut
         genTxOut = TxOut
-            <$> genAddressSmallRange
+            <$> genAddress
             <*> genTokenBundleMixed mockTxConstraints
 
 -- Tests that user-specified target addresses are assigned to generated outputs

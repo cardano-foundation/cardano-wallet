@@ -19,7 +19,7 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     , verify
     )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddressSmallRange )
+    ( genAddress )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -90,7 +90,7 @@ prop_createPlan_equivalent (Blind mockConstraints) =
 
             genTxOut :: Gen TxOut
             genTxOut = TxOut
-                <$> genAddressSmallRange
+                <$> genAddress
                 <*> genTokenBundleMixed mockConstraints
 
 prop_createPlan_equivalent_inner

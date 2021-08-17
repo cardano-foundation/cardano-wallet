@@ -16,7 +16,7 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddressSmallRange, shrinkAddressSmallRange )
+    ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -113,12 +113,12 @@ genTxInLargeRange = TxIn
 
 genTxOutSmallRange :: Gen TxOut
 genTxOutSmallRange = TxOut
-    <$> genAddressSmallRange
+    <$> genAddress
     <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
 
 shrinkTxOutSmallRange :: TxOut -> [TxOut]
 shrinkTxOutSmallRange (TxOut a b) = uncurry TxOut <$> shrinkInterleaved
-    (a, shrinkAddressSmallRange)
+    (a, shrinkAddress)
     (b, filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
 
 tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
