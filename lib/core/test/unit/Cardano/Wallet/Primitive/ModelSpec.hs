@@ -7,6 +7,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -34,6 +35,8 @@ import Cardano.Wallet.Primitive.Model
     , initWallet
     , totalBalance
     , totalUTxO
+    , unsafeInitWallet
+    , utxo
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( flatSlot )
@@ -65,8 +68,12 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txIns
     , txOutCoin
     )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxIn, shrinkTxIn )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
+import Cardano.Wallet.Primitive.Types.UTxO.Gen
+    ( genUTxO, shrinkUTxO )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -75,6 +82,8 @@ import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
 import Data.Foldable
     ( fold )
+import Data.Function
+    ( (&) )
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
@@ -108,17 +117,23 @@ import Test.QuickCheck
     , Gen
     , Positive (..)
     , Property
+    , Testable
     , checkCoverage
     , choose
     , classify
     , counterexample
     , cover
     , elements
+    , forAllShrink
     , frequency
     , genericShrink
+    , liftArbitrary
+    , liftShrink
+    , liftShrink2
     , listOf
     , oneof
     , property
+    , scale
     , shrinkList
     , vector
     , withMaxSuccess
@@ -128,6 +143,7 @@ import Test.QuickCheck
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString as BS
+import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -162,6 +178,14 @@ spec = do
 
         it "only counts rewards once."
             (property prop_countRewardsOnce)
+
+    parallel $ describe "Available UTxO" $ do
+        it "prop_availableUTxO_isSubmap" $
+            property prop_availableUTxO_isSubmap
+        it "prop_availableUTxO_notMember" $
+            property prop_availableUTxO_notMember
+        it "prop_availableUTxO_withoutKeys" $
+            property prop_availableUTxO_withoutKeys
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -287,6 +311,100 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
 
     pretty' :: Buildable a => a -> String
     pretty' = T.unpack . pretty
+
+--------------------------------------------------------------------------------
+-- Available UTxO properties
+--------------------------------------------------------------------------------
+
+-- | Represents all the inputs of a transaction.
+--
+data TxInputs = TxInputs
+    { inputs
+        :: [TxIn]
+    , collateral
+        :: [TxIn]
+    }
+    deriving (Eq, Show)
+
+genTxInputs :: Gen TxInputs
+genTxInputs = TxInputs
+    <$> liftArbitrary genTxIn
+    <*> liftArbitrary genTxIn
+
+shrinkTxInputs :: TxInputs -> [TxInputs]
+shrinkTxInputs TxInputs {inputs, collateral} = uncurry TxInputs <$>
+    liftShrink2
+        (shrinkList shrinkTxIn)
+        (shrinkList shrinkTxIn)
+        (inputs, collateral)
+
+allInputsOfTxs :: Set Tx -> Set TxIn
+allInputsOfTxs = F.foldMap allInputsOfTx
+  where
+    allInputsOfTx :: Tx -> Set TxIn
+    allInputsOfTx tx = Set.fromList $ fst <$> mconcat
+        [ tx & resolvedInputs
+        , tx & resolvedCollateral
+        ]
+
+prop_availableUTxO_isSubmap :: Property
+prop_availableUTxO_isSubmap =
+    prop_availableUTxO $ \_pendingTxs wallet result ->
+    unUTxO result `Map.isSubmapOf` unUTxO (utxo wallet)
+
+prop_availableUTxO_notMember :: Property
+prop_availableUTxO_notMember =
+    prop_availableUTxO $ \pendingTxs _wallet result ->
+    all (`Map.notMember` unUTxO result)
+        (allInputsOfTxs pendingTxs)
+
+prop_availableUTxO_withoutKeys :: Property
+prop_availableUTxO_withoutKeys =
+    prop_availableUTxO $ \pendingTxs wallet result ->
+    unUTxO (utxo wallet) `Map.withoutKeys` allInputsOfTxs pendingTxs
+        === unUTxO result
+
+prop_availableUTxO
+    :: Testable prop
+    => (Set Tx -> Wallet s -> UTxO -> prop)
+    -> Property
+prop_availableUTxO makeProperty =
+    forAllShrink (scale (* 4) genUTxO) shrinkUTxO
+        $ \utxo ->
+    forAllShrink (liftArbitrary genTxInputs) (liftShrink shrinkTxInputs)
+        $ \pendingTxInputs ->
+    inner utxo pendingTxInputs
+  where
+    inner utxo pendingTxInputs =
+        cover 5 (result /= mempty && result == utxo)
+            "result /= mempty && result == utxo" $
+        cover 5 (result /= mempty && result /= utxo)
+            "result /= mempty && result /= utxo" $
+        property $ makeProperty pendingTxs wallet result
+      where
+        pendingTxs = Set.fromList $ txFromTxInputs <$> pendingTxInputs
+        wallet = walletFromUTxO utxo
+        result = availableUTxO pendingTxs wallet
+
+    txFromTxInputs :: TxInputs -> Tx
+    txFromTxInputs TxInputs {collateral, inputs} = Tx
+        { resolvedCollateral = (, Coin 0) <$> collateral
+        , resolvedInputs = (, Coin 0) <$> inputs
+        , txId = Hash ""
+        , fee = Nothing
+        , outputs = []
+        , withdrawals = Map.empty
+        , metadata = Nothing
+        }
+
+    walletFromUTxO :: UTxO -> Wallet s
+    walletFromUTxO utxo = unsafeInitWallet utxo
+        (shouldNotEvaluate "currentTip")
+        (shouldNotEvaluate "addressDiscoveryState")
+      where
+        shouldNotEvaluate :: String -> a
+        shouldNotEvaluate fieldName = error $ unwords
+            [fieldName, "was unexpectedly evaluated"]
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
