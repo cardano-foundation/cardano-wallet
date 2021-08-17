@@ -207,11 +207,11 @@ spec = do
     -- not the distribution of generated token bundles has changed.
     --
     estimateMaxInputsTests @ShelleyKey
-        [(1,114),(5,107),(10,101),(20,87),(50,36)]
+        [(1,114),(5,109),(10,103),(20,91),(50,51)]
     estimateMaxInputsTests @ByronKey
-        [(1,73),(5,68),(10,64),(20,53),(50,17)]
+        [(1,73),(5,69),(10,65),(20,56),(50,27)]
     estimateMaxInputsTests @IcarusKey
-        [(1,73),(5,68),(10,64),(20,53),(50,17)]
+        [(1,73),(5,69),(10,65),(20,56),(50,27)]
 
     describe "fee calculations" $ do
         let pp :: ProtocolParameters
