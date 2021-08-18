@@ -1,38 +1,8 @@
+name: cardano-tmp
 
-# This resolver file contains a ghc-8.10-based stackage LTS, with a
-# released cardano-node version, and supporting libraries.
-#
-# NOTE: Remember to update the version matrix in README.md when
-# bumping the Cardano version.
 resolver: lts-18.5
-compiler: ghc-8.10.5
 
 packages:
-- lib/core
-- lib/core-integration
-- lib/cli
-- lib/launcher
-- lib/numeric
-- lib/text-class
-- lib/test-utils
-- lib/shelley
-- lib/strict-non-empty-containers
-
-allow-newer: true
-
-extra-deps:
-- OddWord-1.0.2.0
-- command-0.1.1
-- hspec-2.8.2
-- hspec-core-2.8.2
-
-# cardano-addresses-3.5.0
-- git: https://github.com/input-output-hk/cardano-addresses
-  commit: 46ce81050f4015abd40c6bdf0a1ed30fa54e375a
-  subdirs:
-    - command-line
-    - core
-
 # In LTS 18.4, but with a different version
 - base16-bytestring-1.0.1.0 # 1.0.1.0 on lts-18.4
 - Cabal-3.4.0.0 # 3.2.1.0 on lts-18.4
@@ -79,13 +49,9 @@ extra-deps:
 - transformers-except-0.1.1
 - Unique-0.4.7.6
 
-  # Using a fork until our patches can be merged upstream
+# Using a fork until our patches can be merged upstream
 - git: https://github.com/input-output-hk/criterion
   commit: fb2e7be532db96255d203f86360230cae37130f3
-
-  # Using a fork until our patches can be merged upstream
-- git: https://github.com/input-output-hk/optparse-applicative
-  commit: 84bcc6f18992a441886589a117249bfface8630e
 
 - git: https://github.com/input-output-hk/cardano-base
   commit: cb0f19c85e5bb5299839ad4ed66af6fa61322cc4
@@ -102,10 +68,10 @@ extra-deps:
   - measures
 
 - git: https://github.com/input-output-hk/cardano-crypto
-  commit: 07397f0e50da97eaa0575d93bee7ac4b2b2576ec
+  commit: f73079303f663e028288f9f4a9e08bcca39a923e
 
 - git: https://github.com/input-output-hk/cardano-ledger-specs
-  commit: d5b184a820853c7ba202efd615b8fadca1acb52c
+  commit: 12a0ef69d64a55e737fbf4e846bd8ed9fb30a956
   subdirs:
   - alonzo/impl
   - alonzo/test
@@ -125,7 +91,7 @@ extra-deps:
   - shelley-ma/shelley-ma-test
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 9a6a6c81e3aebfaf757b562c823146c7da601e1c
+  commit: 708de685d49ec6af4b2d8b3cbfa0eca0e9e43edf
   subdirs:
   - cardano-api
   - cardano-cli
@@ -133,7 +99,7 @@ extra-deps:
   - cardano-node
 
 - git: https://github.com/input-output-hk/cardano-prelude
-  commit: fd773f7a58412131512b9f694ab95653ac430852
+  commit: bb4ed71ba8e587f672d06edf9d2e376f4b055555
   subdirs:
   - cardano-prelude
   - cardano-prelude-test
@@ -141,8 +107,8 @@ extra-deps:
 - git: https://github.com/input-output-hk/cardano-sl-x509
   commit: 12925934c533b3a6e009b61ede555f8f26bac037
 
-- git: https://github.com/michaelpj/flat.git
-  commit: ee59880f47ab835dbd73bea0847dab7869fc20d8
+- git: https://github.com/Quid2/flat.git
+  commit: 95e5d7488451e43062ca84d5376b3adcc465f1cd
 
 - git: https://github.com/input-output-hk/goblins
   commit: cde90a2b27f79187ca8310b6549331e59595e7ba
@@ -166,7 +132,7 @@ extra-deps:
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: d070bad7ce389a4b2ff7fb4fcb7937fdeca80f3a
+  commit: f149c1c1e4e4bb5bab51fa055e9e3a7084ddc30e
   subdirs:
   - io-classes
   - io-sim
@@ -192,7 +158,7 @@ extra-deps:
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: 8c83c4abe211b4bbcaca3cdf1b2c0e38d0eb683f
+  commit: 2c8161ad142f56b14611cc0f66b0a2803016fe37
   subdirs:
     - freer-extras
     - playground-common
@@ -214,28 +180,3 @@ extra-deps:
 
 - git: https://github.com/input-output-hk/Win32-network
   commit: 3825d3abf75f83f406c1f7161883c438dac7277d
-
-flags:
-  # Avoid a system library which causes difficulty with cross-compilation
-  zip:
-    disable-bzip2: true
-
-  # Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
-  # This still requires the host system to have the 'standard' libsodium installed.
-  cardano-crypto-praos:
-    external-libsodium-vrf: false
-
-  # Using RDRAND instead of /dev/urandom as an entropy source for key
-  # generation is dubious. Set the flag so we use /dev/urandom by default.
-  cryptonite:
-    support_rdrand: false
-
-ghc-options:
-  # Enable .hie file generation for weeder and haskell-language-server
-  "$locals": -fwrite-ide-info
-
-nix:
-  shell-file: nix/stack-shell.nix
-  # Disabling the pure nix-shell allows environment variables to be
-  # passed down to tests. We need this for integration tests.
-  pure: false

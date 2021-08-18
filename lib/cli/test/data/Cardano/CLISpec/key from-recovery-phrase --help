@@ -9,5 +9,5 @@ Available options:
 The recovery phrase is read from stdin.
 
 Example:
-  [0;1m$ cardano-wallet recovery-phrase generate \[0m
-  [0;1m| cardano-wallet key from-recovery-phrase Icarus[0m
+  [1m$ cardano-wallet recovery-phrase generate \[0;22;23;24m
+  [1m| cardano-wallet key from-recovery-phrase Icarus[0;22;23;24m

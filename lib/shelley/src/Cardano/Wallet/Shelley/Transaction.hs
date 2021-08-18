@@ -1276,6 +1276,9 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         -- our tx uses scripts?
         Cardano.BuildTxWith Nothing
 
+    , txScriptValidity =
+        Cardano.BuildTxWith Cardano.TxScriptValidityNone
+
     , txExtraScriptData = Cardano.BuildTxWith Cardano.TxExtraScriptDataNone
 
     , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
@@ -1387,7 +1390,11 @@ mkByronWitness
     -> Address
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness era
-mkByronWitness (Cardano.ShelleyTxBody era body _scripts _scriptData _auxData) nw addr encryptedKey =
+mkByronWitness
+    (Cardano.ShelleyTxBody era body _scripts _scriptData _auxData _scriptValidity)
+    nw
+    addr
+    encryptedKey =
     Cardano.ShelleyBootstrapWitness era $
         SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr
   where
