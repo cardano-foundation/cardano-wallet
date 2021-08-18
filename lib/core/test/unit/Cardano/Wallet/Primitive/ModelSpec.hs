@@ -186,6 +186,8 @@ spec = do
             property prop_availableUTxO_notMember
         it "prop_availableUTxO_withoutKeys" $
             property prop_availableUTxO_withoutKeys
+        it "prop_availableUTxO_availableBalance" $
+            property prop_availableUTxO_availableBalance
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -364,6 +366,12 @@ prop_availableUTxO_withoutKeys =
     unUTxO (utxo wallet) `Map.withoutKeys` allInputsOfTxs pendingTxs
         === unUTxO result
 
+prop_availableUTxO_availableBalance :: Property
+prop_availableUTxO_availableBalance =
+    prop_availableUTxO $ \pendingTxs wallet result ->
+    availableBalance pendingTxs wallet
+        === F.foldMap (view #tokens) (unUTxO result)
+
 prop_availableUTxO
     :: Testable prop
     => (Set Tx -> Wallet s -> UTxO -> prop)
@@ -380,6 +388,8 @@ prop_availableUTxO makeProperty =
             "result /= mempty && result == utxo" $
         cover 5 (result /= mempty && result /= utxo)
             "result /= mempty && result /= utxo" $
+        cover 5 (balance result /= TokenBundle.empty)
+            "balance result /= TokenBundle.empty" $
         property $ makeProperty pendingTxs wallet result
       where
         pendingTxs = Set.fromList $ txFromTxInputs <$> pendingTxInputs
