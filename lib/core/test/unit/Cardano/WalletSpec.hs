@@ -748,7 +748,7 @@ instance Arbitrary GenTxHistory where
         genTx = mkTx <$> genTid
         hasPending = any ((== Pending) . view #status . snd)
         genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
-        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing
+        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing Nothing
         genTxMeta = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
@@ -1284,7 +1284,7 @@ dummyTransactionLayer = TransactionLayer
         -- TODO: (ADP-957)
         let cinps' = []
         let tid = mkTxId inps' (outputsCovered cs) mempty Nothing
-        let tx = Tx tid Nothing inps' cinps' (outputsCovered cs) mempty Nothing
+        let tx = Tx tid Nothing inps' cinps' (outputsCovered cs) mempty Nothing Nothing
         wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keystore addr
@@ -1422,25 +1422,29 @@ instance Arbitrary Coin where
     arbitrary = genCoinPositive
 
 instance Arbitrary Tx where
-    shrink (Tx tid fees ins cins outs wdrls md) = mconcat
-        [ [ Tx tid fees ins' cins outs wdrls md
+    shrink (Tx tid fees ins cins outs wdrls md isValid) = mconcat
+        [ [ Tx tid fees ins' cins outs wdrls md isValid
           | ins' <- shrinkList' ins
           ]
 
-        , [ Tx tid fees ins cins' outs wdrls md
+        , [ Tx tid fees ins cins' outs wdrls md isValid
           | cins' <- shrinkList' cins
           ]
 
-        , [ Tx tid fees ins cins outs' wdrls md
+        , [ Tx tid fees ins cins outs' wdrls md isValid
           | outs' <- shrinkList' outs
           ]
 
-        , [ Tx tid fees ins cins outs (Map.fromList wdrls') md
+        , [ Tx tid fees ins cins outs (Map.fromList wdrls') md isValid
           | wdrls' <- shrinkList' (Map.toList wdrls)
           ]
 
-        , [ Tx tid fees ins cins outs wdrls md'
+        , [ Tx tid fees ins cins outs wdrls md' isValid
           | md' <- shrink md
+          ]
+
+        , [ Tx tid fees ins cins outs wdrls md isValid'
+          | isValid' <- shrink isValid
           ]
         ]
       where
@@ -1453,6 +1457,7 @@ instance Arbitrary Tx where
         <*> fmap (L.nub . L.take 5) arbitrary
         <*> fmap (L.take 5 . getNonEmpty) arbitrary
         <*> fmap (Map.fromList . L.take 5) arbitrary
+        <*> arbitrary
         <*> arbitrary
 
 instance Arbitrary RewardAccount where

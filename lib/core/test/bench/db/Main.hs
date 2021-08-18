@@ -579,6 +579,7 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
             , outputs
             , withdrawals = mempty
             , metadata = Nothing
+            , isValidScript = Nothing
             }
         , TxMeta
             { status = [InLedger, Pending] !! (i `mod` 2)

@@ -1656,6 +1656,13 @@ x-collateralInputCount: &collateralInputCount
   minimum: 0
   example: 3
 
+x-transactionScriptValidity: &transactionScriptValidity
+  description: |
+    For Alonzo-era and later transactions, indicates whether the script used
+    in the transaction validated or not.
+  type: boolean
+  default: false
+
 #############################################################################
 #                                                                           #
 #                              DEFINITIONS                                  #
@@ -2075,6 +2082,7 @@ components:
         mint: *transactionMint
         status: *transactionStatus
         metadata: *transactionMetadata
+        is_valid_script: *transactionScriptValidity
 
     x-txBody: &txBody
       oneOf:

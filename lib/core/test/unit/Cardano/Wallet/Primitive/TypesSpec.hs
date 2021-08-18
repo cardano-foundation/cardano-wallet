@@ -1173,17 +1173,19 @@ instance Arbitrary UTxO where
         return $ UTxO $ Map.fromList utxo
 
 instance Arbitrary Tx where
-    shrink (Tx tid fees ins cins outs wdrls md) = mconcat
-        [ (\ins' -> Tx tid fees ins' cins outs wdrls md)
+    shrink (Tx tid fees ins cins outs wdrls md isValid) = mconcat
+        [ (\ins' -> Tx tid fees ins' cins outs wdrls md isValid)
             <$> shrink ins
-        , (\cins' -> Tx tid fees ins cins' outs wdrls md)
+        , (\cins' -> Tx tid fees ins cins' outs wdrls md isValid)
             <$> shrink cins
-        , (\outs' -> Tx tid fees ins cins outs' wdrls md)
+        , (\outs' -> Tx tid fees ins cins outs' wdrls md isValid)
             <$> shrink outs
-        , (\wdrls' -> Tx tid fees ins cins outs (Map.fromList wdrls') md)
+        , (\wdrls' -> Tx tid fees ins cins outs (Map.fromList wdrls') md isValid)
             <$> shrink (Map.toList wdrls)
-        , Tx tid fees ins cins outs wdrls
+        , (\md' -> Tx tid fees ins cins outs wdrls md' isValid)
             <$> shrink md
+        , Tx tid fees ins cins outs wdrls md
+            <$> shrink isValid
         ]
     arbitrary = do
         ins <- choose (1, 3) >>= vector
@@ -1192,7 +1194,8 @@ instance Arbitrary Tx where
         wdrls <- choose (1,3) >>= vector
         fees <- arbitrary
         tid <- genHash
-        Tx tid fees ins cins outs (Map.fromList wdrls) <$> arbitrary
+        Tx tid fees ins cins outs (Map.fromList wdrls)
+          <$> arbitrary <*> arbitrary
       where
         genHash = elements
           [ Hash "Tx1"

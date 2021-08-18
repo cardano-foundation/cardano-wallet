@@ -1876,6 +1876,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             , txMeta
             , txMetadata = tx ^. #metadata
             , txTime
+            , txIsValidScript = (tx ^. #isValidScript)
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -1943,6 +1944,7 @@ mkApiTransactionFromInfo ti info = do
             , txMeta = info ^. #txInfoMeta
             , txMetadata = info ^. #txInfoMetadata
             , txTime = info ^. #txInfoTime
+            , txIsValidScript = info ^. #txInfoIsValidScript
             }
     return $ case info ^. (#txInfoMeta . #status) of
         Pending  -> apiTx
@@ -2138,6 +2140,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             , txMeta
             , txMetadata = Nothing
             , txTime
+            , txIsValidScript = (tx ^. #isValidScript)
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -2228,6 +2231,7 @@ quitStakePool ctx (ApiT wid) body = do
             , txMeta
             , txMetadata = Nothing
             , txTime
+            , txIsValidScript = tx ^. #isValidScript
             }
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
@@ -2482,6 +2486,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     , txMeta
                     , txMetadata = Nothing
                     , txTime
+                    , txIsValidScript = tx ^. #isValidScript
                     }
   where
     addresses = getApiT . fst <$> view #addresses postData
@@ -2876,6 +2881,7 @@ data MkApiTransactionParams = MkApiTransactionParams
     , txMeta :: W.TxMeta
     , txMetadata :: Maybe W.TxMetadata
     , txTime :: UTCTime
+    , txIsValidScript :: Maybe Bool
     }
     deriving (Eq, Generic, Show)
 
@@ -2925,6 +2931,7 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (tx ^. (#txMeta . #status))
         , metadata = ApiTxMetadata $ ApiT <$> (tx ^. #txMetadata)
+        , isValidScript = tx ^. #txIsValidScript
         }
 
     depositIfAny :: Natural

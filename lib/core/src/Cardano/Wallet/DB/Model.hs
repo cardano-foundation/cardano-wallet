@@ -485,6 +485,8 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
             slotStartTime' (meta ^. #slotNo)
         , txInfoMetadata =
             (tx ^. #metadata)
+        , txInfoIsValidScript =
+            (tx ^. #isValidScript)
         }
       where
         txH  = getQuantity

@@ -135,8 +135,9 @@ mkTx
     -> [TxOut]
     -> Map RewardAccount Coin
     -> Maybe TxMetadata
+    -> Maybe Bool
     -> Tx
-mkTx fees ins cins outs wdrls md =
+mkTx fees ins cins outs wdrls md isValid =
     Tx
       { txId = (mkTxId ins outs wdrls md)
       , fee = fees
@@ -145,6 +146,7 @@ mkTx fees ins cins outs wdrls md =
       , outputs = outs
       , withdrawals = wdrls
       , metadata = md
+      , isValidScript = isValid
       }
 
 -- | txId calculation for testing purposes.

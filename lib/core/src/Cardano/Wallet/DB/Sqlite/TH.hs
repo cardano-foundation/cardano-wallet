@@ -111,6 +111,7 @@ TxMeta
     txMetadata              W.TxMetadata Maybe  sql=data
     txMetaSlotExpires       SlotNo Maybe        sql=slot_expires
     txMetaFee               Word64 Maybe        sql=fee
+    txMetaIsValid           Bool Maybe          sql=is_valid
 
     Primary txMetaTxId txMetaWalletId
     Foreign Wallet OnDeleteCascade fk_wallet_tx_meta txMetaWalletId

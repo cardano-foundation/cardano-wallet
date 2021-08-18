@@ -570,6 +570,7 @@ fileModeSpec =  do
                                 [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
                             , withdrawals = mempty
                             , metadata = Nothing
+                            , isValidScript = Nothing
                             }
                         ]
 
@@ -591,6 +592,7 @@ fileModeSpec =  do
                             ]
                         , withdrawals = mempty
                         , metadata = Nothing
+                        , isValidScript = Nothing
                         }
                     ]
 
@@ -1202,6 +1204,7 @@ testTxs = [(tx, txMeta)]
         , outputs = [TxOut (Address "addr") (coinToBundle 1)]
         , withdrawals = mempty
         , metadata = Nothing
+        , isValidScript = Nothing
         }
     txMeta = TxMeta
         { status = InLedger

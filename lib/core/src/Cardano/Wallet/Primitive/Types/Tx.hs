@@ -195,6 +195,12 @@ data Tx = Tx
         --
         -- See Appendix E of
         -- <https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
+
+    , isValidScript
+        :: !(Maybe Bool)
+        -- ^ Tag indicating whether non-native scripts in this transaction are
+        -- expected to validate. This is added by the block creator when
+        -- constructing the block. Nothing for pre-Alonzo era transactions.
     } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
@@ -213,6 +219,7 @@ instance Buildable Tx where
             tupleF (Map.toList $ view #withdrawals t)
         , nameF "metadata"
             (maybe "" build $ view #metadata t)
+        , nameF "isValid" (build $ view #isValidScript t)
         ]
 
 txIns :: Set Tx -> Set TxIn
@@ -459,6 +466,10 @@ data TransactionInfo = TransactionInfo
     -- ^ Creation time of the block including this transaction.
     , txInfoMetadata :: !(Maybe TxMetadata)
     -- ^ Application-specific extension data.
+    , txInfoIsValidScript :: !(Maybe Bool)
+    -- ^ Tag indicating whether non-native scripts in this transaction are
+    -- expected to validate. This is added by the block creator when
+    -- constructing the block. Nothing for pre-Alonzo era transactions.
     } deriving (Generic, Show, Eq)
 
 instance NFData TransactionInfo
@@ -473,6 +484,7 @@ fromTransactionInfo info = Tx
     , outputs = txInfoOutputs info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
+    , isValidScript = txInfoIsValidScript info
     }
   where
     drop3rd :: (a, b, c) -> (a, b)
