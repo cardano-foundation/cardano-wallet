@@ -8,9 +8,9 @@ title: API References
 Component                            | Link
 ---                                  | ---
 [cardano-wallet][cardano-wallet]     | https://input-output-hk.github.io/cardano-wallet/api/edge
-[cardano-submit-api][cardano-rest]   | https://input-output-hk.github.io/cardano-rest/submit-api/
-[cardano-explorer-api][cardano-rest] | https://input-output-hk.github.io/cardano-rest/explorer-api/
-[cardano-graphql][cardano-graphql]   | _Soon available._
+[cardano-graphql][cardano-graphql]   | https://input-output-hk.github.io/cardano-graphql/
+[cardano-rosetta][cardano-rosetta]   | https://github.com/input-output-hk/cardano-rosetta/tree/master/docs
+[cardano-submit-api][cardano-submit-api]   |
 
 
 {{<hint info>}}
@@ -31,7 +31,7 @@ The command line also provides some useful helpers like a command to generate mn
 
 Library                                          | Haskell                                                           | JavaScript
 ---                                              | ---                                                               | ---
-[cardano-addresses][cardano-addresses]           | https://input-output-hk.github.io/cardano-addresses/haddock/      | _Soon available._
+[cardano-addresses][cardano-addresses]           | https://input-output-hk.github.io/cardano-addresses/haddock/      | https://input-output-hk.github.io/cardano-addresses/typescript/
 [cardano-transactions][cardano-transactions]     | https://input-output-hk.github.io/cardano-transactions/haddock/   | _Soon available._
 [cardano-coin-selection][cardano-coin-selection] | https://input-output-hk.github.io/cardano-coin-selection/haddock/ | _Soon available._
 [bech32][bech32]                                 | https://input-output-hk.github.io/bech32/haddock/                 | See https://github.com/bitcoinjs/bech32
@@ -44,8 +44,9 @@ Check out the repository's documentation and examples to see example usage.
 {{</hint>}}
 
 [cardano-wallet]: https://github.com/input-output-hk/cardano-wallet
-[cardano-rest]: https://github.com/input-output-hk/cardano-rest
+[cardano-submit-api]: https://github.com/input-output-hk/cardano-node/tree/master/cardano-submit-api
 [cardano-graphql]: https://github.com/input-output-hk/cardano-graphql
+[cardano-rosetta]: https://github.com/input-output-hk/cardano-rosetta
 
 [cardano-coin-selection]: https://github.com/input-output-hk/cardano-coin-selection
 [cardano-addresses]: https://github.com/input-output-hk/cardano-addresses
