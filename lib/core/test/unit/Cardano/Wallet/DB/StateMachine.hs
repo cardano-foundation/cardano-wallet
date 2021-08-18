@@ -160,6 +160,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxMetadata
     , TxOut (..)
+    , TxSize (..)
     , TxStatus
     , inputs
     )
@@ -1004,6 +1005,9 @@ instance ToExpr Percentage where
     toExpr = genericToExpr
 
 instance ToExpr DecentralizationLevel where
+    toExpr = genericToExpr
+
+instance ToExpr TxSize where
     toExpr = genericToExpr
 
 instance ToExpr TokenBundleMaxSize where

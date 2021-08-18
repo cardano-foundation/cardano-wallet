@@ -153,7 +153,7 @@ mainnetNetworkParameters = W.NetworkParameters
 -- NOTE: A bit weird to define in "Cardano.Wallet.Byron.Compatibility", but we
 -- need it both here and in "Cardano.Wallet.Shelley.Compatibility".
 maryTokenBundleMaxSize :: W.TokenBundleMaxSize
-maryTokenBundleMaxSize = W.TokenBundleMaxSize $ Quantity 4000
+maryTokenBundleMaxSize = W.TokenBundleMaxSize $ W.TxSize 4000
 
 -- NOTE
 -- For MainNet and TestNet, we can get away with empty genesis blocks with

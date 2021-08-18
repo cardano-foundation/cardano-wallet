@@ -333,7 +333,7 @@ import Data.Time.Clock.POSIX
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word16, Word32, Word8 )
+    ( Word32, Word64, Word8 )
 import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
@@ -1470,10 +1470,10 @@ instance Arbitrary (Quantity "assets" Natural) where
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
 
-instance Arbitrary (Quantity "byte" Word16) where
+instance Arbitrary (Quantity "byte" Natural) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
-    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word16)
+    arbitrary = Quantity . fromIntegral <$> (arbitrary @Word64)
 
 instance Arbitrary (Quantity "percent" Percentage) where
     shrink (Quantity p) = Quantity <$> shrinkPercentage p

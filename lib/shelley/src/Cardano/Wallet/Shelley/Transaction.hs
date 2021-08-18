@@ -84,11 +84,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..)
-    , ProtocolParameters (..)
-    , TokenBundleMaxSize (..)
-    , TxParameters (..)
-    )
+    ( FeePolicy (..), ProtocolParameters (..), TxParameters (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -649,12 +645,11 @@ txConstraints protocolParams witnessTag = TxConstraints
     txOutputSize bundle =
         marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
 
-    txOutputMaximumSize = (txOutputSize mempty <>)
-        . TxSize
-        . fromIntegral
-        . getQuantity
-        . unTokenBundleMaxSize
-        $ view (#txParameters . #getTokenBundleMaxSize) protocolParams
+    txOutputMaximumSize = (<>)
+        (txOutputSize mempty)
+        (view
+            (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize)
+            protocolParams)
 
     txOutputMaximumTokenQuantity =
         TokenQuantity $ fromIntegral $ maxBound @Word64

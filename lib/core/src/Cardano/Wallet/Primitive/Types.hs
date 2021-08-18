@@ -163,7 +163,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..) )
+    ( Tx (..), TxSize (..) )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq
@@ -1078,26 +1078,25 @@ instance Buildable DecentralizationLevel where
 -- | The maximum size of a serialized `TokenBundle` (`_maxValSize` in the Alonzo
 -- ledger)
 newtype TokenBundleMaxSize = TokenBundleMaxSize
-    { unTokenBundleMaxSize :: Quantity "byte" Word16 }
-    deriving (Bounded, Eq, Generic, Show)
+    { unTokenBundleMaxSize :: TxSize }
+    deriving (Eq, Generic, Show)
 
 instance NFData TokenBundleMaxSize
 
 instance Arbitrary TokenBundleMaxSize where
-    arbitrary = TokenBundleMaxSize . Quantity <$>
+    arbitrary = TokenBundleMaxSize . TxSize <$>
         oneof
-          [ arbitrary @Word16
+          -- Generate values close to the mainnet value of 4000 (and guard
+          -- against underflow)
+          [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
 
-          -- Generate values close to the mainnet value of 4000.
-          -- Over/underflow doesn't matter.
-          , fromIntegral . (4000 +) <$> arbitrary @Int
-
-          -- Purposefully generate boundary values.
-          , (maxBound -) . fromIntegral <$> arbitrary @Int
+          -- Generate more extreme values (both small and large)
+          , fromIntegral <$> arbitrary @Word64
           ]
-    shrink (TokenBundleMaxSize (Quantity s)) =
-        map (TokenBundleMaxSize . Quantity . fromIntegral)
-        . shrink @Int
+    shrink (TokenBundleMaxSize (TxSize s)) =
+        map (TokenBundleMaxSize . TxSize . fromIntegral)
+        . shrink @Word64 -- Safe w.r.t the generator, despite TxSize wrapping a
+                         -- Natural
         $ fromIntegral s
 
 

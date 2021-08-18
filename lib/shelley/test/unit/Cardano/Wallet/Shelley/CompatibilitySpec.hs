@@ -71,7 +71,10 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     , shrinkTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    , TxSize (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
@@ -459,9 +462,9 @@ unit_assessTokenBundleSize_fixedSizeBundle
     -- ^ Expected size assessment
     -> TokenBundleMaxSize
     -- ^ TokenBundle assessor function
-    -> Int
+    -> TxSize
     -- ^ Expected min length (bytes)
-    -> Int
+    -> TxSize
     -- ^ Expected max length (bytes)
     -> Property
 unit_assessTokenBundleSize_fixedSizeBundle
@@ -501,7 +504,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_32 (Blind (FixedSize32 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
         maryTokenBundleMaxSize
-        2116 2380
+        (TxSize 2116) (TxSize 2380)
 
 unit_assessTokenBundleSize_fixedSizeBundle_48
     :: Blind (FixedSize48 TokenBundle) -> Property
@@ -509,7 +512,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_48 (Blind (FixedSize48 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
         maryTokenBundleMaxSize
-        3172 3564
+        (TxSize 3172) (TxSize 3564)
 
 unit_assessTokenBundleSize_fixedSizeBundle_64
     :: Blind (FixedSize64 TokenBundle) -> Property
@@ -517,7 +520,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_64 (Blind (FixedSize64 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         OutputTokenBundleSizeExceedsLimit
         maryTokenBundleMaxSize
-        4228 4748
+        (TxSize 4228) (TxSize 4748)
 
 unit_assessTokenBundleSize_fixedSizeBundle_128
     :: Blind (FixedSize128 TokenBundle) -> Property
@@ -525,7 +528,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_128 (Blind (FixedSize128 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         OutputTokenBundleSizeExceedsLimit
         maryTokenBundleMaxSize
-        8452 9484
+        (TxSize 8452) (TxSize 9484)
 
 toKeyHash :: Text -> Script KeyHash
 toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
@@ -774,6 +777,7 @@ genMnemonic = do
 
 instance Show XPrv where
     show _ = "<xprv>"
+
 
 instance Arbitrary TokenBundle.TokenBundle where
     arbitrary = genTokenBundleSmallRange

@@ -606,7 +606,7 @@ fromAlonzoPParams eraInfo pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
     , txParameters = txParametersFromPParams
-        (W.TokenBundleMaxSize $ fromMaxSize $ Alonzo._maxValSize pp)
+        (W.TokenBundleMaxSize $ W.TxSize $ Alonzo._maxValSize pp)
         pp
     , desiredNumberOfStakePools =
         desiredNumberOfStakePoolsFromPParams pp
@@ -1400,17 +1400,18 @@ tokenBundleSizeAssessor maxSize = W.TokenBundleSizeAssessor {..}
         | otherwise =
             W.OutputTokenBundleSizeExceedsLimit
       where
-        serializedLengthBytes :: Int
+        serializedLengthBytes :: W.TxSize
         serializedLengthBytes = computeTokenBundleSerializedLengthBytes tb
 
-        maxSize' :: Int
-        maxSize' = fromIntegral
-            $ getQuantity
-            $ W.unTokenBundleMaxSize maxSize
+        maxSize' :: W.TxSize
+        maxSize' = W.unTokenBundleMaxSize maxSize
 
-computeTokenBundleSerializedLengthBytes :: TokenBundle.TokenBundle -> Int
-computeTokenBundleSerializedLengthBytes =
-    BS.length . Binary.serialize' . Cardano.toMaryValue . toCardanoValue
+computeTokenBundleSerializedLengthBytes :: TokenBundle.TokenBundle -> W.TxSize
+computeTokenBundleSerializedLengthBytes = W.TxSize . safeCast
+    . BS.length . Binary.serialize' . Cardano.toMaryValue . toCardanoValue
+  where
+    safeCast :: Int -> Natural
+    safeCast = fromIntegral
 
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding

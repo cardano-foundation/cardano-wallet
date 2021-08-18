@@ -908,7 +908,7 @@ mockProtocolParameters = dummyProtocolParameters
     { txParameters = TxParameters
         { getFeePolicy = LinearFee (Quantity 1.0) (Quantity 2.0)
         , getTxMaxSize = Quantity 16384
-        , getTokenBundleMaxSize = TokenBundleMaxSize $ Quantity 4000
+        , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
         }
     }
 
@@ -1082,12 +1082,11 @@ prop_txConstraints_txOutputMaximumSize (Blind (Large bundle)) =
     authenticComparison = compare authenticSize authenticSizeMax
     simulatedComparison = compare simulatedSize simulatedSizeMax
 
-    authenticSize :: Int
+    authenticSize :: TxSize
     authenticSize = computeTokenBundleSerializedLengthBytes bundle
-    authenticSizeMax :: Int
-    authenticSizeMax = fromIntegral
-        $ getQuantity
-        $ unTokenBundleMaxSize maryTokenBundleMaxSize
+
+    authenticSizeMax :: TxSize
+    authenticSizeMax = unTokenBundleMaxSize maryTokenBundleMaxSize
 
     simulatedSize :: TxSize
     simulatedSize = txOutputSize mockTxConstraints bundle
