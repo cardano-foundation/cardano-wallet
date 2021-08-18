@@ -62,17 +62,10 @@ A small HTTP API for submitting transactions to a local [cardano-node][].
 
 The transaction must be fully signed and CBOR-encoded. This could be done by [cardano-cli][], for example.
 
-### [cardano-rest][cardano-rest]
+### [cardano-rosetta][cardano-rosetta]
 
-[cardano-rest][] is DEPRECATED. The [explorer-api][cardano-rest] and [submit-api][cardano-rest] will cease to function at the time of Alonzo hard-fork.
+[cardano-rosetta][] is an implementation of the [Rosetta][https://www.rosetta-api.org/docs/1.4.4/welcome.html] specification for Cardano. Rosetta is an open-source specification and set of tools that makes integrating with blockchains simpler, faster, and more reliable.
 
-The following tools replace [cardano-rest][]:
- - [cardano-graphql][]
- - [cardano-rosetta][]
- - [cardano-submit-api][] (part of the [cardano-node][] repository)
- - [cardano-wallet][]
-
-Users with an existing integration to [cardano-rest][] are encouraged to look at the [Migration-Guide](https://input-output-hk.github.io/cardano-rest/migration-guide/).
 
 ## Choosing the right component
 
