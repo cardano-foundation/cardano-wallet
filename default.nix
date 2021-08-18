@@ -128,6 +128,7 @@ let
         cardano-address
         cardano-cli
         cardano-node
+        (pkgs.linkFarm "docker-config-layer" [ { name = "config"; path = pkgs.cardano-node-deployments; } ])
       ];
     };
 

@@ -8,6 +8,7 @@ pkgs: _: {
         staging
         testnet
         shelley_qa
+        alonzo-purple
         ;
     };
     updateConfig = env: env.nodeConfig // {
@@ -15,6 +16,7 @@ pkgs: _: {
     } // (if (env.consensusProtocol == "Cardano") then {
       ByronGenesisFile = "genesis-byron.json";
       ShelleyGenesisFile = "genesis-shelley.json";
+      AlonzoGenesisFile = "genesis-alonzo.json";
     } else {
       GenesisFile = "genesis.json";
     });
@@ -35,6 +37,7 @@ pkgs: _: {
     '' + (if env.consensusProtocol == "Cardano" then ''
       jq . < ${env.nodeConfig.ByronGenesisFile} > $cfg/genesis-byron.json
       cp ${env.nodeConfig.ShelleyGenesisFile} $cfg/genesis-shelley.json
+      cp ${env.nodeConfig.AlonzoGenesisFile} $cfg/genesis-alonzo.json
     '' else ''
       jq . < ${env.genesisFile} > $cfg/genesis.json
     '')) environments);
