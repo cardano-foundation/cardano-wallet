@@ -65,6 +65,8 @@
   > is simply used to read publicly available data from the Github
   > API).
 
+- [ ] :warning: **only in first release after v2021-08-11** :warning: Include commit https://github.com/input-output-hk/cardano-wallet/commit/50c19e8f7d9aedb51f8bbbe2afeeb0ccd44824de to complete the fix of ADP-1068 / #2806.
+
 - [ ] Open a pull request to submit the modified files. Get it merged.
 
 - [ ] Trigger a release build on CI (GitHub Actions) and wait for the
