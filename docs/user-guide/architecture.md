@@ -7,6 +7,7 @@ title: Architecture
 
 {{< mermaid >}}
 erDiagram
+  CARDANO-NODE ||--|{ CARDANO-SUBMIT-API : depends-on
   CARDANO-NODE ||--|{ CARDANO-WALLET : depends-on
   CARDANO-NODE ||--|{ CARDANO-DB-SYNC : depends-on
 
@@ -64,7 +65,7 @@ The transaction must be fully signed and CBOR-encoded. This could be done by [ca
 
 ### [cardano-rosetta][cardano-rosetta]
 
-[cardano-rosetta][] is an implementation of the [Rosetta][https://www.rosetta-api.org/docs/1.4.4/welcome.html] specification for Cardano. Rosetta is an open-source specification and set of tools that makes integrating with blockchains simpler, faster, and more reliable.
+[Cardano-rosetta][] is an implementation of the [Rosetta](https://www.rosetta-api.org/docs/1.4.4/welcome.html) specification for Cardano. Rosetta is an open-source specification and set of tools that makes integrating with blockchains simpler, faster, and more reliable.
 
 
 ## Choosing the right component
@@ -76,13 +77,13 @@ QManageUTxO{Do you want to <br/>implement your own wallet?}
 QAlreadyIntegrated{Do you already have<br/>an integration with<br/>cardano-sl?}
 
 GraphQL{cardano-graphql}
-Rest{cardano-rest}
+Rosetta{cardano-rosetta}
 SDK{SDK}
 Wallet{cardano-wallet}
 
 QMakeTx-->|yes| QManageUTxO
 QMakeTx-->|no| QAlreadyIntegrated
-QAlreadyIntegrated-->|yes| Rest
+QAlreadyIntegrated-->|yes| Rosetta
 QAlreadyIntegrated-->|no| GraphQL
 QManageUTxO-->|yes| SDK
 QManageUTxO-->|no| Wallet
