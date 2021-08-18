@@ -1109,6 +1109,8 @@ spec = parallel $ do
                         (x :: ApiTransaction ('Testnet 0))
                     , metadata = metadata
                         (x :: ApiTransaction ('Testnet 0))
+                    , isValidScript = isValidScript
+                        (x :: ApiTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2188,6 +2190,7 @@ instance Arbitrary (ApiTransaction n) where
             <*> genWithdrawals
             <*> arbitrary
             <*> pure txStatus
+            <*> arbitrary
             <*> arbitrary
       where
         genInputs =

@@ -526,7 +526,9 @@ prefilterBlock b u0 = runState $ do
 
         return $ if hasKnownOutput && not hasKnownInput then
             let dir = Incoming in
-            ( (tx { fee = actualFee dir }, mkTxMeta (TB.getCoin received) dir) : txs
+            ( ( tx { fee = actualFee dir }
+              , mkTxMeta (TB.getCoin received) dir
+              ) : txs
             , ourNextUTxO
             )
         else if hasKnownInput || hasKnownWithdrawal then
