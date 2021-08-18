@@ -39,6 +39,8 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
+import Cardano.Wallet.Byron.Compatibility
+    ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -51,7 +53,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( DecentralizationLevel (..), SlotId (..) )
+    ( DecentralizationLevel (..), SlotId (..), TokenBundleMaxSize (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -69,7 +71,10 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     , shrinkTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    , TxSize (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
@@ -420,7 +425,8 @@ prop_assessTokenBundleSize_enlarge b1' b2' =
             === OutputTokenBundleSizeExceedsLimit
         ]
   where
-    assess = assessTokenBundleSize tokenBundleSizeAssessor
+    assess = assessTokenBundleSize
+        $ tokenBundleSizeAssessor maryTokenBundleMaxSize
     b1 = unVariableSize128 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
@@ -430,8 +436,9 @@ prop_assessTokenBundleSize_enlarge b1' b2' =
 prop_assessTokenBundleSize_shrink
     :: Blind (VariableSize128 TokenBundle)
     -> Blind (VariableSize16 TokenBundle)
+    -> TokenBundleMaxSize
     -> Property
-prop_assessTokenBundleSize_shrink b1' b2' =
+prop_assessTokenBundleSize_shrink b1' b2' maxSize =
     assess b1 == TokenBundleSizeWithinLimit ==> conjoin
         [ assess (b1 `TokenBundle.difference` b2)
             === TokenBundleSizeWithinLimit
@@ -439,7 +446,7 @@ prop_assessTokenBundleSize_shrink b1' b2' =
             === TokenBundleSizeWithinLimit
         ]
   where
-    assess = assessTokenBundleSize tokenBundleSizeAssessor
+    assess = assessTokenBundleSize (tokenBundleSizeAssessor maxSize)
     b1 = unVariableSize128 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
@@ -453,13 +460,19 @@ unit_assessTokenBundleSize_fixedSizeBundle
     -- ^ Fixed size bundle
     -> TokenBundleSizeAssessment
     -- ^ Expected size assessment
-    -> Int
+    -> TokenBundleMaxSize
+    -- ^ TokenBundle assessor function
+    -> TxSize
     -- ^ Expected min length (bytes)
-    -> Int
+    -> TxSize
     -- ^ Expected max length (bytes)
     -> Property
 unit_assessTokenBundleSize_fixedSizeBundle
-    bundle expectedAssessment expectedMinLengthBytes expectedMaxLengthBytes =
+    bundle
+    expectedAssessment
+    maxSize
+    expectedMinLengthBytes
+    expectedMaxLengthBytes =
         withMaxSuccess 100 $
         counterexample counterexampleText $
         conjoin . fmap property $
@@ -468,7 +481,9 @@ unit_assessTokenBundleSize_fixedSizeBundle
             , actualLengthBytes <= expectedMaxLengthBytes
             ]
   where
-    actualAssessment = assessTokenBundleSize tokenBundleSizeAssessor bundle
+    actualAssessment = assessTokenBundleSize
+        (tokenBundleSizeAssessor maxSize)
+        bundle
     actualLengthBytes = computeTokenBundleSerializedLengthBytes bundle
     counterexampleText = unlines
         [ "Expected min length bytes:"
@@ -488,28 +503,32 @@ unit_assessTokenBundleSize_fixedSizeBundle_32
 unit_assessTokenBundleSize_fixedSizeBundle_32 (Blind (FixedSize32 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
-        2116 2380
+        maryTokenBundleMaxSize
+        (TxSize 2116) (TxSize 2380)
 
 unit_assessTokenBundleSize_fixedSizeBundle_48
     :: Blind (FixedSize48 TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_48 (Blind (FixedSize48 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
-        3172 3564
+        maryTokenBundleMaxSize
+        (TxSize 3172) (TxSize 3564)
 
 unit_assessTokenBundleSize_fixedSizeBundle_64
     :: Blind (FixedSize64 TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_64 (Blind (FixedSize64 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         OutputTokenBundleSizeExceedsLimit
-        4228 4748
+        maryTokenBundleMaxSize
+        (TxSize 4228) (TxSize 4748)
 
 unit_assessTokenBundleSize_fixedSizeBundle_128
     :: Blind (FixedSize128 TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_128 (Blind (FixedSize128 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         OutputTokenBundleSizeExceedsLimit
-        8452 9484
+        maryTokenBundleMaxSize
+        (TxSize 8452) (TxSize 9484)
 
 toKeyHash :: Text -> Script KeyHash
 toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
@@ -758,6 +777,7 @@ genMnemonic = do
 
 instance Show XPrv where
     show _ = "<xprv>"
+
 
 instance Arbitrary TokenBundle.TokenBundle where
     arbitrary = genTokenBundleSmallRange

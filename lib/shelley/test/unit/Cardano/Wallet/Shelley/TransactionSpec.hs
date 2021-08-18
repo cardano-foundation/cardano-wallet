@@ -30,6 +30,8 @@ import Cardano.Address.Script
     )
 import Cardano.Wallet
     ( ErrSelectAssets (..), FeeEstimation (..), estimateFee )
+import Cardano.Wallet.Byron.Compatibility
+    ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Gen
     ( genScript )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -55,7 +57,11 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), ProtocolParameters (..), TxParameters (..) )
+    ( FeePolicy (..)
+    , ProtocolParameters (..)
+    , TokenBundleMaxSize (..)
+    , TxParameters (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -95,7 +101,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromAlonzoTx
     , fromMaryTx
     , fromShelleyTx
-    , maxTokenBundleSerializedLengthBytes
     , sealShelleyTx
     , toCardanoLovelace
     )
@@ -861,6 +866,8 @@ dummyTxParameters = TxParameters
         error "dummyTxParameters: getFeePolicy"
     , getTxMaxSize =
         error "dummyTxParameters: getTxMaxSize"
+    , getTokenBundleMaxSize =
+        error "dummyTxParameters: getMaxTokenBundleSize"
     }
 
 dummyProtocolParameters :: ProtocolParameters
@@ -901,6 +908,7 @@ mockProtocolParameters = dummyProtocolParameters
     { txParameters = TxParameters
         { getFeePolicy = LinearFee (Quantity 1.0) (Quantity 2.0)
         , getTxMaxSize = Quantity 16384
+        , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
         }
     }
 
@@ -1074,10 +1082,11 @@ prop_txConstraints_txOutputMaximumSize (Blind (Large bundle)) =
     authenticComparison = compare authenticSize authenticSizeMax
     simulatedComparison = compare simulatedSize simulatedSizeMax
 
-    authenticSize :: Int
+    authenticSize :: TxSize
     authenticSize = computeTokenBundleSerializedLengthBytes bundle
-    authenticSizeMax :: Int
-    authenticSizeMax = maxTokenBundleSerializedLengthBytes
+
+    authenticSizeMax :: TxSize
+    authenticSizeMax = unTokenBundleMaxSize maryTokenBundleMaxSize
 
     simulatedSize :: TxSize
     simulatedSize = txOutputSize mockTxConstraints bundle

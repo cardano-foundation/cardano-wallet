@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlottingParameters (..)
     , StartTime (..)
+    , TokenBundleMaxSize (..)
     , TxParameters (..)
     , emptyEraInfo
     )
@@ -49,7 +50,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..) )
+    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..), TxSize (..) )
 import Crypto.Hash
     ( Blake2b_256, hash )
 import Data.ByteString
@@ -107,6 +108,7 @@ dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters
     { getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
     , getTxMaxSize = Quantity 8192
+    , getTokenBundleMaxSize = TokenBundleMaxSize (TxSize 4000)
     }
 
 dummyNetworkParameters :: NetworkParameters

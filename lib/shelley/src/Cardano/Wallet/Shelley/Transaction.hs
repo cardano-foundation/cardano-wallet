@@ -116,7 +116,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromAlonzoTx
     , fromMaryTx
     , fromShelleyTx
-    , maxTokenBundleSerializedLengthBytes
     , sealShelleyTx
     , toAllegraTxOut
     , toAlonzoTxOut
@@ -152,7 +151,7 @@ import Data.ByteString
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Kind
@@ -537,8 +536,9 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
             TokenBundleSizeWithinLimit -> False
             OutputTokenBundleSizeExceedsLimit -> True
           where
-            assessSize =
-                assessTokenBundleSize Compatibility.tokenBundleSizeAssessor
+            assessSize = assessTokenBundleSize
+                . Compatibility.tokenBundleSizeAssessor
+                $ pp ^. (#txParameters . #getTokenBundleMaxSize)
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
@@ -646,8 +646,10 @@ txConstraints protocolParams witnessTag = TxConstraints
         marginalSizeOf empty {txOutputs = [mkTxOut bundle]}
 
     txOutputMaximumSize = (<>)
-        (TxSize $ fromIntegral maxTokenBundleSerializedLengthBytes)
         (txOutputSize mempty)
+        (view
+            (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize)
+            protocolParams)
 
     txOutputMaximumTokenQuantity =
         TokenQuantity $ fromIntegral $ maxBound @Word64

@@ -58,6 +58,7 @@ module Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , MinimumUTxOValue (..)
     , TxParameters (..)
+    , TokenBundleMaxSize (..)
     , EraInfo (..)
     , emptyEraInfo
     , ActiveSlotCoefficient (..)
@@ -162,7 +163,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..) )
+    ( Tx (..), TxSize (..) )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq
@@ -249,6 +250,8 @@ import Network.URI
     ( URI (..), parseAbsoluteURI, uriQuery, uriScheme, uriToString )
 import Numeric.Natural
     ( Natural )
+import Test.QuickCheck
+    ( Arbitrary (..), oneof )
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -1072,6 +1075,31 @@ instance NFData DecentralizationLevel
 instance Buildable DecentralizationLevel where
     build = build . unDecentralizationLevel
 
+-- | The maximum size of a serialized `TokenBundle` (`_maxValSize` in the Alonzo
+-- ledger)
+newtype TokenBundleMaxSize = TokenBundleMaxSize
+    { unTokenBundleMaxSize :: TxSize }
+    deriving (Eq, Generic, Show)
+
+instance NFData TokenBundleMaxSize
+
+instance Arbitrary TokenBundleMaxSize where
+    arbitrary = TokenBundleMaxSize . TxSize <$>
+        oneof
+          -- Generate values close to the mainnet value of 4000 (and guard
+          -- against underflow)
+          [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
+
+          -- Generate more extreme values (both small and large)
+          , fromIntegral <$> arbitrary @Word64
+          ]
+    shrink (TokenBundleMaxSize (TxSize s)) =
+        map (TokenBundleMaxSize . TxSize . fromIntegral)
+        . shrink @Word64 -- Safe w.r.t the generator, despite TxSize wrapping a
+                         -- Natural
+        $ fromIntegral s
+
+
 -- | Parameters that relate to the construction of __transactions__.
 --
 data TxParameters = TxParameters
@@ -1079,6 +1107,9 @@ data TxParameters = TxParameters
         -- ^ Formula for calculating the transaction fee.
     , getTxMaxSize :: Quantity "byte" Word16
         -- ^ Maximum size of a transaction (soft or hard limit).
+    , getTokenBundleMaxSize :: TokenBundleMaxSize
+        -- ^ Maximum size of a serialized `TokenBundle` (_maxValSize in the
+        -- Alonzo ledger)
     } deriving (Generic, Show, Eq)
 
 instance NFData TxParameters

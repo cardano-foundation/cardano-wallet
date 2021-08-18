@@ -1656,6 +1656,25 @@ x-collateralInputCount: &collateralInputCount
   minimum: 0
   example: 3
 
+x-maximumTokenBundleSize: &maximumTokenBundleSize
+  type: object
+  description: |
+    The maximum size of a serialized `TokenBundle`. The concept was added in Mary where
+    it was hard-coded to 4000 bytes. In Alonzo it was made an updateable protocol parameter (`_maxValSize`).
+  required:
+    - quantity
+    - unit
+  properties:
+    quantity:
+      type: number
+      minimum: 0
+      example: 4000
+    unit:
+      type: string
+      enum:
+        - byte
+
+
 #############################################################################
 #                                                                           #
 #                              DEFINITIONS                                  #
@@ -1816,6 +1835,7 @@ components:
         - minimum_utxo_value
         - eras
         - maximum_collateral_input_count
+        - maximum_token_bundle_size
       properties:
         genesis_block_hash: *blockId
         blockchain_start_time: *date
@@ -1840,6 +1860,8 @@ components:
           <<: *collateralInputCount
           description: |
             The maximum number of collateral inputs that can be used in a single transaction.
+        maximum_token_bundle_size:
+          <<: *maximumTokenBundleSize
 
     ApiSelectCoinsPayments: &ApiSelectCoinsPayments
       type: object

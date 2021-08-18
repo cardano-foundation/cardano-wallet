@@ -79,7 +79,6 @@ module Cardano.Wallet.Shelley.Compatibility
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
     , computeTokenBundleSerializedLengthBytes
-    , maxTokenBundleSerializedLengthBytes
 
       -- ** Stake pools
     , fromPoolId
@@ -159,7 +158,7 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Byron.Compatibility
-    ( fromByronBlock, fromTxAux, toByronBlockHeader )
+    ( fromByronBlock, fromTxAux, maryTokenBundleMaxSize, toByronBlockHeader )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -167,6 +166,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolCertificate (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
+    , ProtocolParameters (txParameters)
+    , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeMkPercentage )
@@ -570,8 +571,8 @@ fromTip genesisHash tip = case getPoint (getTipPoint tip) of
         At x -> x
 
 -- NOTE: Unsafe conversion from Natural -> Word16
-fromMaxTxSize :: Natural -> Quantity "byte" Word16
-fromMaxTxSize =
+fromMaxSize :: Natural -> Quantity "byte" Word16
+fromMaxSize =
     Quantity . fromIntegral
 
 fromShelleyPParams
@@ -583,7 +584,7 @@ fromShelleyPParams eraInfo pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
     , txParameters =
-        txParametersFromPParams pp
+        txParametersFromPParams maryTokenBundleMaxSize pp
     , desiredNumberOfStakePools =
         desiredNumberOfStakePoolsFromPParams pp
     , minimumUTxOvalue =
@@ -604,8 +605,9 @@ fromAlonzoPParams
 fromAlonzoPParams eraInfo pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
-    , txParameters =
-        txParametersFromPParams pp
+    , txParameters = txParametersFromPParams
+        (W.TokenBundleMaxSize $ W.TxSize $ Alonzo._maxValSize pp)
+        pp
     , desiredNumberOfStakePools =
         desiredNumberOfStakePoolsFromPParams pp
     , minimumUTxOvalue = MinimumUTxOValueCostPerWord
@@ -652,13 +654,15 @@ txParametersFromPParams
     :: HasField "_minfeeA" pparams Natural
     => HasField "_minfeeB" pparams Natural
     => HasField "_maxTxSize" pparams Natural
-    => pparams
+    => W.TokenBundleMaxSize
+    -> pparams
     -> W.TxParameters
-txParametersFromPParams pp = W.TxParameters
+txParametersFromPParams maxBundleSize pp = W.TxParameters
     { getFeePolicy = W.LinearFee
         (Quantity (naturalToDouble (getField @"_minfeeB" pp)))
         (Quantity (naturalToDouble (getField @"_minfeeA" pp)))
-    , getTxMaxSize = fromMaxTxSize $ getField @"_maxTxSize" pp
+    , getTxMaxSize = fromMaxSize $ getField @"_maxTxSize" pp
+    , getTokenBundleMaxSize = maxBundleSize
     }
   where
     naturalToDouble :: Natural -> Double
@@ -1387,30 +1391,27 @@ rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr by
 --
 -- See 'W.TokenBundleSizeAssessor' for the expected properties of this function.
 --
-tokenBundleSizeAssessor :: W.TokenBundleSizeAssessor
-tokenBundleSizeAssessor = W.TokenBundleSizeAssessor {..}
+tokenBundleSizeAssessor :: W.TokenBundleMaxSize -> W.TokenBundleSizeAssessor
+tokenBundleSizeAssessor maxSize = W.TokenBundleSizeAssessor {..}
   where
     assessTokenBundleSize tb
-        | serializedLengthBytes <= maxTokenBundleSerializedLengthBytes =
+        | serializedLengthBytes <= maxSize' =
             W.TokenBundleSizeWithinLimit
         | otherwise =
             W.OutputTokenBundleSizeExceedsLimit
       where
-        serializedLengthBytes :: Int
+        serializedLengthBytes :: W.TxSize
         serializedLengthBytes = computeTokenBundleSerializedLengthBytes tb
 
-computeTokenBundleSerializedLengthBytes :: TokenBundle.TokenBundle -> Int
-computeTokenBundleSerializedLengthBytes =
-    BS.length . Binary.serialize' . Cardano.toMaryValue . toCardanoValue
+        maxSize' :: W.TxSize
+        maxSize' = W.unTokenBundleMaxSize maxSize
 
--- NOTE: This hard-coded limit may change in future. Ideally, we should
--- delegate the assessment of whether a token bundle is too large to a
--- function exported by Cardano API.
---
--- See: https://jira.iohk.io/projects/ADP/issues/ADP-779
---
-maxTokenBundleSerializedLengthBytes :: Int
-maxTokenBundleSerializedLengthBytes = 4000
+computeTokenBundleSerializedLengthBytes :: TokenBundle.TokenBundle -> W.TxSize
+computeTokenBundleSerializedLengthBytes = W.TxSize . safeCast
+    . BS.length . Binary.serialize' . Cardano.toMaryValue . toCardanoValue
+  where
+    safeCast :: Int -> Natural
+    safeCast = fromIntegral
 
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding

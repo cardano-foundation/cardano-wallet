@@ -624,6 +624,8 @@ newtype TxSize = TxSize { unTxSize :: Natural }
     deriving stock (Eq, Ord, Generic)
     deriving Show via (Quiet TxSize)
 
+instance NFData TxSize
+
 instance Semigroup TxSize where
     TxSize a <> TxSize b = TxSize (a + b)
 

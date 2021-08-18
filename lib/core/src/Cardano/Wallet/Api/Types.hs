@@ -1008,6 +1008,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     , desiredPoolNumber :: !Word16
     , minimumUtxoValue :: !(Quantity "lovelace" Natural)
+    , maximumTokenBundleSize :: !(Quantity "byte" Natural)
     , eras :: !ApiEraInfo
     , maximumCollateralInputCount :: !Word16
     } deriving (Eq, Generic, Show)
@@ -1057,6 +1058,9 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
         , eras = apiEras
         , maximumCollateralInputCount =
               view #maxCollateralInputs pp
+        , maximumTokenBundleSize = Quantity $ pp ^.
+            (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize .
+            #unTxSize)
         }
   where
     toApiCoin = Quantity . fromIntegral . unCoin
