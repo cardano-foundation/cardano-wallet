@@ -378,15 +378,42 @@ prefilterBlock b u0 = runState $ do
         -> State s ([(Tx, TxMeta)], UTxO)
     applyTx (!txs, !u) tx = do
         ourU <- state $ utxoOurs tx
-        let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
-        let u' = (u <> ourU) `excluding` ourIns
+        let ourIns =
+                Set.fromList (inputs tx)
+                    `Set.intersection`
+                        dom (u <> ourU)
+        let ourCollateralIns =
+                Set.fromList (fst <$> tx ^. #resolvedCollateral)
+                    `Set.intersection`
+                        dom (u <> ourU)
+        let u' =
+                case tx ^. #isValidScript of
+                    -- If the transaction failed to validate, remove the
+                    -- collateral inputs (that belonged to us) from our UTxO
+                    -- set.
+                    Just False ->
+                        (u <> ourU) `excluding` ourCollateralIns
+                    -- Otherwise, if the transaction succeeded validation, or
+                    -- did not make use of a script that needed to be validated,
+                    -- remove the regular inputs (that belonged to us) from our
+                    -- UTxO set.
+                    _ ->
+                        (u <> ourU) `excluding` ourIns
         ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
         let received = balance ourU
-        let spent = balance (u `restrictedBy` ourIns) `TB.add` TB.fromCoin ourWithdrawals
+        let spent =
+                case tx ^. #isValidScript of
+                    Just False ->
+                        balance (u `restrictedBy` ourCollateralIns) `TB.add` TB.fromCoin ourWithdrawals
+                    _ ->
+                        balance (u `restrictedBy` ourIns) `TB.add` TB.fromCoin ourWithdrawals
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourU /= mempty
         let hasKnownWithdrawal = ourWithdrawals /= mempty
+        let failedScriptValidation = case tx ^. #isValidScript of
+                Just False -> True
+                _ -> False
 
         -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
         -- a Byron transaction. In which case fees can actually be calculated as
@@ -418,7 +445,7 @@ prefilterBlock b u0 = runState $ do
         else if hasKnownInput || hasKnownWithdrawal then
             let
                 adaSpent = TB.getCoin spent
-                adaReceived = TB.getCoin received
+                adaReceived = if failedScriptValidation then mempty else TB.getCoin received
                 dir = if adaSpent > adaReceived then Outgoing else Incoming
                 amount = distance adaSpent adaReceived
             in
@@ -452,10 +479,19 @@ utxoOurs
     => Tx
     -> s
     -> (UTxO, s)
-utxoOurs tx = runState $ toUtxo <$> forM (zip [0..] (outputs tx)) filterOut
+utxoOurs tx = runState $ do
+    fmap toUtxo $ do
+        let indexedOutputs = zip [0..] (outputs tx)
+        xs <- forM indexedOutputs filterOut
+        pure $ filterFailedValidation <$> xs
   where
     toUtxo = UTxO . Map.fromList . catMaybes
     filterOut (ix, out) = do
         state (isOurs $ address out) <&> \case
             Just{}  -> Just (TxIn (txId tx) ix, out)
             Nothing -> Nothing
+    filterFailedValidation =
+        case tx ^. #isValidScript of
+            Just False -> const Nothing
+            _ -> id
+

@@ -118,6 +118,7 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , initWallet
+    , utxo
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
@@ -525,6 +526,95 @@ fileModeSpec =  do
             let dummyHash x = Hash $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
             let dummyAddr x = Address $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
 
+            let
+                mockApply DBLayer{..} h mockTxs = do
+                    Just cpA <- atomically $ readCheckpoint testWid
+                    let slotA = view #slotNo $ currentTip cpA
+                    let Quantity bhA = view #blockHeight $ currentTip cpA
+                    let hashA = headerHash $ currentTip cpA
+                    let fakeBlock = Block
+                            (BlockHeader
+                            { slotNo = slotA + 100
+                            -- Increment blockHeight by steps greater than k
+                            -- Such that old checkpoints are always pruned.
+                            , blockHeight = Quantity $ bhA + 5000
+                            , headerHash = h
+                            , parentHeaderHash = hashA
+                            })
+                            mockTxs
+                            mempty
+                    let (FilteredBlock _ txs, cpB) = applyBlock fakeBlock cpA
+                    print $ utxo cpB
+                    atomically $ do
+                        unsafeRunExceptT $ putCheckpoint testWid cpB
+                        unsafeRunExceptT $ putTxHistory testWid txs
+                        unsafeRunExceptT $ prune testWid (Quantity 2160)
+
+
+            it "Should remove collateral inputs from the UTxO set if validation \
+               \fails" $ \f ->
+                withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
+
+                    let ourAddrs =
+                            map (\(a,s,_) -> (a,s)) $
+                            knownAddresses (getState testCp)
+
+                    atomically $ unsafeRunExceptT $ initializeWallet
+                        testWid testCp testMetadata mempty gp
+
+                    -- Provide funds for us to transfer AND use as collateral
+                    let mockApplyBlock1 = mockApply db (dummyHash "block1")
+                            [ Tx
+                                { txId = dummyHash "tx1"
+                                , fee = Nothing
+                                , resolvedInputs =
+                                    [ (TxIn (dummyHash "faucet") 0, Coin 4)
+                                    , (TxIn (dummyHash "faucet") 1, Coin 8)
+                                    ]
+                                , resolvedCollateral = []
+                                , outputs =
+                                    [ TxOut (fst $ head ourAddrs)
+                                            (coinToBundle 4)
+                                    , TxOut (fst $ head $ tail ourAddrs)
+                                            (coinToBundle 8)
+                                    ]
+                                , withdrawals = mempty
+                                , metadata = Nothing
+                                , isValidScript = Just True
+                                }
+                            ]
+
+                    -- Slot 1 0
+                    mockApplyBlock1
+                    getAvailableBalance db `shouldReturn` 12
+
+                    -- Slot 200
+                    mockApply db (dummyHash "block2a")
+                        [ Tx
+                            { txId = dummyHash "tx2a"
+                            , fee = Nothing
+                            , resolvedInputs = [(TxIn (dummyHash "tx1") 0, Coin 4)]
+                            , resolvedCollateral = [(TxIn (dummyHash "tx1") 1, Coin 8)]
+                            , outputs =
+                                [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
+                                , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
+                                ]
+                            , withdrawals = mempty
+                            , metadata = Nothing
+                            , isValidScript = Just False
+                            }
+                        ]
+
+                    -- Slot 300
+                    mockApply db (dummyHash "block3a") []
+                    getAvailableBalance db `shouldReturn` 4
+                    getTxsInLedger db `shouldReturn`
+                        -- We lost 8 to collateral
+                        [ (Outgoing, 8)
+                        -- We got 12 from the faucet
+                        , (Incoming, 12)
+                        ]
+
             it "(Regression test #1575) - TxMetas and checkpoints should \
                \rollback to the same place" $ \f -> do
               withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
@@ -536,29 +626,7 @@ fileModeSpec =  do
                 atomically $ unsafeRunExceptT $ initializeWallet
                     testWid testCp testMetadata mempty gp
 
-                let mockApply h mockTxs = do
-                        Just cpA <- atomically $ readCheckpoint testWid
-                        let slotA = view #slotNo $ currentTip cpA
-                        let Quantity bhA = view #blockHeight $ currentTip cpA
-                        let hashA = headerHash $ currentTip cpA
-                        let fakeBlock = Block
-                                (BlockHeader
-                                { slotNo = slotA + 100
-                                -- Increment blockHeight by steps greater than k
-                                -- Such that old checkpoints are always pruned.
-                                , blockHeight = Quantity $ bhA + 5000
-                                , headerHash = h
-                                , parentHeaderHash = hashA
-                                })
-                                mockTxs
-                                mempty
-                        let (FilteredBlock _ txs, cpB) = applyBlock fakeBlock cpA
-                        atomically $ do
-                            unsafeRunExceptT $ putCheckpoint testWid cpB
-                            unsafeRunExceptT $ putTxHistory testWid txs
-                            unsafeRunExceptT $ prune testWid (Quantity 2160)
-
-                let mockApplyBlock1 = mockApply (dummyHash "block1")
+                let mockApplyBlock1 = mockApply db (dummyHash "block1")
                         [ Tx
                             { txId = dummyHash "tx1"
                             , fee = Nothing
@@ -579,7 +647,7 @@ fileModeSpec =  do
                 getAvailableBalance db `shouldReturn` 4
 
                 -- Slot 200
-                mockApply (dummyHash "block2a")
+                mockApply db (dummyHash "block2a")
                     [ Tx
                         { txId = dummyHash "tx2a"
                         , fee = Nothing
@@ -597,7 +665,7 @@ fileModeSpec =  do
                     ]
 
                 -- Slot 300
-                mockApply (dummyHash "block3a") []
+                mockApply db (dummyHash "block3a") []
                 getAvailableBalance db `shouldReturn` 2
                 getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
 
