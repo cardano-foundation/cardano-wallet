@@ -321,10 +321,10 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
 -- | Represents all the inputs of a transaction.
 --
 data TxInputs = TxInputs
-    { inputs
-        :: [TxIn]
-    , collateral
-        :: [TxIn]
+    { inputs :: [TxIn]
+        -- ^ A transaction's ordinary inputs.
+    , collateral :: [TxIn]
+        -- ^ A transaction's collateral inputs.
     }
     deriving (Eq, Show)
 
@@ -396,6 +396,14 @@ prop_availableUTxO makeProperty =
         wallet = walletFromUTxO utxo
         result = availableUTxO pendingTxs wallet
 
+    -- Creates a transaction from inputs, by adding dummy data for fields that
+    -- are not used by 'availableUTxO'.
+    --
+    -- Ideally, we'd leave these fields undefined (to assert that they should
+    -- not be evaluated or processed in any way), but since the fields of the
+    -- 'Tx' type are strict, our next best option is to provide a minimal value
+    -- for each field.
+    --
     txFromTxInputs :: TxInputs -> Tx
     txFromTxInputs TxInputs {collateral, inputs} = Tx
         { resolvedCollateral = (, Coin 0) <$> collateral
@@ -407,6 +415,9 @@ prop_availableUTxO makeProperty =
         , metadata = Nothing
         }
 
+    -- Creates a wallet object from a UTxO set, and asserts that the other
+    -- parts of the wallet state are not used in any way.
+    --
     walletFromUTxO :: UTxO -> Wallet s
     walletFromUTxO utxo = unsafeInitWallet utxo
         (shouldNotEvaluate "currentTip")
