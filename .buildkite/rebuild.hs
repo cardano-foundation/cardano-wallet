@@ -149,22 +149,21 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
         projectBuild ["--test", "--no-run-tests"]
     , titled "Tests (except integration)" $
         timeout 60 $ do
-            test (skip integration)
+            test (skip "integration")
     , titled "Checking golden test files" $
         checkUnclean dryRun "lib/core/test/data"
     , when' runIntegration $ titled "Integration tests on latest era" $
         timeout 60 $ do
             unset "LOCAL_CLUSTER_ERA"
-            test [integration]
+            test ["cardano-wallet:integration"]
     , when' runIntegration $ titled "Integration tests on past era (Mary)" $
         timeout 60 $ do
             export "LOCAL_CLUSTER_ERA" "mary"
-            test [integration]
+            test ["cardano-wallet:integration"]
     ]
   where
     projectOpt = Fast
     runIntegration = qa > QuickTest
-    integration = "cardano-wallet:integration"
 
     benchFlags = [ "--bench", "--no-run-benchmarks"]
 
