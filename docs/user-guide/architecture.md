@@ -68,28 +68,6 @@ The transaction must be fully signed and CBOR-encoded. This could be done by [ca
 
 [Cardano-rosetta][] is an implementation of the [Rosetta](https://www.rosetta-api.org/docs/1.4.4/welcome.html) specification for Cardano. Rosetta is an open-source specification and set of tools that makes integrating with blockchains simpler, faster, and more reliable.
 
-
-## Choosing the right component
-
-{{<mermaid>}}
-graph TD
-QMakeTx{Do you need to <br/> make transactions?}
-QManageUTxO{Do you want to <br/>implement your own wallet?}
-QAlreadyIntegrated{Do you already have<br/>an integration with<br/>cardano-sl?}
-
-GraphQL{cardano-graphql}
-Rosetta{cardano-rosetta}
-SDK{SDK}
-Wallet{cardano-wallet}
-
-QMakeTx-->|yes| QManageUTxO
-QMakeTx-->|no| QAlreadyIntegrated
-QAlreadyIntegrated-->|yes| Rosetta
-QAlreadyIntegrated-->|no| GraphQL
-QManageUTxO-->|yes| SDK
-QManageUTxO-->|no| Wallet
-{{</mermaid>}}
-
 ## Notes
 
 See also [input-output-hk/adrestia][adrestia].
