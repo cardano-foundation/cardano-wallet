@@ -127,8 +127,6 @@ import Test.QuickCheck
     , forAllShrink
     , frequency
     , genericShrink
-    , liftArbitrary
-    , liftShrink
     , liftShrink2
     , listOf
     , oneof
@@ -330,8 +328,8 @@ data TxInputs = TxInputs
 
 genTxInputs :: Gen TxInputs
 genTxInputs = TxInputs
-    <$> liftArbitrary genTxIn
-    <*> liftArbitrary genTxIn
+    <$> listOf genTxIn
+    <*> listOf genTxIn
 
 shrinkTxInputs :: TxInputs -> [TxInputs]
 shrinkTxInputs TxInputs {inputs, collateral} = uncurry TxInputs <$>
@@ -379,7 +377,7 @@ prop_availableUTxO
 prop_availableUTxO makeProperty =
     forAllShrink (scale (* 4) genUTxO) shrinkUTxO
         $ \utxo ->
-    forAllShrink (liftArbitrary genTxInputs) (liftShrink shrinkTxInputs)
+    forAllShrink (listOf genTxInputs) (shrinkList shrinkTxInputs)
         $ \pendingTxInputs ->
     inner utxo pendingTxInputs
   where
