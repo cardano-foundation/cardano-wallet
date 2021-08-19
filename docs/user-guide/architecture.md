@@ -11,9 +11,10 @@ erDiagram
   CARDANO-NODE ||--|{ CARDANO-WALLET : depends-on
   CARDANO-NODE ||--|{ CARDANO-DB-SYNC : depends-on
 
-  CARDANO-DB-SYNC ||--|{ SMASH : depends-on
-  CARDANO-DB-SYNC ||--|{ CARDANO-GRAPHQL : depends-on
-  CARDANO-DB-SYNC ||--|{ CARDANO-ROSETTA : depends-on
+  CARDANO-DB-SYNC ||--|| POSTGRESQL : dumps-into
+  POSTGRESQL ||--|| SMASH : is-queried
+  POSTGRESQL ||--|| CARDANO-GRAPHQL : is-queried
+  POSTGRESQL ||--|| CARDANO-ROSETTA : is-queried
 
   CARDANO-GRAPHQL ||--|{ EXPLORER : depends-on
 
