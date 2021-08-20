@@ -8,7 +8,7 @@ let
     gnused gnugrep coreutils git nix gnumake gnutar gzip lz4
     stack haskell-build-tools.weeder
   ];
-  libs = ps: with ps; [turtle safe transformers extra async];
+  libs = ps: with ps; [turtle safe transformers extra async digest];
   ghc' = haskellPackages.ghcWithPackages libs;
 
   # Include the stack nix-shell in closure of stackRebuild, so that it
