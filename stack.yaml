@@ -1,9 +1,18 @@
-
-# This resolver file contains a ghc-8.10-based stackage LTS, with a
-# released cardano-node version, and supporting libraries.
+########################################################################
+# The Stack build, with dependencies based on a Stackage LTS snapshot.
 #
-# NOTE: Remember to update the version matrix in README.md when
-# bumping the Cardano version.
+# * If changing this file, usually cabal.project should be updated too.
+#
+# * When changing something here, check https://www.stackage.org/lts
+#   for new releases, and update the resolver version to be the latest
+#   in whichever series uses GHC 8.10.x.
+#
+# * After changing dependencies in stack.yaml or *.cabal, you must run
+#   ./nix/regenerate.sh to update Nix files. Alternatively, let
+#   Buildkite CI update the files for you.
+#
+########################################################################
+
 resolver: lts-18.5
 compiler: ghc-8.10.5
 
@@ -18,9 +27,37 @@ packages:
 - lib/shelley
 - lib/strict-non-empty-containers
 
+flags:
+  # Avoid a system library which causes difficulty with cross-compilation
+  zip:
+    disable-bzip2: true
+
+  # Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
+  # This still requires the host system to have the 'standard' libsodium installed.
+  cardano-crypto-praos:
+    external-libsodium-vrf: false
+
+  # Using RDRAND instead of /dev/urandom as an entropy source for key
+  # generation is dubious. Set the flag so we use /dev/urandom by default.
+  cryptonite:
+    support_rdrand: false
+
+ghc-options:
+  # Enable .hie file generation for weeder and haskell-language-server
+  "$locals": -fwrite-ide-info
+
+nix:
+  shell-file: nix/stack-shell.nix
+  # Disabling the pure nix-shell allows environment variables to be
+  # passed down to tests. We need this for integration tests.
+  pure: false
+
 allow-newer: true
 
 extra-deps:
+########################################################################
+### cardano-wallet-specific dependencies
+
 - OddWord-1.0.2.0
 - command-0.1.1
 - hspec-2.8.2
@@ -33,21 +70,22 @@ extra-deps:
     - command-line
     - core
 
-# In LTS 18.4, but with a different version
-- base16-bytestring-1.0.1.0 # 1.0.1.0 on lts-18.4
-- Cabal-3.4.0.0 # 3.2.1.0 on lts-18.4
-- containers-0.5.11.0 # 0.6.2.1 on lts-18.4
-- dns-3.0.4 # 4.0.1 on lts-18.4
-- network-3.1.2.1 # 3.1.1.1 on lts-18.4
-- recursion-schemes-5.1.3 # 5.2.2.1 on lts-18.4
-- text-1.2.4.0 # 1.2.4.1 on lts-18.4
-- Win32-2.6.2.0 # 2.6.1.0 on lts-18.4
+########################################################################
+### cardano-node 1.29.0-rc1 and its dependencies
 
-# Same as on lts-18.4, but somehow stack requires it here
+- Cabal-3.4.0.0 # 3.2.1.0 on lts-18.5
+- containers-0.5.11.0 # 0.6.2.1 on lts-18.5
+- dns-3.0.4 # 4.0.1 on lts-18.5
+- network-3.1.2.1 # 3.1.1.1 on lts-18.5
+- recursion-schemes-5.1.3 # 5.2.2.1 on lts-18.5
+- text-1.2.4.0 # 1.2.4.1 on lts-18.5
+- Win32-2.6.2.0 # 2.6.1.0 on lts-18.5
+
+# Same as on lts-18.5, but somehow stack requires it here
 - binary-0.8.8.0
 - parsec-3.1.14.0
 
-# Not in LTS 18.4
+# Not in LTS 18.5
 - async-timer-0.2.0.0
 - beam-core-0.9.1.0
 - beam-migrate-0.5.1.0
@@ -214,28 +252,3 @@ extra-deps:
 
 - git: https://github.com/input-output-hk/Win32-network
   commit: 3825d3abf75f83f406c1f7161883c438dac7277d
-
-flags:
-  # Avoid a system library which causes difficulty with cross-compilation
-  zip:
-    disable-bzip2: true
-
-  # Bundle VRF crypto in libsodium and do not rely on an external fork to have it.
-  # This still requires the host system to have the 'standard' libsodium installed.
-  cardano-crypto-praos:
-    external-libsodium-vrf: false
-
-  # Using RDRAND instead of /dev/urandom as an entropy source for key
-  # generation is dubious. Set the flag so we use /dev/urandom by default.
-  cryptonite:
-    support_rdrand: false
-
-ghc-options:
-  # Enable .hie file generation for weeder and haskell-language-server
-  "$locals": -fwrite-ide-info
-
-nix:
-  shell-file: nix/stack-shell.nix
-  # Disabling the pure nix-shell allows environment variables to be
-  # passed down to tests. We need this for integration tests.
-  pure: false

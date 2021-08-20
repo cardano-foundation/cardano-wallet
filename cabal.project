@@ -7,6 +7,13 @@
 --   cabal build all --enable-tests --enable-benchmarks -O0
 --
 -- -----------------------------------------------------------------------------
+-- Updating this file
+--
+-- Note that the canonical source of dependencies is stack.yaml and
+-- cabal.project should be kept in sync with that. The Nix packages
+-- are generated from stack.yaml not cabal.project.
+--
+-- -----------------------------------------------------------------------------
 -- How to use with the nix-shell
 --
 -- The advantage of building under nix-shell is that the correct
