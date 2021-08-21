@@ -37,12 +37,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "8c732560b201b5da8e3bdf175c6eda73a32d64bc";
-      sha256 = "0nwy03wyd2ks4qxg47py7lm18karjz6vs7p8knmn3zy72i3n9rfi";
+      rev = "cb0f19c85e5bb5299839ad4ed66af6fa61322cc4";
+      sha256 = "0dnkfqcvbifbk3m5pg8kyjqjy0zj1l4vd23p39n6ym4q0bnib1cq";
       }) // {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "8c732560b201b5da8e3bdf175c6eda73a32d64bc";
-      sha256 = "0nwy03wyd2ks4qxg47py7lm18karjz6vs7p8knmn3zy72i3n9rfi";
+      rev = "cb0f19c85e5bb5299839ad4ed66af6fa61322cc4";
+      sha256 = "0dnkfqcvbifbk3m5pg8kyjqjy0zj1l4vd23p39n6ym4q0bnib1cq";
       };
     postUnpack = "sourceRoot+=/orphans-deriving-via; echo source root reset to \$sourceRoot";
     }

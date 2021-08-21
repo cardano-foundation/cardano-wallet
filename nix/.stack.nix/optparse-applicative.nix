@@ -52,11 +52,11 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/optparse-applicative";
-      rev = "27b99b346d58db877a61224a745de872601ba3e6";
-      sha256 = "0y6imnwsd6h2myhaf6m1b8vyrnx44qz2s9x8760ii66jz15xih6r";
+      rev = "84bcc6f18992a441886589a117249bfface8630e";
+      sha256 = "09pr7m9gjsk8889m9d3mj75p69viv1acnrq63dgb11jl5gnnsblr";
       }) // {
       url = "https://github.com/input-output-hk/optparse-applicative";
-      rev = "27b99b346d58db877a61224a745de872601ba3e6";
-      sha256 = "0y6imnwsd6h2myhaf6m1b8vyrnx44qz2s9x8760ii66jz15xih6r";
+      rev = "84bcc6f18992a441886589a117249bfface8630e";
+      sha256 = "09pr7m9gjsk8889m9d3mj75p69viv1acnrq63dgb11jl5gnnsblr";
       };
     }

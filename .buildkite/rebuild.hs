@@ -22,11 +22,12 @@
 -- On Buildkite, the execution environment available to stack is defined in
 -- nix/stack-shell.nix.
 
-import Options.Applicative
+import Options.Applicative hiding
+    ( action )
 import Prelude hiding
     ( FilePath )
 import Turtle hiding
-    ( arg, match, opt, option, skip )
+    ( arg, match, opt, option, root, shell, skip )
 
 import Control.Concurrent.Async
     ( race )
@@ -46,8 +47,10 @@ import Data.ByteString
     ( ByteString )
 import Data.Char
     ( isSpace )
+import Data.Digest.CRC32
+    ( crc32 )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, mapMaybe, maybeToList )
+    ( fromMaybe, isJust, mapMaybe, maybeToList )
 import Safe
     ( headMay, readMay )
 import System.Exit
@@ -172,7 +175,7 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
             [ color "always"
             , [ "--no-terminal" ]
             , [ cmd ]
-            , concatMap (flag "release") pkgs
+            , concatMap (cabalFlag "release") pkgs
             , fast opt
             , args
             ]
@@ -194,7 +197,7 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
     skip  arg = ["--skip", arg]
     match arg = ["--match", arg]
     ta    arg = ["--ta", T.unwords arg]
-    flag name pkg = ["--flag", pkg <> ":" <> name]
+    cabalFlag name pkg = ["--flag", pkg <> ":" <> name]
 
     serialTests = "SERIAL"
 
@@ -366,6 +369,8 @@ data CICacheConfig = CICacheConfig
     -- ^ A list of branches to source caches from. The branches will be tried in
     -- order until one is found. When saving caches, the first branch in the list
     -- is used.
+    , ccCacheKey  :: Text
+    -- ^ An extra string to make separate caches.
     } deriving (Show)
 
 -- | Sets up the 'CICacheConfig' info, or provides a reason why caching can't be
@@ -377,7 +382,8 @@ getCacheConfig _ Nothing =
     pure (Left "--cache-dir argument was not provided")
 getCacheConfig (Just bk) (Just ccCacheDir) =
     (fmap FP.fromText <$> need "STACK_ROOT") >>= \case
-        Just ccStackRoot ->
+        Just ccStackRoot -> do
+            ccCacheKey <- getFileHash "stack.yaml"
             pure (Right CICacheConfig{ccBranches=cacheBranches bk,..})
         Nothing ->
             pure (Left "STACK_ROOT environment variable is not set")
@@ -389,6 +395,10 @@ getCacheConfig (Just bk) (Just ccCacheDir) =
 cacheBranches :: BuildkiteEnv -> [Text]
 cacheBranches BuildkiteEnv{..} =
     [bkBranch] ++ maybeToList bkBaseBranch ++ [bkDefaultBranch]
+
+-- | Return a hex string with a hash of the file contents.
+getFileHash :: FilePath -> IO Text
+getFileHash = fmap (format x . fromIntegral . crc32) . TB.strict . TB.input
 
 cacheGetStep :: Either Text CICacheConfig -> IO ()
 cacheGetStep cacheConfig = do
@@ -410,20 +420,21 @@ cachePutStep cacheConfig = do
 
 getCacheArchive :: MonadIO io => CICacheConfig -> FilePath -> io (Maybe FilePath)
 getCacheArchive CICacheConfig{..} ext = do
-    let caches = mapMaybe (getCacheName ccCacheDir) ccBranches
+    let caches = mapMaybe (getCacheName ccCacheKey ccCacheDir) ccBranches
     headMay <$> filterM testfile (map (</> ext) caches)
 
 -- | The cache directory for a given branch name. This filepath always has a
 -- trailing slash.
-getCacheName :: FilePath -> Text -> Maybe FilePath
-getCacheName base branch
+getCacheName :: Text -> FilePath -> Text -> Maybe FilePath
+getCacheName k base branch
     | ".." `T.isInfixOf` branch = Nothing
-    | otherwise = Just (base </> FP.fromText branch </> "")
+    | otherwise = Just $ base </> FP.fromText branch </>
+        (if T.null k then "" else fromText k </> "")
 
 -- | The filename for a given branch and cache name.
 putCacheName :: CICacheConfig -> FilePath -> Maybe FilePath
 putCacheName CICacheConfig{..} ext =
-    (</> ext) <$> getCacheName ccCacheDir (head ccBranches)
+    (</> ext) <$> getCacheName ccCacheKey ccCacheDir (head ccBranches)
 
 restoreCICache :: CICacheConfig -> IO ()
 restoreCICache cfg = do
@@ -520,7 +531,7 @@ purgeCacheStep dryRun cacheConfig buildDir = do
 -- | Remove all files and directories that do not belong to an active branch cache.
 cleanupCache :: DryRun -> FilePath -> [Text] -> IO ()
 cleanupCache dryRun cacheDir activeBranches = do
-    let branchCaches = mapMaybe (getCacheName cacheDir) activeBranches
+    let branchCaches = mapMaybe (getCacheName "" cacheDir) activeBranches
         isCache cf = any (\dir -> format fp cf `T.isPrefixOf` format fp dir)
     files <- fold (lstree cacheDir) (Fold.revList)
     forM_ files $ \cf -> do

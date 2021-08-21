@@ -85,12 +85,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "e9cda57df7ea6969edbc3bfc4e117668277d09c8";
-      sha256 = "1a91z6yvlhzlqrf7fy51fmmpm3ssk684h6pjgg022cdlsq56yif2";
+      rev = "d070bad7ce389a4b2ff7fb4fcb7937fdeca80f3a";
+      sha256 = "0jzdwjgqcj06b0rvwyh61cgf23dlh62lcn8z7dbm7wxwjjgpkjb1";
       }) // {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "e9cda57df7ea6969edbc3bfc4e117668277d09c8";
-      sha256 = "1a91z6yvlhzlqrf7fy51fmmpm3ssk684h6pjgg022cdlsq56yif2";
+      rev = "d070bad7ce389a4b2ff7fb4fcb7937fdeca80f3a";
+      sha256 = "0jzdwjgqcj06b0rvwyh61cgf23dlh62lcn8z7dbm7wxwjjgpkjb1";
       };
     postUnpack = "sourceRoot+=/ouroboros-consensus-shelley-test; echo source root reset to \$sourceRoot";
     }

@@ -7,6 +7,13 @@
 --   cabal build all --enable-tests --enable-benchmarks -O0
 --
 -- -----------------------------------------------------------------------------
+-- Updating this file
+--
+-- Note that the canonical source of dependencies is stack.yaml and
+-- cabal.project should be kept in sync with that. The Nix packages
+-- are generated from stack.yaml not cabal.project.
+--
+-- -----------------------------------------------------------------------------
 -- How to use with the nix-shell
 --
 -- The advantage of building under nix-shell is that the correct
@@ -49,17 +56,16 @@ packages:
 -- (according to cardano-node cabal.project)
 source-repository-package
   type: git
-  location: https://github.com/input-output-hk/optparse-applicative
-  tag: 27b99b346d58db877a61224a745de872601ba3e6
-  --sha256: 00gavws6jvl930rq09gs5rdwmyc4n42avk7p9s7pjv52d205v967
-
--- Using a fork until our patches can be merged upstream
--- (according to cardano-node cabal.project)
-source-repository-package
-  type: git
   location: https://github.com/input-output-hk/criterion
   tag: fb2e7be532db96255d203f86360230cae37130f3
   --sha256: 14r9zkfa8zslky3969gaq27gi7yi9rlqv0h1iq7zam9l15z53vhr
+
+-- Using a fork until our patches can be merged upstream
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/optparse-applicative
+  tag: 84bcc6f18992a441886589a117249bfface8630e
+  --sha256: 09pr7m9gjsk8889m9d3mj75p69viv1acnrq63dgb11jl5gnnsblr
 
 source-repository-package
     type: git
@@ -76,7 +82,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-base
-    tag: 8c732560b201b5da8e3bdf175c6eda73a32d64bc
+    tag: cb0f19c85e5bb5299839ad4ed66af6fa61322cc4
     subdir:
             base-deriving-via
             binary
@@ -92,13 +98,12 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-crypto
-    tag: f73079303f663e028288f9f4a9e08bcca39a923e
+    tag: 07397f0e50da97eaa0575d93bee7ac4b2b2576ec
 
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus
-  tag: 826c2514a40e962c2e4d56ce912803a434cc28fe
-  --sha256: 0vp6wiv1fz5bzvw90pdwv96nck78m5s91xiwjhkksq06l1yqr3ps
+  tag: 8c83c4abe211b4bbcaca3cdf1b2c0e38d0eb683f
   subdir:
     plutus-core
     plutus-ledger-api
@@ -109,7 +114,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-ledger-specs
-    tag: 30eca73a2f5c13f1fbed9a98a59540ac3d0c8afe
+    tag: d5b184a820853c7ba202efd615b8fadca1acb52c
     subdir: alonzo/impl
             byron/chain/executable-spec
             byron/crypto
@@ -139,7 +144,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-prelude
-    tag: bb4ed71ba8e587f672d06edf9d2e376f4b055555
+    tag: fd773f7a58412131512b9f694ab95653ac430852
     subdir: cardano-prelude
             cardano-prelude-test
 
@@ -168,7 +173,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/ouroboros-network
-    tag: e9cda57df7ea6969edbc3bfc4e117668277d09c8
+    tag: d070bad7ce389a4b2ff7fb4fcb7937fdeca80f3a
     subdir:
       io-sim
       io-classes
@@ -193,9 +198,10 @@ source-repository-package
 
 -- Drops an instance breaking cardano-node.
 source-repository-package
-  type: git
-  location: https://github.com/Quid2/flat.git
-  tag: 95e5d7488451e43062ca84d5376b3adcc465f1cd
+    type: git
+    location: https://github.com/michaelpj/flat.git
+    tag: ee59880f47ab835dbd73bea0847dab7869fc20d8
+    --sha256: 1lrzknw765pz2j97nvv9ip3l1mcpf2zr4n56hwlz0rk7wq7ls4cm
 
 -- -------------------------------------------------------------------------
 -- Constraints tweaking
