@@ -29,12 +29,15 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , computeUtxoStatistics
     , excluding
     , isSubsetOf
+    , null
     , log10
     , restrictedBy
     , restrictedTo
+    , size
     ) where
 
-import Prelude
+import Prelude hiding
+    ( null )
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -126,6 +129,12 @@ restrictedBy (UTxO utxo) =
 restrictedTo :: UTxO -> Set TxOut -> UTxO
 restrictedTo (UTxO utxo) outs =
     UTxO $ Map.filter (`Set.member` outs) utxo
+
+null :: UTxO -> Bool
+null (UTxO u) = Map.null u
+
+size :: UTxO -> Int
+size (UTxO u) = Map.size u
 
 data UTxOStatistics = UTxOStatistics
     { histogram :: ![HistogramBar]
