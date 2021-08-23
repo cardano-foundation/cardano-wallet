@@ -134,7 +134,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
-    tag: 708de685d49ec6af4b2d8b3cbfa0eca0e9e43edf
+    tag: cc78734d263d0eec2b12070380cdfea02a5a8342
     subdir: cardano-api
             cardano-cli
             cardano-config
@@ -173,7 +173,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/ouroboros-network
-    tag: d070bad7ce389a4b2ff7fb4fcb7937fdeca80f3a
+    tag: 877ce057ff6fb086474c8eaad53f2b7f0e0fce6b
     subdir:
       io-sim
       io-classes
