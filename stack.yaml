@@ -169,7 +169,7 @@ extra-deps:
   - shelley-ma/shelley-ma-test
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 9a6a6c81e3aebfaf757b562c823146c7da601e1c
+  commit: cc78734d263d0eec2b12070380cdfea02a5a8342
   subdirs:
   - cardano-api
   - cardano-cli
@@ -210,7 +210,7 @@ extra-deps:
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: d070bad7ce389a4b2ff7fb4fcb7937fdeca80f3a
+  commit: 877ce057ff6fb086474c8eaad53f2b7f0e0fce6b
   subdirs:
   - io-classes
   - io-sim
