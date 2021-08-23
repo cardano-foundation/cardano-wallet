@@ -38,11 +38,14 @@ module Cardano.Wallet.Primitive.Types.Tx
     -- * Functions
     , fromTransactionInfo
     , inputs
+    , collateralInputs
     , isPending
     , toTxHistory
     , txIns
+    , collateralTxIns
     , txMetadataIsNull
     , txOutCoin
+    , consumedInputs
 
     -- * Constants
     , txOutMinTokenQuantity
@@ -227,6 +230,18 @@ txIns = foldMap (Set.fromList . inputs)
 
 inputs :: Tx -> [TxIn]
 inputs = map fst . resolvedInputs
+
+collateralTxIns :: Set Tx -> Set TxIn
+collateralTxIns = foldMap (Set.fromList . collateralInputs)
+
+collateralInputs :: Tx -> [TxIn]
+collateralInputs = map fst . resolvedCollateral
+
+consumedInputs :: Tx -> Set TxIn
+consumedInputs tx =
+    case view #isValidScript tx of
+      Just False -> Set.fromList . collateralInputs $ tx
+      _ -> Set.fromList . inputs $ tx
 
 data TxIn = TxIn
     { inputId

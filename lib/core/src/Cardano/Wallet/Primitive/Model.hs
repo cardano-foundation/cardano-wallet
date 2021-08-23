@@ -106,9 +106,13 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( DerivationIndex (DerivationIndex) )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Data.Bifunctor as Bifunctor
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
+import qualified Data.Map.Strict as M
 import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
@@ -314,6 +318,155 @@ totalUTxO pending wallet@(Wallet _ _ s) =
                                Internals
 -------------------------------------------------------------------------------}
 
+-- | An abstract type representing the effect of applying a single transaction
+-- to a UTxO.
+data X' = X'
+    { _utxo :: !UTxO
+    , _lastTx :: !Tx
+    }
+
+-- | Apply a transaction to a UTxO, requires some function used to determine
+-- ownership of an address in a UTxO.
+--
+-- transactionInputs' (applyTransaction tx u) = transactionInputsUTxO u <> transactionInputs tx
+-- collateralInputs' (applyTransaction tx u) = collateralInputsUTxO u <> collateralInputs tx
+-- isValidScript tx => applyTransaction tx u = txins u `Set.difference` txins (inputs tx)
+-- not (isValidScript tx) => applyTransaction tx u = txins u `Set.difference` txins (collateralInputs tx)
+applyTransaction :: Tx -> X' -> X'
+applyTransaction tx !x =
+    let
+        u = _utxo x
+        collateralIns = Set.fromList (fst <$> tx ^. #resolvedCollateral)
+        transactionIns = Set.fromList (inputs tx)
+  
+        txUTxO = _utxo $ fromTx tx
+  
+        u' = case tx ^. #isValidScript of
+                Just False ->
+                    u `excluding` collateralIns
+                _ ->
+                    (u <> txUTxO) `excluding` transactionIns
+    in
+      X' u' tx
+
+-- isOurs :: Address -> s -> (Maybe (NonEmpty DerivationIndex), s)
+
+isOurs' :: IsOurs s Address => Address -> (s -> (s, Bool))
+isOurs' addr =
+    let
+        x1 :: s -> (Maybe (NonEmpty DerivationIndex), s)
+        x1 = isOurs addr
+
+        x2 :: s -> (s, Bool)
+        x2 = fmap (\(mDeriv, s) -> case mDeriv of
+                                       Nothing -> (s, False)
+                                       Just _  -> (s, True)
+                  ) x1
+    in
+        x2
+
+getXUTxO :: X' -> UTxO
+getXUTxO = _utxo
+
+fromTx :: Tx -> X'
+fromTx = undefined
+            -- let
+            --     indexedOutputs = zip [0..] (outputs tx)
+            -- in
+            --     UTxO
+            --     . Map.fromList
+            --     . fmap (Bifunctor.first (TxIn (txId tx)))
+            --     $ indexedOutputs
+
+-- Have we applied this Tx?
+known :: Tx -> X' -> Bool
+known = undefined
+
+limitUTxO :: (Address -> f Bool) -> X' -> f X'
+limitUTxO isOurs x@(X' _ tx) = 
+    let
+        u :: UTxO
+        u = _utxoF x
+
+        u' :: f UTxO
+        u' =
+            UTxO . Map.fromList
+            <$> foldM (\utxo (txIn, txOut) -> do
+                            ours <- isOurs $ address txOut
+                            if ours
+                                then pure $ utxo <> (txIn, txOut)
+                                else pure utxo
+                    )
+                    mempty
+            $ Map.toList (getUTxO u)
+    in
+        X' <$> u' <*> pure (txApplied x)
+
+-- ourTransactionInputs (applyTx tx mempty) === inputs tx
+ourTransactionInputs :: X' -> (Address -> f Bool) -> Set TxIn
+ourTransactionInputs = undefined
+
+-- ourCollateralInputs (applyTx tx mempty) === collateralInputs tx
+ourCollateralInputs :: X' -> (Address -> f Bool) -> Set TxIn
+ourCollateralInputs = undefined
+
+-- hasKnownInput = ourTransactionInputs /= mempty
+hasKnownInput :: X' -> (Address -> f Bool) -> Bool
+hasKnownInput = undefined
+
+-- hasKnownOutput ownfunc = or . fmap (ownfunc . address) . outputs . txApplied
+hasKnownOutput :: X' -> (Address -> f Bool) -> Bool
+hasKnownOutput = undefined
+
+-- txApplied (applyTx tx utxo) = tx
+txApplied :: X' -> Tx
+txApplied = _lastTx
+
+-- isValidScript tx => spent (applyTx tx u) = balance u `add` withdrawals tx `difference` bal resolvedInputs
+-- not (isValidScript tx) => spent (applyTx tx u) = balance u `add` withdrawals tx `difference` bal collateralInputs
+spent :: X' -> TokenBundle
+spent = undefined
+
+-- u1 `spent'` u2 = balance u1 `difference` balance u2
+-- all in u1 that are no longer in u2, clamping to 0
+spent' :: X' -> X' -> TokenBundle
+spent' = undefined 
+
+-- all in u2 that are not in u1, clamping to 0
+received' :: X' -> X' -> TokenBundle
+received' = undefined 
+
+-- | Apply the state transition rules for a UTxO when applied to a Tx.
+applyTx''
+    :: IsOurs s Address
+    => Tx
+    -> UTxO
+    -> State s (UTxO)
+applyTx'' tx !u = do
+    ourU <- state $ utxoOurs tx
+    let ourIns =
+            Set.fromList (inputs tx)
+                `Set.intersection`
+                    dom (u <> ourU)
+    let ourCollateralIns =
+            Set.fromList (fst <$> tx ^. #resolvedCollateral)
+                `Set.intersection`
+                    dom (u <> ourU)
+    let u' =
+            case tx ^. #isValidScript of
+                -- If the transaction failed to validate, remove the
+                -- collateral inputs (that belonged to us) from our UTxO
+                -- set.
+                Just False ->
+                    u `excluding` ourCollateralIns
+                -- Otherwise, if the transaction succeeded validation, or
+                -- did not make use of a script that needed to be validated,
+                -- remove the regular inputs (that belonged to us) from our
+                -- UTxO set.
+                _ ->
+                    (u <> ourU) `excluding` ourIns
+    pure u'
+
 -- | Prefiltering returns all transactions of interest for the wallet. A
 -- transaction is a matter of interest for the wallet if:
 --
@@ -371,49 +524,58 @@ prefilterBlock b u0 = runState $ do
         , amount = amount
         , expiry = Nothing
         }
+    txUTxO =
+        let
+            indexedOutputs = zip [0..] (outputs tx)
+        in
+            UTxO
+            . Map.fromList
+            . fmap (Bifunctor.first (TxIn (txId tx)))
+            $ indexedOutputs
     applyTx
         :: (IsOurs s Address, IsOurs s RewardAccount)
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
     applyTx (!txs, !u) tx = do
-        ourU <- state $ utxoOurs tx
-        let ourIns =
-                Set.fromList (inputs tx)
-                    `Set.intersection`
-                        dom (u <> ourU)
-        let ourCollateralIns =
-                Set.fromList (fst <$> tx ^. #resolvedCollateral)
-                    `Set.intersection`
-                        dom (u <> ourU)
-        let u' =
-                case tx ^. #isValidScript of
-                    -- If the transaction failed to validate, remove the
-                    -- collateral inputs (that belonged to us) from our UTxO
-                    -- set.
-                    Just False ->
-                        (u <> ourU) `excluding` ourCollateralIns
-                    -- Otherwise, if the transaction succeeded validation, or
-                    -- did not make use of a script that needed to be validated,
-                    -- remove the regular inputs (that belonged to us) from our
-                    -- UTxO set.
-                    _ ->
-                        (u <> ourU) `excluding` ourIns
-        ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
-            mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
-        let received = balance ourU
-        let spent =
-                case tx ^. #isValidScript of
-                    Just False ->
-                        balance (u `restrictedBy` ourCollateralIns) `TB.add` TB.fromCoin ourWithdrawals
-                    _ ->
-                        balance (u `restrictedBy` ourIns) `TB.add` TB.fromCoin ourWithdrawals
-        let hasKnownInput = ourIns /= mempty
-        let hasKnownOutput = ourU /= mempty
-        let hasKnownWithdrawal = ourWithdrawals /= mempty
-        let failedScriptValidation = case tx ^. #isValidScript of
-                Just False -> True
-                _ -> False
+        let x' = applyTransaction tx (_ u)
+
+        ourU <- limitUTxO isOurs' u
+        ourU' <- limitUTxO isOurs' x'
+        
+        let received = balance $ ourU' `difference` ourU
+        let spent = (balance $ ourU `difference` ourU') `TB.add` TB.fromCoin _withdrawals
+        -- We separate known and "owned" concepts. "isOurs" checks ownership and
+        -- a Tx is "known" to a UTxO if it's present in the UTxO.
+        let hasKnownInput = inputsKnown tx ourU' /= mempty
+        let hasKnownOutput = outputsKnown tx ourU' /= mempty
+        let hasKnownWithdrawal = withdrawalsKnown tx ourU' /= mempty
+
+        -- ourU <- state $ utxoOurs tx
+        -- let ourIns =
+        --         Set.fromList (inputs tx)
+        --             `Set.intersection`
+        --                 dom (u <> ourU)
+        -- let ourCollateralIns =
+        --         Set.fromList (fst <$> tx ^. #resolvedCollateral)
+        --             `Set.intersection`
+        --                 dom (u <> ourU)
+        -- u' <- applyTx'' tx u
+        -- ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
+        --     mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
+        -- let received = balance ourU
+        -- let spent =
+        --         case tx ^. #isValidScript of
+        --             Just False ->
+        --                 balance (u `restrictedBy` ourCollateralIns) `TB.add` TB.fromCoin ourWithdrawals
+        --             _ ->
+        --                 balance (u `restrictedBy` ourIns) `TB.add` TB.fromCoin ourWithdrawals
+        -- let hasKnownInput = ourIns /= mempty
+        -- let hasKnownOutput = ourU /= mempty
+        -- let hasKnownWithdrawal = ourWithdrawals /= mempty
+        -- let failedScriptValidation = case tx ^. #isValidScript of
+        --         Just False -> True
+        --         _ -> False
 
         -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
         -- a Byron transaction. In which case fees can actually be calculated as
@@ -440,17 +602,18 @@ prefilterBlock b u0 = runState $ do
         return $ if hasKnownOutput && not hasKnownInput then
             let dir = Incoming in
             ( (tx { fee = actualFee dir }, mkTxMeta (TB.getCoin received) dir) : txs
-            , u'
+            , getXUTxO ourU
             )
         else if hasKnownInput || hasKnownWithdrawal then
             let
                 adaSpent = TB.getCoin spent
-                adaReceived = if failedScriptValidation then mempty else TB.getCoin received
+                -- adaReceived = if failedScriptValidation then mempty else TB.getCoin received
+                adaReceived = TB.getCoin received
                 dir = if adaSpent > adaReceived then Outgoing else Incoming
                 amount = distance adaSpent adaReceived
             in
                 ( (tx { fee = actualFee dir }, mkTxMeta amount dir) : txs
-                , u'
+                , getXUTxO ourU
                 )
         else
             (txs, u)

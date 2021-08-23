@@ -190,6 +190,7 @@ library
       Cardano.Wallet.Primitive.Migration.Planning
       Cardano.Wallet.Primitive.Migration.Selection
       Cardano.Wallet.Primitive.Model
+      Cardano.Wallet.Primitive.Model2
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Primitive.Types.Address
       Cardano.Wallet.Primitive.Types.Coin
@@ -201,6 +202,7 @@ library
       Cardano.Wallet.Primitive.Types.TokenQuantity
       Cardano.Wallet.Primitive.Types.Tx
       Cardano.Wallet.Primitive.Types.UTxO
+      Cardano.Wallet.Primitive.Types.UTxO'
       Cardano.Wallet.Primitive.Types.UTxOIndex
       Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
       Cardano.Wallet.Registry

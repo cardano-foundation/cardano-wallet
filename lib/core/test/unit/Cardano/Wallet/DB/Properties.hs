@@ -48,7 +48,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
+    ( Block (Block)
+    , BlockHeader (..)
     , GenesisParameters
     , ProtocolParameters
     , ShowFmt (..)
@@ -771,6 +772,13 @@ prop_parallelPut putOp readOp resolve db@DBLayer{..} (KeyValPairs pairs) =
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
         res <- once pairs (readOp db . fst)
         length res `shouldBe` resolve pairs
+
+-- | Applying a block with a failed script transaction should always consume the
+-- entirety of the collateral present in that transaction.
+-- prop_x :: forall s k. (GenState s, Eq s) => DBLayer IO s k -> Wallet s -> Block -> Property
+-- prop_x db@DBLayer{..} cp0 block = do-     let (block', cp1) = applyBlock block cp0
+--     Tx _txid _fee [(_ourTxIn, _coin)] _inputs _outputs _withdrawals _md (Just False)
+--     -- let failedTx = Tx _hash _fee [()]
 
 
 -- | Can rollback to any particular checkpoint previously stored
