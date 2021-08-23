@@ -126,11 +126,10 @@ sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
 ################################################################################
 # Commit and tag
 
-read -p "Do you want to create a commit and release-tag? (y/n) " -n 1 -r
+read -p "Do you want to create a commit (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
   msg="Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
   git diff --quiet || git commit -am "$msg"
-  git tag -s -m "$GIT_TAG" "$GIT_TAG"
 fi
