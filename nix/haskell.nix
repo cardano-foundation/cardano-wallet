@@ -31,6 +31,7 @@ let
   # When adding a new Cabal package, or removing, update this attrset.
   # It's not automatically discovered from stack-pkgs yet.
   projectPackages = {
+    dbvar = "lib/dbvar";
     cardano-wallet-cli = "lib/cli";
     cardano-wallet-core-integration = "lib/core-integration";
     cardano-wallet-core = "lib/core";

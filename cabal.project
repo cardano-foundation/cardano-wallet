@@ -42,7 +42,8 @@ index-state: 2021-10-05T00:00:00Z
 with-compiler: ghc-8.10.7
 
 packages:
-    lib/core/
+    lib/dbvar/
+  , lib/core/
   , lib/core-integration/
   , lib/cli/
   , lib/launcher/
@@ -232,6 +233,10 @@ package cardano-node
 -- Enable specific tests in this repo
 
 test-show-details: direct
+
+package dbvar
+  tests: True
+  ghc-options: -fwrite-ide-info
 
 package cardano-wallet
   tests: True
