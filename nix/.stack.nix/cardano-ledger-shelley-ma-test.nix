@@ -89,12 +89,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "d5b184a820853c7ba202efd615b8fadca1acb52c";
-      sha256 = "04k5p6qwmfdza65gl5319r1ahdfwjnyqgzpfxdx0x2g5jcbimar4";
+      rev = "6aa1cd0a64a464371b94d4ac182e7e2cddc83a36";
+      sha256 = "1yv2biqc2q01xn7i7h7d1yn8dzygnqn8mywpjfs1i0pa7gnf5q14";
       }) // {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "d5b184a820853c7ba202efd615b8fadca1acb52c";
-      sha256 = "04k5p6qwmfdza65gl5319r1ahdfwjnyqgzpfxdx0x2g5jcbimar4";
+      rev = "6aa1cd0a64a464371b94d4ac182e7e2cddc83a36";
+      sha256 = "1yv2biqc2q01xn7i7h7d1yn8dzygnqn8mywpjfs1i0pa7gnf5q14";
       };
     postUnpack = "sourceRoot+=/shelley-ma/shelley-ma-test; echo source root reset to \$sourceRoot";
     }

@@ -1,5 +1,4 @@
 Usage:  stake-pool list [--port INT] [--stake STAKE]
-
   List all known stake pools.
 
 Available options:

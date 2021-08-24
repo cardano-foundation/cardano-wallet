@@ -1,5 +1,4 @@
 Usage:  network parameters [--port INT]
-
   View network parameters for the current epoch.
 
 Available options:

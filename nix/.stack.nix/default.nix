@@ -59,8 +59,7 @@
         strict-non-empty-containers = ./strict-non-empty-containers.nix;
         cardano-addresses-cli = ./cardano-addresses-cli.nix;
         cardano-addresses = ./cardano-addresses.nix;
-        criterion = ./criterion.nix;
-        optparse-applicative = ./optparse-applicative.nix;
+        optparse-applicative-fork = ./optparse-applicative-fork.nix;
         base-deriving-via = ./base-deriving-via.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
@@ -139,6 +138,7 @@
         plutus-tx = ./plutus-tx.nix;
         plutus-tx-plugin = ./plutus-tx-plugin.nix;
         plutus-use-cases = ./plutus-use-cases.nix;
+        plutus-ghc-stub = ./plutus-ghc-stub.nix;
         prettyprinter-configurable = ./prettyprinter-configurable.nix;
         quickcheck-dynamic = ./quickcheck-dynamic.nix;
         word-array = ./word-array.nix;

@@ -62,7 +62,7 @@
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
           (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+          (hsPkgs."optparse-applicative-fork" or (errorHandler.buildDepError "optparse-applicative-fork"))
           (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
           (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
           (hsPkgs."ouroboros-consensus-cardano" or (errorHandler.buildDepError "ouroboros-consensus-cardano"))
@@ -95,7 +95,7 @@
             (hsPkgs."cardano-config" or (errorHandler.buildDepError "cardano-config"))
             (hsPkgs."cardano-node" or (errorHandler.buildDepError "cardano-node"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            (hsPkgs."optparse-applicative-fork" or (errorHandler.buildDepError "optparse-applicative-fork"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ];
           buildable = true;
@@ -125,12 +125,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "cc78734d263d0eec2b12070380cdfea02a5a8342";
-      sha256 = "1bqrbgc11c4x5mrcm7shyvfs05fqi4v1pr4y9pw2aprab277czjr";
+      rev = "c17315f2775eaf988e432b7caea3a094d62ce6c9";
+      sha256 = "17z8qyfxi0fh0l4vin94nbaqqgpl0wf91n8k9p18hv2flys1pp7i";
       }) // {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "cc78734d263d0eec2b12070380cdfea02a5a8342";
-      sha256 = "1bqrbgc11c4x5mrcm7shyvfs05fqi4v1pr4y9pw2aprab277czjr";
+      rev = "c17315f2775eaf988e432b7caea3a094d62ce6c9";
+      sha256 = "17z8qyfxi0fh0l4vin94nbaqqgpl0wf91n8k9p18hv2flys1pp7i";
       };
     postUnpack = "sourceRoot+=/cardano-node; echo source root reset to \$sourceRoot";
     }

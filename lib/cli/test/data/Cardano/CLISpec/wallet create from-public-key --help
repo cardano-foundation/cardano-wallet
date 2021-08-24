@@ -1,9 +1,6 @@
-Usage:  wallet create from-public-key 
-                                        [--port INT]
-                                        WALLET_NAME
-                                        [--address-pool-gap INT]
-                                        ACCOUNT_PUBLIC_KEY
-
+Usage:  wallet create from-public-key [--port INT] WALLET_NAME 
+                                      [--address-pool-gap INT]
+                                      ACCOUNT_PUBLIC_KEY
   Create a wallet using a public account key.
 
 Available options:

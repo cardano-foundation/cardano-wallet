@@ -1,5 +1,4 @@
 Usage:  wallet utxo [--port INT] WALLET_ID
-
   Get UTxO statistics for the wallet with specified id.
 
 Available options:

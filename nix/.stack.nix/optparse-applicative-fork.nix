@@ -19,10 +19,10 @@
       copyright = "(c) 2012-2017 Paolo Capriotti <paolo@capriotti.io>";
       maintainer = "huw.campbell@gmail.com";
       author = "Paolo Capriotti, Huw Campbell";
-      homepage = "https://github.com/pcapriotti/optparse-applicative";
+      homepage = "https://github.com/pcapriotti/optparse-applicative-fork";
       url = "";
       synopsis = "Utilities and combinators for parsing command line options";
-      description = "optparse-applicative is a haskell library for parsing options\non the command line, and providing a powerful applicative\ninterface for composing them.\n\noptparse-applicative takes care of reading and validating the\narguments passed to the command line, handling and reporting\nerrors, generating a usage line, a comprehensive help screen,\nand enabling context-sensitive bash, zsh, and fish completions.\n\nSee the included README for detailed instructions and examples,\nwhich is also available on github\n<https://github.com/pcapriotti/optparse-applicative>.";
+      description = "optparse-applicative-fork is a haskell library for parsing options\non the command line, and providing a powerful applicative\ninterface for composing them.\n\noptparse-applicative-fork takes care of reading and validating the\narguments passed to the command line, handling and reporting\nerrors, generating a usage line, a comprehensive help screen,\nand enabling context-sensitive bash, zsh, and fish completions.\n\nSee the included README for detailed instructions and examples,\nwhich is also available on github\n<https://github.com/pcapriotti/optparse-applicative-fork>.";
       buildType = "Simple";
       isLocal = true;
       };
@@ -30,6 +30,8 @@
       "library" = {
         depends = ([
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."ansi-terminal" or (errorHandler.buildDepError "ansi-terminal"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."transformers-compat" or (errorHandler.buildDepError "transformers-compat"))
           (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
@@ -53,11 +55,11 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/optparse-applicative";
-      rev = "90f5ee66e2df4e7c3b3877b4d28babb8163e96b4";
-      sha256 = "13ax7vv1k885bki8a72q5f6zsk573fdkbqsra4rhf4snd6hzms6h";
+      rev = "7497a29cb998721a9068d5725d49461f2bba0e7a";
+      sha256 = "1gvsrg925vynwgqwplgjmp53vj953qyh3wbdf34pw21c8r47w35r";
       }) // {
       url = "https://github.com/input-output-hk/optparse-applicative";
-      rev = "90f5ee66e2df4e7c3b3877b4d28babb8163e96b4";
-      sha256 = "13ax7vv1k885bki8a72q5f6zsk573fdkbqsra4rhf4snd6hzms6h";
+      rev = "7497a29cb998721a9068d5725d49461f2bba0e7a";
+      sha256 = "1gvsrg925vynwgqwplgjmp53vj953qyh3wbdf34pw21c8r47w35r";
       };
     }
