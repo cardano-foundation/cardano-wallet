@@ -453,24 +453,23 @@ prop_availableUTxO makeProperty =
 --    - odd-parity addresses:
 --      addresses with a pop count (Hamming weight) that is odd.
 --
--- With the above definitions in mind, this test uses the following filter
--- conditions to categorize output addresses:
+-- The choice to categorize addresses by parity has two advantages:
 --
---    - 'Even' : matches addresses whose parity is even
---    - 'Odd'  : matches addresses whose parity is odd
---    - 'All'  : matches all addresses, regardless of their parity.
+--    - The parity of an address can be determined by a pure function.
 --
--- Each of the above filter conditions is represented with a custom 'IsOurs'
--- instance that we provide to the 'changeUTxO' function.
+--    - Addresses with even parity and odd parity are equally frequent.
+--
+-- A custom 'IsOurs' instance is used to categorize output addresses according
+-- to their parity.
 --
 -- Since a given address can either be even, or odd, but not both, it follows
 -- that the following results must be disjoint:
 --
---    - 'changeUTxO pendingTxs Even'
---    - 'changeUTxO pendingTxs Odd'
+--    - 'changeUTxO pendingTxs (IsOursIf (== Even) . addressParity)'
+--    - 'changeUTxO pendingTxs (IsOursIf (==  Odd) . addressParity)'
 --
--- This test applies each of the above filter conditions to 'changeUTxO' and
--- verifies that all entries match the condition that was provided.
+-- This test applies the above filter conditions to 'changeUTxO' and verifies
+-- that all entries match the condition that was provided.
 --
 prop_changeUTxO :: Property
 prop_changeUTxO =
@@ -500,15 +499,15 @@ prop_changeUTxO =
 
         -- The UTxO set that contains all available output addresses.
         utxoAll :: UTxO
-        utxoAll = changeUTxO txSet All
+        utxoAll = changeUTxO txSet $ IsOursIf @Address (const True)
 
         -- The UTxO set that contains only even-parity output addresses.
         utxoEven :: UTxO
-        utxoEven = changeUTxO txSet Even
+        utxoEven = changeUTxO txSet $ IsOursIf ((== Even) . addressParity)
 
         -- The UTxO set that contains only odd-parity output addresses.
         utxoOdd :: UTxO
-        utxoOdd  = changeUTxO txSet Odd
+        utxoOdd  = changeUTxO txSet $ IsOursIf ((== Odd) . addressParity)
 
         txSet :: Set Tx
         txSet = Set.fromList $ uncurry makeTx <$> (zip txIds txOutputs)
@@ -553,18 +552,6 @@ genTxOutputs = TxOutputs <$> listOf genTxOut
 
 shrinkTxOutputs :: TxOutputs -> [TxOutputs]
 shrinkTxOutputs (TxOutputs outs) = TxOutputs <$> shrinkList shrinkTxOut outs
-
--- | An implementation of 'IsOurs' that matches all addresses.
---
-instance IsOurs All Address where
-    isOurs = isOursIf (const True)
-
-data All = All
-
--- | An implementation of 'IsOurs' that matches addresses by their parity.
---
-instance IsOurs Parity Address where
-    isOurs a p = isOursIf ((== p) . addressParity) a p
 
 -- | Represents the parity of a value (whether the value is even or odd).
 --
@@ -615,24 +602,19 @@ prop_addressParity_coverage =
         "address parity is odd" $
     property True
 
--- | Marks an address as "ours" if (and only if) a condition is satisfied.
+-- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
-isOursIf
-    :: (Address -> Bool)
-    -- ^ Indicates whether or not an address is "ours"
-    -> Address
-    -- ^ The address to test
-    -> s
-    -- ^ The "state"
-    -> (Maybe (NonEmpty DerivationIndex), s)
-isOursIf condition a p
-    | condition a = (Just dummyDerivationIndex, p)
-    | otherwise   = (Nothing                  , p)
-  where
-    dummyDerivationIndex :: NonEmpty DerivationIndex
-    dummyDerivationIndex = DerivationIndex shouldNotEvaluate :| []
+newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
+
+instance IsOurs (IsOursIf a) a where
+    isOurs a s@IsOursIf {condition}
+        | condition a = (Just dummyDerivationIndex, s)
+        | otherwise   = (Nothing                  , s)
       where
-        shouldNotEvaluate = error "Derivation index unexpectedly evaluated"
+        dummyDerivationIndex :: NonEmpty DerivationIndex
+        dummyDerivationIndex = DerivationIndex shouldNotEvaluate :| []
+          where
+            shouldNotEvaluate = error "Derivation index unexpectedly evaluated"
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
