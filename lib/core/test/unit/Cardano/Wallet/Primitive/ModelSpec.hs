@@ -471,49 +471,45 @@ prop_availableUTxO makeProperty =
 -- This test applies the above filter conditions to 'changeUTxO' and verifies
 -- that all entries match the condition that was provided.
 --
-prop_changeUTxO :: Property
-prop_changeUTxO =
-    forAllShrink (listOf genTxOutputs) (shrinkList shrinkTxOutputs) inner
+prop_changeUTxO :: [TxOutputs] -> Property
+prop_changeUTxO txOutputs =
+    checkCoverage $
+    cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
+        "UTxO sets not null" $
+    conjoin
+        [ -- All addresses in the even-parity UTxO set have even parity:
+          F.all ((== Even) . txOutParity) (unUTxO utxoEven)
+          -- All addresses in the odd-parity UTxO set have odd parity:
+        , F.all ((== Odd) . txOutParity) (unUTxO utxoOdd)
+          -- The even-parity and odd-parity UTxO sets are disjoint:
+        , Map.null $ Map.intersection (unUTxO utxoEven) (unUTxO utxoOdd)
+          -- The even-parity and odd-parity UTxO sets are complete:
+        , Map.union (unUTxO utxoEven) (unUTxO utxoOdd) == unUTxO utxoAll
+          -- No outputs are omitted when we select everything:
+        , UTxO.size utxoAll == F.sum (F.length . unTxOutputs <$> txOutputs)
+        ]
   where
-    inner :: [TxOutputs] -> Property
-    inner txOutputs =
-        checkCoverage $
-        cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
-            "UTxO sets not null" $
-        conjoin
-            [ -- All addresses in the even-parity UTxO set have even parity:
-              F.all ((== Even) . txOutParity) (unUTxO utxoEven)
-              -- All addresses in the odd-parity UTxO set have odd parity:
-            , F.all ((== Odd) . txOutParity) (unUTxO utxoOdd)
-              -- The even-parity and odd-parity UTxO sets are disjoint:
-            , Map.null $ Map.intersection (unUTxO utxoEven) (unUTxO utxoOdd)
-              -- The even-parity and odd-parity UTxO sets are complete:
-            , Map.union (unUTxO utxoEven) (unUTxO utxoOdd) == unUTxO utxoAll
-              -- No outputs are omitted when we select everything:
-            , UTxO.size utxoAll == F.sum (F.length . unTxOutputs <$> txOutputs)
-            ]
-      where
-        -- Computes the parity of an output based on its address parity.
-        txOutParity :: TxOut -> Parity
-        txOutParity = addressParity . view #address
+    -- Computes the parity of an output based on its address parity.
+    txOutParity :: TxOut -> Parity
+    txOutParity = addressParity . view #address
 
-        -- The UTxO set that contains all available output addresses.
-        utxoAll :: UTxO
-        utxoAll = changeUTxO txSet $ IsOursIf @Address (const True)
+    -- The UTxO set that contains all available output addresses.
+    utxoAll :: UTxO
+    utxoAll = changeUTxO txSet $ IsOursIf @Address (const True)
 
-        -- The UTxO set that contains only even-parity output addresses.
-        utxoEven :: UTxO
-        utxoEven = changeUTxO txSet $ IsOursIf ((== Even) . addressParity)
+    -- The UTxO set that contains only even-parity output addresses.
+    utxoEven :: UTxO
+    utxoEven = changeUTxO txSet $ IsOursIf ((== Even) . addressParity)
 
-        -- The UTxO set that contains only odd-parity output addresses.
-        utxoOdd :: UTxO
-        utxoOdd  = changeUTxO txSet $ IsOursIf ((== Odd) . addressParity)
+    -- The UTxO set that contains only odd-parity output addresses.
+    utxoOdd :: UTxO
+    utxoOdd  = changeUTxO txSet $ IsOursIf ((== Odd) . addressParity)
 
-        txSet :: Set Tx
-        txSet = Set.fromList $ uncurry makeTx <$> (zip txIds txOutputs)
+    txSet :: Set Tx
+    txSet = Set.fromList $ uncurry makeTx <$> (zip txIds txOutputs)
 
-        txIds :: [Hash "Tx"]
-        txIds = makeTxId <$> [minBound .. maxBound]
+    txIds :: [Hash "Tx"]
+    txIds = makeTxId <$> [minBound .. maxBound]
 
     -- Creates a transaction from a transaction id and a set of outputs, by
     -- adding dummy data for fields that are not used by 'changeUTxO'.
@@ -546,6 +542,10 @@ newtype TxOutputs = TxOutputs
         -- ^ A transaction's outputs.
     }
     deriving (Eq, Generic, Show)
+
+instance Arbitrary TxOutputs where
+    arbitrary = genTxOutputs
+    shrink = shrinkTxOutputs
 
 genTxOutputs :: Gen TxOutputs
 genTxOutputs = TxOutputs <$> listOf genTxOut
