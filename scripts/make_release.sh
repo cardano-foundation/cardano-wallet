@@ -45,18 +45,18 @@ tag_cabal_ver_re() {
 
 echo "Previous release: $GIT_TAG"
 new_tag=$(date +v%Y-%m-%d)
-read -e -p "New release tag: " -i "$new_tag" new_tag
+read -r -e -p "New release tag: " -i "$new_tag" new_tag
 
-SCRIPT=`realpath $0`
-sed -i -e "s/^OLD_GIT_TAG=\"$OLD_GIT_TAG\"/OLD_GIT_TAG=\"$GIT_TAG\"/g" $SCRIPT
-sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" $SCRIPT
+SCRIPT=$(realpath "$0")
+sed -i -e "s/^OLD_GIT_TAG=\"$OLD_GIT_TAG\"/OLD_GIT_TAG=\"$GIT_TAG\"/g" "$SCRIPT"
+sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" "$SCRIPT"
 
 OLD_GIT_TAG=$GIT_TAG
-GIT_TAG=$new_tag
+GIT_TAG="$new_tag"
 
 OLD_CARDANO_NODE_TAG=$CARDANO_NODE_TAG
-read -e -p "Cardano node tag: " -i "$CARDANO_NODE_TAG" CARDANO_NODE_TAG
-sed -i -e "s/^CARDANO_NODE_TAG=\"$OLD_CARDANO_NODE_TAG\"/CARDANO_NODE_TAG=\"$CARDANO_NODE_TAG\"/g" $SCRIPT
+read -r -e -p "Cardano node tag: " -i "$CARDANO_NODE_TAG" CARDANO_NODE_TAG
+sed -i -e "s/^CARDANO_NODE_TAG=\"$OLD_CARDANO_NODE_TAG\"/CARDANO_NODE_TAG=\"$CARDANO_NODE_TAG\"/g" "$SCRIPT"
 
 ################################################################################
 # Update releases in README.md
@@ -65,12 +65,12 @@ sed -i -e "s/^CARDANO_NODE_TAG=\"$OLD_CARDANO_NODE_TAG\"/CARDANO_NODE_TAG=\"$CAR
 # master version, and delete the oldest release.
 ln=$(awk '$0 ~ "`master` branch" {print NR}' README.md)
 master_line=$(sed -n "$ln"p README.md)
-line_to_insert=$(echo $master_line | sed -e "s/\`master\` branch/\[$GIT_TAG\](https:\/\/github.com\/input-output-hk\/cardano-wallet\/releases\/tag\/$GIT_TAG)/")
-sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" $SCRIPT
+line_to_insert=$(echo "$master_line" | sed -e "s/\`master\` branch/\[$GIT_TAG\](https:\/\/github.com\/input-output-hk\/cardano-wallet\/releases\/tag\/$GIT_TAG)/")
+sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" "$SCRIPT"
 
 # Edit from the bottom and up, not to affect the line-numbers.
-sed -i -e $(($ln+3))d README.md
-sed -i -e $(($ln+1))i"$line_to_insert" README.md
+sed -i -e $((ln+3))d README.md
+sed -i -e $((ln+1))i"$line_to_insert" README.md
 
 echo "Automatically updated the list of releases in README.md. Please review the resulting changes."
 
@@ -80,7 +80,7 @@ echo "Automatically updated the list of releases in README.md. Please review the
 OLD_DATE=$(tag_date $OLD_GIT_TAG)
 OLD_CABAL_VERSION=$(tag_cabal_ver $OLD_GIT_TAG)
 OLD_CABAL_VERSION_RE=$(tag_cabal_ver_re $OLD_GIT_TAG)
-CABAL_VERSION=$(tag_cabal_ver $GIT_TAG)
+CABAL_VERSION=$(tag_cabal_ver "$GIT_TAG")
 
 echo ""
 echo "Replacing $OLD_CABAL_VERSION with $CABAL_VERSION"
@@ -121,7 +121,7 @@ sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
     -e "/{{CHANGELOG}}/d"                           \
     -e "/{{KNOWN_ISSUES}}/r $KNOWN_ISSUES"          \
     -e "/{{KNOWN_ISSUES}}/d"                        \
-    .github/RELEASE_TEMPLATE.md > $OUT
+    .github/RELEASE_TEMPLATE.md > "$OUT"
 
 ################################################################################
 # Commit and tag
