@@ -7,7 +7,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -72,7 +71,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
+    ( genTx, genTxOut, shrinkTx, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
@@ -132,7 +131,6 @@ import Test.QuickCheck
     , forAllShrink
     , frequency
     , genericShrink
-    , liftShrink2
     , listOf
     , oneof
     , property
@@ -329,28 +327,6 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
 -- Available UTxO properties
 --------------------------------------------------------------------------------
 
--- | Represents all the inputs of a transaction.
---
-data TxInputs = TxInputs
-    { inputs :: [TxIn]
-        -- ^ A transaction's ordinary inputs.
-    , collateral :: [TxIn]
-        -- ^ A transaction's collateral inputs.
-    }
-    deriving (Eq, Show)
-
-genTxInputs :: Gen TxInputs
-genTxInputs = TxInputs
-    <$> listOf genTxIn
-    <*> listOf genTxIn
-
-shrinkTxInputs :: TxInputs -> [TxInputs]
-shrinkTxInputs TxInputs {inputs, collateral} = uncurry TxInputs <$>
-    liftShrink2
-        (shrinkList shrinkTxIn)
-        (shrinkList shrinkTxIn)
-        (inputs, collateral)
-
 allInputsOfTxs :: Set Tx -> Set TxIn
 allInputsOfTxs = F.foldMap allInputsOfTx
   where
@@ -390,41 +366,22 @@ prop_availableUTxO
 prop_availableUTxO makeProperty =
     forAllShrink (scale (* 4) genUTxO) shrinkUTxO
         $ \utxo ->
-    forAllShrink (listOf genTxInputs) (shrinkList shrinkTxInputs)
-        $ \pendingTxInputs ->
-    inner utxo pendingTxInputs
+    forAllShrink (listOf genTx) (shrinkList shrinkTx)
+        $ \pendingTxs ->
+    inner utxo pendingTxs
   where
-    inner utxo pendingTxInputs =
+    inner utxo pendingTxs =
         cover 5 (result /= mempty && result == utxo)
             "result /= mempty && result == utxo" $
         cover 5 (result /= mempty && result /= utxo)
             "result /= mempty && result /= utxo" $
         cover 5 (balance result /= TokenBundle.empty)
             "balance result /= TokenBundle.empty" $
-        property $ makeProperty pendingTxs wallet result
+        property $ makeProperty pendingTxSet wallet result
       where
-        pendingTxs = Set.fromList $ txFromTxInputs <$> pendingTxInputs
+        pendingTxSet = Set.fromList pendingTxs
         wallet = walletFromUTxO utxo
-        result = availableUTxO pendingTxs wallet
-
-    -- Creates a transaction from inputs, by adding dummy data for fields that
-    -- are not used by 'availableUTxO'.
-    --
-    -- Ideally, we'd leave these fields undefined (to assert that they should
-    -- not be evaluated or processed in any way), but since the fields of the
-    -- 'Tx' type are strict, our next best option is to provide a minimal value
-    -- for each field.
-    --
-    txFromTxInputs :: TxInputs -> Tx
-    txFromTxInputs TxInputs {collateral, inputs} = Tx
-        { resolvedCollateral = (, Coin 0) <$> collateral
-        , resolvedInputs = (, Coin 0) <$> inputs
-        , txId = Hash ""
-        , fee = Nothing
-        , outputs = []
-        , withdrawals = Map.empty
-        , metadata = Nothing
-        }
+        result = availableUTxO pendingTxSet wallet
 
     -- Creates a wallet object from a UTxO set, and asserts that the other
     -- parts of the wallet state are not used in any way.
