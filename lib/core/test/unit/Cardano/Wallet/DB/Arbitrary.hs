@@ -40,7 +40,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.DB.Model
     ( TxHistory, filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
-    ( block0, mkTx, mockHash )
+    ( block0, mkTx )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSmallTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -114,7 +114,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinFullRange )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
