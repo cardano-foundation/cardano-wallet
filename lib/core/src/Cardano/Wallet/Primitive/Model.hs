@@ -47,6 +47,7 @@ module Cardano.Wallet.Primitive.Model
     , totalBalance
     , totalUTxO
     , availableUTxO
+    , changeUTxO
     , utxo
     ) where
 

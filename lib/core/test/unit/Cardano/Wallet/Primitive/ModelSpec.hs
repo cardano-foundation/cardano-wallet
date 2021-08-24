@@ -30,6 +30,7 @@ import Cardano.Wallet.Primitive.Model
     , applyBlocks
     , availableBalance
     , availableUTxO
+    , changeUTxO
     , currentTip
     , getState
     , initWallet
@@ -51,6 +52,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Address.Gen
+    ( genAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -69,7 +72,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, shrinkTxIn )
+    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
@@ -103,7 +106,7 @@ import Data.Set
 import Data.Traversable
     ( for )
 import Data.Word
-    ( Word64 )
+    ( Word64, Word8 )
 import Fmt
     ( Buildable, blockListF, pretty )
 import GHC.Generics
@@ -121,9 +124,11 @@ import Test.QuickCheck
     , checkCoverage
     , choose
     , classify
+    , conjoin
     , counterexample
     , cover
     , elements
+    , forAll
     , forAllShrink
     , frequency
     , genericShrink
@@ -140,6 +145,8 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -186,6 +193,12 @@ spec = do
             property prop_availableUTxO_withoutKeys
         it "prop_availableUTxO_availableBalance" $
             property prop_availableUTxO_availableBalance
+
+    parallel $ describe "Change UTxO" $ do
+        it "prop_changeUTxO" $
+            property prop_changeUTxO
+        it "prop_addressParity_coverage" $
+            property prop_addressParity_coverage
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -424,6 +437,184 @@ prop_availableUTxO makeProperty =
         shouldNotEvaluate :: String -> a
         shouldNotEvaluate fieldName = error $ unwords
             [fieldName, "was unexpectedly evaluated"]
+
+--------------------------------------------------------------------------------
+-- Change UTxO properties
+--------------------------------------------------------------------------------
+
+-- | Tests the 'changeUTxO' function with custom filter conditions to identify
+--   addresses that belong to the wallet.
+--
+-- This test divides all addresses into two disjoint sets:
+--
+--    - even-parity addresses:
+--      addresses with a pop count (Hamming weight) that is even.
+--
+--    - odd-parity addresses:
+--      addresses with a pop count (Hamming weight) that is odd.
+--
+-- The choice to categorize addresses by parity has two advantages:
+--
+--    - The parity of an address can be determined by a pure function.
+--
+--    - Addresses with even parity and odd parity are equally frequent.
+--
+-- A custom 'IsOurs' instance is used to categorize output addresses according
+-- to their parity.
+--
+-- Since a given address can either be even, or odd, but not both, it follows
+-- that the following results must be disjoint:
+--
+--    - 'changeUTxO pendingTxs (IsOursIf (== Even) . addressParity)'
+--    - 'changeUTxO pendingTxs (IsOursIf (==  Odd) . addressParity)'
+--
+-- This test applies the above filter conditions to 'changeUTxO' and verifies
+-- that all entries match the condition that was provided.
+--
+prop_changeUTxO :: [TxOutputs] -> Property
+prop_changeUTxO txOutputs =
+    checkCoverage $
+    cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
+        "UTxO sets not null" $
+    conjoin
+        [ -- All addresses in the even-parity UTxO set have even parity:
+          F.all ((== Even) . txOutParity) (unUTxO utxoEven)
+          -- All addresses in the odd-parity UTxO set have odd parity:
+        , F.all ((== Odd) . txOutParity) (unUTxO utxoOdd)
+          -- The even-parity and odd-parity UTxO sets are disjoint:
+        , Map.null $ Map.intersection (unUTxO utxoEven) (unUTxO utxoOdd)
+          -- The even-parity and odd-parity UTxO sets are complete:
+        , Map.union (unUTxO utxoEven) (unUTxO utxoOdd) == unUTxO utxoAll
+          -- No outputs are omitted when we select everything:
+        , UTxO.size utxoAll == F.sum (F.length . unTxOutputs <$> txOutputs)
+        ]
+  where
+    -- Computes the parity of an output based on its address parity.
+    txOutParity :: TxOut -> Parity
+    txOutParity = addressParity . view #address
+
+    -- The UTxO set that contains all available output addresses.
+    utxoAll :: UTxO
+    utxoAll = changeUTxO txSet $ IsOursIf @Address (const True)
+
+    -- The UTxO set that contains only even-parity output addresses.
+    utxoEven :: UTxO
+    utxoEven = changeUTxO txSet $ IsOursIf ((== Even) . addressParity)
+
+    -- The UTxO set that contains only odd-parity output addresses.
+    utxoOdd :: UTxO
+    utxoOdd  = changeUTxO txSet $ IsOursIf ((== Odd) . addressParity)
+
+    txSet :: Set Tx
+    txSet = Set.fromList $ uncurry makeTx <$> (zip txIds txOutputs)
+
+    txIds :: [Hash "Tx"]
+    txIds = makeTxId <$> [minBound .. maxBound]
+
+    -- Creates a transaction from a transaction id and a set of outputs, by
+    -- adding dummy data for fields that are not used by 'changeUTxO'.
+    --
+    -- Ideally, we'd leave all of the unused fields undefined (to assert that
+    -- they should not be evaluated or processed in any way), but since the
+    -- fields of the 'Tx' type are strict, our next best option is to provide
+    -- a minimal value for each field.
+    --
+    makeTx :: Hash "Tx" -> TxOutputs -> Tx
+    makeTx txId TxOutputs {unTxOutputs} = Tx
+        { txId
+        , outputs = unTxOutputs
+        -- Unused fields:
+        , fee = Nothing
+        , resolvedCollateral = []
+        , resolvedInputs = []
+        , metadata = Nothing
+        , withdrawals = Map.empty
+        }
+
+    -- Creates a dummy transaction identifier from a single word.
+    makeTxId :: Word8 -> Hash "Tx"
+    makeTxId i = Hash $ BS.pack [i]
+
+-- | Represents all the outputs of a transaction (both change and non-change).
+--
+newtype TxOutputs = TxOutputs
+    { unTxOutputs :: [TxOut]
+        -- ^ A transaction's outputs.
+    }
+    deriving (Eq, Generic, Show)
+
+instance Arbitrary TxOutputs where
+    arbitrary = genTxOutputs
+    shrink = shrinkTxOutputs
+
+genTxOutputs :: Gen TxOutputs
+genTxOutputs = TxOutputs <$> listOf genTxOut
+
+shrinkTxOutputs :: TxOutputs -> [TxOutputs]
+shrinkTxOutputs (TxOutputs outs) = TxOutputs <$> shrinkList shrinkTxOut outs
+
+-- | Represents the parity of a value (whether the value is even or odd).
+--
+data Parity = Even | Odd
+    deriving (Eq, Show)
+
+-- | Computes the parity of an address.
+--
+-- Parity is defined in the following way:
+--
+--    - even-parity address:
+--      an address with a pop count (Hamming weight) that is even.
+--
+--    - odd-parity address:
+--      an address with a pop count (Hamming weight) that is odd.
+--
+-- Examples of even-parity and odd-parity addresses:
+--
+--    - 0b00000000 : even (Hamming weight = 0)
+--    - 0b00000001 : odd  (Hamming weight = 1)
+--    - 0b00000010 : odd  (Hamming weight = 1)
+--    - 0b00000011 : even (Hamming weight = 2)
+--    - 0b00000100 : odd  (Hamming weight = 1)
+--    - ...
+--    - 0b11111110 : odd  (Hamming weight = 7)
+--    - 0b11111111 : even (Hamming weight = 8)
+--
+addressParity :: Address -> Parity
+addressParity = parity . addressPopCount
+  where
+    addressPopCount :: Address -> Int
+    addressPopCount = BS.foldl' (\acc -> (acc +) . Bits.popCount) 0 . unAddress
+
+    parity :: Integral a => a -> Parity
+    parity a
+        | even a    = Even
+        | otherwise = Odd
+
+-- | Verifies that addresses are generated with both even and odd parity.
+--
+prop_addressParity_coverage :: Property
+prop_addressParity_coverage =
+    forAll genAddress $ \addr ->
+    checkCoverage $
+    cover 40 (addressParity addr == Even)
+        "address parity is even" $
+    cover 40 (addressParity addr == Odd)
+        "address parity is odd" $
+    property True
+
+-- | Encapsulates a filter condition for matching entities with 'IsOurs'.
+--
+newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
+
+instance IsOurs (IsOursIf a) a where
+    isOurs a s@IsOursIf {condition}
+        | condition a = (Just dummyDerivationIndex, s)
+        | otherwise   = (Nothing                  , s)
+      where
+        dummyDerivationIndex :: NonEmpty DerivationIndex
+        dummyDerivationIndex = DerivationIndex shouldNotEvaluate :| []
+          where
+            shouldNotEvaluate = error "Derivation index unexpectedly evaluated"
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
