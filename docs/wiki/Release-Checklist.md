@@ -21,33 +21,6 @@
   $ git checkout -b your-name/bump-release/YYYY-MM-DD
   ```
 
-- [ ] Add an entry to the compatibility matrix in
-  [README.md](https://github.com/input-output-hk/cardano-wallet/blob/master/README.md)
-  for this release.
-  Check that versions match `stack.yaml`.
-  Keep info about the last 3 versions of `cardano-wallet`.
-
-- [ ] Edit the release parameters section in
-  `./scripts/make_release.sh`. To bump from `2020.3.16` to
-  `2020.4.1` they will look like:
-
-  ```
-  ################################################################################
-  # Release-specific parameters (Change when you bump the version)
-  # Release tags must follow format vYYYY-MM-DD.
-  OLD_GIT_TAG="v2021-01-28"
-  GIT_TAG="v2021-02-10"
-
-  CARDANO_NODE_TAG="1.25.1"
-  ```
-
-  > :warning: We use a slightly different notation between
-  > `.cabal` and git tags! Git tags follows the following format:
-  > `vYYYY-MM-DD` (notice the `v` and hyphens) whereas cabal
-  > version are written as: `YYYY.MM.DD`.
-  >
-  > The `make_release.sh` script handles conversion, but just be aware.
-
 - [ ] From the **root** of the repository, run:
 
   ```shell
@@ -65,9 +38,11 @@
   > is simply used to read publicly available data from the Github
   > API).
 
-- [ ] :warning: **only in first release after v2021-08-11** :warning: Include commit https://github.com/input-output-hk/cardano-wallet/commit/50c19e8f7d9aedb51f8bbbe2afeeb0ccd44824de to complete the fix of ADP-1068 / #2806.
+- [ ] Verify that the script modified the compatibility matrix in README.md correctly.
 
-- [ ] Open a pull request to submit the modified files. Get it merged.
+- [ ] Open a pull request to submit the modified files
+
+- [ ] Get it merged
 
 - [ ] Trigger a release build on CI (GitHub Actions) and wait for the
   build artifacts to be published on the GitHub release page.
