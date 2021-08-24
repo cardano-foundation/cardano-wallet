@@ -538,7 +538,7 @@ prefilterBlock b u0 = runState $ do
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
     applyTx (!txs, !u) tx = do
-        let x' = applyTransaction tx (_ u)
+        let x' = New.applyTx tx (_ u)
 
         ourU <- limitUTxO isOurs' u
         ourU' <- limitUTxO isOurs' x'
