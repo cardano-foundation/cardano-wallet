@@ -8,20 +8,32 @@
 --
 
 module Test.QuickCheck.Extra
-    ( reasonablySized
-    , shrinkInterleaved
+    ( genMapWith
     , genSized2
     , genSized2With
     , interleaveRoundRobin
     , liftShrink6
+    , reasonablySized
+    , shrinkInterleaved
+    , shrinkMapWith
     ) where
 
 import Prelude
 
+import Data.Map.Strict
+    ( Map )
 import Test.QuickCheck
-    ( Gen, scale )
+    ( Gen
+    , liftArbitrary2
+    , liftShrink2
+    , listOf
+    , scale
+    , shrinkList
+    , shrinkMapBy
+    )
 
 import qualified Data.List as L
+import qualified Data.Map.Strict as Map
 
 -- | Resize a generator to grow with the size parameter, but remains reasonably
 -- sized. That is handy when testing on data-structures that can be arbitrarily
@@ -129,3 +141,26 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
+
+--------------------------------------------------------------------------------
+-- Generating and shrinking key-value maps
+--------------------------------------------------------------------------------
+
+-- | Generates a 'Map' with the given key and value generation functions.
+--
+genMapWith :: Ord k => Gen k -> Gen v -> Gen (Map k v)
+genMapWith genKey genValue =
+    Map.fromList <$> listOf (liftArbitrary2 genKey genValue)
+
+-- | Shrinks a 'Map' with the given key and value shrinking functions.
+--
+shrinkMapWith
+    :: Ord k
+    => (k -> [k])
+    -> (v -> [v])
+    -> Map k v
+    -> [Map k v]
+shrinkMapWith shrinkKey shrinkValue
+    = shrinkMapBy Map.fromList Map.toList
+    $ shrinkList
+    $ liftShrink2 shrinkKey shrinkValue
