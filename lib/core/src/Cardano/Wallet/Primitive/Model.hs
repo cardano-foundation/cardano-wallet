@@ -52,6 +52,8 @@ module Cardano.Wallet.Primitive.Model
 
 import Prelude
 
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( DerivationIndex (DerivationIndex) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
@@ -106,9 +108,8 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (DerivationIndex) )
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.UTxO' as New
 import qualified Data.Bifunctor as Bifunctor
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
@@ -145,7 +146,7 @@ import qualified Data.Set as Set
 -- @
 data Wallet s = Wallet
     { -- | Unspent tx outputs belonging to this wallet
-      utxo :: UTxO
+      utxo :: New.UTxO'
 
       -- | Header of the latest applied block (current tip)
     , currentTip :: BlockHeader
@@ -193,7 +194,7 @@ initWallet block s =
 -- wallet checkpoints from the database (where it is assumed a valid wallet was
 -- stored into the database).
 unsafeInitWallet
-    :: UTxO
+    :: New.UTxO'
        -- ^ Unspent tx outputs belonging to this wallet
     -> BlockHeader
     -- ^ Header of the latest applied block (current tip)
@@ -301,7 +302,7 @@ totalBalance pending rewards wallet@(Wallet _ _ s) =
 availableUTxO
     :: Set Tx
     -> Wallet s
-    -> UTxO
+    -> New.UTxO'
 availableUTxO pending (Wallet u _ _) =
     u  `excluding` txIns pending
 
@@ -310,7 +311,7 @@ totalUTxO
     :: IsOurs s Address
     => Set Tx
     -> Wallet s
-    -> UTxO
+    -> New.UTxO'
 totalUTxO pending wallet@(Wallet _ _ s) =
     availableUTxO pending wallet <> changeUTxO pending s
 
@@ -364,77 +365,6 @@ isOurs' addr =
                   ) x1
     in
         x2
-
-getXUTxO :: X' -> UTxO
-getXUTxO = _utxo
-
-fromTx :: Tx -> X'
-fromTx = undefined
-            -- let
-            --     indexedOutputs = zip [0..] (outputs tx)
-            -- in
-            --     UTxO
-            --     . Map.fromList
-            --     . fmap (Bifunctor.first (TxIn (txId tx)))
-            --     $ indexedOutputs
-
--- Have we applied this Tx?
-known :: Tx -> X' -> Bool
-known = undefined
-
-limitUTxO :: (Address -> f Bool) -> X' -> f X'
-limitUTxO isOurs x@(X' _ tx) = 
-    let
-        u :: UTxO
-        u = _utxoF x
-
-        u' :: f UTxO
-        u' =
-            UTxO . Map.fromList
-            <$> foldM (\utxo (txIn, txOut) -> do
-                            ours <- isOurs $ address txOut
-                            if ours
-                                then pure $ utxo <> (txIn, txOut)
-                                else pure utxo
-                    )
-                    mempty
-            $ Map.toList (getUTxO u)
-    in
-        X' <$> u' <*> pure (txApplied x)
-
--- ourTransactionInputs (applyTx tx mempty) === inputs tx
-ourTransactionInputs :: X' -> (Address -> f Bool) -> Set TxIn
-ourTransactionInputs = undefined
-
--- ourCollateralInputs (applyTx tx mempty) === collateralInputs tx
-ourCollateralInputs :: X' -> (Address -> f Bool) -> Set TxIn
-ourCollateralInputs = undefined
-
--- hasKnownInput = ourTransactionInputs /= mempty
-hasKnownInput :: X' -> (Address -> f Bool) -> Bool
-hasKnownInput = undefined
-
--- hasKnownOutput ownfunc = or . fmap (ownfunc . address) . outputs . txApplied
-hasKnownOutput :: X' -> (Address -> f Bool) -> Bool
-hasKnownOutput = undefined
-
--- txApplied (applyTx tx utxo) = tx
-txApplied :: X' -> Tx
-txApplied = _lastTx
-
--- isValidScript tx => spent (applyTx tx u) = balance u `add` withdrawals tx `difference` bal resolvedInputs
--- not (isValidScript tx) => spent (applyTx tx u) = balance u `add` withdrawals tx `difference` bal collateralInputs
-spent :: X' -> TokenBundle
-spent = undefined
-
--- u1 `spent'` u2 = balance u1 `difference` balance u2
--- all in u1 that are no longer in u2, clamping to 0
-spent' :: X' -> X' -> TokenBundle
-spent' = undefined 
-
--- all in u2 that are not in u1, clamping to 0
-received' :: X' -> X' -> TokenBundle
-received' = undefined 
 
 -- | Apply the state transition rules for a UTxO when applied to a Tx.
 applyTx''
@@ -491,9 +421,9 @@ applyTx'' tx !u = do
 prefilterBlock
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
-    -> UTxO
+    -> New.UTxO'
     -> s
-    -> ((FilteredBlock, UTxO), s)
+    -> ((FilteredBlock, New.UTxO'), s)
 prefilterBlock b u0 = runState $ do
     delegations <- mapMaybeM ourDelegation (b ^. #delegations)
     (transactions, ourU) <- foldM applyTx (mempty, u0) (b ^. #transactions)
@@ -534,9 +464,9 @@ prefilterBlock b u0 = runState $ do
             $ indexedOutputs
     applyTx
         :: (IsOurs s Address, IsOurs s RewardAccount)
-        => ([(Tx, TxMeta)], UTxO)
+        => ([(Tx, TxMeta)], New.UTxO')
         -> Tx
-        -> State s ([(Tx, TxMeta)], UTxO)
+        -> State s ([(Tx, TxMeta)], New.UTxO')
     applyTx (!txs, !u) tx = do
         let x' = New.applyTx tx (_ u)
 

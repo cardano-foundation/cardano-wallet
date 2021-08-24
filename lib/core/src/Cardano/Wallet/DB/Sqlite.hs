@@ -266,6 +266,7 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+import qualified Cardano.Wallet.Primitive.Types.UTxO' as New
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -1761,13 +1762,13 @@ mkCheckpointEntity wid wal =
         , let tokenList = snd (TokenBundle.toFlatList tokens)
         , (AssetId policy token, quantity) <- tokenList
         ]
-    utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
+    utxoMap = Map.assocs (New.toMap (W.utxo wal))
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
 checkpointFromEntity
     :: Checkpoint
-    -> ([UTxO], [UTxOToken])
+    -> ([New.UTxO'], [UTxOToken])
     -> s
     -> W.Wallet s
 checkpointFromEntity cp (coins, tokens) =
@@ -1781,11 +1782,11 @@ checkpointFromEntity cp (coins, tokens) =
         bh
         ) = cp
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
-    utxo = W.UTxO $ Map.merge
+    utxo = New.fromMap $ Map.merge
         (Map.mapMissing (const mkFromCoin)) -- No assets, only coins
         (Map.dropMissing) -- Only assets, impossible.
         (Map.zipWithMatched (const mkFromBoth)) -- Both assets and coins
-        (Map.fromList
+        (New.fromMap $ Map.fromList
             [ (W.TxIn input ix, (addr, coin))
             | (UTxO _ _ (TxId input) ix addr coin) <- coins
             ])

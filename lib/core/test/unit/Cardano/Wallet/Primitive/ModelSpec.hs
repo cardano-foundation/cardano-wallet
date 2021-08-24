@@ -127,6 +127,7 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxO' as New
 import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -175,14 +176,14 @@ prop_3_2 (ApplyBlock s utxo block) =
   where
     cond = utxo /= mempty
     prop =
-        ShowFmt (updateUTxO' block utxo `excluding` dom utxo)
+        ShowFmt (updateUTxO' block utxo `New.excluding` New.domain utxo)
             ===
         ShowFmt (new block)
     new b = flip evalState s $ do
         let txs = Set.fromList $ transactions b
-        utxo' <- (foldMap utxoFromTx txs `restrictedTo`) . Set.map snd
+        utxo' <- (foldMap utxoFromTx txs `New.restrictedTo`) . Set.map snd
             <$> state (txOutsOurs txs)
-        return $ utxo' `excluding` txIns txs
+        return $ utxo' `New.excluding` txIns txs
     updateUTxO' b u = evalState (updateUTxO b u) s
 
 
@@ -204,8 +205,8 @@ prop_applyBlockBasic s =
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
         in
             (ShowFmt utxo === ShowFmt utxo') .&&.
-            (availableBalance mempty wallet === balance utxo') .&&.
-            (totalBalance mempty (Coin 0) wallet === balance utxo')
+            (availableBalance mempty wallet === New.balance utxo') .&&.
+            (totalBalance mempty (Coin 0) wallet === New.balance utxo')
 
 -- Each transaction must have at least one output belonging to us
 prop_applyBlockTxHistoryIncoming :: WalletState -> Property
@@ -304,13 +305,14 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
 updateUTxO
     :: IsOurs s Address
     => Block
-    -> UTxO
-    -> State s UTxO
+    -> New.UTxO'
+    -> State s New.UTxO'
 updateUTxO !b utxo = do
     let txs = Set.fromList $ transactions b
-    utxo' <- (foldMap utxoFromTx txs `restrictedTo`) . Set.map snd
+    utxo' <-
+        (\outs -> foldMap utxoFromTx txs `New.restrictedTo` outs) . Set.map snd
         <$> state (txOutsOurs txs)
-    return $ (utxo <> utxo') `excluding` txIns txs
+    return $ (utxo <> utxo') `New.excluding` txIns txs 
 
 -- | Return all transaction outputs that are ours. This plays well within a
 -- 'State' monad.
@@ -342,9 +344,8 @@ txOutsOurs txs =
 -- | Construct a UTxO corresponding to a given transaction. It is important for
 -- the transaction outputs to be ordered correctly, since they become available
 -- inputs for the subsequent blocks.
-utxoFromTx :: Tx -> UTxO
-utxoFromTx Tx {txId, outputs} =
-    UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
+utxoFromTx :: Tx -> New.UTxO'
+utxoFromTx tx = New.applyTx tx mempty
 
 {-------------------------------------------------------------------------------
                                   Test Data
@@ -424,15 +425,15 @@ instance Arbitrary (WithPending WalletState) where
         pending <- genPendingTx (totalUTxO Set.empty wallet) rewards
         pure $ WithPending wallet pending rewards
       where
-        genPendingTx :: UTxO -> Coin -> Gen (Set Tx)
-        genPendingTx (UTxO u) rewards
-            | Map.null u = pure Set.empty
-            | otherwise  = do
+        genPendingTx :: New.UTxO' -> Coin -> Gen (Set Tx)
+        genPendingTx utxo rewards = case New.toMap utxo of
+            u | Map.null u -> pure Set.empty
+              | otherwise -> do
                 (inp, out) <-
                     (\i -> Map.toList u !! i) <$> choose (0, Map.size u - 1)
-
+    
                 arbitraryHash <- arbitrary
-
+    
                 withWithdrawal <- frequency
                     [ (3, pure id)
                     , (1, pure $ \tx ->
@@ -447,7 +448,7 @@ instance Arbitrary (WithPending WalletState) where
                             }
                       )
                     ]
-
+    
                 -- NOTE:
                 --
                 -- - We simply re-use the same output to send money to it, since
@@ -470,7 +471,7 @@ instance Arbitrary (WithPending WalletState) where
                         , metadata = Nothing
                         , isValidScript = Nothing
                         }
-
+    
                 elements [Set.singleton pending, Set.empty]
           where
             simulateFee (Coin amt) = Coin (amt - 5000)
@@ -480,12 +481,12 @@ instance Arbitrary (WithPending WalletState) where
 -- corresponding initial UTxO, instead, we take subset of our small valid
 -- blockchain and, reconstruct a valid initial UTxO by applying all the given
 -- blocks minus one. Then, we control the property when applying that very block
-data ApplyBlock = ApplyBlock WalletState UTxO Block
+data ApplyBlock = ApplyBlock WalletState New.UTxO' Block
     deriving Show
 
 instance Arbitrary ApplyBlock where
-    shrink (ApplyBlock s (UTxO utxo) b) =
-        let utxos = UTxO . Map.fromList <$> shrinkList pure (Map.toList utxo)
+    shrink (ApplyBlock s utxo b) =
+        let utxos = New.fromMap . Map.fromList <$> shrinkList pure (Map.toList $ New.toMap utxo)
         in (\u -> ApplyBlock s u b) <$> utxos
     arbitrary = do
         n <- choose (1, length blockchain)

@@ -794,7 +794,7 @@ getWalletUtxoSnapshot ctx wid = do
     (wallet, _, pending) <- withExceptT id (readWallet @ctx @s @k ctx wid)
     pp <- liftIO $ currentProtocolParameters nl
     let bundles = availableUTxO @s pending wallet
-            & getUTxO
+            & New.toMap
             & F.toList
             & fmap (view #tokens)
     pure $ pairBundleWithMinAdaQuantity pp <$> bundles

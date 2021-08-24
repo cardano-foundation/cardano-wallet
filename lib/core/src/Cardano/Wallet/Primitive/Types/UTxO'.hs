@@ -17,14 +17,21 @@
 module Cardano.Wallet.Primitive.Types.UTxO'
    ( UTxO'
    -- * Constructors
-   , applyFirstTx
+   , fromMap
 
    -- * Operations
    , applyTx
    , difference
+   , filterUTxO
+   , restrictedTo
+   , excluding
 
    -- * Observations
    , balance
+   , domain
+
+   -- * Denotation
+   , toMap
    ) where
 
 import Prelude
@@ -36,7 +43,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx, TxIn (..), TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..), dom )
+    ( UTxO (..) )
 import Control.Lens
     ( view )
 import Data.Generics.Internal.VL.Lens
@@ -48,13 +55,14 @@ import Data.Set
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
+import qualified Cardano.Wallet.Primitive.Types.UTxO as Old
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Bifunctor as Bifunctor
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 newtype UTxO' = UTxO' { _utxo :: UTxO }
-    deriving newtype (Semigroup, Monoid)
+    deriving newtype (Eq, Show, Semigroup, Monoid)
 
 -- semigroup/associativity:
 --   x <> (y <> z) = (x <> y) <> z
@@ -91,6 +99,9 @@ applyFirstTx tx =
                $ indexedOutputs
     in
         UTxO' utxo
+
+fromMap :: Map TxIn TxOut -> UTxO'
+fromMap = UTxO' . UTxO
 
 -- | Apply a transaction to a UTxO.
 --
@@ -167,6 +178,16 @@ filterUTxO isOurs (UTxO' (UTxO m)) =
             ours <- isOurs $ view #address txout
             pure $ if ours then Just txout else Nothing
 
+-- restrictedTo mempty u = mempty
+restrictedTo :: UTxO' -> Set TxOut -> UTxO'
+restrictedTo (UTxO' u) outs = UTxO' $ u `Old.restrictedTo` outs
+
+excluding :: UTxO' -> Set TxIn -> UTxO'
+excluding (UTxO' u) ins = UTxO' $ u `Old.excluding` ins
+
+domain :: UTxO' -> Set TxIn
+domain (UTxO' u) = Old.dom u
+
 --------------------------------------------------------------------------------
 -- Observations
 --
@@ -192,9 +213,11 @@ balance = UTxO.balance . _utxo
 -- txInputsInUTxO tx (filterUTxO f (applyTx tx u)) = do
 txInUTxO :: Tx -> UTxO' -> Set TxIn
 txInUTxO tx (UTxO' u) =
-    Set.fromList (Tx.inputs tx) `Set.intersection` dom u
+    Set.fromList (Tx.inputs tx) `Set.intersection` Old.dom u
 
 -- Denotation: the observation from which all other observations can be derived.
+toMap :: UTxO' -> Map TxIn TxOut
+toMap (UTxO' (UTxO m)) = m
 
 --------------------------------------------------------------------------------
 -- Helpers (TODO don't belong here)

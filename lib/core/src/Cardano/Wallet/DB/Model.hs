@@ -133,6 +133,7 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.Types.UTxO' as New
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -468,10 +469,10 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
         , txInfoFee =
             fee tx
         , txInfoCollateral =
-            (\(inp, amt) -> (inp, amt, Map.lookup inp $ getUTxO $ utxo cp))
+            (\(inp, amt) -> (inp, amt, Map.lookup inp $ New.toMap $ utxo cp))
                 <$> resolvedCollateral tx
         , txInfoInputs =
-            (\(inp, amt) -> (inp, amt, Map.lookup inp $ getUTxO $ utxo cp))
+            (\(inp, amt) -> (inp, amt, Map.lookup inp $ New.toMap $ utxo cp))
                 <$> resolvedInputs tx
         , txInfoOutputs =
             outputs tx
