@@ -27,7 +27,7 @@
         "base16-bytestring".revision = (((hackage."base16-bytestring")."0.1.1.7").revisions).default;
         "base".revision = (((hackage."base")."4.14.2.0").revisions).default;
         "network-uri".revision = (((hackage."network-uri")."2.6.4.1").revisions).default;
-        "regex-posix".revision = (((hackage."regex-posix")."0.96.0.0").revisions).default;
+        "regex-posix".revision = (((hackage."regex-posix")."0.96.0.1").revisions).default;
         "regex-posix".flags._regex-posix-clib = false;
         "rts".revision = (((hackage."rts")."1.0.1").revisions).default;
         "text".revision = (((hackage."text")."1.2.4.1").revisions).default;
@@ -64,14 +64,14 @@
         "HTTP".flags.warn-as-error = false;
         "HTTP".flags.network-uri = true;
         "transformers".revision = (((hackage."transformers")."0.5.6.2").revisions).default;
-        "hashable".revision = (((hackage."hashable")."1.3.2.0").revisions).default;
+        "hashable".revision = (((hackage."hashable")."1.3.3.0").revisions).default;
         "hashable".flags.integer-gmp = true;
         "hashable".flags.random-initial-seed = false;
-        "base64-bytestring".revision = (((hackage."base64-bytestring")."1.2.0.1").revisions).default;
+        "base64-bytestring".revision = (((hackage."base64-bytestring")."1.2.1.0").revisions).default;
         "regex-base".revision = (((hackage."regex-base")."0.94.0.1").revisions).default;
         "Cabal".revision = (((hackage."Cabal")."3.4.0.0").revisions).default;
         "Cabal".flags.bundled-binary-generic = false;
-        "th-compat".revision = (((hackage."th-compat")."0.1.2").revisions).default;
+        "th-compat".revision = (((hackage."th-compat")."0.1.3").revisions).default;
         "zlib".revision = (((hackage."zlib")."0.6.2.3").revisions).default;
         "zlib".flags.non-blocking-ffi = false;
         "zlib".flags.bundled-c-zlib = false;

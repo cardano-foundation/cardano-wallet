@@ -15,7 +15,7 @@
         "test-framework-hunit".revision = (((hackage."test-framework-hunit")."0.3.0.2").revisions).default;
         "test-framework-hunit".flags.base4 = true;
         "test-framework-hunit".flags.base3 = false;
-        "time-compat".revision = (((hackage."time-compat")."1.9.6").revisions).default;
+        "time-compat".revision = (((hackage."time-compat")."1.9.6.1").revisions).default;
         "time-compat".flags.old-locale = false;
         "xml".revision = (((hackage."xml")."1.3.14").revisions).default;
         "array".revision = (((hackage."array")."0.5.4.0").revisions).default;
@@ -42,7 +42,7 @@
         "distributive".flags.semigroups = true;
         "happy".revision = (((hackage."happy")."1.20.0").revisions).default;
         "base".revision = (((hackage."base")."4.14.2.0").revisions).default;
-        "regex-posix".revision = (((hackage."regex-posix")."0.96.0.0").revisions).default;
+        "regex-posix".revision = (((hackage."regex-posix")."0.96.0.1").revisions).default;
         "regex-posix".flags._regex-posix-clib = false;
         "rts".revision = (((hackage."rts")."1.0.1").revisions).default;
         "text".revision = (((hackage."text")."1.2.4.1").revisions).default;
@@ -64,8 +64,8 @@
         "tagged".flags.deepseq = true;
         "tagged".flags.transformers = true;
         "haskell-src-exts".revision = (((hackage."haskell-src-exts")."1.23.1").revisions).default;
-        "base-orphans".revision = (((hackage."base-orphans")."0.8.4").revisions).default;
-        "primitive".revision = (((hackage."primitive")."0.7.1.0").revisions).default;
+        "base-orphans".revision = (((hackage."base-orphans")."0.8.5").revisions).default;
+        "primitive".revision = (((hackage."primitive")."0.7.2.0").revisions).default;
         "directory".revision = (((hackage."directory")."1.3.6.0").revisions).default;
         "HsYAML-aeson".revision = (((hackage."HsYAML-aeson")."0.2.0.0").revisions).default;
         "transformers-compat".revision = (((hackage."transformers-compat")."0.6.6").revisions).default;
@@ -82,7 +82,7 @@
         "aeson".flags.bytestring-builder = false;
         "aeson".flags.fast = false;
         "aeson".flags.cffi = false;
-        "semigroups".revision = (((hackage."semigroups")."0.19.1").revisions).default;
+        "semigroups".revision = (((hackage."semigroups")."0.19.2").revisions).default;
         "semigroups".flags.bytestring = true;
         "semigroups".flags.deepseq = true;
         "semigroups".flags.binary = true;
@@ -105,10 +105,10 @@
         "attoparsec".revision = (((hackage."attoparsec")."0.13.2.5").revisions).default;
         "attoparsec".flags.developer = false;
         "transformers".revision = (((hackage."transformers")."0.5.6.2").revisions).default;
-        "file-embed".revision = (((hackage."file-embed")."0.0.14.0").revisions).default;
+        "file-embed".revision = (((hackage."file-embed")."0.0.15.0").revisions).default;
         "colour".revision = (((hackage."colour")."2.3.6").revisions).default;
         "syb".revision = (((hackage."syb")."0.7.2.1").revisions).default;
-        "hashable".revision = (((hackage."hashable")."1.3.2.0").revisions).default;
+        "hashable".revision = (((hackage."hashable")."1.3.3.0").revisions).default;
         "hashable".flags.integer-gmp = true;
         "hashable".flags.random-initial-seed = false;
         "comonad".revision = (((hackage."comonad")."5.0.8").revisions).default;
