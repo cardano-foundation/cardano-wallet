@@ -540,8 +540,11 @@ prefilterBlock b u0 = runState $ do
     applyTx (!txs, !u) tx = do
         let x' = New.applyTx tx (_ u)
 
-        ourU <- limitUTxO isOurs' u
-        ourU' <- limitUTxO isOurs' x'
+        ourU <- New.filterUTxO isOurs' u
+        ourU' <- New.filterUTxO isOurs' x'
+
+        ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
+            mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
         
         let received = balance $ ourU' `difference` ourU
         let spent = (balance $ ourU `difference` ourU') `TB.add` TB.fromCoin _withdrawals
@@ -549,7 +552,7 @@ prefilterBlock b u0 = runState $ do
         -- a Tx is "known" to a UTxO if it's present in the UTxO.
         let hasKnownInput = inputsKnown tx ourU' /= mempty
         let hasKnownOutput = outputsKnown tx ourU' /= mempty
-        let hasKnownWithdrawal = withdrawalsKnown tx ourU' /= mempty
+        let hasKnownWithdrawal = ourWithdrawals /= mempty
 
         -- ourU <- state $ utxoOurs tx
         -- let ourIns =
@@ -561,8 +564,6 @@ prefilterBlock b u0 = runState $ do
         --             `Set.intersection`
         --                 dom (u <> ourU)
         -- u' <- applyTx'' tx u
-        -- ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
-        --     mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
         -- let received = balance ourU
         -- let spent =
         --         case tx ^. #isValidScript of

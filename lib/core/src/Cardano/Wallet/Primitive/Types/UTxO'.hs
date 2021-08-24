@@ -36,7 +36,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx, TxIn (..), TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..) )
+    ( UTxO (..), dom )
 import Control.Lens
     ( view )
 import Data.Generics.Internal.VL.Lens
@@ -122,6 +122,9 @@ applyTx tx u =
 -- both entries, TODO removing any entries that are fully spent.
 --
 -- balance (u1 `difference` u2) = balance u1 `TokenBundle.difference` balance u2
+-- u `difference` mempty = u
+-- u `difference` u = mempty
+-- mempty `difference` u = mempty
 difference :: UTxO' -> UTxO' -> UTxO'
 difference u1 u2 =
     let
@@ -141,8 +144,9 @@ difference u1 u2 =
     in
         UTxO' (UTxO $ Map.differenceWith diffFunc u1' u2')
 
--- | Filter the TxOut addresses in a UTxO.
+-- | Filter the TxOut addresses in a UTxO to those that pass the given test.
 --
+-- * balance:
 -- balance (filterUTxO (const $ pure True) u) = balance u
 -- balance (filterUTxO (const $ pure False) u) = mempty
 -- balance (filterUTxO f mempty) = mempty
@@ -151,6 +155,9 @@ difference u1 u2 =
 --               ours <- f (address o)
 --               if ours then tokens o else mempty
 --            ) (outputs tx)
+--
+-- * txInputsInUTxO:
+-- txInputsInUTxO tx (
 filterUTxO :: forall f. Monad f => (Address -> f Bool) -> UTxO' -> f UTxO'
 filterUTxO isOurs (UTxO' (UTxO m)) =
     UTxO' . UTxO <$> Map.traverseMaybeWithKey filterFunc m
@@ -165,21 +172,29 @@ filterUTxO isOurs (UTxO' (UTxO m)) =
 --
 -- When adding an observation, you should also add a law to each operation in
 -- terms of that new observation, unless the new observation can trivially be
--- expressed in terms of some existing observation, in which case that law
--- should be stated alongside the (new) observation.
+-- expressed in terms of some existing observation, in which case that
+-- equivalence should be expressed as a law alongside the (new) observation.
 --------------------------------------------------------------------------------
 
--- Get the balance of the UTxO.
+-- | Get the balance of the UTxO.
 --
 -- balance (applyFirstTx tx) = foldMap tokens (outputs tx)
 balance :: UTxO' -> TokenBundle
 balance = UTxO.balance . _utxo
 
-txInputsInUTxO :: Tx -> UTxO' -> Set TxIn
-txInputsInUTxO = undefined
+-- | From a transaction, get the set of transaction inputs that are also present
+-- in the UTxO.
+--
+-- txInputsInUTxO tx mempty = mempty
+-- txInputsInUTxO tx (applyTx tx u) = Set.fromList (inputs tx)
+-- txInputsInUTxO tx (applyTx tx u1 `difference` applyTx tx u2) = mempty
+-- txInputsInUTxO tx (applyTx tx u `difference` mempty) = Set.fromList (inputs tx)
+-- txInputsInUTxO tx (filterUTxO f (applyTx tx u)) = do
+txInUTxO :: Tx -> UTxO' -> Set TxIn
+txInUTxO tx (UTxO' u) =
+    Set.fromList (Tx.inputs tx) `Set.intersection` dom u
 
-txOutputsInUTxO :: Tx -> UTxO' -> Set TxOut
-txOutputsInUTxO = undefined
+-- Denotation: the observation from which all other observations can be derived.
 
 --------------------------------------------------------------------------------
 -- Helpers (TODO don't belong here)
