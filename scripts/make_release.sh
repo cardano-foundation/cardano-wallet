@@ -17,7 +17,7 @@ set -euo pipefail
 #
 
 ################################################################################
-# Release-specific parameters (Change when you bump the version)
+# Release-specific parameters. Can be changed interactively by running the script.
 # Release tags must follow format vYYYY-MM-DD.
 GIT_TAG="v2021-08-11"
 OLD_GIT_TAG="v2021-07-30"
@@ -38,6 +38,41 @@ tag_cabal_ver() {
 tag_cabal_ver_re() {
   tag_cabal_ver "$1" | sed -e 's/\./\\./g'
 }
+
+################################################################################
+# Interactively change the release-specific parameter by promting the caller, and
+# mutating the script itself.
+
+echo "Previous release: $GIT_TAG"
+new_tag=$(date +v%Y-%m-%d)
+read -e -p "New release tag: " -i "$new_tag" new_tag
+
+SCRIPT=`realpath $0`
+sed -i -e "s/^OLD_GIT_TAG=\"$OLD_GIT_TAG\"/OLD_GIT_TAG=\"$GIT_TAG\"/g" $SCRIPT
+sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" $SCRIPT
+
+OLD_GIT_TAG=$GIT_TAG
+GIT_TAG=$new_tag
+
+OLD_CARDANO_NODE_TAG=$CARDANO_NODE_TAG
+read -e -p "Cardano node tag: " -i "$CARDANO_NODE_TAG" CARDANO_NODE_TAG
+sed -i -e "s/^CARDANO_NODE_TAG=\"$OLD_CARDANO_NODE_TAG\"/CARDANO_NODE_TAG=\"$CARDANO_NODE_TAG\"/g" $SCRIPT
+
+################################################################################
+# Update releases in README.md
+
+# We assuming a specific structure and want to insert a tweaked copy of the
+# master version, and delete the oldest release.
+ln=$(awk '$0 ~ "`master` branch" {print NR}' README.md)
+master_line=$(sed -n "$ln"p README.md)
+line_to_insert=$(echo $master_line | sed -e "s/\`master\` branch/\[$GIT_TAG\](https:\/\/github.com\/input-output-hk\/cardano-wallet\/releases\/tag\/$GIT_TAG)/")
+sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" $SCRIPT
+
+# Edit from the bottom and up, not to affect the line-numbers.
+sed -i -e $(($ln+3))d README.md
+sed -i -e $(($ln+1))i"$line_to_insert" README.md
+
+echo "Automatically updated the list of releases in README.md. Please review the resulting changes."
 
 ################################################################################
 # Update versions
@@ -91,11 +126,10 @@ sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
 ################################################################################
 # Commit and tag
 
-read -p "Do you want to create a commit and release-tag? (y/n) " -n 1 -r
+read -p "Do you want to create a commit (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
   msg="Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
   git diff --quiet || git commit -am "$msg"
-  git tag -s -m "$GIT_TAG" "$GIT_TAG"
 fi
