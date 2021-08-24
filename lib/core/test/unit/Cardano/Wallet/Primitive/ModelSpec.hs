@@ -366,7 +366,7 @@ prop_availableUTxO
 prop_availableUTxO makeProperty =
     forAllShrink (scale (* 4) genUTxO) shrinkUTxO
         $ \utxo ->
-    forAllShrink (listOf genTx) (shrinkList shrinkTx)
+    forAllShrink (scale (`div` 2) $ listOf genTx) (shrinkList shrinkTx)
         $ \pendingTxs ->
     inner utxo pendingTxs
   where
@@ -430,7 +430,8 @@ prop_availableUTxO makeProperty =
 --
 prop_changeUTxO :: Property
 prop_changeUTxO =
-    forAllShrink (listOf genTx) (shrinkList shrinkTx) prop_changeUTxO_inner
+    forAllShrink (scale (`div` 4) $ listOf genTx) (shrinkList shrinkTx)
+        prop_changeUTxO_inner
 
 prop_changeUTxO_inner :: [Tx] -> Property
 prop_changeUTxO_inner pendingTxs =
