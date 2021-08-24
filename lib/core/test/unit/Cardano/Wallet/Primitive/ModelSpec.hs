@@ -71,7 +71,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, genTxOut, shrinkTx, shrinkTxOut )
+    ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
@@ -105,7 +105,7 @@ import Data.Set
 import Data.Traversable
     ( for )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64 )
 import Fmt
     ( Buildable, blockListF, pretty )
 import GHC.Generics
@@ -428,8 +428,12 @@ prop_availableUTxO makeProperty =
 -- This test applies the above filter conditions to 'changeUTxO' and verifies
 -- that all entries match the condition that was provided.
 --
-prop_changeUTxO :: [TxOutputs] -> Property
-prop_changeUTxO txOutputs =
+prop_changeUTxO :: Property
+prop_changeUTxO =
+    forAllShrink (listOf genTx) (shrinkList shrinkTx) prop_changeUTxO_inner
+
+prop_changeUTxO_inner :: [Tx] -> Property
+prop_changeUTxO_inner pendingTxs =
     checkCoverage $
     cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
         "UTxO sets not null" $
@@ -443,7 +447,7 @@ prop_changeUTxO txOutputs =
           -- The even-parity and odd-parity UTxO sets are complete:
         , Map.union (unUTxO utxoEven) (unUTxO utxoOdd) == unUTxO utxoAll
           -- No outputs are omitted when we select everything:
-        , UTxO.size utxoAll == F.sum (F.length . unTxOutputs <$> txOutputs)
+        , UTxO.size utxoAll == F.sum (F.length . view #outputs <$> pendingTxs)
         ]
   where
     -- Computes the parity of an output based on its address parity.
@@ -452,63 +456,18 @@ prop_changeUTxO txOutputs =
 
     -- The UTxO set that contains all available output addresses.
     utxoAll :: UTxO
-    utxoAll = changeUTxO txSet $ IsOursIf @Address (const True)
+    utxoAll = changeUTxO pendingTxSet $ IsOursIf @Address (const True)
 
     -- The UTxO set that contains only even-parity output addresses.
     utxoEven :: UTxO
-    utxoEven = changeUTxO txSet $ IsOursIf ((== Even) . addressParity)
+    utxoEven = changeUTxO pendingTxSet $ IsOursIf ((== Even) . addressParity)
 
     -- The UTxO set that contains only odd-parity output addresses.
     utxoOdd :: UTxO
-    utxoOdd  = changeUTxO txSet $ IsOursIf ((== Odd) . addressParity)
+    utxoOdd  = changeUTxO pendingTxSet $ IsOursIf ((== Odd) . addressParity)
 
-    txSet :: Set Tx
-    txSet = Set.fromList $ uncurry makeTx <$> (zip txIds txOutputs)
-
-    txIds :: [Hash "Tx"]
-    txIds = makeTxId <$> [minBound .. maxBound]
-
-    -- Creates a transaction from a transaction id and a set of outputs, by
-    -- adding dummy data for fields that are not used by 'changeUTxO'.
-    --
-    -- Ideally, we'd leave all of the unused fields undefined (to assert that
-    -- they should not be evaluated or processed in any way), but since the
-    -- fields of the 'Tx' type are strict, our next best option is to provide
-    -- a minimal value for each field.
-    --
-    makeTx :: Hash "Tx" -> TxOutputs -> Tx
-    makeTx txId TxOutputs {unTxOutputs} = Tx
-        { txId
-        , outputs = unTxOutputs
-        -- Unused fields:
-        , fee = Nothing
-        , resolvedCollateral = []
-        , resolvedInputs = []
-        , metadata = Nothing
-        , withdrawals = Map.empty
-        }
-
-    -- Creates a dummy transaction identifier from a single word.
-    makeTxId :: Word8 -> Hash "Tx"
-    makeTxId i = Hash $ BS.pack [i]
-
--- | Represents all the outputs of a transaction (both change and non-change).
---
-newtype TxOutputs = TxOutputs
-    { unTxOutputs :: [TxOut]
-        -- ^ A transaction's outputs.
-    }
-    deriving (Eq, Generic, Show)
-
-instance Arbitrary TxOutputs where
-    arbitrary = genTxOutputs
-    shrink = shrinkTxOutputs
-
-genTxOutputs :: Gen TxOutputs
-genTxOutputs = TxOutputs <$> listOf genTxOut
-
-shrinkTxOutputs :: TxOutputs -> [TxOutputs]
-shrinkTxOutputs (TxOutputs outs) = TxOutputs <$> shrinkList shrinkTxOut outs
+    pendingTxSet :: Set Tx
+    pendingTxSet = Set.fromList pendingTxs
 
 -- | Represents the parity of a value (whether the value is even or odd).
 --
