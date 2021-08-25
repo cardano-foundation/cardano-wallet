@@ -1,5 +1,4 @@
 Usage:  wallet list [--port INT]
-
   List all known wallets.
 
 Available options:

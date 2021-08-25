@@ -124,12 +124,8 @@ extra-deps:
 - parsec-3.1.14.0
 
   # Using a fork until our patches can be merged upstream
-- git: https://github.com/input-output-hk/criterion
-  commit: fb2e7be532db96255d203f86360230cae37130f3
-
-  # Using a fork until our patches can be merged upstream
 - git: https://github.com/input-output-hk/optparse-applicative
-  commit: 84bcc6f18992a441886589a117249bfface8630e
+  commit: 7497a29cb998721a9068d5725d49461f2bba0e7a
 
 - git: https://github.com/input-output-hk/cardano-base
   commit: cb0f19c85e5bb5299839ad4ed66af6fa61322cc4
@@ -149,7 +145,7 @@ extra-deps:
   commit: 07397f0e50da97eaa0575d93bee7ac4b2b2576ec
 
 - git: https://github.com/input-output-hk/cardano-ledger-specs
-  commit: d5b184a820853c7ba202efd615b8fadca1acb52c
+  commit: 6aa1cd0a64a464371b94d4ac182e7e2cddc83a36
   subdirs:
   - alonzo/impl
   - alonzo/test
@@ -169,7 +165,7 @@ extra-deps:
   - shelley-ma/shelley-ma-test
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: cc78734d263d0eec2b12070380cdfea02a5a8342
+  commit: c17315f2775eaf988e432b7caea3a094d62ce6c9
   subdirs:
   - cardano-api
   - cardano-cli
@@ -185,7 +181,7 @@ extra-deps:
 - git: https://github.com/input-output-hk/cardano-sl-x509
   commit: 12925934c533b3a6e009b61ede555f8f26bac037
 
-- git: https://github.com/michaelpj/flat.git
+- git: https://github.com/input-output-hk/flat
   commit: ee59880f47ab835dbd73bea0847dab7869fc20d8
 
 - git: https://github.com/input-output-hk/goblins
@@ -236,7 +232,7 @@ extra-deps:
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: 8c83c4abe211b4bbcaca3cdf1b2c0e38d0eb683f
+  commit: edc6d4672c41de4485444122ff843bc86ff421a0
   subdirs:
     - freer-extras
     - playground-common
@@ -249,6 +245,7 @@ extra-deps:
     - plutus-tx
     - plutus-tx-plugin
     - plutus-use-cases
+    - stubs/plutus-ghc-stub
     - prettyprinter-configurable
     - quickcheck-dynamic
     - word-array

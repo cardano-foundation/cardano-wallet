@@ -1,5 +1,4 @@
 Usage:  address import [--port INT] WALLET_ID ADDRESS
-
   Import a random address generated elsewhere. Only available for
   random wallets. The address must belong to the target wallet.
 

@@ -1,5 +1,4 @@
 Usage:  transaction submit [--port INT] BINARY_BLOB
-
   Submit an externally-signed transaction.
 
 Available options:

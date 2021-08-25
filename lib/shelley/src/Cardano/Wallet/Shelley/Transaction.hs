@@ -1277,7 +1277,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         Cardano.BuildTxWith Nothing
 
     , txScriptValidity =
-        Cardano.BuildTxWith Cardano.TxScriptValidityNone
+        Cardano.TxScriptValidityNone
 
     , txExtraScriptData = Cardano.BuildTxWith Cardano.TxExtraScriptDataNone
 

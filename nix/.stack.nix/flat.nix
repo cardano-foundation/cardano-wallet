@@ -138,11 +138,11 @@
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/michaelpj/flat.git";
+      url = "https://github.com/input-output-hk/flat";
       rev = "ee59880f47ab835dbd73bea0847dab7869fc20d8";
       sha256 = "1lrzknw765pz2j97nvv9ip3l1mcpf2zr4n56hwlz0rk7wq7ls4cm";
       }) // {
-      url = "https://github.com/michaelpj/flat.git";
+      url = "https://github.com/input-output-hk/flat";
       rev = "ee59880f47ab835dbd73bea0847dab7869fc20d8";
       sha256 = "1lrzknw765pz2j97nvv9ip3l1mcpf2zr4n56hwlz0rk7wq7ls4cm";
       };

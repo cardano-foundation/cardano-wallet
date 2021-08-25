@@ -1,5 +1,4 @@
 Usage:  key public (--without-chain-code | --with-chain-code)
-
   Get the public counterpart of a private key
 
 Available options:
