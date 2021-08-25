@@ -152,7 +152,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         payload <- mkTxPayloadMA @n destination (minUTxOValue' * 2) [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Byron wSrc) Default payload
+            (Link.createTransactionOld @'Byron wSrc) Default payload
         expectResponseCode HTTP.status202 rtx
 
         eventually "Payee wallet balance is as expected" $ do
@@ -184,7 +184,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         payload <- mkTxPayloadMA @n destination minUTxOValue' [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Byron wSrc) Default payload
+            (Link.createTransactionOld @'Byron wSrc) Default payload
         expectResponseCode HTTP.status403 rtx
         expectErrorMessage "Some outputs have ada values that are too small." rtx
 
@@ -206,7 +206,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Byron wSrc) Default payload
+            (Link.createTransactionOld @'Byron wSrc) Default payload
         expectResponseCode HTTP.status202 rtx
 
         eventually "Payee wallet balance is as expected" $ do
@@ -324,7 +324,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             }|]
 
         rFeeEst <- request @ApiFee ctx
-            (Link.getTransactionFee @'Byron wByron) Default payload
+            (Link.getTransactionFeeOld @'Byron wByron) Default payload
         verify rFeeEst
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -333,7 +333,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         let (Quantity feeEstMax) = getFromResponse #estimatedMax rFeeEst
 
         r <- postTx @n ctx
-            (wByron, Link.createTransaction @'Byron, fixturePassphrase)
+            (wByron, Link.createTransactionOld @'Byron, fixturePassphrase)
             wShelley
             amt
         verify r

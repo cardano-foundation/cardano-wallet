@@ -1439,7 +1439,7 @@ fixtureMultiAssetRandomWallet ctx = do
 
     -- send assets to Byron wallet
     rtx <- request @(ApiTransaction n) ctx
-        (Link.createTransaction @'Shelley wMA) Default payload
+        (Link.createTransactionOld @'Shelley wMA) Default payload
     expectResponseCode HTTP.status202 rtx
 
     eventually "Byron wallet has assets" $ do
@@ -1480,7 +1480,7 @@ fixtureMultiAssetIcarusWallet ctx = do
 
     -- send assets to Icarus wallet
     rtx <- request @(ApiTransaction n) ctx
-        (Link.createTransaction @'Shelley wMA) Default payload
+        (Link.createTransactionOld @'Shelley wMA) Default payload
     expectResponseCode HTTP.status202 rtx
 
     eventually "Icarus wallet has assets" $ do
@@ -1905,7 +1905,7 @@ fixtureWalletWith ctx coins0 = do
                 "passphrase": #{fixturePassphrase}
             }|]
         request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley src) Default payload
+            (Link.createTransactionOld @'Shelley src) Default payload
             >>= expectResponseCode HTTP.status202
         eventually "balance available = balance total" $ do
             rb <- request @ApiWallet ctx
@@ -1970,7 +1970,7 @@ moveByronCoins ctx src (dest, addrs) coins = do
             "passphrase": #{fixturePassphrase}
         }|]
     request @(ApiTransaction n) ctx
-        (Link.createTransaction @'Byron src) Default payload
+        (Link.createTransactionOld @'Byron src) Default payload
         >>= expectResponseCode HTTP.status202
     eventually "balance available = balance total" $ do
         rb <- request @ApiByronWallet ctx

@@ -255,7 +255,7 @@ walletApiBench capture ctx = do
     repeatPostTx wDest amtToSend batchSize amtExp = do
         wSrc <- fixtureWallet ctx
         replicateM_ batchSize
-            (postTx (wSrc, Link.createTransaction @'Shelley, fixturePassphrase) wDest amtToSend)
+            (postTx (wSrc, Link.createTransactionOld @'Shelley, fixturePassphrase) wDest amtToSend)
         eventually "repeatPostTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet  ctx (Link.getWallet @'Shelley wDest) Default Empty
             verify rWal1
@@ -326,7 +326,7 @@ walletApiBench capture ctx = do
                 }]
             }|]
         t6 <- measureApiLogs capture $ request @ApiFee ctx
-            (Link.getTransactionFee @'Shelley wal1) Default payload
+            (Link.getTransactionFeeOld @'Shelley wal1) Default payload
         fmtResult "postTransactionFee " t6
 
         let payloadTx = Json [json|{
@@ -340,7 +340,7 @@ walletApiBench capture ctx = do
                 "passphrase": #{fixturePassphrase}
             }|]
         t7 <- measureApiLogs capture $ request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wal1) Default payloadTx
+            (Link.createTransactionOld @'Shelley wal1) Default payloadTx
         fmtResult "postTransaction    " t7
 
         let addresses = replicate 5 destination
@@ -358,14 +358,14 @@ walletApiBench capture ctx = do
             }|]
 
         t7a <- measureApiLogs capture $ request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wal2) Default payloadTxTo5Addr
+            (Link.createTransactionOld @'Shelley wal2) Default payloadTxTo5Addr
         fmtResult "postTransTo5Addrs  " t7a
 
         let assetsToSend = walMA ^. #assets . #total . #getApiT
         let val = minUTxOValue era <$ pickAnAsset assetsToSend
         payloadMA <- mkTxPayloadMA @n destination (2 * minUTxOValue era) [val] fixturePassphrase
         t7b <- measureApiLogs capture $ request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley walMA) Default payloadMA
+            (Link.createTransactionOld @'Shelley walMA) Default payloadMA
         fmtResult "postTransactionMA  " t7b
 
         t8 <- measureApiLogs capture $ request @[ApiStakePool] ctx
