@@ -117,9 +117,7 @@ shrinkTxWithoutId =
         (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
 
 txWithoutIdToTx :: TxWithoutId -> Tx
-txWithoutIdToTx t@TxWithoutId {..} = Tx {..}
-  where
-    txId = mockHash $ txWithoutIdToTuple t
+txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}
 
 txToTxWithoutId :: Tx -> TxWithoutId
 txToTxWithoutId Tx {..} = TxWithoutId {..}
