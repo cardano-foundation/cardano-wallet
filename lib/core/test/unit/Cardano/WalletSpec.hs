@@ -132,7 +132,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxInLargeRange )
+    ( genTx, genTxInLargeRange, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction
@@ -215,7 +215,6 @@ import Test.QuickCheck
     , Gen
     , InfiniteList (..)
     , NonEmptyList (..)
-    , Positive (..)
     , Property
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
@@ -283,7 +282,8 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 
 spec :: Spec
-spec = parallel $ do
+spec = describe "Cardano.WalletSpec" $ parallel $ do
+
     parallel $ describe "Pointless mockEventSource to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
@@ -743,9 +743,9 @@ newtype GenTxHistory = GenTxHistory { getTxHistory :: [(Tx, TxMeta)] }
 instance Arbitrary GenTxHistory where
     arbitrary = fmap GenTxHistory (gen `suchThat` hasPending)
       where
-        gen = uniq <$> listOf1 ((,) <$> genTx <*> genTxMeta)
+        gen = uniq <$> listOf1 ((,) <$> genTx' <*> genTxMeta)
         uniq = L.nubBy ((==) `on` (view #txId . fst))
-        genTx = mkTx <$> genTid
+        genTx' = mkTx <$> genTid
         hasPending = any ((== Pending) . view #status . snd)
         genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
         mkTx tid = Tx tid Nothing [] [] [] mempty Nothing
@@ -760,10 +760,10 @@ instance Arbitrary GenTxHistory where
 
     shrink = fmap GenTxHistory
         . filter (not . null)
-        . shrinkList (liftShrink2 shrinkTx shrinkMeta)
+        . shrinkList (liftShrink2 shrinkTx' shrinkMeta)
         . getTxHistory
       where
-        shrinkTx tx = [set #txId tid' tx | tid' <- shrink (view #txId tx)]
+        shrinkTx' tx = [set #txId tid' tx | tid' <- shrink (view #txId tx)]
         shrinkMeta (TxMeta st dir sl bh amt ex) =
             [ TxMeta st dir sl' bh amt ex'
             | (sl', ex') <- liftShrink2 shrinkSlotNo (liftShrink shrinkSlotNo)
@@ -1422,38 +1422,8 @@ instance Arbitrary Coin where
     arbitrary = genCoinPositive
 
 instance Arbitrary Tx where
-    shrink (Tx tid fees ins cins outs wdrls md) = mconcat
-        [ [ Tx tid fees ins' cins outs wdrls md
-          | ins' <- shrinkList' ins
-          ]
-
-        , [ Tx tid fees ins cins' outs wdrls md
-          | cins' <- shrinkList' cins
-          ]
-
-        , [ Tx tid fees ins cins outs' wdrls md
-          | outs' <- shrinkList' outs
-          ]
-
-        , [ Tx tid fees ins cins outs (Map.fromList wdrls') md
-          | wdrls' <- shrinkList' (Map.toList wdrls)
-          ]
-
-        , [ Tx tid fees ins cins outs wdrls md'
-          | md' <- shrink md
-          ]
-        ]
-      where
-        shrinkList' xs  = filter (not . null)
-            [ take n xs | Positive n <- shrink (Positive $ length xs) ]
-    arbitrary = Tx
-        <$> arbitrary
-        <*> arbitrary
-        <*> fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
-        <*> fmap (L.nub . L.take 5) arbitrary
-        <*> fmap (L.take 5 . getNonEmpty) arbitrary
-        <*> fmap (Map.fromList . L.take 5) arbitrary
-        <*> arbitrary
+    arbitrary = genTx
+    shrink = shrinkTx
 
 instance Arbitrary RewardAccount where
     arbitrary = RewardAccount . BS.pack <$> vector 28
