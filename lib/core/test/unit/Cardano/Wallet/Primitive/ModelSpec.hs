@@ -27,16 +27,20 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlock
     , applyBlocks
+    , applyTxToUTxO
     , availableBalance
     , availableUTxO
     , changeUTxO
     , currentTip
+    , difference
+    , filterOurUTxOs
     , getState
     , initWallet
     , totalBalance
     , totalUTxO
     , unsafeInitWallet
     , utxo
+    , utxoFromTx
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( flatSlot )
@@ -67,13 +71,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxIn (..)
     , TxMeta (direction)
     , TxOut (..)
+    , inputs
     , txIns
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
+    ( Dom (..), UTxO (..), balance, excluding, restrictedBy, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Control.DeepSeq
@@ -147,6 +152,8 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
+import Data.Functor.Identity
+    ( Identity (runIdentity) )
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -181,6 +188,31 @@ spec = do
 
         it "only counts rewards once."
             (property prop_countRewardsOnce)
+
+        describe "applyTxToUTxO" $ do
+            it "has expected balance" (property prop_applyTxToUTxO_balance)
+            it "has expected entries" (property prop_applyTxToUTxO_entries)
+
+        describe "filterOurUTxOs" $ do
+            it "if all utxos belong to us, the result utxo should not change"
+                (property prop_filterOurUTxOs_allOurs)
+            it "if no utxos belong to us, the result utxo should be nothing"
+                (property prop_filterOurUTxOs_noneOurs)
+            it "if there are no utxos, the result utxo should be empty"
+                (property prop_filterOurUTxOs_empty)
+            it "applyTxToUTxO then filterUTxO"
+                (property prop_filterOurUTxOs_balance_applyTxToUTxO)
+
+        describe "utxoFromTx" $
+            it "has expected balance" (property prop_utxoFromTx_balance)
+
+        describe "difference" $ do
+            it "has a right identity"
+                (property prop_difference_rightIdentity)
+            it "has a left annihilation "
+                (property prop_difference_leftAnnihilation)
+            it "is mempty when asked for difference between equal utxos"
+                (property prop_difference_whenEqual)
 
     parallel $ describe "Available UTxO" $ do
         it "prop_availableUTxO_isSubmap" $
@@ -583,13 +615,6 @@ txOutsOurs txs =
             Nothing -> Nothing
     forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
     forMaybe xs = fmap catMaybes . for xs
-
--- | Construct a UTxO corresponding to a given transaction. It is important for
--- the transaction outputs to be ordered correctly, since they become available
--- inputs for the subsequent blocks.
-utxoFromTx :: Tx -> UTxO
-utxoFromTx Tx {txId, outputs} =
-    UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 
 {-------------------------------------------------------------------------------
                                   Test Data
@@ -1407,3 +1432,76 @@ blockchain =
     ]
   where
     slot e s = SlotNo $ flatSlot (EpochLength 21600) (SlotId e s)
+
+prop_applyTxToUTxO_balance :: Property
+prop_applyTxToUTxO_balance =
+    forAllShrink genTx shrinkTx $ \tx ->
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        balance (applyTxToUTxO tx u)
+        === balance u
+          `TokenBundle.add`
+              balance (utxoFromTx tx)
+          `TokenBundle.difference`
+              balance (u `restrictedBy` Set.fromList (inputs tx))
+ 
+prop_applyTxToUTxO_entries :: Property
+prop_applyTxToUTxO_entries =
+    forAllShrink genTx shrinkTx $ \tx ->
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        unUTxO (applyTxToUTxO tx u)
+        === unUTxO u
+          `Map.union`
+              unUTxO (utxoFromTx tx)
+          `Map.difference`
+              unUTxO (u `restrictedBy` Set.fromList (inputs tx))
+    
+prop_filterOurUTxOs_allOurs :: Property
+prop_filterOurUTxOs_allOurs =
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        runIdentity (filterOurUTxOs (const $ pure True) u) === u
+
+prop_filterOurUTxOs_noneOurs :: Property
+prop_filterOurUTxOs_noneOurs =
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        runIdentity (filterOurUTxOs (const $ pure False) u) === mempty
+
+prop_filterOurUTxOs_empty :: Bool -> Property
+prop_filterOurUTxOs_empty b =
+    let
+        f = const $ pure b
+    in
+        runIdentity (filterOurUTxOs f mempty) === mempty
+
+prop_filterOurUTxOs_balance_applyTxToUTxO :: Bool -> Property
+prop_filterOurUTxOs_balance_applyTxToUTxO b = 
+    let
+        f = const $ pure b
+    in
+        forAllShrink genTx shrinkTx $ \tx ->
+            balance (runIdentity $ filterOurUTxOs f (applyTxToUTxO tx mempty))
+            === runIdentity (
+                    foldMap (\o -> do
+                        ours <- f (address o)
+                        pure $ if ours then tokens o else mempty
+                    ) (outputs tx)
+                )
+
+prop_utxoFromTx_balance :: Property
+prop_utxoFromTx_balance =
+    forAllShrink genTx shrinkTx $ \tx ->
+        balance (utxoFromTx tx) === foldMap tokens (outputs tx)
+
+prop_difference_rightIdentity :: Property
+prop_difference_rightIdentity = 
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        u `difference` mempty === u
+
+prop_difference_leftAnnihilation :: Property
+prop_difference_leftAnnihilation = 
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        mempty `difference` u === mempty
+
+prop_difference_whenEqual :: Property
+prop_difference_whenEqual = 
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        u `difference` u === mempty

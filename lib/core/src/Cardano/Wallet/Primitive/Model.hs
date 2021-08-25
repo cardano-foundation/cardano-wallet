@@ -39,6 +39,10 @@ module Cardano.Wallet.Primitive.Model
     , applyBlock
     , applyBlocks
     , unsafeInitWallet
+    , applyTxToUTxO
+    , utxoFromTx
+    , filterOurUTxOs
+    , difference
 
     -- * Accessors
     , currentTip
@@ -80,15 +84,15 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..), UTxO (..), balance, excluding, restrictedBy )
+    ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
 import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad
-    ( foldM, forM )
+    ( foldM )
 import Control.Monad.Extra
     ( mapMaybeM )
 import Control.Monad.Trans.State.Strict
-    ( State, evalState, runState, state )
+    ( State, StateT, evalState, runState, state )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -98,7 +102,7 @@ import Data.Generics.Labels
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes, isJust )
+    ( isJust )
 import Data.Set
     ( Set )
 import Fmt
@@ -320,6 +324,97 @@ totalUTxO
 totalUTxO pending wallet@(Wallet _ _ s) =
     availableUTxO pending wallet <> changeUTxO pending s
 
+-- | Applies a transaction to a UTxO, moving it from one state from another.
+-- When applying a transaction to a UTxO:
+--   1. We need to remove any unspents that have been spent in the transaction.
+--   2. Add any unspents that we've received via the transaction.
+--
+-- We don't consider "ownership" here (is this address ours?), only "do we
+-- know about this address" (i.e. is it present in our UTxO?).
+--
+-- balance (applyTxToUTxO tx u) = balance u
+--                              + balance (utxoFromTx tx)
+--                              - balance (u `restrictedBy` inputs tx)
+-- unUTxO (applyTxToUTxO tx u) = unUTxO u
+--   `Map.union` unUTxO (utxoFromTx tx)
+--   `Map.difference` unUTxO (u `restrictedBy` inputs tx)
+applyTxToUTxO
+    :: Tx
+    -> UTxO
+    -> UTxO
+applyTxToUTxO tx !u = do
+    let
+        -- When a transaction comes in, we now know about a set of new unspents.
+        newKnown = u <> utxoFromTx tx
+        -- But we also know that some of the new unspents we know about, as well
+        -- as (potentially) some old ones, may now be spent.
+        spentKnown =
+            Set.fromList (inputs tx) `Set.intersection` dom newKnown
+
+    newKnown `excluding` spentKnown
+
+-- | Limit a UTxO set to just the UTxOs that are ours, according to some
+-- given function.
+--
+-- filterOurUTxOs (const $ pure True) u = u
+-- filterOurUTxOs (const $ pure False) u = mempty
+-- filterOurUTxOs f mempty = mempty
+-- balance (filterOurUTxOs f (applyTxToUTxO tx mempty)) =
+--   foldMap (\o -> do
+--               ours <- f (address o)
+--               if ours then tokens o else mempty
+--            ) (outputs tx)
+filterOurUTxOs :: forall f. Monad f => (Address -> f Bool) -> UTxO -> f UTxO
+filterOurUTxOs isOursF (UTxO m) =
+    UTxO <$> Map.traverseMaybeWithKey filterFunc m
+    where
+        filterFunc :: TxIn -> TxOut -> f (Maybe TxOut)
+        filterFunc _txin txout = do
+            ours <- isOursF $ txout ^. #address
+            pure $ if ours then Just txout else Nothing
+
+-- | Construct a UTxO corresponding to a given transaction. It is important for
+-- the transaction outputs to be ordered correctly, since they become available
+-- inputs for the subsequent blocks.
+--
+-- balance (utxoFromTx tx) = foldMap tokens (outputs tx)
+utxoFromTx :: Tx -> UTxO
+utxoFromTx Tx {txId, outputs} =
+    UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
+
+isOurs' :: forall s m. (Monad m, IsOurs s Address) => Address -> StateT s m Bool
+isOurs' addr = do
+    mDerivationIndex <- state $ isOurs addr
+    case mDerivationIndex of
+        Nothing -> pure False
+        Just _  -> pure True
+
+-- | Get the elements in u1 that are not in u2. In the case that elements are in
+-- both, get the difference of the value of the TxOut (the TokenBundle value) in
+-- both entries, removing any entries that are fully spent.
+--
+-- u `difference` mempty = u
+-- mempty `difference` u = mempty
+-- u `difference` u = mempty
+difference :: UTxO -> UTxO -> UTxO
+difference u1 u2 =
+    let
+        u1' = unUTxO u1
+        u2' = unUTxO u2
+
+        diffFunc :: TxOut -> TxOut -> Maybe TxOut
+        diffFunc a b =
+            let
+                tokens1 = tokens a
+                tokens2 = tokens b
+                diff = tokens1 `TB.difference` tokens2
+            in
+                if diff == mempty
+                then Nothing
+                else Just $ TxOut (address a) diff
+    in
+        UTxO $ Map.differenceWith diffFunc u1' u2'
+
 {-------------------------------------------------------------------------------
                                Internals
 -------------------------------------------------------------------------------}
@@ -386,16 +481,34 @@ prefilterBlock b u0 = runState $ do
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
-    applyTx (!txs, !u) tx = do
-        ourU <- state $ utxoOurs tx
-        let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
-        let u' = (u <> ourU) `excluding` ourIns
+    applyTx (!txs, !prevUTxO) tx = do
+        -- All transaction outputs we know about, that belong to us, and that
+        -- haven't been validated as "unspent" yet. It is important to not
+        -- remove spent transactions, because if we do, we lose information
+        -- about transactions inputs and outputs we know about.
+        knownTxO <- (prevUTxO <>) <$> filterOurUTxOs isOurs' (utxoFromTx tx)
+        -- The next UTxO state (apply a state transition) (e.g. remove
+        -- transaction outputs we've spent).
+        ourNextUTxO <- filterOurUTxOs isOurs' (applyTxToUTxO tx knownTxO)
+
         ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
-        let received = balance ourU
-        let spent = balance (u `restrictedBy` ourIns) `TB.add` TB.fromCoin ourWithdrawals
-        let hasKnownInput = ourIns /= mempty
-        let hasKnownOutput = ourU /= mempty
+
+        let received = balance (ourNextUTxO `difference` prevUTxO)
+        let spent =
+                balance (prevUTxO `difference` ourNextUTxO)
+                `TB.add` TB.fromCoin ourWithdrawals
+
+        -- A transaction has a known input if one of the transaction inputs
+        -- matches a transaction input we know about.
+        let hasKnownInput =
+                Set.fromList (inputs tx) `Set.intersection` dom knownTxO
+                /= mempty
+        -- A transaction has a known output if one of the outputs exists in the
+        -- set of unspent transaction outputs we know about.
+        let hasKnownOutput =
+                knownTxO `restrictedTo` Set.fromList (outputs tx)
+                /= mempty
         let hasKnownWithdrawal = ourWithdrawals /= mempty
 
         -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
@@ -423,7 +536,7 @@ prefilterBlock b u0 = runState $ do
         return $ if hasKnownOutput && not hasKnownInput then
             let dir = Incoming in
             ( (tx { fee = actualFee dir }, mkTxMeta (TB.getCoin received) dir) : txs
-            , u'
+            , ourNextUTxO
             )
         else if hasKnownInput || hasKnownWithdrawal then
             let
@@ -433,10 +546,10 @@ prefilterBlock b u0 = runState $ do
                 amount = distance adaSpent adaReceived
             in
                 ( (tx { fee = actualFee dir }, mkTxMeta amount dir) : txs
-                , u'
+                , ourNextUTxO
                 )
         else
-            (txs, u)
+            (txs, prevUTxO)
 
 -- | Get the change UTxO
 --
@@ -451,21 +564,4 @@ changeUTxO
     -> s
     -> UTxO
 changeUTxO pending = evalState $
-    mconcat <$> mapM (state . utxoOurs) (Set.toList pending)
-
--- | Construct our _next_ UTxO (possible empty) from a transaction by selecting
--- outputs that are ours. It is important for the transaction outputs to be
--- ordered correctly, since they become available inputs for the subsequent
--- blocks.
-utxoOurs
-    :: IsOurs s Address
-    => Tx
-    -> s
-    -> (UTxO, s)
-utxoOurs tx = runState $ toUtxo <$> forM (zip [0..] (outputs tx)) filterOut
-  where
-    toUtxo = UTxO . Map.fromList . catMaybes
-    filterOut (ix, out) = do
-        state (isOurs $ address out) <&> \case
-            Just{}  -> Just (TxIn (txId tx) ix, out)
-            Nothing -> Nothing
+    mconcat <$> mapM (filterOurUTxOs isOurs' . utxoFromTx) (Set.toList pending)
