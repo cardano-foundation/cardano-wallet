@@ -41,6 +41,7 @@ import Test.Integration.Framework.DSL
     , listWalletsViaCLI
     , postTransactionViaCLI
     , proc'
+    , runResourceT
     , updateWalletNameViaCLI
     )
 import UnliftIO.Process
@@ -64,7 +65,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
         -- hence asserting only for exit code
         c `shouldBe` ExitFailure 1
 
-    it "PORT_01 - Can't reach server with wrong port (wallet create)" $ \ctx -> do
+    it "PORT_01 - Can't reach server with wrong port (wallet create)" $ \ctx -> runResourceT $ do
         let ctx' = overPort @"wallet" (+1) ctx
         let name = "Wallet created via CLI"
         Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
