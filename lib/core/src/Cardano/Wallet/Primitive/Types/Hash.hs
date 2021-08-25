@@ -17,12 +17,15 @@
 module Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     , hashFromText
+    , mockHash
     ) where
 
 import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
+import Crypto.Hash
+    ( Blake2b_256, hash )
 import Data.ByteArray
     ( ByteArrayAccess )
 import Data.ByteArray.Encoding
@@ -46,7 +49,9 @@ import GHC.TypeLits
 import Quiet
     ( Quiet (..) )
 
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Char as C
 import qualified Data.Text.Encoding as T
 
@@ -96,3 +101,12 @@ hashFromText len text = case decoded of
     mapFirst :: (a -> a) -> [a] -> [a]
     mapFirst _     [] = []
     mapFirst fn (h:q) = fn h:q
+
+-- | Constructs a hash that is good enough for testing.
+--
+mockHash :: Show a => a -> Hash whatever
+mockHash = Hash . blake2b256 . B8.pack . show
+  where
+     blake2b256 :: ByteString -> ByteString
+     blake2b256 =
+         BA.convert . hash @_ @Blake2b_256

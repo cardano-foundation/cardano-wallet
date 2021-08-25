@@ -1,11 +1,17 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 
 module Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxHash
+    ( genTx
+    , genTxHash
     , genTxIndex
     , genTxIn
     , genTxInLargeRange
     , genTxOut
+    , shrinkTx
     , shrinkTxHash
     , shrinkTxIndex
     , shrinkTxIn
@@ -15,34 +21,116 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
 
 import Prelude
 
+import Cardano.Wallet.Gen
+    ( genTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..), mockHash )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount.Gen
+    ( genRewardAccount, shrinkRewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..) )
+    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..) )
 import Control.Monad
     ( replicateM )
 import Data.Either
     ( fromRight )
+import Data.Map.Strict
+    ( Map )
 import Data.Text.Class
     ( FromText (..) )
 import Data.Word
     ( Word32 )
 import Test.QuickCheck
-    ( Gen, arbitrary, elements, sized, suchThat )
+    ( Gen
+    , arbitrary
+    , elements
+    , liftArbitrary
+    , liftArbitrary2
+    , liftShrink
+    , liftShrink2
+    , listOf1
+    , shrinkList
+    , shrinkMapBy
+    , sized
+    , suchThat
+    )
 import Test.QuickCheck.Extra
-    ( genSized2With, shrinkInterleaved )
+    ( genMapWith
+    , genSized2With
+    , liftShrink6
+    , shrinkInterleaved
+    , shrinkMapWith
+    )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
+
+--------------------------------------------------------------------------------
+-- Transactions generated according to the size parameter
+--------------------------------------------------------------------------------
+
+genTx :: Gen Tx
+genTx = txWithoutIdToTx <$> genTxWithoutId
+
+shrinkTx :: Tx -> [Tx]
+shrinkTx = shrinkMapBy txWithoutIdToTx txToTxWithoutId shrinkTxWithoutId
+
+data TxWithoutId = TxWithoutId
+    { fee :: !(Maybe Coin)
+    , resolvedCollateral :: ![(TxIn, Coin)]
+    , resolvedInputs :: ![(TxIn, Coin)]
+    , outputs :: ![TxOut]
+    , metadata :: !(Maybe TxMetadata)
+    , withdrawals :: !(Map RewardAccount Coin)
+    }
+    deriving (Eq, Ord, Show)
+
+genTxWithoutId :: Gen TxWithoutId
+genTxWithoutId = TxWithoutId
+    <$> liftArbitrary genCoinPositive
+    <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
+    <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
+    <*> listOf1 genTxOut
+    <*> liftArbitrary genTxMetadata
+    <*> genMapWith genRewardAccount genCoinPositive
+
+shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
+shrinkTxWithoutId =
+    shrinkMapBy tupleToTxWithoutId txWithoutIdToTuple $ liftShrink6
+        (liftShrink shrinkCoinPositive)
+        (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
+        (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
+        (shrinkList shrinkTxOut)
+        (liftShrink shrinkTxMetadata)
+        (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
+
+txWithoutIdToTx :: TxWithoutId -> Tx
+txWithoutIdToTx t@TxWithoutId {..} = Tx {..}
+  where
+    txId = mockHash $ txWithoutIdToTuple t
+
+txToTxWithoutId :: Tx -> TxWithoutId
+txToTxWithoutId Tx {..} = TxWithoutId {..}
+
+txWithoutIdToTuple :: TxWithoutId -> _
+txWithoutIdToTuple (TxWithoutId a1 a2 a3 a4 a5 a6) =
+    (a1, a2, a3, a4, a5, a6)
+
+tupleToTxWithoutId :: _ -> TxWithoutId
+tupleToTxWithoutId (a1, a2, a3, a4, a5, a6) =
+    (TxWithoutId a1 a2 a3 a4 a5 a6)
 
 --------------------------------------------------------------------------------
 -- Transaction hashes generated according to the size parameter

@@ -8,16 +8,32 @@
 --
 
 module Test.QuickCheck.Extra
-    ( reasonablySized
-    , shrinkInterleaved
+    ( genMapWith
     , genSized2
     , genSized2With
+    , interleaveRoundRobin
+    , liftShrink6
+    , reasonablySized
+    , shrinkInterleaved
+    , shrinkMapWith
     ) where
 
 import Prelude
 
+import Data.Map.Strict
+    ( Map )
 import Test.QuickCheck
-    ( Gen, scale )
+    ( Gen
+    , liftArbitrary2
+    , liftShrink2
+    , listOf
+    , scale
+    , shrinkList
+    , shrinkMapBy
+    )
+
+import qualified Data.List as L
+import qualified Data.Map.Strict as Map
 
 -- | Resize a generator to grow with the size parameter, but remains reasonably
 -- sized. That is handy when testing on data-structures that can be arbitrarily
@@ -78,6 +94,40 @@ genSized2 genA genB = (,)
 genSized2With :: (a -> b -> c) -> Gen a -> Gen b -> Gen c
 genSized2With f genA genB = uncurry f <$> genSized2 genA genB
 
+-- | Similar to 'liftShrink2', but applicable to 6-tuples.
+--
+liftShrink6
+    :: (a1 -> [a1])
+    -> (a2 -> [a2])
+    -> (a3 -> [a3])
+    -> (a4 -> [a4])
+    -> (a5 -> [a5])
+    -> (a6 -> [a6])
+    -> (a1, a2, a3, a4, a5, a6)
+    -> [(a1, a2, a3, a4, a5, a6)]
+liftShrink6 s1 s2 s3 s4 s5 s6 (a1, a2, a3, a4, a5, a6) =
+    interleaveRoundRobin
+    [ [ (a1', a2 , a3 , a4 , a5 , a6 ) | a1' <- s1 a1 ]
+    , [ (a1 , a2', a3 , a4 , a5 , a6 ) | a2' <- s2 a2 ]
+    , [ (a1 , a2 , a3', a4 , a5 , a6 ) | a3' <- s3 a3 ]
+    , [ (a1 , a2 , a3 , a4', a5 , a6 ) | a4' <- s4 a4 ]
+    , [ (a1 , a2 , a3 , a4 , a5', a6 ) | a5' <- s5 a5 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6') | a6' <- s6 a6 ]
+    ]
+
+-- Interleaves the given lists together in round-robin order.
+--
+-- Examples:
+--
+-- >>> interleaveRoundRobin [["a1", "a2"], ["b1", "b2"]]
+-- ["a1", "b1", "a2", "b2"]
+--
+-- >>> interleaveRoundRobin [["a1", "a2", "a3"], ["b1", "b2"], ["c1"]]
+-- ["a1", "b1", "c1", "a2", "b2", "a3"]
+--
+interleaveRoundRobin :: [[a]] -> [a]
+interleaveRoundRobin = concat . L.transpose
+
 -- | Shrink the given pair in interleaved fashion.
 --
 -- Successive shrinks of the left and right hand sides are interleaved in the
@@ -91,3 +141,26 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
+
+--------------------------------------------------------------------------------
+-- Generating and shrinking key-value maps
+--------------------------------------------------------------------------------
+
+-- | Generates a 'Map' with the given key and value generation functions.
+--
+genMapWith :: Ord k => Gen k -> Gen v -> Gen (Map k v)
+genMapWith genKey genValue =
+    Map.fromList <$> listOf (liftArbitrary2 genKey genValue)
+
+-- | Shrinks a 'Map' with the given key and value shrinking functions.
+--
+shrinkMapWith
+    :: Ord k
+    => (k -> [k])
+    -> (v -> [v])
+    -> Map k v
+    -> [Map k v]
+shrinkMapWith shrinkKey shrinkValue
+    = shrinkMapBy Map.fromList Map.toList
+    $ shrinkList
+    $ liftShrink2 shrinkKey shrinkValue

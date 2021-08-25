@@ -31,6 +31,7 @@ library
   build-depends:
       base
     , aeson
+    , containers
     , contra-tracer
     , filepath
     , file-embed

@@ -231,6 +231,7 @@ library
         --
       Cardano.Wallet.Primitive.Types.Address.Gen
       Cardano.Wallet.Primitive.Types.Coin.Gen
+      Cardano.Wallet.Primitive.Types.RewardAccount.Gen
       Cardano.Wallet.Primitive.Types.TokenBundle.Gen
       Cardano.Wallet.Primitive.Types.TokenMap.Gen
       Cardano.Wallet.Primitive.Types.TokenPolicy.Gen

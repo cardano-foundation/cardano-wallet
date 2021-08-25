@@ -406,7 +406,7 @@ prop_selectRandom_one_any u = checkCoverage $ monadicIO $ do
 prop_selectRandom_one_withAdaOnly :: UTxOIndex -> Property
 prop_selectRandom_one_withAdaOnly u = checkCoverage $ monadicIO $ do
     result <- run $ UTxOIndex.selectRandom u WithAdaOnly
-    monitor $ cover 90 (isJust result)
+    monitor $ cover 50 (isJust result)
         "selected an entry"
     case result of
         Nothing ->

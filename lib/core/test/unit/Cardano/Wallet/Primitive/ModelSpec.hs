@@ -7,7 +7,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -72,7 +71,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
+    ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
@@ -106,7 +105,7 @@ import Data.Set
 import Data.Traversable
     ( for )
 import Data.Word
-    ( Word64, Word8 )
+    ( Word64 )
 import Fmt
     ( Buildable, blockListF, pretty )
 import GHC.Generics
@@ -132,7 +131,6 @@ import Test.QuickCheck
     , forAllShrink
     , frequency
     , genericShrink
-    , liftShrink2
     , listOf
     , oneof
     , property
@@ -329,28 +327,6 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
 -- Available UTxO properties
 --------------------------------------------------------------------------------
 
--- | Represents all the inputs of a transaction.
---
-data TxInputs = TxInputs
-    { inputs :: [TxIn]
-        -- ^ A transaction's ordinary inputs.
-    , collateral :: [TxIn]
-        -- ^ A transaction's collateral inputs.
-    }
-    deriving (Eq, Show)
-
-genTxInputs :: Gen TxInputs
-genTxInputs = TxInputs
-    <$> listOf genTxIn
-    <*> listOf genTxIn
-
-shrinkTxInputs :: TxInputs -> [TxInputs]
-shrinkTxInputs TxInputs {inputs, collateral} = uncurry TxInputs <$>
-    liftShrink2
-        (shrinkList shrinkTxIn)
-        (shrinkList shrinkTxIn)
-        (inputs, collateral)
-
 allInputsOfTxs :: Set Tx -> Set TxIn
 allInputsOfTxs = F.foldMap allInputsOfTx
   where
@@ -390,41 +366,22 @@ prop_availableUTxO
 prop_availableUTxO makeProperty =
     forAllShrink (scale (* 4) genUTxO) shrinkUTxO
         $ \utxo ->
-    forAllShrink (listOf genTxInputs) (shrinkList shrinkTxInputs)
-        $ \pendingTxInputs ->
-    inner utxo pendingTxInputs
+    forAllShrink (scale (`div` 2) $ listOf genTx) (shrinkList shrinkTx)
+        $ \pendingTxs ->
+    inner utxo pendingTxs
   where
-    inner utxo pendingTxInputs =
+    inner utxo pendingTxs =
         cover 5 (result /= mempty && result == utxo)
             "result /= mempty && result == utxo" $
         cover 5 (result /= mempty && result /= utxo)
             "result /= mempty && result /= utxo" $
         cover 5 (balance result /= TokenBundle.empty)
             "balance result /= TokenBundle.empty" $
-        property $ makeProperty pendingTxs wallet result
+        property $ makeProperty pendingTxSet wallet result
       where
-        pendingTxs = Set.fromList $ txFromTxInputs <$> pendingTxInputs
+        pendingTxSet = Set.fromList pendingTxs
         wallet = walletFromUTxO utxo
-        result = availableUTxO pendingTxs wallet
-
-    -- Creates a transaction from inputs, by adding dummy data for fields that
-    -- are not used by 'availableUTxO'.
-    --
-    -- Ideally, we'd leave these fields undefined (to assert that they should
-    -- not be evaluated or processed in any way), but since the fields of the
-    -- 'Tx' type are strict, our next best option is to provide a minimal value
-    -- for each field.
-    --
-    txFromTxInputs :: TxInputs -> Tx
-    txFromTxInputs TxInputs {collateral, inputs} = Tx
-        { resolvedCollateral = (, Coin 0) <$> collateral
-        , resolvedInputs = (, Coin 0) <$> inputs
-        , txId = Hash ""
-        , fee = Nothing
-        , outputs = []
-        , withdrawals = Map.empty
-        , metadata = Nothing
-        }
+        result = availableUTxO pendingTxSet wallet
 
     -- Creates a wallet object from a UTxO set, and asserts that the other
     -- parts of the wallet state are not used in any way.
@@ -471,8 +428,13 @@ prop_availableUTxO makeProperty =
 -- This test applies the above filter conditions to 'changeUTxO' and verifies
 -- that all entries match the condition that was provided.
 --
-prop_changeUTxO :: [TxOutputs] -> Property
-prop_changeUTxO txOutputs =
+prop_changeUTxO :: Property
+prop_changeUTxO =
+    forAllShrink (scale (`div` 4) $ listOf genTx) (shrinkList shrinkTx)
+        prop_changeUTxO_inner
+
+prop_changeUTxO_inner :: [Tx] -> Property
+prop_changeUTxO_inner pendingTxs =
     checkCoverage $
     cover 50 (not (UTxO.null utxoEven) && not (UTxO.null utxoOdd))
         "UTxO sets not null" $
@@ -486,7 +448,7 @@ prop_changeUTxO txOutputs =
           -- The even-parity and odd-parity UTxO sets are complete:
         , Map.union (unUTxO utxoEven) (unUTxO utxoOdd) == unUTxO utxoAll
           -- No outputs are omitted when we select everything:
-        , UTxO.size utxoAll == F.sum (F.length . unTxOutputs <$> txOutputs)
+        , UTxO.size utxoAll == F.sum (F.length . view #outputs <$> pendingTxs)
         ]
   where
     -- Computes the parity of an output based on its address parity.
@@ -495,63 +457,18 @@ prop_changeUTxO txOutputs =
 
     -- The UTxO set that contains all available output addresses.
     utxoAll :: UTxO
-    utxoAll = changeUTxO txSet $ IsOursIf @Address (const True)
+    utxoAll = changeUTxO pendingTxSet $ IsOursIf @Address (const True)
 
     -- The UTxO set that contains only even-parity output addresses.
     utxoEven :: UTxO
-    utxoEven = changeUTxO txSet $ IsOursIf ((== Even) . addressParity)
+    utxoEven = changeUTxO pendingTxSet $ IsOursIf ((== Even) . addressParity)
 
     -- The UTxO set that contains only odd-parity output addresses.
     utxoOdd :: UTxO
-    utxoOdd  = changeUTxO txSet $ IsOursIf ((== Odd) . addressParity)
+    utxoOdd  = changeUTxO pendingTxSet $ IsOursIf ((== Odd) . addressParity)
 
-    txSet :: Set Tx
-    txSet = Set.fromList $ uncurry makeTx <$> (zip txIds txOutputs)
-
-    txIds :: [Hash "Tx"]
-    txIds = makeTxId <$> [minBound .. maxBound]
-
-    -- Creates a transaction from a transaction id and a set of outputs, by
-    -- adding dummy data for fields that are not used by 'changeUTxO'.
-    --
-    -- Ideally, we'd leave all of the unused fields undefined (to assert that
-    -- they should not be evaluated or processed in any way), but since the
-    -- fields of the 'Tx' type are strict, our next best option is to provide
-    -- a minimal value for each field.
-    --
-    makeTx :: Hash "Tx" -> TxOutputs -> Tx
-    makeTx txId TxOutputs {unTxOutputs} = Tx
-        { txId
-        , outputs = unTxOutputs
-        -- Unused fields:
-        , fee = Nothing
-        , resolvedCollateral = []
-        , resolvedInputs = []
-        , metadata = Nothing
-        , withdrawals = Map.empty
-        }
-
-    -- Creates a dummy transaction identifier from a single word.
-    makeTxId :: Word8 -> Hash "Tx"
-    makeTxId i = Hash $ BS.pack [i]
-
--- | Represents all the outputs of a transaction (both change and non-change).
---
-newtype TxOutputs = TxOutputs
-    { unTxOutputs :: [TxOut]
-        -- ^ A transaction's outputs.
-    }
-    deriving (Eq, Generic, Show)
-
-instance Arbitrary TxOutputs where
-    arbitrary = genTxOutputs
-    shrink = shrinkTxOutputs
-
-genTxOutputs :: Gen TxOutputs
-genTxOutputs = TxOutputs <$> listOf genTxOut
-
-shrinkTxOutputs :: TxOutputs -> [TxOutputs]
-shrinkTxOutputs (TxOutputs outs) = TxOutputs <$> shrinkList shrinkTxOut outs
+    pendingTxSet :: Set Tx
+    pendingTxSet = Set.fromList pendingTxs
 
 -- | Represents the parity of a value (whether the value is even or odd).
 --

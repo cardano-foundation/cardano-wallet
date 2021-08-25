@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.DummyTarget.Primitive.Types
     ( -- * Dummy values
@@ -11,7 +10,6 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     , dummySlottingParameters
     , dummyTimeInterpreter
     , genesisHash
-    , mockHash
     , mkTxId
     , mkTx
 
@@ -46,15 +44,11 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
+    ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..), TxSize (..) )
-import Crypto.Hash
-    ( Blake2b_256, hash )
-import Data.ByteString
-    ( ByteString )
 import Data.Coerce
     ( coerce )
 import Data.Functor.Identity
@@ -66,7 +60,6 @@ import Data.Quantity
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 
 genesisHash :: Hash "Genesis"
@@ -156,14 +149,6 @@ mkTxId
     -> Map RewardAccount Coin
     -> Maybe TxMetadata -> Hash "Tx"
 mkTxId ins outs wdrls md = mockHash (ins, outs, wdrls, md)
-
--- | Construct a good-enough hash for testing
-mockHash :: Show a => a -> Hash whatever
-mockHash = Hash . blake2b256 . B8.pack . show
-  where
-     blake2b256 :: ByteString -> ByteString
-     blake2b256 =
-         BA.convert . hash @_ @Blake2b_256
 
 dummyNetworkLayer :: NetworkLayer m a
 dummyNetworkLayer = NetworkLayer
