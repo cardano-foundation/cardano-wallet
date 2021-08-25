@@ -524,14 +524,17 @@ prop_addressParity_coverage =
 newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
 
 instance IsOurs (IsOursIf a) a where
-    isOurs a s@IsOursIf {condition}
-        | condition a = (Just dummyDerivationIndex, s)
-        | otherwise   = (Nothing                  , s)
+    isOurs a s@IsOursIf {condition} = isOursIf condition a s
+
+isOursIf :: (a -> Bool) -> a -> s -> (Maybe (NonEmpty DerivationIndex), s)
+isOursIf condition a s
+    | condition a = (Just dummyDerivationIndex, s)
+    | otherwise   = (Nothing                  , s)
+  where
+    dummyDerivationIndex :: NonEmpty DerivationIndex
+    dummyDerivationIndex = DerivationIndex shouldNotEvaluate :| []
       where
-        dummyDerivationIndex :: NonEmpty DerivationIndex
-        dummyDerivationIndex = DerivationIndex shouldNotEvaluate :| []
-          where
-            shouldNotEvaluate = error "Derivation index unexpectedly evaluated"
+        shouldNotEvaluate = error "Derivation index unexpectedly evaluated"
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
