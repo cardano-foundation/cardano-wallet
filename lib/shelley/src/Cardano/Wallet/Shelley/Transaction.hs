@@ -608,7 +608,14 @@ _decodeSignedTx era bytes = do
                 Left decodeErr ->
                     Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
-        _ ->
+        AnyCardanoEra AlonzoEra ->
+            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) bytes of
+                Right txValid ->
+                    pure $ sealShelleyTx fromAlonzoTx txValid
+                Left decodeErr ->
+                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
+
+        AnyCardanoEra ByronEra ->
             Left ErrDecodeSignedTxNotSupported
 
 txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
