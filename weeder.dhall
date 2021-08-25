@@ -22,6 +22,14 @@
   , "^Cardano\\.Wallet\\.Shelley\\.Launch\\.Cluster\\.genMonetaryPolicyScript\$"
   , "^Test\\.Integration\\.Faucet\\."
   , "^Test\\.Integration\\.Framework\\.(TestData|DSL)\\."
+  , "^Cardano\\.Wallet\\.Shelley\\.nullTracers\$"
+  , "^Cardano\\.Wallet\\.Shelley\\.Compatibility\\.emptyGenesis\$"
+  , "^Cardano\\.Wallet\\.Shelley\\.Compatibility\\.interval0\$"
+  , "^Cardano\\.Wallet\\.Shelley\\.Compatibility\\.interval1\$"
+  , "^Cardano\\.Wallet\\.Shelley\\.Compatibility\\.isInternalError\$"
+  , "^Cardano\\.Wallet\\.Shelley\\.Compatibility\\.toCardanoHash\$"
+  , "^Cardano\\.Wallet\\.Shelley\\.Launch\\.Cluster\\.singleNodeParams\$"
+  , "^Cardano\\.Wallet\\.Shelley\\.Launch\\.Cluster\\.tokenMetadataServerFromEnv\$"
   ]
 , type-class-roots = True
 }
