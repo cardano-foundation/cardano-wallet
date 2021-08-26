@@ -78,9 +78,7 @@ main = do
             buildResult <- buildStep optDryRun (qaLevel optQALevel bk)
             when (shouldUploadCoverage bk) $ uploadCoverageStep optDryRun
             whenRun optDryRun $ cachePutStep cacheConfig
-            if buildResult == ExitSuccess
-                then exitWith =<< weederStep optDryRun
-                else exitWith buildResult
+            exitWith buildResult
         CleanupCache ->
             cleanupCacheStep optDryRun cacheConfig optBuildDirectory
         PurgeCache ->
@@ -159,6 +157,9 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
         build Standard ["--only-dependencies"]
     , titled "Build" $
         projectBuild ["--test", "--no-run-tests"]
+    , titled "Weeder" $
+        weederStep dryRun
+    -- Tests removed by @sevanspowell
     -- , titled "Tests (except integration)" $
     --     timeout 60 $ do
     --         test (skip "integration") []
@@ -325,9 +326,7 @@ titled heading action = do
 -- Weeder - uses .hie files in .stack-work to determine unused dependencies
 
 weederStep :: DryRun -> IO ExitCode
-weederStep dryRun = titled "Weeder (temporarily disabled)" $
-    pure ExitSuccess
-    -- run dryRun "weeder" []
+weederStep dryRun = run dryRun "weeder" []
 
 findHie :: FilePath -> IO [FilePath]
 findHie dir = fold (find (suffix ".hie") dir) Fold.list
