@@ -2,7 +2,7 @@ version: "3.5"
 
 services:
   cardano-node:
-    image: inputoutput/cardano-node:alonzo-purple-1.0.1
+    image: inputoutput/cardano-node:1.29.0
     environment:
       NETWORK:
     volumes:
@@ -18,7 +18,7 @@ services:
         max-size: "50m"
 
   cardano-wallet:
-    image: inputoutput/cardano-wallet:2021.8.11
+    image: inputoutput/cardano-wallet:2021.8.27
     volumes:
       - wallet-${NETWORK}-db:/wallet-db
       - node-ipc:/ipc
