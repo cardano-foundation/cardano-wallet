@@ -311,14 +311,34 @@ availableUTxO pending (Wallet u _ _) =
         , tx ^. #resolvedCollateral
         ]
 
--- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
+-- | Computes the total UTxO set of a wallet.
+--
+-- This total UTxO set is a projection of how the wallet's UTxO set would look
+-- if all pending transactions were applied successfully.
+--
+-- >>> totalUTxO pendingTxs wallet
+-- >>>     = utxo wallet
+-- >>>     − inputs pendingTxs
+-- >>>     ∪ change pendingTxs
+--
 totalUTxO
     :: IsOurs s Address
     => Set Tx
     -> Wallet s
     -> UTxO
-totalUTxO pending wallet@(Wallet _ _ s) =
-    availableUTxO pending wallet <> changeUTxO pending s
+totalUTxO pending (Wallet u _ s) =
+    (u `excluding` entriesToExclude)
+        <> changeUTxO pending s
+  where
+    entriesToExclude :: Set TxIn
+    entriesToExclude = F.foldMap' entriesToExcludeForTx pending
+
+    -- Note that we must not exclude collateral inputs here, since the total
+    -- UTxO set is indended to be a projection of how the UTxO set would look
+    -- if all pending transactions are applied successfully: if a transaction
+    -- is applied successfully, then its collateral inputs cannot be consumed.
+    entriesToExcludeForTx :: Tx -> Set TxIn
+    entriesToExcludeForTx tx = Set.fromList $ fst <$> tx ^. #resolvedInputs
 
 {-------------------------------------------------------------------------------
                                Internals

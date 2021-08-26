@@ -89,7 +89,7 @@ import Data.Function
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -147,6 +147,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -197,6 +198,14 @@ spec = do
             property prop_changeUTxO
         it "prop_addressParity_coverage" $
             property prop_addressParity_coverage
+
+    parallel $ describe "Total UTxO" $ do
+        it "prop_totalUTxO_pendingChangeIncluded" $
+            property prop_totalUTxO_pendingChangeIncluded
+        it "prop_totalUTxO_pendingCollateralIncluded" $
+            property prop_totalUTxO_pendingCollateralIncluded
+        it "prop_totalUTxO_pendingInputsExcluded" $
+            property prop_totalUTxO_pendingInputsExcluded
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -524,14 +533,125 @@ prop_addressParity_coverage =
 newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
 
 instance IsOurs (IsOursIf a) a where
-    isOurs a s@IsOursIf {condition}
-        | condition a = (Just dummyDerivationIndex, s)
-        | otherwise   = (Nothing                  , s)
+    isOurs a s@IsOursIf {condition} = isOursIf condition a s
+
+isOursIf :: (a -> Bool) -> a -> s -> (Maybe (NonEmpty DerivationIndex), s)
+isOursIf condition a s
+    | condition a = (Just dummyDerivationIndex, s)
+    | otherwise   = (Nothing                  , s)
+  where
+    dummyDerivationIndex :: NonEmpty DerivationIndex
+    dummyDerivationIndex = DerivationIndex shouldNotEvaluate :| []
       where
-        dummyDerivationIndex :: NonEmpty DerivationIndex
-        dummyDerivationIndex = DerivationIndex shouldNotEvaluate :| []
-          where
-            shouldNotEvaluate = error "Derivation index unexpectedly evaluated"
+        shouldNotEvaluate = error "Derivation index unexpectedly evaluated"
+
+--------------------------------------------------------------------------------
+-- Total UTxO properties
+--------------------------------------------------------------------------------
+
+data TestStateForTotalUTxO = TestStateForTotalUTxO
+
+instance IsOurs TestStateForTotalUTxO Address where
+    isOurs = isOursIf ((== Even) . addressParity)
+
+prop_totalUTxO_pendingChangeIncluded :: Property
+prop_totalUTxO_pendingChangeIncluded =
+    prop_totalUTxO prop
+  where
+    prop pendingTxs wallet result =
+        cover 20
+            (not (UTxO.null pendingChange))
+            "not (UTxO.null pendingChange)" $
+        cover 20
+            (unUTxO pendingChange `Map.isProperSubmapOf` unUTxO result)
+            "unUTxO pendingChange `Map.isProperSubmapOf` unUTXO result" $
+        unUTxO pendingChange `Map.isSubmapOf` unUTxO result
+      where
+        pendingChange :: UTxO
+        pendingChange = changeUTxO pendingTxs (getState wallet)
+
+prop_totalUTxO_pendingCollateralIncluded :: Property
+prop_totalUTxO_pendingCollateralIncluded =
+    prop_totalUTxO prop
+  where
+    prop pendingTxs _wallet result =
+        cover 1
+            (not (Set.null pendingCollateral))
+            "not (Set.null pendingCollateral)" $
+        all (`Map.member` unUTxO result) pendingCollateral
+      where
+        -- In any given transaction, the sets of ordinary inputs and collateral
+        -- inputs can intersect. Since ordinary inputs of pending transactions
+        -- must be excluded from the result, we only consider collateral inputs
+        -- that are not also used as ordinary inputs:
+        pendingCollateral :: Set TxIn
+        pendingCollateral = pendingTxs
+            & F.foldMap (fmap fst . view #resolvedCollateral)
+            & L.filter (`Set.notMember` pendingInputs)
+            & Set.fromList
+
+        pendingInputs :: Set TxIn
+        pendingInputs = pendingTxs
+            & F.foldMap (fmap fst . view #resolvedInputs)
+            & Set.fromList
+
+prop_totalUTxO_pendingInputsExcluded :: Property
+prop_totalUTxO_pendingInputsExcluded =
+    prop_totalUTxO prop
+  where
+    prop pendingTxs _wallet result =
+        cover 20
+            (not (Set.null pendingInputs))
+            "not (Set.null pendingInputs)" $
+        all (`Map.notMember` unUTxO result) pendingInputs
+      where
+        pendingInputs :: Set TxIn
+        pendingInputs = pendingTxs
+            & F.foldMap (fmap fst . view #resolvedInputs)
+            & Set.fromList
+
+prop_totalUTxO
+    :: Testable prop
+    => (Set Tx -> Wallet TestStateForTotalUTxO -> UTxO -> prop)
+    -> Property
+prop_totalUTxO makeProperty =
+    checkCoverage $
+    forAllShrink (scale (* 2) genUTxO) shrinkUTxO
+        $ \utxo ->
+    forAllShrink (listOf (scale (`div` 2) genTx)) (shrinkList shrinkTx)
+        $ \pendingTxs ->
+    inner utxo pendingTxs
+  where
+    inner utxo pendingTxs =
+        property $ makeProperty pendingTxSet wallet result
+      where
+        pendingTxSet = Set.fromList $ restrictTxInputs utxo <$> pendingTxs
+        wallet = walletFromUTxO utxo
+        result = totalUTxO pendingTxSet wallet
+
+    -- Restricts a transaction so that its ordinary inputs and collateral
+    -- inputs are all members of the given UTxO set.
+    --
+    restrictTxInputs :: UTxO -> Tx -> Tx
+    restrictTxInputs utxo
+        = over #resolvedCollateral
+            (filter ((`Set.member` utxoInputs) . fst))
+        . over #resolvedInputs
+            (filter ((`Set.member` utxoInputs) . fst))
+      where
+        utxoInputs = Map.keysSet (unUTxO utxo)
+
+    -- Creates a wallet object from a UTxO set, and asserts that the other
+    -- parts of the wallet state are not used in any way.
+    --
+    walletFromUTxO :: UTxO -> Wallet TestStateForTotalUTxO
+    walletFromUTxO utxo = unsafeInitWallet utxo
+        (shouldNotEvaluate "currentTip")
+        TestStateForTotalUTxO
+      where
+        shouldNotEvaluate :: String -> a
+        shouldNotEvaluate fieldName = error $ unwords
+            [fieldName, "was unexpectedly evaluated"]
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
