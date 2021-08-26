@@ -38,10 +38,10 @@ import Cardano.Address.Style.Shelley
     ( Credential (..), delegationAddress, paymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.Types
-    ( invariant )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Util
+    ( invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Maybe

@@ -112,12 +112,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     , coinTypeAda
     )
-import Cardano.Wallet.Primitive.Types
-    ( invariant )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Cardano.Wallet.Util
+    ( invariant )
 import Codec.Binary.Encoding
     ( AbstractEncoding (..), encode )
 import Control.Applicative

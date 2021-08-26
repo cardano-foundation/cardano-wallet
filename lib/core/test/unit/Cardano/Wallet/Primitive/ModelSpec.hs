@@ -52,7 +52,6 @@ import Cardano.Wallet.Primitive.Types
     , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
-    , invariant
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -87,6 +86,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, filterByAddress, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
+import Cardano.Wallet.Util
+    ( invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

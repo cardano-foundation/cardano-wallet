@@ -86,15 +86,15 @@ import Cardano.Wallet.Shelley.Compatibility
     , interval0
     , interval1
     , invertUnitInterval
-    , isInternalError
     , toCardanoHash
     , toCardanoValue
     , toPoint
     , tokenBundleSizeAssessor
-    , unsafeIntToWord
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkEntropy )
+    ( unsafeIntToWord, unsafeMkEntropy )
+import Cardano.Wallet.Util
+    ( tryInternalError )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Codec.Binary.Encoding
@@ -156,8 +156,6 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
-import UnliftIO.Exception
-    ( evaluate, tryJust )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Address as SL
@@ -389,13 +387,11 @@ spec = do
 
 prop_unsafeIntToWord :: TrickyInt Integer Word16 -> Property
 prop_unsafeIntToWord (TrickyInt n wrong) = monadicIO $ do
-    res <- runEither (unsafeIntToWord @Integer @Word16 n)
+    res <- run $ tryInternalError $ unsafeIntToWord @Integer @Word16 n
     monitor (counterexample ("res = " ++ show res))
     assert $ case res of
         Right correct -> fromIntegral correct == n
         Left _ -> fromIntegral wrong /= n
-  where
-    runEither = run . tryJust (Just . isInternalError) . evaluate
 
 data TrickyInt n w = TrickyInt n w deriving (Show, Eq)
 

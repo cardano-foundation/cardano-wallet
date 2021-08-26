@@ -132,7 +132,6 @@ module Cardano.Wallet.Primitive.Types
     -- * Polymorphic
     , Signature (..)
     , ShowFmt (..)
-    , invariant
 
     -- * Settings
     , Settings(..)
@@ -164,6 +163,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxSize (..) )
+import Cardano.Wallet.Util
+    ( invariant )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq
@@ -1382,28 +1383,6 @@ instance NFData a => NFData (ShowFmt a)
 
 instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
-
--- | Checks whether or not an invariant holds, by applying the given predicate
---   to the given value.
---
--- If the invariant does not hold (indicated by the predicate function
--- returning 'False'), throws an error with the specified message.
---
--- >>> invariant "not empty" [1,2,3] (not . null)
--- [1, 2, 3]
---
--- >>> invariant "not empty" [] (not . null)
--- *** Exception: not empty
-invariant
-    :: String
-        -- ^ The message
-    -> a
-        -- ^ The value to test
-    -> (a -> Bool)
-        -- ^ The predicate
-    -> a
-invariant msg a predicate =
-    if predicate a then a else error msg
 
 {-------------------------------------------------------------------------------
                                Metadata services
