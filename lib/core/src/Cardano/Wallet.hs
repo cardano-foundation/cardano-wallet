@@ -183,6 +183,7 @@ module Cardano.Wallet
     -- * Utilities
     , throttle
     , guardHardIndex
+    , nullFluff
 
     -- * Logging
     , WalletWorkerLog (..)
@@ -3019,3 +3020,7 @@ instance HasSeverityAnnotation TxSubmitLog where
             BracketException _ -> Error
             _ -> Debug
         MsgProcessPendingPool msg -> getSeverityAnnotation msg
+
+-- | Empty fluff.
+nullFluff :: Monoid a => a
+nullFluff = mempty
