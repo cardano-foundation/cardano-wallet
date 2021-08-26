@@ -209,6 +209,7 @@ library
       Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
+      Cardano.Wallet.Util
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
       Control.Concurrent.Concierge

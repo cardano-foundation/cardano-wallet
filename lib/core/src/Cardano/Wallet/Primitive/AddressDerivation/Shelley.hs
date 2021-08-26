@@ -88,12 +88,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     , rewardAccountKey
     )
-import Cardano.Wallet.Primitive.Types
-    ( invariant )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Util
+    ( invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

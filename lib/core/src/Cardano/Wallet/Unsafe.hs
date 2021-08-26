@@ -7,8 +7,19 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+-- |
+-- Copyright: © 2020-2021 IOHK
+-- License: Apache-2.0
+--
+-- Conversion functions which don't have error handling. These are quite
+-- convenient to use for jobs like testing, debugging, etc.
+--
+-- But these "unsafe" functions should not be used in application code, unless
+-- it's certain that the error case will never happen.
+
 module Cardano.Wallet.Unsafe
-    ( unsafeFromHex
+    ( unsafeRight
+    , unsafeFromHex
     , unsafeFromBase64
     , unsafeFromHexFile
     , unsafeDecodeAddress
@@ -21,6 +32,7 @@ module Cardano.Wallet.Unsafe
     , unsafeBech32DecodeFile
     , unsafeBech32Decode
     , unsafeMkPercentage
+    , unsafeIntToWord
 
     , someDummyMnemonic
     , unsafeMkMnemonic
@@ -52,6 +64,8 @@ import Cardano.Wallet.Api.Types
     ( DecodeAddress (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
+import Cardano.Wallet.Util
+    ( internalError )
 import Control.Monad
     ( (>=>) )
 import Control.Monad.Trans.Except
@@ -76,6 +90,10 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..) )
+import Data.Typeable
+    ( Typeable, typeRep )
+import Fmt
+    ( Buildable, Builder, build, (+||), (|+), (||+) )
 import GHC.Stack
     ( HasCallStack )
 import GHC.TypeLits
@@ -92,15 +110,17 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
+-- | Take the right side of an 'Either' value. Crash badly if it was a left.
+unsafeRight :: (Buildable e, HasCallStack) => Either e a -> a
+unsafeRight = either (internalError . build) id
+
 -- | Decode an hex-encoded 'ByteString' into raw bytes, or fail.
 unsafeFromHex :: HasCallStack => ByteString -> ByteString
-unsafeFromHex =
-    either (error . show) id . convertFromBase @ByteString @ByteString Base16
+unsafeFromHex = unsafeRight . convertFromBase @ByteString @ByteString Base16
 
 -- | Decode a base64-encoded 'ByteString' into raw bytes, or fail.
 unsafeFromBase64 :: HasCallStack => ByteString -> ByteString
-unsafeFromBase64 =
-    either (error . show) id . convertFromBase @ByteString @ByteString Base64
+unsafeFromBase64 = unsafeRight . convertFromBase @ByteString @ByteString Base64
 
 -- | Load a hex string from file. Any non-hexadecimal characters are ignored.
 unsafeFromHexFile :: HasCallStack => FilePath -> IO ByteString
@@ -111,8 +131,7 @@ unsafeDecodeAddress
     :: forall n. (HasCallStack, DecodeAddress n)
     => Text
     -> Address
-unsafeDecodeAddress =
-    either (error . show ) id . decodeAddress @n
+unsafeDecodeAddress = unsafeRight . decodeAddress @n
 
 -- | Run a decoder on a hex-encoded 'ByteString', or fail.
 unsafeDecodeHex :: HasCallStack => Get a -> ByteString -> a
@@ -120,7 +139,7 @@ unsafeDecodeHex get = runGet get . BL.fromStrict . unsafeFromHex
 
 -- | Decode the given data-type from a textual representation, or fail.
 unsafeFromText :: (FromText a, HasCallStack) => Text -> a
-unsafeFromText = either (error . show) id . fromText
+unsafeFromText = unsafeRight . fromText
 
 -- | Build a 'XPrv' from a bytestring
 unsafeXPrv :: HasCallStack => ByteString -> XPrv
@@ -244,3 +263,30 @@ unsafeMkPercentage :: HasCallStack => Rational -> Percentage
 unsafeMkPercentage r = fromRight bomb $ mkPercentage r
   where
     bomb = error $ "unsafeMkPercentage: " ++ show r ++ " is out of bounds."
+
+-- | Convert an integer type of any range to a machine word.
+--
+-- Only use it for values which have come from the ledger, and should fit in the
+-- given type, according to the spec.
+--
+-- If this conversion would under/overflow, there is not much we can do except
+-- to hastily exit.
+unsafeIntToWord
+    :: forall from to
+     . ( HasCallStack
+       , Integral from
+       , Bounded to
+       , Integral to
+       , Typeable from
+       , Typeable to
+       , Show from)
+    => from -> to
+unsafeIntToWord n
+    | n < fromIntegral (minBound :: to) = crash "underflow"
+    | n > fromIntegral (maxBound :: to) = crash "overflow"
+    | otherwise = fromIntegral n
+  where
+    crash :: Builder -> to
+    crash err = internalError $ err |+" converting value "+|| n ||+
+        " from " +|| typeRep (Proxy @from) ||+
+        " to "+|| typeRep (Proxy @to) ||+"!"
