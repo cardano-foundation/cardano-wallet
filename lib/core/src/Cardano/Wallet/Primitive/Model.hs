@@ -482,14 +482,9 @@ prefilterBlock b u0 = runState $ do
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
     applyTx (!txs, !prevUTxO) tx = do
-        -- All transaction outputs we know about, that belong to us, and that
-        -- haven't been validated as "unspent" yet. It is important to not
-        -- remove spent transactions, because if we do, we lose information
-        -- about transactions inputs and outputs we know about.
-        knownTxO <- (prevUTxO <>) <$> filterOurUTxOs isOurs' (utxoFromTx tx)
         -- The next UTxO state (apply a state transition) (e.g. remove
         -- transaction outputs we've spent).
-        ourNextUTxO <- filterOurUTxOs isOurs' (applyTxToUTxO tx knownTxO)
+        ourNextUTxO <- filterOurUTxOs isOurs' (applyTxToUTxO tx prevUTxO)
 
         ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
@@ -499,6 +494,11 @@ prefilterBlock b u0 = runState $ do
                 balance (prevUTxO `difference` ourNextUTxO)
                 `TB.add` TB.fromCoin ourWithdrawals
 
+        -- All transaction outputs we know about, that belong to us, and that
+        -- haven't been validated as "unspent" yet. It is important to not
+        -- remove spent transactions, because if we do, we lose information
+        -- about transactions inputs and outputs we know about.
+        knownTxO <- (prevUTxO <>) <$> filterOurUTxOs isOurs' (utxoFromTx tx)
         -- A transaction has a known input if one of the transaction inputs
         -- matches a transaction input we know about.
         let hasKnownInput =
