@@ -109,7 +109,10 @@ echo "Generating changelog into $CHANGELOG..."
 echo ""
 
 echo "Generating unresolved issues list into $KNOWN_ISSUES..."
-( jira release-notes-bugs || echo "TBD" ) > $KNOWN_ISSUES
+if ! jira release-notes-bugs > $KNOWN_ISSUES; then
+  echo "The \"jira release-notes-bugs\" command didn't work."
+  echo TBD > $KNOWN_ISSUES
+fi
 echo ""
 
 echo "Filling in template into $OUT..."
