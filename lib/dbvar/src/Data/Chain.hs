@@ -37,14 +37,11 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe )
-import Data.Set
-    ( Set )
+import Data.Table
+    ( Table , DeltaTable (..) )
 
-import qualified Data.Set as Set
+import qualified Data.Table as Table
 import qualified Data.Map as Map
-
-data DeltaSet a
-    = Insert a | DeleteWhere (a -> Bool) | UpdateWhere (a -> Bool) (a -> a)
 
 {-------------------------------------------------------------------------------
     Chain
@@ -225,13 +222,13 @@ chainIntoTable
     :: (Ord edge, Ord node, e ~ Edge node edge)
     => Embedding
         (Chain node [edge]) (DeltaChain node [edge])
-        (Set e) [DeltaSet e]
+        (Table e) [DeltaTable e]
 chainIntoTable = Embedding {load,write,update}
   where
-    load  = fromEdges . Set.toList
-    write = Set.fromList . toEdges
+    load  = fromEdges . Table.toList
+    write = Table.fromList . toEdges
     update Chain{tip=from} (AppendTip to vias) =
-        [Insert Edge{from,to,via} | via <- vias]
+        [InsertMany [Edge{from,to,via} | via <- vias]]
     update Chain{tip,prev} (RollbackTo node) =
         [DeleteWhere $ \Edge{to} -> to `elem` deletions]
       where

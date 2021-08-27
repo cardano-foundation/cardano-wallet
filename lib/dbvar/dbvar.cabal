@@ -39,6 +39,7 @@ library
       Data.Chain
       Data.DBVar
       Data.Delta
+      Data.Table
 
 test-suite unit
   default-language:
