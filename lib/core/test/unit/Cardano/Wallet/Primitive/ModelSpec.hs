@@ -1441,7 +1441,7 @@ prop_applyTxToUTxO_balance =
           `TokenBundle.add`
               balance (utxoFromTx tx)
           `TokenBundle.difference`
-              balance (u `restrictedBy` Set.fromList (inputs tx))
+              balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
  
 prop_applyTxToUTxO_entries :: Property
 prop_applyTxToUTxO_entries =
@@ -1452,7 +1452,7 @@ prop_applyTxToUTxO_entries =
           `Map.union`
               unUTxO (utxoFromTx tx)
           `Map.difference`
-              unUTxO (u `restrictedBy` Set.fromList (inputs tx))
+              unUTxO (u `UTxO.restrictedBy` Set.fromList (inputs tx))
     
 prop_filterByAddress_allOurs :: Property
 prop_filterByAddress_allOurs =
