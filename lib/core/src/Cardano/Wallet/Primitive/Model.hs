@@ -41,7 +41,6 @@ module Cardano.Wallet.Primitive.Model
     , unsafeInitWallet
     , applyTxToUTxO
     , utxoFromTx
-    , filterOurUTxOs
 
     -- * Accessors
     , currentTip
@@ -77,13 +76,12 @@ import Cardano.Wallet.Primitive.Types.Tx
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
-    , TxOut (..)
     , TxStatus (..)
     , inputs
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..), UTxO (..), balance, excluding )
+    ( Dom (..), UTxO (..), balance, excluding, filterByAddressM )
 import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad
@@ -352,26 +350,6 @@ applyTxToUTxO tx !u = do
 
     newKnown `excluding` spentKnown
 
--- | Limit a UTxO set to just the UTxOs that are ours, according to some
--- given function.
---
--- filterOurUTxOs (const $ pure True) u = u
--- filterOurUTxOs (const $ pure False) u = mempty
--- filterOurUTxOs f mempty = mempty
--- balance (filterOurUTxOs f (applyTxToUTxO tx mempty)) =
---   foldMap (\o -> do
---               ours <- f (address o)
---               if ours then tokens o else mempty
---            ) (outputs tx)
-filterOurUTxOs :: forall f. Monad f => (Address -> f Bool) -> UTxO -> f UTxO
-filterOurUTxOs isOursF (UTxO m) =
-    UTxO <$> Map.traverseMaybeWithKey filterFunc m
-    where
-        filterFunc :: TxIn -> TxOut -> f (Maybe TxOut)
-        filterFunc _txin txout = do
-            ours <- isOursF $ txout ^. #address
-            pure $ if ours then Just txout else Nothing
-
 -- | Construct a UTxO corresponding to a given transaction. It is important for
 -- the transaction outputs to be ordered correctly, since they become available
 -- inputs for the subsequent blocks.
@@ -457,7 +435,7 @@ prefilterBlock b u0 = runState $ do
     applyTx (!txs, !prevUTxO) tx = do
         -- The next UTxO state (apply a state transition) (e.g. remove
         -- transaction outputs we've spent).
-        ourNextUTxO <- filterOurUTxOs isOurs' (applyTxToUTxO tx prevUTxO)
+        ourNextUTxO <- filterByAddressM isOurs' (applyTxToUTxO tx prevUTxO)
 
         ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
@@ -472,7 +450,7 @@ prefilterBlock b u0 = runState $ do
             -- we know about:
             let known = prevUTxO <> utxoFromTx tx
             -- But not all those transaction inputs/outputs belong to us:
-            ownedAndKnown <- filterOurUTxOs isOurs' known
+            ownedAndKnown <- filterByAddressM isOurs' known
             -- Also, the new transaction may spend some transaction
             -- inputs/outputs. But we don't want to apply that logic yet. If we
             -- do, any spent transaction input/output will be removed from our
@@ -550,4 +528,4 @@ changeUTxO
     -> s
     -> UTxO
 changeUTxO pending = evalState $
-    mconcat <$> mapM (filterOurUTxOs isOurs' . utxoFromTx) (Set.toList pending)
+    mconcat <$> mapM (filterByAddressM isOurs' . utxoFromTx) (Set.toList pending)

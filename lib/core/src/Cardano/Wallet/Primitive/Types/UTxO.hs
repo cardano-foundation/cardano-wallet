@@ -3,6 +3,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -34,11 +36,15 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , restrictedBy
     , restrictedTo
     , size
+    , filterByAddressM
+    , filterByAddress
     ) where
 
 import Prelude hiding
     ( null )
 
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -49,6 +55,8 @@ import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
     ( first )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Kind
@@ -135,6 +143,29 @@ null (UTxO u) = Map.null u
 
 size :: UTxO -> Int
 size (UTxO u) = Map.size u
+
+-- | Limit a UTxO set to just the UTxOs that are ours, according to some
+-- given function.
+--
+-- filterByAddressM (const $ pure True) u = u
+-- filterByAddressM (const $ pure False) u = mempty
+-- filterByAddressM f mempty = mempty
+-- balance (filterByAddressM f (applyTxToUTxO tx mempty)) =
+--   foldMap (\o -> do
+--               ours <- f (address o)
+--               if ours then tokens o else mempty
+--            ) (outputs tx)
+filterByAddressM :: forall f. Monad f => (Address -> f Bool) -> UTxO -> f UTxO
+filterByAddressM isOursF (UTxO m) =
+    UTxO <$> Map.traverseMaybeWithKey filterFunc m
+    where
+        filterFunc :: TxIn -> TxOut -> f (Maybe TxOut)
+        filterFunc _txin txout = do
+            ours <- isOursF $ view #address txout
+            pure $ if ours then Just txout else Nothing
+
+filterByAddress :: (Address -> Bool) -> UTxO -> UTxO
+filterByAddress f = runIdentity . filterByAddressM (pure . f)
 
 data UTxOStatistics = UTxOStatistics
     { histogram :: ![HistogramBar]

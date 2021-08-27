@@ -32,7 +32,6 @@ import Cardano.Wallet.Primitive.Model
     , availableUTxO
     , changeUTxO
     , currentTip
-    , filterOurUTxOs
     , getState
     , initWallet
     , totalBalance
@@ -77,7 +76,14 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..), UTxO (..), balance, excluding, restrictedBy, restrictedTo )
+    ( Dom (..)
+    , UTxO (..)
+    , balance
+    , excluding
+    , filterByAddress
+    , filterByAddressM
+    , restrictedTo
+    )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Control.DeepSeq
@@ -92,6 +98,8 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>) )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -151,8 +159,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
-import Data.Functor.Identity
-    ( Identity (runIdentity) )
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -192,15 +198,17 @@ spec = do
             it "has expected balance" (property prop_applyTxToUTxO_balance)
             it "has expected entries" (property prop_applyTxToUTxO_entries)
 
-        describe "filterOurUTxOs" $ do
+        describe "filterByAddress" $ do
             it "if all utxos belong to us, the result utxo should not change"
-                (property prop_filterOurUTxOs_allOurs)
+                (property prop_filterByAddress_allOurs)
             it "if no utxos belong to us, the result utxo should be nothing"
-                (property prop_filterOurUTxOs_noneOurs)
+                (property prop_filterByAddress_noneOurs)
             it "if there are no utxos, the result utxo should be empty"
-                (property prop_filterOurUTxOs_empty)
-            it "applyTxToUTxO then filterUTxO"
-                (property prop_filterOurUTxOs_balance_applyTxToUTxO)
+                (property prop_filterByAddress_empty)
+            it "applyTxToUTxO then filterByAddress"
+                (property prop_filterByAddress_balance_applyTxToUTxO)
+            it "filterByAddress/filterByAddressM"
+                (property prop_filterByAddress_filterByAddressM)
 
         describe "utxoFromTx" $
             it "has expected balance" (property prop_utxoFromTx_balance)
@@ -1446,36 +1454,41 @@ prop_applyTxToUTxO_entries =
           `Map.difference`
               unUTxO (u `restrictedBy` Set.fromList (inputs tx))
     
-prop_filterOurUTxOs_allOurs :: Property
-prop_filterOurUTxOs_allOurs =
+prop_filterByAddress_allOurs :: Property
+prop_filterByAddress_allOurs =
     forAllShrink genUTxO shrinkUTxO $ \u ->
-        runIdentity (filterOurUTxOs (const $ pure True) u) === u
+        filterByAddress (const True) u === u
 
-prop_filterOurUTxOs_noneOurs :: Property
-prop_filterOurUTxOs_noneOurs =
+prop_filterByAddress_noneOurs :: Property
+prop_filterByAddress_noneOurs =
     forAllShrink genUTxO shrinkUTxO $ \u ->
-        runIdentity (filterOurUTxOs (const $ pure False) u) === mempty
+        filterByAddress (const False) u === mempty
 
-prop_filterOurUTxOs_empty :: Bool -> Property
-prop_filterOurUTxOs_empty b =
+prop_filterByAddress_empty :: Bool -> Property
+prop_filterByAddress_empty b =
     let
-        f = const $ pure b
+        f = const b
     in
-        runIdentity (filterOurUTxOs f mempty) === mempty
+        filterByAddress f mempty === mempty
 
-prop_filterOurUTxOs_balance_applyTxToUTxO :: Bool -> Property
-prop_filterOurUTxOs_balance_applyTxToUTxO b = 
+prop_filterByAddress_balance_applyTxToUTxO :: Bool -> Property
+prop_filterByAddress_balance_applyTxToUTxO b = 
     let
-        f = const $ pure b
+        f = const b
     in
         forAllShrink genTx shrinkTx $ \tx ->
-            balance (runIdentity $ filterOurUTxOs f (applyTxToUTxO tx mempty))
-            === runIdentity (
-                    foldMap (\o -> do
-                        ours <- f (address o)
-                        pure $ if ours then tokens o else mempty
-                    ) (outputs tx)
-                )
+            balance (filterByAddress f (applyTxToUTxO tx mempty))
+            === foldMap (\o -> do
+                    if f (address o) then tokens o else mempty
+                ) (outputs tx)
+
+prop_filterByAddress_filterByAddressM :: Bool -> Property
+prop_filterByAddress_filterByAddressM b =
+    let
+        f = const b
+    in
+        forAllShrink genUTxO shrinkUTxO $ \u ->
+            filterByAddress f u === runIdentity (filterByAddressM (pure . f) u)
 
 prop_utxoFromTx_balance :: Property
 prop_utxoFromTx_balance =
