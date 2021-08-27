@@ -84,7 +84,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
+    ( Dom (..), UTxO (..), balance, excluding )
 import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad
@@ -494,22 +494,30 @@ prefilterBlock b u0 = runState $ do
                 balance (prevUTxO `difference` ourNextUTxO)
                 `TB.add` TB.fromCoin ourWithdrawals
 
-        -- All transaction outputs we know about, that belong to us, and that
-        -- haven't been validated as "unspent" yet. It is important to not
-        -- remove spent transactions, because if we do, we lose information
-        -- about transactions inputs and outputs we know about.
         (ownedAndKnownTxIns, ownedAndKnownTxOuts) <- do
-            u <- (prevUTxO <>) <$> filterOurUTxOs isOurs' (utxoFromTx tx)
-            let map = unUTxO u
-            pure (Map.keys map, Map.elems map)
+            -- A new transaction expands the set of transaction inputs/outputs
+            -- we know about:
+            let known = prevUTxO <> utxoFromTx tx
+            -- But not all those transaction inputs/outputs belong to us:
+            ownedAndKnown <- filterOurUTxOs isOurs' known
+            -- Also, the new transaction may spend some transaction
+            -- inputs/outputs. But we don't want to apply that logic yet. If we
+            -- do, any spent transaction input/output will be removed from our
+            -- knowledge base.
+            -- Therefore, because this is not technically an "Unspent TxO" set,
+            -- let's just return the TxIns and TxOuts, as the type "UTxO" will
+            -- create expectations which we explicitly aren't fulfilling:
+            let m = unUTxO ownedAndKnown
+            pure (Map.keys m, Map.elems m)
+
         -- A transaction has a known input if one of the transaction inputs
         -- matches a transaction input we know about.
         let hasKnownInput =
                 Set.fromList (inputs tx)
                     `Set.intersection` (Set.fromList ownedAndKnownTxIns)
                 /= mempty
-        -- A transaction has a known output if one of the outputs exists in the
-        -- set of unspent transaction outputs we know about.
+        -- A transaction has a known output if one of the transaction outputs
+        -- matches a transaction output we know about.
         let hasKnownOutput =
                 Set.fromList (outputs tx)
                     `Set.intersection` (Set.fromList ownedAndKnownTxOuts)
