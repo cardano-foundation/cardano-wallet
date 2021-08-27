@@ -498,16 +498,21 @@ prefilterBlock b u0 = runState $ do
         -- haven't been validated as "unspent" yet. It is important to not
         -- remove spent transactions, because if we do, we lose information
         -- about transactions inputs and outputs we know about.
-        knownTxO <- (prevUTxO <>) <$> filterOurUTxOs isOurs' (utxoFromTx tx)
+        (ownedAndKnownTxIns, ownedAndKnownTxOuts) <- do
+            u <- (prevUTxO <>) <$> filterOurUTxOs isOurs' (utxoFromTx tx)
+            let map = unUTxO u
+            pure (Map.keys map, Map.elems map)
         -- A transaction has a known input if one of the transaction inputs
         -- matches a transaction input we know about.
         let hasKnownInput =
-                Set.fromList (inputs tx) `Set.intersection` dom knownTxO
+                Set.fromList (inputs tx)
+                    `Set.intersection` (Set.fromList ownedAndKnownTxIns)
                 /= mempty
         -- A transaction has a known output if one of the outputs exists in the
         -- set of unspent transaction outputs we know about.
         let hasKnownOutput =
-                knownTxO `restrictedTo` Set.fromList (outputs tx)
+                Set.fromList (outputs tx)
+                    `Set.intersection` (Set.fromList ownedAndKnownTxOuts)
                 /= mempty
         let hasKnownWithdrawal = ourWithdrawals /= mempty
 
