@@ -386,7 +386,7 @@ import Numeric.Natural
     ( Natural )
 import Prelude
 import System.Command
-    ( CmdOption (..), CmdResult, Stderr, Stdout (..), command )
+    ( CmdOption (..), CmdResult, Exit (..), Stderr, Stdout (..), command )
 import System.Directory
     ( doesPathExist )
 import System.Exit
@@ -2507,7 +2507,7 @@ createWalletViaCLI
     -> String
     -> ResourceT m (ExitCode, String, Text)
 createWalletViaCLI ctx args mnemonics secondFactor passphrase =
-    snd <$> allocate create (free)
+    snd <$> allocate create free
   where
     create = do
         let portArgs =
@@ -2534,19 +2534,27 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase =
         () <$ try @_ @SomeException (deleteWalletViaCLI @() ctx wid)
 
 createWalletFromPublicKeyViaCLI
-    :: forall r s m.
-        ( CmdResult r
-        , HasType (Port "wallet") s
+    :: forall s m.
+        ( HasType (Port "wallet") s
 
         , MonadIO m
         )
     => s
     -> [String]
         -- ^ NAME, [--address-pool-gap INT], ACCOUNT_PUBLIC_KEY
-    -> m r
-createWalletFromPublicKeyViaCLI ctx args = cardanoWalletCLI $
-    [ "wallet", "create", "from-public-key", "--port"
-    , show (ctx ^. typed @(Port "wallet"))] ++ args
+    -> ResourceT m (Exit, Stdout, Stderr)
+createWalletFromPublicKeyViaCLI ctx args = snd <$> allocate create free
+  where
+    create =
+        cardanoWalletCLI $
+        [ "wallet", "create", "from-public-key", "--port"
+        , show (ctx ^. typed @(Port "wallet"))] ++ args
+
+    free (Exit (ExitFailure _), _, _) = return ()
+    free (Exit ExitSuccess, Stdout output, _) = do
+        w <- expectValidJSON (Proxy @ApiWallet) output
+        let wid = T.unpack $ w ^. walletId
+        () <$ try @_ @SomeException (deleteWalletViaCLI @() ctx wid)
 
 deleteWalletViaCLI
     :: forall r s m.
