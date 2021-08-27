@@ -42,7 +42,6 @@ module Cardano.Wallet.Primitive.Model
     , applyTxToUTxO
     , utxoFromTx
     , filterOurUTxOs
-    , difference
 
     -- * Accessors
     , currentTip
@@ -389,32 +388,6 @@ isOurs' addr = do
         Nothing -> pure False
         Just _  -> pure True
 
--- | Get the elements in u1 that are not in u2. In the case that elements are in
--- both, get the difference of the value of the TxOut (the TokenBundle value) in
--- both entries, removing any entries that are fully spent.
---
--- u `difference` mempty = u
--- mempty `difference` u = mempty
--- u `difference` u = mempty
-difference :: UTxO -> UTxO -> UTxO
-difference u1 u2 =
-    let
-        u1' = unUTxO u1
-        u2' = unUTxO u2
-
-        diffFunc :: TxOut -> TxOut -> Maybe TxOut
-        diffFunc a b =
-            let
-                tokens1 = tokens a
-                tokens2 = tokens b
-                diff = tokens1 `TB.difference` tokens2
-            in
-                if diff == mempty
-                then Nothing
-                else Just $ TxOut (address a) diff
-    in
-        UTxO $ Map.differenceWith diffFunc u1' u2'
-
 {-------------------------------------------------------------------------------
                                Internals
 -------------------------------------------------------------------------------}
@@ -489,9 +462,9 @@ prefilterBlock b u0 = runState $ do
         ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
 
-        let received = balance (ourNextUTxO `difference` prevUTxO)
+        let received = balance (ourNextUTxO `excluding` dom prevUTxO)
         let spent =
-                balance (prevUTxO `difference` ourNextUTxO)
+                balance (prevUTxO `excluding` dom ourNextUTxO)
                 `TB.add` TB.fromCoin ourWithdrawals
 
         (ownedAndKnownTxIns, ownedAndKnownTxOuts) <- do

@@ -32,7 +32,6 @@ import Cardano.Wallet.Primitive.Model
     , availableUTxO
     , changeUTxO
     , currentTip
-    , difference
     , filterOurUTxOs
     , getState
     , initWallet
@@ -205,14 +204,6 @@ spec = do
 
         describe "utxoFromTx" $
             it "has expected balance" (property prop_utxoFromTx_balance)
-
-        describe "difference" $ do
-            it "has a right identity"
-                (property prop_difference_rightIdentity)
-            it "has a left annihilation "
-                (property prop_difference_leftAnnihilation)
-            it "is mempty when asked for difference between equal utxos"
-                (property prop_difference_whenEqual)
 
     parallel $ describe "Available UTxO" $ do
         it "prop_availableUTxO_isSubmap" $
@@ -1490,18 +1481,3 @@ prop_utxoFromTx_balance :: Property
 prop_utxoFromTx_balance =
     forAllShrink genTx shrinkTx $ \tx ->
         balance (utxoFromTx tx) === foldMap tokens (outputs tx)
-
-prop_difference_rightIdentity :: Property
-prop_difference_rightIdentity = 
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        u `difference` mempty === u
-
-prop_difference_leftAnnihilation :: Property
-prop_difference_leftAnnihilation = 
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        mempty `difference` u === mempty
-
-prop_difference_whenEqual :: Property
-prop_difference_whenEqual = 
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        u `difference` u === mempty
