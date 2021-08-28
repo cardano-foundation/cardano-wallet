@@ -69,21 +69,23 @@ performSelection
     -> SelectionData
     -> m (Either SelectionError (SelectionResult TokenBundle))
 performSelection selectionConstraints selectionData =
-    first SelectionBalanceError <$>
-    Balanced.performSelection
-        computeMinimumAdaQuantity
-        computeMinimumCost
-        assessTokenBundleSize
-        selectionCriteria
+    case prepareOutputs selectionConstraints outputsToCover of
+        Left e ->
+            pure $ Left $ SelectionOutputsError e
+        Right preparedOutputsToCover ->
+            first SelectionBalanceError <$> Balanced.performSelection
+                computeMinimumAdaQuantity
+                computeMinimumCost
+                assessTokenBundleSize
+                SelectionCriteria
+                    { assetsToBurn
+                    , assetsToMint
+                    , extraCoinSource = rewardWithdrawal
+                    , outputsToCover = preparedOutputsToCover
+                    , selectionLimit
+                    , utxoAvailable
+                    }
   where
-    selectionCriteria = SelectionCriteria
-        { assetsToBurn
-        , assetsToMint
-        , extraCoinSource = rewardWithdrawal
-        , outputsToCover
-        , selectionLimit
-        , utxoAvailable
-        }
     SelectionConstraints
         { assessTokenBundleSize
         , computeMinimumAdaQuantity

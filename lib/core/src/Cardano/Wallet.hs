@@ -302,7 +302,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Integrated
     , SelectionData (..)
     , SelectionError (..)
     , performSelection
-    , prepareOutputs
     )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
@@ -1497,11 +1496,12 @@ selectAssets
     -> NonEmpty TxOut
     -> (s -> SelectionResult TokenBundle -> result)
     -> ExceptT ErrSelectAssets IO result
-selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
+selectAssets ctx (utxoAvailable, cp, pending) tx outputs transform = do
     guardPendingWithdrawal
     pp <- liftIO $ currentProtocolParameters nl
-    liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outs
-    let selectionConstraints = SelectionConstraints
+    liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outputs
+    mSel <- performSelection
+        SelectionConstraints
             { assessTokenBundleSize =
                 tokenBundleSizeAssessor tl $
                     pp ^. (#txParameters . #getTokenBundleMaxSize)
@@ -1510,17 +1510,13 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
             , computeMinimumCost =
                 calcMinimumCost tl pp tx
             , selectionLimit =
-                computeSelectionLimit tl pp tx (F.toList outs)
+                computeSelectionLimit tl pp tx (F.toList outputsToCover)
             }
-    outputsToCover <- withExceptT ErrSelectAssetsPrepareOutputsError $ except $
-        prepareOutputs selectionConstraints outs
-    mSel <- performSelection
-        selectionConstraints
         SelectionData
             { -- Until we properly support minting and burning, set to empty:
               assetsToBurn = TokenMap.empty
             , assetsToMint = TokenMap.empty
-            , outputsToCover
+            , outputsToCover = outputs
             , rewardWithdrawal = Just
                 $ addCoin (withdrawalToCoin $ view #txWithdrawal tx)
                 $ case view #txDelegationAction tx of
