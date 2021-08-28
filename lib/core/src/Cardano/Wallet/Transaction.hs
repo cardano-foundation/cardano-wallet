@@ -66,8 +66,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata
     , TxOut
     )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
 import Data.ByteString
     ( ByteString )
 import Data.List.NonEmpty
@@ -126,8 +124,6 @@ data TransactionLayer k = TransactionLayer
             -- Current protocol parameters
         -> TransactionCtx
             -- Additional information about the transaction
-        -> UTxOIndex
-            -- Available UTxO from which inputs should be selected.
         -> NonEmpty TxOut
             -- A list of target outputs
         -> Either ErrSelectionCriteria SelectionCriteria

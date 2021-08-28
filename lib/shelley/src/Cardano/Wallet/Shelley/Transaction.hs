@@ -488,10 +488,9 @@ _initSelectionCriteria
     :: forall k. TxWitnessTagFor k
     => ProtocolParameters
     -> TransactionCtx
-    -> UTxOIndex.UTxOIndex
     -> NE.NonEmpty TxOut
     -> Either ErrSelectionCriteria SelectionCriteria
-_initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
+_initSelectionCriteria pp ctx outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
             -- We encountered one or more excessively large token bundles.
@@ -512,7 +511,8 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
     | otherwise =
         pure SelectionCriteria
             { outputsToCover
-            , utxoAvailable
+            -- TODO: This should eventually be removed:
+            , utxoAvailable = UTxOIndex.empty
             , selectionLimit
             , extraCoinSource
             , assetsToMint

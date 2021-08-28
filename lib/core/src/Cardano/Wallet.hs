@@ -1492,20 +1492,19 @@ selectAssets
     -> NonEmpty TxOut
     -> (s -> SelectionResult TokenBundle -> result)
     -> ExceptT ErrSelectAssets IO result
-selectAssets ctx (utxo, cp, pending) tx outs transform = do
+selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     guardPendingWithdrawal
 
     pp <- liftIO $ currentProtocolParameters nl
-    liftIO $ traceWith tr $ MsgSelectionStart utxo outs
+    liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outs
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
-        initSelectionCriteria tl pp tx utxo outs
+        initSelectionCriteria tl pp tx outs
     let SelectionCriteria
             { assetsToBurn
             , assetsToMint
             , extraCoinSource
             , outputsToCover
             , selectionLimit
-            , utxoAvailable
             } = selectionCriteria
     mSel <- performSelection
         SelectionConstraints
