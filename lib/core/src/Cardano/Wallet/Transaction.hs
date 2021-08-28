@@ -29,9 +29,6 @@ module Cardano.Wallet.Transaction
     -- * Errors
     , ErrMkTx (..)
     , ErrDecodeSignedTx (..)
-    , ErrPrepareOutputs (..)
-    , ErrOutputTokenBundleSizeExceedsLimit (..)
-    , ErrOutputTokenQuantityExceedsLimit (..)
 
     ) where
 
@@ -53,10 +50,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId, TokenMap )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , SerialisedTx (..)
@@ -118,14 +111,6 @@ data TransactionLayer k = TransactionLayer
         -- multisignature transactions, etc.
         --
         -- The function returns CBOR-ed transaction body to be signed in another step.
-
-    , prepareOutputs
-        :: TokenBundleSizeAssessor
-        -> (TokenMap -> Coin)
-            -- Compute the minimum ada quantity
-        -> NonEmpty TxOut
-            -- A list of target outputs
-        -> Either ErrPrepareOutputs (NonEmpty TxOut)
 
     , calcMinimumCost
         :: ProtocolParameters
@@ -201,37 +186,6 @@ defaultTransactionCtx = TransactionCtx
 -- | Whether the user is attempting any particular delegation action.
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
     deriving (Show, Eq, Generic)
-
--- | Indicates a problem when preparing outputs for a coin selection.
-data ErrPrepareOutputs
-    = ErrPrepareOutputsTokenBundleSizeExceedsLimit
-        ErrOutputTokenBundleSizeExceedsLimit
-    | ErrPrepareOutputsTokenQuantityExceedsLimit
-        ErrOutputTokenQuantityExceedsLimit
-    deriving (Eq, Generic, Show)
-
-data ErrOutputTokenBundleSizeExceedsLimit = ErrOutputTokenBundleSizeExceedsLimit
-    { address :: !Address
-      -- ^ The address to which this token bundle was to be sent.
-    , assetCount :: !Int
-      -- ^ The number of assets within the token bundle.
-    }
-    deriving (Eq, Generic, Show)
-
--- | Indicates that a token quantity exceeds the maximum quantity that can
---   appear in a transaction output's token bundle.
---
-data ErrOutputTokenQuantityExceedsLimit = ErrOutputTokenQuantityExceedsLimit
-    { address :: !Address
-      -- ^ The address to which this token quantity was to be sent.
-    , asset :: !AssetId
-      -- ^ The asset identifier to which this token quantity corresponds.
-    , quantity :: !TokenQuantity
-      -- ^ The token quantity that exceeded the bound.
-    , quantityMaxBound :: !TokenQuantity
-      -- ^ The maximum allowable token quantity.
-    }
-    deriving (Eq, Generic, Show)
 
 -- | Error while trying to decode externally signed transaction
 data ErrDecodeSignedTx

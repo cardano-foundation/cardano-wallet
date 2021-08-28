@@ -298,7 +298,12 @@ import Cardano.Wallet.Primitive.CoinSelection.Balanced
     , makeSelectionReportSummarized
     )
 import Cardano.Wallet.Primitive.CoinSelection.Integrated
-    ( SelectionConstraints (..), SelectionData (..), performSelection )
+    ( ErrPrepareOutputs (..)
+    , SelectionConstraints (..)
+    , SelectionData (..)
+    , performSelection
+    , prepareOutputs
+    )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
@@ -388,7 +393,6 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrPrepareOutputs (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -1501,7 +1505,7 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     let computeMinimumAdaQuantity =
             view #txOutputMinimumAdaQuantity $ constraints tl pp
     outputsToCover <- withExceptT ErrSelectAssetsPrepareOutputsError $ except $
-        prepareOutputs tl assessTokenBundleSize computeMinimumAdaQuantity outs
+        prepareOutputs assessTokenBundleSize computeMinimumAdaQuantity outs
     let selectionLimit = computeSelectionLimit tl pp tx (F.toList outs)
     mSel <- performSelection
         SelectionConstraints

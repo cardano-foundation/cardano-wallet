@@ -359,6 +359,11 @@ import Cardano.Wallet.Primitive.CoinSelection.Balanced
     , missingOutputAssets
     , selectionDelta
     )
+import Cardano.Wallet.Primitive.CoinSelection.Integrated
+    ( ErrOutputTokenBundleSizeExceedsLimit (..)
+    , ErrOutputTokenQuantityExceedsLimit (..)
+    , ErrPrepareOutputs (..)
+    )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )
 import Cardano.Wallet.Primitive.Migration
@@ -437,9 +442,6 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
-    , ErrOutputTokenBundleSizeExceedsLimit (..)
-    , ErrOutputTokenQuantityExceedsLimit (..)
-    , ErrPrepareOutputs (..)
     , TransactionCtx (..)
     , TransactionLayer
     , Withdrawal (..)

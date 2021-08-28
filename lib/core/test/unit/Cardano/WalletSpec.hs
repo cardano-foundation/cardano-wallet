@@ -1298,8 +1298,6 @@ dummyTransactionLayer = TransactionLayer
 
     , mkUnsignedTransaction =
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
-    , prepareOutputs =
-        error "dummyTransactionLayer: prepareOutputs not implemented"
     , calcMinimumCost =
         error "dummyTransactionLayer: calcMinimumCost not implemented"
     , computeSelectionLimit =

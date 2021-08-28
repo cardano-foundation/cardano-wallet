@@ -79,7 +79,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balanced
     ( SelectionLimit (..)
     , SelectionResult (changeGenerated, inputsSelected, outputsCovered)
     , SelectionSkeleton (..)
-    , prepareOutputsWith
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Types
@@ -99,15 +98,12 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , SerialisedTx (..)
-    , TokenBundleSizeAssessment (..)
-    , TokenBundleSizeAssessor (..)
     , Tx (..)
     , TxConstraints (..)
     , TxMetadata (..)
     , TxOut (..)
     , TxSize (..)
     , txOutCoin
-    , txOutMaxTokenQuantity
     , txSizeDistance
     )
 import Cardano.Wallet.Shelley.Compatibility
@@ -134,9 +130,6 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrOutputTokenBundleSizeExceedsLimit (..)
-    , ErrOutputTokenQuantityExceedsLimit (..)
-    , ErrPrepareOutputs (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , withdrawalToCoin
@@ -181,15 +174,12 @@ import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Core as SL
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 
@@ -387,8 +377,6 @@ newTransactionLayer networkId = TransactionLayer
                                 delta
                     constructUnsignedTx networkId payload ttl rewardAcct wdrl selection fees
 
-    , prepareOutputs = _prepareOutputs
-
     , calcMinimumCost = \pp ctx skeleton ->
         estimateTxCost pp $
         mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
@@ -486,66 +474,6 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
         TxSize size = estimateTxSize $ mkTxSkeleton
             (txWitnessTagFor @k) ctx sel
         sel  = dummySkeleton (fromIntegral nInps) outs
-
-_prepareOutputs
-    :: TokenBundleSizeAssessor
-    -> (TokenMap -> Coin)
-    -> NE.NonEmpty TxOut
-    -> Either ErrPrepareOutputs (NE.NonEmpty TxOut)
-_prepareOutputs tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
-    | (address, assetCount) : _ <- excessivelyLargeBundles =
-        Left $
-            -- We encountered one or more excessively large token bundles.
-            -- Just report the first such bundle:
-            ErrPrepareOutputsTokenBundleSizeExceedsLimit $
-            ErrOutputTokenBundleSizeExceedsLimit {address, assetCount}
-    | (address, asset, quantity) : _ <- excessiveTokenQuantities =
-        Left $
-            -- We encountered one or more excessive token quantities.
-            -- Just report the first such quantity:
-            ErrPrepareOutputsTokenQuantityExceedsLimit $
-            ErrOutputTokenQuantityExceedsLimit
-                { address
-                , asset
-                , quantity
-                , quantityMaxBound = txOutMaxTokenQuantity
-                }
-    | otherwise =
-        pure outputsToCover
-  where
-    -- The complete list of token bundles whose serialized lengths are greater
-    -- than the limit of what is allowed in a transaction output:
-    excessivelyLargeBundles :: [(Address, Int)]
-    excessivelyLargeBundles =
-        [ (address, assetCount)
-        | output <- F.toList outputsToCover
-        , let bundle = view #tokens output
-        , bundleIsExcessivelyLarge bundle
-        , let address = view #address output
-        , let assetCount = Set.size $ TokenBundle.getAssets bundle
-        ]
-
-      where
-        bundleIsExcessivelyLarge b = case assessSize b of
-            TokenBundleSizeWithinLimit -> False
-            OutputTokenBundleSizeExceedsLimit -> True
-          where
-            assessSize = assessTokenBundleSize tokenBundleSizeAssessor
-
-    -- The complete list of token quantities that exceed the maximum quantity
-    -- allowed in a transaction output:
-    excessiveTokenQuantities :: [(Address, AssetId, TokenQuantity)]
-    excessiveTokenQuantities =
-        [ (address, asset, quantity)
-        | output <- F.toList outputsToCover
-        , let address = view #address output
-        , (asset, quantity) <-
-            TokenMap.toFlatList $ view #tokens $ view #tokens output
-        , quantity > txOutMaxTokenQuantity
-        ]
-
-    outputsToCover =
-        prepareOutputsWith computeMinAdaQuantity outputsUnprepared
 
 dummySkeleton :: Int -> [TxOut] -> SelectionSkeleton
 dummySkeleton inputCount outputs = SelectionSkeleton
