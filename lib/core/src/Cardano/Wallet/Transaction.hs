@@ -54,7 +54,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
+    ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -123,6 +123,8 @@ data TransactionLayer k = TransactionLayer
         :: ProtocolParameters
             -- Current protocol parameters
         -> TokenBundleSizeAssessor
+        -> (TokenMap -> Coin)
+            -- Compute the minimum ada quantity
         -> NonEmpty TxOut
             -- A list of target outputs
         -> Either ErrSelectionCriteria SelectionCriteria

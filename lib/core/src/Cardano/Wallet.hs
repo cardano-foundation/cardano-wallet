@@ -1499,15 +1499,17 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outs
     let assessTokenBundleSize = tokenBundleSizeAssessor tl
             (pp ^. (#txParameters . #getTokenBundleMaxSize))
+    let computeMinimumAdaQuantity =
+            view #txOutputMinimumAdaQuantity $ constraints tl pp
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
-        initSelectionCriteria tl pp assessTokenBundleSize outs
+        initSelectionCriteria tl pp
+            assessTokenBundleSize computeMinimumAdaQuantity outs
     let selectionLimit = computeSelectionLimit tl pp tx (F.toList outs)
     let SelectionCriteria {outputsToCover} = selectionCriteria
     mSel <- performSelection
         SelectionConstraints
             { assessTokenBundleSize
-            , computeMinimumAdaQuantity =
-                view #txOutputMinimumAdaQuantity $ constraints tl pp
+            , computeMinimumAdaQuantity
             , computeMinimumCost =
                 calcMinimumCost tl pp tx
             , selectionLimit
