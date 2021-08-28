@@ -151,7 +151,7 @@ import Data.ByteString
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( view )
 import Data.Generics.Labels
     ()
 import Data.Kind
@@ -491,9 +491,10 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
 
 _initSelectionCriteria
     :: ProtocolParameters
+    -> TokenBundleSizeAssessor
     -> NE.NonEmpty TxOut
     -> Either ErrSelectionCriteria SelectionCriteria
-_initSelectionCriteria pp outputsUnprepared
+_initSelectionCriteria pp tokenBundleSizeAssessor outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
             -- We encountered one or more excessively large token bundles.
@@ -543,9 +544,7 @@ _initSelectionCriteria pp outputsUnprepared
             TokenBundleSizeWithinLimit -> False
             OutputTokenBundleSizeExceedsLimit -> True
           where
-            assessSize = assessTokenBundleSize
-                . Compatibility.tokenBundleSizeAssessor
-                $ pp ^. (#txParameters . #getTokenBundleMaxSize)
+            assessSize = assessTokenBundleSize tokenBundleSizeAssessor
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:

@@ -122,6 +122,7 @@ data TransactionLayer k = TransactionLayer
     , initSelectionCriteria
         :: ProtocolParameters
             -- Current protocol parameters
+        -> TokenBundleSizeAssessor
         -> NonEmpty TxOut
             -- A list of target outputs
         -> Either ErrSelectionCriteria SelectionCriteria

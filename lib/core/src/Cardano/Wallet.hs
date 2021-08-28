@@ -1497,15 +1497,15 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     guardPendingWithdrawal
     pp <- liftIO $ currentProtocolParameters nl
     liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outs
+    let assessTokenBundleSize = tokenBundleSizeAssessor tl
+            (pp ^. (#txParameters . #getTokenBundleMaxSize))
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
-        initSelectionCriteria tl pp outs
+        initSelectionCriteria tl pp assessTokenBundleSize outs
     let selectionLimit = computeSelectionLimit tl pp tx (F.toList outs)
     let SelectionCriteria {outputsToCover} = selectionCriteria
     mSel <- performSelection
         SelectionConstraints
-            { assessTokenBundleSize =
-                tokenBundleSizeAssessor tl
-                    (pp ^. (#txParameters . #getTokenBundleMaxSize))
+            { assessTokenBundleSize
             , computeMinimumAdaQuantity =
                 view #txOutputMinimumAdaQuantity $ constraints tl pp
             , computeMinimumCost =
