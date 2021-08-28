@@ -4,6 +4,7 @@
 
 module Cardano.Wallet.Primitive.CoinSelection.Integrated
     ( performSelection
+    , SelectionConstraints (..)
     , SelectionData (..)
     ) where
 
@@ -39,23 +40,15 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Balanced as Balanced
 
 performSelection
     :: (HasCallStack, MonadRandom m)
-    => (TokenMap -> Coin)
-    -> (SelectionSkeleton -> Coin)
-    -> TokenBundleSizeAssessor
-    -> SelectionLimit
+    => SelectionConstraints
     -> SelectionData
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection
-    computeMinimumAdaQuantity
-    computeMinimumCost
-    assessTokenBundleSize
-    selectionLimit
-    selectionData =
-        Balanced.performSelection
-            computeMinimumAdaQuantity
-            computeMinimumCost
-            assessTokenBundleSize
-            selectionCriteria
+performSelection selectionConstraints selectionData =
+    Balanced.performSelection
+        computeMinimumAdaQuantity
+        computeMinimumCost
+        assessTokenBundleSize
+        selectionCriteria
   where
     selectionCriteria = SelectionCriteria
         { assetsToBurn
@@ -65,6 +58,12 @@ performSelection
         , selectionLimit
         , utxoAvailable
         }
+    SelectionConstraints
+        { assessTokenBundleSize
+        , computeMinimumAdaQuantity
+        , computeMinimumCost
+        , selectionLimit
+        } = selectionConstraints
     SelectionData
         { assetsToBurn
         , assetsToMint
@@ -72,6 +71,17 @@ performSelection
         , rewardWithdrawal
         , utxoAvailable
         } = selectionData
+
+data SelectionConstraints = SelectionConstraints
+    { assessTokenBundleSize
+        :: TokenBundleSizeAssessor
+    , computeMinimumAdaQuantity
+        :: TokenMap -> Coin
+    , computeMinimumCost
+        :: SelectionSkeleton -> Coin
+    , selectionLimit
+        :: SelectionLimit
+    }
 
 data SelectionData = SelectionData
     { assetsToBurn

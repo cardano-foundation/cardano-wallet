@@ -299,7 +299,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balanced
     , makeSelectionReportSummarized
     )
 import Cardano.Wallet.Primitive.CoinSelection.Integrated
-    ( SelectionData (..), performSelection )
+    ( SelectionConstraints (..), SelectionData (..), performSelection )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
@@ -1507,20 +1507,24 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
             , selectionLimit
             , utxoAvailable
             } = selectionCriteria
-    let selectionData = SelectionData
+    mSel <- performSelection
+        SelectionConstraints
+            { assessTokenBundleSize =
+                tokenBundleSizeAssessor tl
+                    (pp ^. (#txParameters . #getTokenBundleMaxSize))
+            , computeMinimumAdaQuantity =
+                view #txOutputMinimumAdaQuantity $ constraints tl pp
+            , computeMinimumCost =
+                calcMinimumCost tl pp tx
+            , selectionLimit
+            }
+        SelectionData
             { assetsToBurn
             , assetsToMint
             , outputsToCover
             , rewardWithdrawal = extraCoinSource
             , utxoAvailable
             }
-    mSel <- performSelection
-        (view #txOutputMinimumAdaQuantity $ constraints tl pp)
-        (calcMinimumCost tl pp tx)
-        (tokenBundleSizeAssessor tl
-            (pp ^. (#txParameters . #getTokenBundleMaxSize)))
-        (selectionLimit)
-        (selectionData)
     case mSel of
         Left e -> liftIO $
             traceWith tr $ MsgSelectionError e
