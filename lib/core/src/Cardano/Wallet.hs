@@ -288,8 +288,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , isShared
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balanced
-    ( SelectionError (..)
-    , SelectionReportDetailed
+    ( SelectionReportDetailed
     , SelectionReportSummarized
     , SelectionResult (..)
     , UnableToConstructChangeError (..)
@@ -301,6 +300,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Integrated
     ( ErrPrepareOutputs (..)
     , SelectionConstraints (..)
     , SelectionData (..)
+    , SelectionError (..)
     , performSelection
     , prepareOutputs
     )
@@ -495,6 +495,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balanced as Balanced
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -2229,8 +2230,10 @@ estimateFee
     handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Coin
     handleCannotCover = \case
         e@(ErrSelectAssetsSelectionError se) -> case se of
-            UnableToConstructChange UnableToConstructChangeError{requiredCost} ->
-                pure requiredCost
+            SelectionBalanceError (Balanced.UnableToConstructChange ce) ->
+                case ce of
+                    UnableToConstructChangeError {requiredCost} ->
+                        pure requiredCost
             _ ->
                 throwE  e
         e ->

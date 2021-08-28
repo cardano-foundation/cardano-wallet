@@ -352,8 +352,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , validateScriptTemplates
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balanced
-    ( SelectionError (..)
-    , SelectionResult (..)
+    ( SelectionResult (..)
     , UnableToConstructChangeError (..)
     , balanceMissing
     , missingOutputAssets
@@ -363,6 +362,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Integrated
     ( ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
     , ErrPrepareOutputs (..)
+    , SelectionError (..)
     )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )
@@ -576,6 +576,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balanced as Balanced
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -3783,15 +3784,15 @@ instance IsServerError ErrSelectAssets where
                 , "transaction; if, for some reason, you really want a new "
                 , "transaction, then cancel the previous one first."
                 ]
-        ErrSelectAssetsSelectionError selectionError ->
+        ErrSelectAssetsSelectionError (SelectionBalanceError selectionError) ->
             case selectionError of
-                BalanceInsufficient e ->
+                Balanced.BalanceInsufficient e ->
                     apiError err403 NotEnoughMoney $ mconcat
                         [ "I can't process this payment as there are not "
                         , "enough funds available in the wallet. I am "
                         , "missing: ", pretty . Flat $ balanceMissing e
                         ]
-                SelectionInsufficient e ->
+                Balanced.SelectionInsufficient e ->
                     apiError err403 TransactionIsTooBig $ mconcat
                         [ "I am not able to finalize the transaction "
                         , "because I need to select additional inputs and "
@@ -3799,7 +3800,7 @@ instance IsServerError ErrSelectAssets where
                         , "sending a smaller amount. I had already selected "
                         , showT (length $ view #inputsSelected e), " inputs."
                         ]
-                InsufficientMinCoinValues xs ->
+                Balanced.InsufficientMinCoinValues xs ->
                     apiError err403 UtxoTooSmall $ mconcat
                         [ "Some outputs have ada values that are too small. "
                         , "There's a minimum ada value specified by the "
@@ -3809,14 +3810,14 @@ instance IsServerError ErrSelectAssets where
                         , "must specify enough ada. Here are the problematic "
                         , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
                         ]
-                OutputsInsufficient e ->
+                Balanced.OutputsInsufficient e ->
                     apiError err403 TokensMintedButNotSpentOrBurned $ mconcat
                         [ "I can't process this transaction because some "
                         , "minted values were not spent or burned. These "
                         , "are the values that should be spent or burned: "
                         , pretty . Flat $ missingOutputAssets e
                         ]
-                UnableToConstructChange e ->
+                Balanced.UnableToConstructChange e ->
                     apiError err403 CannotCoverFee $ T.unwords
                         [ "I am unable to finalize the transaction, as there"
                         , "is not enough ada available to pay for the fee and"
@@ -3826,6 +3827,8 @@ instance IsServerError ErrSelectAssets where
                         , "ada to proceed. Try increasing your wallet balance"
                         , "or sending a smaller amount."
                         ]
+        ErrSelectAssetsSelectionError (SelectionOutputsError selectionError) ->
+            toServerError selectionError
 
 instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
     toServerError = \case

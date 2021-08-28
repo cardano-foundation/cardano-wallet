@@ -50,12 +50,13 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection.Balanced
-    ( SelectionError (..)
-    , SelectionResult (..)
+    ( SelectionResult (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , selectionDelta
     )
+import Cardano.Wallet.Primitive.CoinSelection.Integrated
+    ( SelectionError (..) )
 import Cardano.Wallet.Primitive.Types
     ( FeePolicy (..)
     , ProtocolParameters (..)
@@ -182,6 +183,7 @@ import Test.QuickCheck.Random
     ( mkQCGen )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balanced as Balanced
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
@@ -384,8 +386,9 @@ spec = do
         let requiredCost = Coin 166029
         let runSelection = except $ Left
                 $ ErrSelectAssetsSelectionError
-                $ UnableToConstructChange
-                $ UnableToConstructChangeError
+                $ SelectionBalanceError
+                $ Balanced.UnableToConstructChange
+                $ Balanced.UnableToConstructChangeError
                     { requiredCost
                     , shortfall = Coin 100000
                     }

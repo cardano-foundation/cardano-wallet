@@ -8,6 +8,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Integrated
     ( performSelection
     , SelectionConstraints (..)
     , SelectionData (..)
+    , SelectionError (..)
 
     , prepareOutputs
     , ErrPrepareOutputs (..)
@@ -19,7 +20,6 @@ import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection.Balanced
     ( SelectionCriteria (..)
-    , SelectionError
     , SelectionLimit
     , SelectionResult
     , SelectionSkeleton
@@ -44,6 +44,8 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Control.Monad.Random.Class
     ( MonadRandom )
+import Data.Bifunctor
+    ( first )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -67,6 +69,7 @@ performSelection
     -> SelectionData
     -> m (Either SelectionError (SelectionResult TokenBundle))
 performSelection selectionConstraints selectionData =
+    first SelectionBalanceError <$>
     Balanced.performSelection
         computeMinimumAdaQuantity
         computeMinimumCost
@@ -119,6 +122,11 @@ data SelectionData = SelectionData
         :: !UTxOIndex
     }
     deriving (Eq, Generic, Show)
+
+data SelectionError
+    = SelectionBalanceError Balanced.SelectionError
+    | SelectionOutputsError ErrPrepareOutputs
+    deriving (Eq, Show)
 
 prepareOutputs
     :: SelectionConstraints
