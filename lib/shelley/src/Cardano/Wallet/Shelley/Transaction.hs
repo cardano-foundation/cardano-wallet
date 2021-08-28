@@ -389,11 +389,16 @@ newTransactionLayer networkId = TransactionLayer
                                 delta
                     constructUnsignedTx networkId payload ttl rewardAcct wdrl selection fees
 
-    , initSelectionCriteria = _initSelectionCriteria @k
+    , initSelectionCriteria = _initSelectionCriteria
 
     , calcMinimumCost = \pp ctx skeleton ->
         estimateTxCost pp $
         mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
+
+    , computeSelectionLimit = \pp ctx outputsToCover ->
+        let txMaxSize = getTxMaxSize $ txParameters pp in
+        MaximumInputLimit $
+            _estimateMaxNumberOfInputs @k txMaxSize ctx outputsToCover
 
     , tokenBundleSizeAssessor =
         Compatibility.tokenBundleSizeAssessor
@@ -485,12 +490,10 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
         sel  = dummySkeleton (fromIntegral nInps) outs
 
 _initSelectionCriteria
-    :: forall k. TxWitnessTagFor k
-    => ProtocolParameters
-    -> TransactionCtx
+    :: ProtocolParameters
     -> NE.NonEmpty TxOut
     -> Either ErrSelectionCriteria SelectionCriteria
-_initSelectionCriteria pp ctx outputsUnprepared
+_initSelectionCriteria pp outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
             -- We encountered one or more excessively large token bundles.
@@ -513,7 +516,8 @@ _initSelectionCriteria pp ctx outputsUnprepared
             { outputsToCover
             -- TODO: This should eventually be removed:
             , utxoAvailable = UTxOIndex.empty
-            , selectionLimit
+            -- TODO: This should eventually be removed:
+            , selectionLimit = NoLimit
             -- TODO: This should eventually be removed:
             , extraCoinSource = Nothing
             -- TODO: This should eventually be removed:
@@ -554,11 +558,6 @@ _initSelectionCriteria pp ctx outputsUnprepared
             TokenMap.toFlatList $ view #tokens $ view #tokens output
         , quantity > txOutMaxTokenQuantity
         ]
-
-    txMaxSize = getTxMaxSize $ txParameters pp
-
-    selectionLimit = MaximumInputLimit $
-        _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
 
     outputsToCover =
         prepareOutputsWith (_calcMinimumCoinValue pp) outputsUnprepared

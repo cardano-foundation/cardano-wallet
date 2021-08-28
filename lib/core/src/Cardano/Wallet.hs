@@ -1498,11 +1498,9 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     pp <- liftIO $ currentProtocolParameters nl
     liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outs
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
-        initSelectionCriteria tl pp tx outs
-    let SelectionCriteria
-            { outputsToCover
-            , selectionLimit
-            } = selectionCriteria
+        initSelectionCriteria tl pp outs
+    let selectionLimit = computeSelectionLimit tl pp tx (F.toList outs)
+    let SelectionCriteria {outputsToCover} = selectionCriteria
     mSel <- performSelection
         SelectionConstraints
             { assessTokenBundleSize =

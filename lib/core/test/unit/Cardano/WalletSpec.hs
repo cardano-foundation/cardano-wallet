@@ -1302,6 +1302,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: initSelectionCriteria not implemented"
     , calcMinimumCost =
         error "dummyTransactionLayer: calcMinimumCost not implemented"
+    , computeSelectionLimit =
+        error "dummyTransactionLayer: computeSelectionLimit not implemented"
     , tokenBundleSizeAssessor =
         error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
     , constraints =

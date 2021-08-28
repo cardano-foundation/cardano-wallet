@@ -44,7 +44,7 @@ import Cardano.Api
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex, Passphrase )
 import Cardano.Wallet.Primitive.CoinSelection.Balanced
-    ( SelectionCriteria, SelectionResult, SelectionSkeleton )
+    ( SelectionCriteria, SelectionLimit, SelectionResult, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, ProtocolParameters, SlotNo (..), TokenBundleMaxSize (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -122,8 +122,6 @@ data TransactionLayer k = TransactionLayer
     , initSelectionCriteria
         :: ProtocolParameters
             -- Current protocol parameters
-        -> TransactionCtx
-            -- Additional information about the transaction
         -> NonEmpty TxOut
             -- A list of target outputs
         -> Either ErrSelectionCriteria SelectionCriteria
@@ -138,6 +136,12 @@ data TransactionLayer k = TransactionLayer
         -> Coin
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
         -- This also includes necessary deposits.
+
+    , computeSelectionLimit
+        :: ProtocolParameters
+        -> TransactionCtx
+        -> [TxOut]
+        -> SelectionLimit
 
     , tokenBundleSizeAssessor
         :: TokenBundleMaxSize -> TokenBundleSizeAssessor
