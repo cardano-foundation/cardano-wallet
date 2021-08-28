@@ -184,6 +184,7 @@ library
       Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.CoinSelection.Balanced
       Cardano.Wallet.Primitive.CoinSelection.Collateral
+      Cardano.Wallet.Primitive.CoinSelection.Integrated
       Cardano.Wallet.Primitive.Collateral
       Cardano.Wallet.Primitive.Delegation.UTxO
       Cardano.Wallet.Primitive.Migration

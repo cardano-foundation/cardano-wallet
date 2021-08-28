@@ -296,8 +296,9 @@ import Cardano.Wallet.Primitive.CoinSelection.Balanced
     , emptySkeleton
     , makeSelectionReportDetailed
     , makeSelectionReportSummarized
-    , performSelection
     )
+import Cardano.Wallet.Primitive.CoinSelection.Integrated
+    ( performSelection )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
