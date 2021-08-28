@@ -120,9 +120,7 @@ data TransactionLayer k = TransactionLayer
         -- The function returns CBOR-ed transaction body to be signed in another step.
 
     , initSelectionCriteria
-        :: ProtocolParameters
-            -- Current protocol parameters
-        -> TokenBundleSizeAssessor
+        :: TokenBundleSizeAssessor
         -> (TokenMap -> Coin)
             -- Compute the minimum ada quantity
         -> NonEmpty TxOut

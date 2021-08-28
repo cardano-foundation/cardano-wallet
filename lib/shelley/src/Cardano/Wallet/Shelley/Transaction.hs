@@ -490,13 +490,12 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
         sel  = dummySkeleton (fromIntegral nInps) outs
 
 _initSelectionCriteria
-    :: ProtocolParameters
-    -> TokenBundleSizeAssessor
+    :: TokenBundleSizeAssessor
     -> (TokenMap -> Coin)
     -> NE.NonEmpty TxOut
     -> Either ErrSelectionCriteria SelectionCriteria
 _initSelectionCriteria
-    _pp tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
+    tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
             -- We encountered one or more excessively large token bundles.

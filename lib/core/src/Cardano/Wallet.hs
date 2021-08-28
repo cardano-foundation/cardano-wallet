@@ -1502,7 +1502,7 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     let computeMinimumAdaQuantity =
             view #txOutputMinimumAdaQuantity $ constraints tl pp
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
-        initSelectionCriteria tl pp
+        initSelectionCriteria tl
             assessTokenBundleSize computeMinimumAdaQuantity outs
     let selectionLimit = computeSelectionLimit tl pp tx (F.toList outs)
     let SelectionCriteria {outputsToCover} = selectionCriteria
