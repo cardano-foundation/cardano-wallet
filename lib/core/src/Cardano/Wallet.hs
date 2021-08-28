@@ -288,7 +288,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , isShared
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balanced
-    ( SelectionError (..)
+    ( SelectionCriteria (..)
+    , SelectionError (..)
     , SelectionReportDetailed
     , SelectionReportSummarized
     , SelectionResult (..)
@@ -298,7 +299,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balanced
     , makeSelectionReportSummarized
     )
 import Cardano.Wallet.Primitive.CoinSelection.Integrated
-    ( performSelection )
+    ( SelectionData (..), performSelection )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
@@ -1498,12 +1499,28 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
     liftIO $ traceWith tr $ MsgSelectionStart utxo outs
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
         initSelectionCriteria tl pp tx utxo outs
+    let SelectionCriteria
+            { assetsToBurn
+            , assetsToMint
+            , extraCoinSource
+            , outputsToCover
+            , selectionLimit
+            , utxoAvailable
+            } = selectionCriteria
+    let selectionData = SelectionData
+            { assetsToBurn
+            , assetsToMint
+            , outputsToCover
+            , rewardWithdrawal = extraCoinSource
+            , utxoAvailable
+            }
     mSel <- performSelection
         (view #txOutputMinimumAdaQuantity $ constraints tl pp)
         (calcMinimumCost tl pp tx)
         (tokenBundleSizeAssessor tl
             (pp ^. (#txParameters . #getTokenBundleMaxSize)))
-        (selectionCriteria)
+        (selectionLimit)
+        (selectionData)
     case mSel of
         Left e -> liftIO $
             traceWith tr $ MsgSelectionError e
