@@ -88,7 +88,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin, subtractCoin )
+    ( Coin (..), subtractCoin )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -514,7 +514,8 @@ _initSelectionCriteria pp ctx outputsUnprepared
             -- TODO: This should eventually be removed:
             , utxoAvailable = UTxOIndex.empty
             , selectionLimit
-            , extraCoinSource
+            -- TODO: This should eventually be removed:
+            , extraCoinSource = Nothing
             , assetsToMint
             , assetsToBurn
             }
@@ -556,13 +557,6 @@ _initSelectionCriteria pp ctx outputsUnprepared
 
     selectionLimit = MaximumInputLimit $
         _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
-
-    extraCoinSource = Just $ addCoin
-        (withdrawalToCoin $ view #txWithdrawal ctx)
-        ( case view #txDelegationAction ctx of
-            Just Quit -> stakeKeyDeposit pp
-            _ -> Coin 0
-        )
 
     outputsToCover =
         prepareOutputsWith (_calcMinimumCoinValue pp) outputsUnprepared

@@ -1494,7 +1494,6 @@ selectAssets
     -> ExceptT ErrSelectAssets IO result
 selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     guardPendingWithdrawal
-
     pp <- liftIO $ currentProtocolParameters nl
     liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outs
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
@@ -1502,7 +1501,6 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     let SelectionCriteria
             { assetsToBurn
             , assetsToMint
-            , extraCoinSource
             , outputsToCover
             , selectionLimit
             } = selectionCriteria
@@ -1521,7 +1519,11 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
             { assetsToBurn
             , assetsToMint
             , outputsToCover
-            , rewardWithdrawal = extraCoinSource
+            , rewardWithdrawal = Just
+                $ addCoin (withdrawalToCoin $ view #txWithdrawal tx)
+                $ case view #txDelegationAction tx of
+                    Just Quit -> stakeKeyDeposit pp
+                    _ -> Coin 0
             , utxoAvailable
             }
     case mSel of
