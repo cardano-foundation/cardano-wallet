@@ -136,7 +136,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
-    , ErrSelectionCriteria (..)
+    , ErrPrepareOutputs (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , withdrawalToCoin
@@ -387,7 +387,7 @@ newTransactionLayer networkId = TransactionLayer
                                 delta
                     constructUnsignedTx networkId payload ttl rewardAcct wdrl selection fees
 
-    , initSelectionCriteria = _initSelectionCriteria
+    , prepareOutputs = _prepareOutputs
 
     , calcMinimumCost = \pp ctx skeleton ->
         estimateTxCost pp $
@@ -487,24 +487,23 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
             (txWitnessTagFor @k) ctx sel
         sel  = dummySkeleton (fromIntegral nInps) outs
 
-_initSelectionCriteria
+_prepareOutputs
     :: TokenBundleSizeAssessor
     -> (TokenMap -> Coin)
     -> NE.NonEmpty TxOut
-    -> Either ErrSelectionCriteria (NE.NonEmpty TxOut)
-_initSelectionCriteria
-    tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
+    -> Either ErrPrepareOutputs (NE.NonEmpty TxOut)
+_prepareOutputs tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
             -- We encountered one or more excessively large token bundles.
             -- Just report the first such bundle:
-            ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit $
+            ErrPrepareOutputsTokenBundleSizeExceedsLimit $
             ErrOutputTokenBundleSizeExceedsLimit {address, assetCount}
     | (address, asset, quantity) : _ <- excessiveTokenQuantities =
         Left $
             -- We encountered one or more excessive token quantities.
             -- Just report the first such quantity:
-            ErrSelectionCriteriaOutputTokenQuantityExceedsLimit $
+            ErrPrepareOutputsTokenQuantityExceedsLimit $
             ErrOutputTokenQuantityExceedsLimit
                 { address
                 , asset

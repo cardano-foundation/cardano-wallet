@@ -388,7 +388,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrSelectionCriteria (..)
+    , ErrPrepareOutputs (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -1500,9 +1500,8 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
             (pp ^. (#txParameters . #getTokenBundleMaxSize))
     let computeMinimumAdaQuantity =
             view #txOutputMinimumAdaQuantity $ constraints tl pp
-    outputsToCover <- withExceptT ErrSelectAssetsCriteriaError $ except $
-        initSelectionCriteria tl
-            assessTokenBundleSize computeMinimumAdaQuantity outs
+    outputsToCover <- withExceptT ErrSelectAssetsPrepareOutputsError $ except $
+        prepareOutputs tl assessTokenBundleSize computeMinimumAdaQuantity outs
     let selectionLimit = computeSelectionLimit tl pp tx (F.toList outs)
     mSel <- performSelection
         SelectionConstraints
@@ -2670,7 +2669,7 @@ data ErrCreateMigrationPlan
     deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
-    = ErrSelectAssetsCriteriaError ErrSelectionCriteria
+    = ErrSelectAssetsPrepareOutputsError ErrPrepareOutputs
     | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
     | ErrSelectAssetsSelectionError SelectionError

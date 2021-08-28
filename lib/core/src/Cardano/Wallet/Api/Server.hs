@@ -439,7 +439,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
-    , ErrSelectionCriteria (..)
+    , ErrPrepareOutputs (..)
     , TransactionCtx (..)
     , TransactionLayer
     , Withdrawal (..)
@@ -3719,11 +3719,11 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
-instance IsServerError ErrSelectionCriteria where
+instance IsServerError ErrPrepareOutputs where
     toServerError = \case
-        ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit e ->
+        ErrPrepareOutputsTokenBundleSizeExceedsLimit e ->
             toServerError e
-        ErrSelectionCriteriaOutputTokenQuantityExceedsLimit e ->
+        ErrPrepareOutputsTokenQuantityExceedsLimit e ->
             toServerError e
 
 instance IsServerError ErrOutputTokenBundleSizeExceedsLimit where
@@ -3769,7 +3769,7 @@ instance IsServerError ErrCreateMigrationPlan where
 
 instance IsServerError ErrSelectAssets where
     toServerError = \case
-        ErrSelectAssetsCriteriaError e -> toServerError e
+        ErrSelectAssetsPrepareOutputsError e -> toServerError e
         ErrSelectAssetsNoSuchWallet e -> toServerError e
         ErrSelectAssetsAlreadyWithdrawing tx ->
             apiError err403 AlreadyWithdrawing $ mconcat

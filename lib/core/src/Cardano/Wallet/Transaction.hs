@@ -29,7 +29,7 @@ module Cardano.Wallet.Transaction
     -- * Errors
     , ErrMkTx (..)
     , ErrDecodeSignedTx (..)
-    , ErrSelectionCriteria (..)
+    , ErrPrepareOutputs (..)
     , ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
 
@@ -119,13 +119,13 @@ data TransactionLayer k = TransactionLayer
         --
         -- The function returns CBOR-ed transaction body to be signed in another step.
 
-    , initSelectionCriteria
+    , prepareOutputs
         :: TokenBundleSizeAssessor
         -> (TokenMap -> Coin)
             -- Compute the minimum ada quantity
         -> NonEmpty TxOut
             -- A list of target outputs
-        -> Either ErrSelectionCriteria (NonEmpty TxOut)
+        -> Either ErrPrepareOutputs (NonEmpty TxOut)
 
     , calcMinimumCost
         :: ProtocolParameters
@@ -202,11 +202,11 @@ defaultTransactionCtx = TransactionCtx
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
     deriving (Show, Eq, Generic)
 
--- | Indicates a problem with the selection criteria for a coin selection.
-data ErrSelectionCriteria
-    = ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit
+-- | Indicates a problem when preparing outputs for a coin selection.
+data ErrPrepareOutputs
+    = ErrPrepareOutputsTokenBundleSizeExceedsLimit
         ErrOutputTokenBundleSizeExceedsLimit
-    | ErrSelectionCriteriaOutputTokenQuantityExceedsLimit
+    | ErrPrepareOutputsTokenQuantityExceedsLimit
         ErrOutputTokenQuantityExceedsLimit
     deriving (Eq, Generic, Show)
 
