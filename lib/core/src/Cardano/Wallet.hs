@@ -496,6 +496,7 @@ import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
@@ -1499,9 +1500,7 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
         initSelectionCriteria tl pp tx outs
     let SelectionCriteria
-            { assetsToBurn
-            , assetsToMint
-            , outputsToCover
+            { outputsToCover
             , selectionLimit
             } = selectionCriteria
     mSel <- performSelection
@@ -1516,8 +1515,9 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
             , selectionLimit
             }
         SelectionData
-            { assetsToBurn
-            , assetsToMint
+            { -- Until we properly support minting and burning, set to empty:
+              assetsToBurn = TokenMap.empty
+            , assetsToMint = TokenMap.empty
             , outputsToCover
             , rewardWithdrawal = Just
                 $ addCoin (withdrawalToCoin $ view #txWithdrawal tx)

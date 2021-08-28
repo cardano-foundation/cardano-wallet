@@ -516,8 +516,10 @@ _initSelectionCriteria pp ctx outputsUnprepared
             , selectionLimit
             -- TODO: This should eventually be removed:
             , extraCoinSource = Nothing
-            , assetsToMint
-            , assetsToBurn
+            -- TODO: This should eventually be removed:
+            , assetsToMint = TokenMap.empty
+            -- TODO: This should eventually be removed:
+            , assetsToBurn = TokenMap.empty
             }
   where
     -- The complete list of token bundles whose serialized lengths are greater
@@ -560,10 +562,6 @@ _initSelectionCriteria pp ctx outputsUnprepared
 
     outputsToCover =
         prepareOutputsWith (_calcMinimumCoinValue pp) outputsUnprepared
-
-    -- Until we properly support minting and burning, set to empty.
-    assetsToMint = TokenMap.empty
-    assetsToBurn = TokenMap.empty
 
 dummySkeleton :: Int -> [TxOut] -> SelectionSkeleton
 dummySkeleton inputCount outputs = SelectionSkeleton
