@@ -287,7 +287,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , addCosignerAccXPub
     , isShared
     )
-import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+import Cardano.Wallet.Primitive.CoinSelection.Balanced
     ( SelectionError (..)
     , SelectionReportDetailed
     , SelectionReportSummarized
@@ -1413,7 +1413,7 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
                 -- available to create a change (and a less expensive
                 -- transaction). Yet, this would require quite some extra logic
                 -- here in addition to all the existing logic inside the
-                -- CoinSelection/MA/RoundRobin module already. If we were not
+                -- CoinSelection/Balanced module already. If we were not
                 -- able to add a change output already, let's not try to do it
                 -- here. Worse that can be list is:
                 --

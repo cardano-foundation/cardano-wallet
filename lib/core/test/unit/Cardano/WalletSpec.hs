@@ -73,7 +73,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
-import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+import Cardano.Wallet.Primitive.CoinSelection.Balanced
     ( BalanceInsufficientError (..)
     , SelectionError (..)
     , SelectionResult (..)

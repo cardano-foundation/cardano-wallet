@@ -351,7 +351,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , mkSharedStateFromRootXPrv
     , validateScriptTemplates
     )
-import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+import Cardano.Wallet.Primitive.CoinSelection.Balanced
     ( SelectionError (..)
     , SelectionResult (..)
     , UnableToConstructChangeError (..)

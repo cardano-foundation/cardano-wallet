@@ -15,13 +15,16 @@
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
 --
--- Provides an implementation of the Random-Round-Robin coin selection
--- algorithm for multi-asset UTxO sets.
+-- Provides an algorithm for producing a balanced coin selection with change,
+-- where the fee is paid for.
+--
+-- This module uses the Random-Round-Robin coin selection algorithm for
+-- multi-asset UTxO sets.
 --
 -- See documentation for the 'performSelection' function for more details on
 -- how to perform a selection.
 --
-module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+module Cardano.Wallet.Primitive.CoinSelection.Balanced
     (
     -- * Performing a selection
       performSelection
