@@ -1509,8 +1509,8 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outputs transform = do
                 view #txOutputMinimumAdaQuantity $ constraints tl pp
             , computeMinimumCost =
                 calcMinimumCost tl pp tx
-            , selectionLimit =
-                computeSelectionLimit tl pp tx (F.toList outputsToCover)
+            , computeSelectionLimit =
+                view #computeSelectionLimit tl pp tx
             }
         SelectionData
             { -- Until we properly support minting and burning, set to empty:

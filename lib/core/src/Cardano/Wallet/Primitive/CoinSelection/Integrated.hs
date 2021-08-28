@@ -82,7 +82,8 @@ performSelection selectionConstraints selectionData =
                     , assetsToMint
                     , extraCoinSource = rewardWithdrawal
                     , outputsToCover = preparedOutputsToCover
-                    , selectionLimit
+                    , selectionLimit =
+                        computeSelectionLimit $ F.toList preparedOutputsToCover
                     , utxoAvailable
                     }
   where
@@ -90,7 +91,7 @@ performSelection selectionConstraints selectionData =
         { assessTokenBundleSize
         , computeMinimumAdaQuantity
         , computeMinimumCost
-        , selectionLimit
+        , computeSelectionLimit
         } = selectionConstraints
     SelectionData
         { assetsToBurn
@@ -107,8 +108,8 @@ data SelectionConstraints = SelectionConstraints
         :: TokenMap -> Coin
     , computeMinimumCost
         :: SelectionSkeleton -> Coin
-    , selectionLimit
-        :: SelectionLimit
+    , computeSelectionLimit
+        :: [TxOut] -> SelectionLimit
     }
 
 data SelectionData = SelectionData
