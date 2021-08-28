@@ -76,8 +76,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
 import Cardano.Wallet.Primitive.CoinSelection.Balanced
-    ( SelectionCriteria (..)
-    , SelectionLimit (..)
+    ( SelectionLimit (..)
     , SelectionResult (changeGenerated, inputsSelected, outputsCovered)
     , SelectionSkeleton (..)
     , prepareOutputsWith
@@ -183,7 +182,6 @@ import qualified Cardano.Ledger.Core as SL
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
@@ -493,7 +491,7 @@ _initSelectionCriteria
     :: TokenBundleSizeAssessor
     -> (TokenMap -> Coin)
     -> NE.NonEmpty TxOut
-    -> Either ErrSelectionCriteria SelectionCriteria
+    -> Either ErrSelectionCriteria (NE.NonEmpty TxOut)
 _initSelectionCriteria
     tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
@@ -514,19 +512,7 @@ _initSelectionCriteria
                 , quantityMaxBound = txOutMaxTokenQuantity
                 }
     | otherwise =
-        pure SelectionCriteria
-            { outputsToCover
-            -- TODO: This should eventually be removed:
-            , utxoAvailable = UTxOIndex.empty
-            -- TODO: This should eventually be removed:
-            , selectionLimit = NoLimit
-            -- TODO: This should eventually be removed:
-            , extraCoinSource = Nothing
-            -- TODO: This should eventually be removed:
-            , assetsToMint = TokenMap.empty
-            -- TODO: This should eventually be removed:
-            , assetsToBurn = TokenMap.empty
-            }
+        pure outputsToCover
   where
     -- The complete list of token bundles whose serialized lengths are greater
     -- than the limit of what is allowed in a transaction output:

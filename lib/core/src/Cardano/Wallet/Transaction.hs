@@ -44,7 +44,7 @@ import Cardano.Api
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex, Passphrase )
 import Cardano.Wallet.Primitive.CoinSelection.Balanced
-    ( SelectionCriteria, SelectionLimit, SelectionResult, SelectionSkeleton )
+    ( SelectionLimit, SelectionResult, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, ProtocolParameters, SlotNo (..), TokenBundleMaxSize (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -125,7 +125,7 @@ data TransactionLayer k = TransactionLayer
             -- Compute the minimum ada quantity
         -> NonEmpty TxOut
             -- A list of target outputs
-        -> Either ErrSelectionCriteria SelectionCriteria
+        -> Either ErrSelectionCriteria (NonEmpty TxOut)
 
     , calcMinimumCost
         :: ProtocolParameters

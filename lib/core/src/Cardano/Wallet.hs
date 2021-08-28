@@ -288,8 +288,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , isShared
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balanced
-    ( SelectionCriteria (..)
-    , SelectionError (..)
+    ( SelectionError (..)
     , SelectionReportDetailed
     , SelectionReportSummarized
     , SelectionResult (..)
@@ -1501,11 +1500,10 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
             (pp ^. (#txParameters . #getTokenBundleMaxSize))
     let computeMinimumAdaQuantity =
             view #txOutputMinimumAdaQuantity $ constraints tl pp
-    selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
+    outputsToCover <- withExceptT ErrSelectAssetsCriteriaError $ except $
         initSelectionCriteria tl
             assessTokenBundleSize computeMinimumAdaQuantity outs
     let selectionLimit = computeSelectionLimit tl pp tx (F.toList outs)
-    let SelectionCriteria {outputsToCover} = selectionCriteria
     mSel <- performSelection
         SelectionConstraints
             { assessTokenBundleSize
