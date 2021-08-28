@@ -121,11 +121,10 @@ data SelectionData = SelectionData
     deriving (Eq, Generic, Show)
 
 prepareOutputs
-    :: TokenBundleSizeAssessor
-    -> (TokenMap -> Coin)
+    :: SelectionConstraints
     -> NonEmpty TxOut
     -> Either ErrPrepareOutputs (NonEmpty TxOut)
-prepareOutputs tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
+prepareOutputs constraints outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
             -- We encountered one or more excessively large token bundles.
@@ -146,6 +145,11 @@ prepareOutputs tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
     | otherwise =
         pure outputsToCover
   where
+    SelectionConstraints
+        { assessTokenBundleSize
+        , computeMinimumAdaQuantity
+        } = constraints
+
     -- The complete list of token bundles whose serialized lengths are greater
     -- than the limit of what is allowed in a transaction output:
     excessivelyLargeBundles :: [(Address, Int)]
@@ -163,7 +167,7 @@ prepareOutputs tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
             TokenBundleSizeWithinLimit -> False
             OutputTokenBundleSizeExceedsLimit -> True
           where
-            assessSize = view #assessTokenBundleSize tokenBundleSizeAssessor
+            assessSize = view #assessTokenBundleSize assessTokenBundleSize
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
@@ -178,7 +182,7 @@ prepareOutputs tokenBundleSizeAssessor computeMinAdaQuantity outputsUnprepared
         ]
 
     outputsToCover =
-        Balanced.prepareOutputsWith computeMinAdaQuantity outputsUnprepared
+        Balanced.prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 data ErrPrepareOutputs

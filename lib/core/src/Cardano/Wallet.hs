@@ -1500,21 +1500,21 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outs transform = do
     guardPendingWithdrawal
     pp <- liftIO $ currentProtocolParameters nl
     liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outs
-    let assessTokenBundleSize = tokenBundleSizeAssessor tl
-            (pp ^. (#txParameters . #getTokenBundleMaxSize))
-    let computeMinimumAdaQuantity =
-            view #txOutputMinimumAdaQuantity $ constraints tl pp
-    outputsToCover <- withExceptT ErrSelectAssetsPrepareOutputsError $ except $
-        prepareOutputs assessTokenBundleSize computeMinimumAdaQuantity outs
-    let selectionLimit = computeSelectionLimit tl pp tx (F.toList outs)
-    mSel <- performSelection
-        SelectionConstraints
-            { assessTokenBundleSize
-            , computeMinimumAdaQuantity
+    let selectionConstraints = SelectionConstraints
+            { assessTokenBundleSize =
+                tokenBundleSizeAssessor tl $
+                    pp ^. (#txParameters . #getTokenBundleMaxSize)
+            , computeMinimumAdaQuantity =
+                view #txOutputMinimumAdaQuantity $ constraints tl pp
             , computeMinimumCost =
                 calcMinimumCost tl pp tx
-            , selectionLimit
+            , selectionLimit =
+                computeSelectionLimit tl pp tx (F.toList outs)
             }
+    outputsToCover <- withExceptT ErrSelectAssetsPrepareOutputsError $ except $
+        prepareOutputs selectionConstraints outs
+    mSel <- performSelection
+        selectionConstraints
         SelectionData
             { -- Until we properly support minting and burning, set to empty:
               assetsToBurn = TokenMap.empty
