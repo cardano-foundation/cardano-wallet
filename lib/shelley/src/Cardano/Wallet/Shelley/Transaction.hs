@@ -90,7 +90,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -422,13 +422,6 @@ mkDelegationCertificates da accXPub =
                , toStakePoolDlgCert accXPub poolId
                ]
        Quit -> [toStakeKeyDeregCert accXPub]
-
-_calcMinimumCoinValue
-    :: ProtocolParameters
-    -> TokenMap
-    -> Coin
-_calcMinimumCoinValue pp =
-    computeMinimumAdaQuantity (minimumUTxOvalue pp)
 
 -- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
 -- estimate what would be the cost of a selecting a particular input. Indeed, an
