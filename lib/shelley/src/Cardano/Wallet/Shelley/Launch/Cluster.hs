@@ -107,7 +107,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( ApiEra (..), HealthStatusSMASH (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer )
+    ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
