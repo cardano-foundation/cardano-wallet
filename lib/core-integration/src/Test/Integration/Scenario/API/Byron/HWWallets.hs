@@ -83,6 +83,7 @@ import Test.Integration.Framework.DSL
     , icarusAddresses
     , json
     , minUTxOValue
+    , postByronWallet
     , request
     , restoreWalletFromPubKey
     , selectCoins
@@ -117,7 +118,8 @@ spec = describe "BYRON_HW_WALLETS" $ do
             "passphrase": #{fixturePassphrase},
             "style": "icarus"
             }|]
-        rInit <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payldCrt
+
+        rInit <- postByronWallet ctx payldCrt
         verify rInit
             [ expectResponseCode HTTP.status201
             , expectField (#balance . #available) (`shouldBe` Quantity 0)
@@ -294,8 +296,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                     "account_public_key": #{pubKey},
                     "address_pool_gap": #{addrPoolGap}
                 }|]
-            rRestore <- request @ApiByronWallet ctx (Link.postWallet @'Byron)
-                    Default payloadRestore
+            rRestore <- postByronWallet ctx payloadRestore
             expectResponseCode HTTP.status201 rRestore
 
             let wPub = getFromResponse id rRestore
@@ -385,7 +386,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 "passphrase": #{fixturePassphrase},
                 "style": "icarus"
                 }|]
-            r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payldCrt
+            r <- postByronWallet ctx payldCrt
             expectResponseCode HTTP.status201 r
 
             -- create from account public key
