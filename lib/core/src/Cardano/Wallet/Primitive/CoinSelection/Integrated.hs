@@ -52,6 +52,8 @@ import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Word
+    ( Word16 )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -110,6 +112,8 @@ data SelectionConstraints = SelectionConstraints
         :: SelectionSkeleton -> Coin
     , computeSelectionLimit
         :: [TxOut] -> SelectionLimit
+    , maximumCollateralInputCount
+        :: Word16
     }
 
 data SelectionData = SelectionData

@@ -1511,6 +1511,8 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outputs transform = do
                 calcMinimumCost tl pp tx
             , computeSelectionLimit =
                 view #computeSelectionLimit tl pp tx
+            , maximumCollateralInputCount =
+                view #maximumCollateralInputCount pp
             }
         SelectionData
             { -- Until we properly support minting and burning, set to empty:
