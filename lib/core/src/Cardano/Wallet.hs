@@ -220,7 +220,13 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer, traceWithExceptT, unliftIOTracer )
+    ( BracketLog
+    , BracketLog' (..)
+    , bracketTracer
+    , resultTracer
+    , traceWithExceptT
+    , unliftIOTracer
+    )
 import Cardano.Wallet.Network
     ( ErrPostTx (..)
     , FollowAction (..)

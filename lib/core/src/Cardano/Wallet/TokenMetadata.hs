@@ -78,7 +78,12 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation, HasSeverityAnnotation (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), LoggedException (..), bracketTracer, produceTimings )
+    ( BracketLog
+    , BracketLog' (..)
+    , LoggedException (..)
+    , bracketTracer
+    , produceTimings
+    )
 import Cardano.Wallet.Primitive.Types
     ( TokenMetadataServer (..) )
 import Cardano.Wallet.Primitive.Types.Hash
