@@ -1496,7 +1496,7 @@ selectAssets
     -> NonEmpty TxOut
     -> (s -> SelectionResult TokenBundle -> result)
     -> ExceptT ErrSelectAssets IO result
-selectAssets ctx (utxoAvailable, cp, pending) tx outputs transform = do
+selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
     guardPendingWithdrawal
     pp <- liftIO $ currentProtocolParameters nl
     liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outputs
@@ -1508,9 +1508,9 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outputs transform = do
             , computeMinimumAdaQuantity =
                 view #txOutputMinimumAdaQuantity $ constraints tl pp
             , computeMinimumCost =
-                calcMinimumCost tl pp tx
+                calcMinimumCost tl pp txCtx
             , computeSelectionLimit =
-                view #computeSelectionLimit tl pp tx
+                view #computeSelectionLimit tl pp txCtx
             , maximumCollateralInputCount =
                 view #maximumCollateralInputCount pp
             }
@@ -1520,8 +1520,8 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outputs transform = do
             , assetsToMint = TokenMap.empty
             , outputsToCover = outputs
             , rewardWithdrawal = Just
-                $ addCoin (withdrawalToCoin $ view #txWithdrawal tx)
-                $ case view #txDelegationAction tx of
+                $ addCoin (withdrawalToCoin $ view #txWithdrawal txCtx)
+                $ case view #txDelegationAction txCtx of
                     Just Quit -> stakeKeyDeposit pp
                     _ -> Coin 0
             , utxoAvailable
@@ -1549,8 +1549,9 @@ selectAssets ctx (utxoAvailable, cp, pending) tx outputs transform = do
     guardPendingWithdrawal :: ExceptT ErrSelectAssets IO ()
     guardPendingWithdrawal =
         case Set.lookupMin $ Set.filter hasWithdrawal pending of
-            Just pendingWithdrawal | withdrawalToCoin (txWithdrawal tx) /= Coin 0 ->
-                throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal
+            Just pendingWithdrawal
+                | withdrawalToCoin (txWithdrawal txCtx) /= Coin 0 ->
+                    throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal
             _otherwise ->
                 pure ()
       where
