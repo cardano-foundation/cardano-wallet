@@ -1034,7 +1034,7 @@ data ProtocolParameters = ProtocolParameters
         -- (such as registering a stake pool).
     , eras
         :: EraInfo EpochNo
-    , maxCollateralInputs
+    , maximumCollateralInputCount
         :: Word16
         -- ^ Limit on the maximum number of collateral inputs present in a
         -- transaction.

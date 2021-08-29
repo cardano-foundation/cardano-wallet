@@ -887,8 +887,8 @@ dummyProtocolParameters = ProtocolParameters
         error "dummyProtocolParameters: stakeKeyDeposit"
     , eras =
         error "dummyProtocolParameters: eras"
-    , maxCollateralInputs =
-        error "dummyProtocolParameters: maxCollateralInputs"
+    , maximumCollateralInputCount =
+        error "dummyProtocolParameters: maximumCollateralInputCount"
     }
 
 -- | Like generate, but the random generate is fixed to a particular seed so

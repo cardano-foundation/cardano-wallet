@@ -119,7 +119,7 @@ dummyProtocolParameters = ProtocolParameters
     , minimumUTxOvalue = MinimumUTxOValue $ Coin 0
     , stakeKeyDeposit = Coin 0
     , eras = emptyEraInfo
-    , maxCollateralInputs = 3
+    , maximumCollateralInputCount = 3
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
