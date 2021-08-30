@@ -521,6 +521,7 @@ data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
 newtype TokenBundleSizeAssessor = TokenBundleSizeAssessor
     { assessTokenBundleSize :: TokenBundle -> TokenBundleSizeAssessment
     }
+    deriving Generic
 
 -- | Indicates the size of a token bundle relative to the upper limit of what
 --   can be included in a single transaction output, defined by the protocol.

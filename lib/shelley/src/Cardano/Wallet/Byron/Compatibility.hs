@@ -141,7 +141,7 @@ mainnetNetworkParameters = W.NetworkParameters
         , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
         , stakeKeyDeposit = W.Coin 0
         , eras = W.emptyEraInfo
-        , maxCollateralInputs = 0
+        , maximumCollateralInputCount = 0
         }
     }
 
@@ -348,7 +348,7 @@ protocolParametersFromPP eraInfo pp = W.ProtocolParameters
     , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
     , stakeKeyDeposit = W.Coin 0
     , eras = fromBound <$> eraInfo
-    , maxCollateralInputs = 0
+    , maximumCollateralInputCount = 0
     }
   where
     fromBound (Bound _relTime _slotNo (O.EpochNo e)) =

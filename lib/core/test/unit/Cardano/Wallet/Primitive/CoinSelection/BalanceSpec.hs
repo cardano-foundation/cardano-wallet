@@ -12,7 +12,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {- HLINT ignore "Use camelCase" -}
 
-module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
+module Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
     ( spec
     ) where
 
@@ -22,7 +22,7 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
-import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( AssetCount (..)
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
@@ -202,7 +202,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
+spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
 
     modifyMaxSuccess (const 1000) $ do
 

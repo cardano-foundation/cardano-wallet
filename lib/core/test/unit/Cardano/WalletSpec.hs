@@ -73,11 +73,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
-import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-    ( BalanceInsufficientError (..)
-    , SelectionError (..)
-    , SelectionResult (..)
-    )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( SelectionError (..) )
+import Cardano.Wallet.Primitive.CoinSelection.Balance
+    ( SelectionResult (..) )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints (..)
     , genTokenBundleMixed
@@ -268,6 +267,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
@@ -695,8 +695,9 @@ prop_estimateFee (NonEmpty coins) =
     genericError :: W.ErrSelectAssets
     genericError
         = W.ErrSelectAssetsSelectionError
-        $ BalanceInsufficient
-        $ BalanceInsufficientError TokenBundle.empty TokenBundle.empty
+        $ SelectionBalanceError
+        $ Balance.BalanceInsufficient
+        $ Balance.BalanceInsufficientError TokenBundle.empty TokenBundle.empty
 
     runSelection
         :: ExceptT W.ErrSelectAssets (State Int) Coin
@@ -1298,10 +1299,10 @@ dummyTransactionLayer = TransactionLayer
 
     , mkUnsignedTransaction =
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
-    , initSelectionCriteria =
-        error "dummyTransactionLayer: initSelectionCriteria not implemented"
     , calcMinimumCost =
         error "dummyTransactionLayer: calcMinimumCost not implemented"
+    , computeSelectionLimit =
+        error "dummyTransactionLayer: computeSelectionLimit not implemented"
     , tokenBundleSizeAssessor =
         error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
     , constraints =

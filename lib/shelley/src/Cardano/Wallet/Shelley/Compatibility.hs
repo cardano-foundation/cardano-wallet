@@ -591,7 +591,7 @@ fromShelleyPParams eraInfo pp = W.ProtocolParameters
         MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
     , stakeKeyDeposit = stakeKeyDepositFromPParams pp
     , eras = fromBound <$> eraInfo
-    , maxCollateralInputs = minBound
+    , maximumCollateralInputCount = minBound
     }
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
@@ -614,7 +614,8 @@ fromAlonzoPParams eraInfo pp = W.ProtocolParameters
         . toWalletCoin $ Alonzo._coinsPerUTxOWord pp
     , stakeKeyDeposit = stakeKeyDepositFromPParams pp
     , eras = fromBound <$> eraInfo
-    , maxCollateralInputs = unsafeIntToWord $ Alonzo._maxCollateralInputs pp
+    , maximumCollateralInputCount = unsafeIntToWord $
+        Alonzo._maxCollateralInputs pp
     }
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
