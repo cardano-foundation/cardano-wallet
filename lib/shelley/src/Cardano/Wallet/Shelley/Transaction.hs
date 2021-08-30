@@ -75,7 +75,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
-import Cardano.Wallet.Primitive.CoinSelection.Balanced
+import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimit (..)
     , SelectionResult (changeGenerated, inputsSelected, outputsCovered)
     , SelectionSkeleton (..)

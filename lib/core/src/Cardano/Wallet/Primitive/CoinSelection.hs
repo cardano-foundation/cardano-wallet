@@ -4,10 +4,10 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 
-module Cardano.Wallet.Primitive.CoinSelection.Integrated
+module Cardano.Wallet.Primitive.CoinSelection
     ( performSelection
     , SelectionConstraints (..)
-    , SelectionData (..)
+    , SelectionParams (..)
     , SelectionError (..)
 
     , prepareOutputs
@@ -18,7 +18,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Integrated
 
 import Prelude
 
-import Cardano.Wallet.Primitive.CoinSelection.Balanced
+import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionCriteria (..)
     , SelectionLimit
     , SelectionResult
@@ -59,7 +59,7 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack )
 
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balanced as Balanced
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
@@ -68,14 +68,14 @@ import qualified Data.Set as Set
 performSelection
     :: (HasCallStack, MonadRandom m)
     => SelectionConstraints
-    -> SelectionData
+    -> SelectionParams
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection selectionConstraints selectionData =
+performSelection selectionConstraints selectionParams =
     case prepareOutputs selectionConstraints outputsToCover of
         Left e ->
             pure $ Left $ SelectionOutputsError e
         Right preparedOutputsToCover ->
-            first SelectionBalanceError <$> Balanced.performSelection
+            first SelectionBalanceError <$> Balance.performSelection
                 computeMinimumAdaQuantity
                 computeMinimumCost
                 assessTokenBundleSize
@@ -95,13 +95,13 @@ performSelection selectionConstraints selectionData =
         , computeMinimumCost
         , computeSelectionLimit
         } = selectionConstraints
-    SelectionData
+    SelectionParams
         { assetsToBurn
         , assetsToMint
         , outputsToCover
         , rewardWithdrawal
         , utxoAvailable
-        } = selectionData
+        } = selectionParams
 
 data SelectionConstraints = SelectionConstraints
     { assessTokenBundleSize
@@ -116,7 +116,7 @@ data SelectionConstraints = SelectionConstraints
         :: Word16
     }
 
-data SelectionData = SelectionData
+data SelectionParams = SelectionParams
     { assetsToBurn
         :: !TokenMap
     , assetsToMint
@@ -131,7 +131,7 @@ data SelectionData = SelectionData
     deriving (Eq, Generic, Show)
 
 data SelectionError
-    = SelectionBalanceError Balanced.SelectionError
+    = SelectionBalanceError Balance.SelectionError
     | SelectionOutputsError ErrPrepareOutputs
     deriving (Eq, Show)
 
@@ -197,7 +197,7 @@ prepareOutputs constraints outputsUnprepared
         ]
 
     outputsToCover =
-        Balanced.prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
+        Balance.prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 data ErrPrepareOutputs

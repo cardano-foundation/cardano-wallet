@@ -287,7 +287,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , addCosignerAccXPub
     , isShared
     )
-import Cardano.Wallet.Primitive.CoinSelection.Balanced
+import Cardano.Wallet.Primitive.CoinSelection
+    ( ErrPrepareOutputs (..)
+    , SelectionConstraints (..)
+    , SelectionError (..)
+    , SelectionParams (..)
+    , performSelection
+    )
+import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionReportDetailed
     , SelectionReportSummarized
     , SelectionResult (..)
@@ -295,13 +302,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balanced
     , emptySkeleton
     , makeSelectionReportDetailed
     , makeSelectionReportSummarized
-    )
-import Cardano.Wallet.Primitive.CoinSelection.Integrated
-    ( ErrPrepareOutputs (..)
-    , SelectionConstraints (..)
-    , SelectionData (..)
-    , SelectionError (..)
-    , performSelection
     )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
@@ -494,7 +494,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balanced as Balanced
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1419,7 +1419,7 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
                 -- available to create a change (and a less expensive
                 -- transaction). Yet, this would require quite some extra logic
                 -- here in addition to all the existing logic inside the
-                -- CoinSelection/Balanced module already. If we were not
+                -- CoinSelection/Balance module already. If we were not
                 -- able to add a change output already, let's not try to do it
                 -- here. Worse that can be list is:
                 --
@@ -1514,7 +1514,7 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
             , maximumCollateralInputCount =
                 view #maximumCollateralInputCount pp
             }
-        SelectionData
+        SelectionParams
             { -- Until we properly support minting and burning, set to empty:
               assetsToBurn = TokenMap.empty
             , assetsToMint = TokenMap.empty
@@ -2229,7 +2229,7 @@ estimateFee
     handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Coin
     handleCannotCover = \case
         e@(ErrSelectAssetsSelectionError se) -> case se of
-            SelectionBalanceError (Balanced.UnableToConstructChange ce) ->
+            SelectionBalanceError (Balance.UnableToConstructChange ce) ->
                 case ce of
                     UnableToConstructChangeError {requiredCost} ->
                         pure requiredCost

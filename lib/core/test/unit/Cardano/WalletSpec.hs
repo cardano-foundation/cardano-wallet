@@ -73,10 +73,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
-import Cardano.Wallet.Primitive.CoinSelection.Balanced
-    ( SelectionResult (..) )
-import Cardano.Wallet.Primitive.CoinSelection.Integrated
+import Cardano.Wallet.Primitive.CoinSelection
     ( SelectionError (..) )
+import Cardano.Wallet.Primitive.CoinSelection.Balance
+    ( SelectionResult (..) )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints (..)
     , genTokenBundleMixed
@@ -267,7 +267,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balanced as Balanced
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
@@ -696,8 +696,8 @@ prop_estimateFee (NonEmpty coins) =
     genericError
         = W.ErrSelectAssetsSelectionError
         $ SelectionBalanceError
-        $ Balanced.BalanceInsufficient
-        $ Balanced.BalanceInsufficientError TokenBundle.empty TokenBundle.empty
+        $ Balance.BalanceInsufficient
+        $ Balance.BalanceInsufficientError TokenBundle.empty TokenBundle.empty
 
     runSelection
         :: ExceptT W.ErrSelectAssets (State Int) Coin
