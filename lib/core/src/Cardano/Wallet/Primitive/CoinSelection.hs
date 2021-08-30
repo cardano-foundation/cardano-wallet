@@ -4,6 +4,21 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 
+-- |
+-- Copyright: © 2021 IOHK
+-- License: Apache-2.0
+--
+-- This module provides a high-level interface for coin selection.
+--
+-- It handles the following responsibilities:
+--
+--  - selecting inputs from the UTxO set to pay for user-specified outputs;
+--  - selecting inputs from the UTxO set to pay for collateral;
+--  - producing change outputs to return excess value to the wallet;
+--  - balancing a selection to pay for the transaction fee.
+--
+-- Use the 'performSelection' function to perform a coin selection.
+--
 module Cardano.Wallet.Primitive.CoinSelection
     ( performSelection
     , SelectionConstraints (..)
@@ -65,12 +80,29 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
 import qualified Data.Set as Set
 
+-- | Performs a coin selection.
+--
+-- This function has the following responsibilities:
+--
+--  - selecting inputs from the UTxO set to pay for user-specified outputs;
+--  - selecting inputs from the UTxO set to pay for collateral;
+--  - producing change outputs to return excess value to the wallet;
+--  - balancing a selection to pay for the transaction fee.
+--
 performSelection
     :: (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
     -> m (Either SelectionError (SelectionResult TokenBundle))
 performSelection selectionConstraints selectionParams =
+    -- TODO:
+    --
+    -- https://jira.iohk.io/browse/ADP-1037
+    -- Adjust coin selection and fee estimation to handle collateral inputs
+    --
+    -- https://jira.iohk.io/browse/ADP-1070
+    -- Adjust coin selection and fee estimation to handle pre-existing inputs
+    --
     case prepareOutputs selectionConstraints outputsToCover of
         Left e ->
             pure $ Left $ SelectionOutputsError e
@@ -103,38 +135,72 @@ performSelection selectionConstraints selectionParams =
         , utxoAvailable
         } = selectionParams
 
+-- | Specifies all constraints required for coin selection.
+--
+-- Selection constraints:
+--
+--    - place limits on the coin selection algorithm, enabling it to produce
+--      selections that are acceptable to the ledger.
+--
+--    - are dependent on the current set of protocol parameters.
+--
+--    - are not specific to a given selection.
+--
 data SelectionConstraints = SelectionConstraints
     { assessTokenBundleSize
         :: TokenBundleSizeAssessor
+        -- ^ Assesses the size of a token bundle relative to the upper limit of
+        -- what can be included in a transaction output. See documentation for
+        -- the 'TokenBundleSizeAssessor' type to learn about the expected
+        -- properties of this field.
     , computeMinimumAdaQuantity
         :: TokenMap -> Coin
+        -- ^ Computes the minimum ada quantity required for a given output.
     , computeMinimumCost
         :: SelectionSkeleton -> Coin
+        -- ^ Computes the minimum cost of a given selection skeleton.
     , computeSelectionLimit
         :: [TxOut] -> SelectionLimit
+        -- ^ Computes an upper bound for the number of ordinary inputs to
+        -- select, given a current set of outputs.
     , maximumCollateralInputCount
         :: Word16
+        -- ^ Specifies an inclusive upper bound on the number of unique inputs
+        -- that can be selected as collateral.
     }
 
+-- | Specifies all parameters that are specific to a given selection.
+--
 data SelectionParams = SelectionParams
     { assetsToBurn
         :: !TokenMap
+        -- ^ Specifies a set of assets to burn.
     , assetsToMint
         :: !TokenMap
+        -- ^ Specifies a set of assets to mint.
     , outputsToCover
         :: !(NonEmpty TxOut)
+        -- ^ Specifies a set of outputs that must be paid for.
     , rewardWithdrawal
         :: !(Maybe Coin)
+        -- ^ Specifies the value of a withdrawal from a reward account.
     , utxoAvailable
         :: !UTxOIndex
+        -- ^ Specifies the set of all available UTxO entries. The algorithm
+        -- will choose entries from this set when selecting ordinary inputs
+        -- and collateral inputs.
     }
     deriving (Eq, Generic, Show)
 
+-- | Indicates that an error occurred while performing a coin selection.
+--
 data SelectionError
     = SelectionBalanceError Balance.SelectionError
     | SelectionOutputsError ErrPrepareOutputs
     deriving (Eq, Show)
 
+-- | Prepares the given user-specified outputs, ensuring that they are valid.
+--
 prepareOutputs
     :: SelectionConstraints
     -> NonEmpty TxOut
@@ -200,6 +266,7 @@ prepareOutputs constraints outputsUnprepared
         Balance.prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
 
 -- | Indicates a problem when preparing outputs for a coin selection.
+--
 data ErrPrepareOutputs
     = ErrPrepareOutputsTokenBundleSizeExceedsLimit
         ErrOutputTokenBundleSizeExceedsLimit
