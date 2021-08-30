@@ -12,10 +12,12 @@ module Data.Delta (
     , DeltaSet (..)
     -- * Embedding
     , Embedding (..)
+    , compose
     ) where
 
 import Prelude
 
+import Control.Monad ((>=>))
 import Data.Kind ( Type )
 import Data.Set ( Set )
 
@@ -109,3 +111,28 @@ data Embedding a1 delta1 a2 delta2 = Embedding
     , write  :: a1 -> a2
     , update :: a1 -> delta1 -> delta2
     }
+
+-- | Compose to 'Embedding'.
+--
+-- FIXME: 'Embedding' is a 'Category', but we have too many types at the moment.
+-- Maybe get rid of mentioning the 'Base' type explicitly?
+-- But then I would have the 'Delta' constraint, and it is no longer a category.
+compose
+    :: Embedding a2 delta2 a3 delta3
+    -> Embedding a1 delta1 a2 delta2
+    -> Embedding a1 delta1 a3 delta3
+compose e23 e12 = Embedding
+    { load = load e23 >=> load e12
+    , write = write e23 . write e12
+    , update = \a1 d1 -> update e23 (write e12 a1) (update e12 a1 d1)
+    }
+
+-- | Use the 'update' function of an 'Embedding' to convert
+-- one delta encoding to another.
+-- 
+-- This function assumes that the 'Embedding' argument satisfies
+-- @load = Just@ and @write = id@.
+applyWithEmbedding
+    :: (Delta delta2, a ~ Base delta2)
+    => Embedding a delta1 a delta2 -> (delta1 -> a -> a)
+applyWithEmbedding e delta1 a = apply (update e a delta1) a

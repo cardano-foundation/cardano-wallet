@@ -8,11 +8,12 @@ module Data.Chain (
     -- * Chain
       Chain
     , member, ChainContext, lookup
-    , singleton, fromEdge, fromEdges
+    --, singleton
+    , fromEdge, fromEdges
     , edges, toEdges, summary
 
     -- * DeltaChain
-    , DeltaChain
+    , DeltaChain (..)
     , appendTip, collapseNode, rollbackTo
     , chainIntoTable
 
@@ -30,6 +31,7 @@ import Control.Monad
 import Data.Delta
     ( Delta (..)
     , Embedding (..)
+    , compose
     )
 import Data.List
     ( unfoldr )
@@ -56,7 +58,7 @@ data Chain node edge = Chain
     { next :: Map node (edge, node)
     , prev :: Map node (Maybe node)
     , tip  :: node
-    }
+    } deriving (Eq, Show)
 
 instance Functor (Chain node) where
     fmap f chain = chain{ next = fmap (\(e,n) -> (f e, n)) (next chain) }
@@ -76,29 +78,37 @@ lookup node Chain{next,prev} =
             Nothing
         (after, Just Nothing) ->
             Just Edge{ via=node, to=after, from=Nothing }
-        (after, Just (Just before)) ->
-            Just Edge{ via=node, to=after, from=Map.lookup before next }
+        (after, Just (Just before)) -> let adjust (e,_) = (e,before) in
+            Just Edge{ via=node, to=after, from=adjust <$> Map.lookup before next }
 
+{-
 -- | Chain with a single node and no edges.
+--
+-- FIXME: This cannot be represented in a database that only stores edges.
 singleton :: Ord node => node -> Chain node edge
 singleton node = Chain
     { next = Map.empty
     , prev = Map.fromList [(node, Nothing)]
     , tip  = node
     }
+-}
 
 -- | Construct a chain from a single 'Edge'.
 fromEdge :: Ord node => Edge node edge -> Chain node edge
 fromEdge Edge{from,to,via} = Chain
     { next = Map.fromList [(from, (via,to))]
-    , prev = Map.fromList [(to, Just from)]
+    , prev = Map.fromList [(to, Just from), (from, Nothing)]
     , tip  = to
     }
 
 -- | Construct a chain from a collection of edges.
 -- Fails if the edges do not fit together.
 --
--- FIXME: Order?
+-- FIXME: Order of @edge@ labels? This is important.
+-- We probably need to model the edges in the table as a set.
+--
+-- FIXME: Edges in the table correspond to NonEmpty list.
+-- Need to deal with that properly.
 fromEdges :: Ord node => [Edge node edge] -> Maybe (Chain node [edge])
 fromEdges []     = Nothing
 fromEdges (e:es) = ($ fromEdge' e) . foldr (<=<) Just $ map addEdge es
@@ -213,7 +223,8 @@ addEdge Edge{from,to,via} chain@Chain{next,prev,tip} =
             { next = Map.insert from ([via], to) next
             , prev
                 = Map.insert to (Just from)
-                $ Map.insertWith (\_ old -> old) from Nothing prev
+                . Map.insertWith (\_ old -> old) from Nothing
+                $ prev
             , tip = if from == tip then to else tip
             }
 
@@ -244,6 +255,29 @@ chainIntoTable = Embedding {load,write,update}
             <> maybe [] (\(_,new) -> updateFrom now new) from
     updateTo old new = [UpdateWhere (\Edge{to} -> to == old) (\e -> e{to=new})]
     updateFrom old new = [UpdateWhere (\Edge{from} -> from == old) (\e -> e{from=new})]
+        -- Wait. If we are at the beginning of the chain,
+        -- I have to delete the entries, not just update them!
+
+{-------------------------------------------------------------------------------
+    Tests
+-------------------------------------------------------------------------------}
+test :: (Table (Edge Int Char), [[Table.DeltaDB Int (Edge Int Char)]])
+test = liftUpdates (Table.tableIntoDatabase `compose` chainIntoTable)
+    [CollapseNode 1, AppendTip 3 "DC", AppendTip 2 "B"]
+    (fromEdge Edge{from=0,to=1,via="A"})
+
+liftUpdates
+    :: (Delta delta2, a2 ~ Base delta2)
+    => Embedding a1 delta1 a2 delta2
+    -> [delta1] -> a1 -> (a2, [delta2])
+liftUpdates Embedding{load,write,update} ds a1 = go ds (write a1)
+  where
+    go []     ain = (ain, [])
+    go (d:ds) ain = case load aout of
+        Nothing -> (aout, es)
+        Just a1 -> let e = update a1 d in (apply e aout, e : es)
+      where
+        (aout, es) = go ds ain
 
 {-------------------------------------------------------------------------------
     Edge

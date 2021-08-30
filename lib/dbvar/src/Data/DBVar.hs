@@ -20,7 +20,6 @@ module Data.DBVar (
     -- * Store
     , Store (..), newStore
     , embedStore, pairStores
-    , Table, newTable
     ) where
 
 import Prelude
@@ -38,9 +37,7 @@ import Control.Monad.Class.MonadSTM
     , writeTVar
     )
 import Data.Delta
-    ( Delta (..), Embedding (..), DeltaSet (..) )
-import Data.Set
-    ( Set )
+    ( Delta (..), Embedding (..) )
 
 {-------------------------------------------------------------------------------
     DBVar
@@ -150,15 +147,6 @@ newStore = do
         , writeS  = atomically . writeTVar ref . Just
         , updateS = \_ -> atomically . modifyTVar' ref . fmap . apply
         }
-
--- | A database table is a 'Store' for sets with
--- corresponding delta encoding.
-type Table m a = Store m [DeltaSet a] (Set a)
-
--- | Create an in-memory database table for testing.
-newTable :: (MonadSTM m, Ord a) => m (Table m a)
-newTable = newStore
-
 
 -- | Obtain a 'Store' for one type @a1@ from a 'Store' for another type @a2@
 -- via an 'Embedding' of the first type into the second type.

@@ -41,6 +41,9 @@ data Table row = Table
     , uids :: Supply Int
     }
 
+instance Functor Table where
+    fmap f table@Table{rows} = table{ rows = Map.map f rows }
+
 -- | The empty 'Table', containing no rows.
 empty :: Table row
 empty = Table{ rows = Map.empty, uids = abundance }
@@ -92,18 +95,23 @@ data DeltaDB key row
     | DeleteManyDB [key]
     | UpdateManyDB [(key, row)]
 
+instance Functor (DeltaDB key) where
+    fmap f (InsertManyDB rs) = InsertManyDB (fmap f rs)
+    fmap _ (DeleteManyDB ks) = DeleteManyDB ks
+    fmap f (UpdateManyDB krs) = UpdateManyDB [ (k, f r) | (k,r) <- krs ]
+
 tableIntoDatabase :: Embedding
-    (Table row) (DeltaTable row)
-    (Table row) (DeltaDB Int row)
-tableIntoDatabase = Embedding{load,write,update}
+    (Table row) [DeltaTable row]
+    (Table row) [DeltaDB Int row]
+tableIntoDatabase = Embedding{ load, write, update = fmap . update1 }
   where
     load = Just . id
     write = id
-    update _ (InsertMany rs)
+    update1 _ (InsertMany rs)
         = InsertManyDB rs
-    update Table{rows} (DeleteWhere p)
+    update1 Table{rows} (DeleteWhere p)
         = DeleteManyDB [ key | (key,row) <- Map.toList rows, p row ]
-    update Table{rows} (UpdateWhere p f)
+    update1 Table{rows} (UpdateWhere p f)
         = UpdateManyDB [ (key, f row) | (key,row) <- Map.toList rows, p row ]
 
 {-------------------------------------------------------------------------------
