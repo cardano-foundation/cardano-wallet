@@ -403,6 +403,7 @@ test-suite unit
       Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
       Cardano.Wallet.Primitive.Types.TokenPolicySpec
       Cardano.Wallet.Primitive.Types.TokenQuantitySpec
+      Cardano.Wallet.Primitive.Types.UTxOSpec
       Cardano.Wallet.Primitive.Types.UTxOIndexSpec
       Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
       Cardano.Wallet.Primitive.TypesSpec

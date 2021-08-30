@@ -76,14 +76,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..)
-    , UTxO (..)
-    , balance
-    , excluding
-    , filterByAddress
-    , filterByAddressM
-    , restrictedTo
-    )
+    ( Dom (..), UTxO (..), balance, excluding, filterByAddress, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Control.DeepSeq
@@ -98,8 +91,6 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>) )
-import Data.Functor.Identity
-    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -195,20 +186,12 @@ spec = do
             (property prop_countRewardsOnce)
 
         describe "applyTxToUTxO" $ do
-            it "has expected balance" (property prop_applyTxToUTxO_balance)
-            it "has expected entries" (property prop_applyTxToUTxO_entries)
-
-        describe "filterByAddress" $ do
-            it "matching everything gives us everything"
-                (property prop_filterByAddress_matchAll)
-            it "matching nothing gives us nothing"
-                (property prop_filterByAddress_matchNone)
-            it "if there are no utxos, the result utxo should be empty"
-                (property prop_filterByAddress_empty)
+            it "has expected balance"
+                (property prop_applyTxToUTxO_balance)
+            it "has expected entries"
+                (property prop_applyTxToUTxO_entries)
             it "applyTxToUTxO then filterByAddress"
                 (property prop_filterByAddress_balance_applyTxToUTxO)
-            it "filterByAddress/filterByAddressM"
-                (property prop_filterByAddress_filterByAddressM)
 
         describe "utxoFromTx" $
             it "has expected balance" (property prop_utxoFromTx_balance)
@@ -1454,23 +1437,6 @@ prop_applyTxToUTxO_entries =
           `Map.difference`
               unUTxO (u `UTxO.restrictedBy` Set.fromList (inputs tx))
 
-prop_filterByAddress_matchAll :: Property
-prop_filterByAddress_matchAll =
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        filterByAddress (const True) u === u
-
-prop_filterByAddress_matchNone :: Property
-prop_filterByAddress_matchNone =
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        filterByAddress (const False) u === mempty
-
-prop_filterByAddress_empty :: Bool -> Property
-prop_filterByAddress_empty b =
-    let
-        f = const b
-    in
-        filterByAddress f mempty === mempty
-
 prop_filterByAddress_balance_applyTxToUTxO :: Bool -> Property
 prop_filterByAddress_balance_applyTxToUTxO b =
     let
@@ -1481,14 +1447,6 @@ prop_filterByAddress_balance_applyTxToUTxO b =
             === foldMap (\o -> do
                     if f (address o) then tokens o else mempty
                 ) (outputs tx)
-
-prop_filterByAddress_filterByAddressM :: Bool -> Property
-prop_filterByAddress_filterByAddressM b =
-    let
-        f = const b
-    in
-        forAllShrink genUTxO shrinkUTxO $ \u ->
-            filterByAddress f u === runIdentity (filterByAddressM (pure . f) u)
 
 prop_utxoFromTx_balance :: Property
 prop_utxoFromTx_balance =
