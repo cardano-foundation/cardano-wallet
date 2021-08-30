@@ -54,7 +54,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( Parity (..), addressParity )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -130,7 +130,6 @@ import Test.QuickCheck
     , counterexample
     , cover
     , elements
-    , forAll
     , forAllShrink
     , frequency
     , genericShrink
@@ -147,7 +146,6 @@ import Test.QuickCheck
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -209,8 +207,6 @@ spec = do
     parallel $ describe "Change UTxO" $ do
         it "prop_changeUTxO" $
             property prop_changeUTxO
-        it "prop_addressParity_coverage" $
-            property prop_addressParity_coverage
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -483,55 +479,6 @@ prop_changeUTxO_inner pendingTxs =
 
     pendingTxSet :: Set Tx
     pendingTxSet = Set.fromList pendingTxs
-
--- | Represents the parity of a value (whether the value is even or odd).
---
-data Parity = Even | Odd
-    deriving (Eq, Show)
-
--- | Computes the parity of an address.
---
--- Parity is defined in the following way:
---
---    - even-parity address:
---      an address with a pop count (Hamming weight) that is even.
---
---    - odd-parity address:
---      an address with a pop count (Hamming weight) that is odd.
---
--- Examples of even-parity and odd-parity addresses:
---
---    - 0b00000000 : even (Hamming weight = 0)
---    - 0b00000001 : odd  (Hamming weight = 1)
---    - 0b00000010 : odd  (Hamming weight = 1)
---    - 0b00000011 : even (Hamming weight = 2)
---    - 0b00000100 : odd  (Hamming weight = 1)
---    - ...
---    - 0b11111110 : odd  (Hamming weight = 7)
---    - 0b11111111 : even (Hamming weight = 8)
---
-addressParity :: Address -> Parity
-addressParity = parity . addressPopCount
-  where
-    addressPopCount :: Address -> Int
-    addressPopCount = BS.foldl' (\acc -> (acc +) . Bits.popCount) 0 . unAddress
-
-    parity :: Integral a => a -> Parity
-    parity a
-        | even a    = Even
-        | otherwise = Odd
-
--- | Verifies that addresses are generated with both even and odd parity.
---
-prop_addressParity_coverage :: Property
-prop_addressParity_coverage =
-    forAll genAddress $ \addr ->
-    checkCoverage $
-    cover 40 (addressParity addr == Even)
-        "address parity is even" $
-    cover 40 (addressParity addr == Odd)
-        "address parity is odd" $
-    property True
 
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
