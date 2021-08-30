@@ -438,9 +438,7 @@ spec = parallel $ do
     let jsonRoundtripAndGolden = Utils.jsonRoundtripAndGolden
             ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
 
-    parallel $ describe
-        "can perform roundtrip JSON serialization & deserialization, \
-        \and match existing golden files" $ do
+    describe "JSON golden roundtrip" $ do
             jsonRoundtripAndGolden $ Proxy @AnyAddress
             jsonRoundtripAndGolden $ Proxy @ApiCredential
             jsonRoundtripAndGolden $ Proxy @ApiAddressData
@@ -544,8 +542,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiNullStakeKey
             jsonRoundtripAndGolden $ Proxy @(PostMintBurnAssetData ('Testnet 0))
 
-    describe "Textual encoding" $ do
-        describe "Can perform roundtrip textual encoding & decoding" $ do
+    describe "ToText-FromText Roundtrip" $ do
             textRoundtrip $ Proxy @Iso8601Time
             textRoundtrip $ Proxy @SortOrder
             textRoundtrip $ Proxy @Coin
@@ -560,8 +557,7 @@ spec = parallel $ do
                 fromText @(AddressAmount Text) "22323"
                     === Left (TextDecodingError err)
 
-    describe
-        "can perform roundtrip HttpApiData serialization & deserialization" $ do
+    describe "HttpApiData roundtrip" $ do
             httpApiDataRoundtrip $ Proxy @(ApiT WalletId)
             httpApiDataRoundtrip $ Proxy @(ApiT AddressState)
             httpApiDataRoundtrip $ Proxy @Iso8601Time
@@ -589,7 +585,7 @@ spec = parallel $ do
         \existing path in the specification" $
         validateEveryPath (Proxy :: Proxy (Api ('Testnet 0) ApiStakePool))
 
-    parallel $ describe "verify JSON parsing failures too" $ do
+    describe "verify JSON parsing failures too" $ do
         it "ApiT (Passphrase \"raw\") (too short)" $ do
             let minLength = passphraseMinLength (Proxy :: Proxy "raw")
             let msg = "Error in $: passphrase is too short: \
