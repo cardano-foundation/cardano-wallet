@@ -199,10 +199,10 @@ spec = do
             it "has expected entries" (property prop_applyTxToUTxO_entries)
 
         describe "filterByAddress" $ do
-            it "if all utxos belong to us, the result utxo should not change"
-                (property prop_filterByAddress_allOurs)
-            it "if no utxos belong to us, the result utxo should be nothing"
-                (property prop_filterByAddress_noneOurs)
+            it "matching everything gives us everything"
+                (property prop_filterByAddress_matchAll)
+            it "matching nothing gives us nothing"
+                (property prop_filterByAddress_matchNone)
             it "if there are no utxos, the result utxo should be empty"
                 (property prop_filterByAddress_empty)
             it "applyTxToUTxO then filterByAddress"
@@ -1442,7 +1442,7 @@ prop_applyTxToUTxO_balance =
               balance (utxoFromTx tx)
           `TokenBundle.difference`
               balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
- 
+
 prop_applyTxToUTxO_entries :: Property
 prop_applyTxToUTxO_entries =
     forAllShrink genTx shrinkTx $ \tx ->
@@ -1453,14 +1453,14 @@ prop_applyTxToUTxO_entries =
               unUTxO (utxoFromTx tx)
           `Map.difference`
               unUTxO (u `UTxO.restrictedBy` Set.fromList (inputs tx))
-    
-prop_filterByAddress_allOurs :: Property
-prop_filterByAddress_allOurs =
+
+prop_filterByAddress_matchAll :: Property
+prop_filterByAddress_matchAll =
     forAllShrink genUTxO shrinkUTxO $ \u ->
         filterByAddress (const True) u === u
 
-prop_filterByAddress_noneOurs :: Property
-prop_filterByAddress_noneOurs =
+prop_filterByAddress_matchNone :: Property
+prop_filterByAddress_matchNone =
     forAllShrink genUTxO shrinkUTxO $ \u ->
         filterByAddress (const False) u === mempty
 
@@ -1472,7 +1472,7 @@ prop_filterByAddress_empty b =
         filterByAddress f mempty === mempty
 
 prop_filterByAddress_balance_applyTxToUTxO :: Bool -> Property
-prop_filterByAddress_balance_applyTxToUTxO b = 
+prop_filterByAddress_balance_applyTxToUTxO b =
     let
         f = const b
     in

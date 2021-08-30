@@ -144,8 +144,10 @@ null (UTxO u) = Map.null u
 size :: UTxO -> Int
 size (UTxO u) = Map.size u
 
--- | Limit a UTxO set to just the UTxOs that are ours, according to some
--- given function.
+-- | Filters a 'UTxO' set with an indicator function on 'Address' values.
+--
+-- Returns the subset of UTxO entries that have addresses for which the given
+-- indicator function returns 'True'.
 --
 -- filterByAddressM (const $ pure True) u = u
 -- filterByAddressM (const $ pure False) u = mempty
