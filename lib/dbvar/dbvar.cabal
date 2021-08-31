@@ -30,9 +30,16 @@ library
       -Werror
   build-depends:
       base
+    , conduit
     , containers
+    , generic-lens
     , io-classes
+    , monad-logger
+    , persistent
+    , persistent-sqlite
     , safe
+    , text
+    , transformers
   hs-source-dirs:
       src
   exposed-modules:
@@ -40,6 +47,8 @@ library
       Data.DBVar
       Data.Delta
       Data.Table
+  other-modules:
+      Demo.Database
 
 test-suite unit
   default-language:
