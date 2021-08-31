@@ -38,7 +38,7 @@ pkgs: super: let
     hlint.version                   = "3.3.1";
     lentil.version                  = "1.5.2.0";
     stylish-haskell.version         = "0.11.0.3";
-    weeder.version                  = "2.1.3";
+    weeder.version                  = "2.2.0";
   };
 
   # Use cabal.project as the source of GHC version and Hackage index-state.
