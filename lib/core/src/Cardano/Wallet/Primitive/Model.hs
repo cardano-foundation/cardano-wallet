@@ -41,6 +41,7 @@ module Cardano.Wallet.Primitive.Model
     , unsafeInitWallet
     , applyTxToUTxO
     , utxoFromTx
+    , spendTx
 
     -- * Accessors
     , currentTip
@@ -333,28 +334,30 @@ totalUTxO pending wallet@(Wallet _ _ s) =
 --                              + balance (utxoFromTx tx)
 --                              - balance (u `restrictedBy` inputs tx)
 -- unUTxO (applyTxToUTxO tx u) = unUTxO u
---   `Map.union` unUTxO (utxoFromTx tx)
---   `Map.difference` unUTxO (u `restrictedBy` inputs tx)
+--     `Map.union` unUTxO (utxoFromTx tx)
+--     `Map.difference` unUTxO (u `restrictedBy` inputs tx)
+-- applyTxToUTxO tx u = spend tx u <> utxoFromTx tx
+-- applyTxToUTxO tx u = spend tx (u <> utxoFromTx tx)
 applyTxToUTxO
     :: Tx
     -> UTxO
     -> UTxO
-applyTxToUTxO tx !u = do
-    let
-        -- When a transaction comes in, we now know about a set of new unspents.
-        newKnown = u <> utxoFromTx tx
-        -- But we also know that some of the new unspents we know about, as well
-        -- as (potentially) some old ones, may now be spent.
-        spentKnown =
-            Set.fromList (inputs tx) `Set.intersection` dom newKnown
+applyTxToUTxO tx !u = spendTx tx u <> utxoFromTx tx
 
-    newKnown `excluding` spentKnown
+-- spendTx tx u `isSubsetOf` u
+-- balance (spendTx tx u) <= balance u
+-- balance (spendTx tx u) = balance u - balance (u `restrictedBy` inputs tx)
+-- spendTx tx u = u `excluding` inputs tx
+-- spendTx tx (filterByAddress f u) = filterByAddress f (spendTx tx u)
+spendTx :: Tx -> UTxO -> UTxO
+spendTx tx !u = u `excluding` Set.fromList (inputs tx)
 
 -- | Construct a UTxO corresponding to a given transaction. It is important for
 -- the transaction outputs to be ordered correctly, since they become available
 -- inputs for the subsequent blocks.
 --
 -- balance (utxoFromTx tx) = foldMap tokens (outputs tx)
+-- utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
 utxoFromTx :: Tx -> UTxO
 utxoFromTx Tx {txId, outputs} =
     UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
@@ -435,7 +438,8 @@ prefilterBlock b u0 = runState $ do
     applyTx (!txs, !prevUTxO) tx = do
         -- The next UTxO state (apply a state transition) (e.g. remove
         -- transaction outputs we've spent).
-        ourNextUTxO <- filterByAddressM isOurs' (applyTxToUTxO tx prevUTxO)
+        ourNextUTxO <-
+            (spendTx tx prevUTxO <>) <$> filterByAddressM isOurs' (utxoFromTx tx)
 
         ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)

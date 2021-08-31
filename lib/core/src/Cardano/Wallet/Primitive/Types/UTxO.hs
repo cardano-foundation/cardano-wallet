@@ -148,15 +148,6 @@ size (UTxO u) = Map.size u
 --
 -- Returns the subset of UTxO entries that have addresses for which the given
 -- indicator function returns 'True'.
---
--- filterByAddressM (const $ pure True) u = u
--- filterByAddressM (const $ pure False) u = mempty
--- filterByAddressM f mempty = mempty
--- balance (filterByAddressM f (applyTxToUTxO tx mempty)) =
---   foldMap (\o -> do
---               ours <- f (address o)
---               if ours then tokens o else mempty
---            ) (outputs tx)
 filterByAddressM :: forall f. Monad f => (Address -> f Bool) -> UTxO -> f UTxO
 filterByAddressM isOursF (UTxO m) =
     UTxO <$> Map.traverseMaybeWithKey filterFunc m
@@ -166,6 +157,16 @@ filterByAddressM isOursF (UTxO m) =
             ours <- isOursF $ view #address txout
             pure $ if ours then Just txout else Nothing
 
+-- | Filters a 'UTxO' set with an indicator function on 'Address' values.
+--
+-- Returns the subset of UTxO entries that have addresses for which the given
+-- indicator function returns 'True'.
+--
+-- filterByAddress f u = runIdentity $ filterByAddressM (pure . f) u
+-- filterByAddress (const True) u = u
+-- filterByAddress (const False) u = mempty
+-- filterByAddress f mempty = mempty
+-- filterByAddress f u `isSubsetOf` u
 filterByAddress :: (Address -> Bool) -> UTxO -> UTxO
 filterByAddress f = runIdentity . filterByAddressM (pure . f)
 

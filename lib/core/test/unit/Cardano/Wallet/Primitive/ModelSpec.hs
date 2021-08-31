@@ -34,6 +34,7 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , initWallet
+    , spendTx
     , totalBalance
     , totalUTxO
     , unsafeInitWallet
@@ -100,7 +101,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -190,9 +191,19 @@ spec = do
                 (property prop_applyTxToUTxO_entries)
             it "applyTxToUTxO then filterByAddress"
                 (property prop_filterByAddress_balance_applyTxToUTxO)
+            it "spendTx/utxoFromTx"
+                (property prop_applyTxToUTxO_spendTx_utxoFromTx)
 
-        describe "utxoFromTx" $
+        describe "utxoFromTx" $ do
             it "has expected balance" (property prop_utxoFromTx_balance)
+            it "is unspent" (property prop_utxoFromTx_is_unspent)
+
+        describe "spendTx" $ do
+            it "is subset of UTxO" (property prop_spendTx_isSubset)
+            it "balance is <= balance of UTxO" (property prop_spendTx_balance_inequality)
+            it "has expected balance" (property prop_spendTx_balance)
+            it "definition" (property prop_spendTx)
+            it "commutative with filterByAddress" (property prop_spendTx_filterByAddress)
 
     parallel $ describe "Available UTxO" $ do
         it "prop_availableUTxO_isSubmap" $
@@ -1399,3 +1410,67 @@ prop_utxoFromTx_balance :: Property
 prop_utxoFromTx_balance =
     forAllShrink genTx shrinkTx $ \tx ->
         balance (utxoFromTx tx) === foldMap tokens (outputs tx)
+
+prop_utxoFromTx_is_unspent :: Property
+prop_utxoFromTx_is_unspent =
+    forAllShrink genTx shrinkTx $ \tx ->
+        utxoFromTx tx `excluding` Set.fromList (inputs tx)
+        === utxoFromTx tx
+
+-- spendTx tx u `isSubsetOf` u
+prop_spendTx_isSubset :: Property
+prop_spendTx_isSubset =
+    forAllShrink genTx shrinkTx $ \tx ->
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        spendTx tx u `UTxO.isSubsetOf` u
+
+-- balance (spendTx tx u) <= balance u
+prop_spendTx_balance_inequality :: Property
+prop_spendTx_balance_inequality =
+    forAllShrink genTx shrinkTx $ \tx ->
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        let
+            lhs = balance (spendTx tx u)
+            rhs = balance u
+        in
+            isJust (rhs `TokenBundle.subtract` lhs)
+            & counterexample ("balance (spendTx tx u) = " <> show lhs)
+            & counterexample ("balance u = " <> show rhs)
+
+prop_spendTx_balance :: Property
+prop_spendTx_balance =
+    forAllShrink genTx shrinkTx $ \tx ->
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        let
+            lhs = balance (spendTx tx u)
+            rhs =
+                balance u
+                    `TokenBundle.unsafeSubtract`
+                        balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+        in
+            lhs === rhs
+
+prop_spendTx :: Property
+prop_spendTx =
+    forAllShrink genTx shrinkTx $ \tx ->
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        spendTx tx u === u `excluding` Set.fromList (inputs tx)
+
+prop_applyTxToUTxO_spendTx_utxoFromTx :: Property
+prop_applyTxToUTxO_spendTx_utxoFromTx =
+    forAllShrink genTx shrinkTx $ \tx ->
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        conjoin
+        [ applyTxToUTxO tx u === spendTx tx u <> utxoFromTx tx
+        , applyTxToUTxO tx u === spendTx tx (u <> utxoFromTx tx)
+        ]
+
+prop_spendTx_filterByAddress :: Bool -> Property
+prop_spendTx_filterByAddress b =
+    let
+        f = const b
+    in
+        forAllShrink genTx shrinkTx $ \tx ->
+        forAllShrink genUTxO shrinkUTxO $ \u ->
+            filterByAddress f (spendTx tx u)
+            === spendTx tx (filterByAddress f u)

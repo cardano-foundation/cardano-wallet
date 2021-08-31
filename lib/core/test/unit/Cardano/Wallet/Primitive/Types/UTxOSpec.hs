@@ -9,7 +9,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..), addressParity )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..), dom, filterByAddress, filterByAddressM )
+    ( UTxO (..), dom, filterByAddress, filterByAddressM, isSubsetOf )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Data.Functor.Identity
@@ -39,6 +39,8 @@ spec =
             property prop_filterByAddress_empty
         it "filterByAddress/filterByAddressM" $
             property prop_filterByAddress_filterByAddressM
+        it "filterByAddress is always subset" $
+            property prop_filterByAddress_isSubset
 
 prop_filterByAddress_matchAll :: Property
 prop_filterByAddress_matchAll =
@@ -90,3 +92,11 @@ prop_filterByAddress_filterByAddressM b =
     in
         forAllShrink genUTxO shrinkUTxO $ \u ->
             filterByAddress f u === runIdentity (filterByAddressM (pure . f) u)
+
+prop_filterByAddress_isSubset :: Bool -> Property
+prop_filterByAddress_isSubset b =
+    let
+        f = const b
+    in
+        forAllShrink genUTxO shrinkUTxO $ \u ->
+            filterByAddress f u `isSubsetOf` u
