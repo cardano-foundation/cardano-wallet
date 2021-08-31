@@ -14,13 +14,20 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( stdGenFromString )
 import Cardano.Wallet.Gen
-    ( genSlotNo, shrinkSlotNo )
+    ( genSlotNo
+    , genSmallTxMetadata
+    , genTxMetadata
+    , shrinkSlotNo
+    , shrinkTxMetadata
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SlotInEpoch (..), SlotNo )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxMetadata )
 import Data.Either
     ( isLeft )
 import Data.Proxy
@@ -52,6 +59,7 @@ import Test.QuickCheck
     , cover
     , property
     , shrinkIntegral
+    , shrinkMapBy
     , (===)
     )
 
@@ -62,6 +70,8 @@ spec = do
         persistRoundtrip $ Proxy @POSIXTime
         persistRoundtrip $ Proxy @TokenQuantity
         persistRoundtrip $ Proxy @StdGen
+        persistRoundtrip $ Proxy @(Small TxMetadata)
+        persistRoundtrip $ Proxy @(Large TxMetadata)
 
     describe "Backwards compatible instance PersistField StdGen" $ do
         it "rnd_state empty" $
@@ -135,6 +145,25 @@ instance Arbitrary Word31 where
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityFullRange
     shrink = shrinkTokenQuantityFullRange
+
+newtype Small a = Small { unSmall :: a } deriving (Eq, Show)
+newtype Large a = Large { unLarge :: a } deriving (Eq, Show)
+
+instance Arbitrary (Small TxMetadata) where
+    arbitrary = Small <$> genSmallTxMetadata
+    shrink = shrinkMapBy Small unSmall shrinkTxMetadata
+
+instance Arbitrary (Large TxMetadata) where
+    arbitrary = Large <$> genTxMetadata
+    shrink = shrinkMapBy Large unLarge shrinkTxMetadata
+
+instance PersistField a => PersistField (Small a) where
+    toPersistValue = toPersistValue . unSmall
+    fromPersistValue = fmap Small . fromPersistValue
+
+instance PersistField a => PersistField (Large a) where
+    toPersistValue = toPersistValue . unLarge
+    fromPersistValue = fmap Large . fromPersistValue
 
 instance Arbitrary StdGen where
     arbitrary = mkStdGen <$> arbitrary
