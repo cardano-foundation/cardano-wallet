@@ -54,7 +54,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( Parity (..), addressParity )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -76,14 +76,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..)
-    , UTxO (..)
-    , balance
-    , excluding
-    , filterByAddress
-    , filterByAddressM
-    , restrictedTo
-    )
+    ( Dom (..), UTxO (..), balance, excluding, filterByAddress, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Control.DeepSeq
@@ -98,8 +91,6 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>) )
-import Data.Functor.Identity
-    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -139,7 +130,6 @@ import Test.QuickCheck
     , counterexample
     , cover
     , elements
-    , forAll
     , forAllShrink
     , frequency
     , genericShrink
@@ -156,7 +146,6 @@ import Test.QuickCheck
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -195,20 +184,12 @@ spec = do
             (property prop_countRewardsOnce)
 
         describe "applyTxToUTxO" $ do
-            it "has expected balance" (property prop_applyTxToUTxO_balance)
-            it "has expected entries" (property prop_applyTxToUTxO_entries)
-
-        describe "filterByAddress" $ do
-            it "if all utxos belong to us, the result utxo should not change"
-                (property prop_filterByAddress_allOurs)
-            it "if no utxos belong to us, the result utxo should be nothing"
-                (property prop_filterByAddress_noneOurs)
-            it "if there are no utxos, the result utxo should be empty"
-                (property prop_filterByAddress_empty)
+            it "has expected balance"
+                (property prop_applyTxToUTxO_balance)
+            it "has expected entries"
+                (property prop_applyTxToUTxO_entries)
             it "applyTxToUTxO then filterByAddress"
                 (property prop_filterByAddress_balance_applyTxToUTxO)
-            it "filterByAddress/filterByAddressM"
-                (property prop_filterByAddress_filterByAddressM)
 
         describe "utxoFromTx" $
             it "has expected balance" (property prop_utxoFromTx_balance)
@@ -226,8 +207,6 @@ spec = do
     parallel $ describe "Change UTxO" $ do
         it "prop_changeUTxO" $
             property prop_changeUTxO
-        it "prop_addressParity_coverage" $
-            property prop_addressParity_coverage
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -500,55 +479,6 @@ prop_changeUTxO_inner pendingTxs =
 
     pendingTxSet :: Set Tx
     pendingTxSet = Set.fromList pendingTxs
-
--- | Represents the parity of a value (whether the value is even or odd).
---
-data Parity = Even | Odd
-    deriving (Eq, Show)
-
--- | Computes the parity of an address.
---
--- Parity is defined in the following way:
---
---    - even-parity address:
---      an address with a pop count (Hamming weight) that is even.
---
---    - odd-parity address:
---      an address with a pop count (Hamming weight) that is odd.
---
--- Examples of even-parity and odd-parity addresses:
---
---    - 0b00000000 : even (Hamming weight = 0)
---    - 0b00000001 : odd  (Hamming weight = 1)
---    - 0b00000010 : odd  (Hamming weight = 1)
---    - 0b00000011 : even (Hamming weight = 2)
---    - 0b00000100 : odd  (Hamming weight = 1)
---    - ...
---    - 0b11111110 : odd  (Hamming weight = 7)
---    - 0b11111111 : even (Hamming weight = 8)
---
-addressParity :: Address -> Parity
-addressParity = parity . addressPopCount
-  where
-    addressPopCount :: Address -> Int
-    addressPopCount = BS.foldl' (\acc -> (acc +) . Bits.popCount) 0 . unAddress
-
-    parity :: Integral a => a -> Parity
-    parity a
-        | even a    = Even
-        | otherwise = Odd
-
--- | Verifies that addresses are generated with both even and odd parity.
---
-prop_addressParity_coverage :: Property
-prop_addressParity_coverage =
-    forAll genAddress $ \addr ->
-    checkCoverage $
-    cover 40 (addressParity addr == Even)
-        "address parity is even" $
-    cover 40 (addressParity addr == Odd)
-        "address parity is odd" $
-    property True
 
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
@@ -1442,7 +1372,7 @@ prop_applyTxToUTxO_balance =
               balance (utxoFromTx tx)
           `TokenBundle.difference`
               balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
- 
+
 prop_applyTxToUTxO_entries :: Property
 prop_applyTxToUTxO_entries =
     forAllShrink genTx shrinkTx $ \tx ->
@@ -1453,26 +1383,9 @@ prop_applyTxToUTxO_entries =
               unUTxO (utxoFromTx tx)
           `Map.difference`
               unUTxO (u `UTxO.restrictedBy` Set.fromList (inputs tx))
-    
-prop_filterByAddress_allOurs :: Property
-prop_filterByAddress_allOurs =
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        filterByAddress (const True) u === u
-
-prop_filterByAddress_noneOurs :: Property
-prop_filterByAddress_noneOurs =
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        filterByAddress (const False) u === mempty
-
-prop_filterByAddress_empty :: Bool -> Property
-prop_filterByAddress_empty b =
-    let
-        f = const b
-    in
-        filterByAddress f mempty === mempty
 
 prop_filterByAddress_balance_applyTxToUTxO :: Bool -> Property
-prop_filterByAddress_balance_applyTxToUTxO b = 
+prop_filterByAddress_balance_applyTxToUTxO b =
     let
         f = const b
     in
@@ -1481,14 +1394,6 @@ prop_filterByAddress_balance_applyTxToUTxO b =
             === foldMap (\o -> do
                     if f (address o) then tokens o else mempty
                 ) (outputs tx)
-
-prop_filterByAddress_filterByAddressM :: Bool -> Property
-prop_filterByAddress_filterByAddressM b =
-    let
-        f = const b
-    in
-        forAllShrink genUTxO shrinkUTxO $ \u ->
-            filterByAddress f u === runIdentity (filterByAddressM (pure . f) u)
 
 prop_utxoFromTx_balance :: Property
 prop_utxoFromTx_balance =
