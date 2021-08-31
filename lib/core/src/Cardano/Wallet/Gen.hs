@@ -195,7 +195,7 @@ sizedMetadataValue 0 =
     oneof
         [ toJSON <$> arbitrary @Int
         , toJSON . ("0x"<>) . base16 <$> genByteString
-        , toJSON <$> genText
+        , toJSON <$> genTxMetaText
         ]
 sizedMetadataValue n =
     oneof
@@ -203,7 +203,7 @@ sizedMetadataValue n =
         , oneof
             [ toJSON . HM.fromList <$> resize n
                 (listOf $ (,)
-                    <$> genText
+                    <$> genTxMetaText
                     <*> sizedMetadataValue (n-1)
                 )
             , toJSON <$> resize n
@@ -225,19 +225,32 @@ shrinkByteString bs
   where
     n = BS.length bs
 
-genText :: Gen Text
-genText =
-    (T.pack . take 32 . getPrintableString <$> arbitrary) `suchThat` guardText
+genTxMetaText :: Gen Text
+genTxMetaText =
+    (T.pack . take 32 . getPrintableString <$> arbitrary)
+    `suchThat` guardTxMetaText
 
-shrinkText :: Text -> [Text]
-shrinkText t
+shrinkTxMetaText :: Text -> [Text]
+shrinkTxMetaText t
     | n <= 1    = []
-    | otherwise = filter guardText [ T.take (n `div` 2) t, T.drop (n `div` 2) t ]
+    | otherwise = filter guardTxMetaTextPrefix
+        [ T.take (n `div` 2) t, T.drop (n `div` 2) t ]
   where
     n = T.length t
 
-guardText :: Text -> Bool
-guardText t = not ("0x" `T.isPrefixOf` t)
+guardTxMetaText :: Text -> Bool
+guardTxMetaText t = (&&)
+    (guardTxMetaTextLength t)
+    (guardTxMetaTextPrefix t)
+
+guardTxMetaTextLength :: Text -> Bool
+guardTxMetaTextLength =
+    -- The UT8-encoded length of a metadata text value must not be greater
+    -- than 64 bytes:
+    (<= 64) . BS.length . T.encodeUtf8
+
+guardTxMetaTextPrefix :: Text -> Bool
+guardTxMetaTextPrefix t = not ("0x" `T.isPrefixOf` t)
 
 genTxMetadata :: Gen TxMetadata
 genTxMetadata = do
@@ -258,7 +271,7 @@ genSimpleTxMetadataValue :: Gen TxMetadataValue
 genSimpleTxMetadataValue = oneof
     [ TxMetaNumber . fromIntegral <$> arbitrary @Int
     , TxMetaBytes <$> genByteString
-    , TxMetaText <$> genText
+    , TxMetaText <$> genTxMetaText
     ]
 
 shrinkTxMetadata :: TxMetadata -> [TxMetadata]
@@ -278,7 +291,7 @@ shrinkTxMetadataValue (TxMetaList xs) =
     TxMetaList <$> filter (not . null) (shrinkList shrinkTxMetadataValue xs)
 shrinkTxMetadataValue (TxMetaNumber i) = TxMetaNumber <$> shrink i
 shrinkTxMetadataValue (TxMetaBytes b) = TxMetaBytes <$> shrinkByteString b
-shrinkTxMetadataValue (TxMetaText s) = TxMetaText <$> shrinkText s
+shrinkTxMetadataValue (TxMetaText s) = TxMetaText <$> shrinkTxMetaText s
 
 genNatural :: Gen Natural
 genNatural = arbitrarySizedNatural
