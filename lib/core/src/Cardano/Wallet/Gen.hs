@@ -87,7 +87,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Positive (..)
-    , PrintableString (..)
+    , UnicodeString (..)
     , arbitrarySizedNatural
     , choose
     , elements
@@ -97,6 +97,7 @@ import Test.QuickCheck
     , resize
     , scale
     , shrinkList
+    , shrinkMap
     , sized
     , sublistOf
     , suchThat
@@ -227,21 +228,25 @@ shrinkByteString bs
 
 genTxMetaText :: Gen Text
 genTxMetaText =
-    (T.pack . take 32 . getPrintableString <$> arbitrary)
-    `suchThat` guardTxMetaTextLength
-
-shrinkTxMetaText :: Text -> [Text]
-shrinkTxMetaText t
-    | n <= 1    = []
-    | otherwise = [T.take (n `div` 2) t, T.drop (n `div` 2) t]
+    genUnchecked `suchThat` hasValidEncodedLength
   where
-    n = T.length t
+    genUnchecked :: Gen Text
+    genUnchecked = T.pack . getUnicodeString <$> scale (min 64) arbitrary
 
-guardTxMetaTextLength :: Text -> Bool
-guardTxMetaTextLength =
     -- The UT8-encoded length of a metadata text value must not be greater
     -- than 64 bytes:
-    (<= 64) . BS.length . T.encodeUtf8
+    hasValidEncodedLength :: Text -> Bool
+    hasValidEncodedLength t = (&&)
+        (encodedLength >   0)
+        (encodedLength <= 64)
+      where
+        encodedLength :: Int
+        encodedLength = BS.length $ T.encodeUtf8 t
+
+shrinkTxMetaText :: Text -> [Text]
+shrinkTxMetaText
+    = filter (not . T.null)
+    . shrinkMap (T.pack . getUnicodeString) (UnicodeString . T.unpack)
 
 -- | Generates a 'TxMetadata' with arbitrary levels of nesting.
 genNestedTxMetadata :: Gen TxMetadata
