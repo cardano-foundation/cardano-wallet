@@ -20,8 +20,8 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient
     , genBlockHeader
+    , genNestedTxMetadata
     , genSlotNo
-    , genTxMetadata
     , shrinkActiveSlotCoefficient
     , shrinkSlotNo
     , shrinkTxMetadata
@@ -1181,7 +1181,7 @@ instance Arbitrary Tx where
 
 instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata
-    arbitrary = genTxMetadata
+    arbitrary = genNestedTxMetadata
 
 instance Arbitrary RewardAccount where
     arbitrary = RewardAccount . BS.pack <$> vector 28

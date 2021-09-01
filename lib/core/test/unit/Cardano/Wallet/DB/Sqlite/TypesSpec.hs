@@ -14,13 +14,20 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( stdGenFromString )
 import Cardano.Wallet.Gen
-    ( genSlotNo, shrinkSlotNo )
+    ( genNestedTxMetadata
+    , genSimpleTxMetadata
+    , genSlotNo
+    , shrinkSlotNo
+    , shrinkTxMetadata
+    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SlotInEpoch (..), SlotNo )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxMetadata )
 import Data.Either
     ( isLeft )
 import Data.Proxy
@@ -52,6 +59,7 @@ import Test.QuickCheck
     , cover
     , property
     , shrinkIntegral
+    , shrinkMapBy
     , (===)
     )
 
@@ -62,6 +70,8 @@ spec = do
         persistRoundtrip $ Proxy @POSIXTime
         persistRoundtrip $ Proxy @TokenQuantity
         persistRoundtrip $ Proxy @StdGen
+        persistRoundtrip $ Proxy @(Nested TxMetadata)
+        persistRoundtrip $ Proxy @(Simple TxMetadata)
 
     describe "Backwards compatible instance PersistField StdGen" $ do
         it "rnd_state empty" $
@@ -135,6 +145,25 @@ instance Arbitrary Word31 where
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityFullRange
     shrink = shrinkTokenQuantityFullRange
+
+newtype Nested a = Nested { unNested :: a } deriving (Eq, Show)
+newtype Simple a = Simple { unSimple :: a } deriving (Eq, Show)
+
+instance Arbitrary (Nested TxMetadata) where
+    arbitrary = Nested <$> genNestedTxMetadata
+    shrink = shrinkMapBy Nested unNested shrinkTxMetadata
+
+instance Arbitrary (Simple TxMetadata) where
+    arbitrary = Simple <$> genSimpleTxMetadata
+    shrink = shrinkMapBy Simple unSimple shrinkTxMetadata
+
+instance PersistField a => PersistField (Nested a) where
+    toPersistValue = toPersistValue . unNested
+    fromPersistValue = fmap Nested . fromPersistValue
+
+instance PersistField a => PersistField (Simple a) where
+    toPersistValue = toPersistValue . unSimple
+    fromPersistValue = fmap Simple . fromPersistValue
 
 instance Arbitrary StdGen where
     arbitrary = mkStdGen <$> arbitrary

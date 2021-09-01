@@ -182,12 +182,12 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genNatural
+    , genNestedTxMetadata
     , genPercentage
     , genScript
     , genScriptCosigners
     , genScriptTemplate
     , genScriptTemplateEntry
-    , genTxMetadata
     , shrinkPercentage
     , shrinkTxMetadata
     )
@@ -2146,7 +2146,7 @@ instance Arbitrary SerialisedTxParts where
         ]
 
 instance Arbitrary TxMetadata where
-    arbitrary = genTxMetadata
+    arbitrary = genNestedTxMetadata
     shrink = shrinkTxMetadata
 
 instance Arbitrary ApiTxMetadata where
