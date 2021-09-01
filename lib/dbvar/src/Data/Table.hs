@@ -124,12 +124,9 @@ instance (key ~ Int) => Delta (DeltaDB key row) where
         table{ rows = foldr (.) id [ Map.delete k | k <- ks ] rows }
     apply (UpdateManyDB zs) table@Table{rows} =
         table{ rows = foldr (.) id [ Map.adjust (const r) k | (k,r) <- zs ] rows }
--- FIXME: Enlarge UID supply as necessary for InsertManyDB!
 
-tableIntoDatabase :: Embedding
-    (Table row) [DeltaTable row]
-    (Table row) [DeltaDB Int row]
-tableIntoDatabase = Embedding{ load, write, update = fmap . update1 }
+tableIntoDatabase :: Embedding [DeltaTable row] [DeltaDB Int row]
+tableIntoDatabase = Embedding{ load, write, update = \_ b -> map (update1 b) }
   where
     load = Just . id
     write = id

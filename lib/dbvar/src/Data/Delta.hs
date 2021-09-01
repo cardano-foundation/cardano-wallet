@@ -1,24 +1,31 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 module Data.Delta (
     -- * Synopsis
     -- | Delta encodings.
+    --
     -- The type constraint 'Delta'@ delta@ means that the type @delta@
     -- is a delta encoding of the corresponding base type 'Base'@ delta@.
-
+    --
+    -- Delta encodings can be transformed into each other using an 'Embedding'.
+    
     -- * Delta
     Delta (..)
     , NoChange (..), Replace (..)
     , DeltaList (..)
     , DeltaSet (..)
+    
     -- * Embedding
     , Embedding (..)
-    , compose
+    , module Data.Semigroupoid
+    , replaceFromApply
     ) where
 
 import Prelude
 
 import Control.Monad ((>=>))
 import Data.Kind ( Type )
+import Data.Semigroupoid ( Semigroupoid (..) )
 import Data.Set ( Set )
 
 import qualified Data.Set as Set
@@ -55,9 +62,10 @@ instance Delta (Replace a) where
     apply (Replace a) _ = a
 
 -- | A list of deltas can be applied like a single delta.
+-- This overloading of 'apply' is very convenient.
 --
--- This overloading of 'apply' is very useful,
--- and it is a morphism of 'Monoid':
+-- Order is important: The 'head' of the list is applied __last__.
+-- This way, we have a morphism to the 'Endo' 'Monoid':
 --
 -- > apply []         = id
 -- > apply (d1 <> d2) = apply d1 . apply d2
@@ -90,49 +98,86 @@ instance Ord a => Delta (DeltaSet a) where
 {-------------------------------------------------------------------------------
     Embedding
 -------------------------------------------------------------------------------}
--- | An 'Embedding' embeds a type @a1@ into a type @a2@,
--- but also embeds a delta encoding @delta1@ for the first type
--- into a delta encoding @delta2@ for the second type.
--- 
--- This abstraction is useful for transforming 'Store'
--- for different values.
+-- | An 'Embedding'@ da db@ embeds one type and its delta encoding @da@
+-- into another type and its delta encoding @db@.
 --
--- An 'Embedding' is expected to satisfy several laws:
+-- An Embedding has three components:
 --
--- Embedding:
+-- * 'write' embeds values from the type @a = Base da@
+-- into the type @b = Base bd@.
+-- * 'load' attempts to retrieve the value of type @a@
+-- from the type @b@, but does not necessarily succeed.
+-- * 'update' maps a delta encoding @da@ to a delta encoding @db@.
 --
--- > load . write = Just
--- 
--- Commutes with 'apply':
+-- The embedding of one type into the other is characterized by the following
+-- properties:
 --
--- > apply (update old delta) (write old) = write (apply delta old)
-data Embedding a1 delta1 a2 delta2 = Embedding
-    { load   :: a2 -> Maybe a1
-    , write  :: a1 -> a2
-    , update :: a1 -> delta1 -> delta2
+-- * The embedding need __not__ be __surjective__:
+--   The type @b@ may contain many values that do not correspond to
+--   a value of type @a@. Hence, @load@ has a 'Maybe' result.
+--   However, retrieving a written value always succeeds, we have
+--
+--       > load . write = Just
+--
+-- * The embedding is __redudant__:
+--   The type @b@ may contain multiple values that correspond to
+--   one and the same @a@.
+--   This is why the 'update' function expects the type @b@ as argument,
+--   so that the right delta encoding can be computed.
+--   Put differently, we often have
+--
+--       > write a ≠ b   where Just a = load b
+--
+-- * The embedding of delta encoding __commutes with 'apply'__.
+--   We have
+--
+--       > Just (apply da a) = load (apply (update a b da) b)
+--       >     where Just a = load b
+--
+--      However, since the embedding is redundant, we often have
+--
+--      > apply (update a (write a) da) (write a) ≠ write (apply da a)
+data Embedding da db where
+    Embedding
+        :: (Delta da, Delta db) =>
+        { load   :: Base db -> Maybe (Base da)
+        , write  :: Base da -> Base db
+        , update :: Base da -> Base db -> da -> db
+        } -> Embedding da db
+
+-- | 'Embedding's can be composed with 'o'.
+instance Semigroupoid Embedding where o = compose
+
+compose :: Embedding db dc -> Embedding da db -> Embedding da dc
+compose (Embedding load1 write1 update1) (Embedding load2 write2 update2) =
+    Embedding
+        { load = load1 >=> load2
+        , write = write1 . write2
+        , update = update_
+        }
+  where
+    update_ a c da = update1 b c db
+      where
+        b  = maybe (error "Embedding: unlawful load") id $ load1 c
+        db = update2 a b da
+
+-- | Having an 'apply' function is equivalent to the existence
+-- of a canonical embedding into the trivial 'Replace' delta encoding.
+replaceFromApply :: (Delta da, a ~ Base da) => Embedding da (Replace a)
+replaceFromApply = Embedding
+    { load = Just
+    , write = id
+    , update = \_ a da -> Replace (apply da a)
     }
 
--- | Compose to 'Embedding'.
---
--- FIXME: 'Embedding' is a 'Category', but we have too many types at the moment.
--- Maybe get rid of mentioning the 'Base' type explicitly?
--- But then I would have the 'Delta' constraint, and it is no longer a category.
-compose
-    :: Embedding a2 delta2 a3 delta3
-    -> Embedding a1 delta1 a2 delta2
-    -> Embedding a1 delta1 a3 delta3
-compose e23 e12 = Embedding
-    { load = load e23 >=> load e12
-    , write = write e23 . write e12
-    , update = \a1 d1 -> update e23 (write e12 a1) (update e12 a1 d1)
-    }
-
+{-
 -- | Use the 'update' function of an 'Embedding' to convert
 -- one delta encoding to another.
 -- 
 -- This function assumes that the 'Embedding' argument satisfies
 -- @load = Just@ and @write = id@.
 applyWithEmbedding
-    :: (Delta delta2, a ~ Base delta2)
-    => Embedding a delta1 a delta2 -> (delta1 -> a -> a)
+    :: (Delta db, a ~ Base db)
+    => Embedding da db -> (da -> a -> a)
 applyWithEmbedding e delta1 a = apply (update e a delta1) a
+-}

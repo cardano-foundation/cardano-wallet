@@ -102,20 +102,16 @@ addressDBIso = iso
 
 addressChainIntoTable
     :: Embedding
-        (Chain Node [AddressInPool]) (DeltaChain Node [AddressInPool])
-        (Table SeqStateAddress) [DeltaDB Int SeqStateAddress]
+        (DeltaChain Node [AddressInPool])
+        [DeltaDB Int SeqStateAddress]
 addressChainIntoTable = 
-    embedIso addressDBIso `compose` (tableIntoDatabase `compose` chainIntoTable)
+    embedIso addressDBIso `o` (tableIntoDatabase `o` chainIntoTable)
 
-embedIso
-    :: Iso' a b
-    -> Embedding
-        (Table a) [DeltaDB key a]
-        (Table b) [DeltaDB key b]
-embedIso iso = withIso iso $ \ab ba -> Embedding
+embedIso :: Iso' a b -> Embedding [DeltaDB Int a] [DeltaDB Int b]
+embedIso i = withIso i $ \ab ba -> Embedding
     { load = Just . fmap ba
     , write = fmap ab
-    , update = \_ -> fmap (fmap ab)
+    , update = \_ _ -> fmap (fmap ab)
     }
 
 type AddressStore =

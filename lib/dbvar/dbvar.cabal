@@ -38,6 +38,7 @@ library
     , persistent
     , persistent-sqlite
     , safe
+    , semigroupoids
     , text
     , transformers
   hs-source-dirs:

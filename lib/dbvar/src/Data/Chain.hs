@@ -31,7 +31,6 @@ import Control.Monad
 import Data.Delta
     ( Delta (..)
     , Embedding (..)
-    , compose
     )
 import Data.List
     ( unfoldr )
@@ -39,6 +38,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe )
+import Data.Semigroupoid
+    ( o )
 import Data.Table
     ( Table , DeltaTable (..) )
 
@@ -231,16 +232,14 @@ addEdge Edge{from,to,via} chain@Chain{next,prev,tip} =
 -- | Embed a 'Chain' into a table of 'Edge'.
 chainIntoTable
     :: (Ord edge, Ord node, e ~ Edge node edge)
-    => Embedding
-        (Chain node [edge]) (DeltaChain node [edge])
-        (Table e) [DeltaTable e]
+    => Embedding (DeltaChain node [edge]) [DeltaTable e]
 chainIntoTable = Embedding {load,write,update}
   where
     load  = fromEdges . Table.toList
     write = Table.fromList . toEdges
-    update Chain{tip=from} (AppendTip to vias) =
+    update Chain{tip=from} _ (AppendTip to vias) =
         [InsertMany [Edge{from,to,via} | via <- vias]]
-    update Chain{tip,prev} (RollbackTo node) =
+    update Chain{tip,prev} _ (RollbackTo node) =
         [DeleteWhere $ \Edge{to} -> to `elem` deletions]
       where
         deletions = unfoldr backwards tip
@@ -248,7 +247,7 @@ chainIntoTable = Embedding {load,write,update}
             guard $ node /= now
             x <- join $ Map.lookup now prev
             return (now,x)
-    update chain (CollapseNode now) = case lookup now chain of
+    update chain _ (CollapseNode now) = case lookup now chain of
         Nothing -> []
         Just Edge{to,from} ->
             maybe [] (\(_,new) -> updateTo now new) to
@@ -262,22 +261,22 @@ chainIntoTable = Embedding {load,write,update}
     Tests
 -------------------------------------------------------------------------------}
 test :: (Table (Edge Int Char), [[Table.DeltaDB Int (Edge Int Char)]])
-test = liftUpdates (Table.tableIntoDatabase `compose` chainIntoTable)
+test = liftUpdates (Table.tableIntoDatabase `o` chainIntoTable)
     [CollapseNode 1, AppendTip 3 "DC", AppendTip 2 "B"]
     (fromEdge Edge{from=0,to=1,via="A"})
 
 liftUpdates
-    :: (Delta delta2, a2 ~ Base delta2)
-    => Embedding a1 delta1 a2 delta2
-    -> [delta1] -> a1 -> (a2, [delta2])
-liftUpdates Embedding{load,write,update} ds a1 = go ds (write a1)
+    :: (Delta da, Delta da)
+    => Embedding da db
+    -> [da] -> Base da -> (Base db, [db])
+liftUpdates Embedding{load,write,update} ds = go ds . write
   where
-    go []     ain = (ain, [])
-    go (d:ds) ain = case load aout of
-        Nothing -> (aout, es)
-        Just a1 -> let e = update a1 d in (apply e aout, e : es)
+    go []       bin = (bin, [])
+    go (da:das) bin = case load bout of
+        Nothing -> (bout, dbs)
+        Just a  -> let db = update a bout da in (apply db bout, db : dbs)
       where
-        (aout, es) = go ds ain
+        (bout, dbs) = go das bin
 
 {-------------------------------------------------------------------------------
     Edge

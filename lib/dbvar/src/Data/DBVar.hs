@@ -150,11 +150,18 @@ newStore = do
 
 -- | Obtain a 'Store' for one type @a1@ from a 'Store' for another type @a2@
 -- via an 'Embedding' of the first type into the second type.
-embedStore :: Functor m => Embedding a1 d1 a2 d2 -> Store m d2 a2 -> Store m d1 a1
+embedStore
+    :: (Monad m)
+    => Embedding da db
+    -> Store m db (Base db) -> Store m da (Base da)
 embedStore Embedding{load,write,update} Store{loadS,writeS,updateS} = Store
     { loadS   = (load =<<) <$> loadS
     , writeS  = writeS . write
-    , updateS = \a1 delta1 -> updateS (write a1) (update a1 delta1)
+    , updateS = \a da -> do
+        mb <- loadS
+        case mb of
+            Nothing -> pure ()
+            Just b  -> updateS b (update a b da)
     }
 
 -- | Combine two 'Stores' into a store for pairs.
