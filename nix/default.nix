@@ -44,13 +44,13 @@ let
     # our own overlays:
     ++ [
       (final: prev: {
-
-        # commonLib: iohk-nix utils and our own:
+        # commonLib: iohk-nix utils
         commonLib = final.iohkNix
-          // import ./util.nix { inherit (final) lib; }
           # also expose our sources and overlays
           // { inherit overlays sources; };
       })
+      # Add our own utils to commonLib
+      (import ./overlays/common-lib.nix)
       # Haskell build tools
       (import ./overlays/build-tools.nix)
       # Cardano deployments
