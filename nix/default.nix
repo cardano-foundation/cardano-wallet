@@ -14,8 +14,7 @@ let
   iohkNixMain = import sources.iohk-nix {};
   haskellNix = import sources."haskell.nix" {
     inherit system;
-    # if niv sources hackage or stackage are present, pass them
-    # through to Haskell.nix.
+    # If niv sources for Hackage or Stackage are present, pass them through to Haskell.nix.
     sourcesOverride =
       (if builtins.hasAttr "hackage" sources then { inherit (sources) hackage; } else {}) //
       (if builtins.hasAttr "stackage" sources then { inherit (sources) stackage; } else {})
