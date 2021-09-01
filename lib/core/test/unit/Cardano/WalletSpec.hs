@@ -48,7 +48,12 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     , mkTxId
     )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSlotNo, genTxMetadata, shrinkSlotNo, shrinkTxMetadata )
+    ( genMnemonic
+    , genNestedTxMetadata
+    , genSlotNo
+    , shrinkSlotNo
+    , shrinkTxMetadata
+    )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -1450,4 +1455,4 @@ instance Arbitrary TxMeta where
 
 instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata
-    arbitrary = genTxMetadata
+    arbitrary = genNestedTxMetadata

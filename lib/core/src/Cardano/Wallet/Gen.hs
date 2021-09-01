@@ -18,9 +18,9 @@ module Cardano.Wallet.Gen
     , shrinkActiveSlotCoefficient
     , genSlotNo
     , shrinkSlotNo
-    , genTxMetadata
+    , genNestedTxMetadata
+    , genSimpleTxMetadata
     , shrinkTxMetadata
-    , genSmallTxMetadata
     , genScript
     , genScriptCosigners
     , genScriptTemplate
@@ -252,8 +252,9 @@ guardTxMetaTextLength =
 guardTxMetaTextPrefix :: Text -> Bool
 guardTxMetaTextPrefix t = not ("0x" `T.isPrefixOf` t)
 
-genTxMetadata :: Gen TxMetadata
-genTxMetadata = do
+-- | Generates a 'TxMetadata' with arbitrary levels of nesting.
+genNestedTxMetadata :: Gen TxMetadata
+genNestedTxMetadata = do
     let (maxBreadth, maxDepth) = (3, 3)
     d <- scale (`mod` maxBreadth) $ listOf1 (sizedMetadataValue maxDepth)
     i <- vectorOf @Word (length d) arbitrary
@@ -262,9 +263,9 @@ genTxMetadata = do
         Left e -> error $ show e <> ": " <> show (Aeson.encode json)
         Right metadata -> pure metadata
 
--- | Generates a 'TxMetadata' containing only simple values.
-genSmallTxMetadata :: Gen TxMetadata
-genSmallTxMetadata = TxMetadata <$>
+-- | Generates a 'TxMetadata' containing only simple values, without nesting.
+genSimpleTxMetadata :: Gen TxMetadata
+genSimpleTxMetadata = TxMetadata <$>
     (Map.singleton <$> arbitrary <*> genSimpleTxMetadataValue)
 
 genSimpleTxMetadataValue :: Gen TxMetadataValue

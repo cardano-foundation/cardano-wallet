@@ -14,9 +14,9 @@ import Prelude
 import Cardano.Wallet.DB.Sqlite.Types
     ( stdGenFromString )
 import Cardano.Wallet.Gen
-    ( genSlotNo
-    , genSmallTxMetadata
-    , genTxMetadata
+    ( genNestedTxMetadata
+    , genSimpleTxMetadata
+    , genSlotNo
     , shrinkSlotNo
     , shrinkTxMetadata
     )
@@ -70,8 +70,8 @@ spec = do
         persistRoundtrip $ Proxy @POSIXTime
         persistRoundtrip $ Proxy @TokenQuantity
         persistRoundtrip $ Proxy @StdGen
-        persistRoundtrip $ Proxy @(Small TxMetadata)
-        persistRoundtrip $ Proxy @(Large TxMetadata)
+        persistRoundtrip $ Proxy @(Nested TxMetadata)
+        persistRoundtrip $ Proxy @(Simple TxMetadata)
 
     describe "Backwards compatible instance PersistField StdGen" $ do
         it "rnd_state empty" $
@@ -146,24 +146,24 @@ instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityFullRange
     shrink = shrinkTokenQuantityFullRange
 
-newtype Small a = Small { unSmall :: a } deriving (Eq, Show)
-newtype Large a = Large { unLarge :: a } deriving (Eq, Show)
+newtype Nested a = Nested { unNested :: a } deriving (Eq, Show)
+newtype Simple a = Simple { unSimple :: a } deriving (Eq, Show)
 
-instance Arbitrary (Small TxMetadata) where
-    arbitrary = Small <$> genSmallTxMetadata
-    shrink = shrinkMapBy Small unSmall shrinkTxMetadata
+instance Arbitrary (Nested TxMetadata) where
+    arbitrary = Nested <$> genNestedTxMetadata
+    shrink = shrinkMapBy Nested unNested shrinkTxMetadata
 
-instance Arbitrary (Large TxMetadata) where
-    arbitrary = Large <$> genTxMetadata
-    shrink = shrinkMapBy Large unLarge shrinkTxMetadata
+instance Arbitrary (Simple TxMetadata) where
+    arbitrary = Simple <$> genSimpleTxMetadata
+    shrink = shrinkMapBy Simple unSimple shrinkTxMetadata
 
-instance PersistField a => PersistField (Small a) where
-    toPersistValue = toPersistValue . unSmall
-    fromPersistValue = fmap Small . fromPersistValue
+instance PersistField a => PersistField (Nested a) where
+    toPersistValue = toPersistValue . unNested
+    fromPersistValue = fmap Nested . fromPersistValue
 
-instance PersistField a => PersistField (Large a) where
-    toPersistValue = toPersistValue . unLarge
-    fromPersistValue = fmap Large . fromPersistValue
+instance PersistField a => PersistField (Simple a) where
+    toPersistValue = toPersistValue . unSimple
+    fromPersistValue = fmap Simple . fromPersistValue
 
 instance Arbitrary StdGen where
     arbitrary = mkStdGen <$> arbitrary
