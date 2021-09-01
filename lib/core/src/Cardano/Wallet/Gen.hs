@@ -228,29 +228,20 @@ shrinkByteString bs
 genTxMetaText :: Gen Text
 genTxMetaText =
     (T.pack . take 32 . getPrintableString <$> arbitrary)
-    `suchThat` guardTxMetaText
+    `suchThat` guardTxMetaTextLength
 
 shrinkTxMetaText :: Text -> [Text]
 shrinkTxMetaText t
     | n <= 1    = []
-    | otherwise = filter guardTxMetaTextPrefix
-        [ T.take (n `div` 2) t, T.drop (n `div` 2) t ]
+    | otherwise = [T.take (n `div` 2) t, T.drop (n `div` 2) t]
   where
     n = T.length t
-
-guardTxMetaText :: Text -> Bool
-guardTxMetaText t = (&&)
-    (guardTxMetaTextLength t)
-    (guardTxMetaTextPrefix t)
 
 guardTxMetaTextLength :: Text -> Bool
 guardTxMetaTextLength =
     -- The UT8-encoded length of a metadata text value must not be greater
     -- than 64 bytes:
     (<= 64) . BS.length . T.encodeUtf8
-
-guardTxMetaTextPrefix :: Text -> Bool
-guardTxMetaTextPrefix t = not ("0x" `T.isPrefixOf` t)
 
 -- | Generates a 'TxMetadata' with arbitrary levels of nesting.
 genNestedTxMetadata :: Gen TxMetadata
