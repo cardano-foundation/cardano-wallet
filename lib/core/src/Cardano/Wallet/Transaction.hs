@@ -123,6 +123,14 @@ data TransactionLayer k = TransactionLayer
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
         -- This also includes necessary deposits.
 
+    , calcScriptExecutionCost
+        :: ProtocolParameters
+            -- Current protocol parameters
+        -> SealedTx
+            -- The constructed transaction that could contain
+        -> Coin
+        -- ^ Compute an execution costs of scripts in a given transaction.
+
     , computeSelectionLimit
         :: ProtocolParameters
         -> TransactionCtx
