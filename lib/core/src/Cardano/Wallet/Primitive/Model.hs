@@ -365,12 +365,12 @@ utxoFromTx :: Tx -> UTxO
 utxoFromTx Tx {txId, outputs} =
     UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 
-isOurs' :: forall s m. (Monad m, IsOurs s Address) => Address -> StateT s m Bool
-isOurs' addr = do
-    mDerivationIndex <- state $ isOurs addr
-    case mDerivationIndex of
-        Nothing -> pure False
-        Just _  -> pure True
+isOurAddress
+    :: forall s m
+     . (Monad m, IsOurs s Address)
+    => Address
+    -> StateT s m Bool
+isOurAddress = fmap isJust . state . isOurs
 
 {-------------------------------------------------------------------------------
                                Internals
@@ -442,7 +442,8 @@ prefilterBlock b u0 = runState $ do
         -- The next UTxO state (apply a state transition) (e.g. remove
         -- transaction outputs we've spent).
         ourNextUTxO <-
-            (spendTx tx prevUTxO <>) <$> filterByAddressM isOurs' (utxoFromTx tx)
+            (spendTx tx prevUTxO <>)
+            <$> filterByAddressM isOurAddress (utxoFromTx tx)
 
         ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
@@ -457,7 +458,7 @@ prefilterBlock b u0 = runState $ do
             -- we know about:
             let known = prevUTxO <> utxoFromTx tx
             -- But not all those transaction inputs/outputs belong to us:
-            ownedAndKnown <- filterByAddressM isOurs' known
+            ownedAndKnown <- filterByAddressM isOurAddress known
             -- Also, the new transaction may spend some transaction
             -- inputs/outputs. But we don't want to apply that logic yet. If we
             -- do, any spent transaction input/output will be removed from our
@@ -535,4 +536,5 @@ changeUTxO
     -> s
     -> UTxO
 changeUTxO pending = evalState $
-    mconcat <$> mapM (filterByAddressM isOurs' . utxoFromTx) (Set.toList pending)
+    mconcat
+    <$> mapM (filterByAddressM isOurAddress . utxoFromTx) (Set.toList pending)
