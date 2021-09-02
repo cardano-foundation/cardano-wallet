@@ -142,6 +142,7 @@ mainnetNetworkParameters = W.NetworkParameters
         , stakeKeyDeposit = W.Coin 0
         , eras = W.emptyEraInfo
         , maximumCollateralInputCount = 0
+        , executionUnitPrices = Nothing
         }
     }
 
@@ -353,6 +354,7 @@ protocolParametersFromPP eraInfo pp = W.ProtocolParameters
     , stakeKeyDeposit = W.Coin 0
     , eras = fromBound <$> eraInfo
     , maximumCollateralInputCount = 0
+    , executionUnitPrices = Nothing
     }
   where
     fromBound (Bound _relTime _slotNo (O.EpochNo e)) =
