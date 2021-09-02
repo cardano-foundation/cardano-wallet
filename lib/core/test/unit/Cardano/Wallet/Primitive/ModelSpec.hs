@@ -184,6 +184,10 @@ spec = do
         it "only counts rewards once."
             (property prop_countRewardsOnce)
 
+        describe "coverage" $ do
+            it "utxo and tx generators have expected coverage"
+                (property prop_tx_utxo_coverage)
+
         describe "applyTxToUTxO" $ do
             it "has expected balance"
                 (property prop_applyTxToUTxO_balance)
@@ -1390,6 +1394,21 @@ blockchain =
   where
     slot e s = SlotNo $ flatSlot (EpochLength 21600) (SlotId e s)
 
+prop_tx_utxo_coverage :: Tx -> UTxO -> Property
+prop_tx_utxo_coverage tx u =
+    checkCoverage $
+    cover 5 (UTxO.null u) "UTxO empty" $
+    cover 30 (not $ UTxO.null u) "UTxO not empty" $
+    cover 30 (not $ Set.disjoint (dom u) (Set.fromList $ inputs tx))
+        "UTxO and Tx not disjoint" $
+    cover 10 (Set.disjoint (dom u) (Set.fromList $ inputs tx))
+        "UTxO and Tx disjoint" $
+    cover 10 (length (inputs tx) > 3) "Number of tx inputs > 3" $
+    cover 10 (length (inputs tx) < 3) "Number of tx inputs < 3" $
+    cover 10 (length (outputs tx) > 3) "Number of tx outputs > 3" $
+    cover 10 (length (outputs tx) < 3) "Number of tx outputs < 3" $
+    property True
+
 prop_applyTxToUTxO_balance :: Tx -> UTxO -> Property
 prop_applyTxToUTxO_balance tx u =
     balance (applyTxToUTxO tx u)
@@ -1413,6 +1432,9 @@ prop_filterByAddress_balance_applyTxToUTxO b tx =
     let
         f = const b
     in
+        checkCoverage $
+        cover 30 (b) "True function" $
+        cover 30 (not b) "False function" $
         balance (filterByAddress f (applyTxToUTxO tx mempty))
         === foldMap (\o -> do
                 if f (address o) then tokens o else mempty
@@ -1471,4 +1493,7 @@ prop_spendTx_filterByAddress b tx u =
     let
         f = const b
     in
+        checkCoverage $
+        cover 30 (b) "True function" $
+        cover 30 (not b) "False function" $
         filterByAddress f (spendTx tx u) === spendTx tx (filterByAddress f u)
