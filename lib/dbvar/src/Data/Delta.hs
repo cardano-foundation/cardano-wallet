@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeFamilies #-}
 module Data.Delta (
     -- * Synopsis
@@ -13,7 +14,8 @@ module Data.Delta (
     Delta (..)
     , NoChange (..), Replace (..)
     , DeltaList (..)
-    , DeltaSet (..)
+    , DeltaSet1 (..)
+    , DeltaSet, mkDeltaSet, deltaSetToList, deltaSetFromList
     
     -- * Embedding
     , Embedding (..)
@@ -86,14 +88,74 @@ instance Delta (DeltaList a) where
     type instance Base (DeltaList a) = [a]
     apply (Append xs) ys = xs ++ ys
 
--- | Delta encoding for 'Set' where an element is deleted or added.
-data DeltaSet a = Insert a | Delete a
+-- | Delta encoding for 'Set' where a single element is deleted or added.
+data DeltaSet1 a = Insert a | Delete a
     deriving (Eq, Ord, Show)
+
+instance Ord a => Delta (DeltaSet1 a) where
+    type instance Base (DeltaSet1 a) = Set a
+    apply (Insert a) = Set.insert a
+    apply (Delete a) = Set.delete a
+
+-- | Delta encoding for a 'Set' where
+-- collections of elements are inserted or deleted.
+data DeltaSet a = DeltaSet
+    { inserts :: Set a
+    , deletes :: Set a
+    } deriving (Eq)
+-- INVARIANT: The two sets are always disjoint.
 
 instance Ord a => Delta (DeltaSet a) where
     type instance Base (DeltaSet a) = Set a
-    apply (Insert a) = Set.insert a
-    apply (Delete a) = Set.delete a
+    apply (DeltaSet i d) x = i `Set.union` (x `Set.difference` d)
+
+-- | Delta to get from the second argument to the first argument.
+mkDeltaSet :: Ord a => Set a -> Set a -> DeltaSet a
+mkDeltaSet new old =
+    DeltaSet (new `Set.difference` old) (old `Set.difference` new)
+
+-- | Flatten a 'DeltaSet' to a list of 'DeltaSet1'.
+--
+-- In the result list, the set of @a@ appearing as 'Insert'@ a@
+-- is /disjoint/ from the set of @a@ appearing as 'Delete'@ a@.
+deltaSetToList :: Ord a => DeltaSet a -> [DeltaSet1 a]
+deltaSetToList DeltaSet{inserts,deletes} =
+    map Insert (Set.toList inserts) <> map Delete (Set.toList deletes)
+
+-- | Collect insertions or deletions of elements into a 'DeltaSet'.
+--
+-- To save space, combinations of 'Insert' and 'Delete'
+-- for the same element are simplified when possible.
+-- These simplifications always preserve the property
+--
+-- > apply (deltaSetFromList ds) = apply ds
+deltaSetFromList :: Ord a => [DeltaSet1 a] -> DeltaSet a
+deltaSetFromList = foldr step empty
+  where
+    empty = DeltaSet Set.empty Set.empty
+    step (Insert a) (DeltaSet i d) = DeltaSet (Set.insert a i) (Set.delete a d)
+    step (Delete a) (DeltaSet i d) = DeltaSet (Set.delete a i) (Set.insert a d)
+
+{- Note [DeltaSet1 Cancellations]
+
+The following cancellation laws hold:
+
+  apply [Insert a, Delete a] = apply (Insert a)
+  apply [Insert a, Insert a] = apply (Insert a)
+  apply [Delete a, Insert a] = apply (Delete a)
+  apply [Delete a, Delete a] = apply (Delete a)
+
+-}
+
+-- | 'apply' distributes over '(<>)'.
+instance Ord a => Semigroup (DeltaSet a) where
+    (DeltaSet i1 d1) <> (DeltaSet i2 d2) = DeltaSet
+        (i1 `Set.union` (i2 `Set.difference` d1))
+        (d1 `Set.union` (d2 `Set.difference` i1))
+        -- This takes into account [DeltaSet1 Cancellations]
+
+instance Ord a => Monoid (DeltaSet a) where
+    mempty = DeltaSet Set.empty Set.empty
 
 {-------------------------------------------------------------------------------
     Embedding
