@@ -344,7 +344,7 @@ applyTxToUTxO
     -> UTxO
 applyTxToUTxO tx !u = spendTx tx u <> utxoFromTx tx
 
--- | Remove unspents that have been consumed by the giventransaction.
+-- | Remove unspents that have been consumed by the given transaction.
 --
 -- spendTx tx u `isSubsetOf` u
 -- balance (spendTx tx u) <= balance u
