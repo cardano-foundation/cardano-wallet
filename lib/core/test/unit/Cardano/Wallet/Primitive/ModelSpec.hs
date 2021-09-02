@@ -191,7 +191,7 @@ spec = do
                 (property prop_applyTxToUTxO_entries)
             it "applyTxToUTxO then filterByAddress"
                 (property prop_filterByAddress_balance_applyTxToUTxO)
-            it "spendTx/utxoFromTx"
+            it "spendTx/applyTxToUTxO/utxoFromTx"
                 (property prop_applyTxToUTxO_spendTx_utxoFromTx)
 
         describe "utxoFromTx" $ do
@@ -204,6 +204,7 @@ spec = do
             it "has expected balance" (property prop_spendTx_balance)
             it "definition" (property prop_spendTx)
             it "commutative with filterByAddress" (property prop_spendTx_filterByAddress)
+            it "spendTx/utxoFromTx" (property prop_spendTx_utxoFromTx)
 
     parallel $ describe "Available UTxO" $ do
         it "prop_availableUTxO_isSubmap" $
@@ -1456,14 +1457,17 @@ prop_spendTx =
     forAllShrink genUTxO shrinkUTxO $ \u ->
         spendTx tx u === u `excluding` Set.fromList (inputs tx)
 
+prop_spendTx_utxoFromTx :: Property
+prop_spendTx_utxoFromTx =
+    forAllShrink genTx shrinkTx $ \tx ->
+    forAllShrink genUTxO shrinkUTxO $ \u ->
+        spendTx tx (u <> utxoFromTx tx) === spendTx tx u <> utxoFromTx tx
+
 prop_applyTxToUTxO_spendTx_utxoFromTx :: Property
 prop_applyTxToUTxO_spendTx_utxoFromTx =
     forAllShrink genTx shrinkTx $ \tx ->
     forAllShrink genUTxO shrinkUTxO $ \u ->
-        conjoin
-        [ applyTxToUTxO tx u === spendTx tx u <> utxoFromTx tx
-        , applyTxToUTxO tx u === spendTx tx (u <> utxoFromTx tx)
-        ]
+        applyTxToUTxO tx u === spendTx tx u <> utxoFromTx tx
 
 prop_spendTx_filterByAddress :: Bool -> Property
 prop_spendTx_filterByAddress b =

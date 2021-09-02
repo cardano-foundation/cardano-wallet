@@ -344,11 +344,14 @@ applyTxToUTxO
     -> UTxO
 applyTxToUTxO tx !u = spendTx tx u <> utxoFromTx tx
 
+-- | Remove unspents that have been consumed by the giventransaction.
+--
 -- spendTx tx u `isSubsetOf` u
 -- balance (spendTx tx u) <= balance u
 -- balance (spendTx tx u) = balance u - balance (u `restrictedBy` inputs tx)
 -- spendTx tx u = u `excluding` inputs tx
 -- spendTx tx (filterByAddress f u) = filterByAddress f (spendTx tx u)
+-- spendTx tx (u <> utxoFromTx tx) = spendTx tx u <> utxoFromTx tx
 spendTx :: Tx -> UTxO -> UTxO
 spendTx tx !u = u `excluding` Set.fromList (inputs tx)
 
