@@ -181,7 +181,15 @@ import Control.Monad.Trans.Except
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), withObject, (.:), (.:?) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value
+    , object
+    , withObject
+    , (.:)
+    , (.:?)
+    , (.=)
+    )
 import Data.ByteArray
     ( ByteArrayAccess )
 import Data.ByteArray.Encoding
@@ -208,6 +216,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
+import Data.Scientific
+    ( fromRationalRepetendLimited )
 import Data.String
     ( fromString )
 import Data.Text
@@ -1084,6 +1094,21 @@ instance NFData ExecutionUnitPrices
 instance Buildable ExecutionUnitPrices where
     build (ExecutionUnitPrices perStep perMem) =
         build $ show perStep <> " per step, " <> show perMem <> " per memory unit"
+
+instance ToJSON ExecutionUnitPrices where
+    toJSON ExecutionUnitPrices{priceExecutionSteps, priceExecutionMemory} =
+        object [ "step_price"  .= toRationalJSON priceExecutionSteps
+               , "memory_unit_price" .= toRationalJSON priceExecutionMemory
+               ]
+     where
+         toRationalJSON :: Rational -> Value
+         toRationalJSON r = case fromRationalRepetendLimited 20 r of
+             Right (s, Nothing) -> toJSON s
+             _                  -> toJSON r
+
+instance FromJSON ExecutionUnitPrices where
+    parseJSON = withObject "ExecutionUnitPrices" $ \o ->
+        ExecutionUnitPrices <$> o .: "step_price" <*> o .: "memory_unit_price"
 
 -- | Indicates the current level of decentralization in the network.
 --

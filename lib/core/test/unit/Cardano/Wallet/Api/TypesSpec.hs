@@ -217,6 +217,7 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
+    , ExecutionUnitPrices (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource
@@ -396,6 +397,7 @@ import Test.QuickCheck
     , scale
     , shrinkIntegral
     , sized
+    , suchThat
     , vector
     , vectorOf
     , (.&&.)
@@ -1225,6 +1227,8 @@ spec = parallel $ do
                         eras (x :: ApiNetworkParameters)
                     , maximumCollateralInputCount =
                         maximumCollateralInputCount (x :: ApiNetworkParameters)
+                    , executionUnitPrices =
+                        executionUnitPrices (x :: ApiNetworkParameters)
                     }
             in
             x' === x .&&. show x' === show x
@@ -1948,6 +1952,13 @@ instance ToSchema Api.ApiMaintenanceActionPostData where
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary ExecutionUnitPrices where
+    shrink = genericShrink
+    arbitrary = do
+        step <- arbitrary `suchThat` (>= 0)
+        mem <- arbitrary `suchThat` (>= 0)
+        pure $ ExecutionUnitPrices step mem
 
 instance Arbitrary ApiEra where
     arbitrary = genericArbitrary
