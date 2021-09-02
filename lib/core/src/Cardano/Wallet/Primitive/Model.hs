@@ -455,10 +455,11 @@ prefilterBlock b u0 = runState $ do
 
         (ownedAndKnownTxIns, ownedAndKnownTxOuts) <- do
             -- A new transaction expands the set of transaction inputs/outputs
-            -- we know about:
-            let known = prevUTxO <> utxoFromTx tx
-            -- But not all those transaction inputs/outputs belong to us:
-            ownedAndKnown <- filterByAddressM isOurAddress known
+            -- we know about, but not all those transaction inputs/outputs
+            -- belong to us, so we filter any new inputs/outputs, presuming that
+            -- the previous UTxO has already been filtered:
+            ownedAndKnown <-
+                (prevUTxO <>) <$> filterByAddressM isOurAddress (utxoFromTx tx)
             -- Also, the new transaction may spend some transaction
             -- inputs/outputs. But we don't want to apply that logic yet. If we
             -- do, any spent transaction input/output will be removed from our
