@@ -614,6 +614,14 @@ instance IsOurs WalletState RewardAccount where
         , s
         )
 
+instance Arbitrary Tx where
+    shrink = shrinkTx
+    arbitrary = genTx
+
+instance Arbitrary UTxO where
+    shrink = shrinkUTxO
+    arbitrary = genUTxO
+
 instance Arbitrary WalletState where
     shrink = genericShrink
     arbitrary = do
@@ -1382,107 +1390,85 @@ blockchain =
   where
     slot e s = SlotNo $ flatSlot (EpochLength 21600) (SlotId e s)
 
-prop_applyTxToUTxO_balance :: Property
-prop_applyTxToUTxO_balance =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        balance (applyTxToUTxO tx u)
-        === balance u
-          `TokenBundle.add`
-              balance (utxoFromTx tx)
-          `TokenBundle.difference`
-              balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+prop_applyTxToUTxO_balance :: Tx -> UTxO -> Property
+prop_applyTxToUTxO_balance tx u =
+    balance (applyTxToUTxO tx u)
+    === balance u
+      `TokenBundle.add`
+          balance (utxoFromTx tx)
+      `TokenBundle.difference`
+          balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
 
-prop_applyTxToUTxO_entries :: Property
-prop_applyTxToUTxO_entries =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        unUTxO (applyTxToUTxO tx u)
-        === unUTxO u
-          `Map.union`
-              unUTxO (utxoFromTx tx)
-          `Map.difference`
-              unUTxO (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+prop_applyTxToUTxO_entries :: Tx -> UTxO -> Property
+prop_applyTxToUTxO_entries tx u =
+    unUTxO (applyTxToUTxO tx u)
+    === unUTxO u
+      `Map.union`
+          unUTxO (utxoFromTx tx)
+      `Map.difference`
+          unUTxO (u `UTxO.restrictedBy` Set.fromList (inputs tx))
 
-prop_filterByAddress_balance_applyTxToUTxO :: Bool -> Property
-prop_filterByAddress_balance_applyTxToUTxO b =
+prop_filterByAddress_balance_applyTxToUTxO :: Bool -> Tx -> Property
+prop_filterByAddress_balance_applyTxToUTxO b tx =
     let
         f = const b
     in
-        forAllShrink genTx shrinkTx $ \tx ->
-            balance (filterByAddress f (applyTxToUTxO tx mempty))
-            === foldMap (\o -> do
-                    if f (address o) then tokens o else mempty
-                ) (outputs tx)
+        balance (filterByAddress f (applyTxToUTxO tx mempty))
+        === foldMap (\o -> do
+                if f (address o) then tokens o else mempty
+            ) (outputs tx)
 
-prop_utxoFromTx_balance :: Property
-prop_utxoFromTx_balance =
-    forAllShrink genTx shrinkTx $ \tx ->
-        balance (utxoFromTx tx) === foldMap tokens (outputs tx)
+prop_utxoFromTx_balance :: Tx -> Property
+prop_utxoFromTx_balance tx =
+    balance (utxoFromTx tx) === foldMap tokens (outputs tx)
 
-prop_utxoFromTx_is_unspent :: Property
-prop_utxoFromTx_is_unspent =
-    forAllShrink genTx shrinkTx $ \tx ->
-        utxoFromTx tx `excluding` Set.fromList (inputs tx)
-        === utxoFromTx tx
+prop_utxoFromTx_is_unspent :: Tx -> Property
+prop_utxoFromTx_is_unspent tx =
+    utxoFromTx tx `excluding` Set.fromList (inputs tx)
+    === utxoFromTx tx
 
 -- spendTx tx u `isSubsetOf` u
-prop_spendTx_isSubset :: Property
-prop_spendTx_isSubset =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        spendTx tx u `UTxO.isSubsetOf` u
+prop_spendTx_isSubset :: Tx -> UTxO -> Property
+prop_spendTx_isSubset tx u =
+    property $ spendTx tx u `UTxO.isSubsetOf` u
 
 -- balance (spendTx tx u) <= balance u
-prop_spendTx_balance_inequality :: Property
-prop_spendTx_balance_inequality =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        let
-            lhs = balance (spendTx tx u)
-            rhs = balance u
-        in
-            isJust (rhs `TokenBundle.subtract` lhs)
-            & counterexample ("balance (spendTx tx u) = " <> show lhs)
-            & counterexample ("balance u = " <> show rhs)
+prop_spendTx_balance_inequality :: Tx -> UTxO -> Property
+prop_spendTx_balance_inequality tx u =
+    let
+        lhs = balance (spendTx tx u)
+        rhs = balance u
+    in
+        isJust (rhs `TokenBundle.subtract` lhs)
+        & counterexample ("balance (spendTx tx u) = " <> show lhs)
+        & counterexample ("balance u = " <> show rhs)
 
-prop_spendTx_balance :: Property
-prop_spendTx_balance =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        let
-            lhs = balance (spendTx tx u)
-            rhs =
-                balance u
-                    `TokenBundle.unsafeSubtract`
-                        balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
-        in
-            lhs === rhs
+prop_spendTx_balance :: Tx -> UTxO -> Property
+prop_spendTx_balance tx u =
+    let
+        lhs = balance (spendTx tx u)
+        rhs =
+            balance u
+                `TokenBundle.unsafeSubtract`
+                    balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+    in
+        lhs === rhs
 
-prop_spendTx :: Property
-prop_spendTx =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        spendTx tx u === u `excluding` Set.fromList (inputs tx)
+prop_spendTx :: Tx -> UTxO -> Property
+prop_spendTx tx u =
+    spendTx tx u === u `excluding` Set.fromList (inputs tx)
 
-prop_spendTx_utxoFromTx :: Property
-prop_spendTx_utxoFromTx =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        spendTx tx (u <> utxoFromTx tx) === spendTx tx u <> utxoFromTx tx
+prop_spendTx_utxoFromTx :: Tx -> UTxO -> Property
+prop_spendTx_utxoFromTx tx u =
+    spendTx tx (u <> utxoFromTx tx) === spendTx tx u <> utxoFromTx tx
 
-prop_applyTxToUTxO_spendTx_utxoFromTx :: Property
-prop_applyTxToUTxO_spendTx_utxoFromTx =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genUTxO shrinkUTxO $ \u ->
-        applyTxToUTxO tx u === spendTx tx u <> utxoFromTx tx
+prop_applyTxToUTxO_spendTx_utxoFromTx :: Tx -> UTxO -> Property
+prop_applyTxToUTxO_spendTx_utxoFromTx tx u=
+    applyTxToUTxO tx u === spendTx tx u <> utxoFromTx tx
 
-prop_spendTx_filterByAddress :: Bool -> Property
-prop_spendTx_filterByAddress b =
+prop_spendTx_filterByAddress :: Bool -> Tx -> UTxO -> Property
+prop_spendTx_filterByAddress b tx u =
     let
         f = const b
     in
-        forAllShrink genTx shrinkTx $ \tx ->
-        forAllShrink genUTxO shrinkUTxO $ \u ->
-            filterByAddress f (spendTx tx u)
-            === spendTx tx (filterByAddress f u)
+        filterByAddress f (spendTx tx u) === spendTx tx (filterByAddress f u)
