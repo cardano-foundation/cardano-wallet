@@ -75,6 +75,8 @@ module Cardano.Wallet.Primitive.Types
     , StartTime (..)
     , stabilityWindowByron
     , stabilityWindowShelley
+    , ExecutionUnits (..)
+    , ExecutionUnitPrices (..)
 
     -- * Wallet Metadata
     , WalletMetadata(..)
@@ -1038,6 +1040,12 @@ data ProtocolParameters = ProtocolParameters
         :: Word16
         -- ^ Limit on the maximum number of collateral inputs present in a
         -- transaction.
+    , executionUnitPrices
+        :: Maybe ExecutionUnitPrices
+        -- ^ The prices for 'ExecutionUnits' as a fraction of a 'Lovelace' and
+        -- used to determine the fee for the use of a script within a
+        -- transaction, based on the 'ExecutionUnits' needed by the use of
+        -- the script.
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters
@@ -1049,7 +1057,33 @@ instance Buildable ProtocolParameters where
         , "Desired number of pools: " <> build (pp ^. #desiredNumberOfStakePools)
         , "Minimum UTxO value: " <> build (pp ^. #minimumUTxOvalue)
         , "Eras:\n" <> indentF 2 (build (pp ^. #eras))
+        , "Execution unit prices: " <>
+            case (pp ^. #executionUnitPrices) of
+                Just prices -> build prices
+                Nothing -> "not specified"
         ]
+
+data ExecutionUnits = ExecutionUnits
+    { executionSteps
+        :: Word64
+        -- ^ This corresponds roughly to the time to execute a script.
+
+    , executionMemory
+        :: Word64
+        -- ^ This corresponds roughly to the peak memory used during script
+        -- execution.
+    } deriving (Eq, Generic, Show)
+
+data ExecutionUnitPrices = ExecutionUnitPrices
+    { priceExecutionSteps  :: Rational
+    , priceExecutionMemory :: Rational
+    } deriving (Eq, Generic, Show)
+
+instance NFData ExecutionUnitPrices
+
+instance Buildable ExecutionUnitPrices where
+    build (ExecutionUnitPrices perStep perMem) =
+        build $ show perStep <> " per step, " <> show perMem <> " per memory unit"
 
 -- | Indicates the current level of decentralization in the network.
 --
