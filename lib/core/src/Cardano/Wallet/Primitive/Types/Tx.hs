@@ -38,11 +38,13 @@ module Cardano.Wallet.Primitive.Types.Tx
     -- * Functions
     , fromTransactionInfo
     , inputs
+    , collateralInputs
     , isPending
     , toTxHistory
     , txIns
     , txMetadataIsNull
     , txOutCoin
+    , failedScriptValidation
 
     -- * Constants
     , txOutMinTokenQuantity
@@ -228,6 +230,9 @@ txIns = foldMap (Set.fromList . inputs)
 
 inputs :: Tx -> [TxIn]
 inputs = map fst . resolvedInputs
+
+collateralInputs :: Tx -> [TxIn]
+collateralInputs = map fst . resolvedCollateral
 
 data TxIn = TxIn
     { inputId
@@ -474,6 +479,13 @@ data TransactionInfo = TransactionInfo
     } deriving (Generic, Show, Eq)
 
 instance NFData TransactionInfo
+
+-- | Returns True when the script has failed validation.
+failedScriptValidation :: Maybe Bool -> Bool
+failedScriptValidation (Just False) = True
+failedScriptValidation (Just True)  = False
+-- Script validation always passes in eras that don't support scripts
+failedScriptValidation Nothing      = False
 
 -- | Reconstruct a transaction info from a transaction.
 fromTransactionInfo :: TransactionInfo -> Tx

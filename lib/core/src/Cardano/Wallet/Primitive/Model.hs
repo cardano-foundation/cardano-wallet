@@ -78,6 +78,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxIn (..)
     , TxMeta (..)
     , TxStatus (..)
+    , collateralInputs
+    , failedScriptValidation
     , inputs
     , txOutCoin
     )
@@ -373,7 +375,12 @@ applyTxToUTxO tx !u = spendTx tx u <> utxoFromTx tx
 -- spendTx tx (filterByAddress f u) = filterByAddress f (spendTx tx u)
 -- spendTx tx (u <> utxoFromTx tx) = spendTx tx u <> utxoFromTx tx
 spendTx :: Tx -> UTxO -> UTxO
-spendTx tx !u = u `excluding` Set.fromList (inputs tx)
+spendTx tx !u =
+    u `excluding` (
+        if failedScriptValidation (tx ^. #isValidScript)
+        then Set.fromList (collateralInputs tx)
+        else Set.fromList (inputs tx)
+    )
 
 -- | Construct a UTxO corresponding to a given transaction. It is important for
 -- the transaction outputs to be ordered correctly, since they become available
@@ -382,8 +389,10 @@ spendTx tx !u = u `excluding` Set.fromList (inputs tx)
 -- balance (utxoFromTx tx) = foldMap tokens (outputs tx)
 -- utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
 utxoFromTx :: Tx -> UTxO
-utxoFromTx Tx {txId, outputs} =
-    UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
+utxoFromTx Tx {txId, outputs, isValidScript} =
+    if failedScriptValidation isValidScript
+    then mempty
+    else UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 
 isOurAddress
     :: forall s m
@@ -558,4 +567,11 @@ changeUTxO
     -> UTxO
 changeUTxO pending = evalState $
     mconcat
-    <$> mapM (filterByAddressM isOurAddress . utxoFromTx) (Set.toList pending)
+    <$> mapM (filterByAddressM isOurs' . mkUTxOFromTx) (Set.toList pending)
+    where
+        -- Generate a UTxO from an transaction, assuming that it passes phase-2
+        -- script validation. Crucially, utxoFromTx will exclude failed
+        -- transactions, hence we define our own function.
+        mkUTxOFromTx :: Tx -> UTxO
+        mkUTxOFromTx Tx {txId, outputs} =
+            UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
