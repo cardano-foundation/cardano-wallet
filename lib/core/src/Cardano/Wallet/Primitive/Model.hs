@@ -472,16 +472,14 @@ prefilterBlock b u0 = runState $ do
 
         -- A transaction has a known input if one of the transaction inputs
         -- matches a transaction input we know about.
-        let hasKnownInput =
-                Set.fromList (inputs tx)
-                    `Set.intersection` (Set.fromList ownedAndKnownTxIns)
-                /= mempty
+        let hasKnownInput = not $ Set.disjoint
+                (Set.fromList $ inputs tx)
+                (Set.fromList ownedAndKnownTxIns)
         -- A transaction has a known output if one of the transaction outputs
         -- matches a transaction output we know about.
-        let hasKnownOutput =
-                Set.fromList (outputs tx)
-                    `Set.intersection` (Set.fromList ownedAndKnownTxOuts)
-                /= mempty
+        let hasKnownOutput = not $ Set.disjoint
+                (Set.fromList $ outputs tx)
+                (Set.fromList ownedAndKnownTxOuts)
         let hasKnownWithdrawal = ourWithdrawals /= mempty
 
         -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
