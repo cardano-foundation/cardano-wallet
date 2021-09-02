@@ -151,11 +151,11 @@ size (UTxO u) = Map.size u
 filterByAddressM :: forall f. Monad f => (Address -> f Bool) -> UTxO -> f UTxO
 filterByAddressM isOursF (UTxO m) =
     UTxO <$> Map.traverseMaybeWithKey filterFunc m
-    where
-        filterFunc :: TxIn -> TxOut -> f (Maybe TxOut)
-        filterFunc _txin txout = do
-            ours <- isOursF $ view #address txout
-            pure $ if ours then Just txout else Nothing
+  where
+    filterFunc :: TxIn -> TxOut -> f (Maybe TxOut)
+    filterFunc _txin txout = do
+        ours <- isOursF $ view #address txout
+        pure $ if ours then Just txout else Nothing
 
 -- | Filters a 'UTxO' set with an indicator function on 'Address' values.
 --

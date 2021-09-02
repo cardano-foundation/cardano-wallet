@@ -195,16 +195,24 @@ spec = do
                 (property prop_applyTxToUTxO_spendTx_utxoFromTx)
 
         describe "utxoFromTx" $ do
-            it "has expected balance" (property prop_utxoFromTx_balance)
-            it "is unspent" (property prop_utxoFromTx_is_unspent)
+            it "has expected balance"
+                (property prop_utxoFromTx_balance)
+            it "is unspent"
+                (property prop_utxoFromTx_is_unspent)
 
         describe "spendTx" $ do
-            it "is subset of UTxO" (property prop_spendTx_isSubset)
-            it "balance is <= balance of UTxO" (property prop_spendTx_balance_inequality)
-            it "has expected balance" (property prop_spendTx_balance)
-            it "definition" (property prop_spendTx)
-            it "commutative with filterByAddress" (property prop_spendTx_filterByAddress)
-            it "spendTx/utxoFromTx" (property prop_spendTx_utxoFromTx)
+            it "is subset of UTxO"
+                (property prop_spendTx_isSubset)
+            it "balance is <= balance of UTxO"
+                (property prop_spendTx_balance_inequality)
+            it "has expected balance"
+                (property prop_spendTx_balance)
+            it "definition"
+                (property prop_spendTx)
+            it "commutative with filterByAddress"
+                (property prop_spendTx_filterByAddress)
+            it "spendTx/utxoFromTx"
+                (property prop_spendTx_utxoFromTx)
 
     parallel $ describe "Available UTxO" $ do
         it "prop_availableUTxO_isSubmap" $
