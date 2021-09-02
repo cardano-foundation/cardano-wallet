@@ -71,7 +71,12 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), SealedTx (..), TxMetadata, TxStatus (..) )
+    ( Direction (..)
+    , ScriptValidation (..)
+    , SealedTx (..)
+    , TxMetadata
+    , TxStatus (..)
+    )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -112,7 +117,11 @@ import Data.Word
 import Data.Word.Odd
     ( Word31 )
 import Database.Persist.Sqlite
-    ( PersistField (..), PersistFieldSql (..), PersistValue (..) )
+    ( PersistField (..)
+    , PersistFieldSql (..)
+    , PersistValue (..)
+    , SqlType (SqlBool)
+    )
 import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )
 import GHC.Generics
@@ -797,6 +806,29 @@ instance PersistField DerivationPrefix where
 
 instance PersistFieldSql DerivationPrefix where
     sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- ScriptValidation
+
+instance PersistField ScriptValidation where
+    toPersistValue ScriptsNotSupported = PersistNull
+    toPersistValue ScriptValidationPassed = PersistBool True
+    toPersistValue ScriptValidationFailed = PersistBool False
+
+    fromPersistValue PersistNull = Right ScriptsNotSupported
+    fromPersistValue (PersistBool True) = Right ScriptValidationPassed
+    fromPersistValue (PersistBool False) = Right ScriptValidationFailed
+    fromPersistValue x =
+        Left $ T.concat [
+          "Failed to parse Haskell type `ScriptValidation`;"
+          , " expected null or boolean"
+          , " from database, but received: "
+          , T.pack (show x)
+          ]
+
+instance PersistFieldSql ScriptValidation where
+    -- sqlType _ = sqlType (Proxy @ScriptValidation)
+    sqlType _ = SqlBool
 
 ----------------------------------------------------------------------------
 -- Other

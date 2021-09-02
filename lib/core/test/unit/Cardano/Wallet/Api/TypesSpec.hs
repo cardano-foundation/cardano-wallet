@@ -268,6 +268,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , ScriptValidation (..)
     , SerialisedTx (..)
     , SerialisedTxParts (..)
     , TxIn (..)
@@ -275,6 +276,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genScriptValidation, shrinkScriptValidation )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( HistogramBar (..)
     , UTxO (..)
@@ -2201,6 +2204,10 @@ instance Arbitrary (ApiTransaction n) where
             Test.QuickCheck.scale (`mod` 3) arbitrary
         genCollateral =
             Test.QuickCheck.scale (`mod` 3) arbitrary
+
+instance Arbitrary ScriptValidation where
+    arbitrary = genScriptValidation
+    shrink = shrinkScriptValidation
 
 instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
     arbitrary = ApiWithdrawal

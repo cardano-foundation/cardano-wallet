@@ -48,7 +48,13 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..), TxSize (..) )
+    ( ScriptValidation (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxMetadata (..)
+    , TxOut (..)
+    , TxSize (..)
+    )
 import Data.Coerce
     ( coerce )
 import Data.Functor.Identity
@@ -130,7 +136,7 @@ mkTx
     -> [TxOut]
     -> Map RewardAccount Coin
     -> Maybe TxMetadata
-    -> Maybe Bool
+    -> ScriptValidation
     -> Tx
 mkTx fees ins cins outs wdrls md isValid =
     Tx

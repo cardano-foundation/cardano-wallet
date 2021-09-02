@@ -304,6 +304,7 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , ScriptValidation (..)
     , SerialisedTx (..)
     , TxConstraints (..)
     , TxIn (..)
@@ -1093,7 +1094,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
-    , isValidScript :: !(Maybe Bool)
+    , isValidScript :: !(ApiT ScriptValidation)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
@@ -3638,3 +3639,14 @@ instance FromJSON (ApiT (Script KeyHash)) where
     parseJSON = fmap ApiT . parseJSON
 instance ToJSON (ApiT (Script KeyHash)) where
     toJSON = toJSON . getApiT
+
+instance FromJSON (ApiT ScriptValidation) where
+    parseJSON (Aeson.Null) = pure $ ApiT ScriptsNotSupported
+    parseJSON (Aeson.Bool True) = pure $ ApiT ScriptValidationPassed
+    parseJSON (Aeson.Bool False) = pure $ ApiT ScriptValidationFailed
+    parseJSON _ = pure $ ApiT ScriptValidationFailed
+
+instance ToJSON (ApiT ScriptValidation) where
+    toJSON (ApiT ScriptsNotSupported) = Aeson.Null
+    toJSON (ApiT ScriptValidationPassed) = Aeson.Bool True
+    toJSON (ApiT ScriptValidationFailed) = Aeson.Bool False

@@ -62,6 +62,7 @@ library
     , fmt
     , foldl
     , generic-lens
+    , generic-arbitrary
     , hashable
     , http-api-data
     , http-client

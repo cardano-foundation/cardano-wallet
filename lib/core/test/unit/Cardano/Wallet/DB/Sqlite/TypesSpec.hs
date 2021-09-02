@@ -27,7 +27,9 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata )
+    ( ScriptValidation, TxMetadata )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genScriptValidation, shrinkScriptValidation )
 import Data.Either
     ( isLeft )
 import Data.Proxy
@@ -72,6 +74,7 @@ spec = do
         persistRoundtrip $ Proxy @StdGen
         persistRoundtrip $ Proxy @(Nested TxMetadata)
         persistRoundtrip $ Proxy @(Simple TxMetadata)
+        persistRoundtrip $ Proxy @ScriptValidation
 
     describe "Backwards compatible instance PersistField StdGen" $ do
         it "rnd_state empty" $
@@ -167,3 +170,7 @@ instance PersistField a => PersistField (Simple a) where
 
 instance Arbitrary StdGen where
     arbitrary = mkStdGen <$> arbitrary
+
+instance Arbitrary ScriptValidation where
+    arbitrary = genScriptValidation
+    shrink = shrinkScriptValidation

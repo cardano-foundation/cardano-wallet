@@ -120,6 +120,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
+    , ScriptValidation (..)
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -752,7 +753,7 @@ instance Arbitrary GenTxHistory where
         genTx' = mkTx <$> genTid
         hasPending = any ((== Pending) . view #status . snd)
         genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
-        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing Nothing
+        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing ScriptsNotSupported
         genTxMeta = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
@@ -1288,7 +1289,14 @@ dummyTransactionLayer = TransactionLayer
         -- TODO: (ADP-957)
         let cinps' = []
         let tid = mkTxId inps' (outputsCovered cs) mempty Nothing
-        let tx = Tx tid Nothing inps' cinps' (outputsCovered cs) mempty Nothing Nothing
+        let tx = Tx tid
+                    Nothing
+                    inps'
+                    cinps'
+                    (outputsCovered cs)
+                    mempty
+                    Nothing
+                    ScriptsNotSupported
         wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keystore addr

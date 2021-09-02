@@ -34,6 +34,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , LocalTxSubmissionStatus (..)
     , TokenBundleSizeAssessor (..)
     , TokenBundleSizeAssessment (..)
+    , ScriptValidation (..)
 
     -- * Functions
     , fromTransactionInfo
@@ -199,7 +200,7 @@ data Tx = Tx
         -- <https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
 
     , isValidScript
-        :: !(Maybe Bool)
+        :: !ScriptValidation
         -- ^ Tag indicating whether non-native scripts in this transaction are
         -- expected to validate. This is added by the block creator when
         -- constructing the block. For pre-Alonzo era transactions, scripts are
@@ -224,6 +225,11 @@ instance Buildable Tx where
             (maybe "" build $ view #metadata t)
         , nameF "isValidScript" (build $ view #isValidScript t)
         ]
+
+instance Buildable ScriptValidation where
+    build ScriptsNotSupported = "<scripts not supported>"
+    build ScriptValidationPassed = "true"
+    build ScriptValidationFailed = "false"
 
 txIns :: Set Tx -> Set TxIn
 txIns = foldMap (Set.fromList . inputs)
@@ -472,20 +478,30 @@ data TransactionInfo = TransactionInfo
     -- ^ Creation time of the block including this transaction.
     , txInfoMetadata :: !(Maybe TxMetadata)
     -- ^ Application-specific extension data.
-    , txInfoIsValidScript :: !(Maybe Bool)
+    , txInfoIsValidScript :: !ScriptValidation
     -- ^ Tag indicating whether non-native scripts in this transaction are
     -- expected to validate. This is added by the block creator when
-    -- constructing the block. Nothing for pre-Alonzo era transactions.
+    -- constructing the block. For pre-Alonzo era transactions, scripts are not
+    -- supported, and so script validation always passes.
     } deriving (Generic, Show, Eq)
 
 instance NFData TransactionInfo
 
+-- | Indicates whether the script associated with a transaction has passed or
+-- failed validation. Pre-Alonzo era, scripts were not supported.
+data ScriptValidation = ScriptsNotSupported
+                      | ScriptValidationPassed
+                      | ScriptValidationFailed
+  deriving (Generic, Show, Eq, Ord)
+
+instance NFData ScriptValidation
+
 -- | Returns True when the script has failed validation.
-failedScriptValidation :: Maybe Bool -> Bool
-failedScriptValidation (Just False) = True
-failedScriptValidation (Just True)  = False
+failedScriptValidation :: ScriptValidation -> Bool
+failedScriptValidation ScriptValidationFailed = True
+failedScriptValidation ScriptValidationPassed = False
 -- Script validation always passes in eras that don't support scripts
-failedScriptValidation Nothing      = False
+failedScriptValidation ScriptsNotSupported    = False
 
 -- | Reconstruct a transaction info from a transaction.
 fromTransactionInfo :: TransactionInfo -> Tx

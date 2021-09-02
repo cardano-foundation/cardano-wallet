@@ -148,6 +148,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , ScriptValidation (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
@@ -580,7 +581,7 @@ fileModeSpec =  do
                                     ]
                                 , withdrawals = mempty
                                 , metadata = Nothing
-                                , isValidScript = Just True
+                                , isValidScript = ScriptValidationPassed
                                 }
                             ]
 
@@ -601,7 +602,7 @@ fileModeSpec =  do
                                 ]
                             , withdrawals = mempty
                             , metadata = Nothing
-                            , isValidScript = Just False
+                            , isValidScript = ScriptValidationFailed
                             }
                         ]
 
@@ -638,7 +639,7 @@ fileModeSpec =  do
                                 [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
                             , withdrawals = mempty
                             , metadata = Nothing
-                            , isValidScript = Nothing
+                            , isValidScript = ScriptsNotSupported
                             }
                         ]
 
@@ -660,7 +661,7 @@ fileModeSpec =  do
                             ]
                         , withdrawals = mempty
                         , metadata = Nothing
-                        , isValidScript = Nothing
+                        , isValidScript = ScriptsNotSupported
                         }
                     ]
 
@@ -1272,7 +1273,7 @@ testTxs = [(tx, txMeta)]
         , outputs = [TxOut (Address "addr") (coinToBundle 1)]
         , withdrawals = mempty
         , metadata = Nothing
-        , isValidScript = Nothing
+        , isValidScript = ScriptsNotSupported
         }
     txMeta = TxMeta
         { status = InLedger
