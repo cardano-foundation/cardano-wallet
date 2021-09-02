@@ -126,6 +126,7 @@ dummyProtocolParameters = ProtocolParameters
     , stakeKeyDeposit = Coin 0
     , eras = emptyEraInfo
     , maximumCollateralInputCount = 3
+    , executionUnitPrices = Nothing
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
