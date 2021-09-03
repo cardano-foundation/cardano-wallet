@@ -56,10 +56,16 @@ spec =
 
 prop_filterByAddress_matchAll :: UTxO -> Property
 prop_filterByAddress_matchAll u =
+    checkCoverage $
+    cover 2 (u == mempty) "empty" $
+    cover 8 (u /= mempty) "non-empty" $
     filterByAddress (const True) u === u
 
 prop_filterByAddress_matchNone :: UTxO -> Property
 prop_filterByAddress_matchNone u =
+    checkCoverage $
+    cover 2 (u == mempty) "empty" $
+    cover 8 (u /= mempty) "non-empty" $
     filterByAddress (const False) u === mempty
 
 prop_filterByAddress_matchSome :: UTxO -> Property
@@ -91,11 +97,23 @@ prop_filterByAddress_empty f =
 
 prop_filterByAddress_filterByAddressM :: UTxO -> (Address -> Bool) -> Property
 prop_filterByAddress_filterByAddressM u f =
+    checkCoverage $
+    cover 10 isNonEmptyProperSubset "is non-empty proper subset" $
     filterByAddress f u === runIdentity (filterByAddressM (pure . f) u)
+  where
+    isNonEmptyProperSubset = (&&)
+        (filterByAddress f u /= mempty)
+        (dom (filterByAddress f u) `Set.isProperSubsetOf` dom u)
 
 prop_filterByAddress_isSubset :: UTxO -> (Address -> Bool) -> Property
 prop_filterByAddress_isSubset u f =
+    checkCoverage $
+    cover 10 isNonEmptyProperSubset "is non-empty proper subset" $
     property $ filterByAddress f u `isSubsetOf` u
+  where
+    isNonEmptyProperSubset = (&&)
+        (filterByAddress f u /= mempty)
+        (dom (filterByAddress f u) `Set.isProperSubsetOf` dom u)
 
 instance CoArbitrary Address where
     coarbitrary = coarbitraryAddress
