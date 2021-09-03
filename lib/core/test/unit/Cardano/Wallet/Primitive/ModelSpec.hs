@@ -55,7 +55,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( Parity (..), addressParity )
+    ( Parity (..), addressParity, coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -120,6 +120,7 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , CoArbitrary (..)
     , Gen
     , Positive (..)
     , Property
@@ -1427,18 +1428,13 @@ prop_applyTxToUTxO_entries tx u =
       `Map.difference`
           unUTxO (u `UTxO.restrictedBy` Set.fromList (inputs tx))
 
-prop_filterByAddress_balance_applyTxToUTxO :: Bool -> Tx -> Property
-prop_filterByAddress_balance_applyTxToUTxO b tx =
-    let
-        f = const b
-    in
-        checkCoverage $
-        cover 30 (b) "True function" $
-        cover 30 (not b) "False function" $
-        balance (filterByAddress f (applyTxToUTxO tx mempty))
-        === foldMap (\o -> do
-                if f (address o) then tokens o else mempty
-            ) (outputs tx)
+prop_filterByAddress_balance_applyTxToUTxO
+    :: (Address -> Bool) -> Tx -> Property
+prop_filterByAddress_balance_applyTxToUTxO f tx =
+    balance (filterByAddress f (applyTxToUTxO tx mempty))
+    === foldMap
+        (\o -> if f (address o) then tokens o else mempty)
+        (outputs tx)
 
 prop_utxoFromTx_balance :: Tx -> Property
 prop_utxoFromTx_balance tx =
@@ -1488,12 +1484,12 @@ prop_applyTxToUTxO_spendTx_utxoFromTx :: Tx -> UTxO -> Property
 prop_applyTxToUTxO_spendTx_utxoFromTx tx u=
     applyTxToUTxO tx u === spendTx tx u <> utxoFromTx tx
 
-prop_spendTx_filterByAddress :: Bool -> Tx -> UTxO -> Property
-prop_spendTx_filterByAddress b tx u =
-    let
-        f = const b
-    in
-        checkCoverage $
-        cover 30 (b) "True function" $
-        cover 30 (not b) "False function" $
-        filterByAddress f (spendTx tx u) === spendTx tx (filterByAddress f u)
+prop_spendTx_filterByAddress :: (Address -> Bool) -> Tx -> UTxO -> Property
+prop_spendTx_filterByAddress f tx u =
+    filterByAddress f (spendTx tx u) === spendTx tx (filterByAddress f u)
+
+instance CoArbitrary Address where
+    coarbitrary = coarbitraryAddress
+
+instance Show (Address -> Bool) where
+    show = const "(Address -> Bool)"
