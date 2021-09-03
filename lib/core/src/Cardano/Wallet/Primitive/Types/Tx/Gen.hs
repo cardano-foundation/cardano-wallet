@@ -59,6 +59,7 @@ import Test.QuickCheck
     , liftArbitrary2
     , liftShrink
     , liftShrink2
+    , listOf
     , listOf1
     , shrinkList
     , shrinkMapBy
@@ -102,7 +103,7 @@ genTxWithoutId = TxWithoutId
     <$> liftArbitrary genCoinPositive
     <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
     <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
-    <*> listOf1 genTxOut
+    <*> listOf genTxOut
     <*> liftArbitrary genTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
 
