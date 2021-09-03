@@ -127,7 +127,7 @@ data TransactionLayer k = TransactionLayer
         :: ProtocolParameters
             -- Current protocol parameters
         -> SealedTx
-            -- The constructed transaction that could contain
+            -- The constructed transaction that could contain plutus scripts
         -> Coin
         -- ^ Compute an execution costs of scripts in a given transaction.
 
