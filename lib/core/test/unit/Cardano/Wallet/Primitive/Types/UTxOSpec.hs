@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -7,8 +8,10 @@ module Cardano.Wallet.Primitive.Types.UTxOSpec
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( Parity (..), addressParity )
+    ( Parity (..), addressParity, coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), dom, filterByAddress, filterByAddressM, isSubsetOf )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
@@ -21,6 +24,7 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , CoArbitrary (..)
     , Property
     , checkCoverage
     , conjoin
@@ -81,26 +85,23 @@ prop_filterByAddress_matchSome utxo =
     utxoEven = filterByAddress ((== Even) . addressParity) utxo
     utxoOdd  = filterByAddress ((==  Odd) . addressParity) utxo
 
-prop_filterByAddress_empty :: Bool -> Property
-prop_filterByAddress_empty b =
-    let
-        f = const b
-    in
-        filterByAddress f mempty === mempty
+prop_filterByAddress_empty :: (Address -> Bool) -> Property
+prop_filterByAddress_empty f =
+    filterByAddress f mempty === mempty
 
-prop_filterByAddress_filterByAddressM :: UTxO -> Bool -> Property
-prop_filterByAddress_filterByAddressM u b =
-    let
-        f = const b
-    in
-        filterByAddress f u === runIdentity (filterByAddressM (pure . f) u)
+prop_filterByAddress_filterByAddressM :: UTxO -> (Address -> Bool) -> Property
+prop_filterByAddress_filterByAddressM u f =
+    filterByAddress f u === runIdentity (filterByAddressM (pure . f) u)
 
-prop_filterByAddress_isSubset :: UTxO -> Bool -> Property
-prop_filterByAddress_isSubset u b =
-    let
-        f = const b
-    in
-        property $ filterByAddress f u `isSubsetOf` u
+prop_filterByAddress_isSubset :: UTxO -> (Address -> Bool) -> Property
+prop_filterByAddress_isSubset u f =
+    property $ filterByAddress f u `isSubsetOf` u
+
+instance CoArbitrary Address where
+    coarbitrary = coarbitraryAddress
+
+instance Show (Address -> Bool) where
+    show = const "(Address -> Bool)"
 
 instance Arbitrary UTxO where
     arbitrary = genUTxO
