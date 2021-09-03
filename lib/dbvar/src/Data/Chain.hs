@@ -40,11 +40,14 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Semigroupoid
     ( o )
+import Data.Set
+    ( Set )
 import Data.Table
     ( Table , DeltaTable (..) )
 
 import qualified Data.Table as Table
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
     Chain
@@ -105,11 +108,9 @@ fromEdge Edge{from,to,via} = Chain
 -- | Construct a chain from a collection of edges.
 -- Fails if the edges do not fit together.
 --
--- FIXME: Order of @edge@ labels? This is important.
--- We probably need to model the edges in the table as a set.
---
--- FIXME: Edges in the table correspond to NonEmpty list.
--- Need to deal with that properly.
+-- The ordering of edge labels of a single edge in the chain will
+-- be the same as the ordering of the edge labels as they
+-- appear in the list.
 fromEdges :: Ord node => [Edge node edge] -> Maybe (Chain node [edge])
 fromEdges []     = Nothing
 fromEdges (e:es) = ($ fromEdge' e) . foldr (<=<) Just $ map addEdge es
@@ -128,11 +129,9 @@ edges Chain{prev,next,tip} = unfoldr backwards tip
         pure (e,before)
 
 -- | Convert a 'Chain' into a list of 'Edge'.
---
--- FIXME: Order?
-toEdges :: Chain node [edge] -> [Edge node edge]
+toEdges :: Chain node edge -> [Edge node edge]
 toEdges Chain{next} =
-    [Edge{from,to,via} | (from, (vias,to)) <- Map.toList next, via <- vias]
+    [ Edge{from,to,via} | (from, (via,to)) <- Map.toList next ]
 
 -- | Combine all the edges in the 'Chain'.
 -- The summary is invariant under 'collapseNode'.
@@ -140,6 +139,8 @@ toEdges Chain{next} =
 -- > summary = mconcat . edges
 summary :: (Ord node, Monoid edge) => Chain node edge -> edge
 summary = mconcat . edges
+-- FIXME: If a Chain without edges does not exist, then
+-- we can go to Semigroup here.
 
 {-------------------------------------------------------------------------------
     DeltaChain
@@ -153,7 +154,7 @@ data DeltaChain node edge
     | RollbackTo node
     -- ^ See 'rollbackTo'.
 
-instance (Ord node, Monoid edge) => Delta (DeltaChain node edge) where
+instance (Ord node, Semigroup edge) => Delta (DeltaChain node edge) where
     type instance Base (DeltaChain node edge) = Chain node edge
     apply (AppendTip n e) = appendTip n e
     apply (CollapseNode n) = collapseNode n
@@ -171,23 +172,20 @@ appendTip new edge Chain{next,prev,tip=old} = Chain
 -- Do nothing if the node is at the tip, or at the bottom,
 -- or not in the chain at all.
 collapseNode
-    :: (Ord node, Monoid edge)
+    :: (Ord node, Semigroup edge)
     => node -> Chain node edge -> Chain node edge
-collapseNode node chain@Chain{next,prev} =
-    case (join (Map.lookup node prev), Map.lookup node next) of
-        (Just before, Just (e1, after)) ->
-            let (e2,_) = fromMaybe err (Map.lookup before next)
-            in chain
-                { next
-                    = Map.insert before (e1 <> e2, after)
-                    $ Map.delete node next
-                , prev
-                    = Map.insert after (Just before)
-                    $ Map.delete node prev 
-                }
+collapseNode now chain@Chain{next,prev} =
+    case lookup now chain of
+        -- Chain:   nto <--eto-- now <--efrom-- nfrom
+        Just Edge{to = Just (eto,nto), from = Just (efrom,nfrom)} -> chain
+            { next
+                = Map.insert nfrom (eto <> efrom, nto)
+                $ Map.delete now next
+            , prev
+                = Map.insert nto (Just nfrom)
+                $ Map.delete now prev 
+            }
         _ -> chain
-  where
-    err = error "collapseNode: impossible case"
 
 -- | Remove the tip and more nodes from the chain until
 -- the given node is the tip.
@@ -211,7 +209,9 @@ rollbackTo new chain@Chain{next,prev,tip}
 
 -- | Helper: Add a single edge to a 'Chain' if possible.
 -- The chain may contain gaps while adding edges.
-addEdge :: Ord node => Edge node edge -> Chain node [edge] -> Maybe (Chain node [edge])
+addEdge
+    :: Ord node
+    => Edge node edge -> Chain node [edge] -> Maybe (Chain node [edge])
 addEdge Edge{from,to,via} chain@Chain{next,prev,tip} =
     case Map.lookup from next of
         -- A connection from->to' already exists,
@@ -230,15 +230,23 @@ addEdge Edge{from,to,via} chain@Chain{next,prev,tip} =
             }
 
 -- | Embed a 'Chain' into a table of 'Edge'.
+--
+-- The first and second argument specify how the edge labels
+-- are to be mapped to and from sets of table rows.
+-- Importantly, we may not assume that the table stores
+-- the rows in any particular order.
 chainIntoTable
-    :: (Ord edge, Ord node, e ~ Edge node edge)
-    => Embedding (DeltaChain node [edge]) [DeltaTable e]
-chainIntoTable = Embedding {load,write,update}
+    :: (Ord node, Ord e, Semigroup edge)
+    => (edge -> [e]) -> (Set e -> edge)
+    -> Embedding (DeltaChain node edge) [DeltaTable (Edge node e)]
+chainIntoTable toSet fromSet = Embedding {load,write,update}
   where
-    load  = fromEdges . Table.toList
-    write = Table.fromList . toEdges
+    load = fmap (fmap $ fromSet . Set.fromList) . fromEdges . Table.toList
+    write = Table.fromList . concatMap flattenEdge
+        . map (fmap toSet) . toEdges
+
     update Chain{tip=from} _ (AppendTip to vias) =
-        [InsertMany [Edge{from,to,via} | via <- vias]]
+        [InsertMany [Edge{from,to,via} | via <- toSet vias]]
     update Chain{tip,prev} _ (RollbackTo node) =
         [DeleteWhere $ \Edge{to} -> to `elem` deletions]
       where
@@ -248,20 +256,22 @@ chainIntoTable = Embedding {load,write,update}
             x <- join $ Map.lookup now prev
             return (now,x)
     update chain _ (CollapseNode now) = case lookup now chain of
-        Nothing -> []
-        Just Edge{to,from} ->
-            maybe [] (\(_,new) -> updateTo now new) to
-            <> maybe [] (\(_,new) -> updateFrom now new) from
-    updateTo old new = [UpdateWhere (\Edge{to} -> to == old) (\e -> e{to=new})]
-    updateFrom old new = [UpdateWhere (\Edge{from} -> from == old) (\e -> e{from=new})]
-        -- Wait. If we are at the beginning of the chain,
-        -- I have to delete the entries, not just update them!
+        Just Edge{to=Just (eto,nto), from=Just (efrom,nfrom)} ->
+            -- insert new edges
+            [ InsertMany
+                [ Edge{to=nto,from=nfrom,via}
+                | via <- toSet (eto <> efrom)
+                ]
+            -- delete old edges
+            , DeleteWhere (\Edge{to,from} -> to == now || from == now)
+            ]
+        _ -> []
 
 {-------------------------------------------------------------------------------
     Tests
 -------------------------------------------------------------------------------}
 test :: (Table (Edge Int Char), [[Table.DeltaDB Int (Edge Int Char)]])
-test = liftUpdates (Table.tableIntoDatabase `o` chainIntoTable)
+test = liftUpdates (Table.tableIntoDatabase `o` chainIntoTable id (Set.toList))
     [CollapseNode 1, AppendTip 3 "DC", AppendTip 2 "B"]
     (fromEdge Edge{from=0,to=1,via="A"})
 
@@ -294,4 +304,4 @@ instance Functor (Edge node) where
 
 -- | Flatten a list of edges 
 flattenEdge :: Edge node [edge] -> [Edge node edge]
-flattenEdge Edge{to,from,via} = Edge to from <$> via
+flattenEdge Edge{to,from,via} = [ Edge{to,from,via=v} | v <- via ]

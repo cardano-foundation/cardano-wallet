@@ -105,7 +105,7 @@ addressChainIntoTable
         (DeltaChain Node [AddressInPool])
         [DeltaDB Int SeqStateAddress]
 addressChainIntoTable = 
-    embedIso addressDBIso `o` (tableIntoDatabase `o` chainIntoTable)
+    embedIso addressDBIso `o` (tableIntoDatabase `o` chainIntoTable id Set.toList)
 
 embedIso :: Iso' a b -> Embedding [DeltaDB Int a] [DeltaDB Int b]
 embedIso i = withIso i $ \ab ba -> Embedding
