@@ -9,8 +9,8 @@ module Data.Table (
     -- 'Supply' is a supply of unique IDs.
 
     -- * Table
-    Table
-    , empty, fromList, toList
+    Table (..)
+    , empty, fromRows, fromList, toList
     , selectWhere, insertMany, deleteWhere, updateWhere
     , DeltaTable (..)
     , DeltaDB (..)
@@ -44,7 +44,11 @@ import qualified Data.IntMap.Strict as Map
 -- | A 'Table' is a collection of rows.
 data Table row = Table
     { rows :: IntMap row
+    -- ^ Rows indexed by unique ID.
     , uids :: Supply
+    -- ^ Unique ID supply.
+    -- WARNING: This is an internal part of the structure.
+    -- Changing it may lead to an inconsistent state.
     } deriving (Show)
 
 instance Functor Table where
@@ -69,6 +73,14 @@ insertMany rs table = ($ table) . foldr (.) id $ map insertRow rs
 -- | Construct a 'Table' from a list of rows
 fromList :: [row] -> Table row
 fromList rows = insertMany rows empty
+
+-- | Construct a 'Table' from a list of rows with unique IDs.
+fromRows :: [(Int, row)] -> Table row
+fromRows rows = Table
+    { rows = Map.fromList rows
+    , uids = consume keys abundance
+    }
+  where keys = map fst rows
 
 -- | List of rows contained in the 'Table'.
 toList :: Table row -> [row]
@@ -143,7 +155,9 @@ tableIntoDatabase = Embedding{ load, write, update = \_ b -> map (update1 b) }
     Supply
 -------------------------------------------------------------------------------}
 -- | A supply of unique IDs.
-data Supply = Supply { now  :: Int }
+data Supply = Supply
+    { now  :: Int -- ^ Largest unique ID that is *in use*.
+    }
 
 instance Show Supply where
     showsPrec d (Supply{now}) = showParen (d > app_prec) $
@@ -157,9 +171,9 @@ abundance = Supply{ now = 0 }
 -- | Retrieve a fresh unique ID.
 fresh :: Supply -> (Int, Supply)
 fresh supply@Supply{now=old} = new `seq` (new, supply{now=new})
-  where new = succ old
+  where new = succ old -- smallest unused unique ID
 
 -- | Remove a list of unique IDs from the 'Supply' if necessary.
 consume :: [Int] -> Supply -> Supply
 consume xs supply@Supply{now=old} = new `seq` supply{now=new}
-  where new = old `max` (succ $ maximum xs)
+  where new = old `max` maximum xs

@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
@@ -17,7 +18,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Demo.Database where
 
-import Prelude
+import Prelude hiding (all)
 
 import Data.Chain
     ( Chain
@@ -40,7 +41,7 @@ import Control.Monad
 import Control.Monad.Class.MonadSTM
     ( MonadSTM (..) )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( MonadIO, liftIO )
 import Control.Monad.Logger
     ( NoLoggingT )
 import Control.Monad.Trans.Reader
@@ -53,15 +54,19 @@ import Data.Text
     ( Text )
 import Database.Persist.TH
     ( mkMigrate, mkPersist, mpsPrefixFields, persistLowerCase, share, sqlSettings )
-import Data.Set
-    ( Set )
 import Data.Table
     ( DeltaDB (..)
-    , Table
+    , Table (..)
     , tableIntoDatabase
     )
 import GHC.Generics
     ( Generic )
+import Say
+    ( say, sayShow )
+
+-- FIXME: Replace with IOSim stuff later.
+import Data.IORef
+    ( IORef, newIORef, readIORef, writeIORef )
 
 import qualified Data.Chain as Chain
 import qualified Data.Set as Set
@@ -90,8 +95,14 @@ SeqStateAddress
     seqStateAddressWalletId         Word32             sql=wallet_id
     seqStateAddressAddress          Address            sql=address
     seqStateAddressIndex            Word32             sql=address_ix
-    deriving Show Generic
+    deriving Generic
 |]
+
+instance Show SeqStateAddress where
+    show x =
+        show (seqStateAddressTo x)
+        <> " <--" <> show (seqStateAddressAddress x)
+        <> "-- " <> show (seqStateAddressFrom x)
 
 addressDBIso :: Iso' (Edge Node AddressInPool) SeqStateAddress
 addressDBIso = iso
@@ -117,7 +128,7 @@ embedIso i = withIso i $ \ab ba -> Embedding
 type AddressStore =
     Store DBIO (DeltaChain Node [AddressInPool]) (Chain Node [AddressInPool])
 
-newAddressStore :: Monad m => m AddressStore
+newAddressStore :: MonadIO m => m AddressStore
 newAddressStore = embedStore addressChainIntoTable <$> newDBStore
 
 {-------------------------------------------------------------------------------
@@ -133,20 +144,42 @@ instance MonadSTM (NoLoggingT (ResourceT IO)) where
 -- create the database table in the first place.
 newDBStore
     :: forall record m.
-    ( PersistEntity record, PersistEntityBackend record ~ SqlBackend
+    ( PersistRecordBackend record SqlBackend
     , ToBackendKey SqlBackend record, Show record
-    , Monad m )
+    , MonadIO m )
     => m (Store DBIO [DeltaDB Int record] (Table record))
-newDBStore = pure $ Store
-    { loadS   = do
-        -- liftIO . print =<< selectList all []
-        Just . Table.fromList . map entityVal <$> selectList all []
-    , writeS  = \table -> void $ do
-        deleteWhere all -- first, we delete the table from the database!
-        insertMany $ Table.toList table
-    , updateS = mapM_ . update1
-    }
+newDBStore = do
+    ref <- liftIO $ newIORef Nothing
+    let rememberSupply table = liftIO $ writeIORef ref $ Just $ uids table
+    pure $ Store
+        { loadS   = do
+            debug $ do
+                say "\n** loadS"
+                liftIO . print =<< selectList all []
+            -- read database table, preserve keys
+            let toPair (Entity key val) = (fromIntegral $ fromSqlKey key,val)
+            table <- Table.fromRows . map toPair <$> selectList all []
+            -- but use our own unique ID supply
+            liftIO (readIORef ref) >>= \case
+                Just supply  -> pure $ Just table{uids = supply}
+                Nothing      -> do
+                    rememberSupply table
+                    pure $ Just table
+        , writeS  = \table -> void $ do
+            deleteWhere all -- delete any old data in the table first
+            _ <- insertMany $ Table.toList table
+            rememberSupply table
+        , updateS = \table ds -> do
+            debug $ do
+                say "\n** updateS table deltas"
+                sayShow $ table
+                sayShow $ ds
+            mapM_ (update1 table) ds
+            rememberSupply (apply ds table) -- need to use updated supply
+        }
   where
+    debug m = if False then m else pure ()
+
     all :: [Filter record]
     all = []
 
@@ -158,6 +191,23 @@ newDBStore = pure $ Store
     update1 _ (DeleteManyDB ks) = void $ forM ks $ delete . toKey
     update1 _ (UpdateManyDB zs) = void $ forM zs $ \(key, value) ->
         replace (toKey key) value
+
+{- Note [Unique ID supply in newDBStore]
+
+We expect that updating the store and loading the value
+is the same as first loading the value and then apply the delta,
+i.e. we expect that the two actions
+
+    loadS >>= \a -> updateS a da >>= loadS
+    loadS >>= \a -> pure $ apply da a
+
+are operationally equivalent.
+However, this is only the case if we keep track of the supply
+of unique IDs for the table! Otherwise, loading the table
+from the database again can mess up the supply.
+-}
+-- FIXME: For clarity, we may want to implement this in terms
+-- of a product of stores ("semidirect product").
 
 main :: IO ()
 main = runSqlite ":memory:" $ do
@@ -173,3 +223,4 @@ main = runSqlite ":memory:" $ do
     updateDBVar db $ Chain.CollapseNode 1
 
     (liftIO . print) =<< readDBVar db
+    (liftIO . print) =<< loadS store

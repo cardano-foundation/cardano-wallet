@@ -224,7 +224,7 @@ addEdge Edge{from,to,via} chain@Chain{next,prev,tip} =
             { next = Map.insert from ([via], to) next
             , prev
                 = Map.insert to (Just from)
-                . Map.insertWith (\_ old -> old) from Nothing
+                . Map.insertWith (\_new old -> old) from Nothing
                 $ prev
             , tip = if from == tip then to else tip
             }
@@ -272,8 +272,8 @@ chainIntoTable toSet fromSet = Embedding {load,write,update}
 -------------------------------------------------------------------------------}
 test :: (Table (Edge Int Char), [[Table.DeltaDB Int (Edge Int Char)]])
 test = liftUpdates (Table.tableIntoDatabase `o` chainIntoTable id (Set.toList))
-    [CollapseNode 1, AppendTip 3 "DC", AppendTip 2 "B"]
-    (fromEdge Edge{from=0,to=1,via="A"})
+    [CollapseNode 1, CollapseNode 2, AppendTip 3 "c", AppendTip 2 "b"]
+    $ fromEdge Edge{from=0,to=1,via="a"}
 
 liftUpdates
     :: (Delta da, Delta da)

@@ -38,6 +38,7 @@ library
     , persistent
     , persistent-sqlite
     , safe
+    , say
     , semigroupoids
     , text
     , transformers
