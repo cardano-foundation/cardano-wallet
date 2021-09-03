@@ -1400,16 +1400,22 @@ blockchain =
 prop_tx_utxo_coverage :: Tx -> UTxO -> Property
 prop_tx_utxo_coverage tx u =
     checkCoverage $
-    cover 5 (UTxO.null u) "UTxO empty" $
-    cover 30 (not $ UTxO.null u) "UTxO not empty" $
+    cover 2 (UTxO.null u)
+        "UTxO empty" $
+    cover 30 (not $ UTxO.null u)
+        "UTxO not empty" $
     cover 30 (not $ Set.disjoint (dom u) (Set.fromList $ inputs tx))
         "UTxO and Tx not disjoint" $
     cover 10 (Set.disjoint (dom u) (Set.fromList $ inputs tx))
         "UTxO and Tx disjoint" $
-    cover 10 (length (inputs tx) > 3) "Number of tx inputs > 3" $
-    cover 10 (length (inputs tx) < 3) "Number of tx inputs < 3" $
-    cover 10 (length (outputs tx) > 3) "Number of tx outputs > 3" $
-    cover 10 (length (outputs tx) < 3) "Number of tx outputs < 3" $
+    cover 4 (length (inputs tx) > 3)
+        "Number of tx inputs > 3" $
+    cover 4 (length (inputs tx) < 3)
+        "Number of tx inputs < 3" $
+    cover 4 (length (outputs tx) > 3)
+        "Number of tx outputs > 3" $
+    cover 4 (length (outputs tx) < 3)
+        "Number of tx outputs < 3" $
     property True
 
 prop_applyTxToUTxO_balance :: Tx -> UTxO -> Property
