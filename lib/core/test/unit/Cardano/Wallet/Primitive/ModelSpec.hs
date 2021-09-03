@@ -1490,8 +1490,8 @@ prop_spendTx_balance_inequality :: Tx -> UTxO -> Property
 prop_spendTx_balance_inequality tx u =
     checkCoverage $
     cover 10
-        (lhs /= mempty && lhs `leq` rhs)
-        "lhs /= mempty && lhs `leq` rhs" $
+        (lhs /= mempty && lhs `leq` rhs && lhs /= rhs)
+        "lhs /= mempty && lhs `leq` rhs && lhs /= rhs" $
     isJust (rhs `TokenBundle.subtract` lhs)
         & counterexample ("balance (spendTx tx u) = " <> show lhs)
         & counterexample ("balance u = " <> show rhs)
