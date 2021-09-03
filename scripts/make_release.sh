@@ -19,9 +19,9 @@ set -euo pipefail
 ################################################################################
 # Release-specific parameters. Can be changed interactively by running the script.
 # Release tags must follow format vYYYY-MM-DD.
-GIT_TAG="v2021-08-11"
-OLD_GIT_TAG="v2021-07-30"
-CARDANO_NODE_TAG="alonzo-purple-1.0.1"
+GIT_TAG="v2021-08-27"
+OLD_GIT_TAG="v2021-08-11"
+CARDANO_NODE_TAG="1.29.0"
 
 ################################################################################
 # Tag munging functions
@@ -109,7 +109,10 @@ echo "Generating changelog into $CHANGELOG..."
 echo ""
 
 echo "Generating unresolved issues list into $KNOWN_ISSUES..."
-( jira release-notes-bugs || echo "TBD" ) > $KNOWN_ISSUES
+if ! jira release-notes-bugs > $KNOWN_ISSUES; then
+  echo "The \"jira release-notes-bugs\" command didn't work."
+  echo TBD > $KNOWN_ISSUES
+fi
 echo ""
 
 echo "Filling in template into $OUT..."

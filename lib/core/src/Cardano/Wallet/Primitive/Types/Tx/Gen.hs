@@ -22,7 +22,7 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
 import Prelude
 
 import Cardano.Wallet.Gen
-    ( genTxMetadata, shrinkTxMetadata )
+    ( genNestedTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress, shrinkAddress )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -104,7 +104,7 @@ genTxWithoutId = TxWithoutId
     <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
     <*> listOf1 (liftArbitrary2 genTxIn genCoinPositive)
     <*> listOf genTxOut
-    <*> liftArbitrary genTxMetadata
+    <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
@@ -118,9 +118,7 @@ shrinkTxWithoutId =
         (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
 
 txWithoutIdToTx :: TxWithoutId -> Tx
-txWithoutIdToTx t@TxWithoutId {..} = Tx {..}
-  where
-    txId = mockHash $ txWithoutIdToTuple t
+txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}
 
 txToTxWithoutId :: Tx -> TxWithoutId
 txToTxWithoutId Tx {..} = TxWithoutId {..}

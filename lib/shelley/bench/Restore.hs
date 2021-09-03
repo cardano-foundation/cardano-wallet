@@ -102,7 +102,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqAnyState
     , purposeCIP1852
     )
-import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( selectionDelta )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )

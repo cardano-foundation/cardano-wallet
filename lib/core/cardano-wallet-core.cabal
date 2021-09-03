@@ -1,5 +1,5 @@
 name:                cardano-wallet-core
-version:             2021.8.11
+version:             2021.8.27
 synopsis:            The Wallet Backend for a Cardano node.
 description:         Please see README.md
 homepage:            https://github.com/input-output-hk/cardano-wallet
@@ -182,8 +182,9 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.AddressDiscovery.Shared
       Cardano.Wallet.Primitive.SyncProgress
+      Cardano.Wallet.Primitive.CoinSelection
+      Cardano.Wallet.Primitive.CoinSelection.Balance
       Cardano.Wallet.Primitive.CoinSelection.Collateral
-      Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
       Cardano.Wallet.Primitive.Collateral
       Cardano.Wallet.Primitive.Delegation.UTxO
       Cardano.Wallet.Primitive.Migration
@@ -386,8 +387,8 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
       Cardano.Wallet.Primitive.Delegation.StateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
+      Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
       Cardano.Wallet.Primitive.CoinSelection.CollateralSpec
-      Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
       Cardano.Wallet.Primitive.CollateralSpec
       Cardano.Wallet.Primitive.MigrationSpec
       Cardano.Wallet.Primitive.Migration.PlanningSpec

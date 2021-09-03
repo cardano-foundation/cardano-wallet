@@ -287,16 +287,21 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , addCosignerAccXPub
     , isShared
     )
-import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-    ( SelectionError (..)
-    , SelectionReportDetailed
+import Cardano.Wallet.Primitive.CoinSelection
+    ( ErrPrepareOutputs (..)
+    , SelectionConstraints (..)
+    , SelectionError (..)
+    , SelectionParams (..)
+    , performSelection
+    )
+import Cardano.Wallet.Primitive.CoinSelection.Balance
+    ( SelectionReportDetailed
     , SelectionReportSummarized
     , SelectionResult (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , makeSelectionReportDetailed
     , makeSelectionReportSummarized
-    , performSelection
     )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
@@ -387,7 +392,6 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrSelectionCriteria (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -490,10 +494,12 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
@@ -1413,7 +1419,7 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
                 -- available to create a change (and a less expensive
                 -- transaction). Yet, this would require quite some extra logic
                 -- here in addition to all the existing logic inside the
-                -- CoinSelection/MA/RoundRobin module already. If we were not
+                -- CoinSelection/Balance module already. If we were not
                 -- able to add a change output already, let's not try to do it
                 -- here. Worse that can be list is:
                 --
@@ -1490,19 +1496,36 @@ selectAssets
     -> NonEmpty TxOut
     -> (s -> SelectionResult TokenBundle -> result)
     -> ExceptT ErrSelectAssets IO result
-selectAssets ctx (utxo, cp, pending) tx outs transform = do
+selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
     guardPendingWithdrawal
-
     pp <- liftIO $ currentProtocolParameters nl
-    liftIO $ traceWith tr $ MsgSelectionStart utxo outs
-    selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
-        initSelectionCriteria tl pp tx utxo outs
+    liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outputs
     mSel <- performSelection
-        (view #txOutputMinimumAdaQuantity $ constraints tl pp)
-        (calcMinimumCost tl pp tx)
-        (tokenBundleSizeAssessor tl
-            (pp ^. (#txParameters . #getTokenBundleMaxSize)))
-        (selectionCriteria)
+        SelectionConstraints
+            { assessTokenBundleSize =
+                tokenBundleSizeAssessor tl $
+                    pp ^. (#txParameters . #getTokenBundleMaxSize)
+            , computeMinimumAdaQuantity =
+                view #txOutputMinimumAdaQuantity $ constraints tl pp
+            , computeMinimumCost =
+                calcMinimumCost tl pp txCtx
+            , computeSelectionLimit =
+                view #computeSelectionLimit tl pp txCtx
+            , maximumCollateralInputCount =
+                view #maximumCollateralInputCount pp
+            }
+        SelectionParams
+            { -- Until we properly support minting and burning, set to empty:
+              assetsToBurn = TokenMap.empty
+            , assetsToMint = TokenMap.empty
+            , outputsToCover = outputs
+            , rewardWithdrawal = Just
+                $ addCoin (withdrawalToCoin $ view #txWithdrawal txCtx)
+                $ case view #txDelegationAction txCtx of
+                    Just Quit -> stakeKeyDeposit pp
+                    _ -> Coin 0
+            , utxoAvailable
+            }
     case mSel of
         Left e -> liftIO $
             traceWith tr $ MsgSelectionError e
@@ -1526,8 +1549,9 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
     guardPendingWithdrawal :: ExceptT ErrSelectAssets IO ()
     guardPendingWithdrawal =
         case Set.lookupMin $ Set.filter hasWithdrawal pending of
-            Just pendingWithdrawal | withdrawalToCoin (txWithdrawal tx) /= Coin 0 ->
-                throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal
+            Just pendingWithdrawal
+                | withdrawalToCoin (txWithdrawal txCtx) /= Coin 0 ->
+                    throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal
             _otherwise ->
                 pure ()
       where
@@ -2205,8 +2229,10 @@ estimateFee
     handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Coin
     handleCannotCover = \case
         e@(ErrSelectAssetsSelectionError se) -> case se of
-            UnableToConstructChange UnableToConstructChangeError{requiredCost} ->
-                pure requiredCost
+            SelectionBalanceError (Balance.UnableToConstructChange ce) ->
+                case ce of
+                    UnableToConstructChangeError {requiredCost} ->
+                        pure requiredCost
             _ ->
                 throwE  e
         e ->
@@ -2649,7 +2675,7 @@ data ErrCreateMigrationPlan
     deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
-    = ErrSelectAssetsCriteriaError ErrSelectionCriteria
+    = ErrSelectAssetsPrepareOutputsError ErrPrepareOutputs
     | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
     | ErrSelectAssetsSelectionError SelectionError

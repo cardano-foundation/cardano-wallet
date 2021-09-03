@@ -29,9 +29,6 @@ module Cardano.Wallet.Transaction
     -- * Errors
     , ErrMkTx (..)
     , ErrDecodeSignedTx (..)
-    , ErrSelectionCriteria (..)
-    , ErrOutputTokenBundleSizeExceedsLimit (..)
-    , ErrOutputTokenQuantityExceedsLimit (..)
 
     ) where
 
@@ -43,8 +40,8 @@ import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex, Passphrase )
-import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-    ( SelectionCriteria, SelectionResult, SelectionSkeleton )
+import Cardano.Wallet.Primitive.CoinSelection.Balance
+    ( SelectionLimit, SelectionResult, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, ProtocolParameters, SlotNo (..), TokenBundleMaxSize (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -53,10 +50,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , SerialisedTx (..)
@@ -66,8 +59,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata
     , TxOut
     )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
 import Data.ByteString
     ( ByteString )
 import Data.List.NonEmpty
@@ -121,17 +112,6 @@ data TransactionLayer k = TransactionLayer
         --
         -- The function returns CBOR-ed transaction body to be signed in another step.
 
-    , initSelectionCriteria
-        :: ProtocolParameters
-            -- Current protocol parameters
-        -> TransactionCtx
-            -- Additional information about the transaction
-        -> UTxOIndex
-            -- Available UTxO from which inputs should be selected.
-        -> NonEmpty TxOut
-            -- A list of target outputs
-        -> Either ErrSelectionCriteria SelectionCriteria
-
     , calcMinimumCost
         :: ProtocolParameters
             -- Current protocol parameters
@@ -142,6 +122,12 @@ data TransactionLayer k = TransactionLayer
         -> Coin
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
         -- This also includes necessary deposits.
+
+    , computeSelectionLimit
+        :: ProtocolParameters
+        -> TransactionCtx
+        -> [TxOut]
+        -> SelectionLimit
 
     , tokenBundleSizeAssessor
         :: TokenBundleMaxSize -> TokenBundleSizeAssessor
@@ -200,37 +186,6 @@ defaultTransactionCtx = TransactionCtx
 -- | Whether the user is attempting any particular delegation action.
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
     deriving (Show, Eq, Generic)
-
--- | Indicates a problem with the selection criteria for a coin selection.
-data ErrSelectionCriteria
-    = ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit
-        ErrOutputTokenBundleSizeExceedsLimit
-    | ErrSelectionCriteriaOutputTokenQuantityExceedsLimit
-        ErrOutputTokenQuantityExceedsLimit
-    deriving (Eq, Generic, Show)
-
-data ErrOutputTokenBundleSizeExceedsLimit = ErrOutputTokenBundleSizeExceedsLimit
-    { address :: !Address
-      -- ^ The address to which this token bundle was to be sent.
-    , assetCount :: !Int
-      -- ^ The number of assets within the token bundle.
-    }
-    deriving (Eq, Generic, Show)
-
--- | Indicates that a token quantity exceeds the maximum quantity that can
---   appear in a transaction output's token bundle.
---
-data ErrOutputTokenQuantityExceedsLimit = ErrOutputTokenQuantityExceedsLimit
-    { address :: !Address
-      -- ^ The address to which this token quantity was to be sent.
-    , asset :: !AssetId
-      -- ^ The asset identifier to which this token quantity corresponds.
-    , quantity :: !TokenQuantity
-      -- ^ The token quantity that exceeded the bound.
-    , quantityMaxBound :: !TokenQuantity
-      -- ^ The maximum allowable token quantity.
-    }
-    deriving (Eq, Generic, Show)
 
 -- | Error while trying to decode externally signed transaction
 data ErrDecodeSignedTx

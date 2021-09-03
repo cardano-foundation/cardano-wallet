@@ -24,7 +24,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
-    ( ResourceT, runResourceT )
+    ( runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
@@ -93,7 +93,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                     , "--wallet-style", style
                     ]
             --create
-            (c, out, err) <- createWalletViaCLI @_ @(ResourceT IO) ctx
+            (c, out, err) <- createWalletViaCLI @_ @IO ctx
                         args (unwords $ T.unpack <$> mnemonic)
                         "\n" "secure-passphrase"
             T.unpack err `shouldContain` cmdOk

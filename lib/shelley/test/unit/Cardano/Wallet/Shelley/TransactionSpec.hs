@@ -49,9 +49,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
-import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-    ( SelectionError (..)
-    , SelectionResult (..)
+import Cardano.Wallet.Primitive.CoinSelection
+    ( SelectionError (..) )
+import Cardano.Wallet.Primitive.CoinSelection.Balance
+    ( SelectionResult (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , selectionDelta
@@ -182,6 +183,7 @@ import Test.QuickCheck.Random
     ( mkQCGen )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
@@ -384,8 +386,9 @@ spec = do
         let requiredCost = Coin 166029
         let runSelection = except $ Left
                 $ ErrSelectAssetsSelectionError
-                $ UnableToConstructChange
-                $ UnableToConstructChangeError
+                $ SelectionBalanceError
+                $ Balance.UnableToConstructChange
+                $ Balance.UnableToConstructChangeError
                     { requiredCost
                     , shortfall = Coin 100000
                     }
@@ -884,8 +887,8 @@ dummyProtocolParameters = ProtocolParameters
         error "dummyProtocolParameters: stakeKeyDeposit"
     , eras =
         error "dummyProtocolParameters: eras"
-    , maxCollateralInputs =
-        error "dummyProtocolParameters: maxCollateralInputs"
+    , maximumCollateralInputCount =
+        error "dummyProtocolParameters: maximumCollateralInputCount"
     }
 
 -- | Like generate, but the random generate is fixed to a particular seed so

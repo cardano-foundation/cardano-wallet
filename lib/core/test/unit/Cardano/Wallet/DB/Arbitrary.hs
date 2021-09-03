@@ -42,7 +42,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, mkTx )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSmallTxMetadata, shrinkSlotNo, shrinkTxMetadata )
+    ( genMnemonic, genSimpleTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -414,7 +414,7 @@ instance Arbitrary TxStatus where
     arbitrary = elements [Pending, InLedger]
 
 instance Arbitrary TxMetadata where
-    arbitrary = genSmallTxMetadata
+    arbitrary = genSimpleTxMetadata
     shrink = shrinkTxMetadata
 
 instance Arbitrary Coin where

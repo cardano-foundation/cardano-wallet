@@ -2,7 +2,7 @@ version: "3.5"
 
 services:
   cardano-node:
-    image: inputoutput/cardano-node:alonzo-purple-1.0.1
+    image: inputoutput/cardano-node:1.29.0
     environment:
       NETWORK:
     volumes:
@@ -18,18 +18,16 @@ services:
         max-size: "50m"
 
   cardano-wallet:
-    image: inputoutput/cardano-wallet:2021.8.11
+    image: inputoutput/cardano-wallet:2021.8.27
     volumes:
       - wallet-${NETWORK}-db:/wallet-db
       - node-ipc:/ipc
-      - node-config:/config
     ports:
       - 8090:8090
     entrypoint: []
     command: bash -c "
         ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
-        ([[ $$NETWORK == \"alonzo-purple\" ]] && $$CMD --testnet /config/y88z6z1w0kwypj7zrlhk7vs6z8k1pckd-byron-genesis.json) ||
-        ($$CMD --testnet /config/kax0css4lx3ywihvsgrqjym0jpi20f99-byron-genesis.json)
+        ($$CMD --testnet /config/${NETWORK}/genesis-byron.json)
       "
     environment:
       CMD: "cardano-wallet serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"

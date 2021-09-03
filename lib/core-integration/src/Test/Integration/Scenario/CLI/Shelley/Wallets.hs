@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Resource
@@ -195,7 +195,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
         -- create a wallet
         Stdout m <- generateMnemonicsViaCLI []
-        (c1, o1, e1) <- liftIO $ createWalletViaCLI ctx ["n"] m "\n" "secure-passphrase"
+        (c1, o1, e1) <- createWalletViaCLI ctx ["n"] m "\n" "secure-passphrase"
         c1 `shouldBe` ExitSuccess
         T.unpack e1 `shouldContain` cmdOk
         wDest <- expectValidJSON (Proxy @ApiWallet) o1

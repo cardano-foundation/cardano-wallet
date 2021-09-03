@@ -1057,7 +1057,7 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
                 txOutputMinimumAdaQuantity txConstraints TokenMap.empty
         , eras = apiEras
         , maximumCollateralInputCount =
-              view #maxCollateralInputs pp
+              view #maximumCollateralInputCount pp
         , maximumTokenBundleSize = Quantity $ pp ^.
             (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize .
             #unTxSize)
