@@ -17,6 +17,8 @@ module Cardano.Wallet.Primitive.ModelSpec
 
 import Prelude
 
+import Algebra.PartialOrd
+    ( PartialOrd (..) )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -27,16 +29,19 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlock
     , applyBlocks
+    , applyTxToUTxO
     , availableBalance
     , availableUTxO
     , changeUTxO
     , currentTip
     , getState
     , initWallet
+    , spendTx
     , totalBalance
     , totalUTxO
     , unsafeInitWallet
     , utxo
+    , utxoFromTx
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( flatSlot )
@@ -52,7 +57,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
-    ( genAddress )
+    ( Parity (..), addressParity, coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -67,13 +72,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxIn (..)
     , TxMeta (direction)
     , TxOut (..)
+    , inputs
     , txIns
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, shrinkTx )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
+    ( Dom (..), UTxO (..), balance, excluding, filterByAddress, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Control.DeepSeq
@@ -97,7 +103,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -116,6 +122,7 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , CoArbitrary (..)
     , Gen
     , Positive (..)
     , Property
@@ -127,7 +134,6 @@ import Test.QuickCheck
     , counterexample
     , cover
     , elements
-    , forAll
     , forAllShrink
     , frequency
     , genericShrink
@@ -144,7 +150,6 @@ import Test.QuickCheck
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import qualified Data.Bits as Bits
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -183,6 +188,40 @@ spec = do
         it "only counts rewards once."
             (property prop_countRewardsOnce)
 
+        describe "coverage" $ do
+            it "utxo and tx generators have expected coverage"
+                (property prop_tx_utxo_coverage)
+
+        describe "applyTxToUTxO" $ do
+            it "has expected balance"
+                (property prop_applyTxToUTxO_balance)
+            it "has expected entries"
+                (property prop_applyTxToUTxO_entries)
+            it "applyTxToUTxO then filterByAddress"
+                (property prop_filterByAddress_balance_applyTxToUTxO)
+            it "spendTx/applyTxToUTxO/utxoFromTx"
+                (property prop_applyTxToUTxO_spendTx_utxoFromTx)
+
+        describe "utxoFromTx" $ do
+            it "has expected balance"
+                (property prop_utxoFromTx_balance)
+            it "is unspent"
+                (property prop_utxoFromTx_is_unspent)
+
+        describe "spendTx" $ do
+            it "is subset of UTxO"
+                (property prop_spendTx_isSubset)
+            it "balance is <= balance of UTxO"
+                (property prop_spendTx_balance_inequality)
+            it "has expected balance"
+                (property prop_spendTx_balance)
+            it "definition"
+                (property prop_spendTx)
+            it "commutative with filterByAddress"
+                (property prop_spendTx_filterByAddress)
+            it "spendTx/utxoFromTx"
+                (property prop_spendTx_utxoFromTx)
+
     parallel $ describe "Available UTxO" $ do
         it "prop_availableUTxO_isSubmap" $
             property prop_availableUTxO_isSubmap
@@ -196,8 +235,6 @@ spec = do
     parallel $ describe "Change UTxO" $ do
         it "prop_changeUTxO" $
             property prop_changeUTxO
-        it "prop_addressParity_coverage" $
-            property prop_addressParity_coverage
 
     parallel $ describe "Total UTxO" $ do
         it "prop_totalUTxO_pendingChangeIncluded" $
@@ -479,55 +516,6 @@ prop_changeUTxO_inner pendingTxs =
     pendingTxSet :: Set Tx
     pendingTxSet = Set.fromList pendingTxs
 
--- | Represents the parity of a value (whether the value is even or odd).
---
-data Parity = Even | Odd
-    deriving (Eq, Show)
-
--- | Computes the parity of an address.
---
--- Parity is defined in the following way:
---
---    - even-parity address:
---      an address with a pop count (Hamming weight) that is even.
---
---    - odd-parity address:
---      an address with a pop count (Hamming weight) that is odd.
---
--- Examples of even-parity and odd-parity addresses:
---
---    - 0b00000000 : even (Hamming weight = 0)
---    - 0b00000001 : odd  (Hamming weight = 1)
---    - 0b00000010 : odd  (Hamming weight = 1)
---    - 0b00000011 : even (Hamming weight = 2)
---    - 0b00000100 : odd  (Hamming weight = 1)
---    - ...
---    - 0b11111110 : odd  (Hamming weight = 7)
---    - 0b11111111 : even (Hamming weight = 8)
---
-addressParity :: Address -> Parity
-addressParity = parity . addressPopCount
-  where
-    addressPopCount :: Address -> Int
-    addressPopCount = BS.foldl' (\acc -> (acc +) . Bits.popCount) 0 . unAddress
-
-    parity :: Integral a => a -> Parity
-    parity a
-        | even a    = Even
-        | otherwise = Odd
-
--- | Verifies that addresses are generated with both even and odd parity.
---
-prop_addressParity_coverage :: Property
-prop_addressParity_coverage =
-    forAll genAddress $ \addr ->
-    checkCoverage $
-    cover 40 (addressParity addr == Even)
-        "address parity is even" $
-    cover 40 (addressParity addr == Odd)
-        "address parity is odd" $
-    property True
-
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
 newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
@@ -704,13 +692,6 @@ txOutsOurs txs =
     forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
     forMaybe xs = fmap catMaybes . for xs
 
--- | Construct a UTxO corresponding to a given transaction. It is important for
--- the transaction outputs to be ordered correctly, since they become available
--- inputs for the subsequent blocks.
-utxoFromTx :: Tx -> UTxO
-utxoFromTx Tx {txId, outputs} =
-    UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
-
 {-------------------------------------------------------------------------------
                                   Test Data
 
@@ -759,6 +740,14 @@ instance IsOurs WalletState RewardAccount where
         ( guard (account == ourRewardAccount) $> (DerivationIndex 0 :| [])
         , s
         )
+
+instance Arbitrary Tx where
+    shrink = shrinkTx
+    arbitrary = genTx
+
+instance Arbitrary UTxO where
+    shrink = shrinkUTxO
+    arbitrary = genUTxO
 
 instance Arbitrary WalletState where
     shrink = genericShrink
@@ -1527,3 +1516,152 @@ blockchain =
     ]
   where
     slot e s = SlotNo $ flatSlot (EpochLength 21600) (SlotId e s)
+
+prop_tx_utxo_coverage :: Tx -> UTxO -> Property
+prop_tx_utxo_coverage tx u =
+    checkCoverage $
+    cover 2 (UTxO.null u)
+        "UTxO empty" $
+    cover 30 (not $ UTxO.null u)
+        "UTxO not empty" $
+    cover 30 (not $ Set.disjoint (dom u) (Set.fromList $ inputs tx))
+        "UTxO and Tx not disjoint" $
+    cover 10 (Set.disjoint (dom u) (Set.fromList $ inputs tx))
+        "UTxO and Tx disjoint" $
+    cover 4 (length (inputs tx) > 3)
+        "Number of tx inputs > 3" $
+    cover 4 (length (inputs tx) < 3)
+        "Number of tx inputs < 3" $
+    cover 4 (length (outputs tx) > 3)
+        "Number of tx outputs > 3" $
+    cover 4 (length (outputs tx) < 3)
+        "Number of tx outputs < 3" $
+    property True
+
+prop_applyTxToUTxO_balance :: Tx -> UTxO -> Property
+prop_applyTxToUTxO_balance tx u =
+    checkCoverage $
+    cover 0.1
+        (applyTxToUTxO tx u == u)
+        "applyTxToUTxO tx u == u" $
+    cover 10
+        (applyTxToUTxO tx u /= u)
+        "applyTxToUTxO tx u /= u" $
+    balance (applyTxToUTxO tx u)
+    === balance u
+      `TokenBundle.add`
+          balance (utxoFromTx tx)
+      `TokenBundle.difference`
+          balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+
+prop_applyTxToUTxO_entries :: Tx -> UTxO -> Property
+prop_applyTxToUTxO_entries tx u =
+    checkCoverage $
+    cover 0.1
+        (applyTxToUTxO tx u == u)
+        "applyTxToUTxO tx u == u" $
+    cover 10
+        (applyTxToUTxO tx u /= u)
+        "applyTxToUTxO tx u /= u" $
+    unUTxO (applyTxToUTxO tx u)
+    === unUTxO u
+      `Map.union`
+          unUTxO (utxoFromTx tx)
+      `Map.difference`
+          unUTxO (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+
+prop_filterByAddress_balance_applyTxToUTxO
+    :: (Address -> Bool) -> Tx -> Property
+prop_filterByAddress_balance_applyTxToUTxO f tx =
+    checkCoverage $
+    cover 0.1
+        (filterByAddress f (applyTxToUTxO tx mempty) == mempty)
+        "filterByAddress f (applyTxToUTxO tx mempty) == mempty" $
+    cover 10
+        (filterByAddress f (applyTxToUTxO tx mempty) /= mempty)
+        "filterByAddress f (applyTxToUTxO tx mempty) /= mempty" $
+    balance (filterByAddress f (applyTxToUTxO tx mempty))
+    === foldMap
+        (\o -> if f (address o) then tokens o else mempty)
+        (outputs tx)
+
+prop_utxoFromTx_balance :: Tx -> Property
+prop_utxoFromTx_balance tx =
+    balance (utxoFromTx tx) === foldMap tokens (outputs tx)
+
+prop_utxoFromTx_is_unspent :: Tx -> Property
+prop_utxoFromTx_is_unspent tx =
+    utxoFromTx tx `excluding` Set.fromList (inputs tx)
+    === utxoFromTx tx
+
+-- spendTx tx u `isSubsetOf` u
+prop_spendTx_isSubset :: Tx -> UTxO -> Property
+prop_spendTx_isSubset tx u =
+    checkCoverage $
+    cover 10 isNonEmptyProperSubmap "isNonEmptyProperSubmap" $
+    property $ spendTx tx u `UTxO.isSubsetOf` u
+  where
+    isNonEmptyProperSubmap = (&&)
+        (spendTx tx u /= mempty)
+        (unUTxO (spendTx tx u) `Map.isProperSubmapOf` unUTxO u)
+
+-- balance (spendTx tx u) <= balance u
+prop_spendTx_balance_inequality :: Tx -> UTxO -> Property
+prop_spendTx_balance_inequality tx u =
+    checkCoverage $
+    cover 10
+        (lhs /= mempty && lhs `leq` rhs && lhs /= rhs)
+        "lhs /= mempty && lhs `leq` rhs && lhs /= rhs" $
+    isJust (rhs `TokenBundle.subtract` lhs)
+        & counterexample ("balance (spendTx tx u) = " <> show lhs)
+        & counterexample ("balance u = " <> show rhs)
+  where
+    lhs = balance (spendTx tx u)
+    rhs = balance u
+
+prop_spendTx_balance :: Tx -> UTxO -> Property
+prop_spendTx_balance tx u =
+    checkCoverage $
+    cover 10
+        (lhs /= mempty && rhs /= mempty)
+        "lhs /= mempty && rhs /= mempty" $
+    lhs === rhs
+  where
+    lhs = balance (spendTx tx u)
+    rhs = TokenBundle.unsafeSubtract
+        (balance u)
+        (balance (u `UTxO.restrictedBy` Set.fromList (inputs tx)))
+
+prop_spendTx :: Tx -> UTxO -> Property
+prop_spendTx tx u =
+    checkCoverage $
+    cover 10
+        (spendTx tx u /= mempty)
+        "spendTx tx u /= mempty" $
+    spendTx tx u === u `excluding` Set.fromList (inputs tx)
+
+prop_spendTx_utxoFromTx :: Tx -> UTxO -> Property
+prop_spendTx_utxoFromTx tx u =
+    spendTx tx (u <> utxoFromTx tx) === spendTx tx u <> utxoFromTx tx
+
+prop_applyTxToUTxO_spendTx_utxoFromTx :: Tx -> UTxO -> Property
+prop_applyTxToUTxO_spendTx_utxoFromTx tx u =
+    checkCoverage $
+    cover 10
+        (spendTx tx u /= mempty && utxoFromTx tx /= mempty)
+        "spendTx tx u /= mempty && utxoFromTx tx /= mempty" $
+    applyTxToUTxO tx u === spendTx tx u <> utxoFromTx tx
+
+prop_spendTx_filterByAddress :: (Address -> Bool) -> Tx -> UTxO -> Property
+prop_spendTx_filterByAddress f tx u =
+    checkCoverage $
+    cover 10
+        (spendTx tx u /= mempty && filterByAddress f u /= mempty)
+        "spendTx tx u /= mempty && filterByAddress f u /= mempty" $
+    filterByAddress f (spendTx tx u) === spendTx tx (filterByAddress f u)
+
+instance CoArbitrary Address where
+    coarbitrary = coarbitraryAddress
+
+instance Show (Address -> Bool) where
+    show = const "(Address -> Bool)"
