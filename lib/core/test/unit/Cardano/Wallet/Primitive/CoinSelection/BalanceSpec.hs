@@ -185,7 +185,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
+    ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
     ( testLawsMany )
 
@@ -885,23 +885,36 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "number of change outputs:"
             , pretty (length changeGenerated)
             ]
-        assert $ balanceSufficient criteria
-        assert $ on (==) (view #tokens)
-            totalInputValue
-            totalOutputValue
-        assert $ TokenBundle.getCoin delta >= expectedCost
-        assert $ TokenBundle.getCoin delta <= maximumExpectedDelta
-        assert $ utxoAvailable
-            == UTxOIndex.insertMany inputsSelected utxoRemaining
-        assert $ utxoRemaining
-            == UTxOIndex.deleteMany (fst <$> inputsSelected) utxoAvailable
-        assert $ outputsCovered == NE.toList outputsToCover
+        assertOnSuccess
+            "balanceSufficient criteria"
+            (balanceSufficient criteria)
+        assertOnSuccess
+            "on (==) (view #tokens) totalInputValue totalOutputValue"
+            (on (==) (view #tokens) totalInputValue totalOutputValue)
+        assertOnSuccess
+            "TokenBundle.getCoin delta >= expectedCost"
+            (TokenBundle.getCoin delta >= expectedCost)
+        assertOnSuccess
+            "TokenBundle.getCoin delta <= maximumExpectedDelta"
+            (TokenBundle.getCoin delta <= maximumExpectedDelta)
+        assertOnSuccess
+            "utxoAvailable == UTxOIndex.insertMany inputsSelected utxoRemaining"
+            (utxoAvailable == UTxOIndex.insertMany inputsSelected utxoRemaining)
+        assertOnSuccess
+            "utxoRemaining == UTxOIndex.deleteMany txInsSelected utxoAvailable"
+            (utxoRemaining == UTxOIndex.deleteMany txInsSelected utxoAvailable)
+        assertOnSuccess
+            "outputsCovered == NE.toList outputsToCover"
+            (outputsCovered == NE.toList outputsToCover)
         case selectionLimit of
             MaximumInputLimit limit ->
-                assert $ NE.length inputsSelected <= limit
+                assertOnSuccess
+                    "NE.length inputsSelected <= limit"
+                    (NE.length inputsSelected <= limit)
             NoLimit ->
                 assert True
       where
+        assertOnSuccess = assertWith . (<>) "onSuccess: "
         absoluteMinCoinValue = mkMinCoinValueFor minCoinValueFor TokenMap.empty
         delta :: TokenBundle
         delta =
@@ -928,6 +941,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , skeletonChange =
                 fmap (TokenMap.getAssets . view #tokens) changeGenerated
             }
+        txInsSelected :: NonEmpty TxIn
+        txInsSelected = fst <$> inputsSelected
         balanceSelected =
             fullBalance (UTxOIndex.fromSequence inputsSelected) extraCoinSource
         balanceChange =
@@ -960,11 +975,21 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "missing + available balance:"
             , pretty (Flat balanceAvailable')
             ]
-        assert $ not $ balanceSufficient criteria
-        assert $ balanceAvailable == errorBalanceAvailable
-        assert $ balanceRequired  == errorBalanceRequired
-        assert (balanceRequired `leq` balanceAvailable')
+        assertOnBalanceInsufficient
+            "not $ balanceSufficient criteria"
+            (not $ balanceSufficient criteria)
+        assertOnBalanceInsufficient
+            "balanceAvailable == errorBalanceAvailable"
+            (balanceAvailable == errorBalanceAvailable)
+        assertOnBalanceInsufficient
+            "balanceRequired == errorBalanceRequired"
+            (balanceRequired == errorBalanceRequired)
+        assertOnBalanceInsufficient
+            "balanceRequired `leq` balanceAvailable'"
+            (balanceRequired `leq` balanceAvailable')
       where
+        assertOnBalanceInsufficient =
+            assertWith . (<>) "onBalanceInsufficient: "
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
     onSelectionInsufficient e = do
@@ -974,11 +999,18 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "selected balance:"
             , pretty (Flat errorBalanceSelected)
             ]
-        assert $ selectionLimit ==
-            MaximumInputLimit (length errorInputsSelected)
-        assert $ not (errorBalanceRequired `leq` errorBalanceSelected)
-        assert $ balanceRequired == errorBalanceRequired
+        assertOnSelectionInsufficient
+            "selectionLimit == MaximumInputLimit (length errorInputsSelected)"
+            (selectionLimit == MaximumInputLimit (length errorInputsSelected))
+        assertOnSelectionInsufficient
+            "not (errorBalanceRequired `leq` errorBalanceSelected)"
+            (not (errorBalanceRequired `leq` errorBalanceSelected))
+        assertOnSelectionInsufficient
+            "balanceRequired == errorBalanceRequired"
+            (balanceRequired == errorBalanceRequired)
       where
+        assertOnSelectionInsufficient =
+            assertWith . (<>) "onSelectionInsufficient: "
         SelectionInsufficientError
             errorBalanceRequired errorInputsSelected = e
         errorBalanceSelected =
@@ -1013,14 +1045,20 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
                 (expectedMinCoinValue <$> es)
                 (actualMinCoinValue <$> es)
             ]
-        assert $ all (\e -> expectedMinCoinValue e > actualMinCoinValue e) es
+        assertOnInsufficientMinCoinValues
+            "all (λe -> expectedMinCoinValue e > actualMinCoinValue e) es"
+            (all (\e -> expectedMinCoinValue e > actualMinCoinValue e) es)
       where
+        assertOnInsufficientMinCoinValues =
+            assertWith . (<>) "onInsufficientMinCoinValues: "
         actualMinCoinValue
             = txOutCoin . outputWithInsufficientAda
 
     onUnableToConstructChange e = do
         monitor $ counterexample $ show e
-        assert (shortfall e > Coin 0)
+        assertOnUnableToConstructChange
+            "shortfall e > Coin 0"
+            (shortfall e > Coin 0)
         let criteria' = criteria { selectionLimit = NoLimit }
         let assessBundleSize =
                 mkBundleSizeAssessor NoBundleSizeLimit
@@ -1035,6 +1073,9 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
                 assert False
             Right{} -> do
                 assert True
+      where
+        assertOnUnableToConstructChange =
+            assertWith . (<>) "onUnableToConstructChange: "
 
     balanceRequired  =
       F.foldMap (view #tokens) outputsToCover
@@ -1057,8 +1098,12 @@ prop_runSelection_UTxO_empty extraSource balanceRequested = monadicIO $ do
         run $ runSelection NoLimit extraSource UTxOIndex.empty balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
-    assert $ balanceSelected == TokenBundle.empty
-    assert $ balanceLeftover == TokenBundle.empty
+    assertWith
+        "balanceSelected == TokenBundle.empty"
+        (balanceSelected == TokenBundle.empty)
+    assertWith
+        "balanceLeftover == TokenBundle.empty"
+        (balanceLeftover == TokenBundle.empty)
 
 prop_runSelection_UTxO_notEnough
     :: Small UTxOIndex
@@ -1068,8 +1113,12 @@ prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
         run $ runSelection NoLimit Nothing index balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
-    assert $ balanceSelected == balanceAvailable
-    assert $ balanceLeftover == TokenBundle.empty
+    assertWith
+        "balanceSelected == balanceAvailable"
+        (balanceSelected == balanceAvailable)
+    assertWith
+        "balanceLeftover == TokenBundle.empty"
+        (balanceLeftover == TokenBundle.empty)
   where
     balanceAvailable = view #balance index
     balanceRequested = adjustAllQuantities (* 2) balanceAvailable
@@ -1083,11 +1132,17 @@ prop_runSelection_UTxO_exactlyEnough extraSource (Small index) = monadicIO $ do
         run $ runSelection NoLimit Nothing index balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
-    assert $ balanceLeftover == TokenBundle.empty
+    assertWith
+        "balanceLeftover == TokenBundle.empty"
+        (balanceLeftover == TokenBundle.empty)
     if UTxOIndex.null index then
-        assert $ balanceSelected == TokenBundle.empty
+        assertWith
+            "balanceSelected == TokenBundle.empty"
+            (balanceSelected == TokenBundle.empty)
     else
-        assert $ addExtraSource extraSource balanceSelected == balanceRequested
+        assertWith
+            "addExtraSource extraSource balanceSelected == balanceRequested"
+            (addExtraSource extraSource balanceSelected == balanceRequested)
   where
     balanceRequested = case extraSource of
         Nothing -> view #balance index
@@ -1117,8 +1172,12 @@ prop_runSelection_UTxO_moreThanEnough extraSource (Small index) = monadicIO $ do
         , "balance leftover:"
         , pretty (Flat balanceLeftover)
         ]
-    assert $ balanceRequested `leq` addExtraSource extraSource balanceSelected
-    assert $ balanceAvailable == balanceSelected <> balanceLeftover
+    assertWith
+        "balanceRequested `leq` addExtraSource extraSource balanceSelected"
+        (balanceRequested `leq` addExtraSource extraSource balanceSelected)
+    assertWith
+        "balanceAvailable == balanceSelected <> balanceLeftover"
+        (balanceAvailable == balanceSelected <> balanceLeftover)
   where
     assetsAvailable = TokenBundle.getAssets balanceAvailable
     assetsRequested = TokenBundle.getAssets balanceRequested
@@ -1154,10 +1213,12 @@ prop_runSelection_UTxO_muchMoreThanEnough extraSource (Blind (Large index)) =
             , "balance leftover:"
             , pretty (Flat balanceLeftover)
             ]
-        assert $
-            balanceRequested `leq` addExtraSource extraSource balanceSelected
-        assert $
-            balanceAvailable == balanceSelected <> balanceLeftover
+        assertWith
+            "balanceRequested `leq` addExtraSource extraSource balanceSelected"
+            (balanceRequested `leq` addExtraSource extraSource balanceSelected)
+        assertWith
+            "balanceAvailable == balanceSelected <> balanceLeftover"
+            (balanceAvailable == balanceSelected <> balanceLeftover)
   where
     assetsAvailable = TokenBundle.getAssets balanceAvailable
     assetsRequested = TokenBundle.getAssets balanceRequested
@@ -1296,8 +1357,12 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
                 let output = head $ snd <$> UTxOIndex.toList selected
                 let bundle = view #tokens output
                 case F.toList $ TokenBundle.getAssets bundle of
-                    [a] -> assert $ a == asset
-                    _   -> assert $ not hasSingletonAsset
+                    [a] -> assertWith
+                        "a == asset"
+                        (a == asset)
+                    _ -> assertWith
+                        "not hasSingletonAsset"
+                        (not hasSingletonAsset)
   where
     asset = Set.findMin $ UTxOIndex.assets u
     assetCount = Set.size $ UTxOIndex.assets u
@@ -1328,8 +1393,8 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
                 let output = head $ snd <$> UTxOIndex.toList selected
                 let bundle = view #tokens output
                 case F.toList $ TokenBundle.getAssets bundle of
-                    [] -> assert hasCoin
-                    _  -> assert $ not hasCoin
+                    [] -> assertWith     "hasCoin" (    hasCoin)
+                    _  -> assertWith "not hasCoin" (not hasCoin)
   where
     entryCount = UTxOIndex.size u
     initialState = SelectionState UTxOIndex.empty u
@@ -3414,6 +3479,11 @@ prop_reduceTokenQuantities_order reduceQty qtyDiffs =
 --------------------------------------------------------------------------------
 -- Utility functions
 --------------------------------------------------------------------------------
+
+assertWith :: Monad m => String -> Bool -> PropertyM m ()
+assertWith description condition = do
+    monitor $ counterexample ("Assertion failed: " <> description)
+    assert condition
 
 adjustAllQuantities :: (Natural -> Natural) -> TokenBundle -> TokenBundle
 adjustAllQuantities f b = uncurry TokenBundle.fromFlatList $ bimap
