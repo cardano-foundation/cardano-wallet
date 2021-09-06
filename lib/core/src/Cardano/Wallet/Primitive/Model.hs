@@ -567,7 +567,7 @@ changeUTxO
     -> UTxO
 changeUTxO pending = evalState $
     mconcat
-    <$> mapM (filterByAddressM isOurs' . mkUTxOFromTx) (Set.toList pending)
+    <$> mapM (filterByAddressM isOurAddress . mkUTxOFromTx) (Set.toList pending)
     where
         -- Generate a UTxO from an transaction, assuming that it passes phase-2
         -- script validation. Crucially, utxoFromTx will exclude failed

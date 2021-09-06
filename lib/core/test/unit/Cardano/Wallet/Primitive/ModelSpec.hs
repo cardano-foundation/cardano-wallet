@@ -1576,7 +1576,7 @@ prop_applyTxToUTxO_balance tx u =
         "applyTxToUTxO tx u /= u" $
     balance (applyTxToUTxO tx u)
     ===
-    (if failedScriptValidation (tx ^. #isValidScript)
+    (if failedScriptValidation (tx ^. #scriptValidity)
      then
          balance (u `excluding` Set.fromList (collateralInputs tx))
      else
@@ -1595,7 +1595,7 @@ prop_applyTxToUTxO_entries tx u =
         "applyTxToUTxO tx u /= u" $
     applyTxToUTxO tx u
     ===
-    (if failedScriptValidation (tx ^. #isValidScript)
+    (if failedScriptValidation (tx ^. #scriptValidity)
      then u `excluding` Set.fromList (collateralInputs tx)
      else u `excluding` Set.fromList (inputs tx) <> utxoFromTx tx
     )
@@ -1611,9 +1611,12 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
         (filterByAddress f (applyTxToUTxO tx mempty) /= mempty)
         "filterByAddress f (applyTxToUTxO tx mempty) /= mempty" $
     balance (filterByAddress f (applyTxToUTxO tx mempty))
-    === foldMap
-        (\o -> if f (address o) then tokens o else mempty)
-        (outputs tx)
+    === if failedScriptValidation (tx ^. #scriptValidity)
+        then mempty
+        else foldMap (\o -> if f (address o)
+                            then tokens o
+                            else mempty
+                     ) (outputs tx)
 
 prop_utxoFromTx_is_unspent :: Tx -> Property
 prop_utxoFromTx_is_unspent tx =
@@ -1648,24 +1651,10 @@ unit_applyTxToUTxO_loses_collateral =
           applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
           === mempty
 
-prop_filterByAddress_balance_applyTxToUTxO :: Bool -> Property
-prop_filterByAddress_balance_applyTxToUTxO b =
-    let
-        f = const b
-    in
-        forAllShrink genTx shrinkTx $ \tx ->
-            balance (filterByAddress f (applyTxToUTxO tx mempty))
-            === if failedScriptValidation (tx ^. #scriptValidity)
-                then mempty
-                else foldMap (\o -> if f (address o)
-                                    then tokens o
-                                    else mempty
-                             ) (outputs tx)
-
 prop_utxoFromTx_balance :: Tx -> Property
-prop_utxoFromTx_balance =
+prop_utxoFromTx_balance tx =
     balance (utxoFromTx tx)
-    === foldMap (\o -> if failedScriptValidation (tx ^. #isValidScript)
+    === foldMap (\o -> if failedScriptValidation (tx ^. #scriptValidity)
                        then mempty
                        else tokens o
                 ) (outputs tx)
@@ -1706,7 +1695,7 @@ prop_spendTx_balance tx u =
     lhs = balance (spendTx tx u)
     rhs = TokenBundle.unsafeSubtract
         (balance u)
-        ( if failedScriptValidation (tx ^. #isValidScript)
+        ( if failedScriptValidation (tx ^. #scriptValidity)
           then balance (u `UTxO.restrictedBy`
                          Set.fromList (collateralInputs tx))
           else balance (u `UTxO.restrictedBy`
@@ -1720,7 +1709,7 @@ prop_spendTx tx u =
         (spendTx tx u /= mempty)
         "spendTx tx u /= mempty" $
     spendTx tx u === u `excluding` (
-        if failedScriptValidation (tx ^. #isValidScript)
+        if failedScriptValidation (tx ^. #scriptValidity)
         then Set.fromList (collateralInputs tx)
         else Set.fromList (inputs tx)
     )
