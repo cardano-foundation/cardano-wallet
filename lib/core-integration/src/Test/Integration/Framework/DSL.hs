@@ -394,9 +394,9 @@ import System.Exit
 import System.IO
     ( hClose, hFlush, hPutStr )
 import Test.Hspec
-    ( Expectation, HasCallStack, expectationFailure )
+    ( Expectation, HasCallStack )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
+    ( expectationFailure, shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
 import Test.HUnit.Lang
     ( FailureReason (..), HUnitFailure (..) )
 import Test.Integration.Faucet
@@ -412,7 +412,7 @@ import Test.Integration.Framework.Request
     , unsafeRequest
     )
 import Test.Utils.Pretty
-    ( pShowBuilder )
+    ( Pretty (..), pShowBuilder )
 import UnliftIO.Async
     ( async, race, wait )
 import UnliftIO.Concurrent
@@ -461,14 +461,19 @@ import qualified Network.HTTP.Types.Status as HTTP
 -- API response expectations
 --
 
+-- | Expect a successful response, without any further assumptions.
+expectSuccess
+    :: (HasCallStack, MonadIO m)
+    => (s, Either RequestException a)
+    -> m ()
+expectSuccess = either wantedSuccessButError (const $ pure ()) . snd
+
 -- | Expect an error response, without any further assumptions.
 expectError
     :: (HasCallStack, MonadIO m, Show a)
     => (s, Either RequestException a)
     -> m ()
-expectError (_, res) = case res of
-    Left _  -> return ()
-    Right a -> wantedErrorButSuccess a
+expectError = either (const $ pure ()) wantedErrorButSuccess . snd
 
 -- | Expect an error response, without any further assumptions.
 expectErrorMessage
@@ -476,39 +481,26 @@ expectErrorMessage
     => String
     -> (s, Either RequestException a)
     -> m ()
-expectErrorMessage want (_, res) = liftIO $ case res of
-    Left (DecodeFailure msg)  ->
-        BL8.unpack msg `shouldContain` want
-    Left (ClientError _)  ->
-        expectationFailure "expectErrorMessage: asserting ClientError not supported yet"
-    Left (HttpException _) ->
-        expectationFailure "expectErrorMessage: asserting HttpException not supported yet"
-    Right a -> wantedErrorButSuccess a
-
--- | Expect a successful response, without any further assumptions.
-expectSuccess
-    :: (HasCallStack, MonadIO m)
-    => (s, Either RequestException a)
-    -> m ()
-expectSuccess (_, res) = case res of
-    Left e  -> wantedSuccessButError e
-    Right _ -> return ()
+expectErrorMessage want = either expectation wantedErrorButSuccess . snd
+  where
+    expectation msg = fmt msg `shouldContain` want
+    fmt = \case
+        DecodeFailure res msg -> msg ++ "\n" ++ BL8.unpack res
+        ClientError val       -> BL8.unpack $ Aeson.encode val
+        RawClientError val    -> BL8.unpack val
+        HttpException err     -> show err
 
 -- | Expect a given response code on the response.
 expectResponseCode
-    :: (HasCallStack, MonadIO m, Show a)
+    :: (HasCallStack, MonadUnliftIO m, Show a)
     => HTTP.Status
     -> (HTTP.Status, a)
     -> m ()
-expectResponseCode want (got, a) =
-    if got == want
+expectResponseCode expected (actual, a) =
+    counterexample ("From the following response: " <> show (Pretty a)) $
+    if actual == expected
         then pure ()
-        else liftIO $ expectationFailure $ unlines
-            [ "expected: " <> show want
-            , " but got: " <> show got
-            , ""
-            , "from the following response: " <> show a
-            ]
+        else actual `shouldBe` expected
 
 expectField
     :: (HasCallStack, MonadIO m, Show a)
@@ -2410,18 +2402,14 @@ appendFailureReason :: String -> HUnitFailure -> HUnitFailure
 appendFailureReason message = wrap
   where
     wrap :: HUnitFailure -> HUnitFailure
-    wrap (HUnitFailure mloc reason) =
-        HUnitFailure mloc (addMessageTo reason)
+    wrap (HUnitFailure mloc reason) = HUnitFailure mloc (addMessageTo reason)
 
     addMessageTo :: FailureReason -> FailureReason
-    addMessageTo (Reason reason) = Reason $ reason ++ "\n" ++ message
+    addMessageTo (Reason reason) = Reason $ addMessage reason
     addMessageTo (ExpectedButGot preface expected actual) =
-      ExpectedButGot newPreface expected actual
-      where
-      newPreface =
-        case preface of
-        Nothing -> Just message
-        Just existingMessage -> Just $ existingMessage ++ "\n" ++ message
+      ExpectedButGot (Just $ maybe message addMessage preface)  expected actual
+
+    addMessage = (++ "\n" ++ message)
 
 --
 -- Manipulating endpoints
