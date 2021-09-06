@@ -5,21 +5,22 @@
 # go-jira and edit these config files.
 #
 # 1. Get an API key from here:
-#   https://jira.iohk.io/secure/ViewProfile.jspa?selectedTab=com.atlassian.pats.pats-plugin:jira-user-personal-access-tokens
+#    https://id.atlassian.com/manage-profile/security/api-tokens
 #
-# Then add your login details to ~/.jira.d/config.yml. You can't just
-# paste your API key into this file. You need to select a password
-# source, as per the go-jira docs.
+# 2. Then add your login details to ~/.jira.d/config.yml.
 #
-# # ~/.jira.d/config.yml
-# authentication-method: bearer-token
-# login: your.name@iohk.io
-# password-source: keyring
-# password-name: jira.iohk.io
+#    You can't just paste your API key into this file. You need to
+#    select a password source, as per the go-jira docs.
+#
+#    # ~/.jira.d/config.yml
+#    authentication-method: api-token
+#    login: your.name@iohk.io
+#    password-source: keyring
+#    password-name: input-output.atlassian.net/your.name@iohk.io
 #
 ######################################################################
 
-endpoint: https://jira.iohk.io
+endpoint: https://input-output.atlassian.net
 project: ADP
 
 custom-commands:
