@@ -32,7 +32,8 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionError (..)
     , SelectionInsufficientError (..)
     , SelectionLens (..)
-    , SelectionLimit (..)
+    , SelectionLimit
+    , SelectionLimitOf (..)
     , SelectionResult (..)
     , SelectionSkeleton (..)
     , SelectionState (..)
