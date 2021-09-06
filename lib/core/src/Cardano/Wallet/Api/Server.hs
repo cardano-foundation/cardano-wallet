@@ -2656,7 +2656,7 @@ postAccountPublicKey
         , GetPurpose k
         )
     => ctx
-    -> (ByteString -> KeyFormat -> account)
+    -> (ByteString -> KeyFormat -> Index 'Hardened 'PurposeK -> account)
     -> ApiT WalletId
     -> ApiT DerivationIndex
     -> ApiPostAccountKeyDataWithPurpose
@@ -2664,7 +2664,12 @@ postAccountPublicKey
 postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyDataWithPurpose (ApiT pwd) extd purposeM) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.getAccountPublicKeyAtIndex @_ @s @k wrk wid pwd ix (getApiT <$> purposeM)
-        pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd
+        pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd ixPurpose'
+  where
+    ixPurpose' =
+        fromMaybe
+        (getPurpose @k)
+        (Index . getDerivationIndex . getApiT <$> purposeM)
 
 publicKeyToBytes' :: KeyFormat -> XPub -> ByteString
 publicKeyToBytes' = \case
@@ -2676,16 +2681,17 @@ getAccountPublicKey
         ( ctx ~ ApiLayer s k
         , GetAccount s k
         , WalletKey k
+        , GetPurpose k
         )
     => ctx
-    -> (ByteString -> KeyFormat -> account)
+    -> (ByteString -> KeyFormat -> Index 'Hardened 'PurposeK -> account)
     -> ApiT WalletId
     -> Maybe KeyFormat
     -> Handler account
 getAccountPublicKey ctx mkAccount (ApiT wid) extended = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.readAccountPublicKey @_ @s @k wrk wid
-        pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd
+        pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd (getPurpose @k)
   where
       extd = case extended of
           Just Extended -> Extended

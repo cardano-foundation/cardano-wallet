@@ -200,7 +200,7 @@ spec = describe "SHARED_WALLETS" $ do
             [ expectResponseCode HTTP.status202
             , expectField #format (`shouldBe` Extended)
             ]
-        let ApiAccountKeyShared bytes _ = getFromResponse id rKey
+        let ApiAccountKeyShared bytes _ _ = getFromResponse id rKey
         hexText bytes `shouldBe` accXPubDerived
 
         aKey <- getAccountKeyShared ctx wal (Just Extended)
@@ -209,7 +209,7 @@ spec = describe "SHARED_WALLETS" $ do
             [ expectResponseCode HTTP.status200
             , expectField #format (`shouldBe` Extended)
             ]
-        let ApiAccountKeyShared bytes' _ = getFromResponse id aKey
+        let ApiAccountKeyShared bytes' _ _ = getFromResponse id aKey
         hexText bytes' `shouldBe` accXPubDerived
 
     it "SHARED_WALLETS_CREATE_02 - Create a pending shared wallet from root xprv" $ \ctx -> runResourceT $ do
@@ -268,7 +268,7 @@ spec = describe "SHARED_WALLETS" $ do
             [ expectResponseCode HTTP.status202
             , expectField #format (`shouldBe` Extended)
             ]
-        let ApiAccountKeyShared bytes _ = getFromResponse id rKey
+        let ApiAccountKeyShared bytes _ _ = getFromResponse id rKey
         hexText bytes `shouldBe` accXPubDerived
 
     it "SHARED_WALLETS_CREATE_03 - Create an active shared wallet from account xpub" $ \ctx -> runResourceT $ do
@@ -325,7 +325,7 @@ spec = describe "SHARED_WALLETS" $ do
             [ expectResponseCode HTTP.status200
             , expectField #format (`shouldBe` Extended)
             ]
-        let ApiAccountKeyShared bytes' _ = getFromResponse id aKey
+        let ApiAccountKeyShared bytes' _ _ = getFromResponse id aKey
         hexText bytes' `shouldBe` accXPubTxt
 
     it "SHARED_WALLETS_CREATE_04 - Create a pending shared wallet from account xpub" $ \ctx -> runResourceT $ do
