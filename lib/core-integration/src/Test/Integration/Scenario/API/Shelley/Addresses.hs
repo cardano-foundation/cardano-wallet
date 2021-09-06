@@ -935,6 +935,10 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 }|]
             (_, accXPub) <- unsafeRequest @ApiAccountKey ctx accountPath payload1
             (_, accPub) <- unsafeRequest @ApiAccountKey ctx accountPath payload2
+            let (Aeson.String accXPubTxt) = toJSON accXPub
+            let (Aeson.String accPubTxt) = toJSON accPub
+            T.isPrefixOf "acct_xvk" accXPubTxt `shouldBe` True
+            T.isPrefixOf "acct_vk" accPubTxt `shouldBe` True
             pure [accXPub, accPub]
         length (concat accountPublicKeys) `shouldBe` 20
 
@@ -947,6 +951,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "format": "extended"
             }|]
         (_, accXPub1) <- unsafeRequest @ApiAccountKey ctx accountPath payload1
+        let (Aeson.String accXPub1Txt) = toJSON accXPub1
+        T.isPrefixOf "acct_xvk" accXPub1Txt `shouldBe` True
 
         let payload2 = Json [json|{
                 "passphrase": #{fixturePassphrase},
@@ -963,6 +969,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         (_, accXPub3) <- unsafeRequest @ApiAccountKey ctx accountPath payload3
         accXPub1 `shouldNotBe` accXPub3
+        let (Aeson.String accXPub3Txt) = toJSON accXPub3
+        T.isPrefixOf "acct_shared_xvk" accXPub3Txt `shouldBe` True
 
         let payload4 = Json [json|{
                 "passphrase": #{fixturePassphrase},
