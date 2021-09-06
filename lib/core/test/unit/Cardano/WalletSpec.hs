@@ -1289,14 +1289,16 @@ dummyTransactionLayer = TransactionLayer
         -- TODO: (ADP-957)
         let cinps' = []
         let tid = mkTxId inps' (outputsCovered cs) mempty Nothing
-        let tx = Tx tid
-                    Nothing
-                    inps'
-                    cinps'
-                    (outputsCovered cs)
-                    mempty
-                    Nothing
-                    TxScriptsUnsupported
+        let tx = Tx
+                 { txId = tid
+                 , fee = Nothing
+                 , resolvedInputs = inps'
+                 , resolvedCollateral = cinps'
+                 , outputs = outputsCovered cs
+                 , withdrawals = mempty
+                 , metadata = Nothing
+                 , isValidScript = TxScriptsUnsupported
+                 }
         wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keystore addr
