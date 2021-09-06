@@ -2036,51 +2036,21 @@ genMakeChangeData :: Gen MakeChangeData
 genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     outputBundleCount <- choose (0, 15)
     let inputBundleCount = outputBundleCount * 4
-
-    inputBundles <- genTokenBundles inputBundleCount
-    outputBundles <- genTokenBundles outputBundleCount
-
-    (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn
-        (F.foldMap (view #tokens) inputBundles)
-        (F.foldMap (view #tokens) outputBundles)
-
     MakeChangeCriteria
         <$> arbitrary
         <*> pure NoBundleSizeLimit
         <*> genCoin
         <*> oneof [pure Nothing, Just <$> genCoinPositive]
-        <*> pure inputBundles
-        <*> pure outputBundles
-        <*> pure assetsToMint
-        <*> pure assetsToBurn
+        <*> genTokenBundles inputBundleCount
+        <*> genTokenBundles outputBundleCount
+        <*> genAssetsToMint
+        <*> genAssetsToBurn
   where
-    genAssetsToMintAndBurn :: TokenMap -> TokenMap -> Gen (TokenMap, TokenMap)
-    genAssetsToMintAndBurn assetsInInputs assetsInOutputs = do
-        mintedAndBurned <- frequency
-            -- Here we deliberately introduce the possibility that there is
-            -- some overlap between minted and burned assets:
-            [ (9, pure TokenMap.empty)
-            , (1, genTokenMapSmallRange)
-            ]
-        assetsToMint <- (<> mintedAndBurned) <$> genAssetsToMint
-        assetsToBurn <- (<> mintedAndBurned) <$> genAssetsToBurn
-        pure (assetsToMint, assetsToBurn)
-      where
-        genAssetsToMint :: Gen TokenMap
-        genAssetsToMint =
-            -- Assets in the outputs but not in the inputs can be minted:
-            (assetsInOutputs `TokenMap.difference` assetsInInputs)
-                & TokenMap.toFlatList
-                & sublistOf
-                & fmap TokenMap.fromFlatList
+    genAssetsToMint :: Gen TokenMap
+    genAssetsToMint = genTokenMapSmallRange
 
-        genAssetsToBurn :: Gen TokenMap
-        genAssetsToBurn =
-            -- Assets in the inputs but not in the outputs can be burned:
-            (assetsInInputs `TokenMap.difference` assetsInOutputs)
-                & TokenMap.toFlatList
-                & sublistOf
-                & fmap TokenMap.fromFlatList
+    genAssetsToBurn :: Gen TokenMap
+    genAssetsToBurn = genTokenMapSmallRange
 
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
@@ -2215,6 +2185,10 @@ prop_makeChange p =
     cover 2 (noAssetsAreBothSpentAndBurned)
         "No assets are both spent and burned" $
 
+    -- Verify that some assets are minted but not spent or burned:
+    cover 2 (someAssetsAreMintedButNotSpentOrBurned)
+        "Some assets are minted but not spent or burned" $
+
     case makeChangeWith p of
         Left{} -> disjoin
             [ prop_makeChange_fail_costTooBig p     & label "cost too big"
@@ -2249,6 +2223,15 @@ prop_makeChange p =
         $ TokenMap.intersection
             (assetsSpentByUserSpecifiedOutputs)
             (view #assetsToBurn p)
+
+    someAssetsAreMintedButNotSpentOrBurned :: Bool
+        = TokenMap.isNotEmpty
+        $ assetsMinted `TokenMap.difference` assetsSpentOrBurned
+      where
+        assetsMinted =
+            view #assetsToMint p
+        assetsSpentOrBurned =
+            view #assetsToBurn p <> assetsSpentByUserSpecifiedOutputs
 
     noAssetsAreBothMintedAndBurned :: Bool
     noAssetsAreBothMintedAndBurned = not someAssetsAreBothMintedAndBurned
