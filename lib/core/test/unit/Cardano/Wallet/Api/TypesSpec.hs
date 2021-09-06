@@ -205,12 +205,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , passphraseMaxLength
     , passphraseMinLength
     )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, getAddressPoolGap )
+    ( AddressPoolGap, getAddressPoolGap, purposeCIP1852 )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -2341,15 +2343,17 @@ instance Arbitrary ApiAccountKey where
     arbitrary = do
         xpubKey <- BS.pack <$> replicateM 64 arbitrary
         pubKey <- BS.pack <$> replicateM 32 arbitrary
-        oneof [ pure $ ApiAccountKey pubKey NonExtended
-              , pure $ ApiAccountKey xpubKey Extended ]
+        oneof [ pure $ ApiAccountKey pubKey NonExtended purposeCIP1852
+              , pure $ ApiAccountKey xpubKey Extended purposeCIP1852
+              , pure $ ApiAccountKey pubKey NonExtended purposeCIP1854
+              , pure $ ApiAccountKey xpubKey Extended purposeCIP1854]
 
 instance Arbitrary ApiAccountKeyShared where
     arbitrary = do
         xpubKey <- BS.pack <$> replicateM 64 arbitrary
         pubKey <- BS.pack <$> replicateM 32 arbitrary
-        oneof [ pure $ ApiAccountKeyShared pubKey NonExtended
-              , pure $ ApiAccountKeyShared xpubKey Extended ]
+        oneof [ pure $ ApiAccountKeyShared pubKey NonExtended purposeCIP1854
+              , pure $ ApiAccountKeyShared xpubKey Extended purposeCIP1854 ]
 
 instance Arbitrary Natural where
     shrink = shrinkIntegral
