@@ -28,7 +28,6 @@ module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
 
     -- * Internals
-    , TxPayload (..)
     , TxSkeleton (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor (..)
@@ -59,13 +58,13 @@ import Cardano.Api
     , cardanoEraStyle
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), RewardAccount (..), WalletKey (..) )
+    ( Depth (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey, toRewardAccountRaw )
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionLimit (..)
     , SelectionLimitOf (..)
@@ -74,11 +73,13 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), ProtocolParameters (..), TxParameters (..) )
+    ( FeePolicy (..), ProtocolParameters (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin, subtractCoin, sumCoins )
+    ( Coin (..), coinToInteger )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( DelegationAction (..), RewardAccount (..), delegationActionDeposit )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -119,32 +120,31 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( computeMinimumAdaQuantity )
 import Cardano.Wallet.Transaction
     ( DecryptedSigningKey (..)
-    , DelegationAction (..)
     , ErrMkTransaction (..)
-    , ErrOutputTokenBundleSizeExceedsLimit (..)
-    , ErrOutputTokenQuantityExceedsLimit (..)
-    , ErrSelectionCriteria (..)
     , SignTransactionKeyStore (..)
     , SignTransactionResult (..)
-    , SignTransactionWitness (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , Withdrawal
     , keyStoreLookup
-    , keyStoreLookupWithdrawal
+    , keyStoreLookupStake
+    , withdrawalRewardAccount
     , withdrawalToCoin
     )
+import Cardano.Wallet.Util
+    ( internalError )
 import Data.Bifunctor
     ( Bifunctor (..), bimap )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Kind
     ( Type )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -152,7 +152,7 @@ import Data.Set
 import Data.Word
     ( Word16, Word64, Word8 )
 import Fmt
-    ( Buildable (..), pretty )
+    ( Buildable (..), indentF, unlinesF, (+|), (|+) )
 import GHC.Stack
     ( HasCallStack )
 
@@ -168,23 +168,7 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
-import qualified Data.Map as Map
 import qualified Data.Text as T
-
-
--- | Type encapsulating what we need to know to add things -- payloads,
--- certificates -- to a transaction.
---
--- Designed to allow us to have /one/ @mkTx@ which doesn't care whether we
--- include certificates or not.
-data TxPayload era = TxPayload
-    { _metadata ::  Maybe Cardano.TxMetadata
-      -- ^ User or application-defined metadata to be included in the
-      -- transaction.
-
-    , _certificates :: [Cardano.Certificate]
-      -- ^ Certificates to be included in the transactions.
-    }
 
 data TxWitnessTag
     = TxWitnessByronUTxO WalletStyle
@@ -217,11 +201,11 @@ _mkSignedTransaction
         , WalletKey k
         )
     => Cardano.NetworkId
-    -> SignTransactionKeyStore (k 'AddressK XPrv)
+    -> SignTransactionKeyStore (k 'AddressK XPrv) XPrv
     -- ^ Key store
     -> SealedTx
     -- ^ The unsigned transaction
-    -> SignTransactionResult (k 'AddressK XPrv) (InAnyCardanoEra Cardano.KeyWitness) SealedTx
+    -> SignTransactionResult (k 'AddressK XPrv) XPrv (InAnyCardanoEra Cardano.KeyWitness) SealedTx
 _mkSignedTransaction networkId keyStore sealed = case view #cardanoTx sealed of
     InAnyCardanoEra era tx -> case cardanoEraStyle era of
         Cardano.LegacyByronEra ->
@@ -237,14 +221,14 @@ mkSignedShelleyTransaction
         , IsShelleyBasedEra era
         )
     => Cardano.NetworkId
-    -> SignTransactionKeyStore (k 'AddressK XPrv)
+    -> SignTransactionKeyStore (k 'AddressK XPrv) XPrv
     -- ^ Credentials for signing.
     -> Cardano.Tx era
     -- ^ The transaction to be signed. May already have some witnesses.
-    -> SignTransactionResult (k 'AddressK XPrv) (Cardano.KeyWitness era) (Cardano.Tx era)
+    -> SignTransactionResult (k 'AddressK XPrv) XPrv (Cardano.KeyWitness era) (Cardano.Tx era)
 mkSignedShelleyTransaction networkId keyStore tx = SignTransactionResult
     { tx = Cardano.makeSignedTransaction
-        (mapMaybe witness addrWits ++ map snd (wdrlWits ++ certWits))
+        (mapMaybe (view #witness) addrWits ++ mapMaybe (view #witness) (wdrlWits ++ certWits))
         body
     , addressWitnesses = addrWits
     , withdrawalWitnesses = wdrlWits
@@ -262,7 +246,7 @@ mkSignedShelleyTransaction networkId keyStore tx = SignTransactionResult
         TxWitnessByronUTxO Icarus -> mkByronWitness body networkId Nothing sk
         TxWitnessByronUTxO Byron -> mkByronWitness body networkId (Just addr) sk
 
-    mkStakeWit = keyStoreLookupWithdrawal keyStore (mkShelleyKeyWitness body)
+    mkStakeWit = keyStoreLookupStake keyStore (mkShelleyKeyWitness body)
 
     ----------------------------------------------------------------------------
     -- Payment address witnesses
@@ -284,8 +268,7 @@ mkSignedShelleyTransaction networkId keyStore tx = SignTransactionResult
                 | (addr, _lovelace, _buildTx) <- ws ]
             TxWitnessByronUTxO{} -> []
 
-
-    wdrlWits = mapMaybe mkStakeWit wdrls
+    wdrlWits = map mkStakeWit wdrls
 
     ----------------------------------------------------------------------------
     -- Certificate witnesses (register stake key/join/quit stake pool)
@@ -309,7 +292,7 @@ mkSignedShelleyTransaction networkId keyStore tx = SignTransactionResult
             Nothing
 
     certWits = case txWitnessTagFor @k of
-        TxWitnessShelleyUTxO -> mapMaybe mkStakeWit certs
+        TxWitnessShelleyUTxO -> map mkStakeWit certs
         TxWitnessByronUTxO{} -> []
 
 newTransactionLayer
@@ -321,19 +304,18 @@ newTransactionLayer
     -> TransactionLayer k SealedTx
 newTransactionLayer networkId = TransactionLayer
     { mkTransactionBody = _mkTransactionBody networkId
-    , mkSignedTransaction = \keyStore -> first (const ()) . _mkSignedTransaction networkId keyStore
+    , mkSignedTransaction = \keyStore ->
+        first (const ()) . _mkSignedTransaction networkId keyStore
 
     , calcMinimumCost = \pp ctx skeleton ->
-        estimateTxCost pp $
+        estimateTxCost (pp ^. #txParameters . #getFeePolicy) $
         mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
 
-    , computeSelectionLimit = \pp ctx outputsToCover ->
-        let txMaxSize = getTxMaxSize $ txParameters pp in
-        MaximumInputLimit $
-            _estimateMaxNumberOfInputs @k txMaxSize ctx outputsToCover
+    , computeSelectionLimit = \pp ctx outputsToCover -> MaximumInputLimit $
+        let txMaxSize = pp ^. #txParameters . #getTxMaxSize
+        in _estimateMaxNumberOfInputs @k txMaxSize ctx outputsToCover
 
-    , tokenBundleSizeAssessor =
-        Compatibility.tokenBundleSizeAssessor
+    , tokenBundleSizeAssessor = Compatibility.tokenBundleSizeAssessor
 
     , constraints = \pp -> txConstraints pp (txWitnessTagFor @k)
 
@@ -346,68 +328,76 @@ _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
 _mkTransactionBody
     :: Cardano.NetworkId
     -> (AnyCardanoEra, ProtocolParameters)
-    -> Maybe RewardAccount
     -> TransactionCtx
     -> SelectionResult TxOut
     -> Either ErrMkTransaction SealedTx
-_mkTransactionBody networkId (e@(AnyCardanoEra era), pp) rewardAcct ctx cs =
+_mkTransactionBody networkId (e@(AnyCardanoEra era), pp) ctx cs =
      case cardanoEraStyle era of
         Cardano.LegacyByronEra ->
             Left $ ErrMkTransactionInvalidEra e
         Cardano.ShelleyBasedEra era' ->
             sealedTxFromCardano' . Cardano.makeSignedTransaction mempty <$>
-                mkShelleyTransactionBody networkId rewardAcct pp ctx cs era'
+                mkShelleyTransactionBody networkId pp ctx cs era'
 
 mkShelleyTransactionBody
-    :: forall era. Cardano.IsCardanoEra era
+    :: forall era. (HasCallStack, Cardano.IsCardanoEra era)
     => Cardano.NetworkId
-    -> Maybe RewardAccount
     -> ProtocolParameters
     -> TransactionCtx
     -> SelectionResult TxOut
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction (Cardano.TxBody era)
-mkShelleyTransactionBody networkId rewardAcct pp ctx cs era =
-    toCardanoTxBody era payload ttl wdrls cs fee
+mkShelleyTransactionBody networkId pp ctx cs era =
+    toCardanoTxBody era (view #txMetadata ctx) certs ttl wdrls cs fee
   where
-    payload = TxPayload (view #txMetadata ctx) certs
     ttl = txTimeToLive ctx
-    wdrl = withdrawalToCoin $ view #txWithdrawal ctx
-    wdrls = maybe [] (mkWithdrawals networkId wdrl) rewardAcct
 
-    (deposits, certs) = case (view #txDelegationActions ctx, rewardAcct) of
-        (ds, Just a) -> (map getDeposit ds, map (mkDelegationCertificate a) ds)
-        _ -> ([], [])
+    (wdrls, certs, deposits) = mkShelleyTransactionDelegation networkId ctx
 
-    feeGap = selectionDelta txOutCoin cs
-    fee = unsafeSubtractCoin cs feeGap (sumCoins deposits)
+    deposits' = coinToInteger (stakeKeyDeposit pp) * fromIntegral deposits
+    feeGap = coinToInteger (selectionDelta txOutCoin cs)
 
-    getDeposit = \case
-        RegisterKey -> Coin 0
-        Join _ -> stakeKeyDeposit pp
-        Quit -> Coin 0
-
-    unsafeSubtractCoin
-        :: (HasCallStack, Buildable x) => x -> Coin -> Coin -> Coin
-    unsafeSubtractCoin x a b = fromMaybe (error err) (a `subtractCoin` b)
-      where
-        err = unlines
-            [ "unsafeSubtractCoin: got a negative value. Tried to subtract "
-            <> show b <> " from " <> show a <> "."
-            , "In the context of: "
-            , pretty x
+    fee | feeGap >= deposits' = Coin (fromIntegral (feeGap - deposits'))
+        | otherwise = internalError $ unlinesF
+            [ "Deposits amount "+|deposits'|+" too large for gap "+|feeGap|+"!"
+            , "In the context of:"
+            , indentF 2 (build cs)
             ]
 
-mkDelegationCertificate
-    :: RewardAccount
-        -- Reward account public key hash
-    -> DelegationAction
-        -- Pool Id to which we're planning to delegate
-    -> Cardano.Certificate
-mkDelegationCertificate rewardAcct = \case
-   Join poolId -> toStakePoolDlgCert rewardAcct poolId
-   RegisterKey -> toStakeKeyRegCert rewardAcct
-   Quit -> toStakeKeyDeregCert rewardAcct
+-- | Auxilliary function for 'mkShelleyTransaction' which constructs the
+-- transaction body parts which are relevant to the reward account and
+-- delegation.
+mkShelleyTransactionDelegation
+    :: NetworkId
+    -> TransactionCtx
+    -> ([(Cardano.StakeAddress, Cardano.Lovelace)], [Cardano.Certificate], Int)
+    -- ^ Withrawals, certificates, and num deposits taken
+mkShelleyTransactionDelegation networkId (TransactionCtx acct wdrl delegs _ _) =
+    ( mkWithdrawals wdrl
+    , maybe [] (\ra -> map (mkDelegationCertificate ra) delegs) acct
+    , sum (map (delegationActionDeposit (max 0 . negate)) delegs) )
+  where
+    mkWithdrawals
+        :: Withdrawal
+        -> [(Cardano.StakeAddress, Cardano.Lovelace)]
+    mkWithdrawals w = case (withdrawalToCoin w, withdrawalRewardAccount w) of
+        (Coin 0, _) -> []
+        (_, Nothing) -> []
+        (amount, Just acc) -> [(stakeAddress acc, toCardanoLovelace amount)]
+      where
+        stakeAddress = Cardano.makeStakeAddress networkId
+            . toCardanoStakeCredential
+
+    mkDelegationCertificate
+        :: RewardAccount
+        -- ^ Reward account public key hash
+        -> DelegationAction
+        -- ^ Pool Id to which we're planning to delegate
+        -> Cardano.Certificate
+    mkDelegationCertificate rewardAcct = \case
+       Delegate poolId -> toStakePoolDlgCert rewardAcct poolId
+       RegisterKey -> toStakeKeyRegCert rewardAcct
+       DeregisterKey -> toStakeKeyDeregCert rewardAcct
 
 -- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
 -- estimate what would be the cost of a selecting a particular input. Indeed, an
@@ -480,8 +470,10 @@ txConstraints protocolParams witnessTag = TxConstraints
     , txMaximumSize
     }
   where
+    txp = view #txParameters protocolParams
+
     txBaseCost =
-        estimateTxCost protocolParams empty
+        estimateTxCost (view #getFeePolicy txp) empty
 
     txBaseSize =
         estimateTxSize empty
@@ -500,9 +492,7 @@ txConstraints protocolParams witnessTag = TxConstraints
 
     txOutputMaximumSize = (<>)
         (txOutputSize mempty)
-        (view
-            (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize)
-            protocolParams)
+        (view (#getTokenBundleMaxSize . #unTokenBundleMaxSize) txp)
 
     txOutputMaximumTokenQuantity =
         TokenQuantity $ fromIntegral $ maxBound @Word64
@@ -529,7 +519,7 @@ txConstraints protocolParams witnessTag = TxConstraints
     -- skeleton.
     marginalCostOf :: TxSkeleton -> Coin
     marginalCostOf =
-        Coin.distance txBaseCost . estimateTxCost protocolParams
+        Coin.distance txBaseCost . estimateTxCost (view #getFeePolicy txp)
 
     -- Computes the size difference between the given skeleton and an empty
     -- skeleton.
@@ -620,14 +610,11 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txMintBurnAssets = []
     }
 
--- | Estimates the final cost of a transaction based on its skeleton.
---
-estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
-estimateTxCost pp skeleton =
-    computeFee $ estimateTxSize skeleton
+-- | Conservatively estimates the transaction fee based on its skeleton.
+estimateTxCost :: FeePolicy -> TxSkeleton -> Coin
+estimateTxCost (LinearFee (Quantity a) (Quantity b)) =
+    computeFee . estimateTxSize
   where
-    LinearFee (Quantity a) (Quantity b) = getFeePolicy $ txParameters pp
-
     computeFee :: TxSize -> Coin
     computeFee (TxSize size) =
         Coin $ ceiling (a + b * fromIntegral size)
@@ -765,11 +752,11 @@ estimateTxSize skeleton =
         sizeOf_Certificate = \case
             RegisterKey ->
                 sizeOf_StakeRegistration
-            Join{} ->
+            Delegate{} ->
                 sizeOf_SmallUInt
                 + sizeOf_SmallArray
                 + sizeOf_StakeDelegation
-            Quit{} ->
+            DeregisterKey{} ->
                 sizeOf_SmallUInt
                 + sizeOf_SmallArray
                 + sizeOf_StakeDeregistration
@@ -1072,13 +1059,20 @@ sumVia f = F.foldl' (\t -> (t +) . f) 0
 toCardanoTxBody
     :: forall era. Cardano.IsCardanoEra era
     => ShelleyBasedEra era
-    -> TxPayload era
+    -> Maybe Cardano.TxMetadata
+    -- ^ User or application-defined metadata to be included in the transaction.
+    -> [Cardano.Certificate]
+    -- ^ Certificates to be included in the transactions.
     -> Cardano.SlotNo
+    -- ^ Transaction expiry.
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
+    -- ^ Reward account withdrawals.
     -> SelectionResult TxOut
+    -- ^ Coin selection.
     -> Coin
+    -- ^ Fee.
     -> Either ErrMkTransaction (Cardano.TxBody era)
-toCardanoTxBody era (TxPayload md certs) ttl wdrl cs fee =
+toCardanoTxBody era md certs ttl wdrl cs fee =
     -- TODO: It would be nice to have a non-validating variant of makeTransactionBody.
     first toErr $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
     { Cardano.txIns =
@@ -1097,29 +1091,21 @@ toCardanoTxBody era (TxPayload md certs) ttl wdrl cs fee =
             Cardano.TxWithdrawals wdrlsSupported
                 (map (\(key, coin) -> (key, coin, wit)) wdrl)
 
-    , txInsCollateral =
-        -- TODO: [ADP-957] Support collateral.
-        Cardano.TxInsCollateralNone
+    -- TODO: [ADP-957] Support collateral.
+    , txInsCollateral = Cardano.TxInsCollateralNone
 
-    , txProtocolParams =
-        -- TODO: [ADP-1058] We presumably need to provide the protocol params if
-        -- our tx uses scripts?
-        Cardano.BuildTxWith Nothing
+    -- TODO: [ADP-1058] We presumably need to provide the protocol params if
+    -- our tx uses scripts?
+    , txProtocolParams = Cardano.BuildTxWith Nothing
 
-    , txScriptValidity =
-        Cardano.TxScriptValidityNone
+    , txScriptValidity = Cardano.TxScriptValidityNone
 
     , txExtraScriptData = Cardano.BuildTxWith Cardano.TxExtraScriptDataNone
 
     , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
 
     , Cardano.txCertificates =
-        let
-            -- It seems that passing Map.empty here works just fine.
-            witMap = Map.empty
-            ctx = Cardano.BuildTxWith witMap
-        in
-            Cardano.TxCertificates certSupported certs ctx
+        Cardano.TxCertificates certSupported certs (Cardano.BuildTxWith mempty)
 
     , Cardano.txFee = explicitFees (toCardanoLovelace fee)
 
@@ -1188,18 +1174,6 @@ toCardanoTxBody era (TxPayload md certs) ttl wdrl cs fee =
         ShelleyBasedEraAllegra -> Cardano.ValidityUpperBoundInAllegraEra
         ShelleyBasedEraMary -> Cardano.ValidityUpperBoundInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.ValidityUpperBoundInAlonzoEra
-
-mkWithdrawals
-    :: NetworkId
-    -> Coin
-    -> RewardAccount
-    -> [(Cardano.StakeAddress, Cardano.Lovelace)]
-mkWithdrawals networkId amount acc
-    | amount == Coin 0 = mempty
-    | otherwise = [ (stakeAddress, toCardanoLovelace amount) ]
-  where
-    cred = toCardanoStakeCredential acc
-    stakeAddress = Cardano.makeStakeAddress networkId cred
 
 decryptSigningKey :: DecryptedSigningKey XPrv -> XPrv
 decryptSigningKey (DecryptedSigningKey sk pwd) =

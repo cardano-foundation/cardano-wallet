@@ -578,6 +578,8 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
             , resolvedInputs
             , outputs
             , withdrawals = mempty
+            , delegationCerts = mempty
+            , poolCerts = mempty
             , metadata = Nothing
             , scriptValidity = Nothing
             }

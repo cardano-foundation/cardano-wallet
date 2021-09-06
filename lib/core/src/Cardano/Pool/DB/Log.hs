@@ -21,8 +21,10 @@ import Cardano.DB.Sqlite
     ( DBLog (..) )
 import Cardano.Wallet.Logging
     ( BracketLog )
-import Cardano.Wallet.Primitive.Types
-    ( EpochNo, PoolId, PoolRetirementCertificate )
+import Cardano.Wallet.Primitive.Types.Slotting
+    ( EpochNo )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( PoolId, PoolRetirementCertificate )
 import Data.Text
     ( Text )
 import Data.Text.Class

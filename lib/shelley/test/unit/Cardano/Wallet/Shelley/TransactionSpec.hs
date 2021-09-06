@@ -117,12 +117,10 @@ import Cardano.Wallet.Shelley.Compatibility
     ( AnyShelleyBasedEra (..)
     , computeTokenBundleSerializedLengthBytes
     , getShelleyBasedEra
-    , maxTokenBundleSerializedLengthBytes
     , shelleyToCardanoEra
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( TxPayload (..)
-    , TxSkeleton (..)
+    ( TxSkeleton (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor
     , estimateTxCost
@@ -435,16 +433,17 @@ feeCalculationSpec = describe "fee calculations" $ do
     pp :: ProtocolParameters
     pp = dummyProtocolParameters
         { txParameters = dummyTxParameters
-            { getFeePolicy = LinearFee (Quantity 100_000) (Quantity 100)
+            { getFeePolicy = fp
             }
         }
+    fp = LinearFee (Quantity 100_000) (Quantity 100)
 
     minFee :: TransactionCtx -> Integer
     minFee ctx = coinToInteger $ calcMinimumCost testTxLayer pp ctx sel
       where sel = emptySkeleton
 
     minFeeSkeleton :: TxSkeleton -> Integer
-    minFeeSkeleton = coinToInteger . estimateTxCost pp
+    minFeeSkeleton = coinToInteger . estimateTxCost fp
 
     estimateTxSize' :: TxSkeleton -> Integer
     estimateTxSize' = fromIntegral . unTxSize . estimateTxSize
@@ -635,8 +634,7 @@ binaryCalculationsSpec' era =
           ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
           addrWits = map (mkByronWitness unsigned net Nothing) pairs
           fee = selectionDelta txOutCoin cs
-          payload = TxPayload md mempty
-          Right unsigned = toCardanoTxBody era payload slotNo [] cs fee
+          Right unsigned = toCardanoTxBody era md mempty slotNo [] cs fee
           cs = SelectionResult
             { inputsSelected = NE.fromList inps
             , extraCoinSource = Nothing
@@ -644,7 +642,7 @@ binaryCalculationsSpec' era =
             , changeGenerated = chgs
             , utxoRemaining = UTxOIndex.empty
             }
-          inps = Map.toList $ getUTxO utxo
+          inps = Map.toList $ unUTxO utxo
 
 transactionConstraintsSpec :: Spec
 transactionConstraintsSpec = describe "Transaction constraints" $ do
@@ -712,10 +710,9 @@ makeShelleyTx :: IsShelleyBasedEra era => ShelleyBasedEra era -> DecodeSetup -> 
 makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
   where
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
-    inps = Map.toList $ getUTxO utxo
+    inps = Map.toList $ unUTxO utxo
     fee = selectionDelta txOutCoin cs
-    payload = TxPayload md mempty
-    Right unsigned = toCardanoTxBody era payload slotNo [] cs fee
+    Right unsigned = toCardanoTxBody era md mempty slotNo [] cs fee
     addrWits = map (mkShelleyKeyWitness unsigned) pairs
     cs = SelectionResult
         { inputsSelected = NE.fromList inps
@@ -745,10 +742,9 @@ makeByronTx :: IsShelleyBasedEra era => ShelleyBasedEra era -> ForByron DecodeSe
 makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
   where
     ForByron (DecodeSetup utxo outs _ slotNo pairs ntwrk) = testCase
-    inps = Map.toList $ getUTxO utxo
+    inps = Map.toList $ unUTxO utxo
     fee = selectionDelta txOutCoin cs
-    payload = TxPayload Nothing []
-    Right unsigned = toCardanoTxBody era payload slotNo [] cs fee
+    Right unsigned = toCardanoTxBody era Nothing [] slotNo [] cs fee
     byronWits = map (mkByronWitness unsigned ntwrk Nothing) pairs
     cs = SelectionResult
         { inputsSelected = NE.fromList inps
@@ -817,7 +813,7 @@ instance Arbitrary DecodeSetup where
             <$> listOf1 arbitrary
             <*> arbitrary
             <*> arbitrary
-            <*> vectorOf (Map.size $ getUTxO utxo) arbitrary
+            <*> vectorOf (Map.size $ unUTxO utxo) arbitrary
             <*> arbitrary
 
     shrink (DecodeSetup i o m t k n) =
@@ -984,10 +980,13 @@ emptyTxSkeleton = mkTxSkeleton
     defaultTransactionCtx
     emptySkeleton
 
+mockFeePolicy :: FeePolicy
+mockFeePolicy = LinearFee (Quantity 1.0) (Quantity 2.0)
+
 mockProtocolParameters :: ProtocolParameters
 mockProtocolParameters = dummyProtocolParameters
     { txParameters = TxParameters
-        { getFeePolicy = LinearFee (Quantity 1.0) (Quantity 2.0)
+        { getFeePolicy = mockFeePolicy
         , getTxMaxSize = Quantity 16384
         , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
         }
@@ -1046,7 +1045,7 @@ instance Arbitrary MockSelection where
 prop_txConstraints_txBaseCost :: Property
 prop_txConstraints_txBaseCost =
     txBaseCost mockTxConstraints
-        === estimateTxCost mockProtocolParameters emptyTxSkeleton
+        === estimateTxCost mockFeePolicy emptyTxSkeleton
 
 -- Tests that using 'txBaseSize' to estimate the size of an empty selection
 -- produces a result that is consistent with the result of using
@@ -1079,7 +1078,7 @@ prop_txConstraints_txCost mock =
         , F.foldMap (txOutputCost mockTxConstraints . tokens) txOutputs
         , txRewardWithdrawalCost mockTxConstraints txRewardWithdrawal
         ]
-    lowerBound = estimateTxCost mockProtocolParameters emptyTxSkeleton
+    lowerBound = estimateTxCost mockFeePolicy emptyTxSkeleton
         {txInputCount, txOutputs, txRewardWithdrawal}
     -- We allow a small amount of overestimation due to the slight variation in
     -- the marginal cost of an input:

@@ -14,13 +14,15 @@ import Cardano.CLI
 import Cardano.Wallet.Api.Types
     ( ApiEra )
 import Cardano.Wallet.Primitive.Types
-    ( EpochNo, NetworkParameters, PoolRetirementCertificate )
+    ( EpochNo, NetworkParameters )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Transaction
+import Cardano.Wallet.Primitive.Types.RewardAccount
     ( DelegationAction )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( PoolRetirementCertificate )
 import Data.IORef
     ( IORef )
 import Data.Text

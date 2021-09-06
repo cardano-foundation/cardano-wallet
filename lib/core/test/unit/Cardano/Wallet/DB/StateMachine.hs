@@ -125,7 +125,6 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , DecentralizationLevel
-    , DelegationCertificate
     , EpochNo (..)
     , FeePolicy
     , GenesisParameters (..)
@@ -133,7 +132,6 @@ import Cardano.Wallet.Primitive.Types
     , Range (..)
     , SlotNo (..)
     , SortOrder (..)
-    , StakeKeyCertificate
     , TokenBundleMaxSize
     , TxParameters (..)
     , WalletId (..)
@@ -146,7 +144,15 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( DelegationCertificate, RewardAccount, StakeKeyCertificate )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( PoolCertificate
+    , PoolOwner
+    , PoolRegistrationCertificate
+    , PoolRetirementCertificate
+    , StakePoolMetadataHash
+    , StakePoolMetadataUrl
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -1028,7 +1034,7 @@ instance ToExpr TxMeta where
     toExpr = genericToExpr
 
 instance ToExpr SealedTx where
-    toExpr _ = toExpr ("fixme: ToExpr SealedTx" :: String)
+    toExpr = defaultExprViaShow
 
 instance ToExpr MockSealedTx where
     toExpr = genericToExpr
@@ -1057,11 +1063,16 @@ instance ToExpr Direction where
 instance ToExpr MWid where
     toExpr = defaultExprViaShow
 
-instance ToExpr StakeKeyCertificate where
-    toExpr = genericToExpr
-
-instance ToExpr RewardAccount where
-    toExpr = genericToExpr
+-- Default instances using genericToExpr
+instance ToExpr StakeKeyCertificate
+instance ToExpr DelegationCertificate
+instance ToExpr PoolCertificate
+instance ToExpr PoolRegistrationCertificate
+instance ToExpr PoolRetirementCertificate
+instance ToExpr PoolOwner
+instance ToExpr StakePoolMetadataUrl
+instance ToExpr StakePoolMetadataHash
+instance ToExpr RewardAccount
 
 {-------------------------------------------------------------------------------
   Tagging

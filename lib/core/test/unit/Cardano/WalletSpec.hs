@@ -628,8 +628,9 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     pause = threadDelay 500
 
 walletKeyIsReencrypted
-    :: (WalletId, WalletName)
-    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
+    :: forall k. k ~ ShelleyKey
+    => (WalletId, WalletName)
+    -> (k 'RootK XPrv, Passphrase "encryption")
     -> Passphrase "raw"
     -> Property
 walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
@@ -642,8 +643,7 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
                 (getRawKey $ deriveRewardAccount pwdP rootK, pwdP)
         selection' <- unsafeRunExceptT $
             W.assignChangeAddressesAndUpdateDb wl wid () selection
-        tx <- unsafeRunExceptT $
-            W.constructTransaction @_ @_ @_ wl wid ctx selection'
+        tx <- unsafeRunExceptT $ W.constructTransaction @_ @k wl ctx selection'
         sigOld <- unsafeRunExceptT $ W.signTransaction @_ @_ @_ wl wid credentials (coerce pwd) tx
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         sigFail <- runExceptT $ W.signTransaction @_ @_ @_ wl wid credentials (coerce pwd) tx
@@ -1302,7 +1302,7 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer ShelleyKey SealedTx
 dummyTransactionLayer = TransactionLayer
-    { mkTransactionBody = \_ _ _ctx cs -> do
+    { mkTransactionBody = \_ _ctx cs -> do
         pure $ unsafeSealedTxFromBytes $ B8.pack $ show cs
     , mkSignedTransaction = \keyStore _sealed ->
         let txin = TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
@@ -1319,17 +1319,16 @@ dummyTransactionLayer = TransactionLayer
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
-        Tx (Hash "") Nothing mempty mempty mempty Nothing
+        Tx (Hash "") Nothing mempty mempty mempty mempty mempty mempty Nothing
     }
 
-
 makeSealedTx :: Tx -> [(XPrv, Passphrase "encryption")] -> SealedTx
-makeSealedTx tx wits =
-        let (Right unsigned) = constructTxBody tx (SlotNo 1000)
-            signed = Cardano.makeSignedTransaction (mkWits unsigned <$> wits) unsigned
-            toSealedTx = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
-        in toSealedTx signed
- where
+makeSealedTx tx wits = toSealedTx signed
+  where
+    Right unsigned = constructTxBody tx (SlotNo 1000)
+    signed = Cardano.makeSignedTransaction (mkWits unsigned <$> wits) unsigned
+    toSealedTx = sealedTxFromCardano . Cardano.InAnyCardanoEra Cardano.cardanoEra
+
     mkWits body key =
         Cardano.makeShelleyKeyWitness body (unencrypt key)
       where
@@ -1387,41 +1386,35 @@ makeSealedTx tx wits =
           safeCast :: Word64 -> Integer
           safeCast = fromIntegral
 
-    constructTxBody (Tx _ _ inpsSelected outsCovered _ _) ttl = Cardano.makeTransactionBody $ Cardano.TxBodyContent
-        { Cardano.txIns =
-                (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
-                . toCardanoTxIn
-                . fst <$> F.toList inpsSelected
-
+    constructTxBody (Tx _ _ _ inpsSelected outsCovered _ _ _ _) ttl =
+        Cardano.makeTransactionBody $ Cardano.TxBodyContent
+        { Cardano.txIns = constructTxIn <$> F.toList inpsSelected
         , Cardano.txOuts = toMaryTxOut <$> outsCovered
-
         , Cardano.txWithdrawals = Cardano.TxWithdrawalsNone
-
         , txInsCollateral = Cardano.TxInsCollateralNone
-
         , txProtocolParams = Cardano.BuildTxWith Nothing
-
         , txExtraScriptData = Cardano.BuildTxWith Cardano.TxExtraScriptDataNone
-
         , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
-
         , Cardano.txCertificates = Cardano.TxCertificatesNone
-
-        , Cardano.txFee = Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra (toCardanoLovelace (Coin 20000))
-
+        , Cardano.txFee = Cardano.TxFeeExplicit
+            Cardano.TxFeesExplicitInMaryEra
+            (toCardanoLovelace (Coin 20000))
         , Cardano.txValidityRange =
-                ( Cardano.TxValidityNoLowerBound
-                , Cardano.TxValidityUpperBound Cardano.ValidityUpperBoundInMaryEra ttl
-                )
-
+            ( Cardano.TxValidityNoLowerBound
+            , Cardano.TxValidityUpperBound
+                Cardano.ValidityUpperBoundInMaryEra ttl )
         , Cardano.txMetadata = Cardano.TxMetadataNone
-
         , Cardano.txAuxScripts = Cardano.TxAuxScriptsNone
-
         , Cardano.txUpdateProposal = Cardano.TxUpdateProposalNone
-
         , Cardano.txMintValue = Cardano.TxMintNone
+        , Cardano.txScriptValidity = Cardano.TxScriptValidityNone
         }
+
+    constructTxIn = fmap Cardano.BuildTxWith
+        . (, (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
+        . toCardanoTxIn
+        . fst
+
 
 mockNetworkLayer :: Monad m => NetworkLayer m block
 mockNetworkLayer = dummyNetworkLayer

@@ -24,24 +24,9 @@ import Cardano.Wallet.Gen
     ( genPercentage, genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
-    , CertificatePublicationTime (..)
     , EpochNo (..)
-    , PoolCertificate (..)
-    , PoolId (..)
-    , PoolMetadataSource (..)
-    , PoolOwner (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
-    , Settings (..)
     , SlotInEpoch (..)
     , SlotNo (..)
-    , SmashServer
-    , StakePoolMetadata (..)
-    , StakePoolMetadataHash (..)
-    , StakePoolMetadataUrl (..)
-    , StakePoolTicker (..)
-    , getPoolCertificatePoolId
-    , setPoolCertificatePoolId
     , unsafeEpochNo
     )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -50,6 +35,23 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinFullRange, shrinkCoinFullRange )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( CertificatePublicationTime (..)
+    , PoolCertificate (..)
+    , PoolId (..)
+    , PoolMetadataSource (..)
+    , PoolOwner (..)
+    , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
+    , Settings (..)
+    , SmashServer
+    , StakePoolMetadata (..)
+    , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
+    , StakePoolTicker (..)
+    , getPoolCertificatePoolId
+    , setPoolCertificatePoolId
+    )
 import Control.Arrow
     ( second )
 import Control.Monad

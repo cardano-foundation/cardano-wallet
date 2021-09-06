@@ -77,9 +77,9 @@ import Cardano.Pool.DB
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, interpretQuery )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , CertificatePublicationTime
-    , EpochNo (..)
+    ( BlockHeader (..), EpochNo (..), SlotNo (..) )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( CertificatePublicationTime
     , InternalState (..)
     , PoolId
     , PoolLifeCycleStatus (..)
@@ -87,7 +87,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , Settings
-    , SlotNo (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash
     , StakePoolMetadataUrl

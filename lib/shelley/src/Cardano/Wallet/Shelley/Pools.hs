@@ -74,11 +74,18 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
+    , Block (..)
     , BlockHeader (..)
-    , CertificatePublicationTime (..)
     , EpochNo (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
+    , SlotLength (..)
+    , SlottingParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( CertificatePublicationTime (..)
     , PoolCertificate (..)
     , PoolId
     , PoolLifeCycleStatus (..)
@@ -87,8 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , Settings (..)
-    , SlotLength (..)
-    , SlottingParameters (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolsSummary (..)
@@ -96,8 +101,8 @@ import Cardano.Wallet.Primitive.Types
     , getPoolRetirementCertificate
     , unSmashServer
     )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Tx (poolCerts) )
 import Cardano.Wallet.Registry
     ( AfterThreadLog, traceAfterThread )
 import Cardano.Wallet.Shelley.Compatibility
@@ -608,12 +613,13 @@ monitorStakePools followTr (NetworkParameters gp sp _pp) nl DBLayer{..} =
             BlockAlonzo blk ->
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
 
-        forEachShelleyBlock (blk, certificates) poolId = do
+        forEachShelleyBlock blk poolId = do
             let header = view #header blk
             let slot = view #slotNo header
             handleErr (putPoolProduction header poolId)
             garbageCollectPools slot latestGarbageCollectionEpochRef tr
-            putPoolCertificates slot certificates tr
+            putPoolCertificates slot (certificates blk) tr
+        certificates = mconcat . map poolCerts . transactions
 
         handleErr action = runExceptT action
             >>= \case

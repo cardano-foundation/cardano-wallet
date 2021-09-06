@@ -43,7 +43,6 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
-    , DelegationCertificate
     , GenesisParameters
     , Range (..)
     , SlotNo (..)
@@ -55,6 +54,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( DelegationCertificate )
 import Cardano.Wallet.Primitive.Types.Tx
     ( LocalTxSubmissionStatus
     , SealedTx

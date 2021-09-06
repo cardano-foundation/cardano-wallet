@@ -850,6 +850,8 @@ instance Arbitrary (WithPending WalletState) where
                         , resolvedCollateral = []
                         , outputs = [out {tokens}]
                         , withdrawals = mempty
+                        , delegationCerts = []
+                        , poolCerts = []
                         , metadata = Nothing
                         , scriptValidity = Nothing
                         }
@@ -926,6 +928,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -961,6 +965,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -985,6 +991,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1020,6 +1028,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1044,6 +1054,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1079,6 +1091,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1124,6 +1138,8 @@ blockchain =
                       }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1158,6 +1174,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1193,6 +1211,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1242,6 +1262,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1317,6 +1339,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1341,6 +1365,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1376,6 +1402,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1400,6 +1428,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1495,6 +1525,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1519,6 +1551,8 @@ blockchain =
                           }
                       ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }
@@ -1554,6 +1588,8 @@ blockchain =
                         }
                     ]
                 , withdrawals = mempty
+                , delegationCerts = []
+                , poolCerts = []
                 , metadata = Nothing
                 , scriptValidity = Nothing
                 }

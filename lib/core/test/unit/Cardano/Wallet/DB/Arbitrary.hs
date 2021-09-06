@@ -83,7 +83,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DecentralizationLevel (..)
-    , DelegationCertificate (..)
     , EpochNo (..)
     , EraInfo (..)
     , FeePolicy (..)
@@ -115,7 +114,7 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( DelegationCertificate (..), RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -381,10 +380,10 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid fees ins cins outs wdrls md validity) =
-        [ mkTx fees ins' cins' outs' wdrls' md' validity'
-        | (ins', cins', outs', wdrls', md', validity') <-
-            shrink (ins, cins, outs, wdrls, md, validity)
+    shrink (Tx _tid fees ins cins outs wdrls delegs _ md validity) =
+        [ mkTx fees ins' cins' outs' wdrls' delegs' md' validity'
+        | (ins', cins', outs', wdrls', delegs', md', validity') <-
+            shrink (ins, cins, outs, wdrls, delegs, md, validity)
         ]
 
     arbitrary = do
@@ -393,8 +392,9 @@ instance Arbitrary Tx where
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
         fees <- arbitrary
-        mkTx fees ins cins outs wdrls
-            <$> arbitrary <*> liftArbitrary genTxScriptValidity
+        mkTx fees ins cins outs wdrls []
+            <$> arbitrary
+            <*> liftArbitrary genTxScriptValidity
 
 instance Arbitrary TxIn where
     arbitrary = TxIn

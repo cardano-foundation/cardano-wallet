@@ -110,7 +110,6 @@ module Cardano.Wallet
     , getTxExpiry
     , selectAssets
     , readWalletUTxOIndex
-    , selectAssetsNoOutputs
     , assignChangeAddresses
     , assignChangeAddressesAndUpdateDb
     , assignChangeAddressesWithoutDbUpdate
@@ -137,6 +136,7 @@ module Cardano.Wallet
     , joinStakePool
     , quitStakePool
     , stakePoolDelegation
+    , delegationActionDeposits
     , guardJoin
     , guardQuit
     , ErrStakePoolDelegation (..)
@@ -158,10 +158,8 @@ module Cardano.Wallet
     , runLocalTxSubmissionPool
     , ErrSignTx (..)
     , ErrSubmitTx (..)
-    , ErrSubmitExternalTx (..)
     , ErrRemoveTx (..)
     , ErrPostTx (..)
-    , ErrDecodeSignedTx (..)
     , ErrListTransactions (..)
     , ErrGetTransaction (..)
     , ErrNoSuchTransaction (..)
@@ -223,10 +221,10 @@ import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
     , bracketTracer
+    , formatResultMsg
     , formatResultMsgWith
     , resultSeverity
     , traceResult
-    , traceWithExceptT
     , unliftIOTracer
     )
 import Cardano.Wallet.Network
@@ -338,13 +336,11 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
-    , DelegationCertificate (..)
     , GenesisParameters (..)
     , IsDelegatingTo (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId (..)
-    , PoolLifeCycleStatus (..)
     , ProtocolParameters (..)
     , Range (..)
     , Signature (..)
@@ -356,17 +352,23 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , dlgCertPoolId
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin, coinToInteger, sumCoins )
+    ( Coin (..), coinToInteger, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( DelegationAction (..)
+    , DelegationCertificate (..)
+    , RewardAccount (..)
+    , delegationActionDeposit
+    , dlgCertPoolId
+    )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( PoolLifeCycleStatus (..), getPoolRetirementCertificate )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -394,12 +396,9 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Transaction
     ( DecryptedSigningKey (..)
-    , DelegationAction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
-    , ErrDecodeSignedTx (..)
     , ErrMkTransaction
-    , ErrSelectionCriteria (..)
     , ErrSignTx (..)
     , SignTransactionKeyStore (..)
     , TransactionCtx (..)
@@ -411,7 +410,7 @@ import Cardano.Wallet.Transaction
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( replicateM, unless, when )
+    ( join, replicateM, unless, when )
 import Control.Monad.Class.MonadTime
     ( DiffTime
     , MonadMonotonicTime (..)
@@ -475,6 +474,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
@@ -486,9 +487,21 @@ import Data.Void
 import Data.Word
     ( Word64 )
 import Fmt
-    ( blockListF, build, fmt, nameF, pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable (..)
+    , blockListF
+    , blockMapF
+    , nameF
+    , pretty
+    , unlinesF
+    , (+|)
+    , (+||)
+    , (|+)
+    , (||+)
+    )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Safe
     ( lastMay )
 import Statistics.Quantile
@@ -508,7 +521,6 @@ import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
@@ -1382,94 +1394,6 @@ readWalletUTxOIndex ctx wid = do
     let utxo = UTxOIndex.fromUTxO $ availableUTxO @s pending cp
     return (utxo, cp, pending)
 
-selectAssetsNoOutputs
-    :: forall ctx s k result.
-        ( HasTransactionLayer k ctx
-        , HasLogger WalletWorkerLog ctx
-        , HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
-        )
-    => ctx
-    -> WalletId
-    -> (UTxOIndex, Wallet s, Set Tx)
-    -> TransactionCtx
-    -> (s -> SelectionResult TokenBundle -> result)
-    -> ExceptT ErrSelectAssets IO result
-selectAssetsNoOutputs ctx wid wal tx transform = do
-    -- NOTE:
-    -- Could be made nicer by allowing 'runWalletCoinSelection' to run with no target
-    -- outputs, but to satisfy a minimum Ada target.
-    --
-    -- To work-around this immediately, I am simply creating a dummy output of
-    -- exactly the required deposit amount, only to discard it on the final
-    -- result. The resulting selection will therefore have a delta that is at
-    -- least the size of the deposit (in practice, slightly bigger because this
-    -- extra outputs also increases the apparent minimum fee).
-    deposit <- withExceptT ErrSelectAssetsNoSuchWallet $
-        calcMinimumDeposit @_ @s @k ctx wid
-    let dummyAddress = Address ""
-    let dummyOutput  = TxOut dummyAddress (TokenBundle.fromCoin deposit)
-    let outs = dummyOutput :| []
-    selectAssets @ctx @s @k ctx wal tx outs $ \s sel -> transform s $ sel
-        { outputsCovered = mempty
-        , changeGenerated =
-            let
-                -- NOTE 1: There are in principle 6 cases we may ran into, which
-                -- can be grouped in 3 groups of 2 cases:
-                --
-                -- (1) When registering a key and delegating
-                -- (2) When delegating
-                -- (3) When de-registering a key
-                --
-                -- For each case, there may be one or zero change output. For
-                -- all 3 cases, we'll treat the case where there's no change
-                -- output as an edge-case and also leave no change. This may be
-                -- in practice more costly than necessary because, by removing
-                -- the fake output, we'd in practice have some more Ada
-                -- available to create a change (and a less expensive
-                -- transaction). Yet, this would require quite some extra logic
-                -- here in addition to all the existing logic inside the
-                -- CoinSelection/Balance module already. If we were not
-                -- able to add a change output already, let's not try to do it
-                -- here. Worse that can be list is:
-                --
-                --     max (minUTxOValue, keyDepositValue)
-                --
-                -- which we'll deem acceptable under the circumstances (that can
-                -- only really happen if one is trying to delegate with already
-                -- a very small Ada balance, so that it's left with no Ada after
-                -- having paid for the delegation certificate. Why would one be
-                -- delegating almost nothing certainly is an edge-case not worth
-                -- considering for too long).
-                --
-                -- However, if a change output has been create, then we want to
-                -- transfer the surplus of value from the change output to that
-                -- change output (which is already safe). That surplus is
-                -- non-null if the `minUTxOValue` protocol parameter is
-                -- non-null, and comes from the fact that the selection
-                -- algorithm automatically assigns this value when presented
-                -- with a null output. In the case of (1), the output's value is
-                -- equal to the stake key deposit value, which may be in
-                -- practice greater than the `minUTxOValue`. In the case of (2)
-                -- and (3), the deposit is null. So it suffices to subtract
-                -- `deposit` to the value of the covered output to get the
-                -- surplus.
-                --
-                -- NOTE 2: This subtraction and head are safe because of the
-                -- invariants enforced by the asset selection algorithm. The
-                -- output list has the exact same length as the input list, and
-                -- outputs are at least as large as the specified outputs.
-                surplus = TokenBundle.unsafeSubtract
-                    (view #tokens (head $ outputsCovered sel))
-                    (TokenBundle.fromCoin deposit)
-            in
-                surplus `addToHead` changeGenerated sel
-        }
-  where
-    addToHead :: TokenBundle -> [TokenBundle] -> [TokenBundle]
-    addToHead _    [] = []
-    addToHead x (h:q) = TokenBundle.add x h : q
-
 -- | Calculate the minimum coin values required for a bunch of specified
 -- outputs.
 calcMinimumCoinValues
@@ -1495,7 +1419,7 @@ calcMinimumCoinValues ctx outs = do
 -- and its associated cost. That is, the cost is equal to the difference between
 -- inputs and outputs.
 selectAssets
-    :: forall ctx s k result.
+    :: forall ctx s k.
         ( HasTransactionLayer k ctx
         , HasLogger WalletWorkerLog ctx
         , HasNetworkLayer IO ctx
@@ -1503,10 +1427,9 @@ selectAssets
     => ctx
     -> (UTxOIndex, Wallet s, Set Tx)
     -> TransactionCtx
-    -> NonEmpty TxOut
-    -> (s -> SelectionResult TokenBundle -> result)
-    -> ExceptT ErrSelectAssets IO result
-selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs' transform = do
+    -> [TxOut]
+    -> ExceptT ErrSelectAssets IO (SelectionResult TokenBundle)
+selectAssets ctx (utxoAvailable, _cp, pending) txCtx outputs = do
     sel <- traceResult trSelect $ do
         guardPendingWithdrawal
         pp <- liftIO $ currentProtocolParameters nl
@@ -1514,7 +1437,7 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs' transform = do
             SelectionConstraints
                 { bundleSizeAssessor =
                     tokenBundleSizeAssessor tl $
-                        view (#txParameters . #getTokenBundleMaxSize) pp
+                        pp ^. #txParameters . #getTokenBundleMaxSize
                 , computeMinimumAdaQuantity =
                     view #txOutputMinimumAdaQuantity $ constraints tl pp
                 , computeMinimumCost =
@@ -1527,27 +1450,28 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs' transform = do
                     view #stakeKeyDeposit pp
                 }
             SelectionParams
-                { assetsToBurn = TokenMap.empty -- TODO: [ADP-861]
-                , assetsToMint = TokenMap.empty -- TODO: [ADP-861]
+                { assetsToBurn = mempty -- TODO: [ADP-861]
+                , assetsToMint = mempty -- TODO: [ADP-861]
                 , outputsToCover = outputs
-                , rewardWithdrawals =
-                    addCoin (withdrawalToCoin $ view #txWithdrawal txCtx) $
-                    case view #txDelegationAction txCtx of
-                        Just Quit -> stakeKeyDeposit pp
-                        _ -> Coin 0
-                , certificateDepositsReturned = 0 -- TODO: [ADP-919]
-                , certificateDepositsTaken = 0  -- TODO: [ADP-919]
+                , rewardWithdrawals = withdrawalToCoin wdrl
+                , certificateDepositsReturned = numDeposits 1 delegs
+                , certificateDepositsTaken = numDeposits (-1) delegs
                 , utxoAvailable
                 }
     liftIO $ traceWith tr $ MsgSelectionDetail sel
-    pure $ transform (getState cp) sel
+    pure $ sel
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
     tr = contramap MsgWallet $ ctx ^. logger
     trSelect = contramap (MsgSelectAssets utxoAvailable txCtx outputs) tr
 
-    outputs = NE.toList outputs'
+    delegs = view #txDelegationActions txCtx
+    wdrl = view #txWithdrawal txCtx
+
+    numDeposits :: Int -> [DelegationAction] -> Natural
+    numDeposits sig = sum . map (delegationActionDeposit withSign)
+        where withSign = fromIntegral . max 0 . (* (signum sig))
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
@@ -1572,6 +1496,7 @@ signTransaction
     :: forall ctx s k.
         ( HasTransactionLayer k ctx
         , HasDBLayer IO s k ctx
+        , HasLogger WalletWorkerLog ctx
         , IsOwned s k
         , GetRewardAccount s k
         )
@@ -1583,11 +1508,12 @@ signTransaction
        -- ^ Source transaction
     -> SealedTx
     -> ExceptT ErrWitnessTx IO SealedTx
-signTransaction ctx wid mkRwdAcct pwd tx = do
+signTransaction ctx wid mkRwdAcct pwd tx = traceResult tr $ do
     withKeyStore @ctx @s @k ctx wid (Just . mkRwdAcct) pwd $ \keyStore ->
         pure $ view #tx $ mkSignedTransaction tl keyStore tx
   where
     tl = ctx ^. transactionLayer @k
+    tr = contramap (MsgWallet . MsgSignTransaction tx) (ctx ^. logger)
 
 -- | Uses the wallet's address discovery state and UTxO set to produce a pair of
 -- lookup functions that can convert a 'TxIn' to an address key that can be used
@@ -1603,7 +1529,7 @@ withKeyStore
     -> ((k 'RootK XPrv, Passphrase "encryption") -> Maybe (XPrv, Passphrase "encryption"))
        -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
-    -> (SignTransactionKeyStore (k 'AddressK XPrv) -> IO a)
+    -> (SignTransactionKeyStore (k 'AddressK XPrv) XPrv -> IO a)
     -> ExceptT ErrWitnessTx IO a
 withKeyStore ctx wid mkRwdAcct pwd action = do
     (adState, utxo, rewardAcct) <- withExceptT ErrWitnessTxNoSuchWallet $ do
@@ -1611,16 +1537,18 @@ withKeyStore ctx wid mkRwdAcct pwd action = do
         rewardAcct <- readRewardAccount @ctx @s @k ctx wid
         pure (getState cp, totalUTxO @s pending cp, rewardAcct)
 
-    let resolver txin = view #address <$> Map.lookup txin (getUTxO utxo)
+    let resolver txin = view #address <$> Map.lookup txin (unUTxO utxo)
 
     withRootKey @_ @s ctx wid pwd ErrWitnessTxWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
-        let stakeCreds acct = if Just acct == rewardAcct
+            stakeCreds acct = uncurry DecryptedSigningKey <$>
+                if Just acct == rewardAcct
                 -- using stake credentials from self
-                then uncurry DecryptedSigningKey <$> mkRwdAcct (xprv, pwdP)
+                then mkRwdAcct (xprv, pwdP)
                 -- using external stake credentials
-                else uncurry DecryptedSigningKey <$> mkRwdAcct (xprv, mempty)
-        let keyFrom = fmap (uncurry DecryptedSigningKey) . isOwned adState (xprv, pwdP)
+                else mkRwdAcct (xprv, mempty)
+            keyFrom = fmap (uncurry DecryptedSigningKey)
+                . isOwned adState (xprv, pwdP)
         liftIO $ action $ SignTransactionKeyStore{stakeCreds,resolver,keyFrom}
 
 -- | Produce witnesses and construct a transaction from a given selection.
@@ -1634,6 +1562,7 @@ buildAndSignTransaction
         ( HasTransactionLayer k ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
+        , HasLogger WalletWorkerLog ctx
         , IsOwned s k
         , GetRewardAccount s k
         )
@@ -1649,7 +1578,7 @@ buildAndSignTransaction
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = do
     unsigned <- withExceptT ErrSignPaymentConstructTx $
-        constructTransaction @ctx @s @k ctx wid txCtx sel
+        constructTransaction @ctx @k ctx txCtx sel
     sealed <- withExceptT ErrSignPaymentSignTx $
         signTransaction @ctx @s @k ctx wid mkRwdAcct pwd unsigned
     getFullTxInfo @ctx @s @k ctx wid txCtx sel sealed
@@ -1668,40 +1597,41 @@ getFullTxInfo
     -> SealedTx
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 getFullTxInfo ctx wid txCtx sel sealed = db & \DBLayer{..} -> do
-    cp <- mapExceptT atomically $
-        withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
-            readCheckpoint wid
-    liftIO $ do
-        (time, meta) <- mkTxMeta ti (currentTip cp) (getState cp) txCtx sel
-        pure (decodeTx tl sealed, meta, time, sealed)
+    cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
+        atomically $ readCheckpoint wid
+    time <- liftIO $ slotStartTime' (cp ^. #currentTip . #slotNo)
+    pp <- liftIO (currentProtocolParameters nl)
+    let meta = mkTxMeta (stakeKeyDeposit pp)
+            (currentTip cp) (getState cp) txCtx sel
+    pure (decodeTx tl sealed, meta, time, sealed)
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
-    ti = timeInterpreter nl
+    ti = neverFails "getFullTxInfo: pending tx slot ahead of the node tip" $
+        timeInterpreter nl
+    slotStartTime' = interpretQuery ti . slotToUTCTime
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall ctx s k.
+    :: forall ctx k.
         ( HasTransactionLayer k ctx
-        , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
-        , GetRewardAccount s k
+        , HasLogger WalletWorkerLog ctx
         )
     => ctx
-    -> WalletId
     -> TransactionCtx
     -> SelectionResult TxOut
     -> ExceptT ErrConstructTx IO SealedTx
-constructTransaction ctx wid txCtx sel = do
-    rewardAcct <- withExceptT ErrConstructTxNoSuchWallet $
-        readRewardAccount @ctx @s @k ctx wid
+constructTransaction ctx txCtx sel = traceResult tr $ do
     eraPP <- liftIO $ (,) <$> currentNodeEra nl <*> currentProtocolParameters nl
     withExceptT ErrConstructTxBody $ ExceptT $ pure $
-        mkTransactionBody tl eraPP rewardAcct txCtx sel
+        mkTransactionBody tl eraPP txCtx sel
   where
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
+    tr = contramap (MsgConstructTransaction txCtx sel) trWallet
+    trWallet = contramap MsgWallet (ctx ^. logger)
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.
@@ -1730,54 +1660,44 @@ getTxExpiry ti maybeTTL = do
 -- amount between right here, and the Primitive.Model (see prefilterBlocks).
 mkTxMeta
     :: IsOurs s Address
-    => TimeInterpreter (ExceptT PastHorizonException IO)
+    => Coin
     -> BlockHeader
     -> s
     -> TransactionCtx
     -> SelectionResult TxOut
-    -> IO (UTCTime, TxMeta)
-mkTxMeta ti' blockHeader wState txCtx sel =
-    let
-        amtOuts = sumCoins $
-            (txOutCoin <$> changeGenerated sel)
-            ++
-            mapMaybe ourCoin (outputsCovered sel)
-
-        amtInps
-            = sumCoins (txOutCoin . snd <$> inputsSelected sel)
-            -- NOTE: In case where rewards were pulled from an external
-            -- source, they aren't added to the calculation because the
-            -- money is considered to come from outside of the wallet; which
-            -- changes the way we look at transactions (in such case, a
-            -- transaction is considered 'Incoming' since it brings extra money
-            -- to the wallet from elsewhere).
-            & case txWithdrawal txCtx of
-                w@WithdrawalSelf{} -> addCoin (withdrawalToCoin w)
-                WithdrawalExternal{} -> Prelude.id
-                NoWithdrawal -> Prelude.id
-    in do
-        t <- slotStartTime' (blockHeader ^. #slotNo)
-        return
-            ( t
-            , TxMeta
-                { status = Pending
-                , direction = if amtInps > amtOuts then Outgoing else Incoming
-                , slotNo = blockHeader ^. #slotNo
-                , blockHeight = blockHeader ^. #blockHeight
-                , amount = Coin.distance amtInps amtOuts
-                , expiry = Just (txTimeToLive txCtx)
-                }
-            )
+    -> TxMeta
+mkTxMeta _stakeAddressDeposit blockHeader wState txCtx sel = TxMeta
+    { status = Pending
+    , direction = if amtInps > amtOuts then Outgoing else Incoming
+    , slotNo = blockHeader ^. #slotNo
+    , blockHeight = blockHeader ^. #blockHeight
+    , amount = Coin.distance amtInps amtOuts
+    , expiry = Just (txTimeToLive txCtx)
+    }
   where
-    slotStartTime' = interpretQuery ti . slotToUTCTime
-      where
-        ti = neverFails "mkTxMeta slots should never be ahead of the node tip" ti'
+    amtOuts = sumCoins $ mconcat
+        [ txOutCoin <$> changeGenerated sel
+        , mapMaybe ourCoin (outputsCovered sel)
+        ]
+
+    amtInps = sumCoins $
+        wdrlInp : (txOutCoin . snd <$> F.toList (inputsSelected sel))
+
+    -- NOTE: In case where rewards were pulled from an external
+    -- source, they aren't added to the calculation because the
+    -- money is considered to come from outside of the wallet; which
+    -- changes the way we look at transactions (in such case, a
+    -- transaction is considered 'Incoming' since it brings extra money
+    -- to the wallet from elsewhere).
+    wdrlInp = case txWithdrawal txCtx of
+        w@WithdrawalSelf{} -> withdrawalToCoin w
+        WithdrawalExternal{} -> Coin 0
+        NoWithdrawal -> Coin 0
 
     ourCoin :: TxOut -> Maybe Coin
-    ourCoin (TxOut addr tokens) =
-        case fst (isOurs addr wState) of
-            Just{}  -> Just (TokenBundle.getCoin tokens)
-            Nothing -> Nothing
+    ourCoin (TxOut addr tokens) = case fst (isOurs addr wState) of
+        Just _  -> Just (TokenBundle.getCoin tokens)
+        Nothing -> Nothing
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
@@ -1790,9 +1710,8 @@ submitTx
     -> WalletId
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
-submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork $ traceWithExceptT tr' $
-        postTx nw binary
+submitTx ctx wid (tx, meta, binary) = traceResult tr' $ db & \DBLayer{..} -> do
+    withExceptT ErrSubmitTxNetwork $postTx nw binary
     mapExceptT atomically $ do
         withExceptT ErrSubmitTxNoSuchWallet $
             putTxHistory wid [(tx, meta)]
@@ -1803,7 +1722,7 @@ submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
     nw = ctx ^. networkLayer
 
     tr = ctx ^. logger
-    tr' = contramap (MsgWallet . MsgTxSubmit . MsgPostTxResult (tx ^. #txId)) tr
+    tr' = contramap (MsgWallet . MsgTxSubmit . MsgSubmitTx tx meta binary) tr
 
     handleLocalTxSubmissionErr = \case
         ErrPutLocalTxSubmissionNoSuchWallet e -> ErrSubmitTxNoSuchWallet e
@@ -1821,18 +1740,15 @@ submitExternalTx
         )
     => ctx
     -> SealedTx
-    -> ExceptT ErrSubmitExternalTx IO Tx
-submitExternalTx ctx sealedTx = do
-    withExceptT ErrSubmitExternalTxNetwork $
-        traceWithExceptT trPost $
-            postTx nw sealedTx
+    -> ExceptT ErrPostTx IO Tx
+submitExternalTx ctx sealedTx = traceResult trPost $ do
+    postTx nw sealedTx
     pure tx
   where
-    tx = decodeTx tl sealedTx
-
     tl = ctx ^. transactionLayer @k
     nw = ctx ^. networkLayer
-    trPost = contramap (MsgPostTxResult (tx ^. #txId)) (ctx ^. logger)
+    trPost = contramap (MsgSubmitExternalTx (tx ^. #txId)) (ctx ^. logger)
+    tx = decodeTx tl sealedTx
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
@@ -1908,8 +1824,8 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
         let sl = bh ^. #slotNo
         -- Re-submit transactions due, ignore errors
         forM_ (filter (isScheduled sp sl) pending) $ \st -> do
-            res <- runExceptT $ postTx nw (st ^. #submittedTx)
-            traceWith tr (MsgRetryPostTxResult (st ^. #txId) res)
+            _ <- runExceptT $ traceResult (trRetry (st ^. #txId)) $
+                postTx nw (st ^. #submittedTx)
             atomically $ runExceptT $ putLocalTxSubmission
                 wid
                 (st ^. #txId)
@@ -1928,6 +1844,7 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
     tr = unliftIOTracer $ contramap (MsgWallet . MsgTxSubmit) $
         ctx ^. logger @WalletWorkerLog
     trBracket = contramap MsgProcessPendingPool tr
+    trRetry i = contramap (MsgRetryPostTx i) tr
 
 -- | Return a function to run an action at most once every _interval_.
 throttle
@@ -2107,10 +2024,27 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
                                   Delegation
 -------------------------------------------------------------------------------}
 
+-- | Return the delegation actions necessary (if any) to ensure that the
+-- wallet's stake key is registered.
+maybeRegisterStakeKey
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , HasLogger WalletWorkerLog ctx
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO [DelegationAction]
+maybeRegisterStakeKey ctx wid = db & \DBLayer{..} -> do
+    isKeyReg <- mapExceptT atomically $ isStakeKeyRegistered wid
+    liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
+    pure [RegisterKey | not isKeyReg]
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    tr = contramap MsgWallet $ ctx ^. logger
+
 joinStakePool
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
         , HasLogger WalletWorkerLog ctx
         )
     => ctx
@@ -2119,35 +2053,27 @@ joinStakePool
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
-    -> ExceptT ErrStakePoolDelegation IO [(Maybe Coin, DelegationAction)]
-    -- ^ fst is the deposit
+    -> ExceptT ErrStakePoolDelegation IO (NonEmpty DelegationAction)
 joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
     db & \DBLayer{..} -> do
-        (walMeta, isKeyReg) <- mapExceptT atomically $ do
-            walMeta <- withExceptT ErrStakePoolDelegationNoSuchWallet
+        walMeta <- mapExceptT atomically $
+            withExceptT ErrStakePoolDelegationNoSuchWallet
                 $ withNoSuchWallet wid
                 $ readWalletMeta wid
-            isKeyReg <- withExceptT ErrStakePoolDelegationNoSuchWallet
-                $ isStakeKeyRegistered wid
-            pure (walMeta, isKeyReg)
+        regActions <- withExceptT ErrStakePoolDelegationNoSuchWallet $
+            maybeRegisterStakeKey @ctx @s @k ctx wid
 
         let mRetirementEpoch = view #retirementEpoch <$>
-                W.getPoolRetirementCertificate poolStatus
+                getPoolRetirementCertificate poolStatus
         let retirementInfo =
                 PoolRetirementEpochInfo currentEpoch <$> mRetirementEpoch
 
         withExceptT ErrStakePoolJoin $ except $
             guardJoin knownPools (walMeta ^. #delegation) pid retirementInfo
 
-        liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
-
-        dep <- liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
-
-        pure $ [(Just dep, RegisterKey) | not isKeyReg] ++ [(Nothing, Join pid)]
+        pure $ NE.reverse $ Delegate pid :| regActions
   where
     db = ctx ^. dbLayer @IO @s @k
-    tr = contramap MsgWallet $ ctx ^. logger
-    nl = ctx ^. networkLayer
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
@@ -2169,7 +2095,7 @@ quitStakePool ctx wid = db & \DBLayer{..} -> do
     withExceptT ErrStakePoolQuit $ except $
         guardQuit (walMeta ^. #delegation) rewards
 
-    pure Quit
+    pure DeregisterKey
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -2177,7 +2103,6 @@ quitStakePool ctx wid = db & \DBLayer{..} -> do
 stakePoolDelegation
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
         , HasLogger WalletWorkerLog ctx
         )
     => ctx
@@ -2185,13 +2110,23 @@ stakePoolDelegation
     -> Set PoolId
     -> WalletId
     -> NonEmpty (PoolLifeCycleStatus, DelegationAction)
-    -> ExceptT ErrStakePoolDelegation IO (NonEmpty (Maybe Coin, DelegationAction))
-    -- ^ fst is the deposit
+    -> ExceptT ErrStakePoolDelegation IO (NonEmpty DelegationAction)
 stakePoolDelegation ctx curEpoch pools wid delegs =
-    fmap (NE.fromList . concat) . forM delegs $ uncurry $ \status -> \case
-        RegisterKey -> pure [(Nothing, RegisterKey)]
-        Join pid -> joinStakePool @_ @s @k ctx curEpoch pools pid status wid
-        Quit -> pure . (Nothing,) <$> quitStakePool @_ @s @k ctx wid
+    fmap join . forM delegs $ uncurry $ \status -> \case
+        RegisterKey -> pure $ pure RegisterKey
+        Delegate pid -> joinStakePool @_ @s @k ctx curEpoch pools pid status wid
+        DeregisterKey -> pure <$> quitStakePool @_ @s @k ctx wid
+
+delegationActionDeposits
+    :: forall ctx. HasNetworkLayer IO ctx
+    => ctx
+    -> NonEmpty DelegationAction
+    -> IO [Coin]
+delegationActionDeposits ctx actions = do
+    let nl = ctx ^. networkLayer
+    Coin depositAmount <- stakeKeyDeposit <$> currentProtocolParameters nl
+    let makeCoin = Coin . (* depositAmount) . max 0 . negate
+    pure $ map (delegationActionDeposit makeCoin) (NE.toList actions)
 
 {-------------------------------------------------------------------------------
                                  Fee Estimation
@@ -2215,17 +2150,36 @@ calcMinimumDeposit
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
+        , HasLogger WalletWorkerLog ctx
         )
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO Coin
-calcMinimumDeposit ctx wid = db & \DBLayer{..} ->
-    mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
-        True -> pure $ Coin 0
-        False -> liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
+calcMinimumDeposit ctx wid = depositAmountsPP (-1)
+    <$> liftIO (currentProtocolParameters (ctx ^. networkLayer))
+    <*> maybeRegisterStakeKey @ctx @s @k ctx wid
+
+-- | Shortcut for 'depositAmounts' which takes the full 'ProtocolParameters'
+-- record.
+depositAmountsPP :: Int -> ProtocolParameters -> [DelegationAction] -> Coin
+depositAmountsPP sig pp = depositAmounts sig (stakeKeyDeposit pp)
+
+-- | Total amount that should be taken from/returned back to the wallet for
+-- stake key registrations/de-registrations in a transaction.
+--
+-- This will always be non-negative. The first parameter specifies the
+-- direction.
+depositAmounts
+    :: Int
+    -- ^ Direction: negative means deposit is taken from the wallet.
+    -> Coin
+    -- ^ The deposit required to register a stake address.
+    -> [DelegationAction]
+    -- ^ A delegation certificates from a transaction
+    -> Coin
+depositAmounts sig (Coin d) = sumCoins . map (delegationActionDeposit makeCoin)
   where
-    db = ctx ^. dbLayer @IO @s @k
-    nl = ctx ^. networkLayer
+    makeCoin = Coin . (* d) . fromIntegral . max 0 . (* (signum sig))
 
 -- | Estimate the transaction fee for a given coin selection algorithm by
 -- repeatedly running it (100 times) and collecting the results. In the returned
@@ -2683,13 +2637,6 @@ data ErrSubmitTx
     | ErrSubmitTxImpossible ErrNoSuchTransaction
     deriving (Show, Eq)
 
--- | Errors that can occur when submitting an externally-signed transaction
---   to the network.
-data ErrSubmitExternalTx
-    = ErrSubmitExternalTxNetwork ErrPostTx
-    | ErrSubmitExternalTxDecode ErrDecodeSignedTx
-    deriving (Show, Eq)
-
 -- | Errors that can occur when trying to change a wallet's passphrase.
 data ErrUpdatePassphrase
     = ErrUpdatePassphraseNoSuchWallet ErrNoSuchWallet
@@ -2884,6 +2831,8 @@ data WalletLog
     | MsgRewardBalanceResult (Either ErrFetchRewards Coin)
     | MsgRewardBalanceNoSuchWallet ErrNoSuchWallet
     | MsgRewardBalanceExited
+    | MsgConstructTransaction TransactionCtx (SelectionResult TxOut) (BracketLog' (Either ErrConstructTx SealedTx))
+    | MsgSignTransaction SealedTx (BracketLog' (Either ErrWitnessTx SealedTx))
     | MsgTxSubmit TxSubmitLog
     | MsgIsStakeKeyRegistered Bool
     deriving (Show, Eq)
@@ -2915,9 +2864,11 @@ instance ToText WalletFollowLog where
         MsgBlocks blocks ->
             "blocks: " <> pretty (NE.toList blocks)
 
-instance ToText WalletLog where
-    toText = \case
-        MsgSelectAssets utxo txCtx recipients b -> fmt $ formatResultMsgWith
+instance ToText WalletLog
+
+instance Buildable WalletLog where
+    build = \case
+        MsgSelectAssets utxo txCtx recipients b -> formatResultMsgWith
             (\e -> "Failed to select assets: "+||e||+"")
             (nameF "Selection report (summary)" . build
                 . makeSelectionReportSummarized)
@@ -2926,7 +2877,7 @@ instance ToText WalletLog where
             , ("|utxo|", build (UTxOIndex.size utxo))
             , ("#recipients", build (length recipients))
             ] b
-        MsgSelectionDetail sel -> fmt $
+        MsgSelectionDetail sel ->
             nameF "Selection report (detailed)" $
             build $ makeSelectionReportDetailed sel
         MsgMigrationUTxOBefore summary ->
@@ -2934,19 +2885,27 @@ instance ToText WalletLog where
         MsgMigrationUTxOAfter summary ->
             "Expected distribution after complete migration:\n"+|summary|+""
         MsgRewardBalanceQuery bh ->
-            "Updating the reward balance for block " <> pretty bh
+            "Updating the reward balance for block "+|bh|+""
         MsgRewardBalanceResult (Right amt) ->
-            "The reward balance is " <> pretty amt
+            "The reward balance is "+|amt|+""
+        MsgRewardBalanceResult (Left err) -> unlinesF
+            [ "Problem fetching reward balance."
+            , show err
+            , "Will try again on next chain update." ]
         MsgRewardBalanceNoSuchWallet err ->
-            "Trying to store a balance for a wallet that doesn't exist (yet?): " <>
-            T.pack (show err)
-        MsgRewardBalanceResult (Left err) ->
-            "Problem fetching reward balance. Will try again on next chain update. " <>
-            T.pack (show err)
+            "Trying to store a balance for a wallet that doesn't exist (yet?): "
+            +||err||+""
         MsgRewardBalanceExited ->
             "Reward balance worker has exited."
+        MsgConstructTransaction txCtx sel b ->
+            formatResultMsg "constructTransaction"
+                [ ("txCtx", build txCtx)
+                , ("sel", build sel)
+                ] b
+        MsgSignTransaction tx b ->
+            formatResultMsg "signTransaction" [("tx", tx)] b
         MsgTxSubmit msg ->
-            toText msg
+            build msg
         MsgIsStakeKeyRegistered True ->
             "Wallet stake key is registered. Will not register it again."
         MsgIsStakeKeyRegistered False ->
@@ -2974,34 +2933,69 @@ instance HasSeverityAnnotation WalletLog where
         MsgRewardBalanceResult (Left _) -> Notice
         MsgRewardBalanceNoSuchWallet{} -> Warning
         MsgRewardBalanceExited -> Notice
+        MsgConstructTransaction _ _ b -> resultSeverity Debug b
+        MsgSignTransaction _ b -> resultSeverity Debug b
         MsgTxSubmit msg -> getSeverityAnnotation msg
         MsgIsStakeKeyRegistered _ -> Info
 
 data TxSubmitLog
-    = MsgPostTxResult (Hash "Tx") (Either ErrPostTx ())
-    | MsgRetryPostTxResult (Hash "Tx") (Either ErrPostTx ())
+    = MsgSubmitTx Tx TxMeta SealedTx (BracketLog' (Either ErrSubmitTx ()))
+    | MsgSubmitExternalTx (Hash "Tx") (BracketLog' (Either ErrPostTx Tx))
+    | MsgRetryPostTx (Hash "Tx") (BracketLog' (Either ErrPostTx ()))
     | MsgProcessPendingPool BracketLog
     deriving (Show, Eq)
 
-instance ToText TxSubmitLog where
-    toText = \case
-        MsgPostTxResult txid res ->
-            "Transaction " <> pretty txid <> " " <> case res of
-                Right _ -> "accepted by local node"
-                Left err -> "failed: " <> toText err
-        MsgRetryPostTxResult txid res ->
-            "Transaction " <> pretty txid <>
-            " resubmitted to local node and " <> case res of
-                Right _ -> "accepted again"
-                Left _ -> "not accepted (this is expected)"
+instance ToText TxSubmitLog
+
+instance Buildable TxSubmitLog where
+    build = \case
+        MsgSubmitTx tx meta sealed msg -> case msg of
+            BracketStart -> unlinesF
+                [ "Submitting transaction "+|tx ^. #txId|+" to local node"
+                , blockMapF
+                    [ ("Tx" :: Text, build tx)
+                    , ("SealedTx", build sealed)
+                    , ("TxMeta", build meta) ]
+                ]
+            BracketFinish res ->
+                "Transaction "+|tx ^. #txId|+" "+|case res of
+                    Right _ -> "accepted by local node"
+                    Left err -> "failed: "+||err||+""
+            _ -> formatResultMsg "submitTx" [("txid", tx ^. #txId)] msg
+
+        MsgSubmitExternalTx txid msg -> case msg of
+            BracketStart -> "Submitting external transaction "+|txid|+
+                " to local node..."
+            BracketFinish res ->
+                "Transaction "+|txid|+" "+|case res of
+                    Right tx -> unlinesF
+                        [ "accepted by local node"
+                        , nameF "tx" (build tx)
+                        ]
+                    Left err -> "failed: "+|toText err|+""
+            _ -> formatResultMsg "submitExternalTx" [("txid", txid)] msg
+
+        MsgRetryPostTx txid msg -> case msg of
+            BracketStart -> "Retrying submission of transaction "+|txid|+
+                " to local node..."
+            BracketFinish res ->
+                "Transaction "+|txid|+" resubmitted to local node and " <>
+                case res of
+                    Right _ -> "accepted again"
+                    Left _ -> "not accepted (this is expected)"
+            _ -> formatResultMsg "runLocalTxSubmissionPool(postTx)"
+                [("txid", txid)] msg
+
         MsgProcessPendingPool msg ->
-            "Processing the pending local tx submission pool: " <> toText msg
+            "Processing the pending local tx submission pool: "+|msg|+""
 
 instance HasPrivacyAnnotation TxSubmitLog
 instance HasSeverityAnnotation TxSubmitLog where
     getSeverityAnnotation = \case
-        MsgPostTxResult _ (Right _) -> Info
-        MsgPostTxResult _ (Left _) -> Error
-        MsgRetryPostTxResult _ (Right _) -> Info
-        MsgRetryPostTxResult _ (Left _) -> Debug
+        MsgSubmitTx _ _ _ b -> resultSeverity Info b
+        MsgSubmitExternalTx _ b -> resultSeverity Info b
+        MsgRetryPostTx _ b -> case b of
+            BracketFinish (Right _) -> Info
+            BracketException _ -> Error
+            _ -> Debug
         MsgProcessPendingPool msg -> getSeverityAnnotation msg

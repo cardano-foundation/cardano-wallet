@@ -46,7 +46,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( DelegationCertificate, RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
     , TxIn (..)
@@ -135,17 +135,20 @@ mkTx
     -> [(TxIn, Coin)]
     -> [TxOut]
     -> Map RewardAccount Coin
+    -> [DelegationCertificate]
     -> Maybe TxMetadata
     -> Maybe TxScriptValidity
     -> Tx
-mkTx fees ins cins outs wdrls md validity =
+mkTx fees ins cins outs wdrls delegs md validity =
     Tx
-      { txId = (mkTxId ins outs wdrls md)
+      { txId = mkTxId ins outs wdrls md
       , fee = fees
       , resolvedCollateral = cins
       , resolvedInputs = ins
       , outputs = outs
       , withdrawals = wdrls
+      , delegationCerts = delegs
+      , poolCerts = []
       , metadata = md
       , scriptValidity = validity
       }

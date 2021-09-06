@@ -39,16 +39,14 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.Slotting
     ( epochOf, interpretQuery )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , CertificatePublicationTime (..)
-    , EpochNo (..)
+    ( BlockHeader (..), EpochNo (..), PoolId, SlotNo (..) )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( CertificatePublicationTime (..)
     , PoolCertificate (..)
-    , PoolId
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate
-    , Settings
-    , SlotNo (..)
+    , PoolRetirementCertificate (..)
+    , Settings (..)
     , StakePoolMetadata (..)
     , StakePoolTicker (..)
     , defaultSettings

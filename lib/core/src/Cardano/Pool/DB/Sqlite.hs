@@ -61,9 +61,9 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , CertificatePublicationTime (..)
-    , EpochNo (..)
+    ( BlockHeader (..), EpochNo (..) )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( CertificatePublicationTime (..)
     , PoolId (..)
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
@@ -143,6 +143,7 @@ import UnliftIO.Exception
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.StakePools as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite

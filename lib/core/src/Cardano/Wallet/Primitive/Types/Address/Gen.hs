@@ -26,7 +26,7 @@ import qualified Data.ByteString.Char8 as B8
 -- Addresses generated according to the size parameter
 --------------------------------------------------------------------------------
 
-genAddress :: Gen (Address)
+genAddress :: Gen Address
 genAddress = sized $ \size -> elements $ take (max 1 size) addresses
 
 shrinkAddress :: Address -> [Address]

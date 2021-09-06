@@ -59,17 +59,13 @@ import Prelude
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
-    , BlockHeader (..)
-    , DelegationCertificate (..)
-    , dlgCertAccount
-    )
+    ( Block (..), BlockHeader (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), distance, sumCoins )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( DelegationCertificate (..), RewardAccount (..), dlgCertAccount )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -474,19 +470,18 @@ prefilterBlock b u0 = runState $ do
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
-    applyTx (!txs, !prevUTxO) tx = do
+    applyTx (!txs, !u) tx = do
         -- The next UTxO state (apply a state transition) (e.g. remove
         -- transaction outputs we've spent).
-        ourNextUTxO <-
-            (spendTx tx prevUTxO <>)
+        u' <- (spendTx tx u <>)
             <$> filterByAddressM isOurAddress (utxoFromTx tx)
 
         ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
 
-        let received = balance (ourNextUTxO `excluding` dom prevUTxO)
+        let received = balance (u' `excluding` dom u)
         let spent =
-                balance (prevUTxO `excluding` dom ourNextUTxO)
+                balance (u `excluding` dom u')
                 `TB.add` TB.fromCoin ourWithdrawals
 
         (ownedAndKnownTxIns, ownedAndKnownTxOuts) <- do
@@ -495,7 +490,7 @@ prefilterBlock b u0 = runState $ do
             -- belong to us, so we filter any new inputs/outputs, presuming that
             -- the previous UTxO has already been filtered:
             ownedAndKnown <-
-                (prevUTxO <>) <$> filterByAddressM isOurAddress (utxoFromTx tx)
+                (u <>) <$> filterByAddressM isOurAddress (utxoFromTx tx)
             -- Also, the new transaction may spend some transaction
             -- inputs/outputs. But we don't want to apply that logic yet. If we
             -- do, any spent transaction input/output will be removed from our
@@ -517,6 +512,9 @@ prefilterBlock b u0 = runState $ do
                 (Set.fromList $ outputs tx)
                 (Set.fromList ownedAndKnownTxOuts)
         let hasKnownWithdrawal = ourWithdrawals /= mempty
+
+        ourDelegations <- mapMaybeM ourDelegation (tx ^. #delegationCerts)
+        let tx' = tx { delegationCerts = ourDelegations }
 
         -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
         -- a Byron transaction. In which case fees can actually be calculated as
@@ -542,10 +540,10 @@ prefilterBlock b u0 = runState $ do
 
         return $ if hasKnownOutput && not hasKnownInput then
             let dir = Incoming in
-            ( ( tx { fee = actualFee dir }
+            ( (tx' { fee = actualFee dir }
               , mkTxMeta (TB.getCoin received) dir
               ) : txs
-            , ourNextUTxO
+            , u'
             )
         else if hasKnownInput || hasKnownWithdrawal then
             let
@@ -554,11 +552,11 @@ prefilterBlock b u0 = runState $ do
                 dir = if adaSpent > adaReceived then Outgoing else Incoming
                 amount = distance adaSpent adaReceived
             in
-                ( (tx { fee = actualFee dir }, mkTxMeta amount dir) : txs
-                , ourNextUTxO
+                ( (tx' { fee = actualFee dir }, mkTxMeta amount dir) : txs
+                , u'
                 )
         else
-            (txs, prevUTxO)
+            (txs, u)
 
 -- | Get the change UTxO
 --

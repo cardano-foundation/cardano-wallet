@@ -76,25 +76,25 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotNo)
-    , DelegationCertificate (..)
     , EpochNo (..)
     , GenesisParameters (..)
-    , PoolId
     , Range (..)
     , SlotNo (..)
     , SortOrder (..)
-    , StakeKeyCertificate (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
     , WalletMetadata (..)
-    , dlgCertPoolId
     , isWithinRange
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( DelegationCertificate (..), StakeKeyCertificate (..), dlgCertPoolId )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( PoolId )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)

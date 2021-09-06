@@ -101,7 +101,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount (..) )
+    ( DelegationCertificate, RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( PoolCertificate )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -165,6 +167,8 @@ import Numeric.Natural
     ( Natural )
 import Quiet
     ( Quiet (..) )
+import Text.Pretty.Simple
+    ( pShowNoColor )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -216,6 +220,12 @@ data Tx = Tx
         :: !(Map RewardAccount Coin)
         -- ^ Withdrawals (of funds from a registered reward account) embedded in
         -- a transaction. The order does not matter.
+
+    , delegationCerts
+        :: ![DelegationCertificate]
+
+    , poolCerts
+        :: ![PoolCertificate]
 
     , metadata
         :: !(Maybe TxMetadata)
@@ -457,17 +467,31 @@ instance Buildable a => Buildable (WithDirection a) where
         <> (case d of; Incoming -> "+"; Outgoing -> "-")
         <> build a
 
--- | 'SealedTx' is a possibly signed and serialised transaction that is ready to
--- be submitted to the node.
+-- | 'SealedTx' is a transaction for any hard fork era, possibly incomplete,
+-- possibly unsigned, with dual representations to make it convenient to use.
+--
+-- Serialisation/deserialisation is usually done at the application boundaries
+-- (e.g. in the API server), and then the wallet core can use it either as a
+-- 'ByteString', or as a 'Cardano.Api.Tx'.
 --
 -- Construct it with either 'sealedTxFromCardano' or 'sealedTxFromBytes'.
 data SealedTx = SealedTx
     { cardanoTx :: InAnyCardanoEra Cardano.Tx
     , serialisedTx :: ByteString
-    } deriving stock (Generic)
+    } deriving stock Generic
 
 instance Show SealedTx where
-    show (SealedTx (InAnyCardanoEra _era tx) _) = show tx
+    -- InAnyCardanoEra is missing a Show instance, so define one inline.
+    showsPrec d (SealedTx (InAnyCardanoEra era tx) bs) = showParen (d > 10) $
+        showString "SealedTx (InAnyCardanoEra " .
+        showsPrec 11 era .
+        showChar ' ' .
+        showsPrec 11 tx .
+        showString ") " .
+        showsPrec 11 bs
+
+instance Buildable SealedTx where
+    build (SealedTx (InAnyCardanoEra _ tx) _) = build $ pShowNoColor tx
 
 instance Eq SealedTx where
     SealedTx (InAnyCardanoEra e1 _) a == SealedTx (InAnyCardanoEra e2 _) b =
@@ -635,7 +659,7 @@ failedScriptValidation Tx {scriptValidity} = case scriptValidity of
     -- Script validation always passes in eras that don't support scripts
     Nothing -> False
 
--- | Reconstruct a transaction info from a transaction.
+-- | Reconstruct a Tx from a transaction info record.
 fromTransactionInfo :: TransactionInfo -> Tx
 fromTransactionInfo info = Tx
     { txId = txInfoId info
@@ -644,6 +668,8 @@ fromTransactionInfo info = Tx
     , resolvedInputs = drop3rd <$> txInfoInputs info
     , outputs = txInfoOutputs info
     , withdrawals = txInfoWithdrawals info
+    , delegationCerts = [] -- fixme: add certs to TransactionInfo
+    , poolCerts = [] -- fixme: add certs to TransactionInfo
     , metadata = txInfoMetadata info
     , scriptValidity = txInfoScriptValidity info
     }

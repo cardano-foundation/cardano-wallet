@@ -9,7 +9,7 @@
 -- License: Apache-2.0
 --
 -- Database / Persistence layer for the pool production.
-
+--
 module Cardano.Pool.DB
     ( -- * Interface
       DBLayer (..)
@@ -24,15 +24,13 @@ module Cardano.Pool.DB
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader
-    , CertificatePublicationTime (..)
-    , EpochNo (..)
+    ( BlockHeader, EpochNo (..), Settings, SlotNo (..) )
+import Cardano.Wallet.Primitive.Types.StakePools
+    ( CertificatePublicationTime (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate
     , PoolRetirementCertificate
-    , Settings
-    , SlotNo (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
