@@ -1552,7 +1552,7 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
 -- the change generation algorithm terminates after only a subset of the UTxO
 -- has been selected.
 --
--- See: https://jira.iohk.io/browse/ADP-890
+-- See: https://input-output.atlassian.net/browse/ADP-890
 --
 boundaryTest_largeTokenQuantities_5 :: BoundaryTestData
 boundaryTest_largeTokenQuantities_5 = BoundaryTestData
@@ -1590,7 +1590,7 @@ boundaryTest_largeTokenQuantities_5 = BoundaryTestData
 -- the change generation algorithm terminates after only a subset of the UTxO
 -- has been selected.
 --
--- See: https://jira.iohk.io/browse/ADP-890
+-- See: https://input-output.atlassian.net/browse/ADP-890
 --
 boundaryTest_largeTokenQuantities_6 :: BoundaryTestData
 boundaryTest_largeTokenQuantities_6 = BoundaryTestData
