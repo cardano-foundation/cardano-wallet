@@ -2667,9 +2667,7 @@ postAccountPublicKey ctx mkAccount (ApiT wid) (ApiT ix) (ApiPostAccountKeyDataWi
         pure $ mkAccount (publicKeyToBytes' extd $ getRawKey k) extd ixPurpose'
   where
     ixPurpose' =
-        fromMaybe
-        (getPurpose @k)
-        (Index . getDerivationIndex . getApiT <$> purposeM)
+        maybe (getPurpose @k) (Index . getDerivationIndex . getApiT) purposeM
 
 publicKeyToBytes' :: KeyFormat -> XPub -> ByteString
 publicKeyToBytes' = \case
