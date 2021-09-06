@@ -1819,7 +1819,7 @@ mkTxHistory
         , [TxWithdrawal]
         )
 mkTxHistory wid txs = flatTxHistory
-    [ ( mkTxMetaEntity wid txid (W.fee tx) (W.metadata tx) derived (W.isValidScript tx)
+    [ ( mkTxMetaEntity wid txid (W.fee tx) (W.metadata tx) derived (W.scriptValidity tx)
       , mkTxInputsOutputs (txid, tx)
       , mkTxWithdrawals (txid, tx)
       )
@@ -1924,7 +1924,7 @@ mkTxMetaEntity
     -> W.TxMeta
     -> W.TxScriptValidity
     -> TxMeta
-mkTxMetaEntity wid txid mfee meta derived isValidScript = TxMeta
+mkTxMetaEntity wid txid mfee meta derived scriptValidity = TxMeta
     { txMetaTxId = TxId txid
     , txMetaWalletId = wid
     , txMetaStatus = derived ^. #status
@@ -1935,8 +1935,8 @@ mkTxMetaEntity wid txid mfee meta derived isValidScript = TxMeta
     , txMetaFee = fromIntegral . W.unCoin <$> mfee
     , txMetaSlotExpires = derived ^. #expiry
     , txMetadata = meta
-    , txMetaIsValid =
-            case isValidScript of
+    , txMetaScriptValidity =
+            case scriptValidity of
                 W.TxScriptsUnsupported -> Nothing
                 W.TxScriptValid -> Just True
                 W.TxScriptInvalid -> Just False
@@ -1958,7 +1958,12 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
     mapM mkItem metas
   where
     startTime' = interpretQuery ti . slotToUTCTime
-    mkItem m = mkTxWith (txMetaTxId m) (txMetaFee m) (txMetadata m) (mkTxDerived m) (txMetaIsValid m)
+    mkItem m = mkTxWith
+               (txMetaTxId m)
+               (txMetaFee m)
+               (txMetadata m)
+               (mkTxDerived m)
+               (txMetaScriptValidity m)
     mkTxWith txid mfee meta derived isValid = do
         t <- startTime' (derived ^. #slotNo)
         return $ W.TransactionInfo
@@ -1985,7 +1990,7 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
                 Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
             , W.txInfoTime =
                 t
-            , W.txInfoIsValidScript =
+            , W.txInfoScriptValidity =
                     case isValid of
                         Nothing -> W.TxScriptsUnsupported
                         Just False -> W.TxScriptInvalid

@@ -99,7 +99,7 @@ data TxWithoutId = TxWithoutId
     , outputs :: ![TxOut]
     , metadata :: !(Maybe TxMetadata)
     , withdrawals :: !(Map RewardAccount Coin)
-    , isValidScript :: !TxScriptValidity
+    , scriptValidity :: !TxScriptValidity
     }
     deriving (Eq, Ord, Show)
 

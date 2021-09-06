@@ -147,7 +147,7 @@ mkTx fees ins cins outs wdrls md isValid =
       , outputs = outs
       , withdrawals = wdrls
       , metadata = md
-      , isValidScript = isValid
+      , scriptValidity = isValid
       }
 
 -- | txId calculation for testing purposes.

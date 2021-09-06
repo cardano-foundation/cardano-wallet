@@ -1297,7 +1297,7 @@ dummyTransactionLayer = TransactionLayer
                  , outputs = outputsCovered cs
                  , withdrawals = mempty
                  , metadata = Nothing
-                 , isValidScript = TxScriptsUnsupported
+                 , scriptValidity = TxScriptsUnsupported
                  }
         wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither

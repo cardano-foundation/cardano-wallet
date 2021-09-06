@@ -212,7 +212,7 @@ genesisBlockFromTxOuts gp outs = W.Block
         , outputs = [out]
         , withdrawals = mempty
         , metadata = Nothing
-        , isValidScript = W.TxScriptsUnsupported
+        , scriptValidity = W.TxScriptsUnsupported
         }
 
 --------------------------------------------------------------------------------
@@ -279,7 +279,7 @@ fromTxAux txAux = case taTx txAux of
         , metadata =
             Nothing
 
-        , isValidScript =
+        , scriptValidity =
             W.TxScriptsUnsupported
         }
 

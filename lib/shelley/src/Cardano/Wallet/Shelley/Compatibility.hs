@@ -761,7 +761,7 @@ fromGenesisData g initialFunds =
                 ]
             , withdrawals = mempty
             , metadata = Nothing
-            , isValidScript = W.TxScriptsUnsupported
+            , scriptValidity = W.TxScriptsUnsupported
             }
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
@@ -871,7 +871,7 @@ fromShelleyTx tx =
             fromShelleyWdrl wdrls
         , metadata =
             fromShelleyMD <$> SL.strictMaybeToMaybe mmd
-        , isValidScript =
+        , scriptValidity =
             W.TxScriptsUnsupported
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
@@ -903,7 +903,7 @@ fromAllegraTx tx =
             fromShelleyWdrl wdrls
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd
-        , isValidScript =
+        , scriptValidity =
             W.TxScriptsUnsupported
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
@@ -939,7 +939,7 @@ fromMaryTx tx =
             fromShelleyWdrl wdrls
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
-        , isValidScript =
+        , scriptValidity =
             W.TxScriptsUnsupported
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
@@ -985,7 +985,7 @@ fromAlonzoTxBodyAndAux bod mad =
             fromShelleyWdrl wdrls
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
-        , isValidScript =
+        , scriptValidity =
             W.TxScriptsUnsupported
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
@@ -1033,7 +1033,7 @@ fromAlonzoTx
        , [W.PoolCertificate]
        )
 fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
-    (\(tx, d, p) -> (tx { W.isValidScript = if isValid
+    (\(tx, d, p) -> (tx { W.scriptValidity = if isValid
                                             then W.TxScriptValid
                                             else W.TxScriptInvalid
                         }, d, p))

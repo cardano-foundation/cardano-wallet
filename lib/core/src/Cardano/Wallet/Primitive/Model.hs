@@ -377,7 +377,7 @@ applyTxToUTxO tx !u = spendTx tx u <> utxoFromTx tx
 spendTx :: Tx -> UTxO -> UTxO
 spendTx tx !u =
     u `excluding` (
-        if failedScriptValidation (tx ^. #isValidScript)
+        if failedScriptValidation (tx ^. #scriptValidity)
         then Set.fromList (collateralInputs tx)
         else Set.fromList (inputs tx)
     )
@@ -389,8 +389,8 @@ spendTx tx !u =
 -- balance (utxoFromTx tx) = foldMap tokens (outputs tx)
 -- utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
 utxoFromTx :: Tx -> UTxO
-utxoFromTx Tx {txId, outputs, isValidScript} =
-    if failedScriptValidation isValidScript
+utxoFromTx Tx {txId, outputs, scriptValidity} =
+    if failedScriptValidation scriptValidity
     then mempty
     else UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 

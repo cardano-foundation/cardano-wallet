@@ -2105,7 +2105,7 @@ components:
         mint: *transactionMint
         status: *transactionStatus
         metadata: *transactionMetadata
-        is_valid_script: *transactionScriptValidity
+        script_validity: *transactionScriptValidity
 
     x-txBody: &txBody
       oneOf:
