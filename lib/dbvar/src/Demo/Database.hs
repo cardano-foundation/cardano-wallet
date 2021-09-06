@@ -58,6 +58,7 @@ import Data.Table
     ( DeltaDB (..)
     , Table (..)
     , tableIntoDatabase
+    , Pile (..)
     )
 import GHC.Generics
     ( Generic )
@@ -116,7 +117,7 @@ addressChainIntoTable
         (DeltaChain Node [AddressInPool])
         [DeltaDB Int SeqStateAddress]
 addressChainIntoTable = 
-    embedIso addressDBIso `o` (tableIntoDatabase `o` chainIntoTable id Set.toList)
+    embedIso addressDBIso `o` (tableIntoDatabase `o` chainIntoTable Pile getPile)
 
 embedIso :: Iso' a b -> Embedding [DeltaDB Int a] [DeltaDB Int b]
 embedIso i = withIso i $ \ab ba -> Embedding
@@ -167,7 +168,7 @@ newDBStore = do
                     pure $ Just table
         , writeS  = \table -> void $ do
             deleteWhere all -- delete any old data in the table first
-            _ <- insertMany $ Table.toList table
+            _ <- insertMany $ getPile $ Table.toPile table
             rememberSupply table
         , updateS = \table ds -> do
             debug $ do

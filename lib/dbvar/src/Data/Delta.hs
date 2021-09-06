@@ -78,13 +78,13 @@ instance (Delta d1, Delta d2) => Delta (d1,d2) where
     type instance Base (d1, d2) = (Base d1, Base d2)
     apply (d1,d2) (a1,a2) = (apply d1 a1, apply d2 a2)
 
--- | Delta encoding for lists where a single element is prepended.
-data DeltaList a = Cons a
+-- | Delta encoding for lists where a list of elements is prepended.
+data DeltaList a = Append [a]
     deriving (Eq, Ord, Show)
 
 instance Delta (DeltaList a) where
     type instance Base (DeltaList a) = [a]
-    apply (Cons x) xs = x : xs
+    apply (Append xs) ys = xs ++ ys
 
 -- | Delta encoding for 'Set' where an element is deleted or added.
 data DeltaSet a = Insert a | Delete a

@@ -43,7 +43,7 @@ import Data.Semigroupoid
 import Data.Set
     ( Set )
 import Data.Table
-    ( Table , DeltaTable (..) )
+    ( Table , DeltaTable (..), Pile (..) )
 
 import qualified Data.Table as Table
 import qualified Data.Map as Map
@@ -237,16 +237,16 @@ addEdge Edge{from,to,via} chain@Chain{next,prev,tip} =
 -- the rows in any particular order.
 chainIntoTable
     :: (Ord node, Ord e, Semigroup edge)
-    => (edge -> [e]) -> (Set e -> edge)
+    => (edge -> Pile e) -> (Pile e -> edge)
     -> Embedding (DeltaChain node edge) [DeltaTable (Edge node e)]
-chainIntoTable toSet fromSet = Embedding {load,write,update}
+chainIntoTable toPile fromPile = Embedding {load,write,update}
   where
-    load = fmap (fmap $ fromSet . Set.fromList) . fromEdges . Table.toList
+    load = fmap (fmap $ fromPile . Pile) . fromEdges . getPile . Table.toPile
     write = Table.fromList . concatMap flattenEdge
-        . map (fmap toSet) . toEdges
+        . map (fmap (getPile . toPile)) . toEdges
 
     update Chain{tip=from} _ (AppendTip to vias) =
-        [InsertMany [Edge{from,to,via} | via <- toSet vias]]
+        [InsertMany [Edge{from,to,via} | via <- getPile $ toPile vias]]
     update Chain{tip,prev} _ (RollbackTo node) =
         [DeleteWhere $ \Edge{to} -> to `elem` deletions]
       where
@@ -260,7 +260,7 @@ chainIntoTable toSet fromSet = Embedding {load,write,update}
             -- insert new edges
             [ InsertMany
                 [ Edge{to=nto,from=nfrom,via}
-                | via <- toSet (eto <> efrom)
+                | via <- getPile $ toPile (eto <> efrom)
                 ]
             -- delete old edges
             , DeleteWhere (\Edge{to,from} -> to == now || from == now)
@@ -271,7 +271,7 @@ chainIntoTable toSet fromSet = Embedding {load,write,update}
     Tests
 -------------------------------------------------------------------------------}
 test :: (Table (Edge Int Char), [[Table.DeltaDB Int (Edge Int Char)]])
-test = liftUpdates (Table.tableIntoDatabase `o` chainIntoTable id (Set.toList))
+test = liftUpdates (Table.tableIntoDatabase `o` chainIntoTable Pile getPile)
     [CollapseNode 1, CollapseNode 2, AppendTip 3 "c", AppendTip 2 "b"]
     $ fromEdge Edge{from=0,to=1,via="a"}
 

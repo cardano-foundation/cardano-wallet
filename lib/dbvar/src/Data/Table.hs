@@ -6,15 +6,26 @@ module Data.Table (
     -- It corresponds to a collection of rows.
     -- Each row has a unique ID, but this is transparent to the API user.
     --
+    -- 'Pile' models a set of values.
+    -- Unlike 'Set', it is represented as a leightweight list.
+    -- This is used to highlight that the ordering of rows
+    -- in a 'Table' is /not/ deterministic.
+    --
     -- 'Supply' is a supply of unique IDs.
 
     -- * Table
     Table (..)
-    , empty, fromRows, fromList, toList
+    , empty, fromRows, fromList, toPile
     , selectWhere, insertMany, deleteWhere, updateWhere
     , DeltaTable (..)
     , DeltaDB (..)
     , tableIntoDatabase
+
+    -- * Pile
+    , Pile (..)
+    , fromSet
+    , deltaListToPile, deltaListFromPile
+    , deltaSetToPile, deltaSetFromPile
 
     -- * Supply
     , Supply
@@ -23,20 +34,23 @@ module Data.Table (
 
 import Prelude
 
-import Control.Monad
-    ( forM )
-import Control.Monad.Trans.State.Strict
-    ( state
-    , evalState
-    )
+import Control.Monad ( forM )
+import Control.Monad.Trans.State.Strict ( state , evalState )
 import Data.Delta
     ( Delta (..)
+    , DeltaList (..)
+    , DeltaSet
+    , DeltaSet1 (..)
     , Embedding (..)
     )
-import Data.IntMap.Strict
-    ( IntMap )
+import Data.List ( sort, sortOn )
+import Data.IntMap.Strict ( IntMap )
+import Data.Ord ( Down (..) )
+import Data.Set ( Set )
 
 import qualified Data.IntMap.Strict as Map
+import qualified Data.Set as Set
+import qualified Data.Delta as Delta
 
 {-------------------------------------------------------------------------------
     Table
@@ -59,8 +73,8 @@ empty :: Table row
 empty = Table{ rows = Map.empty, uids = abundance }
 
 -- | List all rows satisfying the predicate.
-selectWhere :: (row -> Bool) -> Table row -> [row]
-selectWhere p = filter p . Map.elems . rows
+selectWhere :: (row -> Bool) -> Table row -> Pile row
+selectWhere p = Pile . filter p . Map.elems . rows
 
 -- | Insert rows into the table.
 insertMany :: [row] -> Table row -> Table row
@@ -82,9 +96,9 @@ fromRows rows = Table
     }
   where keys = map fst rows
 
--- | List of rows contained in the 'Table'.
-toList :: Table row -> [row]
-toList = Map.elems . rows
+-- | Pile of rows contained in the 'Table'.
+toPile :: Table row -> Pile row
+toPile = Pile . Map.elems . rows
 
 -- | Delete all rows satisfying the predicate.
 deleteWhere :: (row -> Bool) -> Table row -> Table row
@@ -150,6 +164,55 @@ tableIntoDatabase = Embedding{ load, write, update = \_ b -> map (update1 b) }
     update1 Table{rows} (UpdateWhere p f)
         = UpdateManyDB [ (key, f row) | (key,row) <- Map.toList rows, p row ]
 -- FIXME! Be careful about the order of updates here.
+
+{-------------------------------------------------------------------------------
+    Pile
+-------------------------------------------------------------------------------}
+-- | A 'Pile' is a set of values.
+-- Unlike 'Set', it is represented as a list, and avoids the 'Ord' constraint.
+--
+-- This type is useful for highlighting that a collection of values
+-- has no specific order, even though it is not represented as a 'Set'.
+newtype Pile a = Pile { getPile :: [a] }
+    deriving Show
+
+instance Ord a => Eq (Pile a) where
+    (Pile x) == (Pile y) = sort x == sort y
+
+fromSet :: Set a -> Pile a
+fromSet = Pile . Set.toList
+
+-- | Randomly permute the objects in a 'Pile'. Useful for stress testing.
+--
+-- Every function @f :: Pile A -> B@ should satisfy
+--
+-- > forall g.  f . permute g = f
+-- 
+-- permute :: RandomGen g => g -> Pile a -> Pile a
+-- permute = undefined
+--      let (index, g2) = randomR (1,n) g1
+
+-- | Map a 'DeltaSet' to a 'Pile' of single element insertions and deltions.
+deltaSetToPile :: Ord a => DeltaSet a -> Pile (DeltaSet1 a)
+deltaSetToPile = Pile . Delta.deltaSetToList
+
+-- | Restore a 'DeltaSet' from a 'Pile' of single element
+-- insertions and deletions.
+--
+-- > deltaSetFromPile . deltaSetToPile = id
+deltaSetFromPile :: Ord a => Pile (DeltaSet1 a) -> DeltaSet a
+deltaSetFromPile = Delta.deltaSetFromList . getPile 
+
+-- | Map a 'DeltaList' to a 'Pile' of indexed single element concatenations.
+-- Higher indices are prepended later.
+deltaListToPile :: DeltaList a -> Pile (Int, a)
+deltaListToPile (Append xs) = Pile $ zip [0..] (reverse xs)
+
+-- | Restore a 'DeltaList' from a 'Pile'.
+--
+-- > deltaListFromPile . deltaListToPile = id
+deltaListFromPile :: Pile (Int, a) -> DeltaList a
+deltaListFromPile = Append . map snd . sortOn (Down . fst) . getPile
 
 {-------------------------------------------------------------------------------
     Supply
