@@ -384,7 +384,8 @@ newTransactionLayer networkId = TransactionLayer
         estimateTxCost pp $
         mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
 
-    , calcScriptExecutionCost = \_pp _sealedTx -> undefined
+    , calcScriptExecutionCost =
+       _calcScriptExecutionCost
 
     , computeSelectionLimit = \pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
@@ -482,6 +483,14 @@ dummySkeleton inputCount outputs = SelectionSkeleton
     , skeletonChange =
         TokenBundle.getAssets . view #tokens <$> outputs
     }
+
+_calcScriptExecutionCost
+    :: ProtocolParameters
+    -> SealedTx
+    -> Coin
+_calcScriptExecutionCost pp _sealedTx = undefined
+  where
+    _prices = view #executionUnitPrices pp
 
 _decodeSignedTx
     :: AnyCardanoEra
