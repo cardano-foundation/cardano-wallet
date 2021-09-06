@@ -27,7 +27,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
-    , OutputsInsufficientError (..)
     , RunSelectionParams (..)
     , SelectionCriteria (..)
     , SelectionDelta (..)
@@ -58,7 +57,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , makeChangeForNonUserSpecifiedAssets
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
-    , missingOutputAssets
     , performSelection
     , prepareOutputsWith
     , reduceTokenQuantities
@@ -748,6 +746,12 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     cover 2 (noAssetsAreBothSpentAndBurned)
         "No assets are both spent and burned" $
 
+    -- Inspect the relationship between minted, burned, and spent assets:
+    cover 2 (allMintedAssetsEitherBurnedOrSpent)
+        "All minted assets were either spent or burned" $
+    cover 2 (not allMintedAssetsEitherBurnedOrSpent)
+        "Some minted assets were neither spent nor burned" $
+
     prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
@@ -755,8 +759,6 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
             "selection limited but sufficient"
         . cover 10 (selectionLimited && selectionInsufficient result)
             "selection limited and insufficient"
-        . cover 2 (outputsInsufficient result)
-            "A portion of the minted assets were not spent or burned"
   where
     utxoHasAtLeastOneAsset = not
         . Set.null
@@ -770,11 +772,6 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
             . F.toList
             . fmap (view #tokens)
             $ outputsToCover criteria
-
-    outputsInsufficient :: PerformSelectionResult -> Bool
-    outputsInsufficient = \case
-        Left (OutputsInsufficient _) -> True
-        _ -> False
 
     selectionLimited :: Bool
     selectionLimited = case view #selectionLimit criteria of
@@ -797,6 +794,12 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     assetsSpentByUserSpecifiedOutputs :: TokenMap
     assetsSpentByUserSpecifiedOutputs =
         F.foldMap (view (#tokens . #tokens)) (outputsToCover criteria)
+
+    allMintedAssetsEitherBurnedOrSpent :: Bool
+    allMintedAssetsEitherBurnedOrSpent =
+        view #assetsToMint criteria `leq` TokenMap.add
+            (view #assetsToBurn criteria)
+            (assetsSpentByUserSpecifiedOutputs)
 
     someAssetsAreBothMintedAndBurned :: Bool
     someAssetsAreBothMintedAndBurned
@@ -969,8 +972,6 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
-        OutputsInsufficient e ->
-            onOutputsInsufficient e
         SelectionInsufficient e ->
             onSelectionInsufficient e
         InsufficientMinCoinValues es ->
@@ -1026,27 +1027,6 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             errorBalanceRequired errorInputsSelected = e
         errorBalanceSelected =
             F.foldMap (view #tokens . snd) errorInputsSelected
-
-    onOutputsInsufficient e = do
-        monitor $ counterexample $ unlines
-            [ "assets to mint:"
-            , pretty (Flat errorAssetsToMint)
-            , "assets to burn:"
-            , pretty (Flat errorAssetsToBurn)
-            , "requested output assets:"
-            , pretty (Flat errorRequestedOutputAssets)
-            , "assets minted but not spent or burned:"
-            , pretty (Flat $ missingOutputAssets e)
-            ]
-        assert $ errorAssetsToMint == assetsToMint
-        assert $ errorAssetsToBurn == assetsToBurn
-        assert
-            $ not
-            $ errorAssetsToMint
-                `leq` (errorRequestedOutputAssets <> errorAssetsToBurn)
-      where
-        OutputsInsufficientError
-            errorAssetsToMint errorAssetsToBurn errorRequestedOutputAssets = e
 
     onInsufficientMinCoinValues es = do
         monitor $ counterexample $ unlines

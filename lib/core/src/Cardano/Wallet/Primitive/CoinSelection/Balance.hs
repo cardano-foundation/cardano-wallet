@@ -38,7 +38,6 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionResult (..)
     , SelectionError (..)
     , BalanceInsufficientError (..)
-    , OutputsInsufficientError (..)
     , SelectionInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
@@ -115,7 +114,6 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , distance
     , mapMaybe
     , balanceMissing
-    , missingOutputAssets
     ) where
 
 import Prelude
@@ -507,55 +505,10 @@ data SelectionError
         SelectionInsufficientError
     | InsufficientMinCoinValues
         (NonEmpty InsufficientMinCoinValueError)
-    | OutputsInsufficient
-        OutputsInsufficientError
     | UnableToConstructChange
         UnableToConstructChangeError
     | EmptyUTxO
     deriving (Generic, Eq, Show)
-
--- | Indicates that a portion of the minted assets were not spent or burned.
---
--- This situation occurs if the following inequality does not hold:
---
--- >>> assetsToMint `leq` (assetsToBurn <> requestedOutputAssets)
---
--- The existence of this error reflects a deliberate design choice: all minted
--- assets must either be explicitly spent or explicitly burned by the caller.
--- In future, we could revise this design to allow excess minted assets (those
--- that are neither spent nor burned) to be returned to the wallet as change.
---
-data OutputsInsufficientError = OutputsInsufficientError
-    { assetsToMint
-        :: !TokenMap
-      -- ^ The assets to mint
-    , assetsToBurn
-        :: !TokenMap
-      -- ^ The assets to burn
-    , requestedOutputAssets
-        :: !TokenMap
-      -- ^ The complete set of assets found within the user-specified outputs
-    } deriving (Generic, Eq, Show)
-
--- | Computes the portion of minted assets that are not spent or burned.
---
-missingOutputAssets :: OutputsInsufficientError -> TokenMap
-missingOutputAssets e =
-    -- We use 'difference' which will show us the quantities in 'assetsToMint'
-    -- that are not in 'assetsToBurn <> requestedOutputAssets'.
-    --
-    -- Any asset quantity present in 'assetsToBurn <> requestedOutputAssets'
-    -- but not present in 'assetsToMint' will simply be zeroed out, which is
-    -- the behaviour we want for this error report.
-    --
-    assetsToMint `TokenMap.difference`
-        (assetsToBurn `TokenMap.add` requestedOutputAssets)
-  where
-    OutputsInsufficientError
-        { assetsToMint
-        , assetsToBurn
-        , requestedOutputAssets
-        } = e
 
 -- | Indicates that the balance of selected UTxO entries was insufficient to
 --   cover the balance required.
@@ -684,11 +637,6 @@ performSelection
         -- ^ The selection goal to satisfy.
     -> m (Either SelectionError (SelectionResult TokenBundle))
 performSelection minCoinFor costFor bundleSizeAssessor criteria
-    -- Is the minted value all spent or burnt?
-    | not (assetsToMint `leq` (assetsToBurn <> requestedOutputAssets)) =
-        pure $ Left $ OutputsInsufficient $ OutputsInsufficientError
-            {assetsToMint, assetsToBurn, requestedOutputAssets}
-
     -- Is the total available UTXO balance sufficient?
     | not utxoBalanceSufficient =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
@@ -732,12 +680,6 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
             { inputsSelected
             , utxoBalanceRequired
             }
-
-    requestedOutputBalance :: TokenBundle
-    requestedOutputBalance = F.foldMap (view #tokens) outputsToCover
-
-    requestedOutputAssets :: TokenMap
-    requestedOutputAssets = view #tokens requestedOutputBalance
 
     mkInputsSelected :: UTxOIndex -> NonEmpty (TxIn, TxOut)
     mkInputsSelected =
