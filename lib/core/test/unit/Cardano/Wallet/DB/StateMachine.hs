@@ -963,9 +963,8 @@ instance ToExpr WalletMetadata where
 instance ToExpr Tx where
     toExpr = genericToExpr
 
-    -- toExpr = genericToExpr
-    toExpr = error "toExpr"
 instance ToExpr TxScriptValidity where
+    toExpr = genericToExpr
 
 instance ToExpr TxIn where
     toExpr = genericToExpr
