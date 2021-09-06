@@ -25,6 +25,9 @@ module Test.QuickCheck.Extra
     , report
     , verify
 
+      -- * Combinators
+    , NotNull (..)
+
       -- * Utilities
     , interleaveRoundRobin
 
@@ -37,7 +40,8 @@ import Data.Map.Strict
 import Fmt
     ( indentF, (+|), (|+) )
 import Test.QuickCheck
-    ( Gen
+    ( Arbitrary (..)
+    , Gen
     , Property
     , Testable
     , counterexample
@@ -48,6 +52,7 @@ import Test.QuickCheck
     , scale
     , shrinkList
     , shrinkMapBy
+    , suchThat
     , (.&&.)
     )
 import Test.Utils.Pretty
@@ -224,3 +229,14 @@ verify condition conditionTitle =
     (.&&.) (counterexample counterexampleText $ property condition)
   where
     counterexampleText = "Condition violated: " <> conditionTitle
+
+--------------------------------------------------------------------------------
+-- Non-null values
+--------------------------------------------------------------------------------
+
+newtype NotNull a = NotNull { unNotNull :: a }
+    deriving (Eq, Show)
+
+instance (Arbitrary a, Eq a, Monoid a) => Arbitrary (NotNull a) where
+    arbitrary = NotNull <$> arbitrary `suchThat` (/= mempty)
+    shrink (NotNull u) = NotNull <$> filter (/= mempty) (shrink u)
