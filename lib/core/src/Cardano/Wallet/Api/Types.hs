@@ -304,11 +304,11 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
-    , ScriptValidation (..)
     , SerialisedTx (..)
     , TxConstraints (..)
     , TxIn (..)
     , TxMetadata
+    , TxScriptValidity (..)
     , TxStatus (..)
     , txMetadataIsNull
     )
@@ -346,6 +346,7 @@ import Data.Aeson.Types
     , rejectUnknownFields
     , sumEncoding
     , tagSingleConstructors
+    , typeMismatch
     , withObject
     , withText
     , (.!=)
@@ -1094,7 +1095,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
-    , isValidScript :: !(ApiT ScriptValidation)
+    , isValidScript :: !(ApiT TxScriptValidity)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
@@ -3640,13 +3641,15 @@ instance FromJSON (ApiT (Script KeyHash)) where
 instance ToJSON (ApiT (Script KeyHash)) where
     toJSON = toJSON . getApiT
 
-instance FromJSON (ApiT ScriptValidation) where
-    parseJSON (Aeson.Null) = pure $ ApiT ScriptsNotSupported
-    parseJSON (Aeson.Bool True) = pure $ ApiT ScriptValidationPassed
-    parseJSON (Aeson.Bool False) = pure $ ApiT ScriptValidationFailed
-    parseJSON _ = pure $ ApiT ScriptValidationFailed
+instance FromJSON (ApiT TxScriptValidity) where
+    parseJSON (Aeson.Null) = pure $ ApiT TxScriptsUnsupported
+    parseJSON (Aeson.Bool True) = pure $ ApiT TxScriptValid
+    parseJSON (Aeson.Bool False) = pure $ ApiT TxScriptInvalid
+    parseJSON invalid =
+        prependFailure "parsing TxScriptValidity failed, "
+            (typeMismatch "Maybe Bool" invalid)
 
-instance ToJSON (ApiT ScriptValidation) where
-    toJSON (ApiT ScriptsNotSupported) = Aeson.Null
-    toJSON (ApiT ScriptValidationPassed) = Aeson.Bool True
-    toJSON (ApiT ScriptValidationFailed) = Aeson.Bool False
+instance ToJSON (ApiT TxScriptValidity) where
+    toJSON (ApiT TxScriptsUnsupported) = Aeson.Null
+    toJSON (ApiT TxScriptValid) = Aeson.Bool True
+    toJSON (ApiT TxScriptInvalid) = Aeson.Bool False

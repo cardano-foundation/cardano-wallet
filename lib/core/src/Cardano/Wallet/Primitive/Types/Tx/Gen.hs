@@ -11,13 +11,13 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , genTxIn
     , genTxInLargeRange
     , genTxOut
-    , genScriptValidation
+    , genTxScriptValidity
     , shrinkTx
     , shrinkTxHash
     , shrinkTxIndex
     , shrinkTxIn
     , shrinkTxOut
-    , shrinkScriptValidation
+    , shrinkTxScriptValidity
     )
     where
 
@@ -42,7 +42,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( ScriptValidation (..), Tx (..), TxIn (..), TxMetadata (..), TxOut (..) )
+    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..), TxScriptValidity (..) )
 import Control.Monad
     ( replicateM )
 import Data.Either
@@ -99,7 +99,7 @@ data TxWithoutId = TxWithoutId
     , outputs :: ![TxOut]
     , metadata :: !(Maybe TxMetadata)
     , withdrawals :: !(Map RewardAccount Coin)
-    , isValidScript :: !ScriptValidation
+    , isValidScript :: !TxScriptValidity
     }
     deriving (Eq, Ord, Show)
 
@@ -111,7 +111,7 @@ genTxWithoutId = TxWithoutId
     <*> listOf genTxOut
     <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
-    <*> genScriptValidation
+    <*> genTxScriptValidity
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
 shrinkTxWithoutId =
@@ -122,7 +122,7 @@ shrinkTxWithoutId =
         (shrinkList shrinkTxOut)
         (liftShrink shrinkTxMetadata)
         (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
-        shrinkScriptValidation
+        shrinkTxScriptValidity
 
 txWithoutIdToTx :: TxWithoutId -> Tx
 txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}
@@ -138,11 +138,11 @@ tupleToTxWithoutId :: _ -> TxWithoutId
 tupleToTxWithoutId (a1, a2, a3, a4, a5, a6, a7) =
     (TxWithoutId a1 a2 a3 a4 a5 a6 a7)
 
-genScriptValidation :: Gen ScriptValidation
-genScriptValidation = genericArbitrary
+genTxScriptValidity :: Gen TxScriptValidity
+genTxScriptValidity = genericArbitrary
 
-shrinkScriptValidation :: ScriptValidation -> [ScriptValidation]
-shrinkScriptValidation = genericShrink
+shrinkTxScriptValidity :: TxScriptValidity -> [TxScriptValidity]
+shrinkTxScriptValidity = genericShrink
 
 --------------------------------------------------------------------------------
 -- Transaction hashes generated according to the size parameter

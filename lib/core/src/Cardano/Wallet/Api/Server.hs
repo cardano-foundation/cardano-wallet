@@ -2892,7 +2892,7 @@ data MkApiTransactionParams = MkApiTransactionParams
     , txMeta :: W.TxMeta
     , txMetadata :: Maybe W.TxMetadata
     , txTime :: UTCTime
-    , txIsValidScript :: W.ScriptValidation
+    , txIsValidScript :: W.TxScriptValidity
     }
     deriving (Eq, Generic, Show)
 

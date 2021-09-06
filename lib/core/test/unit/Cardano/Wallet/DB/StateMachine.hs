@@ -153,7 +153,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
-    , ScriptValidation
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -161,6 +160,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxMetadata
     , TxOut (..)
+    , TxScriptValidity
     , TxSize (..)
     , TxStatus
     , inputs
@@ -963,9 +963,9 @@ instance ToExpr WalletMetadata where
 instance ToExpr Tx where
     toExpr = genericToExpr
 
-instance ToExpr ScriptValidation where
     -- toExpr = genericToExpr
     toExpr = error "toExpr"
+instance ToExpr TxScriptValidity where
 
 instance ToExpr TxIn where
     toExpr = genericToExpr

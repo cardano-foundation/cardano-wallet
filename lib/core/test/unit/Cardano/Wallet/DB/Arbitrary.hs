@@ -121,17 +121,17 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
-    , ScriptValidation (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
     , TxMetadata
     , TxOut (..)
+    , TxScriptValidity (..)
     , TxStatus (..)
     , isPending
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genScriptValidation, shrinkScriptValidation )
+    ( genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Unsafe
@@ -720,9 +720,9 @@ instance Arbitrary AddressState where
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
 
-instance Arbitrary ScriptValidation where
-    arbitrary = genScriptValidation
-    shrink = shrinkScriptValidation
+instance Arbitrary TxScriptValidity where
+    arbitrary = genTxScriptValidity
+    shrink = shrinkTxScriptValidity
 
 {-------------------------------------------------------------------------------
                                    Buildable

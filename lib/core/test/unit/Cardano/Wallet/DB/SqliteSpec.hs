@@ -148,12 +148,12 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
-    , ScriptValidation (..)
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
+    , TxScriptValidity (..)
     , TxStatus (..)
     , toTxHistory
     )
@@ -581,7 +581,7 @@ fileModeSpec =  do
                                     ]
                                 , withdrawals = mempty
                                 , metadata = Nothing
-                                , isValidScript = ScriptValidationPassed
+                                , isValidScript = TxScriptValid
                                 }
                             ]
 
@@ -602,7 +602,7 @@ fileModeSpec =  do
                                 ]
                             , withdrawals = mempty
                             , metadata = Nothing
-                            , isValidScript = ScriptValidationFailed
+                            , isValidScript = TxScriptInvalid
                             }
                         ]
 
@@ -639,7 +639,7 @@ fileModeSpec =  do
                                 [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
                             , withdrawals = mempty
                             , metadata = Nothing
-                            , isValidScript = ScriptsNotSupported
+                            , isValidScript = TxScriptsUnsupported
                             }
                         ]
 
@@ -661,7 +661,7 @@ fileModeSpec =  do
                             ]
                         , withdrawals = mempty
                         , metadata = Nothing
-                        , isValidScript = ScriptsNotSupported
+                        , isValidScript = TxScriptsUnsupported
                         }
                     ]
 
@@ -1273,7 +1273,7 @@ testTxs = [(tx, txMeta)]
         , outputs = [TxOut (Address "addr") (coinToBundle 1)]
         , withdrawals = mempty
         , metadata = Nothing
-        , isValidScript = ScriptsNotSupported
+        , isValidScript = TxScriptsUnsupported
         }
     txMeta = TxMeta
         { status = InLedger
