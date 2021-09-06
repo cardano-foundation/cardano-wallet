@@ -16,6 +16,7 @@ module Test.QuickCheck.Extra
     , reasonablySized
 
       -- * Shrinking
+    , liftShrink3
     , liftShrink7
     , shrinkInterleaved
     , shrinkMapWith
@@ -113,6 +114,21 @@ genSized2 genA genB = (,)
 --
 genSized2With :: (a -> b -> c) -> Gen a -> Gen b -> Gen c
 genSized2With f genA genB = uncurry f <$> genSized2 genA genB
+
+-- | Similar to 'liftShrink2', but applicable to 3-tuples.
+--
+liftShrink3
+    :: (a1 -> [a1])
+    -> (a2 -> [a2])
+    -> (a3 -> [a3])
+    -> (a1, a2, a3)
+    -> [(a1, a2, a3)]
+liftShrink3 s1 s2 s3 (a1, a2, a3) =
+    interleaveRoundRobin
+    [ [ (a1', a2 , a3 ) | a1' <- s1 a1 ]
+    , [ (a1 , a2', a3 ) | a2' <- s2 a2 ]
+    , [ (a1 , a2 , a3') | a3' <- s3 a3 ]
+    ]
 
 -- | Similar to 'liftShrink2', but applicable to 7-tuples.
 --
