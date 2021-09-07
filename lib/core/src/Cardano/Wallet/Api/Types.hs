@@ -252,6 +252,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationIndex (..)
+    , DerivationType (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -261,10 +262,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , fromHex
     , hex
     )
+import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
+    ( purposeCIP1854 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, SeqState, getAddressPoolGap )
+    ( AddressPoolGap, SeqState, getAddressPoolGap, purposeCIP1852 )
 import Cardano.Wallet.Primitive.Slotting
     ( Qry, timeOfEpoch )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -1371,12 +1374,14 @@ data ApiPostAccountKeyDataWithPurpose = ApiPostAccountKeyDataWithPurpose
 data ApiAccountKey = ApiAccountKey
     { getApiAccountKey :: ByteString
     , format :: KeyFormat
+    , purpose :: Index 'Hardened 'PurposeK
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
 data ApiAccountKeyShared = ApiAccountKeyShared
     { getApiAccountKey :: ByteString
     , format :: KeyFormat
+    , purpose :: Index 'Hardened 'PurposeK
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -1961,27 +1966,34 @@ instance FromJSON ApiVerificationKeyShared where
                 \ \"addr_shared_vkh\", \"stake_shared_vkh\",\"addr_shared_vk\" or \"stake_shared_vk\"."
 
 instance ToJSON ApiAccountKey where
-    toJSON (ApiAccountKey pub extd) =
-        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
+    toJSON (ApiAccountKey pub extd purpose') =
+        toJSON $ Bech32.encodeLenient (hrp purpose') $ dataPartFromBytes pub
       where
-        hrp = case extd of
-            Extended -> [humanReadablePart|acct_xvk|]
-            NonExtended -> [humanReadablePart|acct_vk|]
+        hrp p
+            | p == purposeCIP1854 = case extd of
+                  Extended -> [humanReadablePart|acct_shared_xvk|]
+                  NonExtended -> [humanReadablePart|acct_shared_vk|]
+            | otherwise = case extd of
+                  Extended -> [humanReadablePart|acct_xvk|]
+                  NonExtended -> [humanReadablePart|acct_vk|]
 
 instance FromJSON ApiAccountKey where
     parseJSON value = do
         (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
-        extended' <- parseHrp hrp
-        flip ApiAccountKey extended' <$> parsePub bytes extended'
+        (extended', purpose') <- parseHrp hrp
+        pub <- parsePub bytes extended'
+        pure $ ApiAccountKey pub extended' purpose'
       where
         parseHrp = \case
-            hrp | hrp == [humanReadablePart|acct_xvk|] -> pure Extended
-            hrp | hrp == [humanReadablePart|acct_vk|] -> pure NonExtended
+            hrp | hrp == [humanReadablePart|acct_xvk|] -> pure (Extended, purposeCIP1852)
+            hrp | hrp == [humanReadablePart|acct_vk|] -> pure (NonExtended, purposeCIP1852)
+            hrp | hrp == [humanReadablePart|acct_shared_xvk|] -> pure (Extended, purposeCIP1854)
+            hrp | hrp == [humanReadablePart|acct_shared_vk|] -> pure (NonExtended, purposeCIP1854)
             _ -> fail errHrp
           where
               errHrp =
                   "Unrecognized human-readable part. Expected one of:\
-                  \ \"acct_xvk\" or \"acct_vk\"."
+                  \ \"acct_xvk\", \"acct_vk\", \"acct_shared_xvk\" or \"acct_shared_vk\"."
 
 parsePubErr :: IsString p => KeyFormat -> p
 parsePubErr = \case
@@ -2002,7 +2014,7 @@ parsePub bytes extd
         NonExtended -> 32
 
 instance ToJSON ApiAccountKeyShared where
-    toJSON (ApiAccountKeyShared pub extd) =
+    toJSON (ApiAccountKeyShared pub extd _) =
         toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
       where
         hrp = case extd of
@@ -2013,7 +2025,8 @@ instance FromJSON ApiAccountKeyShared where
     parseJSON value = do
         (hrp, bytes) <- parseJSON value >>= (parseBech32 "Malformed extended/normal account public key")
         extended' <- parseHrp hrp
-        flip ApiAccountKeyShared extended' <$> parsePub bytes extended'
+        pub <- parsePub bytes extended'
+        pure $ ApiAccountKeyShared pub extended' purposeCIP1854
       where
         parseHrp = \case
             hrp | hrp == [humanReadablePart|acct_shared_xvk|] -> pure Extended

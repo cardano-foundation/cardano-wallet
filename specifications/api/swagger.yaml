@@ -2024,7 +2024,7 @@ components:
     ApiAccountKey: &ApiAccountKey
       type: string
       format: bech32
-      pattern: "^((acct_xvk)|(acct_vk))1[0-9a-z]*$"
+      pattern: "^((acct_xvk)|(acct_vk)|(acct_shared_xvk)|(acct_shared_vk))1[0-9a-z]*$"
 
     ApiAccountKeyShared: &ApiAccountKeyShared
       type: string
