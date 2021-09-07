@@ -1991,10 +1991,10 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
             , W.txInfoTime =
                 t
             , W.txInfoScriptValidity =
-                    case isValid of
-                        Nothing -> Nothing
-                        Just False -> Just W.TxScriptInvalid
-                        Just True -> Just W.TxScriptValid
+                case isValid of
+                    Nothing -> Nothing
+                    Just False -> Just W.TxScriptInvalid
+                    Just True -> Just W.TxScriptValid
             }
       where
         txH  = getQuantity (derived ^. #blockHeight)
