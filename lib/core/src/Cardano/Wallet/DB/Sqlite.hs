@@ -1937,7 +1937,7 @@ mkTxMetaEntity wid txid mfee meta derived scriptValidity = TxMeta
     , txMetadata = meta
     , txMetaScriptValidity =
             case scriptValidity of
-                W.TxScriptsUnsupported -> Nothing
+                W.TxScriptUnsupported -> Nothing
                 W.TxScriptValid -> Just True
                 W.TxScriptInvalid -> Just False
     }
@@ -1992,7 +1992,7 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
                 t
             , W.txInfoScriptValidity =
                     case isValid of
-                        Nothing -> W.TxScriptsUnsupported
+                        Nothing -> W.TxScriptUnsupported
                         Just False -> W.TxScriptInvalid
                         Just True -> W.TxScriptValid
             }

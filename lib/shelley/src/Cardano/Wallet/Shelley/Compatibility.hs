@@ -761,7 +761,7 @@ fromGenesisData g initialFunds =
                 ]
             , withdrawals = mempty
             , metadata = Nothing
-            , scriptValidity = W.TxScriptsUnsupported
+            , scriptValidity = W.TxScriptUnsupported
             }
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
@@ -872,7 +872,7 @@ fromShelleyTx tx =
         , metadata =
             fromShelleyMD <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
-            W.TxScriptsUnsupported
+            W.TxScriptUnsupported
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -904,7 +904,7 @@ fromAllegraTx tx =
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
-            W.TxScriptsUnsupported
+            W.TxScriptUnsupported
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -940,7 +940,7 @@ fromMaryTx tx =
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
         , scriptValidity =
-            W.TxScriptsUnsupported
+            W.TxScriptUnsupported
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -986,7 +986,7 @@ fromAlonzoTxBodyAndAux bod mad =
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
         , scriptValidity =
-            W.TxScriptsUnsupported
+            W.TxScriptUnsupported
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)

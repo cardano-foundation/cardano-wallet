@@ -1674,14 +1674,17 @@ x-maximumTokenBundleSize: &maximumTokenBundleSize
       enum:
         - byte
 
-x-transactionScriptValidity: &transactionScriptValidity
+x-txScriptValidity: &txScriptValidity
   description: |
     For Alonzo-era and later transactions, indicates whether the phase-2
     monetary policy script (e.g. Plutus script) used in the transaction
-    validated or not. Previous to Alonzo-era, this is null.
-  nullable: true
-  type: boolean
-  default: null
+    validated or not. Previous to Alonzo-era, this is unsupported.
+  type: string
+  enum:
+    - unsupported
+    - valid
+    - invalid
+  default: unsupported
 
 #############################################################################
 #                                                                           #
@@ -2105,7 +2108,7 @@ components:
         mint: *transactionMint
         status: *transactionStatus
         metadata: *transactionMetadata
-        script_validity: *transactionScriptValidity
+        script_validity: *txScriptValidity
 
     x-txBody: &txBody
       oneOf:

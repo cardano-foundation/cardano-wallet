@@ -580,7 +580,7 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
             , outputs
             , withdrawals = mempty
             , metadata = Nothing
-            , scriptValidity = TxScriptsUnsupported
+            , scriptValidity = TxScriptUnsupported
             }
         , TxMeta
             { status = [InLedger, Pending] !! (i `mod` 2)

@@ -753,7 +753,7 @@ instance Arbitrary GenTxHistory where
         genTx' = mkTx <$> genTid
         hasPending = any ((== Pending) . view #status . snd)
         genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
-        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing TxScriptsUnsupported
+        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing TxScriptUnsupported
         genTxMeta = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
@@ -1297,7 +1297,7 @@ dummyTransactionLayer = TransactionLayer
                  , outputs = outputsCovered cs
                  , withdrawals = mempty
                  , metadata = Nothing
-                 , scriptValidity = TxScriptsUnsupported
+                 , scriptValidity = TxScriptUnsupported
                  }
         wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither

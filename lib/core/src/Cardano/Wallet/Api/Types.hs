@@ -346,7 +346,6 @@ import Data.Aeson.Types
     , rejectUnknownFields
     , sumEncoding
     , tagSingleConstructors
-    , typeMismatch
     , withObject
     , withText
     , (.!=)
@@ -3642,14 +3641,9 @@ instance ToJSON (ApiT (Script KeyHash)) where
     toJSON = toJSON . getApiT
 
 instance FromJSON (ApiT TxScriptValidity) where
-    parseJSON (Aeson.Null) = pure $ ApiT TxScriptsUnsupported
-    parseJSON (Aeson.Bool True) = pure $ ApiT TxScriptValid
-    parseJSON (Aeson.Bool False) = pure $ ApiT TxScriptInvalid
-    parseJSON invalid =
-        prependFailure "parsing TxScriptValidity failed, "
-            (typeMismatch "Maybe Bool" invalid)
+    parseJSON = fmap ApiT . genericParseJSON (Aeson.defaultOptions
+        { constructorTagModifier = camelTo2 '_' . drop 8 })
 
 instance ToJSON (ApiT TxScriptValidity) where
-    toJSON (ApiT TxScriptsUnsupported) = Aeson.Null
-    toJSON (ApiT TxScriptValid) = Aeson.Bool True
-    toJSON (ApiT TxScriptInvalid) = Aeson.Bool False
+    toJSON = genericToJSON (Aeson.defaultOptions
+        { constructorTagModifier = camelTo2 '_' . drop 8 }) . getApiT

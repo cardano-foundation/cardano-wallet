@@ -227,7 +227,7 @@ instance Buildable Tx where
         ]
 
 instance Buildable TxScriptValidity where
-    build TxScriptsUnsupported = "<scripts not supported>"
+    build TxScriptUnsupported = "<scripts not supported>"
     build TxScriptValid = "true"
     build TxScriptInvalid = "false"
 
@@ -490,7 +490,7 @@ instance NFData TransactionInfo
 -- | Indicates whether the script associated with a transaction has passed or
 -- failed validation. Pre-Alonzo era, scripts were not supported.
 data TxScriptValidity
-    = TxScriptsUnsupported
+    = TxScriptUnsupported
     -- ^ Indicates that scripts were not supported in the era in which this
     -- transaction was created.
     | TxScriptValid
@@ -506,7 +506,7 @@ failedScriptValidation :: TxScriptValidity -> Bool
 failedScriptValidation TxScriptInvalid = True
 failedScriptValidation TxScriptValid = False
 -- Script validation always passes in eras that don't support scripts
-failedScriptValidation TxScriptsUnsupported = False
+failedScriptValidation TxScriptUnsupported = False
 
 -- | Reconstruct a transaction info from a transaction.
 fromTransactionInfo :: TransactionInfo -> Tx
