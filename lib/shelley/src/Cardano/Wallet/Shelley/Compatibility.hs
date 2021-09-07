@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -75,6 +76,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , unsafeIntToWord
     , internalError
     , isInternalError
+    , ToCardanoGenTx (..)
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -170,7 +172,7 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor, unsafeMkPercentage )
+    ( safeDeserialiseCbor, unsafeDeserialiseCbor, unsafeMkPercentage )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
@@ -308,6 +310,7 @@ import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
+import qualified Ouroboros.Consensus.Shelley.Eras as O
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
@@ -472,7 +475,6 @@ fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
             }
         , mconcat poolCerts
         )
-
 
 fromMaryBlock
     :: W.GenesisParameters
@@ -1187,6 +1189,72 @@ fromUnitInterval x =
   where
     bomb = internalError $
         "fromUnitInterval: encountered invalid parameter value: "+||x||+""
+
+class ToCardanoGenTx erac c where
+    toCardanoGenTx :: W.SealedTx -> CardanoGenTx c
+
+instance SLAPI.PraosCrypto c => ToCardanoGenTx (O.ShelleyEra c) c where
+    toCardanoGenTx bs = case toShelleyGenTx bs' of
+        Just gentx -> gentx
+        Nothing -> error "Wrong deserialisation for ShelleyEra"
+      where
+          bs' = BL.fromStrict $ W.getSealedTx bs
+
+instance SLAPI.PraosCrypto c => ToCardanoGenTx (O.AllegraEra c) c where
+    toCardanoGenTx bs =
+        case toAllegraGenTx bs' <|> toShelleyGenTx bs' of
+            Just gentx -> gentx
+            Nothing -> error "Wrong deserialisation for AllegraEra"
+      where
+          bs' = BL.fromStrict $ W.getSealedTx bs
+
+instance SLAPI.PraosCrypto c => ToCardanoGenTx (O.MaryEra c) c where
+    toCardanoGenTx bs =
+        case toMaryGenTx bs' <|> toAllegraGenTx bs' <|> toShelleyGenTx bs' of
+            Just gentx -> gentx
+            Nothing -> error "Wrong deserialisation for MaryEra"
+      where
+          bs' = BL.fromStrict $ W.getSealedTx bs
+
+instance SLAPI.PraosCrypto c => ToCardanoGenTx (O.AlonzoEra c) c where
+    toCardanoGenTx bs =
+        case toAlonzoGenTx bs' <|> toMaryGenTx bs' <|> toAllegraGenTx bs' <|> toShelleyGenTx bs' of
+            Just gentx -> gentx
+            Nothing -> error "Wrong deserialisation for AlonzoEra"
+      where
+          bs' = BL.fromStrict $ W.getSealedTx bs
+
+toShelleyGenTx
+    :: SLAPI.PraosCrypto c
+    => BL.ByteString
+    -> Maybe (CardanoGenTx c)
+toShelleyGenTx bs = case safeDeserialiseCbor fromCBOR bs of
+    Right gentx -> Just $ GenTxShelley gentx
+    Left _ -> Nothing
+
+toAllegraGenTx
+    :: SLAPI.PraosCrypto c
+    => BL.ByteString
+    -> Maybe (CardanoGenTx c)
+toAllegraGenTx bs = case safeDeserialiseCbor fromCBOR bs of
+    Right gentx -> Just $ GenTxAllegra gentx
+    Left _ -> Nothing
+
+toMaryGenTx
+    :: SLAPI.PraosCrypto c
+    => BL.ByteString
+    -> Maybe (CardanoGenTx c)
+toMaryGenTx bs = case safeDeserialiseCbor fromCBOR bs of
+    Right gentx -> Just $ GenTxMary gentx
+    Left _ -> Nothing
+
+toAlonzoGenTx
+    :: SLAPI.PraosCrypto c
+    => BL.ByteString
+    -> Maybe (CardanoGenTx c)
+toAlonzoGenTx bs = case safeDeserialiseCbor fromCBOR bs of
+    Right gentx -> Just $ GenTxAlonzo gentx
+    Left _ -> Nothing
 
 -- | SealedTx are the result of rightfully constructed shelley transactions so, it
 -- is relatively safe to unserialize them from CBOR.
