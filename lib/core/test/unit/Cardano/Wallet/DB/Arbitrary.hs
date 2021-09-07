@@ -380,10 +380,10 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid fees ins cins outs wdrls md isValid) =
-        [ mkTx fees ins' cins' outs' wdrls' md' isValid'
-        | (ins', cins', outs', wdrls', md', isValid') <-
-            shrink (ins, cins, outs, wdrls, md, isValid)
+    shrink (Tx _tid fees ins cins outs wdrls md validity) =
+        [ mkTx fees ins' cins' outs' wdrls' md' validity'
+        | (ins', cins', outs', wdrls', md', validity') <-
+            shrink (ins, cins, outs, wdrls, md, validity)
         ]
 
     arbitrary = do

@@ -138,7 +138,7 @@ mkTx
     -> Maybe TxMetadata
     -> Maybe TxScriptValidity
     -> Tx
-mkTx fees ins cins outs wdrls md isValid =
+mkTx fees ins cins outs wdrls md validity =
     Tx
       { txId = (mkTxId ins outs wdrls md)
       , fee = fees
@@ -147,7 +147,7 @@ mkTx fees ins cins outs wdrls md isValid =
       , outputs = outs
       , withdrawals = wdrls
       , metadata = md
-      , scriptValidity = isValid
+      , scriptValidity = validity
       }
 
 -- | txId calculation for testing purposes.
