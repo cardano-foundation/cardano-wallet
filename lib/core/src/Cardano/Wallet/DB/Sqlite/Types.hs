@@ -117,11 +117,7 @@ import Data.Word
 import Data.Word.Odd
     ( Word31 )
 import Database.Persist.Sqlite
-    ( PersistField (..)
-    , PersistFieldSql (..)
-    , PersistValue (..)
-    , SqlType (SqlBool)
-    )
+    ( PersistField (..), PersistFieldSql (..), PersistValue (..) )
 import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )
 import GHC.Generics
@@ -825,8 +821,7 @@ instance PersistField TxScriptValidity where
           ]
 
 instance PersistFieldSql TxScriptValidity where
-    -- sqlType _ = sqlType (Proxy @ScriptValidation)
-    sqlType _ = SqlBool
+    sqlType _ = sqlType (Proxy @(Maybe Bool))
 
 ----------------------------------------------------------------------------
 -- Other
