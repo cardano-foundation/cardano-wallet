@@ -807,18 +807,19 @@ instance PersistFieldSql DerivationPrefix where
 -- ScriptValidation
 
 instance PersistField TxScriptValidity where
-    toPersistValue TxScriptValid = PersistBool True
-    toPersistValue TxScriptInvalid = PersistBool False
+    toPersistValue = \case
+        TxScriptValid -> PersistBool True
+        TxScriptInvalid -> PersistBool False
 
-    fromPersistValue (PersistBool True) = Right TxScriptValid
-    fromPersistValue (PersistBool False) = Right TxScriptInvalid
-    fromPersistValue x =
-        Left $ T.concat [
-          "Failed to parse Haskell type `ScriptValidation`;"
-          , " expected null or boolean"
-          , " from database, but received: "
-          , T.pack (show x)
-          ]
+    fromPersistValue = \case
+        PersistBool True -> Right TxScriptValid
+        PersistBool False -> Right TxScriptInvalid
+        x -> Left $ T.unwords
+            [ "Failed to parse Haskell type `ScriptValidation`;"
+            , "expected null or boolean"
+            , "from database, but received:"
+            , T.pack (show x)
+            ]
 
 instance PersistFieldSql TxScriptValidity where
     sqlType _ = sqlType (Proxy @(Maybe Bool))
