@@ -1033,11 +1033,13 @@ fromAlonzoTx
        , [W.PoolCertificate]
        )
 fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
-    (\(tx, d, p) -> (tx { W.scriptValidity = if isValid
-                                            then Just W.TxScriptValid
-                                            else Just W.TxScriptInvalid
-                        }, d, p))
+    (\(tx, d, p) -> (tx { W.scriptValidity = validity }, d, p))
     $ fromAlonzoTxBodyAndAux bod aux
+    where
+        validity =
+            if isValid
+            then Just W.TxScriptValid
+            else Just W.TxScriptInvalid
 
 fromCardanoValue :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
 fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
