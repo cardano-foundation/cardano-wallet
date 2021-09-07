@@ -1935,11 +1935,9 @@ mkTxMetaEntity wid txid mfee meta derived scriptValidity = TxMeta
     , txMetaFee = fromIntegral . W.unCoin <$> mfee
     , txMetaSlotExpires = derived ^. #expiry
     , txMetadata = meta
-    , txMetaScriptValidity =
-            case scriptValidity of
-                Nothing -> Nothing
-                (Just W.TxScriptValid) -> Just True
-                (Just W.TxScriptInvalid) -> Just False
+    , txMetaScriptValidity = scriptValidity <&> \case
+          W.TxScriptValid -> True
+          W.TxScriptInvalid -> False
     }
 
 -- note: TxIn records must already be sorted by order
@@ -1990,11 +1988,9 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
                 Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
             , W.txInfoTime =
                 t
-            , W.txInfoScriptValidity =
-                case isValid of
-                    Nothing -> Nothing
-                    Just False -> Just W.TxScriptInvalid
-                    Just True -> Just W.TxScriptValid
+            , W.txInfoScriptValidity = isValid <&> \case
+                  False -> W.TxScriptInvalid
+                  True -> W.TxScriptValid
             }
       where
         txH  = getQuantity (derived ^. #blockHeight)
