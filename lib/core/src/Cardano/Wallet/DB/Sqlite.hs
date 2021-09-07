@@ -1957,11 +1957,11 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
   where
     startTime' = interpretQuery ti . slotToUTCTime
     mkItem m = mkTxWith
-               (txMetaTxId m)
-               (txMetaFee m)
-               (txMetadata m)
-               (mkTxDerived m)
-               (txMetaScriptValidity m)
+        (txMetaTxId m)
+        (txMetaFee m)
+        (txMetadata m)
+        (mkTxDerived m)
+        (txMetaScriptValidity m)
     mkTxWith txid mfee meta derived isValid = do
         t <- startTime' (derived ^. #slotNo)
         return $ W.TransactionInfo
