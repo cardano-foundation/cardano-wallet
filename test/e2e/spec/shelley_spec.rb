@@ -435,10 +435,11 @@ RSpec.describe CardanoWallet::Shelley do
         payload = { passphrase: PASS, format: 'extended', purpose: index_purpose }
         res = SHELLEY.keys.create_acc_public_key(wid, index_purpose, payload)
         expect(res).to be_correct_and_respond 202
+        type_for_cardano_address = index_purpose == "1854H" ? "Shared" : "Shelley"
         expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
                                                                  "#{index_purpose}/1815H/#{index_purpose}",
                                                                  hex = false,
-                                                                 "Shelley")
+                                                                 type_for_cardano_address)
       end
     end
 
@@ -449,10 +450,11 @@ RSpec.describe CardanoWallet::Shelley do
         payload = { passphrase: PASS, format: 'non_extended', purpose: index_purpose }
         res = SHELLEY.keys.create_acc_public_key(wid, index_purpose, payload)
         expect(res).to be_correct_and_respond 202
+        type_for_cardano_address = index_purpose == "1854H" ? "Shared" : "Shelley"
         expect(res.to_s).to include cardano_address_get_acc_xpub(m24,
                                                                  "#{index_purpose}/1815H/#{index_purpose}",
                                                                  hex = false,
-                                                                 "Shelley",
+                                                                 type_for_cardano_address,
                                                                  "--without-chain-code")
       end
     end
