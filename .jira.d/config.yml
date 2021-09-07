@@ -18,6 +18,30 @@
 #    password-source: keyring
 #    password-name: input-output.atlassian.net/your.name@iohk.io
 #
+#    For those who aren't using an explicit keyring, pass can also be used as a
+#    password source, the advantage of this is that it's lightweight way of
+#    interacting with your existing GPG agent and/or YubiKey setup:
+#
+#    # ~/.jira.d/config.yml
+#    authentication-method: api-token
+#    login: your.name@iohk.io
+#    password-source: pass
+#    password-name: input-output.atlassian.net/your.name@iohk.io
+#
+#    # gpg --list-keys
+#    /home/alice/.gnupg/pubring.kbx
+#    ----------------------------
+#    pub   ed25519/0x4404A686C4C026D4 2020-06-18 [C]
+#          Key fingerprint = ...
+#    uid                   [ultimate] Alice Bloggs <alice@iohk.io>
+#
+#    # pass init "0x4404B986C4C026D4" # KEY_ID of YubiKey key, or other GPG key
+#    # pass insert input-output.atlassian.net/your.name@iohk.io
+#    # pass list
+#    Password Store
+#    └── input-output.atlassian.net
+#        └── your.name@iohk.io
+#
 ######################################################################
 
 endpoint: https://input-output.atlassian.net
