@@ -376,11 +376,12 @@ applyTxToUTxO tx !u = spendTx tx u <> utxoFromTx tx
 -- spendTx tx (u <> utxoFromTx tx) = spendTx tx u <> utxoFromTx tx
 spendTx :: Tx -> UTxO -> UTxO
 spendTx tx !u =
-    u `excluding` (
-        if failedScriptValidation (tx ^. #scriptValidity)
-        then Set.fromList (collateralInputs tx)
-        else Set.fromList (inputs tx)
-    )
+    u `excluding` Set.fromList inputsToExclude
+    where
+        inputsToExclude =
+            if failedScriptValidation (tx ^. #scriptValidity)
+            then collateralInputs tx
+            else inputs tx
 
 -- | Construct a UTxO corresponding to a given transaction. It is important for
 -- the transaction outputs to be ordered correctly, since they become available
