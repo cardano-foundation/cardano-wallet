@@ -134,6 +134,8 @@ import Cardano.Wallet.Transaction
     , TransactionLayer (..)
     , withdrawalToCoin
     )
+import Control.Applicative
+    ( (<|>) )
 import Control.Arrow
     ( first, left, second )
 import Control.Monad
@@ -485,35 +487,56 @@ _decodeSignedTx
 _decodeSignedTx era bytes = do
     case era of
         AnyCardanoEra ShelleyEra ->
-            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsShelleyEra) bytes of
-                Right txValid ->
-                    pure $ sealShelleyTx fromShelleyTx txValid
-                Left decodeErr ->
-                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
+            case tryShelleyTx of
+                Just tx -> pure tx
+                Nothing ->
+                    Left $ ErrDecodeSignedTxWrongPayload "wrong shelley tx format"
 
         AnyCardanoEra AllegraEra ->
-            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAllegraEra) bytes of
-                Right txValid ->
-                    pure $ sealShelleyTx fromAllegraTx txValid
-                Left decodeErr ->
-                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
+            case tryAllegraTx <|> tryShelleyTx of
+                Just tx -> pure tx
+                Nothing ->
+                    Left $ ErrDecodeSignedTxWrongPayload "wrong shelley and allegra tx format"
 
         AnyCardanoEra MaryEra ->
-            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsMaryEra) bytes of
-                Right txValid ->
-                    pure $ sealShelleyTx fromMaryTx txValid
-                Left decodeErr ->
-                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
+            case tryMaryTx <|> tryAllegraTx <|> tryShelleyTx of
+                Just tx -> pure tx
+                Nothing ->
+                    Left $ ErrDecodeSignedTxWrongPayload "wrong shelley, allegra and mary tx format"
 
         AnyCardanoEra AlonzoEra ->
-            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) bytes of
-                Right txValid ->
-                    pure $ sealShelleyTx fromAlonzoTx txValid
-                Left decodeErr ->
-                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
+            case tryAlonzoTx <|> tryMaryTx <|> tryAllegraTx <|> tryShelleyTx of
+                Just tx -> pure tx
+                Nothing ->
+                    Left $ ErrDecodeSignedTxWrongPayload "wrong shelley, allegra, mary and alonzo tx format"
 
         AnyCardanoEra ByronEra ->
             Left ErrDecodeSignedTxNotSupported
+
+  where
+    tryAlonzoTx = case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) bytes of
+        Right txValid ->
+            pure $ sealShelleyTx fromAlonzoTx txValid
+        Left _decodeErr ->
+            Nothing
+
+    tryMaryTx = case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsMaryEra) bytes of
+        Right txValid ->
+            pure $ sealShelleyTx fromMaryTx txValid
+        Left _decodeErr ->
+            Nothing
+
+    tryAllegraTx = case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAllegraEra) bytes of
+        Right txValid ->
+            pure $ sealShelleyTx fromAllegraTx txValid
+        Left _decodeErr ->
+            Nothing
+
+    tryShelleyTx =  case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsShelleyEra) bytes of
+        Right txValid ->
+            pure $ sealShelleyTx fromShelleyTx txValid
+        Left _decodeErr ->
+            Nothing
 
 txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints protocolParams witnessTag = TxConstraints
