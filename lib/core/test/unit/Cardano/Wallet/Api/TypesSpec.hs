@@ -387,6 +387,7 @@ import Test.QuickCheck
     , counterexample
     , elements
     , frequency
+    , liftArbitrary
     , liftShrink
     , liftShrink2
     , listOf
@@ -2194,7 +2195,7 @@ instance Arbitrary (ApiTransaction n) where
             <*> arbitrary
             <*> pure txStatus
             <*> arbitrary
-            <*> arbitrary
+            <*> (liftArbitrary $ ApiT <$> genTxScriptValidity)
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary

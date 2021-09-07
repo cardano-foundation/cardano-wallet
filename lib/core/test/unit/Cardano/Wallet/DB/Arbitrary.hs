@@ -186,6 +186,7 @@ import Test.QuickCheck
     , frequency
     , generate
     , genericShrink
+    , liftArbitrary
     , oneof
     , scale
     , shrinkIntegral
@@ -391,7 +392,8 @@ instance Arbitrary Tx where
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
         fees <- arbitrary
-        mkTx fees ins cins outs wdrls <$> arbitrary <*> arbitrary
+        mkTx fees ins cins outs wdrls
+            <$> arbitrary <*> liftArbitrary genTxScriptValidity
 
 instance Arbitrary TxIn where
     arbitrary = TxIn
