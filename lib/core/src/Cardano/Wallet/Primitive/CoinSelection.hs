@@ -97,10 +97,10 @@ performSelection
 performSelection selectionConstraints selectionParams =
     -- TODO:
     --
-    -- https://jira.iohk.io/browse/ADP-1037
+    -- https://input-output.atlassian.net/browse/ADP-1037
     -- Adjust coin selection and fee estimation to handle collateral inputs
     --
-    -- https://jira.iohk.io/browse/ADP-1070
+    -- https://input-output.atlassian.net/browse/ADP-1070
     -- Adjust coin selection and fee estimation to handle pre-existing inputs
     --
     case prepareOutputs selectionConstraints outputsToCover of
