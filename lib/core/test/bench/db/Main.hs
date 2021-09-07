@@ -140,7 +140,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
-    , TxScriptValidity (..)
     , TxStatus (..)
     )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -580,7 +579,7 @@ mkTxHistory numTx numInputs numOutputs numAssets range =
             , outputs
             , withdrawals = mempty
             , metadata = Nothing
-            , scriptValidity = TxScriptUnsupported
+            , scriptValidity = Nothing
             }
         , TxMeta
             { status = [InLedger, Pending] !! (i `mod` 2)

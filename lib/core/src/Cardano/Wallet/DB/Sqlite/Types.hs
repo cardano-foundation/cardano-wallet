@@ -811,11 +811,9 @@ instance PersistFieldSql DerivationPrefix where
 -- ScriptValidation
 
 instance PersistField TxScriptValidity where
-    toPersistValue TxScriptUnsupported = PersistNull
     toPersistValue TxScriptValid = PersistBool True
     toPersistValue TxScriptInvalid = PersistBool False
 
-    fromPersistValue PersistNull = Right TxScriptUnsupported
     fromPersistValue (PersistBool True) = Right TxScriptValid
     fromPersistValue (PersistBool False) = Right TxScriptInvalid
     fromPersistValue x =

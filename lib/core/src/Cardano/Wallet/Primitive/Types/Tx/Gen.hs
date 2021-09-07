@@ -99,7 +99,7 @@ data TxWithoutId = TxWithoutId
     , outputs :: ![TxOut]
     , metadata :: !(Maybe TxMetadata)
     , withdrawals :: !(Map RewardAccount Coin)
-    , scriptValidity :: !TxScriptValidity
+    , scriptValidity :: !(Maybe TxScriptValidity)
     }
     deriving (Eq, Ord, Show)
 
@@ -111,7 +111,7 @@ genTxWithoutId = TxWithoutId
     <*> listOf genTxOut
     <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
-    <*> genTxScriptValidity
+    <*> liftArbitrary genTxScriptValidity
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
 shrinkTxWithoutId =
@@ -122,7 +122,7 @@ shrinkTxWithoutId =
         (shrinkList shrinkTxOut)
         (liftShrink shrinkTxMetadata)
         (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
-        shrinkTxScriptValidity
+        (liftShrink shrinkTxScriptValidity)
 
 txWithoutIdToTx :: TxWithoutId -> Tx
 txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}

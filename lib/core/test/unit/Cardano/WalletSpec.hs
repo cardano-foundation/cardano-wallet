@@ -127,7 +127,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxMetadata
     , TxOut (..)
-    , TxScriptValidity (..)
     , TxStatus (..)
     , isPending
     , txOutCoin
@@ -753,7 +752,7 @@ instance Arbitrary GenTxHistory where
         genTx' = mkTx <$> genTid
         hasPending = any ((== Pending) . view #status . snd)
         genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
-        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing TxScriptUnsupported
+        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing Nothing
         genTxMeta = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
@@ -1297,7 +1296,7 @@ dummyTransactionLayer = TransactionLayer
                  , outputs = outputsCovered cs
                  , withdrawals = mempty
                  , metadata = Nothing
-                 , scriptValidity = TxScriptUnsupported
+                 , scriptValidity = Nothing
                  }
         wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither

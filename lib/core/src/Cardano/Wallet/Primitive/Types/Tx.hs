@@ -200,7 +200,7 @@ data Tx = Tx
         -- <https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
 
     , scriptValidity
-        :: !TxScriptValidity
+        :: !(Maybe TxScriptValidity)
         -- ^ Tag indicating whether non-native scripts in this transaction are
         -- expected to validate. This is added by the block creator when
         -- constructing the block. For pre-Alonzo era transactions, scripts are
@@ -227,9 +227,8 @@ instance Buildable Tx where
         ]
 
 instance Buildable TxScriptValidity where
-    build TxScriptUnsupported = "<scripts not supported>"
-    build TxScriptValid = "true"
-    build TxScriptInvalid = "false"
+    build TxScriptValid = "valid"
+    build TxScriptInvalid = "invalid"
 
 txIns :: Set Tx -> Set TxIn
 txIns = foldMap (Set.fromList . inputs)
@@ -478,11 +477,11 @@ data TransactionInfo = TransactionInfo
     -- ^ Creation time of the block including this transaction.
     , txInfoMetadata :: !(Maybe TxMetadata)
     -- ^ Application-specific extension data.
-    , txInfoScriptValidity :: !TxScriptValidity
+    , txInfoScriptValidity :: !(Maybe TxScriptValidity)
     -- ^ Tag indicating whether non-native scripts in this transaction are
     -- expected to validate. This is added by the block creator when
-    -- constructing the block. For pre-Alonzo era transactions, scripts are not
-    -- supported, and so script validation always passes.
+    -- constructing the block. May be Nothing for pre-Alonzo and pending
+    -- transactions.
     } deriving (Generic, Show, Eq)
 
 instance NFData TransactionInfo
@@ -490,10 +489,7 @@ instance NFData TransactionInfo
 -- | Indicates whether the script associated with a transaction has passed or
 -- failed validation. Pre-Alonzo era, scripts were not supported.
 data TxScriptValidity
-    = TxScriptUnsupported
-    -- ^ Indicates that scripts were not supported in the era in which this
-    -- transaction was created.
-    | TxScriptValid
+    = TxScriptValid
     -- ^ Indicates that the script passed validation.
     | TxScriptInvalid
     -- ^ Indicates that the script failed validation.
@@ -502,11 +498,11 @@ data TxScriptValidity
 instance NFData TxScriptValidity
 
 -- | Returns True when the script has failed validation.
-failedScriptValidation :: TxScriptValidity -> Bool
-failedScriptValidation TxScriptInvalid = True
-failedScriptValidation TxScriptValid = False
+failedScriptValidation :: Maybe TxScriptValidity -> Bool
+failedScriptValidation (Just TxScriptInvalid) = True
+failedScriptValidation (Just TxScriptValid) = False
 -- Script validation always passes in eras that don't support scripts
-failedScriptValidation TxScriptUnsupported = False
+failedScriptValidation Nothing = False
 
 -- | Reconstruct a transaction info from a transaction.
 fromTransactionInfo :: TransactionInfo -> Tx

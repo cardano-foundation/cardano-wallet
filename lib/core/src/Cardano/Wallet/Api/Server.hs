@@ -2892,7 +2892,7 @@ data MkApiTransactionParams = MkApiTransactionParams
     , txMeta :: W.TxMeta
     , txMetadata :: Maybe W.TxMetadata
     , txTime :: UTCTime
-    , txScriptValidity :: W.TxScriptValidity
+    , txScriptValidity :: Maybe W.TxScriptValidity
     }
     deriving (Eq, Generic, Show)
 
@@ -2942,7 +2942,7 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (tx ^. (#txMeta . #status))
         , metadata = ApiTxMetadata $ ApiT <$> (tx ^. #txMetadata)
-        , scriptValidity = ApiT $ tx ^. #txScriptValidity
+        , scriptValidity = ApiT <$> tx ^. #txScriptValidity
         }
 
     depositIfAny :: Natural

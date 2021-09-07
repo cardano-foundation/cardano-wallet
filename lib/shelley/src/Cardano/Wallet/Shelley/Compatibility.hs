@@ -761,7 +761,7 @@ fromGenesisData g initialFunds =
                 ]
             , withdrawals = mempty
             , metadata = Nothing
-            , scriptValidity = W.TxScriptUnsupported
+            , scriptValidity = Nothing
             }
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
@@ -872,7 +872,7 @@ fromShelleyTx tx =
         , metadata =
             fromShelleyMD <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
-            W.TxScriptUnsupported
+            Nothing
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -904,7 +904,7 @@ fromAllegraTx tx =
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
-            W.TxScriptUnsupported
+            Nothing
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -940,7 +940,7 @@ fromMaryTx tx =
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
         , scriptValidity =
-            W.TxScriptUnsupported
+            Nothing
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -986,7 +986,7 @@ fromAlonzoTxBodyAndAux bod mad =
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
         , scriptValidity =
-            W.TxScriptUnsupported
+            Nothing
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -1034,8 +1034,8 @@ fromAlonzoTx
        )
 fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
     (\(tx, d, p) -> (tx { W.scriptValidity = if isValid
-                                            then W.TxScriptValid
-                                            else W.TxScriptInvalid
+                                            then Just W.TxScriptValid
+                                            else Just W.TxScriptInvalid
                         }, d, p))
     $ fromAlonzoTxBodyAndAux bod aux
 

@@ -136,7 +136,7 @@ mkTx
     -> [TxOut]
     -> Map RewardAccount Coin
     -> Maybe TxMetadata
-    -> TxScriptValidity
+    -> Maybe TxScriptValidity
     -> Tx
 mkTx fees ins cins outs wdrls md isValid =
     Tx
