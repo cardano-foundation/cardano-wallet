@@ -245,6 +245,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     tlsConfig
                     (fmap Settings poolMetadataFetching)
                     tokenMetadataServerURI
+                    Nothing
                     conn
                     block0
                     (gp, vData)

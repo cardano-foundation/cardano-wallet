@@ -69,6 +69,7 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , clusterEraFromEnv
     , clusterEraToString
     , clusterToApiEra
+    , debugConfigFromEnv
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
     , oneMillionAda
@@ -334,6 +335,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv
+        debug  <- debugConfigFromEnv
         let testMetadata = $(getTestData) </> "token-metadata.json"
         withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl ->
             serveWallet
@@ -347,6 +349,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 Nothing
                 Nothing
                 (Just tokenMetaUrl)
+                (Just debug)
                 conn
                 block0
                 (gp, vData)

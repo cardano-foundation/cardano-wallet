@@ -26,6 +26,7 @@
 
 module Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
+    , DebugConfig (..)
     , serveWallet
 
       -- * Tracing
@@ -75,7 +76,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB.Sqlite
     ( DBFactoryLog, DefaultFieldValues (..), PersistAddressBook )
 import Cardano.Wallet.Logging
-    ( trMessageText, LoggedException (..) )
+    ( LoggedException (..), trMessageText )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -150,7 +151,7 @@ import Cardano.Wallet.Transaction
 import Control.Applicative
     ( Const (..) )
 import Control.Cache
-    ( CacheWorker (..), newCacheWorker, NominalDiffTime )
+    ( CacheWorker (..), MkCacheWorker, don'tCacheWorker, newCacheWorker )
 import Control.Monad
     ( forM_, void )
 import Control.Tracer
@@ -221,6 +222,18 @@ data SomeNetworkDiscriminant where
 
 deriving instance Show SomeNetworkDiscriminant
 
+{- HLINT ignore DebugConfig "Use newtype instead of data" -}
+-- | Various settings that modify the behavior 'serveWallet' in order
+-- to make it easier to test.
+data DebugConfig = DebugConfig
+    { noCacheLocalStateQuery :: Bool
+    -- ^ Do /not/ cache local state queries ('LSQ') to a cardano-node.
+    -- Some functions such as 'listStakePools' will query
+    -- the node at the program start and cache the value
+    -- in order to become more responsive.
+    -- Setting this flag to 'True' will disable this caching behavior.
+    } deriving (Show, Generic, Eq)
+
 -- | The @cardano-wallet@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
@@ -244,6 +257,8 @@ serveWallet
     -> Maybe Settings
     -- ^ Settings to be set at application start, will be written into DB.
     -> Maybe TokenMetadataServer
+    -> Maybe DebugConfig
+    -- ^ Optional behavior change to simplify debugging and testing.
     -> CardanoNodeConn
     -- ^ Socket for communicating with the node
     -> Block
@@ -266,6 +281,7 @@ serveWallet
   tlsConfig
   settings
   tokenMetaUri
+  mDebugConfig
   conn
   block0
   (np, vData)
@@ -294,7 +310,7 @@ serveWallet
                 multisigApi <- apiLayer txLayerUdefined nl
                     Server.idleWorker
 
-                withPoolsMonitoring databaseDir np nl $ \spl -> do
+                withPoolsMonitoring databaseDir np nl mDebugConfig $ \spl -> do
                     startServer
                         proxy
                         socket
@@ -346,9 +362,10 @@ serveWallet
         :: Maybe FilePath
         -> NetworkParameters
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
+        -> Maybe DebugConfig
         -> (StakePoolLayer -> IO a)
         -> IO a
-    withPoolsMonitoring dir (NetworkParameters _ sp _) nl action =
+    withPoolsMonitoring dir (NetworkParameters _ sp _) nl mdebug action =
         Pool.withDecoratedDBLayer
                 poolDatabaseDecorator
                 poolsDbTracer
@@ -385,10 +402,11 @@ serveWallet
                 withRetries :: forall a. IO a -> IO a
                 withRetries maction = Retry.recovering policy
                     (Retry.skipAsyncExceptions ++ [traceEx]) (\_ -> maction)
-                mkCacheWorker
-                    :: forall a. NominalDiffTime -> NominalDiffTime
-                    -> IO a -> IO (CacheWorker, IO a)
-                mkCacheWorker t1 t2 = newCacheWorker t1 t2 . withRetries
+            let mkCacheWorker :: forall a. MkCacheWorker a
+                mkCacheWorker = case mdebug of
+                    Just DebugConfig{noCacheLocalStateQuery=True} ->
+                        don'tCacheWorker
+                    _ -> \t1 t2 -> newCacheWorker t1 t2 . withRetries
 
             (worker, spl) <-
                 newStakePoolLayer gcStatus nl db mkCacheWorker restartMetadataThread

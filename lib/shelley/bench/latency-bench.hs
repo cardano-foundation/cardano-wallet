@@ -69,6 +69,7 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     ( LocalClusterConfig (..)
     , LogFileConfig (..)
     , RunningNode (..)
+    , debugConfigFromEnv
     , sendFaucetAssetsTo
     , sendFaucetFundsTo
     , walletListenFromEnv
@@ -466,6 +467,7 @@ withShelleyServer tracers action = do
 
     onClusterStart act db (RunningNode conn block0 (np, vData)) = do
         listen <- walletListenFromEnv
+        debug  <- debugConfigFromEnv
         serveWallet
             (SomeNetworkDiscriminant $ Proxy @'Mainnet)
             tracers
@@ -477,6 +479,7 @@ withShelleyServer tracers action = do
             Nothing
             Nothing
             Nothing
+            (Just debug)
             conn
             block0
             (np, vData)
