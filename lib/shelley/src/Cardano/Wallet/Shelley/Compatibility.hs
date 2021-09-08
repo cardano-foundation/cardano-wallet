@@ -201,8 +201,12 @@ import Data.ByteString.Short
     ( fromShort, toShort )
 import Data.Coerce
     ( coerce )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Foldable
     ( asum, toList )
+import Data.Function
+    ( (&) )
 import Data.List
     ( isPrefixOf )
 import Data.Map.Strict
@@ -1189,70 +1193,48 @@ fromUnitInterval x =
         "fromUnitInterval: encountered invalid parameter value: "+||x||+""
 
 class ToCardanoGenTx era where
-    toCardanoGenTx :: forall c. SLAPI.PraosCrypto c => W.SealedTx -> CardanoGenTx c
+    toCardanoGenTx
+        :: forall c. SLAPI.PraosCrypto c
+        => W.SealedTx
+        -> CardanoGenTx c
 
 instance ToCardanoGenTx Cardano.ShelleyEra where
-    toCardanoGenTx bs = case toShelleyGenTx bs' of
-        Just gentx -> gentx
-        Nothing -> error "Wrong deserialisation for ShelleyEra"
+    toCardanoGenTx tx = parse & fromMaybe
+        (error "Wrong deserialisation for ShelleyEra")
       where
-          bs' = BL.fromStrict $ W.getSealedTx bs
+        parse = toGenTx tx GenTxShelley
 
 instance ToCardanoGenTx Cardano.AllegraEra where
-    toCardanoGenTx bs =
-        case toAllegraGenTx bs' <|> toShelleyGenTx bs' of
-            Just gentx -> gentx
-            Nothing -> error "Wrong deserialisation for AllegraEra"
+    toCardanoGenTx tx = parse & fromMaybe
+        (error "Wrong deserialisation for AllegraEra")
       where
-          bs' = BL.fromStrict $ W.getSealedTx bs
+        parse = toGenTx tx GenTxAllegra
+            <|> toGenTx tx GenTxShelley
 
 instance ToCardanoGenTx Cardano.MaryEra where
-    toCardanoGenTx bs =
-        case toMaryGenTx bs' <|> toAllegraGenTx bs' <|> toShelleyGenTx bs' of
-            Just gentx -> gentx
-            Nothing -> error "Wrong deserialisation for MaryEra"
+    toCardanoGenTx tx = parse & fromMaybe
+        (error "Wrong deserialisation for MaryEra")
       where
-          bs' = BL.fromStrict $ W.getSealedTx bs
+        parse = toGenTx tx GenTxMary
+            <|> toGenTx tx GenTxAllegra
+            <|> toGenTx tx GenTxShelley
 
 instance ToCardanoGenTx Cardano.AlonzoEra where
-    toCardanoGenTx bs =
-        case toAlonzoGenTx bs' <|> toMaryGenTx bs' <|> toAllegraGenTx bs' <|> toShelleyGenTx bs' of
-            Just gentx -> gentx
-            Nothing -> error "Wrong deserialisation for AlonzoEra"
+    toCardanoGenTx tx = parse & fromMaybe
+        (error "Wrong deserialisation for AlonzoEra")
       where
-          bs' = BL.fromStrict $ W.getSealedTx bs
+        parse = toGenTx tx GenTxAlonzo
+            <|> toGenTx tx GenTxMary
+            <|> toGenTx tx GenTxAllegra
+            <|> toGenTx tx GenTxShelley
 
-toShelleyGenTx
-    :: SLAPI.PraosCrypto c
-    => BL.ByteString
+toGenTx
+    :: Binary.FromCBOR t
+    => W.SealedTx
+    -> (t -> CardanoGenTx c)
     -> Maybe (CardanoGenTx c)
-toShelleyGenTx bs = case safeDeserialiseCbor fromCBOR bs of
-    Right gentx -> Just $ GenTxShelley gentx
-    Left _ -> Nothing
-
-toAllegraGenTx
-    :: SLAPI.PraosCrypto c
-    => BL.ByteString
-    -> Maybe (CardanoGenTx c)
-toAllegraGenTx bs = case safeDeserialiseCbor fromCBOR bs of
-    Right gentx -> Just $ GenTxAllegra gentx
-    Left _ -> Nothing
-
-toMaryGenTx
-    :: SLAPI.PraosCrypto c
-    => BL.ByteString
-    -> Maybe (CardanoGenTx c)
-toMaryGenTx bs = case safeDeserialiseCbor fromCBOR bs of
-    Right gentx -> Just $ GenTxMary gentx
-    Left _ -> Nothing
-
-toAlonzoGenTx
-    :: SLAPI.PraosCrypto c
-    => BL.ByteString
-    -> Maybe (CardanoGenTx c)
-toAlonzoGenTx bs = case safeDeserialiseCbor fromCBOR bs of
-    Right gentx -> Just $ GenTxAlonzo gentx
-    Left _ -> Nothing
+toGenTx tx constructor = constructor <$> eitherToMaybe
+    (safeDeserialiseCbor fromCBOR $ BL.fromStrict $ W.getSealedTx tx)
 
 sealShelleyTx
     :: forall era b c. (O.ShelleyBasedEra (Cardano.ShelleyLedgerEra era))
