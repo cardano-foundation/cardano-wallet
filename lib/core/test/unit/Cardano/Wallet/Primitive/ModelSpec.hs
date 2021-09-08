@@ -49,7 +49,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , EpochLength (..)
-    , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
     )
@@ -87,7 +86,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
 import Cardano.Wallet.Util
-    ( invariant )
+    ( ShowFmt (..), invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

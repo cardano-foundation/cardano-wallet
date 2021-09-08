@@ -58,7 +58,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , Range (..)
     , RangeBound (..)
-    , ShowFmt (..)
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotLength (..)
@@ -126,6 +125,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
+import Cardano.Wallet.Util
+    ( ShowFmt (..) )
 import Control.Monad
     ( forM_, replicateM )
 import Crypto.Hash

@@ -131,7 +131,6 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Polymorphic
     , Signature (..)
-    , ShowFmt (..)
 
     -- * Settings
     , Settings(..)
@@ -164,7 +163,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxSize (..) )
 import Cardano.Wallet.Util
-    ( invariant )
+    ( ShowFmt (..), invariant )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq
@@ -1373,16 +1372,6 @@ getPoolRetirementCertificate = \case
 newtype Signature (what :: Type) = Signature { getSignature :: ByteString }
     deriving stock (Show, Eq, Generic)
     deriving newtype (ByteArrayAccess)
-
--- | A polymorphic wrapper type with a custom show instance to display data
--- through 'Buildable' instances.
-newtype ShowFmt a = ShowFmt { unShowFmt :: a }
-    deriving (Generic, Eq, Ord)
-
-instance NFData a => NFData (ShowFmt a)
-
-instance Buildable a => Show (ShowFmt a) where
-    show (ShowFmt a) = fmt (build a)
 
 {-------------------------------------------------------------------------------
                                Metadata services
