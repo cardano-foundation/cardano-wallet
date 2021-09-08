@@ -66,8 +66,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genFixedSizeTokenBundle
+    , genTokenBundle
     , genTokenBundleSmallRange
-    , genVariableSizedTokenBundle
     , shrinkTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -148,6 +148,7 @@ import Test.QuickCheck
     , frequency
     , oneof
     , property
+    , resize
     , vector
     , withMaxSuccess
     , (===)
@@ -818,11 +819,11 @@ instance Arbitrary (FixedSize128 TokenBundle) where
     -- No shrinking
 
 instance Arbitrary (VariableSize16 TokenBundle) where
-    arbitrary = VariableSize16 <$> genVariableSizedTokenBundle 16
+    arbitrary = VariableSize16 <$> resize 16 genTokenBundle
     -- No shrinking
 
 instance Arbitrary (VariableSize128 TokenBundle) where
-    arbitrary = VariableSize128 <$> genVariableSizedTokenBundle 128
+    arbitrary = VariableSize128 <$> resize 128 genTokenBundle
     -- No shrinking
 
 --

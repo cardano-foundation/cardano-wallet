@@ -2,7 +2,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genFixedSizeTokenBundle
     , genTokenBundleSmallRange
     , genTokenBundleSmallRangePositive
-    , genVariableSizedTokenBundle
+    , genTokenBundle
     , shrinkTokenBundleSmallRange
     , shrinkTokenBundleSmallRangePositive
     ) where
@@ -27,7 +27,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Control.Monad
     ( replicateM )
 import Test.QuickCheck
-    ( Gen, choose, oneof )
+    ( Gen, choose, oneof, sized )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
@@ -64,14 +64,15 @@ genFixedSizeTokenBundle fixedAssetCount
         integerToTokenQuantity = TokenQuantity . fromIntegral
 
 --------------------------------------------------------------------------------
--- Token bundles with variable numbers of assets, with an upper bound.
+-- Token bundles with variable numbers of assets, the upper bound being
+-- QuickCheck's size parameter.
 --
 -- Policy identifiers, asset names, token quantities are all allowed to vary.
 --------------------------------------------------------------------------------
 
-genVariableSizedTokenBundle :: Int -> Gen TokenBundle
-genVariableSizedTokenBundle maxAssetCount =
-    genFixedSizeTokenBundle =<< choose (0, maxAssetCount)
+genTokenBundle :: Gen TokenBundle
+genTokenBundle = sized $ \maxAssetCount ->
+    choose (0, maxAssetCount) >>= genFixedSizeTokenBundle
 
 --------------------------------------------------------------------------------
 -- Token bundles with coins, assets, and quantities chosen from small ranges
