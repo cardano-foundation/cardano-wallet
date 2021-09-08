@@ -27,7 +27,6 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     , genMockInput
     , genRewardWithdrawal
     , genTokenBundleMixed
-    , report
     , shrinkMockInput
     , testAll
     , unMockTxConstraints
@@ -72,6 +71,8 @@ import Test.QuickCheck
     , withMaxSuccess
     , (===)
     )
+import Test.QuickCheck.Extra
+    ( report )
 import Test.Utils.Pretty
     ( Pretty (..) )
 

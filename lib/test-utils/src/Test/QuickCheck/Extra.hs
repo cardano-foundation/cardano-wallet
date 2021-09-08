@@ -20,6 +20,9 @@ module Test.QuickCheck.Extra
     , shrinkInterleaved
     , shrinkMapWith
 
+      -- * Counterexamples
+    , report
+
       -- * Utilities
     , interleaveRoundRobin
 
@@ -29,8 +32,13 @@ import Prelude
 
 import Data.Map.Strict
     ( Map )
+import Fmt
+    ( indentF, (+|), (|+) )
 import Test.QuickCheck
     ( Gen
+    , Property
+    , Testable
+    , counterexample
     , liftArbitrary2
     , liftShrink2
     , listOf
@@ -38,6 +46,8 @@ import Test.QuickCheck
     , shrinkList
     , shrinkMapBy
     )
+import Test.Utils.Pretty
+    ( pShowBuilder )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -171,3 +181,15 @@ shrinkMapWith shrinkKey shrinkValue
     = shrinkMapBy Map.fromList Map.toList
     $ shrinkList
     $ liftShrink2 shrinkKey shrinkValue
+
+--------------------------------------------------------------------------------
+-- Counterexamples
+--------------------------------------------------------------------------------
+
+-- | Adds a named variable to the counterexample output of a property.
+--
+-- On failure, uses pretty-printing to show the contents of the variable.
+--
+report :: (Show a, Testable prop) => a -> String -> prop -> Property
+report a name = counterexample $
+    "" +|name|+ ":\n" +|indentF 4 (pShowBuilder a) |+ ""

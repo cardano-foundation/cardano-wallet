@@ -83,11 +83,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionResult (..) )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
-    ( MockTxConstraints (..)
-    , genTokenBundleMixed
-    , report
-    , unMockTxConstraints
-    )
+    ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -250,6 +246,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Extra
+    ( report )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.Utils.Time
