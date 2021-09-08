@@ -109,6 +109,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( fromAllegraTx
     , fromAlonzoTx
+    , fromLedgerExUnits
     , fromMaryTx
     , fromShelleyTx
     , sealShelleyTx
@@ -173,6 +174,7 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Ledger.Alonzo.TxWitness as SL
 import qualified Cardano.Ledger.Core as SL
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -499,7 +501,8 @@ _calcScriptExecutionCost pp sealedTx = undefined
                     getScriptData _ = error "we should not expect Cardano.ByronTxBody here"
                     getRedeemers Cardano.TxBodyNoScriptData = Nothing
                     getRedeemers (Cardano.TxBodyScriptData _ _ redeemers) = Just redeemers
-                in getRedeemers $ getScriptData $ Cardano.getTxBody txValid
+                    getExtUnit (SL.Redeemers rmds) = map (fromLedgerExUnits . snd . snd) $ Map.toList rmds
+                in getExtUnit <$> (getRedeemers $ getScriptData $ Cardano.getTxBody txValid)
             Left _ -> Nothing
 
 _decodeSignedTx

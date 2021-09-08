@@ -75,6 +75,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , internalError
     , isInternalError
     , ToCardanoGenTx (..)
+    , fromLedgerExUnits
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -673,6 +674,15 @@ executionUnitPricesFromPParams pp =
         { W.priceExecutionSteps  = Ledger.unboundRational prSteps
         , W.priceExecutionMemory = Ledger.unboundRational prMem
         }
+
+fromLedgerExUnits
+    :: Alonzo.ExUnits
+    -> W.ExecutionUnits
+fromLedgerExUnits (Alonzo.ExUnits mem steps) =
+    W.ExecutionUnits
+    { executionSteps = steps
+    , executionMemory = mem
+    }
 
 txParametersFromPParams
     :: HasField "_minfeeA" pparams Natural
