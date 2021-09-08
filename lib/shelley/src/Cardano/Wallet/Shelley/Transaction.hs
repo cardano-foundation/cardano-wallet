@@ -142,8 +142,6 @@ import Cardano.Wallet.Transaction
     , TransactionLayer (..)
     , withdrawalToCoin
     )
-import Control.Applicative
-    ( (<|>) )
 import Control.Arrow
     ( first, left, second )
 import Control.Monad
@@ -195,7 +193,6 @@ import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.Map as Map
 import qualified Data.Text as T
-import qualified Ouroboros.Consensus.Shelley.Eras as O
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 
 -- | Type encapsulating what we need to know to add things -- payloads,
@@ -542,56 +539,35 @@ _decodeSignedTx
 _decodeSignedTx era bytes = do
     case era of
         AnyCardanoEra ShelleyEra ->
-            case tryShelleyTx of
-                Just tx -> pure tx
-                Nothing ->
-                    Left $ ErrDecodeSignedTxWrongPayload
-                        "expected shelley tx format"
+            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsShelleyEra) bytes of
+                Right txValid ->
+                    pure $ sealShelleyTx fromShelleyTx txValid
+                Left decodeErr ->
+                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
         AnyCardanoEra AllegraEra ->
-            case tryAllegraTx <|> tryShelleyTx of
-                Just tx -> pure tx
-                Nothing ->
-                    Left $ ErrDecodeSignedTxWrongPayload
-                        "expected shelley or allegra tx format"
+            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAllegraEra) bytes of
+                Right txValid ->
+                    pure $ sealShelleyTx fromAllegraTx txValid
+                Left decodeErr ->
+                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
         AnyCardanoEra MaryEra ->
-            case tryMaryTx <|> tryAllegraTx <|> tryShelleyTx of
-                Just tx -> pure tx
-                Nothing ->
-                    Left $ ErrDecodeSignedTxWrongPayload
-                        "expected shelley, allegra or mary tx format"
+            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsMaryEra) bytes of
+                Right txValid ->
+                    pure $ sealShelleyTx fromMaryTx txValid
+                Left decodeErr ->
+                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
         AnyCardanoEra AlonzoEra ->
-            case tryAlonzoTx <|> tryMaryTx <|> tryAllegraTx <|> tryShelleyTx of
-                Just tx -> pure tx
-                Nothing ->
-                    Left $ ErrDecodeSignedTxWrongPayload
-                        "expected shelley, allegra, mary or alonzo tx format"
+            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) bytes of
+                Right txValid ->
+                    pure $ sealShelleyTx fromAlonzoTx txValid
+                Left decodeErr ->
+                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
         AnyCardanoEra ByronEra ->
             Left ErrDecodeSignedTxNotSupported
-
-  where
-    tryAlonzoTx  = tryTx Cardano.AsAlonzoEra  fromAlonzoTx
-    tryMaryTx    = tryTx Cardano.AsMaryEra    fromMaryTx
-    tryAllegraTx = tryTx Cardano.AsAllegraEra fromAllegraTx
-    tryShelleyTx = tryTx Cardano.AsShelleyEra fromShelleyTx
-
-    tryTx
-        :: forall era b c.
-            ( Cardano.IsCardanoEra era
-            , O.ShelleyBasedEra (Cardano.ShelleyLedgerEra era)
-            )
-        => Cardano.AsType era
-        -> (SL.Tx (Cardano.ShelleyLedgerEra era) -> (Tx, b, c))
-        -> Maybe (Tx, SealedTx)
-    tryTx asEra fromTx =
-        case Cardano.deserialiseFromCBOR (Cardano.AsTx asEra) bytes of
-            Right txValid ->
-                pure $ sealShelleyTx fromTx txValid
-            Left _decodeErr ->
-                Nothing
 
 txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints protocolParams witnessTag = TxConstraints
