@@ -32,6 +32,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , prepareOutputsWith
     , emptySkeleton
     , selectionDelta
+    , PerformSelection (..)
     , SelectionCriteria (..)
     , SelectionLimit
     , SelectionLimitOf (..)
@@ -101,6 +102,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , mapMaybe
     , balanceMissing
     , missingOutputAssets
+    , inputFromSelection
     ) where
 
 import Prelude
@@ -281,6 +283,10 @@ data SelectionResult change = SelectionResult
     }
     deriving (Generic, Eq, Show)
 
+-- | Make a transaction input resolver from the coin selection.
+inputFromSelection :: SelectionResult change -> TxIn -> Maybe TxOut
+inputFromSelection cs = flip lookup $ NE.toList $ view #inputsSelected cs
+
 -- | Calculate the actual difference between the total outputs (incl. change)
 -- and total inputs of a particular selection. By construction, this should be
 -- greater than total fees and deposits.
@@ -445,6 +451,23 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
         then bundle { coin = minCoinValueFor (view #tokens bundle) }
         else bundle
 
+-- | Parameters of the 'performSelection' function.
+data PerformSelection = PerformSelection
+    { computeMinimumAdaQuantity :: TokenMap -> Coin
+    -- ^ A function that computes the minimum ada quantity required by the
+    -- protocol for a particular output.
+    , computeMinimumCost :: SelectionSkeleton -> Coin
+    -- ^ A function that computes the extra cost corresponding to a given
+    -- selection. This function must not depend on the magnitudes of
+    -- individual asset quantities held within each change output.
+    , bundleSizeAssessor :: TokenBundleSizeAssessor
+    -- ^ A function that assesses the size of a token bundle. See the
+    -- documentation for 'TokenBundleSizeAssessor' to learn about the
+    -- expected properties of this function.
+    , selectionCriteria :: SelectionCriteria
+    -- ^ The selection goal to satisfy.
+    } deriving Generic
+
 -- | Performs a coin selection and generates change bundles in one step.
 --
 -- Returns 'BalanceInsufficient' if the total balance of 'utxoAvailable' is not
@@ -479,21 +502,9 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 --
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
-    => (TokenMap -> Coin)
-        -- ^ A function that computes the minimum ada quantity required by the
-        -- protocol for a particular output.
-    -> (SelectionSkeleton -> Coin)
-        -- ^ A function that computes the extra cost corresponding to a given
-        -- selection. This function must not depend on the magnitudes of
-        -- individual asset quantities held within each change output.
-    -> TokenBundleSizeAssessor
-        -- ^ A function that assesses the size of a token bundle. See the
-        -- documentation for 'TokenBundleSizeAssessor' to learn about the
-        -- expected properties of this function.
-    -> SelectionCriteria
-        -- ^ The selection goal to satisfy.
+    => PerformSelection
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection minCoinFor costFor bundleSizeAssessor criteria
+performSelection params
     -- Is the minted value all spent or burnt?
     | not (assetsToMint `leq` (assetsToBurn <> requestedOutputAssets)) =
         pure $ Left $ OutputsInsufficient $ OutputsInsufficientError
@@ -521,14 +532,8 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
                 , balanceRequired
                 }
   where
-    SelectionCriteria
-        { outputsToCover
-        , utxoAvailable
-        , selectionLimit
-        , extraCoinSource
-        , assetsToMint
-        , assetsToBurn
-        } = criteria
+    PerformSelection
+        minCoinFor costFor bundleSizeAssessor SelectionCriteria{..} = params
 
     requestedOutputs = F.foldMap (view #tokens) outputsToCover
     requestedOutputAssets = view #tokens requestedOutputs
@@ -1104,7 +1109,7 @@ makeChange
         -- ^ Criteria for making change.
     -> Either UnableToConstructChangeError [TokenBundle]
         -- ^ Generated change bundles.
-makeChange criteria
+makeChange MakeChangeCriteria{..}
     | not (totalOutputValue `leq` totalInputValue) =
         totalInputValueInsufficient
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
@@ -1115,17 +1120,6 @@ makeChange criteria
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs
   where
-    MakeChangeCriteria
-        { minCoinFor
-        , bundleSizeAssessor
-        , requiredCost
-        , extraCoinSource
-        , inputBundles
-        , outputBundles
-        , assetsToMint
-        , assetsToBurn
-        } = criteria
-
     -- The following subtraction is safe, as we have already checked
     -- that the total input value is greater than the total output
     -- value:

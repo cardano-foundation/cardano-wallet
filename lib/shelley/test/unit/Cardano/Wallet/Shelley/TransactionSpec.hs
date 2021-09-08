@@ -50,9 +50,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionError (..) )
+    ( ErrWalletSelection (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionResult (..)
+    ( SelectionError (..)
+    , SelectionResult (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , selectionDelta
@@ -183,7 +184,6 @@ import Test.QuickCheck.Random
     ( mkQCGen )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
@@ -385,10 +385,10 @@ spec = do
     it "regression #1740 - fee estimation at the boundaries" $ do
         let requiredCost = Coin 166029
         let runSelection = except $ Left
-                $ ErrSelectAssetsSelectionError
-                $ SelectionBalanceError
-                $ Balance.UnableToConstructChange
-                $ Balance.UnableToConstructChangeError
+                $ ErrSelectAssets
+                $ ErrWalletSelectionBalance
+                $ UnableToConstructChange
+                $ UnableToConstructChangeError
                     { requiredCost
                     , shortfall = Coin 100000
                     }

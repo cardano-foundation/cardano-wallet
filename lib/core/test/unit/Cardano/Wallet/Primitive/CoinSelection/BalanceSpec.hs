@@ -28,6 +28,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
     , OutputsInsufficientError (..)
+    , PerformSelection (..)
     , SelectionCriteria (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
@@ -88,7 +89,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , genAssetIdLargeRange
     , genTokenMapSmallRange
     , shrinkAssetId
-    , shrinkTokenMapSmallRange
+    , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
@@ -847,7 +848,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "assetsToBurn:"
             , pretty (Flat assetsToBurn)
             ]
-        result <- run $ performSelection
+        result <- run $ performSelection $ PerformSelection
             (mkMinCoinValueFor minCoinValueFor)
             (mkCostFor costFor)
             (mkBundleSizeAssessor NoBundleSizeLimit)
@@ -1069,7 +1070,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         let criteria' = criteria { selectionLimit = NoLimit }
         let assessBundleSize =
                 mkBundleSizeAssessor NoBundleSizeLimit
-        let performSelection' = performSelection
+        let performSelection' = performSelection $ PerformSelection
                 noMinCoin (const noCost) assessBundleSize criteria'
         run performSelection' >>= \case
             Left e' -> do
@@ -1445,7 +1446,7 @@ type BoundaryTestEntry = (Coin, [(AssetId, TokenQuantity)])
 
 mkBoundaryTestExpectation :: BoundaryTestData -> Expectation
 mkBoundaryTestExpectation (BoundaryTestData criteria expectedResult) = do
-    actualResult <- performSelection
+    actualResult <- performSelection $ PerformSelection
         (noMinCoin)
         (mkCostFor NoCost)
         (mkBundleSizeAssessor $ boundaryTestBundleSizeAssessor criteria)
@@ -1972,7 +1973,7 @@ makeChangeWith
     -> Either UnableToConstructChangeError [TokenBundle]
 makeChangeWith p = makeChange p
     { minCoinFor = mkMinCoinValueFor $ minCoinFor p
-    , bundleSizeAssessor = mkBundleSizeAssessor $ bundleSizeAssessor p
+    , bundleSizeAssessor = mkBundleSizeAssessor $ view #bundleSizeAssessor p
     }
 
 prop_makeChange_identity
@@ -3587,7 +3588,7 @@ instance Arbitrary SelectionLimit where
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
-    shrink = shrinkTokenMapSmallRange
+    shrink = shrinkTokenMap
 
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityPositive

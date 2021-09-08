@@ -355,7 +355,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
     , ErrPrepareOutputs (..)
-    , SelectionError (..)
+    , ErrWalletSelection (..)
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionResult (..)
@@ -2167,7 +2167,8 @@ delegationFee ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         w <- withExceptT ErrSelectAssetsNoSuchWallet $
             W.readWalletUTxOIndex @_ @s @k wrk wid
-        deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
+        deposit <- withExceptT ErrSelectAssetsNoSuchWallet $
+            W.calcMinimumDeposit @_ @s @k wrk wid
         mkApiFee (Just deposit) [] <$> W.estimateFee (runSelection wrk deposit w)
   where
     txCtx :: TransactionCtx
@@ -3739,6 +3740,9 @@ instance IsServerError ErrPrepareOutputs where
             toServerError e
         ErrPrepareOutputsTokenQuantityExceedsLimit e ->
             toServerError e
+        ErrPrepareOutputsTxOutMissing ->
+            apiError err400 InvalidCoinSelection
+                "The coin selection request did not include any outputs."
 
 instance IsServerError ErrOutputTokenBundleSizeExceedsLimit where
     toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
@@ -3783,7 +3787,6 @@ instance IsServerError ErrCreateMigrationPlan where
 
 instance IsServerError ErrSelectAssets where
     toServerError = \case
-        ErrSelectAssetsPrepareOutputsError e -> toServerError e
         ErrSelectAssetsNoSuchWallet e -> toServerError e
         ErrSelectAssetsAlreadyWithdrawing tx ->
             apiError err403 AlreadyWithdrawing $ mconcat
@@ -3795,7 +3798,7 @@ instance IsServerError ErrSelectAssets where
                 , "transaction; if, for some reason, you really want a new "
                 , "transaction, then cancel the previous one first."
                 ]
-        ErrSelectAssetsSelectionError (SelectionBalanceError selectionError) ->
+        ErrSelectAssets (ErrWalletSelectionBalance selectionError) ->
             case selectionError of
                 Balance.BalanceInsufficient e ->
                     apiError err403 NotEnoughMoney $ mconcat
@@ -3838,7 +3841,7 @@ instance IsServerError ErrSelectAssets where
                         , "ada to proceed. Try increasing your wallet balance"
                         , "or sending a smaller amount."
                         ]
-        ErrSelectAssetsSelectionError (SelectionOutputsError selectionError) ->
+        ErrSelectAssets (ErrWalletSelectionOutputs selectionError) ->
             toServerError selectionError
 
 instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where

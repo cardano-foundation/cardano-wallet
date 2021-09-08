@@ -3,12 +3,15 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
 --
--- This module provides a high-level interface for coin selection.
+-- This module provides a high-level interface for coin selection in a Cardano
+-- wallet.
 --
 -- It handles the following responsibilities:
 --
@@ -20,29 +23,36 @@
 -- Use the 'performSelection' function to perform a coin selection.
 --
 module Cardano.Wallet.Primitive.CoinSelection
-    ( performSelection
+    ( runWalletCoinSelection
     , SelectionConstraints (..)
     , SelectionParams (..)
-    , SelectionError (..)
 
-    , prepareOutputs
+    , validateTxOutsForSelection
+    , ErrWalletSelection (..)
     , ErrPrepareOutputs (..)
     , ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
+
+    -- * Internals
+    , makeWrapper
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionCriteria (..)
+    ( PerformSelection (..)
+    , SelectionCriteria (..)
+    , SelectionError
     , SelectionLimit
     , SelectionResult
     , SelectionSkeleton
+    , performSelection
+    , prepareOutputsWith
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -52,15 +62,17 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
-    , TxOut
+    , TxOut (..)
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
+import Control.Monad
+    ( (<=<) )
 import Control.Monad.Random.Class
     ( MonadRandom )
-import Data.Bifunctor
-    ( first )
+import Control.Monad.Trans.Except
+    ( ExceptT (..), withExceptT )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -73,14 +85,16 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Numeric.Natural
+    ( Natural )
 
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 
--- | Performs a coin selection.
+-- | Performs coin selection for a Cardano transaction.
 --
 -- This function has the following responsibilities:
 --
@@ -89,51 +103,52 @@ import qualified Data.Set as Set
 --  - producing change outputs to return excess value to the wallet;
 --  - balancing a selection to pay for the transaction fee.
 --
-performSelection
+runWalletCoinSelection
     :: (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
-    -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection selectionConstraints selectionParams =
-    -- TODO:
-    --
-    -- https://input-output.atlassian.net/browse/ADP-1037
-    -- Adjust coin selection and fee estimation to handle collateral inputs
-    --
-    -- https://input-output.atlassian.net/browse/ADP-1070
-    -- Adjust coin selection and fee estimation to handle pre-existing inputs
-    --
-    case prepareOutputs selectionConstraints outputsToCover of
-        Left e ->
-            pure $ Left $ SelectionOutputsError e
-        Right preparedOutputsToCover ->
-            first SelectionBalanceError <$> Balance.performSelection
-                computeMinimumAdaQuantity
-                computeMinimumCost
-                assessTokenBundleSize
-                SelectionCriteria
-                    { assetsToBurn
-                    , assetsToMint
-                    , extraCoinSource = rewardWithdrawal
-                    , outputsToCover = preparedOutputsToCover
-                    , selectionLimit =
-                        computeSelectionLimit $ F.toList preparedOutputsToCover
-                    , utxoAvailable
-                    }
+    -> ExceptT ErrWalletSelection m (SelectionResult TokenBundle)
+runWalletCoinSelection sc sp = do
+    (postProcess, params) <- withExceptT ErrWalletSelectionOutputs $ ExceptT $
+        pure $ makeWrapper sc sp
+    withExceptT ErrWalletSelectionBalance $ ExceptT $
+        postProcess <$> performSelection params
+
+type SelectionReturn = Either SelectionError (SelectionResult TokenBundle)
+
+makeWrapper
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Either ErrPrepareOutputs (SelectionReturn -> SelectionReturn, PerformSelection)
+makeWrapper sc@SelectionConstraints{..} SelectionParams{..} =
+    (id,) . getArgs <$> prepareOutputs outputsToCover
   where
-    SelectionConstraints
-        { assessTokenBundleSize
-        , computeMinimumAdaQuantity
+    -- TODO: [ADP-1037] Adjust coin selection and fee estimation to handle
+    -- collateral inputs.
+    --
+    -- TODO: [ADP-1070] Adjust coin selection and fee estimation to handle
+    -- pre-existing inputs.
+    getArgs outputsToCover' = PerformSelection
+        { computeMinimumAdaQuantity
         , computeMinimumCost
-        , computeSelectionLimit
-        } = selectionConstraints
-    SelectionParams
-        { assetsToBurn
-        , assetsToMint
-        , outputsToCover
-        , rewardWithdrawal
-        , utxoAvailable
-        } = selectionParams
+        , bundleSizeAssessor
+        , selectionCriteria = SelectionCriteria
+            { outputsToCover = outputsToCover'
+            , utxoAvailable
+            , selectionLimit = computeSelectionLimit $ F.toList outputsToCover'
+            , extraCoinSource = Just rewardWithdrawals
+            , assetsToMint
+            , assetsToBurn
+            }
+        }
+
+    prepareOutputs :: [TxOut] -> Either ErrPrepareOutputs (NonEmpty TxOut)
+    prepareOutputs = (validateTxOutsForSelection sc <=< ensureNonEmptyOutputs)
+
+    -- At present, the coin selection algorithm does not permit an empty output
+    -- list, so validate for this precondition.
+    ensureNonEmptyOutputs =
+        maybe (Left ErrPrepareOutputsTxOutMissing) Right . NE.nonEmpty
 
 -- | Specifies all constraints required for coin selection.
 --
@@ -147,7 +162,7 @@ performSelection selectionConstraints selectionParams =
 --    - are not specific to a given selection.
 --
 data SelectionConstraints = SelectionConstraints
-    { assessTokenBundleSize
+    { bundleSizeAssessor
         :: TokenBundleSizeAssessor
         -- ^ Assesses the size of a token bundle relative to the upper limit of
         -- what can be included in a transaction output. See documentation for
@@ -167,6 +182,10 @@ data SelectionConstraints = SelectionConstraints
         :: Word16
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
         -- that can be selected as collateral.
+    , depositAmount
+        :: Coin
+        -- ^ Amount that should be taken from/returned back to the wallet for
+        -- each stake key registration/de-registration in the transaction.
     }
 
 -- | Specifies all parameters that are specific to a given selection.
@@ -178,12 +197,18 @@ data SelectionParams = SelectionParams
     , assetsToMint
         :: !TokenMap
         -- ^ Specifies a set of assets to mint.
-    , outputsToCover
-        :: !(NonEmpty TxOut)
-        -- ^ Specifies a set of outputs that must be paid for.
-    , rewardWithdrawal
-        :: !(Maybe Coin)
+    , rewardWithdrawals
+        :: !Coin
         -- ^ Specifies the value of a withdrawal from a reward account.
+    , certificateDepositsTaken
+        :: !Natural
+        -- ^ Number of deposits for stake key registrations.
+    , certificateDepositsReturned
+        :: !Natural
+        -- ^ Number of deposits from stake key de-registrations.
+    , outputsToCover
+        :: ![TxOut]
+        -- ^ Specifies a set of outputs that must be paid for.
     , utxoAvailable
         :: !UTxOIndex
         -- ^ Specifies the set of all available UTxO entries. The algorithm
@@ -192,20 +217,19 @@ data SelectionParams = SelectionParams
     }
     deriving (Eq, Generic, Show)
 
--- | Indicates that an error occurred while performing a coin selection.
---
-data SelectionError
-    = SelectionBalanceError Balance.SelectionError
-    | SelectionOutputsError ErrPrepareOutputs
+-- | Indicates that coin selection failed, or a precondition to coin selection
+-- failed.
+data ErrWalletSelection
+    = ErrWalletSelectionOutputs ErrPrepareOutputs
+    | ErrWalletSelectionBalance SelectionError
     deriving (Eq, Show)
 
 -- | Prepares the given user-specified outputs, ensuring that they are valid.
---
-prepareOutputs
+validateTxOutsForSelection
     :: SelectionConstraints
     -> NonEmpty TxOut
     -> Either ErrPrepareOutputs (NonEmpty TxOut)
-prepareOutputs constraints outputsUnprepared
+validateTxOutsForSelection constraints outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
             -- We encountered one or more excessively large token bundles.
@@ -223,11 +247,10 @@ prepareOutputs constraints outputsUnprepared
                 , quantity
                 , quantityMaxBound = txOutMaxTokenQuantity
                 }
-    | otherwise =
-        pure outputsToCover
+    | otherwise = pure outputsToCover
   where
     SelectionConstraints
-        { assessTokenBundleSize
+        { bundleSizeAssessor
         , computeMinimumAdaQuantity
         } = constraints
 
@@ -248,7 +271,7 @@ prepareOutputs constraints outputsUnprepared
             TokenBundleSizeWithinLimit -> False
             OutputTokenBundleSizeExceedsLimit -> True
           where
-            assessSize = view #assessTokenBundleSize assessTokenBundleSize
+            assessSize = view #assessTokenBundleSize bundleSizeAssessor
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
@@ -262,8 +285,8 @@ prepareOutputs constraints outputsUnprepared
         , quantity > txOutMaxTokenQuantity
         ]
 
-    outputsToCover =
-        Balance.prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
+    outputsToCover = prepareOutputsWith computeMinimumAdaQuantity
+        outputsUnprepared
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
@@ -272,6 +295,7 @@ data ErrPrepareOutputs
         ErrOutputTokenBundleSizeExceedsLimit
     | ErrPrepareOutputsTokenQuantityExceedsLimit
         ErrOutputTokenQuantityExceedsLimit
+    | ErrPrepareOutputsTxOutMissing
     deriving (Eq, Generic, Show)
 
 data ErrOutputTokenBundleSizeExceedsLimit = ErrOutputTokenBundleSizeExceedsLimit

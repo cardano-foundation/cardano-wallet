@@ -65,6 +65,10 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
+import Fmt
+    ( Buildable (..), blockMapF, genericF, listF' )
 import GHC.Generics
     ( Generic )
 
@@ -161,17 +165,8 @@ data TransactionCtx = TransactionCtx
     -- ^ An additional delegation to take.
     } deriving (Show, Generic, Eq)
 
-data Withdrawal
-    = WithdrawalSelf !RewardAccount !(NonEmpty DerivationIndex) !Coin
-    | WithdrawalExternal !RewardAccount !(NonEmpty DerivationIndex) !Coin
-    | NoWithdrawal
-    deriving (Show, Eq)
-
-withdrawalToCoin :: Withdrawal -> Coin
-withdrawalToCoin = \case
-    WithdrawalSelf _ _ c -> c
-    WithdrawalExternal _ _ c -> c
-    NoWithdrawal -> Coin 0
+instance Buildable TransactionCtx where
+    build = genericF
 
 -- | A default context with sensible placeholder. Can be used to reduce
 -- repetition for changing only sub-part of the default context.
@@ -183,9 +178,43 @@ defaultTransactionCtx = TransactionCtx
     , txDelegationAction = Nothing
     }
 
+-- | A specification from the user as to whether a transaction should include a
+-- reward account withdrawal, and if so, from which reward account.
+data Withdrawal
+    = WithdrawalSelf !RewardAccount !(NonEmpty DerivationIndex) !Coin
+    -- ^ Withdraw from a reward account belonging to this wallet.
+    | WithdrawalExternal !RewardAccount !(NonEmpty DerivationIndex) !Coin
+    -- ^ Withdraw from a reward account belonging to another wallet.
+    | NoWithdrawal
+    -- ^ Don't withdraw anything in this transaction.
+    deriving (Show, Eq)
+
+instance Buildable Withdrawal where
+    build = \case
+        NoWithdrawal -> "None"
+        WithdrawalSelf acct ix amt -> format "this wallet" acct ix amt
+        WithdrawalExternal acct ix amt -> format "other wallet" acct ix amt
+      where
+        format f acct ix amt = blockMapF
+            [ ("From" :: Text, f)
+            , ("Reward Account", build acct)
+            , ("Derivation Index", listF' (build . toText) ix)
+            , ("Amount", build amt)
+            ]
+
+-- | The amount expected to be withdrawn, or zero if no withdrawal.
+withdrawalToCoin :: Withdrawal -> Coin
+withdrawalToCoin = \case
+    WithdrawalSelf _ _ c -> c
+    WithdrawalExternal _ _ c -> c
+    NoWithdrawal -> Coin 0
+
 -- | Whether the user is attempting any particular delegation action.
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
     deriving (Show, Eq, Generic)
+
+instance Buildable DelegationAction where
+    build = genericF
 
 -- | Error while trying to decode externally signed transaction
 data ErrDecodeSignedTx

@@ -6,8 +6,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Gen
     , genSelectionSkeleton
     , shrinkSelectionLimit
     , shrinkSelectionSkeleton
-    )
-    where
+    ) where
 
 import Prelude
 

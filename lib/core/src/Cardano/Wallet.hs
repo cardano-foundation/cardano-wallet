@@ -223,7 +223,9 @@ import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
     , bracketTracer
-    , resultTracer
+    , formatResultMsgWith
+    , resultSeverity
+    , traceResult
     , traceWithExceptT
     , unliftIOTracer
     )
@@ -294,15 +296,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , isShared
     )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( ErrPrepareOutputs (..)
+    ( ErrWalletSelection (..)
     , SelectionConstraints (..)
-    , SelectionError (..)
     , SelectionParams (..)
-    , performSelection
+    , runWalletCoinSelection
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionReportDetailed
-    , SelectionReportSummarized
+    ( SelectionError (..)
     , SelectionResult (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
@@ -482,7 +482,7 @@ import Data.Void
 import Data.Word
     ( Word64 )
 import Fmt
-    ( blockListF, pretty, (+|), (+||), (|+), (||+) )
+    ( blockListF, build, fmt, nameF, pretty, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 import Safe
@@ -500,7 +500,6 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1394,7 +1393,7 @@ selectAssetsNoOutputs
     -> ExceptT ErrSelectAssets IO result
 selectAssetsNoOutputs ctx wid wal tx transform = do
     -- NOTE:
-    -- Could be made nicer by allowing 'performSelection' to run with no target
+    -- Could be made nicer by allowing 'runWalletCoinSelection' to run with no target
     -- outputs, but to satisfy a minimum Ada target.
     --
     -- To work-around this immediately, I am simply creating a dummy output of
@@ -1402,7 +1401,8 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
     -- result. The resulting selection will therefore have a delta that is at
     -- least the size of the deposit (in practice, slightly bigger because this
     -- extra outputs also increases the apparent minimum fee).
-    deposit <- calcMinimumDeposit @_ @s @k ctx wid
+    deposit <- withExceptT ErrSelectAssetsNoSuchWallet $
+        calcMinimumDeposit @_ @s @k ctx wid
     let dummyAddress = Address ""
     let dummyOutput  = TxOut dummyAddress (TokenBundle.fromCoin deposit)
     let outs = dummyOutput :| []
@@ -1502,50 +1502,48 @@ selectAssets
     -> NonEmpty TxOut
     -> (s -> SelectionResult TokenBundle -> result)
     -> ExceptT ErrSelectAssets IO result
-selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
-    guardPendingWithdrawal
-    pp <- liftIO $ currentProtocolParameters nl
-    liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outputs
-    mSel <- performSelection
-        SelectionConstraints
-            { assessTokenBundleSize =
-                tokenBundleSizeAssessor tl $
-                    pp ^. (#txParameters . #getTokenBundleMaxSize)
-            , computeMinimumAdaQuantity =
-                view #txOutputMinimumAdaQuantity $ constraints tl pp
-            , computeMinimumCost =
-                calcMinimumCost tl pp txCtx
-            , computeSelectionLimit =
-                view #computeSelectionLimit tl pp txCtx
-            , maximumCollateralInputCount =
-                view #maximumCollateralInputCount pp
-            }
-        SelectionParams
-            { -- Until we properly support minting and burning, set to empty:
-              assetsToBurn = TokenMap.empty
-            , assetsToMint = TokenMap.empty
-            , outputsToCover = outputs
-            , rewardWithdrawal = Just
-                $ addCoin (withdrawalToCoin $ view #txWithdrawal txCtx)
-                $ case view #txDelegationAction txCtx of
-                    Just Quit -> stakeKeyDeposit pp
-                    _ -> Coin 0
-            , utxoAvailable
-            }
-    case mSel of
-        Left e -> liftIO $
-            traceWith tr $ MsgSelectionError e
-        Right sel -> liftIO $ do
-            traceWith tr $ MsgSelectionReportSummarized
-                $ makeSelectionReportSummarized sel
-            traceWith tr $ MsgSelectionReportDetailed
-                $ makeSelectionReportDetailed sel
-    withExceptT ErrSelectAssetsSelectionError $ except $
-        transform (getState cp) <$> mSel
+selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs' transform = do
+    sel <- traceResult trSelect $ do
+        guardPendingWithdrawal
+        pp <- liftIO $ currentProtocolParameters nl
+        withExceptT ErrSelectAssets $ runWalletCoinSelection
+            SelectionConstraints
+                { bundleSizeAssessor =
+                    tokenBundleSizeAssessor tl $
+                        view (#txParameters . #getTokenBundleMaxSize) pp
+                , computeMinimumAdaQuantity =
+                    view #txOutputMinimumAdaQuantity $ constraints tl pp
+                , computeMinimumCost =
+                    calcMinimumCost tl pp txCtx
+                , computeSelectionLimit =
+                    view #computeSelectionLimit tl pp txCtx
+                , maximumCollateralInputCount =
+                    view #maximumCollateralInputCount pp
+                , depositAmount =
+                    view #stakeKeyDeposit pp
+                }
+            SelectionParams
+                { assetsToBurn = TokenMap.empty -- TODO: [ADP-861]
+                , assetsToMint = TokenMap.empty -- TODO: [ADP-861]
+                , outputsToCover = outputs
+                , rewardWithdrawals =
+                    addCoin (withdrawalToCoin $ view #txWithdrawal txCtx) $
+                    case view #txDelegationAction txCtx of
+                        Just Quit -> stakeKeyDeposit pp
+                        _ -> Coin 0
+                , certificateDepositsReturned = 0 -- TODO: [ADP-919]
+                , certificateDepositsTaken = 0  -- TODO: [ADP-919]
+                , utxoAvailable
+                }
+    liftIO $ traceWith tr $ MsgSelectionDetail sel
+    pure $ transform (getState cp) sel
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
     tr = contramap MsgWallet $ ctx ^. logger
+    trSelect = contramap (MsgSelectAssets utxoAvailable txCtx outputs) tr
+
+    outputs = NE.toList outputs'
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
@@ -1560,9 +1558,9 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
                     throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal
             _otherwise ->
                 pure ()
-      where
-        hasWithdrawal :: Tx -> Bool
-        hasWithdrawal = not . null . withdrawals
+
+    hasWithdrawal :: Tx -> Bool
+    hasWithdrawal = not . null . withdrawals
 
 signTransaction
     :: forall ctx s k.
@@ -1797,14 +1795,13 @@ submitExternalTx ctx bytes = do
     era <- liftIO $ currentNodeEra nw
     (tx, binary) <- withExceptT ErrSubmitExternalTxDecode $ except $
         decodeSignedTx tl era bytes
-    withExceptT ErrSubmitExternalTxNetwork $ traceResult (tx ^. #txId) $
+    withExceptT ErrSubmitExternalTxNetwork $ traceWithExceptT (trPost tx) $
         postTx nw binary
     return tx
   where
     nw = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
-    tr = ctx ^. logger
-    traceResult i = traceWithExceptT (contramap (MsgPostTxResult i) tr)
+    trPost tx = contramap (MsgPostTxResult (tx ^. #txId)) (ctx ^. logger)
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
@@ -2174,14 +2171,11 @@ calcMinimumDeposit
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrSelectAssets IO Coin
+    -> ExceptT ErrNoSuchWallet IO Coin
 calcMinimumDeposit ctx wid = db & \DBLayer{..} ->
-    withExceptT ErrSelectAssetsNoSuchWallet $ do
-        mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
-            True ->
-                pure $ Coin 0
-            False ->
-                liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
+    mapExceptT atomically (isStakeKeyRegistered wid) >>= \case
+        True -> pure $ Coin 0
+        False -> liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
   where
     db = ctx ^. dbLayer @IO @s @k
     nl = ctx ^. networkLayer
@@ -2234,8 +2228,8 @@ estimateFee
     -- enough in the wallet to cover for these fees.
     handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Coin
     handleCannotCover = \case
-        e@(ErrSelectAssetsSelectionError se) -> case se of
-            SelectionBalanceError (Balance.UnableToConstructChange ce) ->
+        e@(ErrSelectAssets se) -> case se of
+            ErrWalletSelectionBalance (UnableToConstructChange ce) ->
                 case ce of
                     UnableToConstructChangeError {requiredCost} ->
                         pure requiredCost
@@ -2681,10 +2675,9 @@ data ErrCreateMigrationPlan
     deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
-    = ErrSelectAssetsPrepareOutputsError ErrPrepareOutputs
+    = ErrSelectAssets ErrWalletSelection
     | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
-    | ErrSelectAssetsSelectionError SelectionError
     deriving (Generic, Eq, Show)
 
 data ErrJoinStakePool
@@ -2842,10 +2835,8 @@ data WalletFollowLog
 
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
-    = MsgSelectionStart UTxOIndex (NonEmpty TxOut)
-    | MsgSelectionError SelectionError
-    | MsgSelectionReportSummarized SelectionReportSummarized
-    | MsgSelectionReportDetailed SelectionReportDetailed
+    = MsgSelectAssets UTxOIndex TransactionCtx [TxOut] (BracketLog' (Either ErrSelectAssets (SelectionResult TokenBundle)))
+    | MsgSelectionDetail (SelectionResult TokenBundle)
     | MsgMigrationUTxOBefore UTxOStatistics
     | MsgMigrationUTxOAfter UTxOStatistics
     | MsgRewardBalanceQuery BlockHeader
@@ -2885,20 +2876,22 @@ instance ToText WalletFollowLog where
 
 instance ToText WalletLog where
     toText = \case
-        MsgSelectionStart utxo recipients ->
-            "Starting coin selection " <>
-            "|utxo| = "+|UTxOIndex.size utxo|+" " <>
-            "#recipients = "+|NE.length recipients|+""
-        MsgSelectionError e ->
-            "Failed to select assets:\n"+|| e ||+""
-        MsgSelectionReportSummarized s ->
-            "Selection report (summarized):\n"+| s |+""
-        MsgSelectionReportDetailed s ->
-            "Selection report (detailed):\n"+| s |+""
+        MsgSelectAssets utxo txCtx recipients b -> fmt $ formatResultMsgWith
+            (\e -> "Failed to select assets: "+||e||+"")
+            (nameF "Selection report (summary)" . build
+                . makeSelectionReportSummarized)
+            "selectAssets"
+            [ ("context", build txCtx)
+            , ("|utxo|", build (UTxOIndex.size utxo))
+            , ("#recipients", build (length recipients))
+            ] b
+        MsgSelectionDetail sel -> fmt $
+            nameF "Selection report (detailed)" $
+            build $ makeSelectionReportDetailed sel
         MsgMigrationUTxOBefore summary ->
-            "About to migrate the following distribution: \n" <> pretty summary
+            "About to migrate the following distribution:\n"+|summary|+""
         MsgMigrationUTxOAfter summary ->
-            "Expected distribution after complete migration: \n" <> pretty summary
+            "Expected distribution after complete migration:\n"+|summary|+""
         MsgRewardBalanceQuery bh ->
             "Updating the reward balance for block " <> pretty bh
         MsgRewardBalanceResult (Right amt) ->
@@ -2931,10 +2924,8 @@ instance HasSeverityAnnotation WalletFollowLog where
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
     getSeverityAnnotation = \case
-        MsgSelectionStart{} -> Debug
-        MsgSelectionError{} -> Debug
-        MsgSelectionReportSummarized{} -> Info
-        MsgSelectionReportDetailed{} -> Debug
+        MsgSelectAssets _ _ _ b -> resultSeverity Debug b
+        MsgSelectionDetail _ -> Debug
         MsgMigrationUTxOBefore _ -> Info
         MsgMigrationUTxOAfter _ -> Info
         MsgRewardBalanceQuery _ -> Debug
