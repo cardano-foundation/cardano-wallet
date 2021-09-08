@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 -- |
 -- Copyright: © 2020-2021 IOHK
 -- License: Apache-2.0
@@ -14,10 +16,15 @@ module Cardano.Wallet.Util
     -- ** Handling errors for "impossible" situations.
     , isInternalError
     , tryInternalError
+
+    -- * String formatting
+    , ShowFmt (..)
     ) where
 
 import Prelude
 
+import Control.DeepSeq
+    ( NFData (..) )
 import Control.Exception
     ( ErrorCall, displayException )
 import Control.Monad.IO.Unlift
@@ -84,3 +91,17 @@ isInternalError (displayException -> msg)
 -- that's what normal IO exceptions are for.
 tryInternalError :: MonadUnliftIO m => a -> m (Either String a)
 tryInternalError = tryJust isInternalError . evaluate
+
+{-------------------------------------------------------------------------------
+                               Formatting helpers
+-------------------------------------------------------------------------------}
+
+-- | A polymorphic wrapper type with a custom show instance to display data
+-- through 'Buildable' instances.
+newtype ShowFmt a = ShowFmt { unShowFmt :: a }
+    deriving (Generic, Eq, Ord)
+
+instance NFData a => NFData (ShowFmt a)
+
+instance Buildable a => Show (ShowFmt a) where
+    show (ShowFmt a) = fmt (build a)

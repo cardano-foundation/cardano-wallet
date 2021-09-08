@@ -75,12 +75,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     , role
     )
-import Cardano.Wallet.Primitive.Types
-    ( ShowFmt (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
+import Cardano.Wallet.Util
+    ( ShowFmt (..) )
 import Control.Arrow
     ( first )
 import Control.Monad

@@ -282,7 +282,6 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
-    , ShowFmt (..)
     , SlotInEpoch (..)
     , SlotLength (..)
     , SlotNo (..)
@@ -316,6 +315,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataError (..) )
+import Cardano.Wallet.Util
+    ( ShowFmt (..) )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Codec.Binary.Bech32.TH
