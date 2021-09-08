@@ -22,6 +22,7 @@ module Test.QuickCheck.Extra
 
       -- * Counterexamples
     , report
+    , verify
 
       -- * Utilities
     , interleaveRoundRobin
@@ -42,9 +43,11 @@ import Test.QuickCheck
     , liftArbitrary2
     , liftShrink2
     , listOf
+    , property
     , scale
     , shrinkList
     , shrinkMapBy
+    , (.&&.)
     )
 import Test.Utils.Pretty
     ( pShowBuilder )
@@ -193,3 +196,13 @@ shrinkMapWith shrinkKey shrinkValue
 report :: (Show a, Testable prop) => a -> String -> prop -> Property
 report a name = counterexample $
     "" +|name|+ ":\n" +|indentF 4 (pShowBuilder a) |+ ""
+
+-- | Adds a named condition to a property.
+--
+-- On failure, reports the name of the condition that failed.
+--
+verify :: Bool -> String -> Property -> Property
+verify condition conditionTitle =
+    (.&&.) (counterexample counterexampleText $ property condition)
+  where
+    counterexampleText = "Condition violated: " <> conditionTitle

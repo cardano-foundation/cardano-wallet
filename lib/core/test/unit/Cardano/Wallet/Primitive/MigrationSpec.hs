@@ -16,7 +16,6 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     , genTokenBundleMixed
     , testAll
     , unMockTxConstraints
-    , verify
     )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddress )
@@ -40,6 +39,8 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Blind (..), Gen, Property, choose, forAllBlind, property )
+import Test.QuickCheck.Extra
+    ( verify )
 
 import qualified Cardano.Wallet.Primitive.Migration.Planning as Planning
 import qualified Data.List.NonEmpty as NE

@@ -89,7 +89,6 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , choose
-    , counterexample
     , cover
     , elements
     , forAllBlind
@@ -101,10 +100,9 @@ import Test.QuickCheck
     , suchThatMap
     , vectorOf
     , withMaxSuccess
-    , (.&&.)
     )
 import Test.QuickCheck.Extra
-    ( report )
+    ( report, verify )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1044,16 +1042,6 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
 --------------------------------------------------------------------------------
 -- Internal types and functions
 --------------------------------------------------------------------------------
-
--- | Adds a named condition to a property.
---
--- On failure, reports the name of the condition that failed.
---
-verify :: Bool -> String -> Property -> Property
-verify condition conditionTitle =
-    (.&&.) (counterexample counterexampleText $ property condition)
-  where
-    counterexampleText = "Condition violated: " <> conditionTitle
 
 -- | Tests a collection of properties defined with 'verify'.
 --

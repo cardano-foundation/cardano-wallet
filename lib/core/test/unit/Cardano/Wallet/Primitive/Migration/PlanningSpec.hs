@@ -30,7 +30,6 @@ import Cardano.Wallet.Primitive.Migration.SelectionSpec
     , shrinkMockInput
     , testAll
     , unMockTxConstraints
-    , verify
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -72,7 +71,7 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( report )
+    ( report, verify )
 import Test.Utils.Pretty
     ( Pretty (..) )
 
