@@ -97,7 +97,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , genAssetIdLargeRange
     , genTokenMapSmallRange
     , shrinkAssetId
-    , shrinkTokenMapSmallRange
+    , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
@@ -3721,7 +3721,7 @@ instance Arbitrary SelectionState where
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
-    shrink = shrinkTokenMapSmallRange
+    shrink = shrinkTokenMap
 
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantityPositive

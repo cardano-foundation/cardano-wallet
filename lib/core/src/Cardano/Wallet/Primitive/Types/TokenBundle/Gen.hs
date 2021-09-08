@@ -19,7 +19,7 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange, genTokenMapSmallRange, shrinkTokenMapSmallRange )
+    ( genAssetIdLargeRange, genTokenMapSmallRange, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -86,7 +86,7 @@ shrinkTokenBundleSmallRange :: TokenBundle -> [TokenBundle]
 shrinkTokenBundleSmallRange (TokenBundle c m) =
     uncurry TokenBundle <$> shrinkInterleaved
         (c, shrinkCoin)
-        (m, shrinkTokenMapSmallRange)
+        (m, shrinkTokenMap)
 
 genTokenBundleSmallRangePositive :: Gen TokenBundle
 genTokenBundleSmallRangePositive = TokenBundle
@@ -97,4 +97,4 @@ shrinkTokenBundleSmallRangePositive :: TokenBundle -> [TokenBundle]
 shrinkTokenBundleSmallRangePositive (TokenBundle c m) =
     uncurry TokenBundle <$> shrinkInterleaved
         (c, shrinkCoinPositive)
-        (m, shrinkTokenMapSmallRange)
+        (m, shrinkTokenMap)

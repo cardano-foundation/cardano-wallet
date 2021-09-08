@@ -253,7 +253,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, genTokenMapSmallRange, shrinkTokenMapSmallRange )
+    ( genAssetId, genTokenMapSmallRange, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetDecimals (..)
     , AssetLogo (..)
@@ -2233,7 +2233,7 @@ instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRange
 
 instance Arbitrary TokenMap where
-    shrink = shrinkTokenMapSmallRange
+    shrink = shrinkTokenMap
     arbitrary = genTokenMapSmallRange
 
 instance Arbitrary TxOut where
