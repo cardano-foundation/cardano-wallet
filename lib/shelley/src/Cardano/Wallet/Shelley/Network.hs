@@ -71,6 +71,7 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
+    , ToCardanoGenTx (..)
     , fromAlonzoPParams
     , fromCardanoHash
     , fromChainHash
@@ -88,7 +89,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , toPoint
     , toShelleyCoin
     , toStakeCredential
-    , unsealShelleyTx
     )
 import Control.Applicative
     ( liftA3 )
@@ -260,6 +260,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( Handler (..), IOException )
 
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Wallet.Primitive.SyncProgress as SyncProgress
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -473,27 +474,27 @@ withNetworkLayerBase tr np conn versionData tol action = do
                 throwE $ ErrPostTxProtocolFailure "Invalid era: Byron"
 
             AnyCardanoEra ShelleyEra -> do
-                let cmd = CmdSubmitTx $ unsealShelleyTx GenTxShelley tx
+                let cmd = CmdSubmitTx $ toCardanoGenTx @Cardano.ShelleyEra tx
                 result <- liftIO $ localTxSubmissionQ `send` cmd
                 case result of
                     SubmitSuccess -> pure ()
                     SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
             AnyCardanoEra AllegraEra -> do
-                let cmd = CmdSubmitTx $ unsealShelleyTx GenTxAllegra tx
+                let cmd = CmdSubmitTx $ toCardanoGenTx @Cardano.AllegraEra tx
                 result <- liftIO $ localTxSubmissionQ `send` cmd
                 case result of
                     SubmitSuccess -> pure ()
                     SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
             AnyCardanoEra MaryEra -> do
-                let cmd = CmdSubmitTx $ unsealShelleyTx GenTxMary tx
+                let cmd = CmdSubmitTx $ toCardanoGenTx @Cardano.MaryEra tx
                 result <- liftIO $ localTxSubmissionQ `send` cmd
                 case result of
                     SubmitSuccess -> pure ()
                     SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
             AnyCardanoEra AlonzoEra -> do
-                let cmd = CmdSubmitTx $ unsealShelleyTx GenTxAlonzo tx
+                let cmd = CmdSubmitTx $ toCardanoGenTx @Cardano.AlonzoEra tx
                 result <- liftIO $ localTxSubmissionQ `send` cmd
                 case result of
                     SubmitSuccess -> pure ()

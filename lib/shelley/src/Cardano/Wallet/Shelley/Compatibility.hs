@@ -48,7 +48,6 @@ module Cardano.Wallet.Shelley.Compatibility
 
       -- * Conversions
     , toCardanoHash
-    , unsealShelleyTx
     , toPoint
     , toCardanoTxId
     , toCardanoTxIn
@@ -75,6 +74,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , unsafeIntToWord
     , internalError
     , isInternalError
+    , ToCardanoGenTx (..)
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -170,7 +170,7 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor, unsafeMkPercentage )
+    ( safeDeserialiseCbor, unsafeMkPercentage )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
@@ -201,8 +201,12 @@ import Data.ByteString.Short
     ( fromShort, toShort )
 import Data.Coerce
     ( coerce )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Foldable
     ( asum, toList )
+import Data.Function
+    ( (&) )
 import Data.List
     ( isPrefixOf )
 import Data.Map.Strict
@@ -308,6 +312,7 @@ import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
+import qualified Ouroboros.Consensus.Shelley.Eras as O
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
@@ -472,7 +477,6 @@ fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
             }
         , mconcat poolCerts
         )
-
 
 fromMaryBlock
     :: W.GenesisParameters
@@ -1188,17 +1192,49 @@ fromUnitInterval x =
     bomb = internalError $
         "fromUnitInterval: encountered invalid parameter value: "+||x||+""
 
--- | SealedTx are the result of rightfully constructed shelley transactions so, it
--- is relatively safe to unserialize them from CBOR.
-unsealShelleyTx
-    :: (HasCallStack, O.ShelleyBasedEra (era c))
-    => (GenTx (ShelleyBlock (era c)) -> CardanoGenTx c)
-    -> W.SealedTx
-    -> CardanoGenTx c
-unsealShelleyTx wrap = wrap
-    . unsafeDeserialiseCbor fromCBOR
-    . BL.fromStrict
-    . W.getSealedTx
+class ToCardanoGenTx era where
+    toCardanoGenTx
+        :: forall c. SLAPI.PraosCrypto c
+        => W.SealedTx
+        -> CardanoGenTx c
+
+instance ToCardanoGenTx Cardano.ShelleyEra where
+    toCardanoGenTx tx = parse & fromMaybe
+        (error "Wrong deserialisation for ShelleyEra")
+      where
+        parse = toGenTx tx GenTxShelley
+
+instance ToCardanoGenTx Cardano.AllegraEra where
+    toCardanoGenTx tx = parse & fromMaybe
+        (error "Wrong deserialisation for AllegraEra")
+      where
+        parse = toGenTx tx GenTxAllegra
+            <|> toGenTx tx GenTxShelley
+
+instance ToCardanoGenTx Cardano.MaryEra where
+    toCardanoGenTx tx = parse & fromMaybe
+        (error "Wrong deserialisation for MaryEra")
+      where
+        parse = toGenTx tx GenTxMary
+            <|> toGenTx tx GenTxAllegra
+            <|> toGenTx tx GenTxShelley
+
+instance ToCardanoGenTx Cardano.AlonzoEra where
+    toCardanoGenTx tx = parse & fromMaybe
+        (error "Wrong deserialisation for AlonzoEra")
+      where
+        parse = toGenTx tx GenTxAlonzo
+            <|> toGenTx tx GenTxMary
+            <|> toGenTx tx GenTxAllegra
+            <|> toGenTx tx GenTxShelley
+
+toGenTx
+    :: Binary.FromCBOR t
+    => W.SealedTx
+    -> (t -> CardanoGenTx c)
+    -> Maybe (CardanoGenTx c)
+toGenTx tx constructor = constructor <$> eitherToMaybe
+    (safeDeserialiseCbor fromCBOR $ BL.fromStrict $ W.getSealedTx tx)
 
 sealShelleyTx
     :: forall era b c. (O.ShelleyBasedEra (Cardano.ShelleyLedgerEra era))

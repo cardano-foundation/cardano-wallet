@@ -26,6 +26,8 @@ module Cardano.Wallet.Unsafe
     , unsafeMkMnemonic
     , unsafeMkEntropy
     , unsafeMkSomeMnemonicFromEntropy
+
+    , safeDeserialiseCbor
     ) where
 
 import Prelude
@@ -64,6 +66,8 @@ import Data.Char
     ( isHexDigit )
 import Data.Either
     ( fromRight )
+import Data.Either.Combinators
+    ( mapRight )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -163,6 +167,13 @@ unsafeDeserialiseCbor decoder bytes = either
     (\e -> error $ "unsafeSerializeCbor: " <> show e)
     snd
     (CBOR.deserialiseFromBytes decoder bytes)
+
+safeDeserialiseCbor
+    :: (forall s. CBOR.Decoder s a)
+    -> BL.ByteString
+    -> Either CBOR.DeserialiseFailure a
+safeDeserialiseCbor decoder bytes =
+    mapRight snd (CBOR.deserialiseFromBytes decoder bytes)
 
 unsafeMkEntropy
     :: forall ent csz.
