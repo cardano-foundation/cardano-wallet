@@ -1,4 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2020-2021 IOHK
@@ -19,30 +21,48 @@ module Cardano.Wallet.Util
 
     -- * String formatting
     , ShowFmt (..)
+
+    -- * HTTP(S) URIs
+    , uriToText
+    , parseURI
     ) where
 
 import Prelude
 
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Error.Util
+    ( (??) )
 import Control.Exception
     ( ErrorCall, displayException )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO )
+import Control.Monad.Trans.Except
+    ( runExceptT, throwE )
 import Data.Foldable
     ( asum )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.List
     ( isPrefixOf )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe, isNothing )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( TextDecodingError (..) )
 import Fmt
     ( Buildable (..), Builder, fmt, (+|) )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Network.URI
+    ( URI (..), parseAbsoluteURI, uriQuery, uriScheme, uriToString )
 import UnliftIO.Exception
     ( evaluate, tryJust )
+
+import qualified Data.Text as T
 
 -- | Calls the 'error' function, which will usually crash the program.
 internalError :: HasCallStack => Builder -> a
@@ -105,3 +125,26 @@ instance NFData a => NFData (ShowFmt a)
 
 instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
+
+{-------------------------------------------------------------------------------
+                                  HTTP(S) URIs
+-------------------------------------------------------------------------------}
+
+uriToText :: URI -> Text
+uriToText uri = T.pack $ uriToString id uri ""
+
+parseURI :: Text -> Either TextDecodingError URI
+parseURI (T.unpack -> uri) = runIdentity $ runExceptT $ do
+    uri' <- parseAbsoluteURI uri ??
+        (TextDecodingError "Not a valid absolute URI.")
+    let res = case uri' of
+            (URI {uriAuthority, uriScheme, uriPath, uriQuery, uriFragment})
+                | uriScheme `notElem` ["http:", "https:"] ->
+                    Left "Not a valid URI scheme, only http/https is supported."
+                | isNothing uriAuthority ->
+                    Left "URI must contain a domain part."
+                | not ((uriPath == "" || uriPath == "/")
+                && uriQuery == "" && uriFragment == "") ->
+                    Left "URI must not contain a path/query/fragment."
+            _ -> Right uri'
+    either (throwE . TextDecodingError) pure res
