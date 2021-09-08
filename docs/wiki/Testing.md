@@ -47,6 +47,8 @@ integration tests and test cluster.
 | `TESTS_RETRY_FAILED` | bool | Enable retrying once of failed tests | No retrying |
 | `NO_POOLS` | bool | Don't start any stake pool nodes in the local test cluster. | Pool nodes are started |
 | `TOKEN_METADATA_SERVER` | URL | Use this URL for querying asset metadata | Asset metadata fetching disabled |
+| `NO_CACHE_LOCALSTATEQUERY` | bool | Do not cache local state queries (LSQ) to node | LSQs such as stake distribution are cached to improve responsiveness |
+
 
 Here are the possible values of different types of environment variables:
 
