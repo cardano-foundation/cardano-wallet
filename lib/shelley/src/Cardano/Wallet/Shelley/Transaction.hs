@@ -176,6 +176,7 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.TxWitness as SL
 import qualified Cardano.Ledger.Core as SL
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
@@ -490,11 +491,18 @@ _calcScriptExecutionCost
     :: ProtocolParameters
     -> SealedTx
     -> Coin
-_calcScriptExecutionCost pp sealedTx = undefined
+_calcScriptExecutionCost pp sealedTx = case prices of
+    Nothing -> Coin 0
+    Just (W.ExecutionUnitPrices perStep perMem) ->
+        maybe
+        (Coin 0)
+        (Coin.sumCoins . map (costOfExecutiveUnits perStep perMem))
+        executeUnitsM
   where
-    _prices = view #executionUnitPrices pp
-
-    _nodetx =
+    prices = view #executionUnitPrices pp
+    costOfExecutiveUnits perStep perMem (W.ExecutionUnits steps mem) =
+        Coin $ ceiling $ perStep * (fromIntegral steps) + perMem * (fromIntegral mem)
+    executeUnitsM =
         case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) (getSealedTx sealedTx) of
             Right txValid ->
                 let getScriptData (Cardano.ShelleyTxBody _ _ _ scriptdata _ _) = scriptdata
