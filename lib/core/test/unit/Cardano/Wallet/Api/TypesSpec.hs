@@ -2195,7 +2195,7 @@ instance Arbitrary (ApiTransaction n) where
             <*> arbitrary
             <*> pure txStatus
             <*> arbitrary
-            <*> (liftArbitrary $ ApiT <$> genTxScriptValidity)
+            <*> liftArbitrary (ApiT <$> genTxScriptValidity)
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
