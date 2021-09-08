@@ -19,7 +19,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -163,19 +162,13 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxSize (..) )
 import Cardano.Wallet.Util
-    ( ShowFmt (..), invariant )
+    ( ShowFmt (..), parseURI, uriToText )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Error.Util
-    ( (??) )
 import Control.Monad
     ( when, (<=<), (>=>) )
-import Control.Monad.Except
-    ( runExceptT )
-import Control.Monad.Trans.Except
-    ( throwE )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
@@ -186,8 +179,6 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
-import Data.Functor.Identity
-    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( set, view, (^.) )
 import Data.Generics.Labels
@@ -201,7 +192,7 @@ import Data.List
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -232,7 +223,6 @@ import Fmt
     ( Buildable (..)
     , blockListF
     , blockListF'
-    , fmt
     , indentF
     , listF'
     , mapF
@@ -247,7 +237,7 @@ import GHC.Stack
 import GHC.TypeLits
     ( KnownNat, natVal )
 import Network.URI
-    ( URI (..), parseAbsoluteURI, uriQuery, uriScheme, uriToString )
+    ( URI (..), uriToString )
 import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
@@ -1376,25 +1366,6 @@ newtype Signature (what :: Type) = Signature { getSignature :: ByteString }
 {-------------------------------------------------------------------------------
                                Metadata services
 -------------------------------------------------------------------------------}
-
-uriToText :: URI -> Text
-uriToText uri = T.pack $ uriToString id uri ""
-
-parseURI :: Text -> Either TextDecodingError URI
-parseURI (T.unpack -> uri) = runIdentity $ runExceptT $ do
-    uri' <- parseAbsoluteURI uri ??
-        (TextDecodingError "Not a valid absolute URI.")
-    let res = case uri' of
-            (URI {uriAuthority, uriScheme, uriPath, uriQuery, uriFragment})
-                | uriScheme `notElem` ["http:", "https:"] ->
-                    Left "Not a valid URI scheme, only http/https is supported."
-                | isNothing uriAuthority ->
-                    Left "URI must contain a domain part."
-                | not ((uriPath == "" || uriPath == "/")
-                && uriQuery == "" && uriFragment == "") ->
-                    Left "URI must not contain a path/query/fragment."
-            _ -> Right uri'
-    either (throwE . TextDecodingError) pure res
 
 newtype TokenMetadataServer = TokenMetadataServer
     { unTokenMetadataServer :: URI }
