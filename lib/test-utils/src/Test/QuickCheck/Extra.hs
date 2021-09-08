@@ -8,29 +8,49 @@
 --
 
 module Test.QuickCheck.Extra
-    ( genMapWith
+    (
+      -- * Generation
+      genMapWith
     , genSized2
     , genSized2With
-    , interleaveRoundRobin
-    , liftShrink6
     , reasonablySized
+
+      -- * Shrinking
+    , liftShrink6
     , shrinkInterleaved
     , shrinkMapWith
+
+      -- * Counterexamples
+    , report
+    , verify
+
+      -- * Utilities
+    , interleaveRoundRobin
+
     ) where
 
 import Prelude
 
 import Data.Map.Strict
     ( Map )
+import Fmt
+    ( indentF, (+|), (|+) )
 import Test.QuickCheck
     ( Gen
+    , Property
+    , Testable
+    , counterexample
     , liftArbitrary2
     , liftShrink2
     , listOf
+    , property
     , scale
     , shrinkList
     , shrinkMapBy
+    , (.&&.)
     )
+import Test.Utils.Pretty
+    ( pShowBuilder )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -164,3 +184,25 @@ shrinkMapWith shrinkKey shrinkValue
     = shrinkMapBy Map.fromList Map.toList
     $ shrinkList
     $ liftShrink2 shrinkKey shrinkValue
+
+--------------------------------------------------------------------------------
+-- Counterexamples
+--------------------------------------------------------------------------------
+
+-- | Adds a named variable to the counterexample output of a property.
+--
+-- On failure, uses pretty-printing to show the contents of the variable.
+--
+report :: (Show a, Testable prop) => a -> String -> prop -> Property
+report a name = counterexample $
+    "" +|name|+ ":\n" +|indentF 4 (pShowBuilder a) |+ ""
+
+-- | Adds a named condition to a property.
+--
+-- On failure, reports the name of the condition that failed.
+--
+verify :: Bool -> String -> Property -> Property
+verify condition conditionTitle =
+    (.&&.) (counterexample counterexampleText $ property condition)
+  where
+    counterexampleText = "Condition violated: " <> conditionTitle

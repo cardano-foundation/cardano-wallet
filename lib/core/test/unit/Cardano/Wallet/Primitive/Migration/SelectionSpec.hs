@@ -73,7 +73,7 @@ import Data.Semigroup
 import Data.Word
     ( Word8 )
 import Fmt
-    ( indentF, pretty, (+|), (|+) )
+    ( pretty )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -87,10 +87,8 @@ import Test.QuickCheck
     , Blind (..)
     , Gen
     , Property
-    , Testable
     , checkCoverage
     , choose
-    , counterexample
     , cover
     , elements
     , forAllBlind
@@ -102,10 +100,9 @@ import Test.QuickCheck
     , suchThatMap
     , vectorOf
     , withMaxSuccess
-    , (.&&.)
     )
-import Test.Utils.Pretty
-    ( pShowBuilder )
+import Test.QuickCheck.Extra
+    ( report, verify )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1045,23 +1042,6 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
 --------------------------------------------------------------------------------
 -- Internal types and functions
 --------------------------------------------------------------------------------
-
--- | Adds a named variable to the counterexample output of a property.
---
--- On failure, uses pretty-printing to show the contents of the variable.
---
-report :: (Show a, Testable prop) => a -> String -> prop -> Property
-report a name = counterexample (""+|name|+":\n"+|indentF 4 (pShowBuilder a)|+"")
-
--- | Adds a named condition to a property.
---
--- On failure, reports the name of the condition that failed.
---
-verify :: Bool -> String -> Property -> Property
-verify condition conditionTitle =
-    (.&&.) (counterexample counterexampleText $ property condition)
-  where
-    counterexampleText = "Condition violated: " <> conditionTitle
 
 -- | Tests a collection of properties defined with 'verify'.
 --
