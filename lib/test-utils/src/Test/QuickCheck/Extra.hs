@@ -8,14 +8,21 @@
 --
 
 module Test.QuickCheck.Extra
-    ( genMapWith
+    (
+      -- * Generation
+      genMapWith
     , genSized2
     , genSized2With
-    , interleaveRoundRobin
-    , liftShrink6
     , reasonablySized
+
+      -- * Shrinking
+    , liftShrink6
     , shrinkInterleaved
     , shrinkMapWith
+
+      -- * Utilities
+    , interleaveRoundRobin
+
     ) where
 
 import Prelude
