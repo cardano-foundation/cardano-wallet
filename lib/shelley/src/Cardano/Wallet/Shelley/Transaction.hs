@@ -488,9 +488,19 @@ _calcScriptExecutionCost
     :: ProtocolParameters
     -> SealedTx
     -> Coin
-_calcScriptExecutionCost pp _sealedTx = undefined
+_calcScriptExecutionCost pp sealedTx = undefined
   where
     _prices = view #executionUnitPrices pp
+
+    _nodetx =
+        case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) (getSealedTx sealedTx) of
+            Right txValid ->
+                let getScriptData (Cardano.ShelleyTxBody _ _ _ scriptdata _ _) = scriptdata
+                    getScriptData _ = error "we should not expect Cardano.ByronTxBody here"
+                    getRedeemers Cardano.TxBodyNoScriptData = Nothing
+                    getRedeemers (Cardano.TxBodyScriptData _ _ redeemers) = Just redeemers
+                in getRedeemers $ getScriptData $ Cardano.getTxBody txValid
+            Left _ -> Nothing
 
 _decodeSignedTx
     :: AnyCardanoEra
