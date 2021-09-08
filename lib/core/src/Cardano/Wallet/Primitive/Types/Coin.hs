@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.Types.Coin
     , subtractCoin
     , sumCoins
     , distance
+    , scaleCoin
 
       -- * Partitioning
     , equipartition
@@ -37,6 +38,8 @@ import Prelude
 
 import Cardano.Numeric.Util
     ( equipartitionNatural, partitionNatural )
+import Cardano.Wallet.Util
+    ( HasCallStack, internalError )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -56,11 +59,9 @@ import Data.Text.Class
 import Data.Word
     ( Word64 )
 import Fmt
-    ( Buildable (..), fixedF )
+    ( Buildable (..), fixedF, (+||), (||+) )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import Quiet
@@ -166,6 +167,22 @@ sumCoins = foldl' addCoin (Coin 0)
 distance :: Coin -> Coin -> Coin
 distance (Coin a) (Coin b) = if a < b then Coin (b - a) else Coin (a - b)
 
+-- | Multiply a coin by an integral factor. Be careful not to overflow the
+-- maximum Ada supply value (45B).
+scaleCoin :: (HasCallStack, Integral s) => s -> Coin -> Coin
+scaleCoin s (Coin a) = Coin (toWord64 res)
+  where
+    res :: Integer
+    res = fromIntegral s * fromIntegral a
+
+    toWord64 val
+        | val < 0 = internalError "underflow: negative scalar"
+        | val > maxRes = internalError $ "overflow: exceeds "+||maxRes||+""
+        | otherwise = fromIntegral val
+
+    maxRes = fromIntegral $ unCoin maxBound
+
+
 --------------------------------------------------------------------------------
 -- Partitioning
 --------------------------------------------------------------------------------
@@ -225,5 +242,5 @@ unsafePartition
     -- ^ The partitioned coins.
 unsafePartition = (fromMaybe zeroWeightSumError .) . partition
   where
-    zeroWeightSumError = error
+    zeroWeightSumError = internalError
         "Coin.unsafePartition: weights must have a non-zero sum."
