@@ -492,28 +492,28 @@ _decodeSignedTx era bytes = do
                 Just tx -> pure tx
                 Nothing ->
                     Left $ ErrDecodeSignedTxWrongPayload
-                        "wrong shelley tx format"
+                        "expected shelley tx format"
 
         AnyCardanoEra AllegraEra ->
             case tryAllegraTx <|> tryShelleyTx of
                 Just tx -> pure tx
                 Nothing ->
                     Left $ ErrDecodeSignedTxWrongPayload
-                        "wrong shelley and allegra tx format"
+                        "expected shelley or allegra tx format"
 
         AnyCardanoEra MaryEra ->
             case tryMaryTx <|> tryAllegraTx <|> tryShelleyTx of
                 Just tx -> pure tx
                 Nothing ->
                     Left $ ErrDecodeSignedTxWrongPayload
-                        "wrong shelley, allegra and mary tx format"
+                        "expected shelley, allegra or mary tx format"
 
         AnyCardanoEra AlonzoEra ->
             case tryAlonzoTx <|> tryMaryTx <|> tryAllegraTx <|> tryShelleyTx of
                 Just tx -> pure tx
                 Nothing ->
                     Left $ ErrDecodeSignedTxWrongPayload
-                        "wrong shelley, allegra, mary and alonzo tx format"
+                        "expected shelley, allegra, mary or alonzo tx format"
 
         AnyCardanoEra ByronEra ->
             Left ErrDecodeSignedTxNotSupported
