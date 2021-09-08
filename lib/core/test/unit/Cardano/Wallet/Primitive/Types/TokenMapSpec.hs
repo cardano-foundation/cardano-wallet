@@ -23,10 +23,10 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
     , genAssetId
     , genAssetIdLargeRange
-    , genTokenMapSized
+    , genTokenMap
     , genTokenMapSmallRange
     , shrinkAssetId
-    , shrinkTokenMapSmallRange
+    , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId, mkTokenName )
@@ -520,12 +520,12 @@ prop_difference_equality x y = checkCoverage $
 
 prop_intersection_associativity :: Property
 prop_intersection_associativity =
-    forAllBlind genTokenMap $ \x ->
-    forAllBlind genTokenMap $ \y ->
-    forAllBlind genTokenMap $ \z ->
+    forAllBlind gen $ \x ->
+    forAllBlind gen $ \y ->
+    forAllBlind gen $ \z ->
     prop_inner x y z
   where
-    genTokenMap = scale (* 4) genTokenMapSized
+    gen = scale (* 4) genTokenMap
     prop_inner x y z =
         checkCoverage $
         cover 50 (x /= y && y /= z)
@@ -540,11 +540,11 @@ prop_intersection_associativity =
 
 prop_intersection_commutativity :: Property
 prop_intersection_commutativity =
-    forAllBlind genTokenMap $ \x ->
-    forAllBlind genTokenMap $ \y ->
+    forAllBlind gen $ \x ->
+    forAllBlind gen $ \y ->
     prop_inner x y
   where
-    genTokenMap = scale (* 2) genTokenMapSized
+    gen = scale (* 2) genTokenMap
     prop_inner x y =
         checkCoverage $
         cover 50 (x /= y)
@@ -566,11 +566,11 @@ prop_intersection_empty x =
 
 prop_intersection_equality :: Property
 prop_intersection_equality =
-    forAllBlind genTokenMap $ \x ->
-    forAllBlind genTokenMap $ \y ->
+    forAllBlind gen $ \x ->
+    forAllBlind gen $ \y ->
     prop_inner x y
   where
-    genTokenMap = scale (* 2) genTokenMapSized
+    gen = scale (* 2) genTokenMap
     prop_inner x y =
         checkCoverage $
         cover 50 (x /= y)
@@ -594,11 +594,11 @@ prop_intersection_identity x =
 
 prop_intersection_subset :: Property
 prop_intersection_subset =
-    forAllBlind genTokenMap $ \x ->
-    forAllBlind genTokenMap $ \y ->
+    forAllBlind gen $ \x ->
+    forAllBlind gen $ \y ->
     prop_inner x y
   where
-    genTokenMap = scale (* 2) genTokenMapSized
+    gen = scale (* 2) genTokenMap
     prop_inner x y =
         checkCoverage $
         cover 50 (x /= y)
@@ -1013,7 +1013,7 @@ instance Arbitrary AssetId where
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
-    shrink = shrinkTokenMapSmallRange
+    shrink = shrinkTokenMap
 
 instance Arbitrary (Large TokenMap) where
     arbitrary = Large <$> do

@@ -4,10 +4,10 @@
 module Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId
     , genAssetIdLargeRange
-    , genTokenMapSized
+    , genTokenMap
     , genTokenMapSmallRange
     , shrinkAssetId
-    , shrinkTokenMapSmallRange
+    , shrinkTokenMap
     , AssetIdF (..)
     ) where
 
@@ -77,8 +77,8 @@ genAssetIdLargeRange = AssetId
 -- size parameter
 --------------------------------------------------------------------------------
 
-genTokenMapSized :: Gen TokenMap
-genTokenMapSized = sized $ \size -> do
+genTokenMap :: Gen TokenMap
+genTokenMap = sized $ \size -> do
     assetCount <- choose (0, size)
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
@@ -103,8 +103,8 @@ genTokenMapSmallRange = do
         <$> genAssetId
         <*> genTokenQuantity
 
-shrinkTokenMapSmallRange :: TokenMap -> [TokenMap]
-shrinkTokenMapSmallRange
+shrinkTokenMap :: TokenMap -> [TokenMap]
+shrinkTokenMap
     = fmap TokenMap.fromFlatList
     . shrinkList shrinkAssetQuantity
     . TokenMap.toFlatList
