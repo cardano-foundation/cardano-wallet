@@ -190,8 +190,6 @@ import qualified Data.Text as T
 import qualified Ouroboros.Consensus.Shelley.Eras as O
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 
-import qualified Debug.Trace as TR
-
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
 --
@@ -513,7 +511,7 @@ _calcScriptExecutionCost pp sealedTx = case prices of
                     getRedeemers Cardano.TxBodyNoScriptData = Nothing
                     getRedeemers (Cardano.TxBodyScriptData _ _ redeemers) = Just redeemers
                     getExtUnit (SL.Redeemers rmds) = map (fromLedgerExUnits . snd . snd) $ Map.toList rmds
-                in TR.trace ("txValid:"<> show txValid) $ getExtUnit <$> getRedeemers (getScriptData $ Cardano.getTxBody txValid)
+                in getExtUnit <$> getRedeemers (getScriptData $ Cardano.getTxBody txValid)
             Left _ -> Nothing
 
 _decodeSignedTx
