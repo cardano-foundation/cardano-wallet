@@ -205,9 +205,9 @@ spec = do
             it "has expected entries"
                 (property prop_applyTxToUTxO_entries)
             it "consumes inputs"
-                unit_applyTxToUTxO_spends_input
+                (property unit_applyTxToUTxO_spends_input)
             it "loses collateral"
-                unit_applyTxToUTxO_loses_collateral
+                (property unit_applyTxToUTxO_loses_collateral)
             it "applyTxToUTxO then filterByAddress"
                 (property prop_filterByAddress_balance_applyTxToUTxO)
             it "spendTx/applyTxToUTxO/utxoFromTx"
@@ -758,9 +758,21 @@ instance IsOurs WalletState RewardAccount where
         , s
         )
 
+instance Arbitrary Coin where
+    shrink = shrinkCoin
+    arbitrary = genCoin
+
 instance Arbitrary Tx where
     shrink = shrinkTx
     arbitrary = genTx
+
+instance Arbitrary TxIn where
+    arbitrary = genTxIn
+    shrink = shrinkTxIn
+
+instance Arbitrary TxOut where
+    arbitrary = genTxOut
+    shrink = shrinkTxOut
 
 instance Arbitrary UTxO where
     shrink = shrinkUTxO
@@ -1637,12 +1649,8 @@ prop_utxoFromTx_is_unspent tx =
     utxoFromTx tx `excluding` Set.fromList (inputs tx)
     === utxoFromTx tx
 
-unit_applyTxToUTxO_spends_input :: Property
-unit_applyTxToUTxO_spends_input =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genTxIn shrinkTxIn $ \txin ->
-    forAllShrink genTxOut shrinkTxOut $ \txout ->
-    forAllShrink genCoin shrinkCoin $ \coin ->
+unit_applyTxToUTxO_spends_input :: Tx -> TxIn -> TxOut -> Coin -> Property
+unit_applyTxToUTxO_spends_input tx txin txout coin =
     let
         tx' = tx
             { resolvedInputs = [(txin, coin)]
@@ -1652,12 +1660,8 @@ unit_applyTxToUTxO_spends_input =
         applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
         === utxoFromTx tx' `excluding` Set.singleton txin
 
-unit_applyTxToUTxO_loses_collateral :: Property
-unit_applyTxToUTxO_loses_collateral =
-    forAllShrink genTx shrinkTx $ \tx ->
-    forAllShrink genTxIn shrinkTxIn $ \txin ->
-    forAllShrink genTxOut shrinkTxOut $ \txout ->
-    forAllShrink genCoin shrinkCoin $ \coin ->
+unit_applyTxToUTxO_loses_collateral :: Tx -> TxIn -> TxOut -> Coin -> Property
+unit_applyTxToUTxO_loses_collateral tx txin txout coin =
     let
         tx' = tx
             { resolvedCollateral = [(txin, coin)]
