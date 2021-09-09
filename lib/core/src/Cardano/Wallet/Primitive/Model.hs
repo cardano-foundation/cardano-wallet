@@ -377,11 +377,11 @@ applyTxToUTxO tx !u = spendTx tx u <> utxoFromTx tx
 spendTx :: Tx -> UTxO -> UTxO
 spendTx tx !u =
     u `excluding` Set.fromList inputsToExclude
-    where
-        inputsToExclude =
-            if failedScriptValidation (tx ^. #scriptValidity)
-            then collateralInputs tx
-            else inputs tx
+  where
+    inputsToExclude =
+        if failedScriptValidation (tx ^. #scriptValidity)
+        then collateralInputs tx
+        else inputs tx
 
 -- | Construct a UTxO corresponding to a given transaction. It is important for
 -- the transaction outputs to be ordered correctly, since they become available
@@ -569,10 +569,10 @@ changeUTxO
 changeUTxO pending = evalState $
     mconcat
     <$> mapM (filterByAddressM isOurAddress . mkUTxOFromTx) (Set.toList pending)
-    where
-        -- Generate a UTxO from an transaction, assuming that it passes phase-2
-        -- script validation. Crucially, utxoFromTx will exclude failed
-        -- transactions, hence we define our own function.
-        mkUTxOFromTx :: Tx -> UTxO
-        mkUTxOFromTx Tx {txId, outputs} =
-            UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
+  where
+    -- Generate a UTxO from an transaction, assuming that it passes phase-2
+    -- script validation. Crucially, utxoFromTx will exclude failed
+    -- transactions, hence we define our own function.
+    mkUTxOFromTx :: Tx -> UTxO
+    mkUTxOFromTx Tx {txId, outputs} =
+        UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs

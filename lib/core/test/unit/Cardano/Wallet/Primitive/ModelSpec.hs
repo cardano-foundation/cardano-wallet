@@ -204,8 +204,10 @@ spec = do
                 (property prop_applyTxToUTxO_balance)
             it "has expected entries"
                 (property prop_applyTxToUTxO_entries)
-            it "consumes inputs" unit_applyTxToUTxO_spends_input
-            it "loses collateral" unit_applyTxToUTxO_loses_collateral
+            it "consumes inputs"
+                unit_applyTxToUTxO_spends_input
+            it "loses collateral"
+                unit_applyTxToUTxO_loses_collateral
             it "applyTxToUTxO then filterByAddress"
                 (property prop_filterByAddress_balance_applyTxToUTxO)
             it "spendTx/applyTxToUTxO/utxoFromTx"
@@ -1580,15 +1582,15 @@ prop_applyTxToUTxO_balance tx u =
     cover 10
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
-    balance (applyTxToUTxO tx u)
-    ===
-    (if failedScriptValidation (tx ^. #scriptValidity)
-     then
-         balance (u `excluding` Set.fromList (collateralInputs tx))
-     else
-         balance (u `excluding` Set.fromList (inputs tx))
-             `TokenBundle.add` balance (utxoFromTx tx)
-    )
+    balance (applyTxToUTxO tx u) === expectedBalance
+  where
+    expectedBalance =
+        if failedScriptValidation (tx ^. #scriptValidity)
+        then
+            balance (u `excluding` Set.fromList (collateralInputs tx))
+        else
+            balance (u `excluding` Set.fromList (inputs tx))
+                `TokenBundle.add` balance (utxoFromTx tx)
 
 prop_applyTxToUTxO_entries :: Tx -> UTxO -> Property
 prop_applyTxToUTxO_entries tx u =
@@ -1599,12 +1601,12 @@ prop_applyTxToUTxO_entries tx u =
     cover 10
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
-    applyTxToUTxO tx u
-    ===
-    (if failedScriptValidation (tx ^. #scriptValidity)
-     then u `excluding` Set.fromList (collateralInputs tx)
-     else u `excluding` Set.fromList (inputs tx) <> utxoFromTx tx
-    )
+    applyTxToUTxO tx u === expectedResult
+  where
+    expectedResult =
+        if failedScriptValidation (tx ^. #scriptValidity)
+        then u `excluding` Set.fromList (collateralInputs tx)
+        else u `excluding` Set.fromList (inputs tx) <> utxoFromTx tx
 
 prop_filterByAddress_balance_applyTxToUTxO
     :: (Address -> Bool) -> Tx -> Property
@@ -1617,12 +1619,18 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
         (filterByAddress f (applyTxToUTxO tx mempty) /= mempty)
         "filterByAddress f (applyTxToUTxO tx mempty) /= mempty" $
     balance (filterByAddress f (applyTxToUTxO tx mempty))
-    === if failedScriptValidation (tx ^. #scriptValidity)
+    ===
+    expectedResult
+  where
+    expectedResult =
+        if failedScriptValidation (tx ^. #scriptValidity)
         then mempty
-        else foldMap (\o -> if f (address o)
-                            then tokens o
-                            else mempty
-                     ) (outputs tx)
+        else foldMap m (outputs tx)
+      where
+        m output =
+            if f (address output)
+            then tokens output
+            else mempty
 
 prop_utxoFromTx_is_unspent :: Tx -> Property
 prop_utxoFromTx_is_unspent tx =
@@ -1635,13 +1643,14 @@ unit_applyTxToUTxO_spends_input =
     forAllShrink genTxIn shrinkTxIn $ \txin ->
     forAllShrink genTxOut shrinkTxOut $ \txout ->
     forAllShrink genCoin shrinkCoin $ \coin ->
-      let
-          tx' = tx { resolvedInputs = [(txin, coin)]
-                   , scriptValidity = Nothing
-                   }
-      in
-          applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
-          === utxoFromTx tx' `excluding` Set.singleton txin
+    let
+        tx' = tx
+            { resolvedInputs = [(txin, coin)]
+            , scriptValidity = Nothing
+            }
+    in
+        applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
+        === utxoFromTx tx' `excluding` Set.singleton txin
 
 unit_applyTxToUTxO_loses_collateral :: Property
 unit_applyTxToUTxO_loses_collateral =
@@ -1649,21 +1658,23 @@ unit_applyTxToUTxO_loses_collateral =
     forAllShrink genTxIn shrinkTxIn $ \txin ->
     forAllShrink genTxOut shrinkTxOut $ \txout ->
     forAllShrink genCoin shrinkCoin $ \coin ->
-      let
-          tx' = tx { resolvedCollateral = [(txin, coin)]
-                   , scriptValidity = Just TxScriptInvalid
-                   }
-      in
-          applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
-          === mempty
+    let
+        tx' = tx
+            { resolvedCollateral = [(txin, coin)]
+            , scriptValidity = Just TxScriptInvalid
+            }
+    in
+        applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
+        === mempty
 
 prop_utxoFromTx_balance :: Tx -> Property
 prop_utxoFromTx_balance tx =
-    balance (utxoFromTx tx)
-    === foldMap (\o -> if failedScriptValidation (tx ^. #scriptValidity)
-                       then mempty
-                       else tokens o
-                ) (outputs tx)
+    balance (utxoFromTx tx) === foldMap f (outputs tx)
+  where
+    f output =
+        if failedScriptValidation (tx ^. #scriptValidity)
+        then mempty
+        else tokens output
 
 -- spendTx tx u `isSubsetOf` u
 prop_spendTx_isSubset :: Tx -> UTxO -> Property
@@ -1699,14 +1710,14 @@ prop_spendTx_balance tx u =
     lhs === rhs
   where
     lhs = balance (spendTx tx u)
-    rhs = TokenBundle.unsafeSubtract
-        (balance u)
-        ( if failedScriptValidation (tx ^. #scriptValidity)
-          then balance (u `UTxO.restrictedBy`
-                         Set.fromList (collateralInputs tx))
-          else balance (u `UTxO.restrictedBy`
-                         Set.fromList (inputs tx))
-        )
+    rhs = TokenBundle.unsafeSubtract (balance u) toSubtract
+      where
+        toSubtract =
+            if failedScriptValidation (tx ^. #scriptValidity)
+            then balance
+                (u `UTxO.restrictedBy` Set.fromList (collateralInputs tx))
+            else balance
+                (u `UTxO.restrictedBy` Set.fromList (inputs tx))
 
 prop_spendTx :: Tx -> UTxO -> Property
 prop_spendTx tx u =
@@ -1714,11 +1725,12 @@ prop_spendTx tx u =
     cover 10
         (spendTx tx u /= mempty)
         "spendTx tx u /= mempty" $
-    spendTx tx u === u `excluding` (
+    spendTx tx u === u `excluding` toExclude
+  where
+    toExclude =
         if failedScriptValidation (tx ^. #scriptValidity)
         then Set.fromList (collateralInputs tx)
         else Set.fromList (inputs tx)
-    )
 
 prop_spendTx_utxoFromTx :: Tx -> UTxO -> Property
 prop_spendTx_utxoFromTx tx u =
@@ -1731,7 +1743,6 @@ prop_applyTxToUTxO_spendTx_utxoFromTx tx u =
         (spendTx tx u /= mempty && utxoFromTx tx /= mempty)
         "spendTx tx u /= mempty && utxoFromTx tx /= mempty" $
     applyTxToUTxO tx u === spendTx tx u <> utxoFromTx tx
-
 
 prop_spendTx_filterByAddress :: (Address -> Bool) -> Tx -> UTxO -> Property
 prop_spendTx_filterByAddress f tx u =

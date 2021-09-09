@@ -524,11 +524,12 @@ fileModeSpec =  do
             testOpeningCleaning f (`readCheckpoint'` testWid) (Just testCp) Nothing
 
         describe "Golden rollback scenarios" $ do
-            let dummyHash x = Hash $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
-            let dummyAddr x = Address $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
+            let dummyHash x = Hash $
+                    x <> BS.pack (replicate (32 - (BS.length x)) 0)
+            let dummyAddr x = Address $
+                    x <> BS.pack (replicate (32 - (BS.length x)) 0)
 
-            let
-                mockApply DBLayer{..} h mockTxs = do
+            let mockApply DBLayer{..} h mockTxs = do
                     Just cpA <- atomically $ readCheckpoint testWid
                     let slotA = view #slotNo $ currentTip cpA
                     let Quantity bhA = view #blockHeight $ currentTip cpA
@@ -551,10 +552,9 @@ fileModeSpec =  do
                         unsafeRunExceptT $ putTxHistory testWid txs
                         unsafeRunExceptT $ prune testWid (Quantity 2160)
 
-
-            it "Should remove collateral inputs from the UTxO set if validation \
-               \fails" $ \f ->
-                withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
+            it "Should remove collateral inputs from the UTxO set if \
+                \validation fails" $
+                \f -> withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
 
                     let ourAddrs =
                             map (\(a,s,_) -> (a,s)) $
@@ -594,11 +594,15 @@ fileModeSpec =  do
                         [ Tx
                             { txId = dummyHash "tx2a"
                             , fee = Nothing
-                            , resolvedInputs = [(TxIn (dummyHash "tx1") 0, Coin 4)]
-                            , resolvedCollateral = [(TxIn (dummyHash "tx1") 1, Coin 8)]
+                            , resolvedInputs =
+                                [(TxIn (dummyHash "tx1") 0, Coin 4)]
+                            , resolvedCollateral =
+                                [(TxIn (dummyHash "tx1") 1, Coin 8)]
                             , outputs =
-                                [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
-                                , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
+                                [ TxOut
+                                    (dummyAddr "faucetAddr2") (coinToBundle 2)
+                                , TxOut
+                                    (fst $ ourAddrs !! 1) (coinToBundle 2)
                                 ]
                             , withdrawals = mempty
                             , metadata = Nothing
