@@ -202,10 +202,10 @@ data Tx = Tx
 
     , scriptValidity
         :: !(Maybe TxScriptValidity)
-        -- ^ Tag indicating whether non-native scripts in this transaction are
-        -- expected to validate. This is added by the block creator when
-        -- constructing the block. For pre-Alonzo era transactions, scripts are
-        -- not supported, and so script validation always passes.
+        -- ^ Tag indicating whether non-native scripts in this transaction
+        -- passed validation. This is added by the block creator when
+        -- constructing the block. May be 'Nothing' for pre-Alonzo and pending
+        -- transactions.
     } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
@@ -479,10 +479,9 @@ data TransactionInfo = TransactionInfo
     , txInfoMetadata :: !(Maybe TxMetadata)
     -- ^ Application-specific extension data.
     , txInfoScriptValidity :: !(Maybe TxScriptValidity)
-    -- ^ Tag indicating whether non-native scripts in this transaction are
-    -- expected to validate. This is added by the block creator when
-    -- constructing the block. May be Nothing for pre-Alonzo and pending
-    -- transactions.
+    -- ^ Tag indicating whether non-native scripts in this transaction passed
+    -- validation. This is added by the block creator when constructing the
+    -- block. May be 'Nothing' for pre-Alonzo and pending transactions.
     } deriving (Generic, Show, Eq)
 
 instance NFData TransactionInfo
