@@ -152,7 +152,8 @@ import Test.QuickCheck
     , (.&&.)
     , (===)
     )
-import Test.QuickCheck.Extra (report)
+import Test.QuickCheck.Extra
+    ( report )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO

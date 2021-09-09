@@ -3641,9 +3641,9 @@ instance ToJSON (ApiT (Script KeyHash)) where
     toJSON = toJSON . getApiT
 
 instance FromJSON (ApiT TxScriptValidity) where
-    parseJSON = fmap ApiT . genericParseJSON (Aeson.defaultOptions
-        { constructorTagModifier = camelTo2 '_' . drop 8 })
+    parseJSON = fmap ApiT . genericParseJSON Aeson.defaultOptions
+        { constructorTagModifier = camelTo2 '_' . drop 8 }
 
 instance ToJSON (ApiT TxScriptValidity) where
-    toJSON = genericToJSON (Aeson.defaultOptions
-        { constructorTagModifier = camelTo2 '_' . drop 8 }) . getApiT
+    toJSON = genericToJSON Aeson.defaultOptions
+        { constructorTagModifier = camelTo2 '_' . drop 8 } . getApiT

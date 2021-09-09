@@ -815,7 +815,7 @@ instance PersistField TxScriptValidity where
         PersistBool True -> Right TxScriptValid
         PersistBool False -> Right TxScriptInvalid
         x -> Left $ T.unwords
-            [ "Failed to parse Haskell type `ScriptValidation`;"
+            [ "Failed to parse Haskell type `TxScriptValidity`;"
             , "expected null or boolean"
             , "from database, but received:"
             , T.pack (show x)
