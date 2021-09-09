@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 module Data.DBVar (
     -- * Synopsis
@@ -24,6 +25,7 @@ module Data.DBVar (
 
 import Prelude
 
+import Control.Monad ( void )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad.Class.MonadSTM
@@ -37,7 +39,13 @@ import Control.Monad.Class.MonadSTM
     , writeTVar
     )
 import Data.Delta
-    ( Delta (..), Embedding (..) )
+    ( Delta (..)
+    , Embedding' (..)
+    , Embedding
+    , inject
+    , project
+    , Machine (..)
+    )
 
 {-------------------------------------------------------------------------------
     DBVar
@@ -127,6 +135,10 @@ newWithCache update v = do
 --
 -- > updateS s old delta = writeS s (apply delta old)
 --
+-- It is expected that the functions 'loadS', 'updateS', 'writeS'
+-- do not throw synchronous exceptions. In the worst case,
+-- 'loadS' should return 'Nothing' after reading or writing
+-- to the store was unsuccesful.
 data Store m delta a = Store
     { loadS   :: m (Maybe a)
     , writeS  :: a -> m ()
@@ -148,13 +160,94 @@ newStore = do
         , updateS = \_ -> atomically . modifyTVar' ref . fmap . apply
         }
 
+-- | Add a caching layer to a 'Store'.
+--
+-- Access to the underlying 'Store' is enforced to be sequential,
+-- but the cache can be accessed in parallel.
+--
+-- FIXME: Safety with respect to asynchronous exceptions?
+cachedStore
+    :: forall m a delta. (MonadSTM m, Delta delta, a ~ Base delta)
+    => Store m delta a -> m (Store m delta a)
+cachedStore Store{loadS,writeS,updateS} = do
+    -- Lock that puts loadS, writeS and updateS into sequence
+    islocked <- newTVarIO False
+    let withLock :: forall b. m b -> m b
+        withLock action = do
+            atomically $ readTVar islocked >>= \case
+                True  -> retry
+                False -> writeTVar islocked True
+            a <- action
+            atomically $ writeTVar islocked False
+            pure a
+
+    -- Cache that need not be filled in the beginning
+    iscached <- newTVarIO False
+    cache    <- newTVarIO (Nothing :: Maybe a)
+    let writeCache ma = writeTVar cache ma >> writeTVar iscached True
+
+    -- Load the value from the Store only if it is not cached and
+    -- nobody else is writing to the store.
+    let load :: m (Maybe a)
+        load = do
+            action <- atomically $
+                readTVar iscached >>= \case
+                    True  -> do
+                        ma <- readTVar cache  -- read from cache
+                        pure $ pure ma
+                    False -> readTVar islocked >>= \case
+                        True  -> retry  -- somebody is writing
+                        False -> pure $ withLock $ do
+                            ma <- loadS
+                            atomically $ writeCache ma
+                            pure ma
+            action
+
+    pure $ Store
+        { loadS = load
+        , writeS = \a -> withLock $ do
+            atomically $ writeCache (Just a)
+            writeS a
+        , updateS = \old delta -> withLock $ do
+            atomically $ writeCache $ Just $ apply delta old
+            updateS old delta
+        }
+
+embedStore :: (MonadSTM m, Delta da, Delta db)
+    => Embedding da db
+    -> Store m db (Base db) -> m (Store m da (Base da))
+embedStore embed bstore = do
+    machine <- newTVarIO Nothing
+    let readMachine  = atomically $ readTVar machine
+        writeMachine = atomically . writeTVar machine . Just
+    let load = loadS bstore >>= \mb -> case project embed =<< mb of
+                Nothing      -> pure Nothing
+                Just (a,mab) -> do
+                    writeMachine mab
+                    pure $ Just a
+        write a = do
+            let mab = inject embed a
+            writeMachine mab
+            writeS bstore (state_ mab)
+        update a da = do
+            readMachine >>= \case
+                Nothing   -> do -- we were missing the inital write
+                    write (apply da a)
+                Just mab1 -> do -- advance the machine by one step
+                    let (db, mab2) = step_ mab1 (a,da)
+                    updateS bstore (state_ mab2) db
+                    writeMachine mab2
+
+    pure $ Store {loadS=load,writeS=write,updateS=update}
+
+
 -- | Obtain a 'Store' for one type @a1@ from a 'Store' for another type @a2@
 -- via an 'Embedding' of the first type into the second type.
-embedStore
+embedStore'
     :: (Monad m)
-    => Embedding da db
+    => Embedding' da db
     -> Store m db (Base db) -> Store m da (Base da)
-embedStore Embedding{load,write,update} Store{loadS,writeS,updateS} = Store
+embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} = Store
     { loadS   = (load =<<) <$> loadS
     , writeS  = writeS . write
     , updateS = \a da -> do
@@ -163,6 +256,7 @@ embedStore Embedding{load,write,update} Store{loadS,writeS,updateS} = Store
             Nothing -> pure ()
             Just b  -> updateS b (update a b da)
     }
+
 
 -- | Combine two 'Stores' into a store for pairs.
 pairStores :: Monad m => Store m d1 a1 -> Store m d2 a2 -> Store m (d1, d2) (a1, a2)

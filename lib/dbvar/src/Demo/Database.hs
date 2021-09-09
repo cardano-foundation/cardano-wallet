@@ -120,7 +120,7 @@ addressChainIntoTable =
     embedIso addressDBIso `o` (tableIntoDatabase `o` chainIntoTable Pile getPile)
 
 embedIso :: Iso' a b -> Embedding [DeltaDB Int a] [DeltaDB Int b]
-embedIso i = withIso i $ \ab ba -> Embedding
+embedIso i = withIso i $ \ab ba -> mkEmbedding Embedding'
     { load = Just . fmap ba
     , write = fmap ab
     , update = \_ _ -> fmap (fmap ab)
@@ -129,8 +129,8 @@ embedIso i = withIso i $ \ab ba -> Embedding
 type AddressStore =
     Store DBIO (DeltaChain Node [AddressInPool]) (Chain Node [AddressInPool])
 
-newAddressStore :: MonadIO m => m AddressStore
-newAddressStore = embedStore addressChainIntoTable <$> newDBStore
+newAddressStore :: DBIO AddressStore
+newAddressStore = embedStore addressChainIntoTable =<< newDBStore
 
 {-------------------------------------------------------------------------------
     Database connection

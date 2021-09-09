@@ -41,7 +41,8 @@ import Data.Delta
     , DeltaList (..)
     , DeltaSet
     , DeltaSet1 (..)
-    , Embedding (..)
+    , Embedding, mkEmbedding
+    , Embedding' (..)
     )
 import Data.List ( sort, sortOn )
 import Data.IntMap.Strict ( IntMap )
@@ -152,7 +153,8 @@ instance (key ~ Int) => Delta (DeltaDB key row) where
         table{ rows = foldr (.) id [ Map.adjust (const r) k | (k,r) <- zs ] rows }
 
 tableIntoDatabase :: Embedding [DeltaTable row] [DeltaDB Int row]
-tableIntoDatabase = Embedding{ load, write, update = \_ b -> map (update1 b) }
+tableIntoDatabase = mkEmbedding Embedding'
+    { load, write, update = \_ b -> map (update1 b) }
   where
     load = Just . id
     write = id

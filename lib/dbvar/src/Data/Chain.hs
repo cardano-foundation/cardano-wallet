@@ -30,7 +30,8 @@ import Control.Monad
     )
 import Data.Delta
     ( Delta (..)
-    , Embedding (..)
+    , Embedding, Embedding' (..), mkEmbedding
+    , liftUpdates
     )
 import Data.List
     ( unfoldr )
@@ -239,7 +240,7 @@ chainIntoTable
     :: (Ord node, Ord e, Semigroup edge)
     => (edge -> Pile e) -> (Pile e -> edge)
     -> Embedding (DeltaChain node edge) [DeltaTable (Edge node e)]
-chainIntoTable toPile fromPile = Embedding {load,write,update}
+chainIntoTable toPile fromPile = mkEmbedding Embedding'{load,write,update}
   where
     load = fmap (fmap $ fromPile . Pile) . fromEdges . getPile . Table.toPile
     write = Table.fromList . concatMap flattenEdge
@@ -274,19 +275,6 @@ test :: (Table (Edge Int Char), [[Table.DeltaDB Int (Edge Int Char)]])
 test = liftUpdates (Table.tableIntoDatabase `o` chainIntoTable Pile getPile)
     [CollapseNode 1, CollapseNode 2, AppendTip 3 "c", AppendTip 2 "b"]
     $ fromEdge Edge{from=0,to=1,via="a"}
-
-liftUpdates
-    :: (Delta da, Delta da)
-    => Embedding da db
-    -> [da] -> Base da -> (Base db, [db])
-liftUpdates Embedding{load,write,update} ds = go ds . write
-  where
-    go []       bin = (bin, [])
-    go (da:das) bin = case load bout of
-        Nothing -> (bout, dbs)
-        Just a  -> let db = update a bout da in (apply db bout, db : dbs)
-      where
-        (bout, dbs) = go das bin
 
 {-------------------------------------------------------------------------------
     Edge
