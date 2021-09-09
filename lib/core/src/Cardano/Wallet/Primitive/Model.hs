@@ -379,7 +379,7 @@ spendTx tx !u =
     u `excluding` Set.fromList inputsToExclude
   where
     inputsToExclude =
-        if failedScriptValidation (tx ^. #scriptValidity)
+        if failedScriptValidation tx
         then collateralInputs tx
         else inputs tx
 
@@ -390,8 +390,8 @@ spendTx tx !u =
 -- balance (utxoFromTx tx) = foldMap tokens (outputs tx)
 -- utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
 utxoFromTx :: Tx -> UTxO
-utxoFromTx tx@Tx {scriptValidity} =
-    if failedScriptValidation scriptValidity
+utxoFromTx tx =
+    if failedScriptValidation tx
     then mempty
     else utxoFromUnvalidatedTx tx
 
