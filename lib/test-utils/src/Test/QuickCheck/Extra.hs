@@ -13,12 +13,10 @@ module Test.QuickCheck.Extra
       genMapWith
     , genSized2
     , genSized2With
-    , interleaveRoundRobin
-    , liftShrink7
     , reasonablySized
 
       -- * Shrinking
-    , liftShrink6
+    , liftShrink7
     , shrinkInterleaved
     , shrinkMapWith
 

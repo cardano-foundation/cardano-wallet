@@ -152,6 +152,7 @@ import Test.QuickCheck
     , (.&&.)
     , (===)
     )
+import Test.QuickCheck.Extra (report)
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -503,8 +504,12 @@ prop_changeUTxO_inner pendingTxs =
           -- No outputs are omitted when we select everything:
         , UTxO.size utxoAll == F.sum (F.length . view #outputs <$> pendingTxs)
         ]
-    & counterexample ("size utxoAll = " <> show (UTxO.size utxoAll))
-    & counterexample ("sum outputs = " <> show (F.sum (F.length . view #outputs <$> pendingTxs)))
+    & report
+        (UTxO.size utxoAll)
+        "UTxO.size utxoAll"
+    & report
+        (F.sum (F.length . view #outputs <$> pendingTxs))
+        "F.sum (F.length . view #outputs <$> pendingTxs)"
   where
     -- Computes the parity of an output based on its address parity.
     txOutParity :: TxOut -> Parity
