@@ -1068,9 +1068,7 @@ instance Buildable ProtocolParameters where
         , "Minimum UTxO value: " <> build (pp ^. #minimumUTxOvalue)
         , "Eras:\n" <> indentF 2 (build (pp ^. #eras))
         , "Execution unit prices: " <>
-            case (pp ^. #executionUnitPrices) of
-                Just prices -> build prices
-                Nothing -> "not specified"
+            maybe "not specified" build (pp ^. #executionUnitPrices)
         ]
 
 data ExecutionUnits = ExecutionUnits
