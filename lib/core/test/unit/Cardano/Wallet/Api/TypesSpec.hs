@@ -526,6 +526,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxMetadata)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
+            jsonRoundtripAndGolden $ Proxy @(ApiT TxScriptValidity)
             jsonRoundtripAndGolden $ Proxy @(ApiWalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
