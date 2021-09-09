@@ -114,7 +114,7 @@ genSized2 genA genB = (,)
 genSized2With :: (a -> b -> c) -> Gen a -> Gen b -> Gen c
 genSized2With f genA genB = uncurry f <$> genSized2 genA genB
 
--- | Similar to 'liftShrink2', but applicable to 6-tuples.
+-- | Similar to 'liftShrink2', but applicable to 7-tuples.
 --
 liftShrink7
     :: (a1 -> [a1])
