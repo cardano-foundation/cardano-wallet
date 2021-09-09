@@ -1594,6 +1594,12 @@ prop_applyTxToUTxO_balance tx u =
     cover 10
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
+    cover 10
+        (failedScriptValidation (tx ^. #scriptValidity))
+        "failedScriptValidation (tx ^. #scriptValidity)" $
+    cover 10
+        (not $ failedScriptValidation (tx ^. #scriptValidity))
+        "not $ failedScriptValidation (tx ^. #scriptValidity)" $
     balance (applyTxToUTxO tx u) === expectedBalance
   where
     expectedBalance =
@@ -1613,6 +1619,12 @@ prop_applyTxToUTxO_entries tx u =
     cover 10
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
+    cover 10
+        (failedScriptValidation (tx ^. #scriptValidity))
+        "failedScriptValidation (tx ^. #scriptValidity)" $
+    cover 10
+        (not $ failedScriptValidation (tx ^. #scriptValidity))
+        "not $ failedScriptValidation (tx ^. #scriptValidity)" $
     applyTxToUTxO tx u === expectedResult
   where
     expectedResult =
@@ -1630,6 +1642,12 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
     cover 10
         (filterByAddress f (applyTxToUTxO tx mempty) /= mempty)
         "filterByAddress f (applyTxToUTxO tx mempty) /= mempty" $
+    cover 10
+        (failedScriptValidation (tx ^. #scriptValidity))
+        "failedScriptValidation (tx ^. #scriptValidity)" $
+    cover 10
+        (not $ failedScriptValidation (tx ^. #scriptValidity))
+        "not $ failedScriptValidation (tx ^. #scriptValidity)" $
     balance (filterByAddress f (applyTxToUTxO tx mempty))
     ===
     expectedResult
@@ -1646,6 +1664,13 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
 
 prop_utxoFromTx_is_unspent :: Tx -> Property
 prop_utxoFromTx_is_unspent tx =
+    checkCoverage $
+    cover 10
+        (utxoFromTx tx /= mempty)
+        "utxoFromTx tx /= mempty" $
+    cover 10
+        (Set.fromList (inputs tx) /= mempty)
+        "Set.fromList (inputs tx) /= mempty" $
     utxoFromTx tx `excluding` Set.fromList (inputs tx)
     === utxoFromTx tx
 
@@ -1673,6 +1698,16 @@ unit_applyTxToUTxO_loses_collateral tx txin txout coin =
 
 prop_utxoFromTx_balance :: Tx -> Property
 prop_utxoFromTx_balance tx =
+    checkCoverage $
+    cover 10
+        (outputs tx /= mempty)
+        "outputs tx /= mempty" $
+    cover 10
+        (failedScriptValidation (tx ^. #scriptValidity))
+        "failedScriptValidation (tx ^. #scriptValidity)" $
+    cover 10
+        (not $ failedScriptValidation (tx ^. #scriptValidity))
+        "not $ failedScriptValidation (tx ^. #scriptValidity)" $
     balance (utxoFromTx tx) === foldMap f (outputs tx)
   where
     f output =
