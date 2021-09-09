@@ -212,6 +212,7 @@ genesisBlockFromTxOuts gp outs = W.Block
         , outputs = [out]
         , withdrawals = mempty
         , metadata = Nothing
+        , scriptValidity = Nothing
         }
 
 --------------------------------------------------------------------------------
@@ -276,6 +277,9 @@ fromTxAux txAux = case taTx txAux of
             mempty
 
         , metadata =
+            Nothing
+
+        , scriptValidity =
             Nothing
         }
 

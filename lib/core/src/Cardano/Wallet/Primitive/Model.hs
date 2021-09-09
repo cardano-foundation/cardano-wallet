@@ -78,6 +78,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxIn (..)
     , TxMeta (..)
     , TxStatus (..)
+    , collateralInputs
+    , failedScriptValidation
     , inputs
     , txOutCoin
     )
@@ -373,7 +375,13 @@ applyTxToUTxO tx !u = spendTx tx u <> utxoFromTx tx
 -- spendTx tx (filterByAddress f u) = filterByAddress f (spendTx tx u)
 -- spendTx tx (u <> utxoFromTx tx) = spendTx tx u <> utxoFromTx tx
 spendTx :: Tx -> UTxO -> UTxO
-spendTx tx !u = u `excluding` Set.fromList (inputs tx)
+spendTx tx !u =
+    u `excluding` Set.fromList inputsToExclude
+  where
+    inputsToExclude =
+        if failedScriptValidation tx
+        then collateralInputs tx
+        else inputs tx
 
 -- | Construct a UTxO corresponding to a given transaction. It is important for
 -- the transaction outputs to be ordered correctly, since they become available
@@ -382,7 +390,15 @@ spendTx tx !u = u `excluding` Set.fromList (inputs tx)
 -- balance (utxoFromTx tx) = foldMap tokens (outputs tx)
 -- utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
 utxoFromTx :: Tx -> UTxO
-utxoFromTx Tx {txId, outputs} =
+utxoFromTx tx =
+    if failedScriptValidation tx
+    then mempty
+    else utxoFromUnvalidatedTx tx
+
+-- | Similar to 'utxoFromTx', but does not check the validation status.
+--
+utxoFromUnvalidatedTx :: Tx -> UTxO
+utxoFromUnvalidatedTx Tx {txId, outputs} =
     UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 
 isOurAddress
@@ -526,7 +542,9 @@ prefilterBlock b u0 = runState $ do
 
         return $ if hasKnownOutput && not hasKnownInput then
             let dir = Incoming in
-            ( (tx { fee = actualFee dir }, mkTxMeta (TB.getCoin received) dir) : txs
+            ( ( tx { fee = actualFee dir }
+              , mkTxMeta (TB.getCoin received) dir
+              ) : txs
             , ourNextUTxO
             )
         else if hasKnownInput || hasKnownWithdrawal then
@@ -555,5 +573,6 @@ changeUTxO
     -> s
     -> UTxO
 changeUTxO pending = evalState $
-    mconcat
-    <$> mapM (filterByAddressM isOurAddress . utxoFromTx) (Set.toList pending)
+    mconcat <$> mapM
+        (filterByAddressM isOurAddress . utxoFromUnvalidatedTx)
+        (Set.toList pending)

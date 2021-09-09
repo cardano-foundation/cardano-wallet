@@ -71,7 +71,12 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), SealedTx (..), TxMetadata, TxStatus (..) )
+    ( Direction (..)
+    , SealedTx (..)
+    , TxMetadata
+    , TxScriptValidity (..)
+    , TxStatus (..)
+    )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -797,6 +802,27 @@ instance PersistField DerivationPrefix where
 
 instance PersistFieldSql DerivationPrefix where
     sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- ScriptValidation
+
+instance PersistField TxScriptValidity where
+    toPersistValue = \case
+        TxScriptValid -> PersistBool True
+        TxScriptInvalid -> PersistBool False
+
+    fromPersistValue = \case
+        PersistBool True -> Right TxScriptValid
+        PersistBool False -> Right TxScriptInvalid
+        x -> Left $ T.unwords
+            [ "Failed to parse Haskell type `TxScriptValidity`;"
+            , "expected null or boolean"
+            , "from database, but received:"
+            , T.pack (show x)
+            ]
+
+instance PersistFieldSql TxScriptValidity where
+    sqlType _ = sqlType (Proxy @(Maybe Bool))
 
 ----------------------------------------------------------------------------
 -- Other

@@ -16,7 +16,7 @@ module Test.QuickCheck.Extra
     , reasonablySized
 
       -- * Shrinking
-    , liftShrink6
+    , liftShrink7
     , shrinkInterleaved
     , shrinkMapWith
 
@@ -114,25 +114,27 @@ genSized2 genA genB = (,)
 genSized2With :: (a -> b -> c) -> Gen a -> Gen b -> Gen c
 genSized2With f genA genB = uncurry f <$> genSized2 genA genB
 
--- | Similar to 'liftShrink2', but applicable to 6-tuples.
+-- | Similar to 'liftShrink2', but applicable to 7-tuples.
 --
-liftShrink6
+liftShrink7
     :: (a1 -> [a1])
     -> (a2 -> [a2])
     -> (a3 -> [a3])
     -> (a4 -> [a4])
     -> (a5 -> [a5])
     -> (a6 -> [a6])
-    -> (a1, a2, a3, a4, a5, a6)
-    -> [(a1, a2, a3, a4, a5, a6)]
-liftShrink6 s1 s2 s3 s4 s5 s6 (a1, a2, a3, a4, a5, a6) =
+    -> (a7 -> [a7])
+    -> (a1, a2, a3, a4, a5, a6, a7)
+    -> [(a1, a2, a3, a4, a5, a6, a7)]
+liftShrink7 s1 s2 s3 s4 s5 s6 s7 (a1, a2, a3, a4, a5, a6, a7) =
     interleaveRoundRobin
-    [ [ (a1', a2 , a3 , a4 , a5 , a6 ) | a1' <- s1 a1 ]
-    , [ (a1 , a2', a3 , a4 , a5 , a6 ) | a2' <- s2 a2 ]
-    , [ (a1 , a2 , a3', a4 , a5 , a6 ) | a3' <- s3 a3 ]
-    , [ (a1 , a2 , a3 , a4', a5 , a6 ) | a4' <- s4 a4 ]
-    , [ (a1 , a2 , a3 , a4 , a5', a6 ) | a5' <- s5 a5 ]
-    , [ (a1 , a2 , a3 , a4 , a5 , a6') | a6' <- s6 a6 ]
+    [ [ (a1', a2 , a3 , a4 , a5 , a6 , a7 ) | a1' <- s1 a1 ]
+    , [ (a1 , a2', a3 , a4 , a5 , a6 , a7 ) | a2' <- s2 a2 ]
+    , [ (a1 , a2 , a3', a4 , a5 , a6 , a7 ) | a3' <- s3 a3 ]
+    , [ (a1 , a2 , a3 , a4', a5 , a6 , a7 ) | a4' <- s4 a4 ]
+    , [ (a1 , a2 , a3 , a4 , a5', a6 , a7 ) | a5' <- s5 a5 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6', a7 ) | a6' <- s6 a6 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6 , a7') | a7' <- s7 a7 ]
     ]
 
 -- Interleaves the given lists together in round-robin order.

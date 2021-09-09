@@ -60,6 +60,8 @@ import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..), addressParity, coarbitraryAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoin, shrinkCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -72,12 +74,15 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxIn (..)
     , TxMeta (direction)
     , TxOut (..)
+    , TxScriptValidity (..)
+    , collateralInputs
+    , failedScriptValidation
     , inputs
     , txIns
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx, shrinkTx )
+    ( genTx, genTxIn, genTxOut, shrinkTx, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, filterByAddress, restrictedTo )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
@@ -147,6 +152,8 @@ import Test.QuickCheck
     , (.&&.)
     , (===)
     )
+import Test.QuickCheck.Extra
+    ( report )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -197,6 +204,10 @@ spec = do
                 (property prop_applyTxToUTxO_balance)
             it "has expected entries"
                 (property prop_applyTxToUTxO_entries)
+            it "consumes inputs"
+                (property unit_applyTxToUTxO_spends_input)
+            it "loses collateral"
+                (property unit_applyTxToUTxO_loses_collateral)
             it "applyTxToUTxO then filterByAddress"
                 (property prop_filterByAddress_balance_applyTxToUTxO)
             it "spendTx/applyTxToUTxO/utxoFromTx"
@@ -496,6 +507,12 @@ prop_changeUTxO_inner pendingTxs =
           -- No outputs are omitted when we select everything:
         , UTxO.size utxoAll == F.sum (F.length . view #outputs <$> pendingTxs)
         ]
+    & report
+        (UTxO.size utxoAll)
+        "UTxO.size utxoAll"
+    & report
+        (F.sum (F.length . view #outputs <$> pendingTxs))
+        "F.sum (F.length . view #outputs <$> pendingTxs)"
   where
     -- Computes the parity of an output based on its address parity.
     txOutParity :: TxOut -> Parity
@@ -741,9 +758,21 @@ instance IsOurs WalletState RewardAccount where
         , s
         )
 
+instance Arbitrary Coin where
+    shrink = shrinkCoin
+    arbitrary = genCoin
+
 instance Arbitrary Tx where
     shrink = shrinkTx
     arbitrary = genTx
+
+instance Arbitrary TxIn where
+    arbitrary = genTxIn
+    shrink = shrinkTxIn
+
+instance Arbitrary TxOut where
+    arbitrary = genTxOut
+    shrink = shrinkTxOut
 
 instance Arbitrary UTxO where
     shrink = shrinkUTxO
@@ -822,6 +851,7 @@ instance Arbitrary (WithPending WalletState) where
                         , outputs = [out {tokens}]
                         , withdrawals = mempty
                         , metadata = Nothing
+                        , scriptValidity = Nothing
                         }
 
                 elements [Set.singleton pending, Set.empty]
@@ -897,6 +927,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -931,6 +962,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             , Tx
                 { txId = Hash "b17ca3d2b8a991ea4680d1ebd9940a03449b1b6261fbe625d5cae6599726ea41"
@@ -954,6 +986,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -988,6 +1021,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             , Tx
                 { txId = Hash "6ed51b05821f0dc130a9411f0d63a241a624fbc8a9c8a2a13da8194ce3c463f4"
@@ -1011,6 +1045,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1045,6 +1080,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1089,6 +1125,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1122,6 +1159,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1156,6 +1194,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1204,6 +1243,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1278,6 +1318,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             , Tx
                 { txId = Hash "611ce641f0f9282a35b1678fcd996016833c0de9e83a04bfa1178c8f045196ea"
@@ -1301,6 +1342,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1335,6 +1377,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             , Tx
                 { txId = Hash "b8e9699ffff40c993d6778f586110b78cd30826feaa5314adf3a2e9894b9313a"
@@ -1358,6 +1401,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1452,6 +1496,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
               , Tx
                   { txId = Hash "7726526b5cc003f71d9629c611397285004b5438eac9a118c2b20e2810e0783e"
@@ -1475,6 +1520,7 @@ blockchain =
                       ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1509,6 +1555,7 @@ blockchain =
                     ]
                 , withdrawals = mempty
                 , metadata = Nothing
+                , scriptValidity = Nothing
                 }
             ]
         , delegations = []
@@ -1547,12 +1594,21 @@ prop_applyTxToUTxO_balance tx u =
     cover 10
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
-    balance (applyTxToUTxO tx u)
-    === balance u
-      `TokenBundle.add`
-          balance (utxoFromTx tx)
-      `TokenBundle.difference`
-          balance (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+    cover 10
+        (failedScriptValidation tx)
+        "failedScriptValidation tx" $
+    cover 10
+        (not $ failedScriptValidation tx)
+        "not $ failedScriptValidation tx" $
+    balance (applyTxToUTxO tx u) === expectedBalance
+  where
+    expectedBalance =
+        if failedScriptValidation tx
+        then
+            balance (u `excluding` Set.fromList (collateralInputs tx))
+        else
+            balance (u `excluding` Set.fromList (inputs tx))
+                `TokenBundle.add` balance (utxoFromTx tx)
 
 prop_applyTxToUTxO_entries :: Tx -> UTxO -> Property
 prop_applyTxToUTxO_entries tx u =
@@ -1563,12 +1619,18 @@ prop_applyTxToUTxO_entries tx u =
     cover 10
         (applyTxToUTxO tx u /= u)
         "applyTxToUTxO tx u /= u" $
-    unUTxO (applyTxToUTxO tx u)
-    === unUTxO u
-      `Map.union`
-          unUTxO (utxoFromTx tx)
-      `Map.difference`
-          unUTxO (u `UTxO.restrictedBy` Set.fromList (inputs tx))
+    cover 10
+        (failedScriptValidation tx)
+        "failedScriptValidation tx" $
+    cover 10
+        (not $ failedScriptValidation tx)
+        "not $ failedScriptValidation tx" $
+    applyTxToUTxO tx u === expectedResult
+  where
+    expectedResult =
+        if failedScriptValidation tx
+        then u `excluding` Set.fromList (collateralInputs tx)
+        else u `excluding` Set.fromList (inputs tx) <> utxoFromTx tx
 
 prop_filterByAddress_balance_applyTxToUTxO
     :: (Address -> Bool) -> Tx -> Property
@@ -1580,19 +1642,78 @@ prop_filterByAddress_balance_applyTxToUTxO f tx =
     cover 10
         (filterByAddress f (applyTxToUTxO tx mempty) /= mempty)
         "filterByAddress f (applyTxToUTxO tx mempty) /= mempty" $
+    cover 10
+        (failedScriptValidation tx)
+        "failedScriptValidation tx" $
+    cover 10
+        (not $ failedScriptValidation tx)
+        "not $ failedScriptValidation tx" $
     balance (filterByAddress f (applyTxToUTxO tx mempty))
-    === foldMap
-        (\o -> if f (address o) then tokens o else mempty)
-        (outputs tx)
-
-prop_utxoFromTx_balance :: Tx -> Property
-prop_utxoFromTx_balance tx =
-    balance (utxoFromTx tx) === foldMap tokens (outputs tx)
+    ===
+    expectedResult
+  where
+    expectedResult =
+        if failedScriptValidation tx
+        then mempty
+        else foldMap m (outputs tx)
+      where
+        m output =
+            if f (address output)
+            then tokens output
+            else mempty
 
 prop_utxoFromTx_is_unspent :: Tx -> Property
 prop_utxoFromTx_is_unspent tx =
+    checkCoverage $
+    cover 10
+        (utxoFromTx tx /= mempty)
+        "utxoFromTx tx /= mempty" $
+    cover 10
+        (Set.fromList (inputs tx) /= mempty)
+        "Set.fromList (inputs tx) /= mempty" $
     utxoFromTx tx `excluding` Set.fromList (inputs tx)
     === utxoFromTx tx
+
+unit_applyTxToUTxO_spends_input :: Tx -> TxIn -> TxOut -> Coin -> Property
+unit_applyTxToUTxO_spends_input tx txin txout coin =
+    let
+        tx' = tx
+            { resolvedInputs = [(txin, coin)]
+            , scriptValidity = Nothing
+            }
+    in
+        applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
+        === utxoFromTx tx' `excluding` Set.singleton txin
+
+unit_applyTxToUTxO_loses_collateral :: Tx -> TxIn -> TxOut -> Coin -> Property
+unit_applyTxToUTxO_loses_collateral tx txin txout coin =
+    let
+        tx' = tx
+            { resolvedCollateral = [(txin, coin)]
+            , scriptValidity = Just TxScriptInvalid
+            }
+    in
+        applyTxToUTxO tx' (UTxO $ Map.fromList [(txin, txout)])
+        === mempty
+
+prop_utxoFromTx_balance :: Tx -> Property
+prop_utxoFromTx_balance tx =
+    checkCoverage $
+    cover 10
+        (outputs tx /= mempty)
+        "outputs tx /= mempty" $
+    cover 10
+        (failedScriptValidation tx)
+        "failedScriptValidation tx)" $
+    cover 10
+        (not $ failedScriptValidation tx)
+        "not $ failedScriptValidation tx)" $
+    balance (utxoFromTx tx) === foldMap f (outputs tx)
+  where
+    f output =
+        if failedScriptValidation tx
+        then mempty
+        else tokens output
 
 -- spendTx tx u `isSubsetOf` u
 prop_spendTx_isSubset :: Tx -> UTxO -> Property
@@ -1628,9 +1749,14 @@ prop_spendTx_balance tx u =
     lhs === rhs
   where
     lhs = balance (spendTx tx u)
-    rhs = TokenBundle.unsafeSubtract
-        (balance u)
-        (balance (u `UTxO.restrictedBy` Set.fromList (inputs tx)))
+    rhs = TokenBundle.unsafeSubtract (balance u) toSubtract
+      where
+        toSubtract =
+            if failedScriptValidation tx
+            then balance
+                (u `UTxO.restrictedBy` Set.fromList (collateralInputs tx))
+            else balance
+                (u `UTxO.restrictedBy` Set.fromList (inputs tx))
 
 prop_spendTx :: Tx -> UTxO -> Property
 prop_spendTx tx u =
@@ -1638,7 +1764,12 @@ prop_spendTx tx u =
     cover 10
         (spendTx tx u /= mempty)
         "spendTx tx u /= mempty" $
-    spendTx tx u === u `excluding` Set.fromList (inputs tx)
+    spendTx tx u === u `excluding` toExclude
+  where
+    toExclude =
+        if failedScriptValidation tx
+        then Set.fromList (collateralInputs tx)
+        else Set.fromList (inputs tx)
 
 prop_spendTx_utxoFromTx :: Tx -> UTxO -> Property
 prop_spendTx_utxoFromTx tx u =

@@ -761,6 +761,7 @@ fromGenesisData g initialFunds =
                 ]
             , withdrawals = mempty
             , metadata = Nothing
+            , scriptValidity = Nothing
             }
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
@@ -870,6 +871,8 @@ fromShelleyTx tx =
             fromShelleyWdrl wdrls
         , metadata =
             fromShelleyMD <$> SL.strictMaybeToMaybe mmd
+        , scriptValidity =
+            Nothing
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -900,6 +903,8 @@ fromAllegraTx tx =
             fromShelleyWdrl wdrls
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd
+        , scriptValidity =
+            Nothing
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -934,6 +939,8 @@ fromMaryTx tx =
             fromShelleyWdrl wdrls
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
+        , scriptValidity =
+            Nothing
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -978,6 +985,8 @@ fromAlonzoTxBodyAndAux bod mad =
             fromShelleyWdrl wdrls
         , metadata =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
+        , scriptValidity =
+            Nothing
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -1023,8 +1032,14 @@ fromAlonzoTx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
        )
-fromAlonzoTx (Alonzo.ValidatedTx bod _wits _isValidating aux) =
-    fromAlonzoTxBodyAndAux bod aux
+fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
+    (\(tx, d, p) -> (tx { W.scriptValidity = validity }, d, p))
+    $ fromAlonzoTxBodyAndAux bod aux
+    where
+        validity =
+            if isValid
+            then Just W.TxScriptValid
+            else Just W.TxScriptInvalid
 
 fromCardanoValue :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
 fromCardanoValue = uncurry TokenBundle.fromFlatList . extract

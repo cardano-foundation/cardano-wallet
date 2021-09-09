@@ -308,6 +308,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxConstraints (..)
     , TxIn (..)
     , TxMetadata
+    , TxScriptValidity (..)
     , TxStatus (..)
     , txMetadataIsNull
     )
@@ -1093,6 +1094,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
+    , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
@@ -3637,3 +3639,11 @@ instance FromJSON (ApiT (Script KeyHash)) where
     parseJSON = fmap ApiT . parseJSON
 instance ToJSON (ApiT (Script KeyHash)) where
     toJSON = toJSON . getApiT
+
+instance FromJSON (ApiT TxScriptValidity) where
+    parseJSON = fmap ApiT . genericParseJSON Aeson.defaultOptions
+        { constructorTagModifier = camelTo2 '_' . drop 8 }
+
+instance ToJSON (ApiT TxScriptValidity) where
+    toJSON = genericToJSON Aeson.defaultOptions
+        { constructorTagModifier = camelTo2 '_' . drop 8 } . getApiT

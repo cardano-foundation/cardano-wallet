@@ -11,11 +11,13 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , genTxIn
     , genTxInLargeRange
     , genTxOut
+    , genTxScriptValidity
     , shrinkTx
     , shrinkTxHash
     , shrinkTxIndex
     , shrinkTxIn
     , shrinkTxOut
+    , shrinkTxScriptValidity
     )
     where
 
@@ -40,7 +42,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..) )
+    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..), TxScriptValidity (..) )
 import Control.Monad
     ( replicateM )
 import Data.Either
@@ -66,10 +68,12 @@ import Test.QuickCheck
     , sized
     , suchThat
     )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
     ( genMapWith
     , genSized2With
-    , liftShrink6
+    , liftShrink7
     , shrinkInterleaved
     , shrinkMapWith
     )
@@ -95,6 +99,7 @@ data TxWithoutId = TxWithoutId
     , outputs :: ![TxOut]
     , metadata :: !(Maybe TxMetadata)
     , withdrawals :: !(Map RewardAccount Coin)
+    , scriptValidity :: !(Maybe TxScriptValidity)
     }
     deriving (Eq, Ord, Show)
 
@@ -106,16 +111,18 @@ genTxWithoutId = TxWithoutId
     <*> listOf genTxOut
     <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
+    <*> liftArbitrary genTxScriptValidity
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
 shrinkTxWithoutId =
-    shrinkMapBy tupleToTxWithoutId txWithoutIdToTuple $ liftShrink6
+    shrinkMapBy tupleToTxWithoutId txWithoutIdToTuple $ liftShrink7
         (liftShrink shrinkCoinPositive)
         (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
         (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
         (shrinkList shrinkTxOut)
         (liftShrink shrinkTxMetadata)
         (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
+        (liftShrink shrinkTxScriptValidity)
 
 txWithoutIdToTx :: TxWithoutId -> Tx
 txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}
@@ -124,12 +131,18 @@ txToTxWithoutId :: Tx -> TxWithoutId
 txToTxWithoutId Tx {..} = TxWithoutId {..}
 
 txWithoutIdToTuple :: TxWithoutId -> _
-txWithoutIdToTuple (TxWithoutId a1 a2 a3 a4 a5 a6) =
-    (a1, a2, a3, a4, a5, a6)
+txWithoutIdToTuple (TxWithoutId a1 a2 a3 a4 a5 a6 a7) =
+    (a1, a2, a3, a4, a5, a6, a7)
 
 tupleToTxWithoutId :: _ -> TxWithoutId
-tupleToTxWithoutId (a1, a2, a3, a4, a5, a6) =
-    (TxWithoutId a1 a2 a3 a4 a5 a6)
+tupleToTxWithoutId (a1, a2, a3, a4, a5, a6, a7) =
+    (TxWithoutId a1 a2 a3 a4 a5 a6 a7)
+
+genTxScriptValidity :: Gen TxScriptValidity
+genTxScriptValidity = genericArbitrary
+
+shrinkTxScriptValidity :: TxScriptValidity -> [TxScriptValidity]
+shrinkTxScriptValidity = genericShrink
 
 --------------------------------------------------------------------------------
 -- Transaction hashes generated according to the size parameter

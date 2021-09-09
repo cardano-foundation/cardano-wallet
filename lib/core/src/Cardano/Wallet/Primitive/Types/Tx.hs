@@ -5,6 +5,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -34,15 +35,18 @@ module Cardano.Wallet.Primitive.Types.Tx
     , LocalTxSubmissionStatus (..)
     , TokenBundleSizeAssessor (..)
     , TokenBundleSizeAssessment (..)
+    , TxScriptValidity(..)
 
     -- * Functions
     , fromTransactionInfo
     , inputs
+    , collateralInputs
     , isPending
     , toTxHistory
     , txIns
     , txMetadataIsNull
     , txOutCoin
+    , failedScriptValidation
 
     -- * Constants
     , txOutMinTokenQuantity
@@ -195,6 +199,13 @@ data Tx = Tx
         --
         -- See Appendix E of
         -- <https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
+
+    , scriptValidity
+        :: !(Maybe TxScriptValidity)
+        -- ^ Tag indicating whether non-native scripts in this transaction
+        -- passed validation. This is added by the block creator when
+        -- constructing the block. May be 'Nothing' for pre-Alonzo and pending
+        -- transactions.
     } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
@@ -213,13 +224,21 @@ instance Buildable Tx where
             tupleF (Map.toList $ view #withdrawals t)
         , nameF "metadata"
             (maybe "" build $ view #metadata t)
+        , nameF "scriptValidity" (build $ view #scriptValidity t)
         ]
+
+instance Buildable TxScriptValidity where
+    build TxScriptValid = "valid"
+    build TxScriptInvalid = "invalid"
 
 txIns :: Set Tx -> Set TxIn
 txIns = foldMap (Set.fromList . inputs)
 
 inputs :: Tx -> [TxIn]
 inputs = map fst . resolvedInputs
+
+collateralInputs :: Tx -> [TxIn]
+collateralInputs = map fst . resolvedCollateral
 
 data TxIn = TxIn
     { inputId
@@ -459,9 +478,32 @@ data TransactionInfo = TransactionInfo
     -- ^ Creation time of the block including this transaction.
     , txInfoMetadata :: !(Maybe TxMetadata)
     -- ^ Application-specific extension data.
+    , txInfoScriptValidity :: !(Maybe TxScriptValidity)
+    -- ^ Tag indicating whether non-native scripts in this transaction passed
+    -- validation. This is added by the block creator when constructing the
+    -- block. May be 'Nothing' for pre-Alonzo and pending transactions.
     } deriving (Generic, Show, Eq)
 
 instance NFData TransactionInfo
+
+-- | Indicates whether the script associated with a transaction has passed or
+-- failed validation. Pre-Alonzo era, scripts were not supported.
+data TxScriptValidity
+    = TxScriptValid
+    -- ^ Indicates that the script passed validation.
+    | TxScriptInvalid
+    -- ^ Indicates that the script failed validation.
+  deriving (Generic, Show, Eq, Ord)
+
+instance NFData TxScriptValidity
+
+-- | Returns 'True' if and only if a transaction has failed script validation.
+failedScriptValidation :: Tx -> Bool
+failedScriptValidation Tx {scriptValidity} = case scriptValidity of
+    Just TxScriptInvalid -> True
+    Just TxScriptValid -> False
+    -- Script validation always passes in eras that don't support scripts
+    Nothing -> False
 
 -- | Reconstruct a transaction info from a transaction.
 fromTransactionInfo :: TransactionInfo -> Tx
@@ -473,6 +515,7 @@ fromTransactionInfo info = Tx
     , outputs = txInfoOutputs info
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
+    , scriptValidity = txInfoScriptValidity info
     }
   where
     drop3rd :: (a, b, c) -> (a, b)

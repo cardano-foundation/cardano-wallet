@@ -273,8 +273,11 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxIn (..)
     , TxMetadata (..)
     , TxOut (..)
+    , TxScriptValidity (..)
     , TxStatus (..)
     )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( HistogramBar (..)
     , UTxO (..)
@@ -384,6 +387,7 @@ import Test.QuickCheck
     , counterexample
     , elements
     , frequency
+    , liftArbitrary
     , liftShrink
     , liftShrink2
     , listOf
@@ -522,6 +526,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxMetadata)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
+            jsonRoundtripAndGolden $ Proxy @(ApiT TxScriptValidity)
             jsonRoundtripAndGolden $ Proxy @(ApiWalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
@@ -1108,6 +1113,8 @@ spec = parallel $ do
                     , mint = mint
                         (x :: ApiTransaction ('Testnet 0))
                     , metadata = metadata
+                        (x :: ApiTransaction ('Testnet 0))
+                    , scriptValidity = scriptValidity
                         (x :: ApiTransaction ('Testnet 0))
                     }
             in
@@ -2189,6 +2196,7 @@ instance Arbitrary (ApiTransaction n) where
             <*> arbitrary
             <*> pure txStatus
             <*> arbitrary
+            <*> liftArbitrary (ApiT <$> genTxScriptValidity)
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
@@ -2198,6 +2206,10 @@ instance Arbitrary (ApiTransaction n) where
             Test.QuickCheck.scale (`mod` 3) arbitrary
         genCollateral =
             Test.QuickCheck.scale (`mod` 3) arbitrary
+
+instance Arbitrary TxScriptValidity where
+    arbitrary = genTxScriptValidity
+    shrink = shrinkTxScriptValidity
 
 instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
     arbitrary = ApiWithdrawal
