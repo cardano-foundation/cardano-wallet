@@ -390,10 +390,16 @@ spendTx tx !u =
 -- balance (utxoFromTx tx) = foldMap tokens (outputs tx)
 -- utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
 utxoFromTx :: Tx -> UTxO
-utxoFromTx Tx {txId, outputs, scriptValidity} =
+utxoFromTx tx@Tx {scriptValidity} =
     if failedScriptValidation scriptValidity
     then mempty
-    else UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
+    else utxoFromUnvalidatedTx tx
+
+-- | Similar to 'utxoFromTx', but does not check the validation status.
+--
+utxoFromUnvalidatedTx :: Tx -> UTxO
+utxoFromUnvalidatedTx Tx {txId, outputs} =
+    UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 
 isOurAddress
     :: forall s m
@@ -567,12 +573,6 @@ changeUTxO
     -> s
     -> UTxO
 changeUTxO pending = evalState $
-    mconcat
-    <$> mapM (filterByAddressM isOurAddress . mkUTxOFromTx) (Set.toList pending)
-  where
-    -- Generate a UTxO from an transaction, assuming that it passes phase-2
-    -- script validation. Crucially, utxoFromTx will exclude failed
-    -- transactions, hence we define our own function.
-    mkUTxOFromTx :: Tx -> UTxO
-    mkUTxOFromTx Tx {txId, outputs} =
-        UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
+    mconcat <$> mapM
+        (filterByAddressM isOurAddress . utxoFromUnvalidatedTx)
+        (Set.toList pending)
