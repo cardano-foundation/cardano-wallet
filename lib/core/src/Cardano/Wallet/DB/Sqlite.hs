@@ -1819,7 +1819,8 @@ mkTxHistory
         , [TxWithdrawal]
         )
 mkTxHistory wid txs = flatTxHistory
-    [ ( mkTxMetaEntity wid txid (W.fee tx) (W.metadata tx) derived (W.scriptValidity tx)
+    [ ( mkTxMetaEntity
+          wid txid (W.fee tx) (W.metadata tx) derived (W.scriptValidity tx)
       , mkTxInputsOutputs (txid, tx)
       , mkTxWithdrawals (txid, tx)
       )

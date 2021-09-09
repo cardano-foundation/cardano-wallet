@@ -5,6 +5,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -497,12 +498,13 @@ data TxScriptValidity
 
 instance NFData TxScriptValidity
 
--- | Returns True when the script has failed validation.
-failedScriptValidation :: Maybe TxScriptValidity -> Bool
-failedScriptValidation (Just TxScriptInvalid) = True
-failedScriptValidation (Just TxScriptValid) = False
--- Script validation always passes in eras that don't support scripts
-failedScriptValidation Nothing = False
+-- | Returns 'True' if and only if a transaction has failed script validation.
+failedScriptValidation :: Tx -> Bool
+failedScriptValidation Tx {scriptValidity} = case scriptValidity of
+    Just TxScriptInvalid -> True
+    Just TxScriptValid -> False
+    -- Script validation always passes in eras that don't support scripts
+    Nothing -> False
 
 -- | Reconstruct a transaction info from a transaction.
 fromTransactionInfo :: TransactionInfo -> Tx
