@@ -4937,7 +4937,7 @@ paths:
       tags: ["Assets"]
       summary: Get Asset (empty name)
       description: |
-        Fetch the the asset from `policy_id` with an empty name.
+        Fetch the asset from `policy_id` with an empty name.
 
         The asset must be associated with the wallet.
       parameters:
@@ -5533,7 +5533,7 @@ paths:
       tags: ["Byron Assets"]
       summary: Get Asset (empty name)
       description: |
-        Fetch the the asset from `policy_id` with an empty name.
+        Fetch the asset from `policy_id` with an empty name.
 
         The asset must be associated with the wallet.
       parameters:
