@@ -49,6 +49,8 @@ import Data.Char
     ( isSpace )
 import Data.Digest.CRC32
     ( crc32 )
+import Data.List
+    ( intercalate )
 import Data.Maybe
     ( fromMaybe, isJust, mapMaybe, maybeToList )
 import Safe
@@ -66,7 +68,6 @@ main :: IO ()
 main = do
     (RebuildOpts{..}, cmd) <- parseOpts
     bk <- getBuildkiteEnv
-    nightly <- envDefined "NIGHTLY_BUILD"
     cacheConfig <- getCacheConfig bk optCacheDirectory
     case cmd of
         Build -> do
@@ -74,7 +75,7 @@ main = do
             whenRun optDryRun $ do
                 cacheGetStep cacheConfig
                 cleanBuildDirectory (fromMaybe "." optBuildDirectory)
-            buildResult <- buildStep optDryRun (qaLevel nightly bk)
+            buildResult <- buildStep optDryRun (qaLevel optQALevel bk)
             when (shouldUploadCoverage bk) $ uploadCoverageStep optDryRun
             whenRun optDryRun $ cachePutStep cacheConfig
             if buildResult == ExitSuccess
@@ -90,6 +91,7 @@ data BuildOpt = Standard | Fast deriving (Show, Eq)
 data RebuildOpts = RebuildOpts
     { optBuildDirectory :: Maybe FilePath
     , optCacheDirectory :: Maybe FilePath
+    , optQALevel :: Maybe QA
     , optDryRun :: DryRun
     } deriving (Show)
 
@@ -97,7 +99,8 @@ data Command = Build | CleanupCache | PurgeCache deriving (Show)
 
 data DryRun = Run | DryRun deriving (Show, Eq)
 
-data QA = QuickTest | FullTest | NightlyTest deriving (Show, Eq, Ord)
+data QA = QuickTest | FullTest | NightlyTest
+    deriving (Show, Read, Eq, Ord, Bounded, Enum)
 
 data Jobs = Serial | Parallel Int deriving (Show, Eq)
 
@@ -105,6 +108,7 @@ rebuildOpts :: Parser RebuildOpts
 rebuildOpts = RebuildOpts
     <$> optional buildDir
     <*> optional cacheName
+    <*> optional qa
     <*> dryRun
   where
     buildDir = option
@@ -118,6 +122,11 @@ rebuildOpts = RebuildOpts
         (  long "cache-dir"
         <> metavar "DIR"
         <> help "Location of project's cache"
+        )
+    qa = option auto
+        (  long "qa-level"
+        <> metavar (intercalate "|" (map show [(minBound :: QA) .. maxBound]))
+        <> help "Amount of testing to perform"
         )
     dryRun = flag Run DryRun
         (  long "dry-run"
@@ -152,17 +161,13 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
         projectBuild ["--test", "--no-run-tests"]
     , titled "Tests (except integration)" $
         timeout 60 $ do
-            test (skip "integration")
+            test (skip "integration") []
     , titled "Checking golden test files" $
         checkUnclean dryRun "lib/core/test/data"
     , when' runIntegration $ titled "Integration tests on latest era" $
-        timeout 60 $ do
-            unset "LOCAL_CLUSTER_ERA"
-            test ["cardano-wallet:integration"]
+        timeout 60 $ integrationTest ""
     , when' runIntegration $ titled "Integration tests on past era (Mary)" $
-        timeout 60 $ do
-            export "LOCAL_CLUSTER_ERA" "mary"
-            test ["cardano-wallet:integration"]
+        timeout 60 $ integrationTest "mary"
     ]
   where
     projectOpt = Fast
@@ -188,8 +193,15 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
 
     projectBuild args = build projectOpt $ benchFlags ++ args
 
-    test args = runStack "test" projectOpt $
-        ta (jobs 3) ++ benchFlags ++ args
+    test args hspecArgs = runStack "test" projectOpt $
+        ta (jobs 3 ++ hspecArgs) ++ benchFlags ++ args
+
+    integrationTest era = do
+        testsLogDir <- exportEnvArg "TESTS_LOGDIR"
+        test ["cardano-wallet:integration"] $ mconcat
+            [ envArg "LOCAL_CLUSTER_ERA" era
+            , envArg "TESTS_RETRY_FAILED" "yes"
+            , testsLogDir ]
 
     color arg = ["--color", arg]
     fast  arg = case arg of Standard -> []; Fast -> ["--fast"]
@@ -200,6 +212,9 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
     cabalFlag name pkg = ["--flag", pkg <> ":" <> name]
 
     serialTests = "SERIAL"
+
+    envArg name val = ["--env", name <> "=" <> val]
+    exportEnvArg name = maybe [] (envArg name) <$> need name
 
 -- | Like 'when', but for shell programs.
 when' :: MonadIO m => Bool -> m ExitCode -> m ExitCode
@@ -286,20 +301,18 @@ isBorsBuild :: BuildkiteEnv -> Bool
 isBorsBuild bk = "bors/" `T.isPrefixOf` bkBranch bk
 
 -- | How much time to spend executing tests.
-qaLevel :: Bool -> Maybe BuildkiteEnv -> QA
-qaLevel nightly = maybe QuickTest level
+qaLevel :: Maybe QA -> Maybe BuildkiteEnv -> QA
+qaLevel opt mbk = fromMaybe (fromMaybe QuickTest (mbk >>= level)) opt
   where
     level bk
-        | isBorsBuild bk = FullTest
-        | nightly = NightlyTest
-        | onDefaultBranch bk = QuickTest
-        | otherwise = QuickTest
+        | isBorsBuild bk = Just FullTest
+        | onDefaultBranch bk = Just QuickTest
+        | otherwise = Nothing
 
 -- | Whether to upload test coverage information to coveralls.io.
 shouldUploadCoverage :: Maybe BuildkiteEnv -> Bool
 shouldUploadCoverage _ = False
     -- FIXME: Coverage is messing up with the execution of tests...
-    -- qaLevel bk == FullTest
 
 -- | Add a Buildkite expandable section for the given command.
 -- It will be collapsed initially, but expanded if the command failed.

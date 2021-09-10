@@ -4,7 +4,6 @@ env:
   CACHE_DIR: "/cache/cardano-wallet"
   LC_ALL: "en_US.UTF-8"
   TESTS_LOGDIR: "/tmp/wallet-integration-logs"
-  TESTS_RETRY_FAILED: "yes"
 
 steps:
   - label: 'Prevent merging to wrong branch'
