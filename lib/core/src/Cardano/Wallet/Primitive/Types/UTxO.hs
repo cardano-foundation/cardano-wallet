@@ -31,6 +31,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , computeUtxoStatistics
     , excluding
     , isSubsetOf
+    , empty
     , null
     , log10
     , restrictedBy
@@ -137,6 +138,9 @@ restrictedBy (UTxO utxo) =
 restrictedTo :: UTxO -> Set TxOut -> UTxO
 restrictedTo (UTxO utxo) outs =
     UTxO $ Map.filter (`Set.member` outs) utxo
+
+empty :: UTxO
+empty = UTxO Map.empty
 
 null :: UTxO -> Bool
 null (UTxO u) = Map.null u

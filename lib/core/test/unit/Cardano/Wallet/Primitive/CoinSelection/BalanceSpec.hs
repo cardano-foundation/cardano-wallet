@@ -32,7 +32,8 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionError (..)
     , SelectionInsufficientError (..)
     , SelectionLens (..)
-    , SelectionLimit (..)
+    , SelectionLimit
+    , SelectionLimitOf (..)
     , SelectionResult (..)
     , SelectionSkeleton (..)
     , SelectionState (..)
@@ -66,6 +67,8 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , splitBundlesWithExcessiveTokenQuantities
     , ungroupByKey
     )
+import Cardano.Wallet.Primitive.CoinSelection.Gen
+    ( genSelectionLimit, shrinkSelectionLimit )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -216,6 +219,10 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
     parallel $ describe "Class instances respect laws" $ do
 
         testLawsMany @(AssetCount TokenMap)
+            [ eqLaws
+            , ordLaws
+            ]
+        testLawsMany @SelectionLimit
             [ eqLaws
             , ordLaws
             ]
@@ -3573,6 +3580,10 @@ genTokenMapLarge = do
     genAssetQuantity = (,)
         <$> genAssetIdLargeRange
         <*> genTokenQuantityPositive
+
+instance Arbitrary SelectionLimit where
+    arbitrary = genSelectionLimit
+    shrink = shrinkSelectionLimit
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange

@@ -16,6 +16,7 @@ module Test.QuickCheck.Extra
     , reasonablySized
 
       -- * Shrinking
+    , liftShrink3
     , liftShrink7
     , shrinkInterleaved
     , shrinkMapWith
@@ -23,6 +24,9 @@ module Test.QuickCheck.Extra
       -- * Counterexamples
     , report
     , verify
+
+      -- * Combinators
+    , NotNull (..)
 
       -- * Utilities
     , interleaveRoundRobin
@@ -36,7 +40,8 @@ import Data.Map.Strict
 import Fmt
     ( indentF, (+|), (|+) )
 import Test.QuickCheck
-    ( Gen
+    ( Arbitrary (..)
+    , Gen
     , Property
     , Testable
     , counterexample
@@ -47,6 +52,7 @@ import Test.QuickCheck
     , scale
     , shrinkList
     , shrinkMapBy
+    , suchThat
     , (.&&.)
     )
 import Test.Utils.Pretty
@@ -113,6 +119,21 @@ genSized2 genA genB = (,)
 --
 genSized2With :: (a -> b -> c) -> Gen a -> Gen b -> Gen c
 genSized2With f genA genB = uncurry f <$> genSized2 genA genB
+
+-- | Similar to 'liftShrink2', but applicable to 3-tuples.
+--
+liftShrink3
+    :: (a1 -> [a1])
+    -> (a2 -> [a2])
+    -> (a3 -> [a3])
+    -> (a1, a2, a3)
+    -> [(a1, a2, a3)]
+liftShrink3 s1 s2 s3 (a1, a2, a3) =
+    interleaveRoundRobin
+    [ [ (a1', a2 , a3 ) | a1' <- s1 a1 ]
+    , [ (a1 , a2', a3 ) | a2' <- s2 a2 ]
+    , [ (a1 , a2 , a3') | a3' <- s3 a3 ]
+    ]
 
 -- | Similar to 'liftShrink2', but applicable to 7-tuples.
 --
@@ -208,3 +229,14 @@ verify condition conditionTitle =
     (.&&.) (counterexample counterexampleText $ property condition)
   where
     counterexampleText = "Condition violated: " <> conditionTitle
+
+--------------------------------------------------------------------------------
+-- Non-null values
+--------------------------------------------------------------------------------
+
+newtype NotNull a = NotNull { unNotNull :: a }
+    deriving (Eq, Show)
+
+instance (Arbitrary a, Eq a, Monoid a) => Arbitrary (NotNull a) where
+    arbitrary = NotNull <$> arbitrary `suchThat` (/= mempty)
+    shrink (NotNull u) = NotNull <$> filter (/= mempty) (shrink u)

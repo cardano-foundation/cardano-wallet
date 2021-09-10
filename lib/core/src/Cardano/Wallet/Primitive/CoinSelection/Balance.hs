@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -32,7 +33,8 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , emptySkeleton
     , selectionDelta
     , SelectionCriteria (..)
-    , SelectionLimit (..)
+    , SelectionLimit
+    , SelectionLimitOf (..)
     , SelectionSkeleton (..)
     , SelectionResult (..)
     , SelectionError (..)
@@ -233,12 +235,21 @@ emptySkeleton = SelectionSkeleton
 
 -- | Specifies a limit to adhere to when performing a selection.
 --
-data SelectionLimit
+type SelectionLimit = SelectionLimitOf Int
+
+data SelectionLimitOf a
     = NoLimit
       -- ^ Indicates that there is no limit.
-    | MaximumInputLimit Int
+    | MaximumInputLimit a
       -- ^ Indicates a maximum limit on the number of inputs to select.
-    deriving (Eq, Show)
+    deriving (Eq, Functor, Show)
+
+instance Ord a => Ord (SelectionLimitOf a) where
+    compare a b = case (a, b) of
+        (NoLimit            , NoLimit            ) -> EQ
+        (MaximumInputLimit _, NoLimit            ) -> LT
+        (NoLimit            , MaximumInputLimit _) -> GT
+        (MaximumInputLimit x, MaximumInputLimit y) -> compare x y
 
 -- | The result of performing a successful selection.
 --
