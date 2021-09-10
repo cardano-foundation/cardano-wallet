@@ -78,7 +78,7 @@
         "tls".flags.hans = false;
         "prettyprinter".revision = (((hackage."prettyprinter")."1.7.0").revisions).default;
         "prettyprinter".flags.buildreadme = false;
-        "megaparsec".revision = (((hackage."megaparsec")."9.0.1").revisions).default;
+        "megaparsec".revision = (((hackage."megaparsec")."9.1.0").revisions).default;
         "megaparsec".flags.dev = false;
         "distributive".revision = (((hackage."distributive")."0.6.2.1").revisions).default;
         "distributive".flags.tagged = true;
@@ -132,15 +132,12 @@
         "http-client".revision = (((hackage."http-client")."0.7.8").revisions).default;
         "http-client".flags.network-uri = true;
         "ghc".revision = (((hackage."ghc")."8.10.5").revisions).default;
-        "lens".revision = (((hackage."lens")."4.19.2").revisions).default;
-        "lens".flags.test-doctests = true;
+        "lens".revision = (((hackage."lens")."5.0.1").revisions).default;
         "lens".flags.test-templates = true;
         "lens".flags.test-hunit = true;
         "lens".flags.benchmark-uniplate = false;
         "lens".flags.inlining = true;
-        "lens".flags.safe = false;
         "lens".flags.trustworthy = true;
-        "lens".flags.old-inline-pragmas = false;
         "lens".flags.test-properties = true;
         "lens".flags.dump-splices = false;
         "lens".flags.j = false;
@@ -162,7 +159,7 @@
         "prettyprinter-ansi-terminal".revision = (((hackage."prettyprinter-ansi-terminal")."1.1.2").revisions).default;
         "primitive".revision = (((hackage."primitive")."0.7.2.0").revisions).default;
         "directory".revision = (((hackage."directory")."1.3.6.0").revisions).default;
-        "transformers-compat".revision = (((hackage."transformers-compat")."0.6.6").revisions).default;
+        "transformers-compat".revision = (((hackage."transformers-compat")."0.7").revisions).default;
         "transformers-compat".flags.two = false;
         "transformers-compat".flags.five = false;
         "transformers-compat".flags.four = false;
@@ -170,7 +167,7 @@
         "transformers-compat".flags.five-three = true;
         "transformers-compat".flags.three = false;
         "transformers-compat".flags.mtl = true;
-        "memory".revision = (((hackage."memory")."0.15.0").revisions).default;
+        "memory".revision = (((hackage."memory")."0.16.0").revisions).default;
         "memory".flags.support_basement = true;
         "memory".flags.support_bytestring = true;
         "memory".flags.support_foundation = true;
@@ -200,7 +197,7 @@
         "semigroups".flags.text = true;
         "parsec".revision = (((hackage."parsec")."3.1.14.0").revisions).default;
         "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.5").revisions).default;
-        "generic-lens-core".revision = (((hackage."generic-lens-core")."2.0.0.0").revisions).default;
+        "generic-lens-core".revision = (((hackage."generic-lens-core")."2.2.0.0").revisions).default;
         "splitmix".revision = (((hackage."splitmix")."0.1.0.3").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "x509-store".revision = (((hackage."x509-store")."1.6.7").revisions).default;
@@ -217,7 +214,7 @@
         "strict".flags.assoc = true;
         "attoparsec".revision = (((hackage."attoparsec")."0.14.1").revisions).default;
         "attoparsec".flags.developer = false;
-        "generic-lens".revision = (((hackage."generic-lens")."2.0.0.0").revisions).default;
+        "generic-lens".revision = (((hackage."generic-lens")."2.2.0.0").revisions).default;
         "transformers".revision = (((hackage."transformers")."0.5.6.2").revisions).default;
         "pem".revision = (((hackage."pem")."0.2.4").revisions).default;
         "colour".revision = (((hackage."colour")."2.3.6").revisions).default;
@@ -239,7 +236,7 @@
         "assoc".revision = (((hackage."assoc")."1.0.2").revisions).default;
         "asn1-parse".revision = (((hackage."asn1-parse")."0.9.5").revisions).default;
         "base64-bytestring".revision = (((hackage."base64-bytestring")."1.2.1.0").revisions).default;
-        "dhall".revision = (((hackage."dhall")."1.37.1").revisions).default;
+        "dhall".revision = (((hackage."dhall")."1.40.1").revisions).default;
         "dhall".flags.with-http = true;
         "dhall".flags.use-http-client-tls = true;
         "dhall".flags.cross = false;
@@ -256,7 +253,7 @@
         "cryptonite".flags.integer-gmp = true;
         "cryptonite".flags.check_alignment = false;
         "th-compat".revision = (((hackage."th-compat")."0.1.3").revisions).default;
-        "mmorph".revision = (((hackage."mmorph")."1.1.5").revisions).default;
+        "mmorph".revision = (((hackage."mmorph")."1.2.0").revisions).default;
         "indexed-traversable".revision = (((hackage."indexed-traversable")."0.1.1").revisions).default;
         "zlib".revision = (((hackage."zlib")."0.6.2.3").revisions).default;
         "zlib".flags.non-blocking-ffi = false;
@@ -264,6 +261,7 @@
         "zlib".flags.pkg-config = false;
         "hourglass".revision = (((hackage."hourglass")."0.2.12").revisions).default;
         "appar".revision = (((hackage."appar")."0.1.8").revisions).default;
+        "indexed-traversable-instances".revision = (((hackage."indexed-traversable-instances")."0.1").revisions).default;
         "mime-types".revision = (((hackage."mime-types")."0.1.0.9").revisions).default;
         "base-compat-batteries".revision = (((hackage."base-compat-batteries")."0.12.0").revisions).default;
         "x509-validation".revision = (((hackage."x509-validation")."1.6.11").revisions).default;
@@ -323,7 +321,6 @@
           "byteorder".components.library.planned = lib.mkOverride 900 true;
           "containers".components.library.planned = lib.mkOverride 900 true;
           "lens".components.library.planned = lib.mkOverride 900 true;
-          "lens".components.setup.planned = lib.mkOverride 900 true;
           "x509".components.library.planned = lib.mkOverride 900 true;
           "semigroupoids".components.library.planned = lib.mkOverride 900 true;
           "bifunctors".components.library.planned = lib.mkOverride 900 true;
@@ -345,6 +342,7 @@
           "mime-types".components.library.planned = lib.mkOverride 900 true;
           "dhall".components.exes."dhall".planned = lib.mkOverride 900 true;
           "hourglass".components.library.planned = lib.mkOverride 900 true;
+          "indexed-traversable-instances".components.library.planned = lib.mkOverride 900 true;
           "appar".components.library.planned = lib.mkOverride 900 true;
           "mmorph".components.library.planned = lib.mkOverride 900 true;
           "indexed-traversable".components.library.planned = lib.mkOverride 900 true;
