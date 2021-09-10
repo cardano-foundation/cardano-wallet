@@ -1722,7 +1722,6 @@ x-executionUnitPrices: &executionUnitPrices
   properties:
     step_price: *rational
     memory_unit_price: *rational
->>>>>>> 564064355 (extend ApiNetworkParameters, swagger and adjust testing)
 
 #############################################################################
 #                                                                           #

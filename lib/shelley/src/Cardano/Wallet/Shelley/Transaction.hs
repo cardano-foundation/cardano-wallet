@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -162,6 +163,8 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import Fmt
     ( Buildable, pretty )
+import GHC.Generics
+    ( Generic )
 import GHC.Stack
     ( HasCallStack )
 import Ouroboros.Network.Block
@@ -685,8 +688,9 @@ data TxSkeleton = TxSkeleton
     -- multiple times, will appear multiple times in this list, once for each
     -- mint or burn. For example if the caller "mints 3" of asset id "A", and
     -- "burns 3" of asset id "A", "A" will appear twice in the list.
+    , txScriptExecutionCost :: !Coin
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 -- | Constructs an empty transaction skeleton.
 --
@@ -703,6 +707,7 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txChange = []
     , txScripts = []
     , txMintBurnAssets = []
+    , txScriptExecutionCost = Coin 0
     }
 
 -- | Constructs a transaction skeleton from wallet primitive types.
@@ -726,19 +731,23 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     -- Until we actually support minting and burning, leave these as empty.
     , txScripts = []
     , txMintBurnAssets = []
+    , txScriptExecutionCost = view #txPlutusScriptExecutionCost context
     }
 
 -- | Estimates the final cost of a transaction based on its skeleton.
 --
 estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
 estimateTxCost pp skeleton =
-    computeFee $ estimateTxSize skeleton
+    Coin.sumCoins [ computeFee $ estimateTxSize skeleton
+             , scriptExecutionCosts ]
   where
     LinearFee (Quantity a) (Quantity b) = getFeePolicy $ txParameters pp
 
     computeFee :: TxSize -> Coin
     computeFee (TxSize size) =
         Coin $ ceiling (a + b * fromIntegral size)
+
+    scriptExecutionCosts = view #txScriptExecutionCost skeleton
 
 -- | Estimates the final size of a transaction based on its skeleton.
 --
