@@ -2,12 +2,12 @@ module Main where
 
 import Prelude
 
-import Test.Hspec.Core.Runner
-    ( defaultConfig, hspecWith )
+import Cardano.Startup
+    ( withUtf8Encoding )
 import Test.Hspec.Extra
-    ( configWithExecutionTimes )
+    ( hspecMain )
 
 import qualified Spec
 
 main :: IO ()
-main = hspecWith (configWithExecutionTimes defaultConfig) Spec.spec
+main = withUtf8Encoding $ hspecMain Spec.spec
