@@ -167,6 +167,9 @@ data TransactionCtx = TransactionCtx
     -- ^ Transaction expiry (TTL) slot.
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
+    , txPlutusScriptExecutionCost :: Coin
+    -- ^ An execution cost of plutus script determined by execution units
+    -- and prices obtained from network
     } deriving (Show, Generic, Eq)
 
 data Withdrawal
@@ -189,6 +192,7 @@ defaultTransactionCtx = TransactionCtx
     , txMetadata = Nothing
     , txTimeToLive = maxBound
     , txDelegationAction = Nothing
+    , txPlutusScriptExecutionCost = Coin 0
     }
 
 -- | Whether the user is attempting any particular delegation action.
