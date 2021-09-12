@@ -992,6 +992,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             onInsufficientMinCoinValues es
         UnableToConstructChange e ->
             onUnableToConstructChange e
+        EmptyUTxO ->
+            onEmptyUTxO
 
     onBalanceInsufficient e = do
         let balanceAvailable' =
@@ -1107,6 +1109,10 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
       where
         assertOnUnableToConstructChange =
             assertWith . (<>) "onUnableToConstructChange: "
+
+    onEmptyUTxO = assertWith
+        "utxoAvailable == UTxOIndex.empty"
+        (utxoAvailable == UTxOIndex.empty)
 
     balanceRequired  =
       F.foldMap (view #tokens) outputsToCover

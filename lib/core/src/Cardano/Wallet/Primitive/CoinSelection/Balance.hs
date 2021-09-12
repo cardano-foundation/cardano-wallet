@@ -316,6 +316,7 @@ data SelectionError
         OutputsInsufficientError
     | UnableToConstructChange
         UnableToConstructChangeError
+    | EmptyUTxO
     deriving (Generic, Eq, Show)
 
 -- | Indicates that a portion of the minted assets were not spent or burned.
