@@ -54,6 +54,8 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
 
     -- * Running a selection (without making change)
     , runSelection
+    , runSelectionNonEmpty
+    , runSelectionNonEmptyWith
     , RunSelectionParams (..)
     , SelectionState (..)
 
@@ -885,6 +887,23 @@ data RunSelectionParams = RunSelectionParams
         -- ^ Minimum balance to cover.
     }
     deriving (Eq, Generic, Show)
+
+runSelectionNonEmpty
+    :: MonadRandom m => RunSelectionParams -> m (Maybe SelectionState)
+runSelectionNonEmpty = (=<<)
+    <$> runSelectionNonEmptyWith . selectCoinQuantity . view #selectionLimit
+    <*> runSelection
+
+runSelectionNonEmptyWith
+    :: Monad m
+    => (SelectionState -> m (Maybe SelectionState))
+    -> SelectionState
+    -> m (Maybe SelectionState)
+runSelectionNonEmptyWith selectSingleEntry result
+    | UTxOIndex.null (selected result) =
+        result & selectSingleEntry
+    | otherwise =
+        pure (Just result)
 
 runSelection
     :: forall m. MonadRandom m => RunSelectionParams -> m SelectionState
