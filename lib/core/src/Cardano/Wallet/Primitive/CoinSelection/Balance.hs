@@ -704,8 +704,7 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
             , utxoRemaining = leftover
             }
 
-        selectOneEntry = selectMatchingQuantity selectionLimit $
-            WithAdaOnly :| [Any]
+        selectOneEntry = selectCoinQuantity selectionLimit
 
         SelectionState {selected, leftover} = s
 
@@ -929,8 +928,7 @@ assetSelectionLens
 assetSelectionLens limit (asset, minimumAssetQuantity) = SelectionLens
     { currentQuantity = assetQuantity asset . selected
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
-    , selectQuantity = selectMatchingQuantity limit
-        (WithAssetOnly asset :| [WithAsset asset])
+    , selectQuantity = selectAssetQuantity asset limit
     }
 
 coinSelectionLens
@@ -944,9 +942,29 @@ coinSelectionLens
 coinSelectionLens limit mExtraCoinSource minimumCoinQuantity = SelectionLens
     { currentQuantity = \s -> coinQuantity (selected s) mExtraCoinSource
     , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
-    , selectQuantity  = selectMatchingQuantity limit
-        (WithAdaOnly :| [Any])
+    , selectQuantity  = selectCoinQuantity limit
     }
+
+-- | Specializes 'selectMatchingQuantity' to a particular asset.
+--
+selectAssetQuantity
+    :: MonadRandom m
+    => AssetId
+    -> SelectionLimit
+    -> SelectionState
+    -> m (Maybe SelectionState)
+selectAssetQuantity asset limit =
+    selectMatchingQuantity limit (WithAssetOnly asset :| [WithAsset asset])
+
+-- | Specializes 'selectMatchingQuantity' to ada.
+--
+selectCoinQuantity
+    :: MonadRandom m
+    => SelectionLimit
+    -> SelectionState
+    -> m (Maybe SelectionState)
+selectCoinQuantity limit =
+    selectMatchingQuantity limit (WithAdaOnly :| [Any])
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
