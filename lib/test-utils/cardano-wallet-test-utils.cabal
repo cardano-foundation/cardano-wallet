@@ -65,6 +65,7 @@ library
       Test.Hspec.Extra
       Test.Hspec.Goldens
       Test.QuickCheck.Extra
+      Test.Utils.Env
       Test.Utils.FilePath
       Test.Utils.Laws
       Test.Utils.Laws.PartialOrd
