@@ -702,7 +702,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
 
     -- Inspect the UTxO and user-specified outputs:
     cover 5 (utxoHasAtLeastOneAsset)
-        "UTxO has at least one assest" $
+        "UTxO has at least one asset" $
     cover 5 (not outputsHaveAtLeastOneAsset)
         "No assets to cover" $
     cover 2 (outputsHaveAtLeastOneAsset && not utxoHasAtLeastOneAsset)
