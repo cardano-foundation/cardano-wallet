@@ -953,8 +953,8 @@ selectAssetQuantity
     -> SelectionLimit
     -> SelectionState
     -> m (Maybe SelectionState)
-selectAssetQuantity asset limit =
-    selectMatchingQuantity limit (WithAssetOnly asset :| [WithAsset asset])
+selectAssetQuantity asset =
+    selectMatchingQuantity (WithAssetOnly asset :| [WithAsset asset])
 
 -- | Specializes 'selectMatchingQuantity' to ada.
 --
@@ -963,8 +963,8 @@ selectCoinQuantity
     => SelectionLimit
     -> SelectionState
     -> m (Maybe SelectionState)
-selectCoinQuantity limit =
-    selectMatchingQuantity limit (WithAdaOnly :| [Any])
+selectCoinQuantity =
+    selectMatchingQuantity (WithAdaOnly :| [Any])
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
@@ -984,17 +984,17 @@ selectCoinQuantity limit =
 --
 selectMatchingQuantity
     :: MonadRandom m
-    => SelectionLimit
-        -- ^ A limit to adhere to when selecting entries.
-    -> NonEmpty SelectionFilter
+    => NonEmpty SelectionFilter
         -- ^ A list of selection filters to be traversed from left-to-right,
         -- in descending order of priority.
+    -> SelectionLimit
+        -- ^ A limit to adhere to when selecting entries.
     -> SelectionState
         -- ^ The current selection state.
     -> m (Maybe SelectionState)
         -- ^ An updated selection state that includes a matching UTxO entry,
         -- or 'Nothing' if no such entry could be found.
-selectMatchingQuantity limit filters s
+selectMatchingQuantity filters limit s
     | limitReached =
         pure Nothing
     | otherwise =
