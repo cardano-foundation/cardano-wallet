@@ -513,20 +513,21 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
             NE.fromList insufficientMinCoinValues
 
     | otherwise = do
-        state <- runSelection RunSelectionParams
+        maybeSelection <- runSelectionNonEmpty RunSelectionParams
             { selectionLimit
             , extraCoinSource
             , utxoAvailable
             , minimumBalance = balanceRequired
             }
-        let balanceSelected = fullBalance (selected state) extraCoinSource
-        if balanceRequired `leq` balanceSelected then
-            makeChangeRepeatedly state
-        else
-            pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
-                { inputsSelected = UTxOIndex.toList (selected state)
-                , balanceRequired
-                }
+        case maybeSelection of
+            Nothing ->
+                selectionInsufficientError []
+            Just selection -> do
+                let utxoSelected = selected selection
+                let balanceSelected = fullBalance utxoSelected extraCoinSource
+                if balanceRequired `leq` balanceSelected
+                then makeChangeRepeatedly selection
+                else selectionInsufficientError $ UTxOIndex.toList utxoSelected
   where
     SelectionCriteria
         { outputsToCover
@@ -536,6 +537,13 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         , assetsToMint
         , assetsToBurn
         } = criteria
+
+    selectionInsufficientError :: [(TxIn, TxOut)] -> m (Either SelectionError a)
+    selectionInsufficientError inputsSelected =
+        pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
+            { inputsSelected
+            , balanceRequired
+            }
 
     requestedOutputs = F.foldMap (view #tokens) outputsToCover
     requestedOutputAssets = view #tokens requestedOutputs
