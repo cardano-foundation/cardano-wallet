@@ -54,6 +54,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
 
     -- * Running a selection (without making change)
     , runSelection
+    , RunSelectionParams (..)
     , SelectionState (..)
 
     -- * Running a selection step
@@ -510,8 +511,12 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
             NE.fromList insufficientMinCoinValues
 
     | otherwise = do
-        state <- runSelection
-            selectionLimit extraCoinSource utxoAvailable balanceRequired
+        state <- runSelection RunSelectionParams
+            { selectionLimit
+            , extraCoinSource
+            , utxoAvailable
+            , minimumBalance = balanceRequired
+            }
         let balanceSelected = fullBalance (selected state) extraCoinSource
         if balanceRequired `leq` balanceSelected then
             makeChangeRepeatedly state
@@ -867,26 +872,37 @@ data SelectionState = SelectionState
     }
     deriving (Eq, Generic, Show)
 
-runSelection
-    :: forall m. MonadRandom m
-    => SelectionLimit
+-- | Parameters for 'runSelection'.
+--
+data RunSelectionParams = RunSelectionParams
+    { selectionLimit :: SelectionLimit
         -- ^ A limit to adhere to when performing a selection.
-    -> Maybe Coin
+    , extraCoinSource :: Maybe Coin
         -- ^ An extra source of ada, which can only be used after at least one
         -- input has been selected.
-    -> UTxOIndex
+    , utxoAvailable :: UTxOIndex
         -- ^ UTxO entries available for selection.
-    -> TokenBundle
+    , minimumBalance :: TokenBundle
         -- ^ Minimum balance to cover.
-    -> m SelectionState
-        -- ^ Final selection state.
-runSelection limit mExtraCoinSource available minimumBalance =
+    }
+    deriving (Eq, Generic, Show)
+
+runSelection
+    :: forall m. MonadRandom m => RunSelectionParams -> m SelectionState
+runSelection params =
     runRoundRobinM initialState selectors
   where
+    RunSelectionParams
+        { selectionLimit
+        , extraCoinSource
+        , utxoAvailable
+        , minimumBalance
+        } = params
+
     initialState :: SelectionState
     initialState = SelectionState
         { selected = UTxOIndex.empty
-        , leftover = available
+        , leftover = utxoAvailable
         }
 
     -- NOTE: We run the 'coinSelector' last, because we know that every input
@@ -898,9 +914,9 @@ runSelection limit mExtraCoinSource available minimumBalance =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
         assetSelector = runSelectionStep .
-            assetSelectionLens limit
+            assetSelectionLens selectionLimit
         coinSelector = runSelectionStep $
-            coinSelectionLens limit mExtraCoinSource minimumCoinQuantity
+            coinSelectionLens selectionLimit extraCoinSource minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =
         TokenBundle.toFlatList minimumBalance

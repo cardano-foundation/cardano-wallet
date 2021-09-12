@@ -28,6 +28,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
     , OutputsInsufficientError (..)
+    , RunSelectionParams (..)
     , SelectionCriteria (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
@@ -129,7 +130,7 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( set, view )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
@@ -264,7 +265,8 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
             utxoAvailable <- generate (genUTxOIndexLargeN 50000)
             pure $ property $ \minCoin costFor (Large criteria) ->
                 let
-                    criteria' = Blind $ criteria { utxoAvailable }
+                    criteria' = Blind $
+                        set #utxoAvailable utxoAvailable criteria
                 in
                     prop_performSelection minCoin costFor criteria' (const id)
                         & withMaxSuccess 5
@@ -765,7 +767,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     utxoHasAtLeastOneAsset = not
         . Set.null
         . UTxOIndex.assets
-        $ utxoAvailable criteria
+        $ view #utxoAvailable criteria
 
     outputsHaveAtLeastOneAsset =
         not . Set.null $ TokenBundle.getAssets outputTokens
@@ -781,7 +783,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
         _ -> False
 
     selectionLimited :: Bool
-    selectionLimited = case selectionLimit criteria of
+    selectionLimited = case view #selectionLimit criteria of
         MaximumInputLimit _ -> True
         NoLimit -> False
 
@@ -1082,7 +1084,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         assertOnUnableToConstructChange
             "shortfall e > Coin 0"
             (shortfall e > Coin 0)
-        let criteria' = criteria { selectionLimit = NoLimit }
+        let criteria' = set #selectionLimit NoLimit criteria
         let assessBundleSize =
                 mkBundleSizeAssessor NoBundleSizeLimit
         let performSelection' = performSelection
@@ -1154,7 +1156,12 @@ prop_runSelection_UTxO_empty
     -> Property
 prop_runSelection_UTxO_empty extraSource balanceRequested = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection NoLimit extraSource UTxOIndex.empty balanceRequested
+        run $ runSelection RunSelectionParams
+            { selectionLimit = NoLimit
+            , extraCoinSource = extraSource
+            , utxoAvailable = UTxOIndex.empty
+            , minimumBalance = balanceRequested
+            }
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     assertWith
@@ -1169,7 +1176,12 @@ prop_runSelection_UTxO_notEnough
     -> Property
 prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection NoLimit Nothing index balanceRequested
+        run $ runSelection RunSelectionParams
+            { selectionLimit = NoLimit
+            , extraCoinSource = Nothing
+            , utxoAvailable = index
+            , minimumBalance = balanceRequested
+            }
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     assertWith
@@ -1188,7 +1200,12 @@ prop_runSelection_UTxO_exactlyEnough
     -> Property
 prop_runSelection_UTxO_exactlyEnough extraSource (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection NoLimit Nothing index balanceRequested
+        run $ runSelection RunSelectionParams
+            { selectionLimit = NoLimit
+            , extraCoinSource = Nothing
+            , utxoAvailable = index
+            , minimumBalance = balanceRequested
+            }
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     assertWith
@@ -1213,7 +1230,12 @@ prop_runSelection_UTxO_moreThanEnough
     -> Property
 prop_runSelection_UTxO_moreThanEnough extraSource (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection NoLimit extraSource index balanceRequested
+        run $ runSelection RunSelectionParams
+            { selectionLimit = NoLimit
+            , extraCoinSource = extraSource
+            , utxoAvailable = index
+            , minimumBalance = balanceRequested
+            }
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     monitor $ cover 80
@@ -1254,7 +1276,12 @@ prop_runSelection_UTxO_muchMoreThanEnough extraSource (Blind (Large index)) =
     checkCoverage $
     monadicIO $ do
         SelectionState {selected, leftover} <-
-            run $ runSelection NoLimit extraSource index balanceRequested
+            run $ runSelection RunSelectionParams
+                { selectionLimit = NoLimit
+                , extraCoinSource = extraSource
+                , utxoAvailable = index
+                , minimumBalance = balanceRequested
+                }
         let balanceSelected = view #balance selected
         let balanceLeftover = view #balance leftover
         monitor $ cover 80
