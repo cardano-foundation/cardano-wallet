@@ -54,7 +54,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Positive (..)
-    , PrintableString (..)
     , Property
     , counterexample
     , elements
@@ -220,7 +219,7 @@ mainSpec = sequential $ describe "hspecMain" $ do
   prop "correctly sets environment variables" prop_hspecMain
 
 prop_hspecMain
-  :: [((NiceString, PrintableString), ArgStyle)]
+  :: [((NiceString, NiceString), ArgStyle)]
   -> NiceString
   -> HspecArgs
   -> HspecArgs
@@ -249,7 +248,7 @@ prop_hspecMain vars (NiceString other) (HspecArgs argsBefore) (HspecArgs argsAft
 
     vars' = nubBy ((==) `on` (fst . fst)) vars
     env = [ ((n, v), s)
-          | ((NiceString n, PrintableString v), s) <- vars'
+          | ((NiceString n, NiceString v), s) <- vars'
           , n /= other ]
 
     mainArgs = mconcat
