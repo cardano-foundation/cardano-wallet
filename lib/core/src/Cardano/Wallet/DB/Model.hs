@@ -98,7 +98,8 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
-    , SealedTx (..)
+    , MockSealedTx (..)
+    , SealedTx
     , TransactionInfo (..)
     , Tx (..)
     , TxMeta (..)
@@ -165,7 +166,7 @@ data WalletDatabase s xprv = WalletDatabase
     , xprv :: !(Maybe xprv)
     , genesisParameters :: !GenesisParameters
     , rewardAccountBalance :: !Coin
-    , submittedTxs :: !(Map (Hash "Tx") (SealedTx, SlotNo))
+    , submittedTxs :: !(Map (Hash "Tx") (MockSealedTx, SlotNo))
     } deriving (Show, Eq, Generic, NFData)
 
 -- | Shorthand for the putTxHistory argument type.
@@ -526,7 +527,7 @@ mPutLocalTxSubmission wid tid tx sl = alterModelErr wid $ \wal ->
         Just _ -> (Right (), insertSubmittedTx wal)
   where
     insertSubmittedTx wal = wal { submittedTxs = putTx (submittedTxs wal) }
-    putTx = Map.insertWith upsert tid (tx, sl)
+    putTx = Map.insertWith upsert tid (MockSealedTx tx, sl)
     upsert (_, newSl) (origTx, _) = (origTx, newSl)
 
 mReadLocalTxSubmissionPending
@@ -543,9 +544,9 @@ mReadLocalTxSubmissionPending wid = readWalletModel wid $ \wal ->
         | status == Pending = Just (txid, slotNo)
         | otherwise = Nothing
 
-    getSubmission wal (tid, sl0) = case Map.lookup tid (submittedTxs wal) of
-        Just (tx, sl1) -> Just (LocalTxSubmissionStatus tid tx sl0 sl1)
-        Nothing -> Nothing
+    getSubmission wal (tid, sl0) = make <$> Map.lookup tid (submittedTxs wal)
+      where
+        make (MockSealedTx tx, sl1) = LocalTxSubmissionStatus tid tx sl0 sl1
 
 {-------------------------------------------------------------------------------
                              Model function helpers

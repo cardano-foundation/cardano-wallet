@@ -18,6 +18,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..) )
+import Cardano.Wallet.Shelley.Compatibility
+    ( NetworkId (..) )
 import Cardano.Wallet.Shelley.Launch
     ( CardanoNodeConn, withSystemTempDir )
 import Cardano.Wallet.Shelley.Launch.Cluster
@@ -34,6 +36,8 @@ import Data.Set
     ( Set )
 import Fmt
     ( build, fmt, indentF )
+import Ouroboros.Network.Magic
+    ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData )
 import Test.Hspec
@@ -42,6 +46,8 @@ import Test.QuickCheck
     ( counterexample, property )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
+import Test.Utils.Trace
+    ( traceSpec )
 import UnliftIO.Async
     ( async, race_, waitAnyCancel )
 import UnliftIO.MVar
@@ -57,114 +63,120 @@ import qualified Data.Set as Set
 -------------------------------------------------------------------------------}
 
 spec :: Spec
-spec = describe "NetworkLayer regression test #1708" $ do
-    it "Parallel local socket connections" $
+spec = do
+    concurrentConnectionSpec
+    observerSpec
+
+concurrentConnectionSpec :: Spec
+concurrentConnectionSpec = describe "NetworkLayer regression test #1708" $ do
+    traceSpec $ it "Parallel local socket connections" $ \tr ->
         withTestNode nullTracer $ \np sock vData -> do
             let sTol = SyncTolerance 60
             tasks <- replicateM 10 $ async $
-                withNetworkLayer nullTracer np sock vData sTol $ \nl -> do
+                withNetworkLayer tr testnet np sock vData sTol $ \nl -> do
                     -- Wait for the first tip result from the node
                     waiter <- newEmptyMVar
                     race_ (watchNodeTip nl (putMVar waiter)) (takeMVar waiter)
             void $ waitAnyCancel tasks
 
-    describe "Observer" $ do
-        it "can fetch all observed keys, but not any other keys"
-            $ property $ \keys1 keys2 -> monadicIO $ do
-                (observer, refresh, _trVar) <- run mockObserver
-                run $ mapM_ (startObserving observer) keys1
-                run $ refresh True
+observerSpec :: Spec
+observerSpec = describe "Observer" $ do
+    it "can fetch all observed keys, but not any other keys"
+        $ property $ \keys1 keys2 -> monadicIO $ do
+            (observer, refresh, _trVar) <- run mockObserver
+            run $ mapM_ (startObserving observer) keys1
+            run $ refresh True
 
-                let allNothing = fromKeysWith (const Nothing)
-                let unobservedKeys = Set.difference keys2 keys1
-                unobservedValues <- run $ queryKeys observer unobservedKeys
+            let allNothing = fromKeysWith (const Nothing)
+            let unobservedKeys = Set.difference keys2 keys1
+            unobservedValues <- run $ queryKeys observer unobservedKeys
 
-                observedValues <- run $ queryKeys observer keys1
+            observedValues <- run $ queryKeys observer keys1
 
-                assertEqual "observed keys return expected values"
-                    observedValues
-                    (fromKeysWith (Just . length) keys1)
+            assertEqual "observed keys return expected values"
+                observedValues
+                (fromKeysWith (Just . length) keys1)
 
-                assertEqual "unobserved keys are all Nothing when queried"
-                    unobservedValues
-                    (allNothing unobservedKeys)
+            assertEqual "unobserved keys are all Nothing when queried"
+                unobservedValues
+                (allNothing unobservedKeys)
 
-        describe "typical use" $ beforeAll mockObserver $ do
-            -- Using monadic-property tests here /just/ for the sake of testing
-            -- with multiple keys seem worthless.
-            --
-            -- State machine tests might be suitable on the other hand...
-            --
-            -- NOTE: We make sure to test conditions both before and after
-            -- calling @refresh@, as it can be called arbitrarily without our
-            -- (the observers') knowledge.
-            --
-            -- NOTE: These tests are stateful.
-            -- They also use smaller @it@ blocks, with more @describe@ nesting,
-            -- than much of the rest of the wallet tests. This is done for
-            -- concise and readable test output.
-            let k = ("k"::String)
-            let v = length k
-            describe "startObserving" $ do
-                it "(query k) returns Nothing before startObserving"
-                    $ \(observer, refresh, trVar) -> do
-                        (query observer k) `shouldReturn` Nothing
-                        trVar `shouldHaveTraced` []
-                        refresh True
-                        (query observer k) `shouldReturn` Nothing
-                        trVar `shouldHaveTraced`
-                            [ MsgWillFetch Set.empty
-                            , MsgDidFetch Map.empty
-                            ]
-
-                it "(query k) returns v after (startObserving k >> refresh)"
-                    $ \(observer, refresh, _) -> do
-                        startObserving observer k
-                        refresh True
-                        let expectedValue = length k
-                        (query observer k)`shouldReturn` Just expectedValue
-
-                -- NOTE: Depends on the @refresh@ call from the previous test.
-                it "traced MsgAddedObserver, MsgWillFetch, MsgDidFetch"
-                    $ \(_, _, trVar) -> do
-                        trVar `shouldHaveTraced`
-                            [ MsgAddedObserver k
-                            , MsgWillFetch $ Set.singleton k
-                            , MsgDidFetch $ Map.singleton k v
-                            , MsgDidChange $ Map.singleton k v
-                            ]
-
-            describe "calling startObserving a second time" $ do
-                it "(query k) is still v"
-                    $ \(observer, refresh, trVar) -> do
-                        startObserving observer k
-                        (query observer k) `shouldReturn` (Just v)
-                        refresh True
-                        (query observer k) `shouldReturn` (Just v)
-                        trVar `shouldHaveTraced`
-                            [ MsgWillFetch $ Set.singleton k
-                            , MsgDidFetch $ Map.singleton k v
-                            ]
-
-            describe "when refresh fails" $ do
-                it "(query k) returns the existing v"
-                    $ \(observer, refresh, _) -> do
-                        refresh False
-                        (query observer k) `shouldReturn` Just v
-
-                it "only MsgWillFetch is traced"
-                    $ \(_, _, trVar) -> do
+    describe "typical use" $ beforeAll mockObserver $ do
+        -- Using monadic-property tests here /just/ for the sake of testing
+        -- with multiple keys seem worthless.
+        --
+        -- State machine tests might be suitable on the other hand...
+        --
+        -- NOTE: We make sure to test conditions both before and after
+        -- calling @refresh@, as it can be called arbitrarily without our
+        -- (the observers') knowledge.
+        --
+        -- NOTE: These tests are stateful.
+        -- They also use smaller @it@ blocks, with more @describe@ nesting,
+        -- than much of the rest of the wallet tests. This is done for
+        -- concise and readable test output.
+        let k = ("k"::String)
+        let v = length k
+        describe "startObserving" $ do
+            it "(query k) returns Nothing before startObserving"
+                $ \(observer, refresh, trVar) -> do
+                    (query observer k) `shouldReturn` Nothing
+                    trVar `shouldHaveTraced` []
+                    refresh True
+                    (query observer k) `shouldReturn` Nothing
                     trVar `shouldHaveTraced`
-                        [ MsgWillFetch $ Set.singleton k
+                        [ MsgWillFetch Set.empty
+                        , MsgDidFetch Map.empty
                         ]
 
-            describe "stopObserving" $
-                it "makes (query k) return Nothing"
-                    $ \(observer, refresh, _) -> do
-                        stopObserving observer k
-                        (query observer k) `shouldReturn` Nothing
-                        refresh True
-                        (query observer k) `shouldReturn` Nothing
+            it "(query k) returns v after (startObserving k >> refresh)"
+                $ \(observer, refresh, _) -> do
+                    startObserving observer k
+                    refresh True
+                    let expectedValue = length k
+                    (query observer k)`shouldReturn` Just expectedValue
+
+            -- NOTE: Depends on the @refresh@ call from the previous test.
+            it "traced MsgAddedObserver, MsgWillFetch, MsgDidFetch"
+                $ \(_, _, trVar) -> do
+                    trVar `shouldHaveTraced`
+                        [ MsgAddedObserver k
+                        , MsgWillFetch $ Set.singleton k
+                        , MsgDidFetch $ Map.singleton k v
+                        , MsgDidChange $ Map.singleton k v
+                        ]
+
+        describe "calling startObserving a second time" $ do
+            it "(query k) is still v"
+                $ \(observer, refresh, trVar) -> do
+                    startObserving observer k
+                    (query observer k) `shouldReturn` (Just v)
+                    refresh True
+                    (query observer k) `shouldReturn` (Just v)
+                    trVar `shouldHaveTraced`
+                        [ MsgWillFetch $ Set.singleton k
+                        , MsgDidFetch $ Map.singleton k v
+                        ]
+
+        describe "when refresh fails" $ do
+            it "(query k) returns the existing v"
+                $ \(observer, refresh, _) -> do
+                    refresh False
+                    (query observer k) `shouldReturn` Just v
+
+            it "only MsgWillFetch is traced"
+                $ \(_, _, trVar) -> do
+                trVar `shouldHaveTraced`
+                    [ MsgWillFetch $ Set.singleton k
+                    ]
+
+        describe "stopObserving" $
+            it "makes (query k) return Nothing"
+                $ \(observer, refresh, _) -> do
+                    stopObserving observer k
+                    (query observer k) `shouldReturn` Nothing
+                    refresh True
+                    (query observer k) `shouldReturn` Nothing
   where
     -- | Expects given messages to have been traced /and/ clears the @TVar@.
     --
@@ -232,3 +244,6 @@ withTestNode tr action = do
     withSystemTempDir (contramap MsgTempDir tr) "network-spec" $ \dir ->
         withBFTNode tr dir cfg $ \sock _block0 (np, vData) ->
             action np sock vData
+
+testnet :: NetworkId
+testnet = Testnet $ NetworkMagic 0

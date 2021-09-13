@@ -27,8 +27,7 @@ import qualified Data.List.NonEmpty as NE
 spec :: Spec
 spec = do
     describe "Pointless tests to cover 'Show' instances for errors" $ do
-        testShow $ ErrPostTxBadRequest mempty
-        testShow $ ErrPostTxProtocolFailure mempty
+        testShow $ ErrPostTxValidationError mempty
 
     describe "updateStats" $ do
         it "results in no unexpected thunks" $ property $ \(msg :: FollowLog ()) -> do

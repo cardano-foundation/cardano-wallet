@@ -128,43 +128,39 @@ import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
-    , ErrCannotJoin (..)
-    , ErrCannotQuit (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
     , ErrCreateRandomAddress (..)
-    , ErrDecodeSignedTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
     , ErrGetTransaction (..)
     , ErrImportAddress (..)
     , ErrImportRandomAddress (..)
     , ErrInvalidDerivationIndex (..)
-    , ErrJoinStakePool (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMintBurnAssets (..)
-    , ErrMkTx (..)
+    , ErrMkTransaction (..)
     , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
     , ErrNotASequentialWallet (..)
     , ErrPostTx (..)
-    , ErrQuitStakePool (..)
     , ErrReadAccountPublicKey (..)
     , ErrReadRewardAccount (..)
     , ErrRemoveTx (..)
     , ErrSelectAssets (..)
     , ErrSignMetadataWith (..)
     , ErrSignPayment (..)
+    , ErrStakePoolDelegation (..)
     , ErrStartTimeLaterThanEndTime (..)
-    , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotResponding (..)
     , ErrWithRootKey (..)
     , ErrWithdrawalNotWorth (..)
+    , ErrWitnessTx (..)
     , ErrWrongPassphrase (..)
     , FeeEstimation (..)
     , HasNetworkLayer
@@ -421,8 +417,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SerialisedTx (..)
-    , TransactionInfo
+    ( TransactionInfo
     , Tx (..)
     , TxChange (..)
     , TxIn (..)
@@ -442,6 +437,9 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , ErrCannotJoin (..)
+    , ErrCannotQuit (..)
+    , ErrSignTx (..)
     , TransactionCtx (..)
     , TransactionLayer
     , Withdrawal (..)
@@ -1798,7 +1796,6 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
 signTransaction
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
-        , IsOwned s k
         , WalletKey k
         )
     => ctx
@@ -1807,19 +1804,17 @@ signTransaction
     -> Handler ApiSignedTransaction
 signTransaction ctx (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
-    -- TODO: decode tx
-    let txBody = body ^. #transaction . #getApiBytesT . #payload
+    let sealedTx = body ^. #transaction . #getApiT
 
-    -- (_, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
-    let stubRwdAcct = first getRawKey
+    let stubRwdAcct = first (getRawKey @k)
 
     _tx <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
-        liftHandler $ W.signTransaction @_ @s @k wrk wid stubRwdAcct pwd txBody
+        liftHandler $ W.signTransaction wrk wid stubRwdAcct pwd sealedTx
 
-    -- fullTx <- liftIO . W.joinSerialisedTxParts @_ @k ctx tx
+    -- TODO: [ADP-919] Implement Api.Server.signTransaction
     pure $ Api.ApiSignedTransaction
-        { transaction = mempty -- TODO: join parts
-        , body = ApiBytesT txBody
+        { transaction = ApiT sealedTx
+        , body = mempty
         , witnesses = []
         }
 
@@ -2068,7 +2063,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
             $ W.constructTransaction @_ @s @k @n wrk wid txCtx sel
 
         pure $ ApiConstructTransaction
-            { transaction = ApiBytesT tx
+            { transaction = ApiT tx
             , coinSelection = mkApiCoinSelection [] Nothing md sel'
             , fee = Quantity $ fromIntegral fee
             }
@@ -2572,7 +2567,7 @@ getNetworkInformation st nl = liftIO $ do
 getNetworkParameters
     :: (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO Block
-    -> TransactionLayer k
+    -> TransactionLayer k W.SealedTx
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, genesisNp, _st) nl tl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
@@ -2596,14 +2591,14 @@ getNetworkClock client = liftIO . getNtpStatus client
 -------------------------------------------------------------------------------}
 
 postExternalTransaction
-    :: forall ctx s k b.
+    :: forall ctx s k.
         ( ctx ~ ApiLayer s k
         )
     => ctx
-    -> ApiBytesT b SerialisedTx
+    -> ApiT W.SealedTx
     -> Handler ApiTxId
-postExternalTransaction ctx (ApiBytesT (SerialisedTx bytes)) = do
-    tx <- liftHandler $ W.submitExternalTx @ctx @k ctx bytes
+postExternalTransaction ctx (ApiT sealed) = do
+    tx <- liftHandler $ W.submitExternalTx @ctx @k ctx sealed
     return $ ApiTxId (ApiT (tx ^. #txId))
 
 signMetadata
@@ -3101,7 +3096,7 @@ newApiLayer
     => Tracer IO WalletEngineLog
     -> (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO Block
-    -> TransactionLayer k
+    -> TransactionLayer k W.SealedTx
     -> DBFactory IO s k
     -> TokenMetadataClient IO
     -> (WorkerCtx ctx -> WalletId -> IO ())
@@ -3377,25 +3372,6 @@ instance IsServerError ErrListUTxOStatistics where
     toServerError = \case
         ErrListUTxOStatisticsNoSuchWallet e -> toServerError e
 
-instance IsServerError ErrMkTx where
-    toServerError = \case
-        ErrKeyNotFoundForAddress addr ->
-            apiError err500 KeyNotFoundForAddress $ mconcat
-                [ "That's embarrassing. I couldn't sign the given transaction: "
-                , "I haven't found the corresponding private key for a known "
-                , "input address I should keep track of: ", showT addr, ". "
-                , "Retrying may work, but something really went wrong..."
-                ]
-        ErrConstructedInvalidTx hint ->
-            apiError err500 CreatedInvalidTransaction hint
-        ErrInvalidEra _era ->
-            apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "Whoops, it seems like I just experienced a hard-fork in the "
-                , "middle of other tasks. This is a pretty rare situation but "
-                , "as a result, I must throw-away what I was doing. Please "
-                , "retry whatever you were doing in a short delay."
-                ]
-
 instance IsServerError ErrSignPayment where
     toServerError = \case
         ErrSignPaymentMkTx e -> toServerError e
@@ -3410,6 +3386,55 @@ instance IsServerError ErrSignPayment where
         ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
         ErrSignPaymentIncorrectTTL e -> toServerError e
 
+instance IsServerError ErrWitnessTx where
+    toServerError = \case
+        ErrWitnessTxSignTx e -> toServerError e
+        ErrWitnessTxNoSuchWallet e -> (toServerError e)
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
+            }
+        ErrWitnessTxWithRootKey e@ErrWithRootKeyNoRootKey{} -> (toServerError e)
+            { errHTTPCode = 403
+            , errReasonPhrase = errReasonPhrase err403
+            }
+        ErrWitnessTxWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
+        ErrWitnessTxIncorrectTTL e -> toServerError e
+
+instance IsServerError ErrSignTx where
+    toServerError = \case
+        ErrSignTxAddressUnknown txin ->
+            apiError err500 KeyNotFoundForAddress $ mconcat
+                [ "I couldn't sign the given transaction because I "
+                , "could not resolve the address of a transaction input "
+                , "that I should be tracking: ", showT txin, "."
+                ]
+        ErrSignTxKeyNotFound addr ->
+            apiError err500 KeyNotFoundForAddress $ mconcat
+                [ "I couldn't sign the given transaction because I cannot "
+                , "find the private key corresponding to the known "
+                , "input address: ", showT addr, "."
+                ]
+        ErrSignTxUnimplemented ->
+            apiError err501 NotImplemented
+                "This feature is not yet implemented."
+
+instance IsServerError ErrMkTransaction where
+    toServerError = \case
+        ErrMkTransactionTxBodyError hint ->
+            apiError err500 CreatedInvalidTransaction hint
+        ErrMkTransactionInvalidEra _era ->
+            apiError err500 CreatedInvalidTransaction $ mconcat
+                [ "Whoops, it seems like I just experienced a hard-fork in the "
+                , "middle of other tasks. This is a pretty rare situation but "
+                , "as a result, I must throw away what I was doing. Please "
+                , "retry your request."
+                ]
+        ErrMkTransactionJoinStakePool e -> toServerError e
+        ErrMkTransactionQuitStakePool e -> toServerError e
+        ErrMkTransactionNoSuchWallet wid -> toServerError (ErrNoSuchWallet wid)
+        ErrMkTransactionIncorrectTTL e -> toServerError e
+        ErrKeyNotFoundForAddress a -> toServerError (ErrSignTxKeyNotFound a)
+
 instance IsServerError ErrConstructTx where
     toServerError = \case
         ErrConstructTxWrongPayload ->
@@ -3418,7 +3443,7 @@ instance IsServerError ErrConstructTx where
             , "that does not have any payments, withdrawals, delegations, "
             , "metadata nor minting. Include at least one of them."
             ]
-        ErrConstructTxMkTx e -> toServerError e
+        ErrConstructTxBody e -> toServerError e
         ErrConstructTxNoSuchWallet e -> (toServerError e)
             { errHTTPCode = 404
             , errReasonPhrase = errReasonPhrase err404
@@ -3432,45 +3457,6 @@ instance IsServerError ErrConstructTx where
 instance IsServerError ErrMintBurnAssets where
     toServerError = \case
         ErrMintBurnNotImplemented msg -> apiError err501 NotImplemented msg
-
-instance IsServerError ErrDecodeSignedTx where
-    toServerError = \case
-        ErrDecodeSignedTxWrongPayload _ ->
-            apiError err400 MalformedTxPayload $ mconcat
-                [ "I couldn't verify that the payload has the correct binary "
-                , "format. Therefore I couldn't send it to the node. Please "
-                , "check the format and try again."
-                ]
-        ErrDecodeSignedTxNotSupported ->
-            apiError err404 UnexpectedError $ mconcat
-                [ "This endpoint is not supported by the backend currently "
-                , "in use. Please try a different backend."
-                ]
-
-instance IsServerError ErrSubmitExternalTx where
-    toServerError = \case
-        ErrSubmitExternalTxNetwork e -> case e of
-            ErrPostTxBadRequest err ->
-                apiError err500 CreatedInvalidTransaction $ mconcat
-                    [ "That's embarrassing. It looks like I've created an "
-                    , "invalid transaction that could not be parsed by the "
-                    , "node. Here's an error message that may help with "
-                    , "debugging: ", err
-                    ]
-            ErrPostTxProtocolFailure err ->
-                apiError err500 RejectedByCoreNode $ mconcat
-                    [ "I successfully submitted a transaction, but "
-                    , "unfortunately it was rejected by a relay. This could be "
-                    , "because the fee was not large enough, or because the "
-                    , "transaction conflicts with another transaction that "
-                    , "uses one or more of the same inputs, or it may be due "
-                    , "to some other reason. Here's an error message that may "
-                    , "help with debugging: ", err
-                    ]
-        ErrSubmitExternalTxDecode e -> (toServerError e)
-            { errHTTPCode = 400
-            , errReasonPhrase = errReasonPhrase err400
-            }
 
 instance IsServerError ErrRemoveTx where
     toServerError = \case
@@ -3488,23 +3474,12 @@ instance IsServerError ErrRemoveTx where
 
 instance IsServerError ErrPostTx where
     toServerError = \case
-        ErrPostTxBadRequest err ->
+        ErrPostTxValidationError err ->
             apiError err500 CreatedInvalidTransaction $ mconcat
-            [ "That's embarrassing. It looks like I've created an "
-            , "invalid transaction that could not be parsed by the "
-            , "node. Here's an error message that may help with "
-            , "debugging: ", err
-            ]
-        ErrPostTxProtocolFailure err ->
-            apiError err500 RejectedByCoreNode $ mconcat
-            [ "I successfully submitted a transaction, but "
-            , "unfortunately it was rejected by a relay. This could be "
-            , "because the fee was not large enough, or because the "
-            , "transaction conflicts with another transaction that "
-            , "uses one or more of the same inputs, or it may be due "
-            , "to some other reason. Here's an error message that may "
-            , "help with debugging: ", err
-            ]
+                [ "The submitted transaction was rejected by the local "
+                , "node. Here's an error message that may help with "
+                , "debugging:\n", err
+                ]
 
 instance IsServerError ErrSubmitTx where
     toServerError = \case
@@ -3560,22 +3535,42 @@ instance IsServerError ErrNoSuchTransaction where
                 , toText tid
                 ]
 
-instance IsServerError ErrJoinStakePool where
+instance IsServerError ErrStakePoolDelegation where
     toServerError = \case
-        ErrJoinStakePoolNoSuchWallet e -> toServerError e
-        ErrJoinStakePoolCannotJoin e -> case e of
-            ErrAlreadyDelegating pid ->
-                apiError err403 PoolAlreadyJoined $ mconcat
-                    [ "I couldn't join a stake pool with the given id: "
-                    , toText pid
-                    , ". I have already joined this pool;"
-                    , " joining again would incur an unnecessary fee!"
-                    ]
-            ErrNoSuchPool pid ->
-                apiError err404 NoSuchPool $ mconcat
-                    [ "I couldn't find any stake pool with the given id: "
-                    , toText pid
-                    ]
+        ErrStakePoolDelegationNoSuchWallet e -> toServerError e
+        ErrStakePoolJoin e -> toServerError e
+        ErrStakePoolQuit e -> toServerError e
+
+instance IsServerError ErrCannotJoin where
+    toServerError = \case
+        ErrAlreadyDelegating pid ->
+            apiError err403 PoolAlreadyJoined $ mconcat
+                [ "I couldn't join a stake pool with the given id: "
+                , toText pid
+                , ". I have already joined this pool;"
+                , " joining again would incur an unnecessary fee!"
+                ]
+        ErrNoSuchPool pid ->
+            apiError err404 NoSuchPool $ mconcat
+                [ "I couldn't find any stake pool with the given id: "
+                , toText pid
+                ]
+
+instance IsServerError ErrCannotQuit where
+    toServerError = \case
+        ErrNotDelegatingOrAboutTo ->
+            apiError err403 NotDelegatingTo $ mconcat
+                [ "It seems that you're trying to retire from delegation "
+                , "although you're not even delegating, nor won't be in an "
+                , "immediate future."
+                ]
+        ErrNonNullRewards (Coin rewards) ->
+            apiError err403 NonNullRewards $ mconcat
+                [ "It seems that you're trying to retire from delegation "
+                , "although you've unspoiled rewards in your rewards "
+                , "account! Make sure to withdraw your ", pretty rewards
+                , " lovelace first."
+                ]
 
 instance IsServerError ErrFetchRewards where
     toServerError = \case
@@ -3590,24 +3585,6 @@ instance IsServerError ErrReadRewardAccount where
                 , "that is invalid for this type of wallet. Only new 'Shelley' "
                 , "wallets can do something with rewards and this one isn't."
                 ]
-
-instance IsServerError ErrQuitStakePool where
-    toServerError = \case
-        ErrQuitStakePoolNoSuchWallet e -> toServerError e
-        ErrQuitStakePoolCannotQuit e -> case e of
-            ErrNotDelegatingOrAboutTo ->
-                apiError err403 NotDelegatingTo $ mconcat
-                    [ "It seems that you're trying to retire from delegation "
-                    , "although you're not even delegating, nor won't be in an "
-                    , "immediate future."
-                    ]
-            ErrNonNullRewards (Coin rewards) ->
-                apiError err403 NonNullRewards $ mconcat
-                    [ "It seems that you're trying to retire from delegation "
-                    , "although you've unspoiled rewards in your rewards "
-                    , "account! Make sure to withdraw your ", pretty rewards
-                    , " lovelace first."
-                    ]
 
 instance IsServerError ErrCreateRandomAddress where
     toServerError = \case

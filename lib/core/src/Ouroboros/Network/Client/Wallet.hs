@@ -587,12 +587,11 @@ localTxSubmission
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
         -- messages to keep the state-machine moving.
-    -> LocalTxSubmissionClient tx err m Void
-localTxSubmission queue =
-    LocalTxSubmissionClient clientStIdle
+    -> LocalTxSubmissionClient tx err m ()
+localTxSubmission queue = LocalTxSubmissionClient clientStIdle
   where
     clientStIdle
-        :: m (LocalTxClientStIdle tx err m Void)
+        :: m (LocalTxClientStIdle tx err m ())
     clientStIdle = atomically (readTQueue queue) <&> \case
         CmdSubmitTx tx respond ->
             SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)

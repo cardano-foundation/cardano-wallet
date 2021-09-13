@@ -39,6 +39,7 @@ library
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-binary
     , cardano-crypto
     , cardano-numeric
     , cardano-ledger-core
@@ -271,6 +272,7 @@ test-suite unit
     , cardano-api
     , cardano-binary
     , cardano-crypto
+    , cardano-crypto-class
     , cardano-numeric
     , cardano-ledger-byron
     , cardano-ledger-byron-test
@@ -408,6 +410,7 @@ test-suite unit
       Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
       Cardano.Wallet.Primitive.Types.TokenPolicySpec
       Cardano.Wallet.Primitive.Types.TokenQuantitySpec
+      Cardano.Wallet.Primitive.Types.TxSpec
       Cardano.Wallet.Primitive.Types.UTxOSpec
       Cardano.Wallet.Primitive.Types.UTxOIndexSpec
       Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec

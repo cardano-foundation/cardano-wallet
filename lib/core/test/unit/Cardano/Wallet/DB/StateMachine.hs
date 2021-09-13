@@ -153,6 +153,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
+    , MockSealedTx (..)
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -164,11 +165,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxSize (..)
     , TxStatus
     , inputs
+    , mockSealedTx
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Control.DeepSeq
-    ( NFData )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad
@@ -208,7 +208,7 @@ import GHC.Generics
 import System.Random
     ( getStdRandom, randomR )
 import Test.Hspec
-    ( SpecWith, describe, expectationFailure, it )
+    ( HasCallStack, SpecWith, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Args (..)
@@ -324,14 +324,8 @@ instance MockPrivKey (ByronKey 'RootK) where
     fromMockPrivKey s = (k, Hash (B8.pack s))
       where (k, _) = unsafeDeserializeXPrv (zeroes <> ":", mempty)
 
-newtype MockSealedTx = MockSealedTx { mockSealedTxId :: Hash "Tx" }
-    deriving (Show, Eq, Generic, NFData)
-
-unMockSealedTx :: Hash "Tx" -> SealedTx
-unMockSealedTx = SealedTx . getHash
-
-mockSealedTx :: SealedTx -> MockSealedTx
-mockSealedTx = MockSealedTx . Hash . getSealedTx
+unMockTxId :: HasCallStack => Hash "Tx" -> SealedTx
+unMockTxId = unMockSealedTx . mockSealedTx . getHash
 
 {-------------------------------------------------------------------------------
   Language
@@ -403,7 +397,7 @@ instance Traversable (Resp s) where
   Interpreter: mock implementation
 -------------------------------------------------------------------------------}
 
-runMock :: Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
+runMock :: HasCallStack => Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
     CleanDB ->
         first (Resp . fmap Unit) . mCleanDB
@@ -440,9 +434,9 @@ runMock = \case
         . (Right Nothing,)
     PutLocalTxSubmission wid tid sl ->
         first (Resp . fmap Unit)
-        . mPutLocalTxSubmission wid tid (unMockSealedTx tid) sl
+        . mPutLocalTxSubmission wid tid (unMockTxId tid) sl
     ReadLocalTxSubmissionPending wid ->
-        first (Resp . fmap (LocalTxSubmission . map (fmap mockSealedTx)))
+        first (Resp . fmap (LocalTxSubmission . map (fmap MockSealedTx)))
         . mReadLocalTxSubmissionPending wid
     UpdatePendingTxForExpiry wid sl ->
         first (Resp . fmap Unit) . mUpdatePendingTxForExpiry wid sl
@@ -515,9 +509,9 @@ runIO db@DBLayer{..} = fmap Resp . go
         PutLocalTxSubmission wid tid sl ->
             catchPutLocalTxSubmission Unit $
             mapExceptT atomically $
-            putLocalTxSubmission wid tid (unMockSealedTx tid) sl
+            putLocalTxSubmission wid tid (unMockTxId tid) sl
         ReadLocalTxSubmissionPending wid ->
-            Right . LocalTxSubmission . map (fmap mockSealedTx) <$>
+            Right . LocalTxSubmission . map (fmap MockSealedTx) <$>
             atomically (readLocalTxSubmissionPending wid)
         UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ updatePendingTxForExpiry wid sl
@@ -1000,10 +994,10 @@ instance ToExpr TxMeta where
     toExpr = genericToExpr
 
 instance ToExpr SealedTx where
-    toExpr = genericToExpr
+    toExpr = defaultExprViaShow
 
 instance ToExpr MockSealedTx where
-    toExpr = genericToExpr
+    toExpr = defaultExprViaShow
 
 instance ToExpr Percentage where
     toExpr = genericToExpr

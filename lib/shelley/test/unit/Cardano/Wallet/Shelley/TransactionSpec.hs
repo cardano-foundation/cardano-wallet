@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -28,6 +29,16 @@ import Cardano.Address.Script
     , foldScript
     , serializeScript
     )
+import Cardano.Api
+    ( AnyCardanoEra (..)
+    , CardanoEra (..)
+    , CardanoEraStyle (..)
+    , InAnyCardanoEra (..)
+    , IsCardanoEra (..)
+    , IsShelleyBasedEra (..)
+    , ShelleyBasedEra (..)
+    , cardanoEraStyle
+    )
 import Cardano.Wallet
     ( ErrSelectAssets (..), FeeEstimation (..), estimateFee )
 import Cardano.Wallet.Byron.Compatibility
@@ -40,7 +51,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PassphraseScheme (..)
-    , fromHex
     , hex
     , preparePassphrase
     )
@@ -95,18 +105,21 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , TxOut (..)
     , TxSize (..)
+    , cardanoTx
+    , sealedTxFromBytes'
+    , sealedTxFromCardano'
+    , serialisedTx
     , txMetadataIsNull
     , txOutCoin
+    , unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( computeTokenBundleSerializedLengthBytes
-    , fromAllegraTx
-    , fromAlonzoTx
-    , fromMaryTx
-    , fromShelleyTx
-    , sealShelleyTx
+    ( AnyShelleyBasedEra (..)
+    , computeTokenBundleSerializedLengthBytes
+    , getShelleyBasedEra
+    , shelleyToCardanoEra
     , toCardanoLovelace
     )
 import Cardano.Wallet.Shelley.Transaction
@@ -115,14 +128,12 @@ import Cardano.Wallet.Shelley.Transaction
     , TxWitnessTagFor
     , estimateTxCost
     , estimateTxSize
-    , mkByronWitness
     , mkShelleyWitness
     , mkTxSkeleton
     , mkUnsignedTx
     , newTransactionLayer
     , txConstraints
     , _calcScriptExecutionCost
-    , _decodeSignedTx
     , _estimateMaxNumberOfInputs
     )
 import Cardano.Wallet.Transaction
@@ -131,10 +142,14 @@ import Cardano.Wallet.Transaction
     , Withdrawal (..)
     , defaultTransactionCtx
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.Trans.Except
     ( except, runExceptT )
+import Data.ByteString
+    ( ByteString )
 import Data.Function
     ( on, (&) )
 import Data.List.NonEmpty
@@ -147,22 +162,21 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Semigroup
     ( Sum (Sum), getSum, mtimesDefault )
-import Data.Text
-    ( Text )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
     ( Word16, Word64, Word8 )
+import Fmt
+    ( (+||), (||+) )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldBe )
+    ( Spec, SpecWith, before_, describe, it, pendingWith, shouldBe, xdescribe )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
-    , InfiniteList (..)
     , NonEmptyList (..)
     , Property
     , arbitraryPrintableChar
@@ -173,21 +187,26 @@ import Test.QuickCheck
     , counterexample
     , cover
     , elements
+    , frequency
     , oneof
     , property
     , scale
+    , suchThatMap
     , vector
     , vectorOf
     , withMaxSuccess
     , within
+    , (.||.)
     , (=/=)
     , (===)
     , (==>)
     )
 import Test.QuickCheck.Gen
-    ( Gen (..) )
+    ( Gen (..), listOf1 )
 import Test.QuickCheck.Random
     ( mkQCGen )
+import Test.Utils.Pretty
+    ( Pretty (..), (====) )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
@@ -205,22 +224,71 @@ import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
-    describe "decodeSignedTx testing" $ do
-        prop "roundtrip for Shelley witnesses" $
-            prop_decodeSignedShelleyTxRoundtrip Cardano.ShelleyBasedEraShelley
-        prop "roundtrip for Shelley witnesses Allegra" $
-            prop_decodeSignedShelleyTxRoundtrip Cardano.ShelleyBasedEraAllegra
-        prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
+    decodeSealedTxSpec
+    estimateMaxInputsSpec
+    feeCalculationSpec
+    feeEstimationRegressionSpec
+    forAllEras binaryCalculationsSpec
+    transactionConstraintsSpec
 
-    -- Note:
-    --
-    -- In the tests below, the expected numbers of inputs are highly sensitive
-    -- to the size distribution of token bundles within generated transaction
-    -- outputs.
-    --
-    -- If these tests fail unexpectedly, it's a good idea to check whether or
-    -- not the distribution of generated token bundles has changed.
-    --
+forAllEras :: (AnyCardanoEra -> Spec) -> Spec
+forAllEras eraSpec = do
+    eraSpec (AnyCardanoEra ByronEra)
+    forAllShelleyBasedEras eraSpec
+
+forAllShelleyBasedEras :: (AnyCardanoEra -> Spec) -> Spec
+forAllShelleyBasedEras eraSpec = do
+    eraSpec (AnyCardanoEra ShelleyEra)
+    eraSpec (AnyCardanoEra AllegraEra)
+    eraSpec (AnyCardanoEra MaryEra)
+    eraSpec (AnyCardanoEra AlonzoEra)
+
+allEras :: [(Int, AnyCardanoEra)]
+allEras =
+    [ (1, AnyCardanoEra ByronEra)
+    , (2, AnyCardanoEra ShelleyEra)
+    , (3, AnyCardanoEra AllegraEra)
+    , (4, AnyCardanoEra MaryEra)
+    , (5, AnyCardanoEra AlonzoEra)
+    ]
+
+eraNum :: AnyCardanoEra -> Int
+eraNum e = fst $ head $ filter ((== e) . snd) allEras
+
+shelleyEraNum :: AnyShelleyBasedEra -> Int
+shelleyEraNum = eraNum . shelleyToCardanoEra
+
+pendingOnAlonzo :: String -> ShelleyBasedEra era -> SpecWith a -> SpecWith a
+pendingOnAlonzo msg era = before_ $ case era of
+    Cardano.ShelleyBasedEraAlonzo -> pendingWith ("AlonzoEra: " ++ msg)
+    _ -> pure ()
+
+instance Arbitrary AnyCardanoEra where
+    arbitrary = frequency $ zip [1..] $ map (pure . snd) allEras
+    -- Shrink by choosing a *later* era
+    shrink e = map snd $ filter ((> eraNum e) . fst) allEras
+
+instance Arbitrary AnyShelleyBasedEra where
+    arbitrary = suchThatMap (getShelleyBasedEra <$> arbitrary) id
+    -- shrink = _fixme
+
+decodeSealedTxSpec :: Spec
+decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
+    prop "roundtrip for Shelley witnesses" prop_sealedTxShelleyRoundtrip
+    xdescribe "Not implemented yet" $ do -- TODO: [ADP-919]
+        prop "roundtrip for Byron witnesses" prop_sealedTxByronRoundtrip
+
+-- Note:
+--
+-- In the tests below, the expected numbers of inputs are highly sensitive
+-- to the size distribution of token bundles within generated transaction
+-- outputs.
+--
+-- If these tests fail unexpectedly, it's a good idea to check whether or
+-- not the distribution of generated token bundles has changed.
+--
+estimateMaxInputsSpec :: Spec
+estimateMaxInputsSpec = do
     estimateMaxInputsTests @ShelleyKey
         [(1,114),(5,109),(10,103),(20,91),(50,51)]
     estimateMaxInputsTests @ByronKey
@@ -228,15 +296,156 @@ spec = do
     estimateMaxInputsTests @IcarusKey
         [(1,73),(5,69),(10,65),(20,56),(50,27)]
 
+feeCalculationSpec :: Spec
+feeCalculationSpec = describe "fee calculations" $ do
+    it "withdrawals incur fees" $ property $ \wdrl ->
+        let
+            costWith =
+                minFee $ defaultTransactionCtx
+                    { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
+            costWithout =
+                minFee defaultTransactionCtx
+
+            marginalCost :: Integer
+            marginalCost = costWith - costWithout
+        in
+            (if wdrl == Coin 0
+                then property $ marginalCost == 0
+                else property $ marginalCost > 0
+            ) & classify (wdrl == Coin 0) "null withdrawal"
+            & counterexample ("marginal cost: " <> show marginalCost)
+            & counterexample ("cost with: " <> show costWith)
+            & counterexample ("cost without: " <> show costWithout)
+
+    it "metadata incurs fees" $ property $ \md ->
+        let
+            costWith =
+                minFee $ defaultTransactionCtx { txMetadata = Just md }
+            costWithout =
+                minFee defaultTransactionCtx
+
+            marginalCost :: Integer
+            marginalCost = costWith - costWithout
+        in
+            property (marginalCost > 0)
+            & classify (txMetadataIsNull md) "null metadata"
+            & counterexample ("cost of metadata: " <> show marginalCost)
+            & counterexample ("cost with: " <> show costWith)
+            & counterexample ("cost without: " <> show costWithout)
+
+    it "minting incurs fees" $ property $ \assets ->
+        let
+            costWith =
+                minFeeSkeleton $ emptyTxSkeleton { txMintBurnAssets = assets }
+            costWithout =
+                minFeeSkeleton emptyTxSkeleton
+
+            marginalCost :: Integer
+            marginalCost = costWith - costWithout
+        in
+            (if null assets
+                then property $ marginalCost == 0
+                else property $ marginalCost > 0
+            )
+            & classify (null assets) "null minting assets"
+            & counterexample ("marginal cost: " <> show marginalCost)
+            & counterexample ("cost with: " <> show costWith)
+            & counterexample ("cost without: " <> show costWithout)
+
+    it "scripts incur fees" $ property $ \scripts ->
+        let
+            costWith =
+                minFeeSkeleton $ emptyTxSkeleton { txScripts = scripts }
+            costWithout =
+                minFeeSkeleton emptyTxSkeleton
+
+            marginalCost :: Integer
+            marginalCost = costWith - costWithout
+        in
+            (if null scripts
+                then property $ marginalCost == 0
+                else property $ marginalCost > 0
+            )
+            & classify (null scripts) "null scripts"
+            & counterexample ("marginal cost: " <> show marginalCost)
+            & counterexample ("cost with: " <> show costWith)
+            & counterexample ("cost without: " <> show costWithout)
+
+    it "increasing mint increases tx size at least proportianally to asset names"
+        $ property $ \mints ->
+        let
+            assetNameLength = BS.length . unTokenName . tokenName
+
+            lengthAssetNames = fromIntegral . getSum $
+                F.foldMap (Sum . assetNameLength) mints
+
+            sizeWith =
+                estimateTxSize' $ emptyTxSkeleton { txMintBurnAssets = mints }
+            sizeWithout =
+                estimateTxSize' emptyTxSkeleton
+
+            marginalSize :: Integer
+            marginalSize = sizeWith - sizeWithout
+        in
+            -- Larger asset names means more bytes in the tx which should
+            -- mean a more expensive tx. Adding the mints should increase
+            -- the marginal size at least as much as the size of the asset
+            -- names.
+            property (marginalSize >= lengthAssetNames)
+            & classify (null mints) "null minting assets"
+            & counterexample
+                ("asset names length: " <> show lengthAssetNames)
+            & counterexample ("marginal size: " <> show marginalSize)
+            & counterexample ("size with: " <> show sizeWith)
+            & counterexample ("size without: " <> show sizeWithout)
+
+    it "increasing scripts increases fee at least proportionate to size of CBOR script"
+        $ property $ \scripts ->
+        let
+            -- Number of signatures required in the script
+            numWitnesses = sum $ (foldScript (const (+ 1)) 0) <$> scripts
+            sizeWitness  =    1 -- small array
+                           + 34 -- vkey
+                           + 66 -- signature
+
+            -- Total size (in bytes) of the scripts when serialized
+            scriptLengths = fromIntegral . getSum $
+                F.foldMap (Sum . BS.length . serializeScript ) scripts
+
+            sizeWith =
+                estimateTxSize' $ emptyTxSkeleton { txScripts = scripts }
+            sizeWithout =
+                estimateTxSize' emptyTxSkeleton
+
+            marginalSize :: Integer
+            marginalSize = sizeWith - sizeWithout
+        in
+            -- The entire script must be serialized when it is included in
+            -- the transaction. Ensure that the marginal size increases at
+            -- least as much as the size of the CBOR serialized scripts.
+            --
+            -- Additionally, each 'required signature' in the script means
+            -- the tx will need to be witnessed by those vkeys (in the worst
+            -- case).
+            property
+              (marginalSize >= scriptLengths + numWitnesses * sizeWitness)
+            & classify (null scripts) "no scripts"
+            & classify (scriptLengths == 0) "zero script lengths"
+            & classify (numWitnesses == 0) "no witnesses"
+            & counterexample ("script lengths: " <> show scriptLengths)
+            & counterexample
+                ("witness size: " <> show (numWitnesses * sizeWitness))
+            & counterexample ("marginal size: " <> show marginalSize)
+            & counterexample ("size with: " <> show sizeWith)
+            & counterexample ("size without: " <> show sizeWithout)
+
     describe "calculate fee execution costs" $ do
         let ppWithPrices :: ProtocolParameters
             ppWithPrices = dummyProtocolParameters
                 { executionUnitPrices = Just (ExecutionUnitPrices 1 1)
                 }
 
-        let unsafeFromCBORhex txt =
-                let (Right bs) = fromHex $ T.encodeUtf8 txt
-                in SealedTx bs
+        let unsafeFromCBORhex = unsafeSealedTxFromBytes . unsafeFromHex
 
         describe "with prices txs without plutus scripts" $ do
             forM_ matrixNormalTxExamples $ \(title, cborHex, _) ->
@@ -254,26 +463,6 @@ spec = do
                     `shouldBe` price
 
     describe "fee calculations" $ do
-        let pp :: ProtocolParameters
-            pp = dummyProtocolParameters
-                { txParameters = dummyTxParameters
-                    { getFeePolicy = LinearFee (Quantity 100_000) (Quantity 100)
-                    }
-                }
-
-            minFee :: TransactionCtx -> Integer
-            minFee ctx = coinToInteger $ calcMinimumCost testTxLayer pp ctx sel
-              where sel = emptySkeleton
-
-            minFeeSkeleton :: TxSkeleton -> Integer
-            minFeeSkeleton = coinToInteger . estimateTxCost pp
-
-            estimateTxSize' :: TxSkeleton -> Integer
-            estimateTxSize' = fromIntegral . unTxSize . estimateTxSize
-
-        let (dummyAcct, dummyPath) =
-                (RewardAccount mempty, DerivationIndex 0 :| [])
-
         it "withdrawals incur fees" $ property $ \wdrl ->
             let
                 costWith =
@@ -415,7 +604,31 @@ spec = do
                 & counterexample ("size with: " <> show sizeWith)
                 & counterexample ("size without: " <> show sizeWithout)
 
-    it "regression #1740 - fee estimation at the boundaries" $ do
+  where
+    pp :: ProtocolParameters
+    pp = dummyProtocolParameters
+        { txParameters = dummyTxParameters
+            { getFeePolicy = fp
+            }
+        }
+    fp = LinearFee (Quantity 100_000) (Quantity 100)
+
+    minFee :: TransactionCtx -> Integer
+    minFee ctx = coinToInteger $ calcMinimumCost testTxLayer pp ctx sel
+      where sel = emptySkeleton
+
+    minFeeSkeleton :: TxSkeleton -> Integer
+    minFeeSkeleton = coinToInteger . estimateTxCost pp
+
+    estimateTxSize' :: TxSkeleton -> Integer
+    estimateTxSize' = fromIntegral . unTxSize . estimateTxSize
+
+    (dummyAcct, dummyPath) =
+        (RewardAccount mempty, DerivationIndex 0 :| [])
+
+feeEstimationRegressionSpec :: Spec
+feeEstimationRegressionSpec = describe "Regression tests" $ do
+    it "#1740 Fee estimation at the boundaries" $ do
         let requiredCost = Coin 166029
         let runSelection = except $ Left
                 $ ErrSelectAssetsSelectionError
@@ -429,33 +642,20 @@ spec = do
         result `shouldBe`
             Right (FeeEstimation (unCoin requiredCost) (unCoin requiredCost))
 
-    -- fixme: it would be nice to repeat the tests for multiple eras
-    let era = Cardano.ShelleyBasedEraAllegra
+binaryCalculationsSpec :: AnyCardanoEra -> Spec
+binaryCalculationsSpec (AnyCardanoEra era) =
+    case cardanoEraStyle era of
+        LegacyByronEra -> pure ()
+        ShelleyBasedEra shelleyEra ->
+            -- TODO: [ADP-919] tests for byron witnesses
+            pendingOnAlonzo "Golden transactions not yet updated" shelleyEra $
+            before_ (pendingWith ("Will return with signTx PR")) $
+            binaryCalculationsSpec' shelleyEra
 
-    describe "tx binary calculations - Byron witnesses - mainnet" $ do
-        let slotNo = SlotNo 7750
-            md = Nothing
-            calculateBinary utxo outs chgs pairs =
-                toBase16 (Cardano.serialiseToCBOR ledgerTx)
-              where
-                  toBase16 = T.decodeUtf8 . hex
-                  ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
-                  mkByronWitness' unsignedTx (_, (TxOut addr _)) =
-                      mkByronWitness unsignedTx Cardano.Mainnet addr
-                  addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-                  fee = toCardanoLovelace $ selectionDelta txOutCoin cs
-                  Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
-                  cs = SelectionResult
-                      { inputsSelected = NE.fromList inps
-                      , extraCoinSource = Nothing
-                      , outputsCovered = outs
-                      , changeGenerated = chgs
-                      , utxoRemaining = UTxOIndex.empty
-                      -- TODO: [ADP-346]
-                      , assetsToMint = TokenMap.empty
-                      , assetsToBurn = TokenMap.empty
-                      }
-                  inps = Map.toList $ unUTxO utxo
+binaryCalculationsSpec' :: IsShelleyBasedEra era => ShelleyBasedEra era -> Spec
+binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
+    describe "Byron witnesses - mainnet" $ do
+        let net = Cardano.Mainnet
         it "1 input, 2 outputs" $ do
             let pairs = [dummyWit 0]
             let amtInp = 10000000
@@ -473,7 +673,7 @@ spec = do
             let chgs =
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
-            calculateBinary utxo outs chgs pairs `shouldBe`
+            calculateBinary net utxo outs chgs pairs `shouldBe`
                 "83a40081825820000000000000000000000000000000000000000000000000\
                 \00000000000000000001828258390101010101010101010101010101010101\
                 \01010101010101010101010101010101010101010101010101010101010101\
@@ -507,7 +707,7 @@ spec = do
             let chgs =
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
-            calculateBinary utxo outs chgs pairs `shouldBe`
+            calculateBinary net utxo outs chgs pairs `shouldBe`
                 "83a40082825820000000000000000000000000000000000000000000000000\
                 \00000000000000000082582000000000000000000000000000000000000000\
                 \00000000000000000000000000010183825839010202020202020202020202\
@@ -528,31 +728,8 @@ spec = do
                 \01010101010101010101010101010101010101010101010101010101010101\
                 \41a0f6"
 
-    describe "tx binary calculations - Byron witnesses - testnet" $ do
-        let slotNo = SlotNo 7750
-            md = Nothing
-            calculateBinary utxo outs chgs pairs =
-                toBase16 (Cardano.serialiseToCBOR ledgerTx)
-              where
-                  toBase16 = T.decodeUtf8 . hex
-                  ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
-                  net = Cardano.Testnet (Cardano.NetworkMagic 0)
-                  mkByronWitness' unsignedTx (_, (TxOut addr _)) =
-                      mkByronWitness unsignedTx net addr
-                  addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-                  fee = toCardanoLovelace $ selectionDelta txOutCoin cs
-                  Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
-                  cs = SelectionResult
-                    { inputsSelected = NE.fromList inps
-                    , extraCoinSource = Nothing
-                    , outputsCovered = outs
-                    , changeGenerated = chgs
-                    , utxoRemaining = UTxOIndex.empty
-                    -- TODO: [ADP-346]
-                    , assetsToMint = TokenMap.empty
-                    , assetsToBurn = TokenMap.empty
-                    }
-                  inps = Map.toList $ unUTxO utxo
+    describe "Byron witnesses - testnet" $ do
+        let net = Cardano.Testnet (Cardano.NetworkMagic 0)
         it "1 input, 2 outputs" $ do
             let pairs = [dummyWit 0]
             let amtInp = 10000000
@@ -570,7 +747,7 @@ spec = do
             let chgs =
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
-            calculateBinary utxo outs chgs pairs `shouldBe`
+            calculateBinary net utxo outs chgs pairs `shouldBe`
                 "83a40081825820000000000000000000000000000000000000000000000000\
                 \00000000000000000001828258390101010101010101010101010101010101\
                 \01010101010101010101010101010101010101010101010101010101010101\
@@ -604,7 +781,7 @@ spec = do
             let chgs =
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
-            calculateBinary utxo outs chgs pairs `shouldBe`
+            calculateBinary net utxo outs chgs pairs `shouldBe`
                 "83a40082825820000000000000000000000000000000000000000000000000\
                 \00000000000000000082582000000000000000000000000000000000000000\
                 \00000000000000000000000000010183825839010202020202020202020202\
@@ -625,18 +802,41 @@ spec = do
                 \58200000000000000000000000000000000000000000000000000000000000\
                 \00000044a1024100f6"
 
-    describe "Transaction constraints" $ do
+  where
+    slotNo = SlotNo 7750
+    md = Nothing
+    calculateBinary _net utxo outs chgs pairs =
+        hex (Cardano.serialiseToCBOR ledgerTx)
+      where
+          ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
+          mkByronWitness' _unsignedTx (_, (TxOut _addr _)) =
+              error "mkByronWitness'" -- TODO: [ADP-919]
+          addrWits = zipWith (mkByronWitness' unsigned) inps pairs
+          fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+          Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
+          cs = SelectionResult
+            { inputsSelected = NE.fromList inps
+            , extraCoinSource = Nothing
+            , outputsCovered = outs
+            , changeGenerated = chgs
+            , utxoRemaining = UTxOIndex.empty
+            , assetsToMint = mempty
+            , assetsToBurn = mempty
+            }
+          inps = Map.toList $ unUTxO utxo
 
-        it "cost of empty transaction" $
-            property prop_txConstraints_txBaseCost
-        it "size of empty transaction" $
-            property prop_txConstraints_txBaseSize
-        it "cost of non-empty transaction" $
-            property prop_txConstraints_txCost
-        it "size of non-empty transaction" $
-            property prop_txConstraints_txSize
-        it "maximum size of output" $
-            property prop_txConstraints_txOutputMaximumSize
+transactionConstraintsSpec :: Spec
+transactionConstraintsSpec = describe "Transaction constraints" $ do
+    it "cost of empty transaction" $
+        property prop_txConstraints_txBaseCost
+    it "size of empty transaction" $
+        property prop_txConstraints_txBaseSize
+    it "cost of non-empty transaction" $
+        property prop_txConstraints_txCost
+    it "size of non-empty transaction" $
+        property prop_txConstraints_txSize
+    it "maximum size of output" $
+        property prop_txConstraints_txOutputMaximumSize
 
 newtype GivenNumOutputs = GivenNumOutputs Int deriving Num
 newtype ExpectedNumInputs = ExpectedNumInputs Int deriving Num
@@ -668,30 +868,34 @@ estimateMaxInputsTests cases = do
         prop "bigger size  ==> more inputs"
             (prop_biggerMaxSizeMeansMoreInputs @k)
 
-prop_decodeSignedShelleyTxRoundtrip
-    :: forall era. (Cardano.IsCardanoEra era, Cardano.IsShelleyBasedEra era)
-    => Cardano.ShelleyBasedEra era
-    -> DecodeShelleySetup
+--------------------------------------------------------------------------------
+-- Roundtrip tests for SealedTx
+
+prop_sealedTxShelleyRoundtrip
+    :: AnyShelleyBasedEra
+    -> AnyCardanoEra
+    -> Pretty DecodeSetup
     -> Property
-prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md slotNo pairs) = do
-    let anyEra = Cardano.anyCardanoEra (Cardano.cardanoEra @era)
-    let inps = Map.toList $ unUTxO utxo
-    let cs = mkSelection inps
-    let fee = toCardanoLovelace $ selectionDelta txOutCoin cs
-    let Right unsigned = mkUnsignedTx shelleyEra slotNo cs md mempty [] fee
-    let addrWits = map (mkShelleyWitness unsigned) pairs
-    let wits = addrWits
-    let ledgerTx = Cardano.makeSignedTransaction wits unsigned
-    let expected = case shelleyEra of
-            Cardano.ShelleyBasedEraShelley -> Right $ sealShelleyTx fromShelleyTx ledgerTx
-            Cardano.ShelleyBasedEraAllegra -> Right $ sealShelleyTx fromAllegraTx ledgerTx
-            Cardano.ShelleyBasedEraMary    -> Right $ sealShelleyTx fromMaryTx ledgerTx
-            Cardano.ShelleyBasedEraAlonzo  -> Right $ sealShelleyTx fromAlonzoTx ledgerTx
-
-
-    _decodeSignedTx anyEra (Cardano.serialiseToCBOR ledgerTx) === expected
+prop_sealedTxShelleyRoundtrip txEra@(AnyShelleyBasedEra era) currentEra (Pretty tc) = conjoin
+    [ txBytes ==== serialisedTx sealedTxC
+    , either (\e -> counterexample (show e) False) (compareOnCBOR tx) sealedTxB
+    ]
+    .||. encodingFromTheFuture txEra currentEra
   where
-    mkSelection inps = SelectionResult
+    tx = makeShelleyTx era tc
+    txBytes = Cardano.serialiseToCBOR tx
+    sealedTxC = sealedTxFromCardano' tx
+    sealedTxB = sealedTxFromBytes' currentEra txBytes
+
+makeShelleyTx :: IsShelleyBasedEra era => ShelleyBasedEra era -> DecodeSetup -> Cardano.Tx era
+makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
+  where
+    DecodeSetup utxo outs md slotNo pairs _netwk = testCase
+    inps = Map.toList $ unUTxO utxo
+    fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+    Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
+    addrWits = map (mkShelleyWitness unsigned) pairs
+    cs = SelectionResult
         { inputsSelected = NE.fromList inps
         , extraCoinSource = Nothing
         , outputsCovered = []
@@ -702,25 +906,32 @@ prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md 
         , assetsToBurn = TokenMap.empty
         }
 
-prop_decodeSignedByronTxRoundtrip
-    :: DecodeByronSetup
+prop_sealedTxByronRoundtrip
+    :: AnyShelleyBasedEra
+    -> AnyCardanoEra
+    -> Pretty (ForByron DecodeSetup)
     -> Property
-prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs) = do
-    let era = Cardano.AnyCardanoEra Cardano.AllegraEra
-    let shelleyEra = Cardano.ShelleyBasedEraAllegra
-    let inps = Map.toList $ unUTxO utxo
-    let cs = mkSelection inps
-    let fee = toCardanoLovelace $ selectionDelta txOutCoin cs
-    let Right unsigned = mkUnsignedTx shelleyEra slotNo cs Nothing mempty [] fee
-    let byronWits = zipWith (mkByronWitness' unsigned) inps pairs
-    let ledgerTx = Cardano.makeSignedTransaction byronWits unsigned
-
-    _decodeSignedTx era (Cardano.serialiseToCBOR ledgerTx)
-        === Right (sealShelleyTx fromAllegraTx ledgerTx)
+prop_sealedTxByronRoundtrip txEra@(AnyShelleyBasedEra era) currentEra (Pretty tc) = conjoin
+    [ txBytes ==== serialisedTx sealedTxC
+    , either (\e -> counterexample (show e) False) (compareOnCBOR tx) sealedTxB
+    ]
+    .||. encodingFromTheFuture txEra currentEra
   where
-    mkByronWitness' unsigned (_, (TxOut addr _)) =
-        mkByronWitness unsigned ntwrk addr
-    mkSelection inps = SelectionResult
+    tx = makeByronTx era tc
+    txBytes = Cardano.serialiseToCBOR tx
+    sealedTxC = sealedTxFromCardano' tx
+    sealedTxB = sealedTxFromBytes' currentEra txBytes
+
+makeByronTx :: IsShelleyBasedEra era => ShelleyBasedEra era -> ForByron DecodeSetup -> Cardano.Tx era
+makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
+  where
+    ForByron (DecodeSetup utxo outs _ slotNo pairs _ntwrk) = testCase
+    inps = Map.toList $ unUTxO utxo
+    fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+    Right unsigned = mkUnsignedTx era slotNo cs Nothing mempty [] fee
+    -- byronWits = map (mkByronWitness unsigned ntwrk Nothing) pairs
+    byronWits = map (error "makeByronTx: broken") pairs  -- TODO: [ADP-919]
+    cs = SelectionResult
         { inputsSelected = NE.fromList inps
         , extraCoinSource = Nothing
         , outputsCovered = []
@@ -730,6 +941,17 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs
         , assetsToMint = TokenMap.empty
         , assetsToBurn = TokenMap.empty
         }
+
+encodingFromTheFuture :: AnyShelleyBasedEra -> AnyCardanoEra -> Bool
+encodingFromTheFuture tx current = shelleyEraNum tx > eraNum current
+
+compareOnCBOR :: IsCardanoEra era => Cardano.Tx era -> SealedTx -> Property
+compareOnCBOR b sealed = case cardanoTx sealed of
+    InAnyCardanoEra _ a ->
+        Cardano.serialiseToCBOR a ==== Cardano.serialiseToCBOR b
+
+--------------------------------------------------------------------------------
+--
 
 -- | Increasing the number of outputs reduces the number of inputs.
 prop_moreOutputsMeansLessInputs
@@ -758,52 +980,44 @@ prop_biggerMaxSizeMeansMoreInputs size outs
         <=
         _estimateMaxNumberOfInputs @k ((*2) <$> size ) defaultTransactionCtx outs
 
-testTxLayer :: TransactionLayer ShelleyKey
+testTxLayer :: TransactionLayer ShelleyKey SealedTx
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
 
-data DecodeShelleySetup = DecodeShelleySetup
+newtype ForByron a = ForByron { getForByron :: a } deriving (Show, Eq)
+
+data DecodeSetup = DecodeSetup
     { inputs :: UTxO
-    , outputs :: [TxOut]
+    , outputs :: [TxOut] -- TODO: add datums
     , metadata :: Maybe TxMetadata
     , ttl :: SlotNo
     , keyPasswd :: [(XPrv, Passphrase "encryption")]
-    } deriving Show
-
-data DecodeByronSetup = DecodeByronSetup
-    { inputs :: UTxO
-    , outputs :: [TxOut]
-    , ttl :: SlotNo
     , network :: Cardano.NetworkId
-    , keyPasswd :: [(XPrv, Passphrase "encryption")]
     } deriving Show
 
-instance Arbitrary DecodeShelleySetup where
+instance Arbitrary DecodeSetup where
     arbitrary = do
         utxo <- arbitrary
-        n <- choose (1,10)
-        outs <- vectorOf n arbitrary
-        md <- arbitrary
-        slot <- arbitrary
-        let numInps = Map.size $ unUTxO utxo
-        pairs <- vectorOf numInps arbitrary
-        pure $ DecodeShelleySetup utxo outs md slot pairs
+        DecodeSetup utxo
+            <$> listOf1 arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> vectorOf (Map.size $ unUTxO utxo) arbitrary
+            <*> arbitrary
+
+    shrink (DecodeSetup i o m t k n) =
+        [ DecodeSetup i' o' m' t' k' n'
+        | (i',o',m',t',k',n') <- shrink (i,o,m,t,k,n) ]
+
+instance Arbitrary (ForByron DecodeSetup) where
+    arbitrary = do
+        test <- arbitrary
+        pure $ ForByron (test { metadata = Nothing })
 
 instance Arbitrary Cardano.NetworkId where
     arbitrary = elements
         [ Cardano.Mainnet
         , Cardano.Testnet $ Cardano.NetworkMagic 42
         ]
-
-instance Arbitrary DecodeByronSetup where
-    arbitrary = do
-        utxo <- arbitrary
-        n <- choose (1,10)
-        outs <- vectorOf n arbitrary
-        net <- arbitrary
-        let numInps = Map.size $ unUTxO utxo
-        slot <- arbitrary
-        pairs <- vectorOf numInps arbitrary
-        pure $ DecodeByronSetup utxo outs slot net pairs
 
 instance Arbitrary SlotNo where
     arbitrary = SlotNo <$> choose (1, 1000)
@@ -854,10 +1068,7 @@ instance Arbitrary UTxO where
         pure $ UTxO $ Map.fromList $ zip inps outs
 
 instance Arbitrary XPrv where
-    arbitrary = do
-        InfiniteList bytes _ <- arbitrary
-        let (Just xprv) = xprvFromBytes $ BS.pack $ take 96 bytes
-        pure xprv
+    arbitrary = fromJust . xprvFromBytes . BS.pack <$> vectorOf 96 arbitrary
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where
@@ -953,10 +1164,13 @@ emptyTxSkeleton = mkTxSkeleton
     defaultTransactionCtx
     emptySkeleton
 
+mockFeePolicy :: FeePolicy
+mockFeePolicy = LinearFee (Quantity 1.0) (Quantity 2.0)
+
 mockProtocolParameters :: ProtocolParameters
 mockProtocolParameters = dummyProtocolParameters
     { txParameters = TxParameters
-        { getFeePolicy = LinearFee (Quantity 1.0) (Quantity 2.0)
+        { getFeePolicy = mockFeePolicy
         , getTxMaxSize = Quantity 16384
         , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
         }
@@ -1170,7 +1384,7 @@ instance Arbitrary KeyHash where
         cred <- oneof [pure Payment, pure Delegation]
         KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
 
-matrixPlutusExamples :: [(String, Text, [ExecutionUnits])]
+matrixPlutusExamples :: [(String, ByteString, [ExecutionUnits])]
 matrixPlutusExamples =
     [ ( "auction_1-2.json"
       , "84a700818258202f4c1a83d5d9465bc7b0cc51759f5a61e689b048b8568131edd7ec1dc3a57650060d80018183581d710ef42a9b6101cf662da7153ab31f400d65010795219dc954495c9a408201a1581c207f577b4879971833f55fffa1af07f1df2f34ab58ec7143d4d6ad0fa1581c0ef42a9b6101cf662da7153ab31f400d65010795219dc954495c9a40015820f83789eb9b44bd6dc9dbb03b4c9e7ce40047aff3eca938cc44168af483a8d23402000e8009a1581c207f577b4879971833f55fffa1af07f1df2f34ab58ec7143d4d6ad0fa1581c0ef42a9b6101cf662da7153ab31f400d65010795219dc954495c9a40010b5820bc90fb20ff0b15fa9ed21c3644924b856a46f70e131d1a0edfe48118dae9055da30381591d5d591d5a0100003323332223332223322323232323322323232323233223232323232323233322232323233322232323332223332223333333322222222332233333222223333222233223322332233223322332233223322323322323233223232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232233500230840112001303e00112222333530830133003335089010040023005001209c012350980149826c048c8c8c8c8c8c8cccd5ca99b8935573e600a2400290001180109000918038900084e8091982a980109000980189000918039aba23003120012303a357446ae8cc008480048d55d018010900091ba9003235094014988c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8cccd5ca99b8935573e602a24002900011801090009180b890008560091999999999833180109000980189000980209000980289000980309000980389000980409000980489000980509000980589000919a822980b890009aba23013120012335044301e1200135744602224002466a086604e240026ae88c03c480048cd4108c09848004d5d1180689000919a8209817890009aba2300b12001233504033550920130321200130311200135744601224002466a072606c240026ae88c01c480048cd40f8c0f448004d5d1180289000919a81e99aa84780981f09000981f890009aba230031200123046357446ae8cc008480048d5d198010900091aba330021200123574660042400246ae8cc008480048d5d198010900091aba330021200123574660042400246ae8cc008480048d55d018010900091ba9003235093014988ccd423c0400c0180088c8c8c8c8c8c8cccd5ca99b8935573e600a2400290001180109000918038900084d0091982b1801090009801890009181e1aba23003120012300d357446ae8cc008480048d55d018010900091ba9003235091014988d4c13800488cdd22400066aed0c010008cd5da18068009bb24988d4c18800488cdd22400066aed0c010008cd5da1ba7001376493119ba448000cd5da1ba800137649311999999abaf2323232323232323333572a66e24d55cf980389000a400046004240024a136021300246666aaed49426c048c00c48004c01848004260048cccd55da9284d00918018900098020900084b8091999aabb5230031200125099013574660062400212c024666a6a12c02600e6ae88c00c4800488ccd4d426004c048d5d1180209000911a84e009982a8020011284d0084b809284c0084a8091aba3300212001235574060042400246ea400c9424c049424c049424c049424c04004240048ccccccd5d79191919191919191999ab95337126aae7cc01c48005200023002120012509a0109701233335576a4a134024600624002600c2400212e0246666aaed494264048c00c48004c01048004258048cccd55da91801890009284c009aba33003120010950123335350950130073574460062400244666a6a12e0260526ae88c0104800488d426c04cc1a40100089426404258049425c04250048d5d198010900091aaba0300212001237520064a124024a124024a124024a1240200211e0246666666aebc8c8c8c8c8c8cccd5ca99b8935573e600a24002900011801090009284b8084a0091999aabb52509701230031200130041200109401233335576a46006240024a12c026ae8cc00c4800424c048ccd4d424c04c22404d5d1180109000911a84b808011284a808490091aaba0300212001237520064a122024a122024a122024a1220200211c024666a10e0200a010004464646464646464646666ae54cdc49aab9f300712001480008c008480048c02448004250048ccc148c00848004c00c48004c010480048c024d5d1180289000919a8161808090009aba23003120012335008302c12001357446ae8cc008480048d5d198010900091aaba03002120012375200646a112029311919191919191999ab95337126aae7cc01448005200023002120012300712001091012330513002120013003120012303235744600624002466a00c6036240026ae88d5d198010900091aaba03002120012375200646a11002930911919191919191999ab95337126008240029000118010900091802090008488091a84a00980109000919a83f0039aba235574060082400246666ae54cdc4980109000a40044a124024600a2400211e0246aae7cc008480048dd480191a84400a4c46a608c00244466e912000335768600a00666aed0cd403cc02848004008cd5da19a8031813890008009bb24988d4c11c00488cdd22400066aed0c060008cd5da19a802180b090008009bb2498488ccd4d42240400488cdd22400066aed0cd41e8010008dd924c466e9120023764930440091999999abaf23232323232323232323333572a66e24d55cf980489000a400046004240024a126021200246666aaed49424c048c00c48004c02048004240048cccd55da928490091801890009803090008478091999aabb52509101230031200130041200108e01233335576a46006240024a120026ae8cc00c48004234048ccd4d423404c020d5d118020900091199a9a8478099a8099806090009aba2300512001223335350910133500d302b1200135744600c24002446a12a026660a000c0080044a12602120024a1220211c024a11e021180246ae8cc008480048d5d198010900091aaba0300212001237520064a112024a112024a112024a1120200210c0246666666aebc8c8c8c8c8c8c8c8cccd5ca99b8935573e600e240029000118010900092848008468091999aabb52509001230031200130061200108d01233335576a4a11e0246006240026008240021180246666aaed48c00c480049423804d5d1980189000845809199a9a84580980d1aba23003120012233353508d0133500930181200135744600824002446a122026609c0080044a11e02118024a11a021140246ae8cc008480048d55d018010900091ba90032508801250880125088012508801001085011223333333575e46464646464646464646666ae54cdc4980289000a400046004240024600a2400211e0246666aaed494248048c00c48004c01c4800423c048cccd55da918018900092848809aba330061200108e01233353508e013350810100a35744600a24002446a124026a124020044a1200211a0246666ae54cdc4980109000a400446008240024a11e021180246aae7cc010480048cccd55da918028900092846809801090008450091aaba03002120012375200846a11402a112024a110024a110024a110024a1100200210a02466aa0de601424002600424002466aa006600424002601a240024666a0f60ee0f0eb44488ccd41eccd5400c008004cd54014008004cd5401c0080044488d400ccd541b0008004488c8c8dd318008019a80090008918009aa8438091199a9a83200091bb2498888cd5da19a83a80400198028010410088911a80199aa83500100089119191999999abaf250820125082012300237560084a104024a104020060fe6a00240022460026aa10a0244646666aaed48c008480048ccd4d420c04cd41d801cd5d100191199a9a8428098031aba30052235089013350690040022508701084012508501082010020810123508401506511223501633550680020012333507407007175a4666a0e6004006032466666666a60940024466e912002335768600e0046ec92622233748900219abb430080033357686ea0008dd924c4466e912000335768600e0046ec92623374890051bb24988cdd2240186ec92622233748900319abb4375000666aed0dd40011bb2498888cdd22401066aed0dd400199abb4374e0046ec92607823333333575e4646464646464646464646464646464646464646464646464646464646464646464646666ae54cdc4980e89000a4018460042400246008240021340246666aaed48c00c480049427404c08448004268048d4270041b88cccd5ca99b89301b12001480288c00c480048c01448004260048cccd55da91801890009284d00980f0900084b8091a84c8083611999ab953371260302400290041180189000918040900084a8091999aabb525097012300312001301b1200109401233335576a4a12c0246006240026008240021260246666aaed48c00c480049425404d5d1980189000849009199a9a849009844009aba23018120012233353509401302635744600824002446a13002660d00080044a12c02126024a128021220246ae8cc05c480048cccd5ca99b89301212001480188c00c480048c0204800423c048cccd55da92848809180189000980a890008470091999aabb52509001230031200130041200108d01233335576a46006240024a11e026ae8cc00c48004230048ccd4d423004c20804d5d118090900091199a9a847009842009aba230041200122350920133063004002250900108d012508e0108b0123574660222400246666ae54cdc4980609000a4008460062400246010240021120246666aaed49422c048c00c48004c03c48004220048cccd55da928450091801890009802090008438091999aabb5230031200125089013574660062400210c024666a6a10c0260286ae88c0304800488ccd4d422004c1f8d5d1180209000911a846009983080200112845008438092844008428091aba3300b1200123333572a66e24c0184800520022300312001230061200108301233335576a4a10a0246006240026012240021040246666aaed48c00c480049421004d5d1980409000840809199a9a8408098079aba2300712001223508501305b00225083010800123333572a66e24c0084800520002300412001250820107f235573e600c2400246666aaed494200048c00c48004c010480041f48cccd55da91801890009283f9aba330031200107c233353507c300a35744600424002446a1000260a80044a0fc0f646aae80c008480048dd48019283d1283d1283d1283d00083b9199a838004004bac2333506f0020040162335304e001233748900019abb4300300137649311119ba448008cd5da1ba70033357686e9c008cd5da1ba7001376493119a9828000919ba448000cd5da1ba8001376493119ba448008cd5da1ba800137649311999999abaf232323232323232323232323232323333572a66e24c0244800520022300212001230091200108101233335576a4a108024600624002601a240021020246666aaed49420c048c00c48004c01848004200048cccd55da9284100918018900098020900083f91999aabb523003120012508101357466006240020fc4666a6a0fc60206ae88c0244800488ccd4d420004c048d5d118028900091199a9a84100980a1aba230061200122350860133305e006004002250840108101250820107f250800107d23574660042400246ae8cc01c480048cccd5ca99b89300212001480008c01048004941f41e88d55cf98030900091999aabb52507b2300312001300412001078233335576a46006240024a0f46ae8cc00c480041dc8ccd4d41dcc018d5d1180109000911a83d982a0011283c83b11aaba0300212001237520064a0ea4a0ea4a0ea4a0ea0020e446666666aebc8c8c8c8c8c8c8c8c8c8c8cccd5ca99b89300512001480088c008480048c014480041f08cccd55da9283f918018900098048900083e11999aabb523003120012507e357466010240020f64666a6a0f660e26ae88c01c4800488d41fcc168008941f41e88cccd5ca99b89300212001480008c01048004941f01e48d55cf98030900091999aabb52507a2300312001300412001077233335576a46006240024a0f26ae8cc00c480041d88ccd4d41d8c1b0d5d1180109000911a83d182b0011283c03a91aaba0300212001237520064a0e84a0e84a0e84a0e80020e24666a0d4004006eb08dd380091999999abaf25071250712507123507237580044a0e20020dc2446464646464646666ae54cdc49aab9f300512001480008c008480048c01c480041d08cd40d8c00848004c00c480048cd402001cd5d1180189000919a8040031aba23574660042400246aae80c008480048dd480191a835a4c2446464646464646666ae54cdc49aab9f300512001480008c008480048c01c480041cc8cd40e4c00848004c00c480048cd402401cd5d1180189000918049aba23574660042400246aae80c008480048dd480191a83524c2446464646464646666ae54cdc49aab9f300512001480008c008480048c01c480041c88cd40d8c00848004c00c480048cd402001cd5d1180189000918041aba23574660042400246aae80c008480048dd480191a834a4c244646464646464646666ae54cdc4980289000a40084a07646004240020e446666ae54cdc4980289000a400446006240024600a240020e446a076600424002466a0bc00e6ae88d55d018020900091999ab953371260042400290001281c918028900083791aab9f3002120012375200646a0d09311919191999ab95337126004240029001102b918010900083611999ab95337126004240029000102b118020900083611aab9f375200646a0cc931199a83102f02fbad1223232300137560066a00240022460026aa0e0446666aaed4941408cd413ccd4168018d5d100118019aba300200106b2333506005c05d75a4666a0bea004a0d0006240024002464646464646464646464646464646666ae54cdc4980509000a400c460042400246008240020e04607e6004240024601e6ae88d55d018060900091999ab95337126010240029002118018900091802890008371181d180109000918069aba235574060122400246666ae54cdc4980289000a400446006240024600a240020d64606c600424002460186ae88d55d018030900091999ab953371260042400290001180209000918038900083411aab9f300412001230343002120012375a6ae88d55d018010900091ba900323505f4988c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8cccd5ca99b893015120014803081408c008480041e88cccd5ca99b893015120014802881448c00c480041e88cccd5ca99b89301412001480208c00c480048c01c480041e48cc12cc00848004c00c480048dd69aba2300312001237586ae88d5d198010900091aaba030131200123333572a66e24c03c480052006230031200123007120010742330473002120013003120012375a6ae88c00c480048dd69aba23574660042400246aae80c038480048cccd5ca99b89300a12001480108c00c480048c01c480041bc8cc118c00848004c00c480048c038d5d118018900091bad357446ae8cc008480048d55d018048900091999ab9533712600a2400290011180189000918028900083511821180109000918049aba2355740600c2400246666ae54cdc4980109000a400046008240024600e240020ce46aae7cc010480048c0f0c008480048c014d5d11aaba03002120012375200646a0bc9311919191919191919191919191999ab9533712601024002900111801090009180409000836119982398010900098018900098020900091bac35744600a2400246eb0d5d118018900091bac357446ae8cc008480048d5d198010900091aaba030061200123333572a66e24c00848005200023004120012300712001066235573e600824002460806004240024600a6ae88d55d018010900091ba900323505d4988c8c8c8c8c8c8c8c8cccd5ca99b89300412001480088c008480048c0104800419c8c114c008480048dd69aba2355740600c2400246666ae54cdc4980109000a400046008240024600e240020ca46aae7cc010480048c108c008480048dd69aba235574060042400246ea400c8d41712623232323232323333572a66e24d55cf980289000a400046004240024600e240020c846606a6004240026006240024600e6ae88c00c480048dd61aba23574660042400246aae80c008480048dd480191a82da4c46464646666ae54cdc49aab9f300212001480008c008480048c010480041808dd69aba235574060042400246ea400c8d41692622235302e003223535505200422353019005223304a3300b4bd64ab586d975b2c82db69b75d2cb6490592d366b3596e565b75d24166b95bedb20b2de2e165b1dd2cb641999822180d003802180500119a9826199a824825801835240029001199a9826199a82482580183491980625eb2542cb6eb25a6dd67905d2e561b75cec363ba5a6df6e90592df65b9c82dd6fba482e770b2dbac920ba5a2cb20b2596e769b3dbac374b2d924174b9586dd73b0d8ee969b7dba416fbadd2e175ba0ccc03400c01c018813c1908d4c050004888888888801c88ccd4c10c00481188cd5d81b9800304505b2223530140032222222222333553011120013500e30171200123335304e333572a66e40034d4c08400488d4c0e00088800814013c8ccd5ca99b8900d3530220022235303900222001051050205006600a123350092233350050030020013500200112353500b0012200112353500a0012200235001200112300135505b22112322233353503c0012350090052223330061200130050033335530091200100700500205a235007002123535003001220011235350020012200212212330010030021200123350040020382233353037002203a200204f1221233001003002120012353002001223333353018001223504b4988800888d412d26223504b4981348848cc00400c0088004888888888848cccccccccc00402c02802402001c01801401000c00880048848cc00400c008800488848ccc00401000c00880048848cc00400c008800448848cc00400c0084800448848cc00400c0084800448848cc00400c00848004484888c00c010448880084488800448004848888c010014848888c00c014848888c008014848888c00401480048848cc00400c0088004848888888c01c0208848888888cc018024020848888888c014020488888880104888888800c8848888888cc0080240208848888888cc00402402080048488c00800c888488ccc00401401000c80048488c00800c8488c00400c80048888ccd5ca99b8933300500200400300100e00d222323232300100635001200112300135502b22335350080014800088d4d5406800888ccd4c048ccd5ca99b9000200a014013230090022300700402a23232300100335001200112300135502b22335350080014800088d4d5406800888ccd4c048ccd5ca99b9000200901401320022300700402a112200212212233001004003120011200122333530040022002200601c223335301f0022333530200022007200601c2333530200022006200701c01b122002122001200123355002300b12001300e1200111223335010335500500200133550070020013355003002001112223232323232323333572a66e24d55cf980289000a400046004240024600e24002038466aa01e600424002600624002466a0120106ae88c00c480048cd4020018d5d11aba3300212001235574060042400246ea400c8d404d2612353500c00122200111222353550060012233748900019abb433500600500233576866a00c0080026ec92612353500a001222003112223333333575e4646464646464646666ae54cdc49aab9f300712001480008c00848004940740688cccd55da9280e918018900098030900080d11999aabb52501c2300312001300412001019233335576a46006240024a0366ae8cc00c480040608ccd4d4060cd402c020d5d118018900091199a9a80d19a8068049aba2300412001223501e335500e0040022501c0192501a01723574660042400246aae80c008480048dd48019280a9280a9280a9280a80080908910919800801801089000891a9a8030009110011199a803001001bad2375000246666666aebc940349403494034940348d4038dd68010008051199a8018030038020911091998008020018010900091919191999ab953371260042400290011008118010900080491999ab953371260042400290001007918020900080491aab9f375200646a006930931199a9804000919ba448008dd924c466e91200037649300211999999abaf232323232323232323333572a66e24c0104800520022300212001230041200100c233335576a46006240024a01e600c2400201846a01c02246666ae54cdc4980109000a400046008240024a01a01446aae7cc010480048cccd55da91802890009280598010900080411aaba03002120012375200846a0100144a00c4a00c4a00c4a00c002006240024002242446004006224400224002244004244002400222464600200244660066460020020040026644660049101202f4c1a83d5d9465bc7b0cc51759f5a61e689b048b8568131edd7ec1dc3a5765000480308848cc00400c00880050481d87981d8798200581c35dedd2982a03cf39e7dce03c839994ffdec2ec6b04f1cf2d40e61a3058184010000821917b61a01787ae8f5f6"
@@ -1392,7 +1606,7 @@ matrixPlutusExamples =
       )
     ]
 
-matrixNormalTxExamples :: [(String, Text, [ExecutionUnits])]
+matrixNormalTxExamples :: [(String, ByteString, [ExecutionUnits])]
 matrixNormalTxExamples =
     [ ( "multiple outputs tx"
       , "84a600818258200eaa33be8780935ca5a7c1e628a2d54402446f96236c\
