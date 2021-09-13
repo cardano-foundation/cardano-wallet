@@ -242,14 +242,20 @@ spec = do
                 let (Right bs) = fromHex $ T.encodeUtf8 txt
                 in SealedTx bs
 
-        forM_ matrixPlutusExamples $ \(title, cborHex, _) ->
-            it title $ _calcScriptExecutionCost ppWithoutPrices (unsafeFromCBORhex cborHex) `shouldBe` Coin 0
+        describe "without prices" $ do
+            forM_ matrixPlutusExamples $ \(title, cborHex, _) ->
+                it title $
+                    _calcScriptExecutionCost ppWithoutPrices (unsafeFromCBORhex cborHex)
+                    `shouldBe` Coin 0
 
-        forM_ matrixPlutusExamples $ \(title, cborHex, executionUnits) -> do
-            let calcPrice (ExecutionUnits {executionSteps, executionMemory}) =
-                    Coin $ executionMemory + executionSteps
-            let price = sumCoins $ map calcPrice executionUnits
-            it title $ _calcScriptExecutionCost ppWithPrices (unsafeFromCBORhex cborHex) `shouldBe` price
+        describe "with prices" $ do
+            forM_ matrixPlutusExamples $ \(title, cborHex, executionUnits) -> do
+                let calcPrice (ExecutionUnits {executionSteps, executionMemory}) =
+                        Coin $ executionMemory + executionSteps
+                let price = sumCoins $ map calcPrice executionUnits
+                it title $
+                    _calcScriptExecutionCost ppWithPrices (unsafeFromCBORhex cborHex)
+                    `shouldBe` price
 
     describe "fee calculations" $ do
         let pp :: ProtocolParameters
