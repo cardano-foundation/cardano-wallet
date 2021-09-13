@@ -201,15 +201,12 @@ instance Functor m => Functor (NetworkLayer m) where
 -------------------------------------------------------------------------------}
 
 -- | Error while trying to send a transaction
-data ErrPostTx
-    = ErrPostTxBadRequest Text
-    | ErrPostTxProtocolFailure Text
+newtype ErrPostTx = ErrPostTxValidationError Text
     deriving (Generic, Show, Eq)
 
 instance ToText ErrPostTx where
     toText = \case
-        ErrPostTxBadRequest msg -> msg
-        ErrPostTxProtocolFailure msg -> msg
+        ErrPostTxValidationError msg -> msg
 
 {-------------------------------------------------------------------------------
                                 Chain Sync

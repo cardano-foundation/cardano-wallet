@@ -124,6 +124,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( SealedTx )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), traceAfterThread )
 import Cardano.Wallet.Shelley.Api.Server
@@ -275,9 +277,9 @@ serveWallet
     poolDatabaseDecorator = fromMaybe Pool.undecoratedDB mPoolDatabaseDecorator
 
     serveApp socket = withIOManager $ \io -> do
-        withNetworkLayer networkTracer np conn vData sTolerance $ \nl -> do
+        let net = networkIdVal proxy
+        withNetworkLayer networkTracer net np conn vData sTolerance $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
-                let net = networkIdVal proxy
                 randomApi <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
                 icarusApi  <- apiLayer (newTransactionLayer net) nl
@@ -378,7 +380,7 @@ serveWallet
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => TransactionLayer k
+        => TransactionLayer k SealedTx
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
         -> (WorkerCtx (ApiLayer s k) -> WalletId -> IO ())
         -> IO (ApiLayer s k)

@@ -600,7 +600,7 @@ bench_restoration proxy tr wlTr socket np vData benchname wallets traceToDisk ta
     putStrLn $ "*** " ++ T.unpack benchname
     let networkId = networkIdVal proxy
     let tl = newTransactionLayer @k networkId
-    withNetworkLayer (trMessageText wlTr) np socket vData sTol $ \nw' -> do
+    withNetworkLayer (trMessageText wlTr) networkId np socket vData sTol $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
@@ -706,7 +706,7 @@ withBenchDBLayer ti tr action =
     tr' = trMessageText tr
 
 prepareNode
-    :: forall n. (NetworkDiscriminantVal n)
+    :: forall n. (NetworkDiscriminantVal n, HasNetworkId n)
     => Tracer IO (BenchmarkLog n)
     -> Proxy n
     -> CardanoNodeConn
@@ -715,7 +715,8 @@ prepareNode
     -> IO ()
 prepareNode tr proxy socketPath np vData = do
     traceWith tr $ MsgSyncStart proxy
-    sl <- withNetworkLayer nullTracer np socketPath vData sTol $ \nw' -> do
+    let networkId = networkIdVal proxy
+    sl <- withNetworkLayer nullTracer networkId np socketPath vData sTol $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
@@ -828,4 +829,3 @@ showPercentFromPermille =
 
 sTol :: SyncTolerance
 sTol = mkSyncTolerance 3600
-

@@ -201,6 +201,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     , Role (..)
     , WalletKey (..)
+    , fromHex
     , passphraseMaxLength
     , passphraseMinLength
     )
@@ -268,6 +269,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , SealedTx
     , SerialisedTx (..)
     , SerialisedTxParts (..)
     , TxIn (..)
@@ -275,6 +277,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxScriptValidity (..)
     , TxStatus (..)
+    , unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxScriptValidity, shrinkTxScriptValidity )
@@ -1033,6 +1036,7 @@ spec = parallel $ do
                 x' = ApiSignTransactionPostData
                     { transaction = transaction (x :: ApiSignTransactionPostData)
                     , passphrase = passphrase (x :: ApiSignTransactionPostData)
+                    , withdrawal = withdrawal (x :: ApiSignTransactionPostData)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1066,13 +1070,6 @@ spec = parallel $ do
                     , timeToLive = timeToLive (x :: PostTransactionFeeOldData ('Testnet 0))
                     }
             in
-                x' === x .&&. show x' === show x
-        it "ApiSerialisedTransaction" $ property $ \x ->
-            let
-                x' = ApiSerialisedTransaction
-                    { transaction = transaction (x :: ApiSerialisedTransaction)
-                    }
-             in
                 x' === x .&&. show x' === show x
 
         it "ApiTransaction" $ property $ \x ->
@@ -2016,7 +2013,10 @@ instance Arbitrary a => Arbitrary (AddressAmountNoAssets a) where
     shrink _ = []
 
 instance Arbitrary ApiSignTransactionPostData where
-    arbitrary = ApiSignTransactionPostData <$> arbitrary <*> arbitrary
+    arbitrary = ApiSignTransactionPostData
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary (PostTransactionOldData n) where
     arbitrary = PostTransactionOldData
@@ -2596,9 +2596,6 @@ instance ToSchema ApiSignTransactionPostData where
 instance ToSchema ApiSignedTransaction where
     -- fixme: tests don't seem to like allOf
     declareNamedSchema _ = declareSchemaForDefinition "ApiSignedTransaction"
-
-instance ToSchema ApiSerialisedTransaction where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTransaction"
 
 instance ToSchema (ApiBytesT 'Base64 SerialisedTx) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTx"

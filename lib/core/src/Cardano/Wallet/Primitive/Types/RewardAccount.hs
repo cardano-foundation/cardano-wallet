@@ -36,7 +36,7 @@ import Quiet
 --
 newtype RewardAccount = RewardAccount { unRewardAccount :: ByteString }
     deriving (Generic, Eq, Ord)
-    deriving Show via (Quiet RewardAccount)
+    deriving (Show, Read) via (Quiet RewardAccount)
 
 instance NFData RewardAccount
 

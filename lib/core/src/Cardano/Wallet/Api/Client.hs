@@ -99,13 +99,13 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SerialisedTx )
+    ( SealedTx, SerialisedTx (..), unsafeSealedTxFromBytes )
 import Control.Monad
     ( void )
 import Data.Coerce
     ( coerce )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Proxy
@@ -314,11 +314,14 @@ transactionClient =
             , signTransaction = _signTransaction
             , postTransaction = _postTransaction
             , postTransactionFee = _postTransactionFee
-            , postExternalTransaction = _postExternalTransaction
+            , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
             , deleteTransaction = _deleteTransaction
             , getTransaction = _getTransaction
             , constructTransaction = _constructTransaction
             }
+
+fromSerialisedTx :: ApiBytesT base SerialisedTx -> ApiT SealedTx
+fromSerialisedTx = ApiT . unsafeSealedTxFromBytes . view (#getApiBytesT . #payload)
 
 -- | Produces a 'TransactionClient n' working against the /byron-wallets API.
 byronTransactionClient
@@ -342,7 +345,7 @@ byronTransactionClient =
         , signTransaction = _signTransaction
         , postTransaction = _postTransaction
         , postTransactionFee = _postTransactionFee
-        , postExternalTransaction = _postExternalTransaction
+        , postExternalTransaction = _postExternalTransaction . fromSerialisedTx
         , deleteTransaction = _deleteTransaction
         , getTransaction = _getTransaction
         , constructTransaction = _constructTransaction
