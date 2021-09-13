@@ -216,6 +216,7 @@ genesisBlockFromTxOuts gp outs = W.Block
         , withdrawals = mempty
         , metadata = Nothing
         , scriptValidity = Nothing
+        , hasScriptsRequiringCollateral = False
         }
 
 --------------------------------------------------------------------------------
@@ -284,6 +285,9 @@ fromTxAux txAux = case taTx txAux of
 
         , scriptValidity =
             Nothing
+
+        , hasScriptsRequiringCollateral =
+            False
         }
 
 fromTxIn :: TxIn -> W.TxIn

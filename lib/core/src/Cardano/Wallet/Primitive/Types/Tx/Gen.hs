@@ -66,6 +66,7 @@ import Test.QuickCheck
     , liftShrink2
     , listOf
     , listOf1
+    , shrink
     , shrinkList
     , shrinkMapBy
     , sized
@@ -77,6 +78,7 @@ import Test.QuickCheck.Extra
     ( genFunction
     , genMapWith
     , genSized2With
+    , liftShrink6
     , liftShrink7
     , shrinkInterleaved
     , shrinkMapWith
@@ -104,6 +106,7 @@ data TxWithoutId = TxWithoutId
     , metadata :: !(Maybe TxMetadata)
     , withdrawals :: !(Map RewardAccount Coin)
     , scriptValidity :: !(Maybe TxScriptValidity)
+    , hasScriptsRequiringCollateral :: !Bool
     }
     deriving (Eq, Ord, Show)
 
@@ -116,6 +119,7 @@ genTxWithoutId = TxWithoutId
     <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
     <*> liftArbitrary genTxScriptValidity
+    <*> arbitrary
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
 shrinkTxWithoutId =
@@ -127,6 +131,7 @@ shrinkTxWithoutId =
         (liftShrink shrinkTxMetadata)
         (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
         (liftShrink shrinkTxScriptValidity)
+        shrink
 
 txWithoutIdToTx :: TxWithoutId -> Tx
 txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}

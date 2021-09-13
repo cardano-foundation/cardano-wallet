@@ -987,6 +987,7 @@ fromGenesisData g initialFunds =
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing
+            , hasScriptsRequiringCollateral = False
             }
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
@@ -1124,6 +1125,9 @@ fromShelleyTx tx =
             fromShelleyMD <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
             Nothing
+        , hasScriptsRequiringCollateral =
+            -- No phase-2 monetary policy scripts in the Shelley era
+            False
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -1156,6 +1160,9 @@ fromAllegraTx tx =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
             Nothing
+        , hasScriptsRequiringCollateral =
+            -- No phase-2 monetary policy scripts in the Allegra era.
+            False
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -1192,6 +1199,9 @@ fromMaryTx tx =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
         , scriptValidity =
             Nothing
+        , hasScriptsRequiringCollateral =
+            -- No phase-2 monetary policy scripts in the Mary era
+            False
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -1237,6 +1247,8 @@ fromAlonzoTxBodyAndAux bod mad =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
         , scriptValidity =
             Nothing
+        , hasScriptsRequiringCollateral =
+            or $ fmap scriptRequiresCollateral scripts
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -1266,6 +1278,12 @@ fromAlonzoTxBodyAndAux bod mad =
         fromCardanoValue $ Cardano.fromMaryValue value
 
     toSLMetadata (Alonzo.AuxiliaryData blob _scripts) = SL.Metadata blob
+
+    scriptRequiresCollateral = \case
+        Alonzo.TimelockScript _ -> False
+        Alonzo.PlutusScript _ -> True
+
+    scripts = maybe mempty (Alonzo.scripts) (SL.strictMaybeToMaybe mad)
 
 fromAlonzoValidatedTx
     :: Alonzo.ValidatedTx (Cardano.ShelleyLedgerEra AlonzoEra)

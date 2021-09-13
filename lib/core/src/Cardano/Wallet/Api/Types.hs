@@ -942,6 +942,7 @@ data ApiConstructTransactionData (n :: NetworkDiscriminant) = ApiConstructTransa
     , mint :: !(Maybe (ApiT W.TokenMap))
     , delegations :: !(Maybe (NonEmpty ApiMultiDelegationAction))
     , validityInterval :: !(Maybe ApiValidityInterval)
+    , selectionOfCollateralRequired :: !(ApiT SelectionCollateralRequirement)
     } deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
 

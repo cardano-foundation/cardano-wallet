@@ -362,6 +362,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , SelectionOutputInvalidError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
+    , SelectionCollateralRequirement (..)
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
@@ -472,6 +473,8 @@ import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Aeson
     ( (.=) )
+import Data.Bool
+    ( bool )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce

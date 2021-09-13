@@ -44,7 +44,7 @@ import Cardano.Api
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex, Passphrase )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionOf (..) )
+    ( SelectionOf (..), SelectionCollateralRequirement (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Slotting

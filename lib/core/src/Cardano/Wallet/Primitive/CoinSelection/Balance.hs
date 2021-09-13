@@ -1,6 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -146,6 +148,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Control.Monad.Extra
     ( andM )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Bifunctor
@@ -264,6 +268,14 @@ data SelectionParamsOf outputs = SelectionParams
         -- By burning tokens, we generally increase the burden of the selection
         -- algorithm, requiring it to select more UTxO entries in order to
         -- cover the burn.
+    , selectionOfCollateralRequired
+        :: !SelectionCollateralRequirement
+        -- ^ Whether or not the selection of collaterateral inputs is required
+        -- of coin selection.
+        --
+        -- Typically, a transaction making use of a phase-2 monetary policy
+        -- script (Plutus script) would require the coin selection algorithm to
+        -- find inputs to be used as collateral.
     }
     deriving (Eq, Generic, Show)
 

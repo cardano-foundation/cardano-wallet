@@ -1154,6 +1154,7 @@ spec = parallel $ do
                     , mint = mint (x :: ApiConstructTransactionData ('Testnet 0))
                     , delegations = delegations (x :: ApiConstructTransactionData ('Testnet 0))
                     , validityInterval = validityInterval (x :: ApiConstructTransactionData ('Testnet 0))
+                    , selectionOfCollateralRequired = selectionOfCollateralRequired (x :: ApiConstructTransactionData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x

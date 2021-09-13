@@ -251,6 +251,12 @@ data Tx = Tx
         -- passed validation. This is added by the block creator when
         -- constructing the block. May be 'Nothing' for pre-Alonzo and pending
         -- transactions.
+
+    , hasScriptsRequiringCollateral
+        :: !Bool
+        -- ^ True if the transaction has monetary policy scripts that require
+        -- the selection of collateral. For example, Plutus scripts require the
+        -- selection of collateral. False otherwise.
     } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
@@ -706,6 +712,10 @@ data TransactionInfo = TransactionInfo
     -- ^ Tag indicating whether non-native scripts in this transaction passed
     -- validation. This is added by the block creator when constructing the
     -- block. May be 'Nothing' for pre-Alonzo and pending transactions.
+    , txInfoHasScriptsRequiringCollateral :: !Bool
+    -- ^ True if the transaction has monetary policy scripts that require
+    -- the selection of collateral. For example, Plutus scripts require the
+    -- selection of collateral. False otherwise.
     } deriving (Generic, Show, Eq)
 
 instance NFData TransactionInfo
@@ -740,6 +750,7 @@ fromTransactionInfo info = Tx
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     , scriptValidity = txInfoScriptValidity info
+    , hasScriptsRequiringCollateral = txInfoHasScriptsRequiringCollateral info
     }
   where
     drop3rd :: (a, b, c) -> (a, b)

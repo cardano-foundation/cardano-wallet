@@ -488,6 +488,8 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
             (tx ^. #metadata)
         , txInfoScriptValidity =
             (tx ^. #scriptValidity)
+        , txInfoHasScriptsRequiringCollateral =
+            (tx ^. #hasScriptsRequiringCollateral)
         }
       where
         txH  = getQuantity

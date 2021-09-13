@@ -1994,6 +1994,7 @@ txHistoryFromEntity ti tip metas ins cins outs ws =
             , W.txInfoScriptValidity = isValid <&> \case
                   False -> W.TxScriptInvalid
                   True -> W.TxScriptValid
+            , W.txInfoHasScriptsRequiringCollateral = False
             }
       where
         txH  = getQuantity (derived ^. #blockHeight)

@@ -139,8 +139,10 @@ mkTx
     -> Map RewardAccount Coin
     -> Maybe TxMetadata
     -> Maybe TxScriptValidity
+    -> Bool
     -> Tx
 mkTx fees ins cins outs wdrls md validity =
+mkTx fees ins cins outs wdrls md hasScripts =
     Tx
       { txId = (mkTxId ins outs wdrls md)
       , fee = fees
@@ -150,6 +152,7 @@ mkTx fees ins cins outs wdrls md validity =
       , withdrawals = wdrls
       , metadata = md
       , scriptValidity = validity
+      , hasScriptsRequiringCollateral = hasScripts
       }
 
 -- | txId calculation for testing purposes.
