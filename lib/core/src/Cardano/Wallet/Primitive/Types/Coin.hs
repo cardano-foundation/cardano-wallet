@@ -16,6 +16,7 @@ module Cardano.Wallet.Primitive.Types.Coin
     , coinQuantity
     , coinToInteger
     , coinToNatural
+    , unsafeNaturalToCoin
 
       -- * Checks
     , isValidCoin
@@ -125,7 +126,10 @@ coinToNatural :: Coin -> Natural
 coinToNatural = fromIntegral . unCoin
 
 unsafeNaturalToCoin :: Natural -> Coin
-unsafeNaturalToCoin = Coin . fromIntegral
+unsafeNaturalToCoin x | x <= maxBoundNatural = Coin $ fromIntegral x
+                      | otherwise = error "unsafeNaturalToCoin: overflow"
+  where
+    maxBoundNatural = fromIntegral . unCoin $ maxBound @Coin
 
 {-------------------------------------------------------------------------------
                                      Checks
