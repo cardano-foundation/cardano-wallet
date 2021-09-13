@@ -29,6 +29,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , balance
     , computeStatistics
     , computeUtxoStatistics
+    , difference
     , excluding
     , isSubsetOf
     , empty
@@ -118,6 +119,9 @@ balance =
   where
     fn :: TokenBundle -> TxOut -> TokenBundle
     fn tot out = tot `TB.add` view #tokens out
+
+difference :: UTxO -> UTxO -> UTxO
+difference a b = a `excluding` Map.keysSet (unUTxO b)
 
 -- | ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
