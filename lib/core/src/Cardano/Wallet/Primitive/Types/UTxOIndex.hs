@@ -46,6 +46,9 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex
     , null
     , size
 
+    -- * Set operations
+    , difference
+
     -- * Selection
     , SelectionFilter (..)
     , selectRandom

@@ -60,6 +60,9 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , null
     , size
 
+    -- * Set operations
+    , difference
+
     -- * Selection
     , SelectionFilter (..)
     , selectRandom
@@ -115,6 +118,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -321,6 +325,13 @@ null = (== 0) . size
 --
 size :: UTxOIndex -> Int
 size = Map.size . utxo
+
+--------------------------------------------------------------------------------
+-- Set operations
+--------------------------------------------------------------------------------
+
+difference :: UTxOIndex -> UTxOIndex -> UTxOIndex
+difference a b = fromUTxO $ UTxO.difference (toUTxO a) (toUTxO b)
 
 --------------------------------------------------------------------------------
 -- Selection
