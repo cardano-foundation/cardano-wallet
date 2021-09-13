@@ -68,7 +68,11 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , ungroupByKey
     )
 import Cardano.Wallet.Primitive.CoinSelection.Gen
-    ( genSelectionLimit, shrinkSelectionLimit )
+    ( genSelectionLimit
+    , genSelectionState
+    , shrinkSelectionLimit
+    , shrinkSelectionState
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -108,6 +112,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOut, shrinkTxOut )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -169,6 +175,7 @@ import Test.QuickCheck
     , counterexample
     , cover
     , disjoin
+    , forAll
     , frequency
     , generate
     , genericShrink
@@ -261,6 +268,15 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
                 in
                     prop_performSelection minCoin costFor criteria' (const id)
                         & withMaxSuccess 5
+
+    parallel $ describe "Selection states" $ do
+
+        it "prop_genSelectionState_coverage" $
+            property prop_genSelectionState_coverage
+        it "prop_genSelectionState_valid" $
+            property prop_genSelectionState_valid
+        it "prop_shrinkSelectionState_valid" $
+            property prop_shrinkSelectionState_valid
 
     parallel $ describe "Running a selection (without making change)" $ do
 
@@ -1091,6 +1107,42 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
           `TokenBundle.unsafeSubtract`
               (TokenBundle.fromTokenMap assetsToMint)
     balanceAvailable = fullBalance utxoAvailable extraCoinSource
+
+--------------------------------------------------------------------------------
+-- Selection states
+--------------------------------------------------------------------------------
+
+prop_genSelectionState_coverage :: Property
+prop_genSelectionState_coverage =
+    forAll genSelectionState prop_genSelectionState_coverage_inner
+
+prop_genSelectionState_coverage_inner :: SelectionState -> Property
+prop_genSelectionState_coverage_inner state =
+    checkCoverage $
+    cover 0.1 (noneLeftover && noneSelected) "noneLeftover && noneSelected" $
+    cover 1.0 (haveLeftover && noneSelected) "haveLeftover && noneSelected" $
+    cover 1.0 (noneLeftover && haveSelected) "noneLeftover && haveSelected" $
+    cover 8.0 (haveLeftover && haveSelected) "haveLeftover && haveSelected" $
+    property True
+  where
+    haveLeftover = view #leftover state /= UTxOIndex.empty
+    noneLeftover = view #leftover state == UTxOIndex.empty
+    haveSelected = view #selected state /= UTxOIndex.empty
+    noneSelected = view #selected state == UTxOIndex.empty
+
+prop_genSelectionState_valid :: Property
+prop_genSelectionState_valid =
+    forAll genSelectionState isSelectionStateValid
+
+prop_shrinkSelectionState_valid :: Property
+prop_shrinkSelectionState_valid =
+    forAll genSelectionState $ \state ->
+        all isSelectionStateValid (shrinkSelectionState state)
+
+isSelectionStateValid :: SelectionState -> Bool
+isSelectionStateValid state = Set.disjoint
+    (Map.keysSet $ unUTxO $ UTxOIndex.toUTxO $ view #selected state)
+    (Map.keysSet $ unUTxO $ UTxOIndex.toUTxO $ view #leftover state)
 
 --------------------------------------------------------------------------------
 -- Running a selection (without making change)

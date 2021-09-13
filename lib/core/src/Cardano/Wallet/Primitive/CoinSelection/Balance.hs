@@ -865,7 +865,7 @@ data SelectionState = SelectionState
     , leftover
         :: !UTxOIndex
     }
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 runSelection
     :: forall m. MonadRandom m
