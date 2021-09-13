@@ -84,7 +84,12 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), ProtocolParameters (..), TxParameters (..) )
+    ( ExecutionUnitPrices (..)
+    , ExecutionUnits (..)
+    , FeePolicy (..)
+    , ProtocolParameters (..)
+    , TxParameters (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -167,6 +172,8 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -495,19 +502,32 @@ _calcScriptExecutionCost
     :: ProtocolParameters
     -> SealedTx
     -> Coin
-_calcScriptExecutionCost pp sealedTx = case prices of
-    Nothing -> Coin 0
-    Just (W.ExecutionUnitPrices perStep perMem) ->
-        maybe
-        (Coin 0)
-        (Coin.sumCoins . map (costOfExecutiveUnits perStep perMem))
-        executeUnitsM
+_calcScriptExecutionCost pp sealedTx = case (prices, mexecutionUnits sealedTx) of
+    (Just exPrices, Just units) ->
+        Coin.unsafeNaturalToCoin
+        . ceiling
+        . sum
+        $ map (costOfExecutionUnits exPrices) units
+    (Nothing, Just units) ->
+        -- This case probably means that the node tip is not yet in Alonzo.
+        --
+        -- TODO: Not sure what the calling code would look like. Should we
+        -- return @Nothing@, or continue throwing? We probably don't want to
+        -- return `Coin 0`, as the cost would then be underestimated.
+        error "_calcScriptExecutionCost: ExecutionUnitPrices is not available"
+    (_, Nothing) -> Coin 0
   where
     prices = view #executionUnitPrices pp
-    costOfExecutiveUnits perStep perMem (W.ExecutionUnits steps mem) =
-        Coin $ ceiling $ perStep * (fromIntegral steps) + perMem * (fromIntegral mem)
-    executeUnitsM =
-        case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) (getSealedTx sealedTx) of
+
+    costOfExecutionUnits :: ExecutionUnitPrices -> ExecutionUnits -> Rational
+    costOfExecutionUnits (ExecutionUnitPrices perStep perMem) (W.ExecutionUnits steps mem) =
+        perStep * (toRational steps) + perMem * (toRational mem)
+
+    -- | Return `ExecutionUnits` for each redeemer script in the tx. Returns
+    -- `Nothing` if the tx fails to deserialize.
+    mexecutionUnits :: SealedTx -> Maybe [ExecutionUnits]
+    mexecutionUnits (SealedTx bytes) =
+        case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) bytes of
             Right txValid ->
                 let getScriptData (Cardano.ShelleyTxBody _ _ _ scriptdata _ _) = scriptdata
                     getScriptData _ = error "we should not expect Cardano.ByronTxBody here"
