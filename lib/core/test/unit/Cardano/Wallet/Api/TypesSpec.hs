@@ -397,7 +397,6 @@ import Test.QuickCheck
     , scale
     , shrinkIntegral
     , sized
-    , suchThat
     , vector
     , vectorOf
     , (.&&.)
@@ -407,6 +406,8 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
     ( reasonablySized )
+import Test.QuickCheck.Modifiers
+    ( NonNegative (..) )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Paths
@@ -1952,8 +1953,8 @@ instance Arbitrary ApiNetworkParameters where
 instance Arbitrary ExecutionUnitPrices where
     shrink = genericShrink
     arbitrary = do
-        step <- arbitrary `suchThat` (>= 0)
-        mem <- arbitrary `suchThat` (>= 0)
+        step <- getNonNegative <$> arbitrary
+        mem <- getNonNegative <$> arbitrary
         pure $ ExecutionUnitPrices step mem
 
 instance Arbitrary ApiEra where
