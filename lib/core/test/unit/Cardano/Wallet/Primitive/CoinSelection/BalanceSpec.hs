@@ -62,6 +62,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , removeBurnValuesFromChangeMaps
     , runRoundRobin
     , runSelection
+    , runSelectionNonEmptyWith
     , runSelectionStep
     , splitBundleIfAssetCountExcessive
     , splitBundlesWithExcessiveAssetCounts
@@ -130,7 +131,7 @@ import Data.Function
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
-    ( set, view )
+    ( over, set, view )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
@@ -138,7 +139,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust )
+    ( fromMaybe, isJust, isNothing )
 import Data.Semigroup
     ( mtimesDefault )
 import Data.Set
@@ -292,6 +293,11 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
             property prop_runSelection_UTxO_moreThanEnough
         it "prop_runSelection_UTxO_muchMoreThanEnough" $
             property prop_runSelection_UTxO_muchMoreThanEnough
+
+    parallel $ describe "Running a selection (non-empty)" $ do
+
+        it "prop_runSelectionNonEmpty" $
+            property prop_runSelectionNonEmpty
 
     parallel $ describe "Running a selection step" $ do
 
@@ -1311,6 +1317,57 @@ prop_runSelection_UTxO_muchMoreThanEnough extraSource (Blind (Large index)) =
     balanceAvailable = view #balance index
     balanceRequested = adjustAllQuantities (`div` 256) $
         cutAssetSetSizeInHalf balanceAvailable
+
+--------------------------------------------------------------------------------
+-- Running a selection (non-empty)
+--------------------------------------------------------------------------------
+
+prop_runSelectionNonEmpty :: SelectionState -> Property
+prop_runSelectionNonEmpty result = conjoin
+    [ prop_genSelectionState_coverage_inner result
+    , prop_runSelectionNonEmpty_inner result
+    ]
+
+prop_runSelectionNonEmpty_inner :: SelectionState -> Property
+prop_runSelectionNonEmpty_inner result =
+    case (haveLeftover, haveSelected) of
+        (False, False) -> property $ isNothing maybeResultNonEmpty
+        (False, True ) -> maybeResultNonEmpty === Just result
+        (True , True ) -> maybeResultNonEmpty === Just result
+        (True , False) -> checkResultNonEmpty
+  where
+    haveLeftover = view #leftover result /= UTxOIndex.empty
+    haveSelected = view #selected result /= UTxOIndex.empty
+
+    checkResultNonEmpty :: Property
+    checkResultNonEmpty = checkSelectedElement &
+        fromMaybe (error "Failed to select an entry when one was available")
+      where
+        checkSelectedElement :: Maybe Property
+        checkSelectedElement = do
+            resultNonEmpty <- maybeResultNonEmpty
+            (i, o) <- matchSingletonList $
+                UTxOIndex.toList $ view #selected resultNonEmpty
+            pure $
+                UTxOIndex.insert i o (view #leftover resultNonEmpty)
+                === view #leftover result
+
+    maybeResultNonEmpty :: Maybe SelectionState
+    maybeResultNonEmpty = runIdentity $ runSelectionNonEmptyWith
+        (Identity <$> mockSelectSingleEntry)
+        (result)
+
+mockSelectSingleEntry :: SelectionState -> Maybe SelectionState
+mockSelectSingleEntry state =
+    selectEntry <$> firstLeftoverEntry state
+  where
+    firstLeftoverEntry :: SelectionState -> Maybe (TxIn, TxOut)
+    firstLeftoverEntry = Map.lookupMin . unUTxO . UTxOIndex.toUTxO . leftover
+
+    selectEntry :: (TxIn, TxOut) -> SelectionState
+    selectEntry (i, o) = state
+        & over #selected (UTxOIndex.insert i o)
+        & over #leftover (UTxOIndex.delete i)
 
 --------------------------------------------------------------------------------
 -- Running a selection step
@@ -3603,6 +3660,11 @@ addExtraSource extraSource =
     TokenBundle.add
         (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
 
+matchSingletonList :: [a] -> Maybe a
+matchSingletonList = \case
+    [a] -> Just a
+    _   -> Nothing
+
 mockAsset :: ByteString -> AssetId
 mockAsset a = AssetId (UnsafeTokenPolicyId $ Hash a) (UnsafeTokenName "1")
 
@@ -3663,6 +3725,10 @@ genTokenMapLarge = do
 instance Arbitrary SelectionLimit where
     arbitrary = genSelectionLimit
     shrink = shrinkSelectionLimit
+
+instance Arbitrary SelectionState where
+    arbitrary = genSelectionState
+    shrink = shrinkSelectionState
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
