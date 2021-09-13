@@ -213,7 +213,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         payload <- liftIO $ mkTxPayload ctx wb amt
 
         (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
-            (Link.getTransactionFee @'Shelley wa) payload
+            (Link.getTransactionFeeOld @'Shelley wa) payload
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
@@ -319,7 +319,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             }|]
 
         (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
-            (Link.getTransactionFee @'Shelley wa) payload
+            (Link.getTransactionFeeOld @'Shelley wa) payload
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx

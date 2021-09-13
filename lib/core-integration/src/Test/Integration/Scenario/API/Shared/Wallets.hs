@@ -1082,8 +1082,8 @@ spec = describe "SHARED_WALLETS" $ do
                 "passphrase": #{fixturePassphrase}
             }|]
         (_, ApiFee (Quantity _) (Quantity feeMax) _ _) <- unsafeRequest ctx
-            (Link.getTransactionFee @'Shelley wShelley) payloadTx
-        let ep = Link.createTransaction @'Shelley
+            (Link.getTransactionFeeOld @'Shelley wShelley) payloadTx
+        let ep = Link.createTransactionOld @'Shelley
         rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
         expectResponseCode HTTP.status202 rTx
         eventually "wShelley balance is decreased" $ do

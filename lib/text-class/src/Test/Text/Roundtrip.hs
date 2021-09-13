@@ -24,9 +24,5 @@ textRoundtrip
     :: forall a. (Arbitrary a, Eq a, Show a, ToText a, FromText a, Typeable a)
     => Proxy a
     -> Spec
-textRoundtrip proxy = it
-    ("can perform roundtrip textual encoding and decoding for values of type '"
-        <> show (typeRep proxy)
-        <> "'")
-    (property $ \a ->
-        fromText (toText @a a) === Right a)
+textRoundtrip proxy = it (show (typeRep proxy)) $
+    property $ \a -> fromText (toText @a a) === Right a

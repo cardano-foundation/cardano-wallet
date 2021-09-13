@@ -228,7 +228,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 }|]
 
             rTrans <- request @(ApiTransaction n) ctx
-                (Link.createTransaction @'Shelley wSrc) Default payload
+                (Link.createTransactionOld @'Shelley wSrc) Default payload
             expectResponseCode HTTP.status202 rTrans
 
         -- make sure all transactions are in ledger
@@ -309,7 +309,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "passphrase": #{fixturePassphrase}
             }|]
         (_, rtx) <- unsafeRequest @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wA) payload
+            (Link.createTransactionOld @'Shelley wA) payload
 
         -- 3. Check that there's one more used addresses on A.
         --

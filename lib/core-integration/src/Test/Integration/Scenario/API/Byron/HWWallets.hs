@@ -142,7 +142,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 "passphrase": "cardano-wallet"
             }|]
         rTrans <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Byron wSrc) Default payload
+            (Link.createTransactionOld @'Byron wSrc) Default payload
         expectResponseCode HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
@@ -197,7 +197,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                     "passphrase": "cardano-wallet"
                 }|]
             rTrans <- request @(ApiTransaction n) ctx
-                (Link.createTransaction @'Byron wSrc) Default payload
+                (Link.createTransactionOld @'Byron wSrc) Default payload
             expectResponseCode HTTP.status403 rTrans
             expectErrorMessage (errMsg403NoRootKey $ wSrc ^. walletId) rTrans
 
@@ -254,7 +254,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 }|]
 
             rFee <- request @ApiFee ctx
-                (Link.getTransactionFee @'Byron wSrc) Default payload
+                (Link.getTransactionFeeOld @'Byron wSrc) Default payload
             expectResponseCode HTTP.status202 rFee
 
         it "Can delete" $ \ctx -> runResourceT $ do

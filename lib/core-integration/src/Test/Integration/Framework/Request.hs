@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -24,7 +25,9 @@ import Control.Monad.IO.Class
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Data.Aeson
-    ( FromJSON )
+    ( FromJSON, Value, eitherDecode, encode )
+import Data.Bifunctor
+    ( first )
 import Data.ByteString.Lazy
     ( ByteString )
 import Data.Generics.Internal.VL.Lens
@@ -51,7 +54,7 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
     ( Method )
 import Network.HTTP.Types.Status
-    ( status400, status500 )
+    ( status400, status500, statusIsSuccessful )
 import Network.URI
     ( URI )
 import Test.Integration.Framework.Context
@@ -59,18 +62,19 @@ import Test.Integration.Framework.Context
 import UnliftIO.Exception
     ( Exception (..), fromEither, handle, throwIO )
 
-import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
 
 -- | The result when 'request' fails.
 data RequestException
-    = DecodeFailure ByteString
+    = DecodeFailure ByteString String
       -- ^ JSON decoding the given response data failed.
-    | ClientError Aeson.Value
+    | ClientError Value
       -- ^ The HTTP response status code indicated failure.
+    | RawClientError ByteString
+      -- ^ The HTTP response status code indicated failure and the response was
+      -- not valid JSON.
     | HttpException HttpExceptionContent
       -- ^ A wild exception upon sending the request
     deriving (Show)
@@ -79,7 +83,7 @@ instance Exception RequestException
 
 -- | The payload of the request
 data Payload
-    = Json Aeson.Value
+    = Json Value
     | NonJson ByteString
     | Empty
     deriving (Show)
@@ -107,48 +111,27 @@ request
     -> Payload
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException a)
-request ctx (verb, path) reqHeaders body = do
-    let (base, manager) = ctx ^. typed @(URI, Manager)
-    handle handleException $ do
-        req <- fromEither $ parseRequest $ show base <> T.unpack path
-        handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
+request = baseRequest defaultHeaders handleResponse
   where
-    prepareReq :: HTTP.Request -> HTTP.Request
-    prepareReq req = req
-        { method = verb
-        , requestBody = payload
-        , requestHeaders = headers
-        }
-        where
-            headers = case reqHeaders of
-                Headers x -> x
-                Default -> [ ("Content-Type", "application/json")
-                           , ("Accept", "application/json")
-                           ]
-                None -> mempty
+    handleResponse res = (status, decode body)
+      where
+        status = responseStatus res
+        body = responseBody res
 
-            payload = case body of
-                Json x -> (RequestBodyLBS . Aeson.encode) x
-                NonJson x -> RequestBodyLBS x
-                Empty -> mempty
+        decode
+            | statusIsSuccessful status = decodeBody
+            | otherwise = decodeErrorBody
 
-    handleResponse res = case responseStatus res of
-        s | s < status500 -> either
-            (\err -> (s, Left $ DecodeFailure $ BL8.pack $ err <> ": " <> show res))
-            ((s,) . Right)
-            (Aeson.eitherDecode $ responseBody res)
+        decodeBody = first errDecode . eitherDecode
 
-        -- TODO: decode API error responses into ClientError
-        s -> (s, Left $ decodeFailure res)
+        -- decode API error responses into ClientError
+        decodeErrorBody = Left . either errDecode ClientError . eitherDecode
 
-    handleException = \case
-        e@InvalidUrlException{} ->
-            throwIO e
-        HttpExceptionRequest _ e ->
-            return (status500, Left (HttpException e))
+        errDecode = DecodeFailure body
 
-    decodeFailure :: HTTP.Response ByteString -> RequestException
-    decodeFailure res = DecodeFailure $ responseBody res
+    defaultHeaders =
+        [ ("Content-Type", "application/json")
+        , ("Accept", "application/json") ]
 
 -- | Like 'request', but does not attempt to deserialize the response.
 rawRequest
@@ -165,39 +148,54 @@ rawRequest
     -> Payload
         -- ^ Request body
     -> m (HTTP.Status, Either RequestException ByteString)
-rawRequest ctx (verb, path) reqHeaders body = do
+rawRequest = baseRequest mempty handleResponse
+  where
+    handleResponse res = case responseStatus res of
+        s | s >= status400 -> (s, Left $ RawClientError $ responseBody res)
+        s -> (s, Right $ responseBody res)
+
+baseRequest
+    :: forall a m s.
+        ( MonadIO m
+        , MonadUnliftIO m
+        , HasType (URI, Manager) s
+        )
+    => RequestHeaders
+    -> (HTTP.Response ByteString -> (HTTP.Status, Either RequestException a))
+    -> s
+    -> (Method, Text)
+        -- ^ HTTP method and request path
+    -> Headers
+        -- ^ Request headers
+    -> Payload
+        -- ^ Request body
+    -> m (HTTP.Status, Either RequestException a)
+baseRequest defaultHeaders handleResponse ctx (verb, path) headers payload = do
     let (base, manager) = ctx ^. typed @(URI, Manager)
     handle handleException $ do
         req <- fromEither $ parseRequest $ show base <> T.unpack path
         handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
   where
     prepareReq :: HTTP.Request -> HTTP.Request
-    prepareReq req = req
-        { method = verb
-        , requestBody = payload
-        , requestHeaders = headers
-        }
-        where
-            headers = case reqHeaders of
-                Headers x -> x
-                Default -> mempty
-                None -> mempty
+    prepareReq req = req { method = verb, requestBody, requestHeaders }
 
-            payload = case body of
-                Json x -> (RequestBodyLBS . Aeson.encode) x
-                NonJson x -> RequestBodyLBS x
-                Empty -> mempty
+    requestHeaders = case headers of
+        Headers x -> x
+        Default -> defaultHeaders
+        None -> mempty
 
-    handleResponse res = case responseStatus res of
-        s | s >= status400 -> (s, Left $ DecodeFailure $ responseBody res)
-        s -> (s, Right $ responseBody res)
+    requestBody = case payload of
+        Json x -> RequestBodyLBS (encode x)
+        NonJson x -> RequestBodyLBS x
+        Empty -> mempty
 
+    handleException
+        :: MonadIO m
+        => HttpException
+        -> m (HTTP.Status, Either RequestException a)
     handleException = \case
-        e@InvalidUrlException{} ->
-            throwIO e
-        HttpExceptionRequest _ e ->
-            return (status500, Left (HttpException e))
-
+        e@InvalidUrlException{} -> throwIO e
+        HttpExceptionRequest _ e -> pure (status500, Left (HttpException e))
 
 -- | Makes a request to the API, but throws if it fails.
 unsafeRequest

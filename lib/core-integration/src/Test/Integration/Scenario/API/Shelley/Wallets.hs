@@ -259,7 +259,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 "passphrase": "cardano-wallet"
             }|]
         rTrans <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wSrc) Default payload
+            (Link.createTransactionOld @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
@@ -883,7 +883,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     "passphrase": #{pass}
                     }|]
             r <- request @(ApiTransaction n) ctx
-                (Link.createTransaction @'Shelley wSrc) Default payloadTrans
+                (Link.createTransactionOld @'Shelley wSrc) Default payloadTrans
             verify r expectations
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
@@ -977,7 +977,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 }|]
 
         rTrans <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wSrc) Default (Json payload)
+            (Link.createTransactionOld @'Shelley wSrc) Default (Json payload)
         expectResponseCode HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
