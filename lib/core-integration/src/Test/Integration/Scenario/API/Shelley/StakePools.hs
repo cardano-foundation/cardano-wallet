@@ -137,7 +137,8 @@ import Test.Integration.Framework.DSL
     , (.>=)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403Fee
+    ( errMsg403EmptyUTxO
+    , errMsg403Fee
     , errMsg403NonNullReward
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
@@ -948,7 +949,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
             quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403NotEnoughMoney
+                , expectErrorMessage errMsg403EmptyUTxO
                 ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_01 - can estimate fees" $ \ctx -> runResourceT $ do
