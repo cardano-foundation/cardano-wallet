@@ -48,9 +48,9 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , collateNonUserSpecifiedAssetQuantities
     , computeUTxOBalanceAvailable
     , computeUTxOBalanceRequired
-     ,computeUTxOBalanceSufficiencyInfo
-    , isUTxOBalanceSufficient
+    , computeUTxOBalanceSufficiencyInfo
     , groupByKey
+    , isUTxOBalanceSufficient
     , makeChange
     , makeChangeForCoin
     , makeChangeForNonUserSpecifiedAsset
