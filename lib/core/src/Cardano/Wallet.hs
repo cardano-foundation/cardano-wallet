@@ -223,8 +223,9 @@ import Cardano.Wallet.Logging
     ( BracketLog
     , BracketLog' (..)
     , bracketTracer
-    , resultTracer
-    , traceWithExceptT
+    , formatResultMsg
+    , resultSeverity
+    , traceResult
     , unliftIOTracer
     )
 import Cardano.Wallet.Network
@@ -471,6 +472,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
@@ -482,7 +485,17 @@ import Data.Void
 import Data.Word
     ( Word64 )
 import Fmt
-    ( blockListF, pretty, (+|), (+||), (|+), (||+) )
+    ( Buildable (..)
+    , blockListF
+    , blockMapF
+    , nameF
+    , pretty
+    , unlinesF
+    , (+|)
+    , (+||)
+    , (|+)
+    , (||+)
+    )
 import GHC.Generics
     ( Generic )
 import Safe
@@ -1761,8 +1774,8 @@ submitTx
     -> WalletId
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
-submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork $ traceWithExceptT tr' $
+submitTx ctx wid (tx, meta, binary) = traceResult tr' $ db & \DBLayer{..} -> do
+    withExceptT ErrSubmitTxNetwork $
         postTx nw binary
     mapExceptT atomically $ do
         withExceptT ErrSubmitTxNoSuchWallet $
@@ -1774,7 +1787,7 @@ submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
     nw = ctx ^. networkLayer
 
     tr = ctx ^. logger
-    tr' = contramap (MsgWallet . MsgTxSubmit . MsgPostTxResult (tx ^. #txId)) tr
+    tr' = contramap (MsgWallet . MsgTxSubmit . MsgSubmitTx tx meta binary) tr
 
     handleLocalTxSubmissionErr = \case
         ErrPutLocalTxSubmissionNoSuchWallet e -> ErrSubmitTxNoSuchWallet e
@@ -1797,14 +1810,13 @@ submitExternalTx ctx bytes = do
     era <- liftIO $ currentNodeEra nw
     (tx, binary) <- withExceptT ErrSubmitExternalTxDecode $ except $
         decodeSignedTx tl era bytes
-    withExceptT ErrSubmitExternalTxNetwork $ traceResult (tx ^. #txId) $
+    withExceptT ErrSubmitExternalTxNetwork $ traceResult (trPost tx) $ do
         postTx nw binary
-    return tx
+        pure tx
   where
     nw = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
-    tr = ctx ^. logger
-    traceResult i = traceWithExceptT (contramap (MsgPostTxResult i) tr)
+    trPost tx = contramap (MsgSubmitExternalTx (tx ^. #txId)) (ctx ^. logger)
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
@@ -1880,8 +1892,8 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
         let sl = bh ^. #slotNo
         -- Re-submit transactions due, ignore errors
         forM_ (filter (isScheduled sp sl) pending) $ \st -> do
-            res <- runExceptT $ postTx nw (st ^. #submittedTx)
-            traceWith tr (MsgRetryPostTxResult (st ^. #txId) res)
+            _ <- runExceptT $ traceResult (trRetry (st ^. #txId)) $
+                postTx nw (st ^. #submittedTx)
             atomically $ runExceptT $ putLocalTxSubmission
                 wid
                 (st ^. #txId)
@@ -1900,6 +1912,7 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
     tr = unliftIOTracer $ contramap (MsgWallet . MsgTxSubmit) $
         ctx ^. logger @WalletWorkerLog
     trBracket = contramap MsgProcessPendingPool tr
+    trRetry i = contramap (MsgRetryPostTx i) tr
 
 -- | Return a function to run an action at most once every _interval_.
 throttle
@@ -2946,30 +2959,63 @@ instance HasSeverityAnnotation WalletLog where
         MsgIsStakeKeyRegistered _ -> Info
 
 data TxSubmitLog
-    = MsgPostTxResult (Hash "Tx") (Either ErrPostTx ())
-    | MsgRetryPostTxResult (Hash "Tx") (Either ErrPostTx ())
+    = MsgSubmitTx Tx TxMeta SealedTx (BracketLog' (Either ErrSubmitTx ()))
+    | MsgSubmitExternalTx (Hash "Tx") (BracketLog' (Either ErrPostTx Tx))
+    | MsgRetryPostTx (Hash "Tx") (BracketLog' (Either ErrPostTx ()))
     | MsgProcessPendingPool BracketLog
     deriving (Show, Eq)
 
-instance ToText TxSubmitLog where
-    toText = \case
-        MsgPostTxResult txid res ->
-            "Transaction " <> pretty txid <> " " <> case res of
-                Right _ -> "accepted by local node"
-                Left err -> "failed: " <> toText err
-        MsgRetryPostTxResult txid res ->
-            "Transaction " <> pretty txid <>
-            " resubmitted to local node and " <> case res of
-                Right _ -> "accepted again"
-                Left _ -> "not accepted (this is expected)"
+instance ToText TxSubmitLog
+
+instance Buildable TxSubmitLog where
+    build = \case
+        MsgSubmitTx tx meta sealed msg -> case msg of
+            BracketStart -> unlinesF
+                [ "Submitting transaction "+|tx ^. #txId|+" to local node"
+                , blockMapF
+                    [ ("Tx" :: Text, build tx)
+                    , ("SealedTx", build (show sealed))
+                    , ("TxMeta", build meta) ]
+                ]
+            BracketFinish res ->
+                "Transaction "+|tx ^. #txId|+" "+|case res of
+                    Right _ -> "accepted by local node"
+                    Left err -> "failed: "+||err||+""
+            _ -> formatResultMsg "submitTx" [("txid", tx ^. #txId)] msg
+
+        MsgSubmitExternalTx txid msg -> case msg of
+            BracketStart -> "Submitting external transaction "+|txid|+
+                " to local node..."
+            BracketFinish res ->
+                "Transaction "+|txid|+" "+|case res of
+                    Right tx -> unlinesF
+                        [ "accepted by local node"
+                        , nameF "tx" (build tx)
+                        ]
+                    Left err -> "failed: "+|toText err|+""
+            _ -> formatResultMsg "submitExternalTx" [("txid", txid)] msg
+
+        MsgRetryPostTx txid msg -> case msg of
+            BracketStart -> "Retrying submission of transaction "+|txid|+
+                " to local node..."
+            BracketFinish res ->
+                "Transaction "+|txid|+" resubmitted to local node and " <>
+                case res of
+                    Right _ -> "accepted again"
+                    Left _ -> "not accepted (this is expected)"
+            _ -> formatResultMsg "runLocalTxSubmissionPool(postTx)"
+                [("txid", txid)] msg
+
         MsgProcessPendingPool msg ->
-            "Processing the pending local tx submission pool: " <> toText msg
+            "Processing the pending local tx submission pool: "+|msg|+""
 
 instance HasPrivacyAnnotation TxSubmitLog
 instance HasSeverityAnnotation TxSubmitLog where
     getSeverityAnnotation = \case
-        MsgPostTxResult _ (Right _) -> Info
-        MsgPostTxResult _ (Left _) -> Error
-        MsgRetryPostTxResult _ (Right _) -> Info
-        MsgRetryPostTxResult _ (Left _) -> Debug
+        MsgSubmitTx _ _ _ b -> resultSeverity Info b
+        MsgSubmitExternalTx _ b -> resultSeverity Info b
+        MsgRetryPostTx _ b -> case b of
+            BracketFinish (Right _) -> Info
+            BracketException _ -> Error
+            _ -> Debug
         MsgProcessPendingPool msg -> getSeverityAnnotation msg
