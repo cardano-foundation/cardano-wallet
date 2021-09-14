@@ -49,6 +49,7 @@ library
       Data.DBVar
       Data.Delta
       Data.Table
+      Database.Persist.Delta
       Database.Schema
   other-modules:
       Demo.Database

@@ -16,18 +16,17 @@ module Database.Schema (
     , Primary (..)
 
     -- * Database rows and tables
-    , Table, Col, (:.)
+    , Table (..), Col (..), (:.) (..)
     , IsRow (..)
 
     -- * SQL Queries
-    , Query (..), callSql, runSql
-    , createTable, insertRow --, selectAll
+    , Query, callSql, runSql
+    , createTable, selectAll, insertOne, repsertOne, updateOne, deleteAll, deleteOne
     ) where
 
 import Prelude
 
 import Control.Monad.IO.Class ( MonadIO )
-import Control.Monad.Trans.Reader ( ReaderT )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -35,7 +34,7 @@ import Data.Text
 import Database.Persist
     ( PersistValue, PersistField (..) )
 import Database.Persist.Sql
-    ( SqlType (..), PersistFieldSql (..), SqlBackend, RawSql (..) )
+    ( SqlType (..), PersistFieldSql (..), SqlPersistT, RawSql (..) )
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
 
@@ -151,10 +150,10 @@ instance (IsRow row, KnownSymbol name, IsCol a)
     Types test
 -------------------------------------------------------------------------------}
 type PersonRow = Table "person"
-    :. Col "id" Primary :. Col "name" Text :. Col "birth" Int
+    :. Col "name" Text :. Col "birth" Int :. Col "id" Primary
 
 testPerson :: PersonRow
-testPerson = Table :. Col (Primary 0) :. Col "Ada Lovelace" :. Col 1815
+testPerson = Table :. Col "Ada Lovelace" :. Col 1815 :. Col (Primary 0)
 
 {-------------------------------------------------------------------------------
     Connect with Persistent
@@ -173,18 +172,18 @@ instance IsRow row => RawSql (Wrap row) where
 -- | Run an SQL query and return a list of rows as result.
 callSql :: (MonadIO m, IsRow row)
     => Query row
-    -> ReaderT SqlBackend m [row]
+    -> SqlPersistT m [row]
 callSql Query{stmt,params} = map unWrap <$> Persist.rawSql stmt params
 
--- | Execute an SQL query and do not return any results
-runSql :: MonadIO m => Query () -> ReaderT SqlBackend m ()
+-- | Execute an SQL query, but do not return any results
+runSql :: MonadIO m => Query () -> SqlPersistT m ()
 runSql Query{stmt,params} = Persist.rawExecute stmt params
 
 {-------------------------------------------------------------------------------
     SQL queries
 -------------------------------------------------------------------------------}
--- | An SQL query with parameters and result type @a@.
-data Query a = Query
+-- | An SQL query that returns a list of values of type @row@.
+data Query row = Query
     { stmt :: Text
     -- ^ SQL statement containing placeholders \"?\" which are
     -- replaced by the parameters
@@ -192,38 +191,99 @@ data Query a = Query
     -- ^ Parameters to insert into the SQL statement.
     } deriving (Eq, Show)
 
+-- | Escape a column or table name.
+--
+-- FIXME: Use a newtype for more type safety.
+-- 'Query' used to be this newtype, but that has changed
+-- due to the 'params' field.
+escape :: Text -> Text
+escape s = "\"" <> s <> "\""
+
 -- | Helper for making a syntactically correct SQL tuple.
 mkTuple :: [Text] -> Text
 mkTuple xs = "(" <> T.intercalate ", " xs <> ")"
 
 -- | Create a database table that can store the given rows.
---
--- FIXME: We need to escape the column names!
 createTable :: IsRow row => Proxy row -> Query ()
 createTable proxy = Query
     { stmt =
-        "CREATE TABLE IF NOT EXISTS " <> getTableName proxy
-        <> " " <> mkTuple columns
+        "CREATE TABLE IF NOT EXISTS " <> table
+        <> " " <> mkTuple cols <> ";"
     , params = []
     }
   where
-    columns = zipWith (\name typ -> name <> " " <> escapeSqlType typ)
+    table = escape $ getTableName proxy
+    cols  = zipWith (\name typ -> escape name <> " " <> escapeSqlType typ)
         (getColNames proxy) (getSqlTypes proxy)
 
+-- | Select all rows from the table.
+selectAll :: forall row. IsRow row => Query row
+selectAll = Query
+    { stmt = "SELECT " <> T.intercalate "," cols <> " FROM " <> table <> ";"
+    , params = []
+    }
+  where
+    proxy = Proxy :: Proxy row
+    table = escape $ getTableName proxy
+    cols  = map escape $ getColNames proxy
+
 -- | Insert a single row into the corresponding table.
---
--- FIXME: We need to escape the column names!
-insertRow :: forall row. IsRow row => row -> Query ()
-insertRow row = Query
+insertOne :: forall row. IsRow row => row -> Query ()
+insertOne row = Query
     { stmt =
-        "INSERT INTO " <> table <> " " <> mkTuple (getColNames proxy)
-        <> " VALUES " <> mkTuple ("?" <$ getColNames proxy)
+        "INSERT INTO " <> table <> " " <> mkTuple cols
+        <> " VALUES " <> mkTuple ("?" <$ cols) <> ";"
     , params = toSqlValues row
     }
   where
     proxy = Proxy :: Proxy row
-    table = getTableName proxy
+    table = escape $ getTableName proxy
+    cols  = map escape $ getColNames proxy
 
--- | Select all rows from the table.
-selectAll :: IsRow row => Proxy row -> Query [row]
-selectAll = undefined
+-- | Replace or insert a single row with a primary key into a database.
+--
+-- FIXME: It would be nicer if the "id" column was the first column
+-- instead of the last column in the table.
+repsertOne :: forall row. IsRow row
+    => (row :. Col "id" Primary) -> Query ()
+repsertOne row = Query
+    { stmt =
+        "INSERT OR REPLACE INTO " <> table <> " " <> mkTuple cols
+        <> " VALUES " <> mkTuple ("?" <$ cols) <> ";"
+    , params = toSqlValues row
+    }
+  where
+    proxy = Proxy :: Proxy (row :. Col "id" Primary)
+    table = escape $ getTableName proxy
+    cols  = map escape $ getColNames proxy
+
+-- | Update one row with a given \"id\" column in a database table.
+updateOne :: forall row. IsRow row
+    => (row :. Col "id" Primary) -> Query ()
+updateOne row= Query
+    { stmt = "UPDATE " <> table <> " SET " <> sets <> " WHERE \"id\"=?;"
+    , params = toSqlValues row
+    }
+  where
+    proxy = Proxy :: Proxy row
+    table = escape $ getTableName proxy
+    cols  = map escape $ getColNames proxy
+    sets  = T.intercalate ", " [col <> "=?" | col <- cols]
+
+-- | Delete one row with a given \"id\" column in a database table.
+deleteOne :: forall row. IsRow row => Proxy row -> Col "id" Primary -> Query ()
+deleteOne proxy (Col key) = Query
+    { stmt = "DELETE FROM " <> table <> " WHERE \"id\"=?;"
+    , params = [Persist.toPersistValue key]
+    }
+  where
+    table = escape $ getTableName proxy
+
+-- | Delete all rows in a database table
+deleteAll :: forall row. IsRow row => Proxy row -> Query ()
+deleteAll proxy = Query
+    { stmt = "DELETE FROM " <> table
+    , params = []
+    }
+  where
+    table = escape $ getTableName proxy

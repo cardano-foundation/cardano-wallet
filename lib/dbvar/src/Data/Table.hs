@@ -15,7 +15,7 @@ module Data.Table (
 
     -- * Table
     Table (..)
-    , empty, fromRows, fromList, toPile
+    , empty, fromRows, fromList, toPile, toRows
     , selectWhere, insertMany, deleteWhere, updateWhere
     , DeltaTable (..)
     , DeltaDB (..)
@@ -100,6 +100,10 @@ fromRows rows = Table
 -- | Pile of rows contained in the 'Table'.
 toPile :: Table row -> Pile row
 toPile = Pile . Map.elems . rows
+
+-- | Pile of rows with unique IDs contained in the 'Table'.
+toRows :: Table row -> Pile (Int,row)
+toRows = Pile . Map.toList . rows
 
 -- | Delete all rows satisfying the predicate.
 deleteWhere :: (row -> Bool) -> Table row -> Table row
