@@ -44,6 +44,15 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
 
+    -- * UTxO balance sufficiency
+    , UTxOBalanceSufficiency (..)
+    , UTxOBalanceSufficiencyInfo (..)
+    , computeUTxOBalanceAvailable
+    , computeUTxOBalanceRequired
+    , computeUTxOBalanceSufficiency
+    , computeUTxOBalanceSufficiencyInfo
+    , isUTxOBalanceSufficient
+
     -- * Reporting
     , SelectionReport (..)
     , SelectionReportSummarized (..)
@@ -206,6 +215,92 @@ data SelectionCriteria = SelectionCriteria
         -- cover the burn.
     }
     deriving (Eq, Generic, Show)
+
+-- | Indicates whether the balance of available UTxO entries is sufficient.
+--
+-- See 'computeUTxOBalanceSufficiency'.
+--
+data UTxOBalanceSufficiency
+    = UTxOBalanceSufficient
+      -- ^ Indicates that the UTxO balance is sufficient.
+    | UTxOBalanceInsufficient
+      -- ^ Indicates that the UTxO balance is insufficient.
+    deriving (Eq, Show)
+
+-- | Gives more information about UTxO balance sufficiency.
+--
+-- See 'computeUTxOBalanceSufficiencyInfo'.
+--
+data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
+    { available :: TokenBundle
+      -- ^ See 'computeUTxOBalanceAvailable'.
+    , required :: TokenBundle
+      -- ^ See 'computeUTxOBalanceRequired'.
+    , difference :: TokenBundle
+      -- ^ The difference between 'available' and 'required'.
+    , sufficiency :: UTxOBalanceSufficiency
+      -- ^ Whether or not the balance is sufficient.
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Computes the balance of UTxO entries available for selection.
+--
+computeUTxOBalanceAvailable :: SelectionCriteria -> TokenBundle
+computeUTxOBalanceAvailable = UTxOIndex.balance . view #utxoAvailable
+
+-- | Computes the balance of UTxO entries required to be selected.
+--
+computeUTxOBalanceRequired :: SelectionCriteria -> TokenBundle
+computeUTxOBalanceRequired criteria =
+    balanceOut `TokenBundle.difference` balanceIn
+  where
+    balanceIn =
+        TokenBundle.fromTokenMap (view #assetsToMint criteria)
+        `TokenBundle.add`
+        F.foldMap TokenBundle.fromCoin (view #extraCoinSource criteria)
+    balanceOut =
+        TokenBundle.fromTokenMap (view #assetsToBurn criteria)
+        `TokenBundle.add`
+        F.foldMap (view #tokens) (view #outputsToCover criteria)
+
+-- | Computes the UTxO balance sufficiency.
+--
+-- See 'UTxOBalanceSufficiency'.
+--
+computeUTxOBalanceSufficiency :: SelectionCriteria -> UTxOBalanceSufficiency
+computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
+
+-- | Computes information about the UTxO balance sufficiency.
+--
+-- See 'UTxOBalanceSufficiencyInfo'.
+--
+computeUTxOBalanceSufficiencyInfo
+    :: SelectionCriteria
+    -> UTxOBalanceSufficiencyInfo
+computeUTxOBalanceSufficiencyInfo criteria =
+    UTxOBalanceSufficiencyInfo {available, required, difference, sufficiency}
+  where
+    available = computeUTxOBalanceAvailable criteria
+    required = computeUTxOBalanceRequired criteria
+    sufficiency =
+        if required `leq` available
+        then UTxOBalanceSufficient
+        else UTxOBalanceInsufficient
+    difference =
+        if sufficiency == UTxOBalanceSufficient
+        then TokenBundle.difference available required
+        else TokenBundle.difference required available
+
+-- | Indicates whether or not the UTxO balance is sufficient.
+--
+-- The balance of available UTxO entries is sufficient if (and only if) it
+-- is greater than or equal to the required balance.
+--
+isUTxOBalanceSufficient :: SelectionCriteria -> Bool
+isUTxOBalanceSufficient criteria =
+    case computeUTxOBalanceSufficiency criteria of
+        UTxOBalanceSufficient   -> True
+        UTxOBalanceInsufficient -> False
 
 -- | A skeleton selection that can be used to estimate the cost of a final
 --   selection.
