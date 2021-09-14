@@ -66,8 +66,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genFixedSizeTokenBundle
+    , genTokenBundle
     , genTokenBundleSmallRange
-    , genVariableSizedTokenBundle
     , shrinkTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -86,15 +86,15 @@ import Cardano.Wallet.Shelley.Compatibility
     , interval0
     , interval1
     , invertUnitInterval
-    , isInternalError
     , toCardanoHash
     , toCardanoValue
     , toPoint
     , tokenBundleSizeAssessor
-    , unsafeIntToWord
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkEntropy )
+    ( unsafeIntToWord, unsafeMkEntropy )
+import Cardano.Wallet.Util
+    ( tryInternalError )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
 import Codec.Binary.Encoding
@@ -148,6 +148,7 @@ import Test.QuickCheck
     , frequency
     , oneof
     , property
+    , resize
     , vector
     , withMaxSuccess
     , (===)
@@ -155,8 +156,6 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
-import UnliftIO.Exception
-    ( evaluate, tryJust )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Address as SL
@@ -388,13 +387,11 @@ spec = do
 
 prop_unsafeIntToWord :: TrickyInt Integer Word16 -> Property
 prop_unsafeIntToWord (TrickyInt n wrong) = monadicIO $ do
-    res <- runEither (unsafeIntToWord @Integer @Word16 n)
+    res <- run $ tryInternalError $ unsafeIntToWord @Integer @Word16 n
     monitor (counterexample ("res = " ++ show res))
     assert $ case res of
         Right correct -> fromIntegral correct == n
         Left _ -> fromIntegral wrong /= n
-  where
-    runEither = run . tryJust (Just . isInternalError) . evaluate
 
 data TrickyInt n w = TrickyInt n w deriving (Show, Eq)
 
@@ -818,11 +815,11 @@ instance Arbitrary (FixedSize128 TokenBundle) where
     -- No shrinking
 
 instance Arbitrary (VariableSize16 TokenBundle) where
-    arbitrary = VariableSize16 <$> genVariableSizedTokenBundle 16
+    arbitrary = VariableSize16 <$> resize 16 genTokenBundle
     -- No shrinking
 
 instance Arbitrary (VariableSize128 TokenBundle) where
-    arbitrary = VariableSize128 <$> genVariableSizedTokenBundle 128
+    arbitrary = VariableSize128 <$> resize 128 genTokenBundle
     -- No shrinking
 
 --

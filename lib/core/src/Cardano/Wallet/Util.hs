@@ -1,0 +1,150 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ViewPatterns #-}
+
+-- |
+-- Copyright: © 2020-2021 IOHK
+-- License: Apache-2.0
+--
+-- General utility functions.
+--
+module Cardano.Wallet.Util
+    ( -- * Partial functions for "impossible" situations
+      HasCallStack
+    , internalError
+    , tina
+    , invariant
+
+    -- ** Handling errors for "impossible" situations.
+    , isInternalError
+    , tryInternalError
+
+    -- * String formatting
+    , ShowFmt (..)
+
+    -- * HTTP(S) URIs
+    , uriToText
+    , parseURI
+    ) where
+
+import Prelude
+
+import Control.DeepSeq
+    ( NFData (..) )
+import Control.Error.Util
+    ( (??) )
+import Control.Exception
+    ( ErrorCall, displayException )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO )
+import Control.Monad.Trans.Except
+    ( runExceptT, throwE )
+import Data.Foldable
+    ( asum )
+import Data.Functor.Identity
+    ( runIdentity )
+import Data.List
+    ( isPrefixOf )
+import Data.Maybe
+    ( fromMaybe, isNothing )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( TextDecodingError (..) )
+import Fmt
+    ( Buildable (..), Builder, fmt, (+|) )
+import GHC.Generics
+    ( Generic )
+import GHC.Stack
+    ( HasCallStack )
+import Network.URI
+    ( URI (..), parseAbsoluteURI, uriQuery, uriScheme, uriToString )
+import UnliftIO.Exception
+    ( evaluate, tryJust )
+
+import qualified Data.Text as T
+
+-- | Calls the 'error' function, which will usually crash the program.
+internalError :: HasCallStack => Builder -> a
+internalError msg = error $ fmt $ "INTERNAL ERROR: "+|msg
+
+isInternalErrorMsg :: String -> Bool
+isInternalErrorMsg msg = "INTERNAL ERROR" `isPrefixOf` msg
+
+-- | Take the first 'Just' from a list of 'Maybe', or die trying.
+-- There is no alternative.
+tina :: HasCallStack => Builder -> [Maybe a] -> a
+tina msg = fromMaybe (internalError msg) . asum
+
+-- | Checks whether or not an invariant holds, by applying the given predicate
+--   to the given value.
+--
+-- If the invariant does not hold (indicated by the predicate function
+-- returning 'False'), throws an error with the specified message.
+--
+-- >>> invariant "not empty" [1,2,3] (not . null)
+-- [1, 2, 3]
+--
+-- >>> invariant "not empty" [] (not . null)
+-- *** Exception: not empty
+invariant
+    :: HasCallStack
+    => String
+        -- ^ The message
+    -> a
+        -- ^ The value to test
+    -> (a -> Bool)
+        -- ^ The predicate
+    -> a
+invariant msg a predicate = if predicate a then a else error msg
+
+-- | Tests whether an 'Exception' was caused by 'internalError'.
+isInternalError :: ErrorCall -> Maybe String
+isInternalError (displayException -> msg)
+    | isInternalErrorMsg msg = Just msg
+    | otherwise = Nothing
+
+-- | Evaluates a pure expression to WHNF and handles any occurrence of
+-- 'internalError'.
+--
+-- This is intended for use in testing. Don't use this in application code --
+-- that's what normal IO exceptions are for.
+tryInternalError :: MonadUnliftIO m => a -> m (Either String a)
+tryInternalError = tryJust isInternalError . evaluate
+
+{-------------------------------------------------------------------------------
+                               Formatting helpers
+-------------------------------------------------------------------------------}
+
+-- | A polymorphic wrapper type with a custom show instance to display data
+-- through 'Buildable' instances.
+newtype ShowFmt a = ShowFmt { unShowFmt :: a }
+    deriving (Generic, Eq, Ord)
+
+instance NFData a => NFData (ShowFmt a)
+
+instance Buildable a => Show (ShowFmt a) where
+    show (ShowFmt a) = fmt (build a)
+
+{-------------------------------------------------------------------------------
+                                  HTTP(S) URIs
+-------------------------------------------------------------------------------}
+
+uriToText :: URI -> Text
+uriToText uri = T.pack $ uriToString id uri ""
+
+parseURI :: Text -> Either TextDecodingError URI
+parseURI (T.unpack -> uri) = runIdentity $ runExceptT $ do
+    uri' <- parseAbsoluteURI uri ??
+        (TextDecodingError "Not a valid absolute URI.")
+    let res = case uri' of
+            (URI {uriAuthority, uriScheme, uriPath, uriQuery, uriFragment})
+                | uriScheme `notElem` ["http:", "https:"] ->
+                    Left "Not a valid URI scheme, only http/https is supported."
+                | isNothing uriAuthority ->
+                    Left "URI must contain a domain part."
+                | not ((uriPath == "" || uriPath == "/")
+                && uriQuery == "" && uriFragment == "") ->
+                    Left "URI must not contain a path/query/fragment."
+            _ -> Right uri'
+    either (throwE . TextDecodingError) pure res

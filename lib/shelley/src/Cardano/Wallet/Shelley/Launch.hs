@@ -48,7 +48,7 @@ import Cardano.Launcher
 import Cardano.Launcher.Node
     ( CardanoNodeConn, cardanoNodeConn, isWindows )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer )
+    ( BracketLog, BracketLog' (..), bracketTracer )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types

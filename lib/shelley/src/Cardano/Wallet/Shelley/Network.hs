@@ -58,7 +58,7 @@ import Cardano.Launcher.Node
 import Cardano.Wallet.Byron.Compatibility
     ( byronCodecConfig, protocolParametersFromUpdateState )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer, produceTimings )
+    ( BracketLog, bracketTracer, produceTimings )
 import Cardano.Wallet.Network
     ( Cursor, ErrPostTx (..), NetworkLayer (..), mapCursor )
 import Cardano.Wallet.Primitive.Slotting

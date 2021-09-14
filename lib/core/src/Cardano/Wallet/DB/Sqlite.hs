@@ -159,6 +159,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
+import Cardano.Wallet.Util
+    ( invariant )
 import Control.Monad
     ( forM, forM_, unless, void, when, (<=<) )
 import Control.Monad.Extra
@@ -2522,7 +2524,7 @@ instance
                 (Seq.internalPool st, Seq.externalPool st)
         let (Seq.ParentContextUtxo accXPubInternal) = Seq.context intPool
         let (Seq.ParentContextUtxo accXPubExternal) = Seq.context extPool
-        let (accountXPub, _) = W.invariant
+        let (accountXPub, _) = invariant
                 "Internal & External pool use different account public keys!"
                 ( accXPubExternal, accXPubInternal )
                 (uncurry (==))

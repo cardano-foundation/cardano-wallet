@@ -51,7 +51,6 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , GenesisParameters
     , ProtocolParameters
-    , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -72,6 +71,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Cardano.Wallet.Util
+    ( ShowFmt (..) )
 import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class

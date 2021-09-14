@@ -42,7 +42,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Types
     ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer, stdoutTextTracer, trMessageText )
+    ( BracketLog, bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( portFromURL )
 import Cardano.Wallet.Primitive.AddressDerivation

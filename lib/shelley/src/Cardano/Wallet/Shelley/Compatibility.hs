@@ -71,9 +71,6 @@ module Cardano.Wallet.Shelley.Compatibility
     , rewardAccountFromAddress
     , fromShelleyPParams
     , fromAlonzoPParams
-    , unsafeIntToWord
-    , internalError
-    , isInternalError
     , ToCardanoGenTx (..)
     , fromLedgerExUnits
 
@@ -171,15 +168,15 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (getTokenBundleMaxSize)
     )
 import Cardano.Wallet.Unsafe
-    ( safeDeserialiseCbor, unsafeMkPercentage )
+    ( safeDeserialiseCbor, unsafeIntToWord, unsafeMkPercentage )
+import Cardano.Wallet.Util
+    ( internalError, tina )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
     ( left )
-import Control.Exception
-    ( ErrorCall, displayException )
 import Control.Monad
     ( when, (>=>) )
 import Crypto.Hash.Utils
@@ -205,11 +202,9 @@ import Data.Coerce
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Foldable
-    ( asum, toList )
+    ( toList )
 import Data.Function
     ( (&) )
-import Data.List
-    ( isPrefixOf )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -222,12 +217,10 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
-import Data.Typeable
-    ( Typeable, typeRep )
 import Data.Word
     ( Word16, Word32, Word64, Word8 )
 import Fmt
-    ( Buildable (..), Builder, fmt, (+|), (+||), (|+), (||+) )
+    ( Buildable (..), Builder, (+|), (+||), (||+) )
 import GHC.Records
     ( HasField (..) )
 import GHC.Stack
@@ -1162,52 +1155,11 @@ toWalletCoin = W.Coin . unsafeCoinToWord64
 unsafeCoinToWord64 :: HasCallStack => SL.Coin -> Word64
 unsafeCoinToWord64 (SL.Coin c) = unsafeIntToWord c
 
--- | Convert an integer type of any range to a machine word.
---
--- Only use it for values which have come from the ledger, and should fit in the
--- given type, according to the spec.
---
--- If this conversion would under/overflow, there is not much we can do except
--- to hastily exit.
-unsafeIntToWord
-    :: forall from to
-     . ( HasCallStack
-       , Integral from
-       , Bounded to
-       , Integral to
-       , Typeable from
-       , Typeable to
-       , Show from)
-    => from -> to
-unsafeIntToWord n
-    | n < fromIntegral (minBound :: to) = crash "underflow"
-    | n > fromIntegral (maxBound :: to) = crash "overflow"
-    | otherwise = fromIntegral n
-  where
-    crash :: Builder -> to
-    crash err = internalError $ err |+" converting value "+|| n ||+
-        " from " +|| typeRep (Proxy @from) ||+
-        " to "+|| typeRep (Proxy @to) ||+"!"
-
--- | Calls the 'error' function, which will usually crash the program.
-internalError :: HasCallStack => Builder -> a
-internalError msg = error $ fmt $ "INTERNAL ERROR: "+|msg
-
--- | Tests whether an 'Exception' was caused by 'internalError'.
-isInternalError :: ErrorCall -> Bool
-isInternalError e = "INTERNAL ERROR" `isPrefixOf` displayException e
-
--- | Take the first 'Just' from a list of 'Maybe', or die trying.
--- There is no alternative.
-tina :: HasCallStack => Builder -> [Maybe a] -> a
-tina msg = fromMaybe (internalError msg) . asum
-
 fromPoolMetadata :: SL.PoolMetadata -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
 fromPoolMetadata meta =
     ( W.StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
     , W.StakePoolMetadataHash (SL._poolMDHash meta)
     )
-
 
 -- | Convert a stake credentials to a 'RewardAccount' type.
 --

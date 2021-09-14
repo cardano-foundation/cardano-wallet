@@ -93,7 +93,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , ProtocolParameters (..)
     , Range (..)
-    , ShowFmt (..)
     , SlotInEpoch (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -137,6 +136,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )
+import Cardano.Wallet.Util
+    ( ShowFmt (..) )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
