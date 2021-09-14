@@ -102,9 +102,6 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , runRoundRobin
     , runRoundRobinM
 
-    -- * Accessors
-    , fullBalance
-
     -- * Utility classes
     , AssetCount (..)
 
@@ -457,27 +454,32 @@ missingOutputAssets e =
         , requestedOutputAssets
         } = e
 
--- | Indicates that the balance of inputs actually selected was insufficient to
---   cover the balance of 'outputsToCover'.
+-- | Indicates that the balance of selected UTxO entries was insufficient to
+--   cover the balance required.
+--
+-- This typically occurs when more entries are available, but those entries
+-- cannot be selected without breaching the 'selectionLimit'.
 --
 data SelectionInsufficientError = SelectionInsufficientError
-    { balanceRequired
+    { utxoBalanceRequired
         :: !TokenBundle
-      -- ^ The balance of 'outputsToCover'.
+      -- ^ The UTXO balance required.
     , inputsSelected
         :: ![(TxIn, TxOut)]
       -- ^ The inputs that could be selected while satisfying the
       -- 'selectionLimit'.
     } deriving (Generic, Eq, Show)
 
--- | Indicates that the balance of 'utxoAvailable' is insufficient to cover the
---   balance of 'outputsToCover'.
+-- | Indicates that the balance of available UTxO entries is insufficient to
+--   cover the balance required.
+--
+-- See 'computeUTxOBalanceSufficiency'.
 --
 data BalanceInsufficientError = BalanceInsufficientError
-    { balanceAvailable
+    { utxoBalanceAvailable
         :: !TokenBundle
       -- ^ The balance of 'utxoAvailable'.
-    , balanceRequired
+    , utxoBalanceRequired
         :: !TokenBundle
       -- ^ The balance of 'outputsToCover'.
     } deriving (Generic, Eq, Show)
@@ -598,10 +600,10 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         pure $ Left $ OutputsInsufficient $ OutputsInsufficientError
             {assetsToMint, assetsToBurn, requestedOutputAssets}
 
-    -- Is the total available balance sufficient?
-    | not (balanceRequired `leq` balanceAvailable) =
+    -- Is the total available UTXO balance sufficient?
+    | not utxoBalanceSufficient =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
-            { balanceAvailable, balanceRequired }
+            {utxoBalanceAvailable, utxoBalanceRequired}
 
     -- Are the minimum ada quantities of the outputs too small?
     | not (null insufficientMinCoinValues) =
@@ -611,19 +613,20 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
     | otherwise = do
         maybeSelection <- runSelectionNonEmpty RunSelectionParams
             { selectionLimit
-            , extraCoinSource
             , utxoAvailable
-            , minimumBalance = balanceRequired
+            , minimumBalance = utxoBalanceRequired
             }
         case maybeSelection of
-            Nothing ->
+            Nothing | selectionLimit <= MaximumInputLimit 0 ->
                 selectionInsufficientError []
+            Nothing ->
+                pure $ Left EmptyUTxO
             Just selection -> do
                 let utxoSelected = selected selection
-                let balanceSelected = fullBalance utxoSelected extraCoinSource
-                if balanceRequired `leq` balanceSelected
+                let utxoBalanceSelected = UTxOIndex.balance utxoSelected
+                if utxoBalanceRequired `leq` utxoBalanceSelected
                 then makeChangeRepeatedly selection
-                else selectionInsufficientError $ UTxOIndex.toList utxoSelected
+                else selectionInsufficientError (UTxOIndex.toList utxoSelected)
   where
     SelectionCriteria
         { outputsToCover
@@ -638,29 +641,27 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
     selectionInsufficientError inputsSelected =
         pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
             { inputsSelected
-            , balanceRequired
+            , utxoBalanceRequired
             }
 
-    requestedOutputs = F.foldMap (view #tokens) outputsToCover
-    requestedOutputAssets = view #tokens requestedOutputs
+    requestedOutputBalance :: TokenBundle
+    requestedOutputBalance = F.foldMap (view #tokens) outputsToCover
+
+    requestedOutputAssets :: TokenMap
+    requestedOutputAssets = view #tokens requestedOutputBalance
 
     mkInputsSelected :: UTxOIndex -> NonEmpty (TxIn, TxOut)
     mkInputsSelected =
         fromMaybe invariantSelectAnyInputs . NE.nonEmpty . UTxOIndex.toList
 
-    balanceAvailable :: TokenBundle
-    balanceAvailable = fullBalance utxoAvailable extraCoinSource
+    utxoBalanceAvailable :: TokenBundle
+    utxoBalanceAvailable = computeUTxOBalanceAvailable criteria
 
-    balanceRequired :: TokenBundle
-    balanceRequired =
-        -- of course, we need to satisfy the outputs the caller asked for
-        requestedOutputs
-        -- we must also find assets to burn
-        `TokenBundle.add`
-            TokenBundle.fromTokenMap assetsToBurn
-        -- but assets minted reduce the quantity of assets we have to select
-        `TokenBundle.unsafeSubtract`
-            TokenBundle.fromTokenMap assetsToMint
+    utxoBalanceRequired :: TokenBundle
+    utxoBalanceRequired = computeUTxOBalanceRequired criteria
+
+    utxoBalanceSufficient :: Bool
+    utxoBalanceSufficient = isUTxOBalanceSufficient criteria
 
     insufficientMinCoinValues :: [InsufficientMinCoinValueError]
     insufficientMinCoinValues =
@@ -825,13 +826,13 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
 
     invariantSelectAnyInputs =
         -- This should be impossible, as we have already determined
-        -- that the UTxO balance is sufficient to cover the outputs.
+        -- that the UTxO balance is sufficient.
         error $ unlines
             [ "performSelection: unable to select any inputs!"
-            , "balance required:"
-            , show balanceRequired
-            , "balance available:"
-            , show balanceAvailable
+            , "UTxO balance required:"
+            , show utxoBalanceRequired
+            , "UTxO balance available:"
+            , show utxoBalanceAvailable
             ]
 
     invariantResultWithNoCost inputs_ = error $ unlines
@@ -982,9 +983,6 @@ data SelectionState = SelectionState
 data RunSelectionParams = RunSelectionParams
     { selectionLimit :: SelectionLimit
         -- ^ A limit to adhere to when performing a selection.
-    , extraCoinSource :: Maybe Coin
-        -- ^ An extra source of ada, which can only be used after at least one
-        -- input has been selected.
     , utxoAvailable :: UTxOIndex
         -- ^ UTxO entries available for selection.
     , minimumBalance :: TokenBundle
@@ -1016,7 +1014,6 @@ runSelection params =
   where
     RunSelectionParams
         { selectionLimit
-        , extraCoinSource
         , utxoAvailable
         , minimumBalance
         } = params
@@ -1038,7 +1035,7 @@ runSelection params =
         assetSelector = runSelectionStep .
             assetSelectionLens selectionLimit
         coinSelector = runSelectionStep $
-            coinSelectionLens selectionLimit extraCoinSource minimumCoinQuantity
+            coinSelectionLens selectionLimit minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =
         TokenBundle.toFlatList minimumBalance
@@ -1057,13 +1054,11 @@ assetSelectionLens limit (asset, minimumAssetQuantity) = SelectionLens
 coinSelectionLens
     :: MonadRandom m
     => SelectionLimit
-    -> Maybe Coin
-    -- An extra source of ada.
     -> Coin
     -- ^ Minimum coin quantity.
     -> SelectionLens m SelectionState
-coinSelectionLens limit mExtraCoinSource minimumCoinQuantity = SelectionLens
-    { currentQuantity = \s -> coinQuantity (selected s) mExtraCoinSource
+coinSelectionLens limit minimumCoinQuantity = SelectionLens
+    { currentQuantity = coinQuantity . selected
     , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
     , selectQuantity  = selectCoinQuantity limit
     }
@@ -2037,16 +2032,9 @@ assetQuantity :: AssetId -> UTxOIndex -> Natural
 assetQuantity asset =
     unTokenQuantity . flip TokenBundle.getQuantity asset . view #balance
 
-coinQuantity :: UTxOIndex -> Maybe Coin -> Natural
-coinQuantity index extraSource =
-    fromIntegral . unCoin . TokenBundle.getCoin $ fullBalance index extraSource
-
-fullBalance :: UTxOIndex -> Maybe Coin -> TokenBundle
-fullBalance index extraSource
-    | UTxOIndex.null index =
-        TokenBundle.empty
-    | otherwise =
-        view #balance index <> F.foldMap TokenBundle.fromCoin extraSource
+coinQuantity :: UTxOIndex -> Natural
+coinQuantity =
+    fromIntegral . unCoin . TokenBundle.getCoin . UTxOIndex.balance
 
 --------------------------------------------------------------------------------
 -- Utility types
