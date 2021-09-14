@@ -168,8 +168,8 @@ data TransactionCtx = TransactionCtx
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
     , txPlutusScriptExecutionCost :: Coin
-    -- ^ An execution cost of plutus script determined by execution units
-    -- and prices obtained from network
+    -- ^ Total execution cost of plutus scripts, determined by their execution units
+    -- and prices obtained from network.
     } deriving (Show, Generic, Eq)
 
 data Withdrawal

@@ -172,8 +172,6 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
-import Numeric.Natural
-    ( Natural )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -508,7 +506,7 @@ _calcScriptExecutionCost pp sealedTx = case (prices, mexecutionUnits sealedTx) o
         . ceiling
         . sum
         $ map (costOfExecutionUnits exPrices) units
-    (Nothing, Just units) ->
+    (Nothing, Just _units) ->
         -- This case probably means that the node tip is not yet in Alonzo.
         --
         -- TODO: Not sure what the calling code would look like. Should we
