@@ -9,6 +9,7 @@
   , "^Cardano\\.Wallet\\.Api\\.Client\\.byron(Address|Transaction|Wallet)Client\$"
   , "^Cardano\\.Wallet\\.Api\\.Link\\.(mintBurnAssets|patchSharedWallet|postExternalTransaction)\$"
   , "^Cardano\\.Wallet\\.DB\\.Sqlite\\.Types\\.sqlSettings'\$"
+  , "^Cardano\\.Wallet\\.Logging\\.traceWithExceptT\$"
   , "^Cardano\\.Wallet\\.Primitive\\.CoinSelection\\.Gen\\."
   , "^Cardano\\.Wallet\\.Primitive\\.Types.\\stabilityWindow(Byron|Shelley)\$"
   , "^Cardano\\.Wallet\\.Primitive\\.Types\\.UTxO\\.empty\$"
