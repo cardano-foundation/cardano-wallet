@@ -1308,10 +1308,27 @@ prop_runSelectionNonEmpty result = conjoin
 prop_runSelectionNonEmpty_inner :: SelectionState -> Property
 prop_runSelectionNonEmpty_inner result =
     case (haveLeftover, haveSelected) of
-        (False, False) -> property $ isNothing maybeResultNonEmpty
-        (False, True ) -> maybeResultNonEmpty === Just result
-        (True , True ) -> maybeResultNonEmpty === Just result
-        (True , False) -> checkResultNonEmpty
+        (False, False) ->
+            -- In this case, the available UTxO set was completely empty.
+            -- Since there's nothing to select, we must fail with 'Nothing':
+            property $ isNothing maybeResultNonEmpty
+        (False, True) ->
+            -- In this case, we've already selected all entries from the
+            -- available UTxO, so there's no more work to do. We need to check
+            -- that 'runSelectionNonEmpty' does not expand the selection:
+            maybeResultNonEmpty === Just result
+        (True, True) ->
+            -- In this case, we've already selected some entries from the
+            -- available UTxO, so there's no more work to do. We need to check
+            -- that 'runSelectionNonEmpty' does not expand the selection:
+            maybeResultNonEmpty === Just result
+        (True, False) ->
+            -- This represents the case where 'runSelection' does not select
+            -- anything at all, even though we do have at least one UTxO entry
+            -- available. This is the only case where 'runSelectionNonEmpty' is
+            -- expected to perform extra work: it should select precisely one
+            -- entry, and no more:
+            checkResultNonEmpty
   where
     haveLeftover = view #leftover result /= UTxOIndex.empty
     haveSelected = view #selected result /= UTxOIndex.empty
