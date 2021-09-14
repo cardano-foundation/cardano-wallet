@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -68,6 +69,13 @@ spec = describe "SHELLEY_NETWORK" $ do
         let knownEras = [minBound .. _mainEra ctx]
         let unknownEras = [minBound .. maxBound] \\ knownEras
 
+        let checkExecutionUnitPricesPresence
+                :: ApiEra
+                -> ((HTTP.Status, Either RequestException ApiNetworkParameters) -> IO ())
+            checkExecutionUnitPricesPresence = \case
+                ApiAlonzo -> expectField #executionUnitPrices (`shouldNotBe` Nothing)
+                _ -> expectField #executionUnitPrices (`shouldBe` Nothing)
+
         verify r $
             [ expectField #decentralizationLevel (`shouldBe` d)
             , expectField #desiredPoolNumber (`shouldBe` nOpt)
@@ -79,6 +87,7 @@ spec = describe "SHELLEY_NETWORK" $ do
             , expectField #maximumCollateralInputCount
                   (`shouldBe` maximumCollateralInputCountByEra (_mainEra ctx))
             , expectField #maximumTokenBundleSize (`shouldBe` Quantity 4000)
+            , checkExecutionUnitPricesPresence (_mainEra ctx)
             ]
             ++ map (expectEraField (`shouldNotBe` Nothing)) knownEras
             ++ map (expectEraField (`shouldBe` Nothing)) unknownEras

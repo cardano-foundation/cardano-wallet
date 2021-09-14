@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -34,6 +35,7 @@ module Cardano.Wallet.Shelley.Transaction
     , TxWitnessTagFor (..)
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
+    , _calcScriptExecutionCost
     , estimateTxCost
     , estimateTxSize
     , mkByronWitness
@@ -82,7 +84,12 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), ProtocolParameters (..), TxParameters (..) )
+    ( ExecutionUnitPrices (..)
+    , ExecutionUnits (..)
+    , FeePolicy (..)
+    , ProtocolParameters (..)
+    , TxParameters (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -109,6 +116,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( fromAllegraTx
     , fromAlonzoTx
+    , fromLedgerExUnits
     , fromMaryTx
     , fromShelleyTx
     , sealShelleyTx
@@ -160,6 +168,8 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import Fmt
     ( Buildable, pretty )
+import GHC.Generics
+    ( Generic )
 import GHC.Stack
     ( HasCallStack )
 import Ouroboros.Network.Block
@@ -173,7 +183,9 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Ledger.Alonzo.TxWitness as SL
 import qualified Cardano.Ledger.Core as SL
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
@@ -384,6 +396,9 @@ newTransactionLayer networkId = TransactionLayer
         estimateTxCost pp $
         mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
 
+    , calcScriptExecutionCost =
+       _calcScriptExecutionCost
+
     , computeSelectionLimit = \pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
         MaximumInputLimit $
@@ -480,6 +495,45 @@ dummySkeleton inputCount outputs = SelectionSkeleton
     , skeletonChange =
         TokenBundle.getAssets . view #tokens <$> outputs
     }
+
+_calcScriptExecutionCost
+    :: ProtocolParameters
+    -> SealedTx
+    -> Coin
+_calcScriptExecutionCost pp sealedTx = case (prices, mexecutionUnits sealedTx) of
+    (Just exPrices, Just units) ->
+        Coin.unsafeNaturalToCoin
+        . ceiling
+        . sum
+        $ map (costOfExecutionUnits exPrices) units
+    (Nothing, Just _units) ->
+        -- This case probably means that the node tip is not yet in Alonzo.
+        --
+        -- TODO: Not sure what the calling code would look like. Should we
+        -- return @Nothing@, or continue throwing? We probably don't want to
+        -- return `Coin 0`, as the cost would then be underestimated.
+        error "_calcScriptExecutionCost: ExecutionUnitPrices is not available"
+    (_, Nothing) -> Coin 0
+  where
+    prices = view #executionUnitPrices pp
+
+    costOfExecutionUnits :: ExecutionUnitPrices -> ExecutionUnits -> Rational
+    costOfExecutionUnits (ExecutionUnitPrices perStep perMem) (W.ExecutionUnits steps mem) =
+        perStep * (toRational steps) + perMem * (toRational mem)
+
+    -- | Return `ExecutionUnits` for each redeemer script in the tx. Returns
+    -- `Nothing` if the tx fails to deserialize.
+    mexecutionUnits :: SealedTx -> Maybe [ExecutionUnits]
+    mexecutionUnits (SealedTx bytes) =
+        case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) bytes of
+            Right txValid ->
+                let getScriptData (Cardano.ShelleyTxBody _ _ _ scriptdata _ _) = scriptdata
+                    getScriptData _ = error "we should not expect Cardano.ByronTxBody here"
+                    getRedeemers Cardano.TxBodyNoScriptData = Nothing
+                    getRedeemers (Cardano.TxBodyScriptData _ _ redeemers) = Just redeemers
+                    getExtUnit (SL.Redeemers rmds) = map (fromLedgerExUnits . snd . snd) $ Map.toList rmds
+                in getExtUnit <$> getRedeemers (getScriptData $ Cardano.getTxBody txValid)
+            Left _ -> Nothing
 
 _decodeSignedTx
     :: AnyCardanoEra
@@ -652,8 +706,9 @@ data TxSkeleton = TxSkeleton
     -- multiple times, will appear multiple times in this list, once for each
     -- mint or burn. For example if the caller "mints 3" of asset id "A", and
     -- "burns 3" of asset id "A", "A" will appear twice in the list.
+    , txScriptExecutionCost :: !Coin
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 -- | Constructs an empty transaction skeleton.
 --
@@ -670,6 +725,7 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txChange = []
     , txScripts = []
     , txMintBurnAssets = []
+    , txScriptExecutionCost = Coin 0
     }
 
 -- | Constructs a transaction skeleton from wallet primitive types.
@@ -693,19 +749,23 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     -- Until we actually support minting and burning, leave these as empty.
     , txScripts = []
     , txMintBurnAssets = []
+    , txScriptExecutionCost = view #txPlutusScriptExecutionCost context
     }
 
 -- | Estimates the final cost of a transaction based on its skeleton.
 --
 estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
 estimateTxCost pp skeleton =
-    computeFee $ estimateTxSize skeleton
+    Coin.sumCoins [ computeFee $ estimateTxSize skeleton
+             , scriptExecutionCosts ]
   where
     LinearFee (Quantity a) (Quantity b) = getFeePolicy $ txParameters pp
 
     computeFee :: TxSize -> Coin
     computeFee (TxSize size) =
         Coin $ ceiling (a + b * fromIntegral size)
+
+    scriptExecutionCosts = view #txScriptExecutionCost skeleton
 
 -- | Estimates the final size of a transaction based on its skeleton.
 --

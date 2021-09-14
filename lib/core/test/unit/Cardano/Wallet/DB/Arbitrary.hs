@@ -86,6 +86,7 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , EpochNo (..)
     , EraInfo (..)
+    , ExecutionUnitPrices (..)
     , FeePolicy (..)
     , MinimumUTxOValue (..)
     , PassphraseScheme (..)
@@ -645,6 +646,11 @@ instance Arbitrary ProtocolParameters where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary ExecutionUnitPrices where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
 
 instance Arbitrary MinimumUTxOValue where
     shrink = genericShrink

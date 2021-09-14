@@ -75,6 +75,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , internalError
     , isInternalError
     , ToCardanoGenTx (..)
+    , fromLedgerExUnits
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -278,9 +279,11 @@ import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
+import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
@@ -596,6 +599,7 @@ fromShelleyPParams eraInfo pp = W.ProtocolParameters
     , stakeKeyDeposit = stakeKeyDepositFromPParams pp
     , eras = fromBound <$> eraInfo
     , maximumCollateralInputCount = minBound
+    , executionUnitPrices = Nothing
     }
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
@@ -620,6 +624,8 @@ fromAlonzoPParams eraInfo pp = W.ProtocolParameters
     , eras = fromBound <$> eraInfo
     , maximumCollateralInputCount = unsafeIntToWord $
         Alonzo._maxCollateralInputs pp
+    , executionUnitPrices =
+        Just $ executionUnitPricesFromPParams pp
     }
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
@@ -654,6 +660,29 @@ decentralizationLevelFromPParams pp =
         $ invertUnitInterval d
   where
     d = getField @"_d" pp
+
+executionUnitPricesFromPParams
+    :: HasField "_prices" pparams Alonzo.Prices
+    => pparams
+    -> W.ExecutionUnitPrices
+executionUnitPricesFromPParams pp =
+    fromAlonzoPrices prices
+  where
+    prices = getField @"_prices" pp
+    fromAlonzoPrices (Alonzo.Prices prSteps prMem) =
+        W.ExecutionUnitPrices
+        { W.priceExecutionSteps  = Ledger.unboundRational prSteps
+        , W.priceExecutionMemory = Ledger.unboundRational prMem
+        }
+
+fromLedgerExUnits
+    :: Alonzo.ExUnits
+    -> W.ExecutionUnits
+fromLedgerExUnits (Alonzo.ExUnits mem steps) =
+    W.ExecutionUnits
+    { executionSteps = steps
+    , executionMemory = mem
+    }
 
 txParametersFromPParams
     :: HasField "_minfeeA" pparams Natural

@@ -123,6 +123,14 @@ data TransactionLayer k = TransactionLayer
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
         -- This also includes necessary deposits.
 
+    , calcScriptExecutionCost
+        :: ProtocolParameters
+            -- Current protocol parameters
+        -> SealedTx
+            -- The constructed transaction that could contain plutus scripts
+        -> Coin
+        -- ^ Compute an execution costs of scripts in a given transaction.
+
     , computeSelectionLimit
         :: ProtocolParameters
         -> TransactionCtx
@@ -159,6 +167,9 @@ data TransactionCtx = TransactionCtx
     -- ^ Transaction expiry (TTL) slot.
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
+    , txPlutusScriptExecutionCost :: Coin
+    -- ^ Total execution cost of plutus scripts, determined by their execution units
+    -- and prices obtained from network.
     } deriving (Show, Generic, Eq)
 
 data Withdrawal
@@ -181,6 +192,7 @@ defaultTransactionCtx = TransactionCtx
     , txMetadata = Nothing
     , txTimeToLive = maxBound
     , txDelegationAction = Nothing
+    , txPlutusScriptExecutionCost = Coin 0
     }
 
 -- | Whether the user is attempting any particular delegation action.

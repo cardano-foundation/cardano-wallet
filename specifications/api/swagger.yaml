@@ -1687,6 +1687,42 @@ x-txScriptValidity: &txScriptValidity
     - valid
     - invalid
 
+x-rationalAsPair: &rationalAsPair
+  type: object
+  required:
+    - denominator
+    - numerator
+  properties:
+    denominator:
+      type: integer
+      minimum: 0
+    numerator:
+      type: integer
+      minimum: 0
+
+x-rationalAsNumber: &rationalAsNumber
+  type: integer
+  minimum: 0
+
+x-rational: &rational
+  nullable: false
+  oneOf:
+    - <<: *rationalAsNumber
+      title: rational as number
+    - <<: *rationalAsPair
+      title: rational as denominator and numerator
+
+x-executionUnitPrices: &executionUnitPrices
+  type: object
+  description: |
+    The price of time unit and memory unit used for calculating a fee of a script execution.
+  required:
+    - step_price
+    - memory_unit_price
+  properties:
+    step_price: *rational
+    memory_unit_price: *rational
+
 #############################################################################
 #                                                                           #
 #                              DEFINITIONS                                  #
@@ -1874,6 +1910,8 @@ components:
             The maximum number of collateral inputs that can be used in a single transaction.
         maximum_token_bundle_size:
           <<: *maximumTokenBundleSize
+        execution_unit_prices:
+          <<: *executionUnitPrices
 
     ApiSelectCoinsPayments: &ApiSelectCoinsPayments
       type: object
