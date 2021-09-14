@@ -156,6 +156,7 @@ import Test.Integration.Framework.TestData
     , errMsg400StartTimeLaterThanEndTime
     , errMsg400TxMetadataStringTooLong
     , errMsg403AlreadyInLedger
+    , errMsg403EmptyUTxO
     , errMsg403Fee
     , errMsg403MinUTxOValue
     , errMsg403NotAShelleyWallet
@@ -2155,7 +2156,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransactionOld @'Shelley wSelf) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
+            , expectErrorMessage errMsg403EmptyUTxO
             ]
 
     it "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self" $ \ctx -> runResourceT $ do

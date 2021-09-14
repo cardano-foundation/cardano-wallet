@@ -45,6 +45,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NotAByronWallet
     , errMsg403NotAnIcarusWallet
     , errMsg403NotEnoughMoney
+    , errMsg403EmptyUTxO
     , errMsg403WrongPass
     , errMsg403AlreadyInLedger
     , errMsg404NoSuchPool
@@ -321,6 +322,12 @@ errMsg403NotEnoughMoney :: String
 errMsg403NotEnoughMoney =
     "I can't process this payment as there are not enough funds available in \
     \the wallet."
+
+errMsg403EmptyUTxO :: String
+errMsg403EmptyUTxO =
+    "Cannot create a transaction because the wallet \
+    \has no UTxO entries. At least one UTxO entry is \
+    \required in order to create a transaction."
 
 errMsg403TxTooBig :: String
 errMsg403TxTooBig =
