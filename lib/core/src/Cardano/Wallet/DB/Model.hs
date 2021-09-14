@@ -147,7 +147,7 @@ import qualified Data.Map.Strict as Map
 data Database wid s xprv = Database
     { wallets :: !(Map wid (WalletDatabase s xprv))
     -- ^ Wallet-related information.
-    , txs :: Map (Hash "Tx") Tx
+    , txs :: !(Map (Hash "Tx") Tx)
     -- ^ In the database, transactions are global and not associated with any
     -- particular wallet.
     } deriving (Generic, NFData)

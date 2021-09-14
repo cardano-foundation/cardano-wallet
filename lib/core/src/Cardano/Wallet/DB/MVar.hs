@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -67,8 +68,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (..) )
-import Control.DeepSeq
-    ( NFData, force )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Except
@@ -85,9 +84,7 @@ import UnliftIO.MVar
 newDBLayer
     :: forall m s k.
        ( MonadUnliftIO m
-       , MonadFail m
-       , NFData (k 'RootK XPrv)
-       , NFData s)
+       , MonadFail m )
     => TimeInterpreter Identity
     -> m (DBLayer m s k)
 newDBLayer timeInterpreter = do
@@ -232,7 +229,7 @@ newDBLayer timeInterpreter = do
 
 -- | Apply an operation to the model database, then update the mutable variable.
 alterDB
-    :: (MonadUnliftIO m, NFData s, NFData xprv)
+    :: MonadUnliftIO m
     => (Err WalletId -> Maybe err)
     -- ^ Error type converter
     -> MVar (Database WalletId s xprv)
@@ -242,15 +239,15 @@ alterDB
     -> m (Either err a)
 alterDB convertErr db op = modifyMVar db (bubble . op)
   where
-    bubble (Left e, db') = case convertErr e of
-        Just e' -> pure (force db', Left e')
+    bubble (Left e, !db') = case convertErr e of
+        Just e' -> pure (db', Left e')
         Nothing -> throwIO $ MVarDBError e
-    bubble (Right a, db') = pure (force db', Right a)
+    bubble (Right a, !db') = pure (db', Right a)
 
 -- | Run a query operation on the model database. Any error results are turned
 -- into a runtime exception.
 readDB
-    :: (MonadUnliftIO m, NFData s, NFData xprv)
+    :: MonadUnliftIO m
     => MVar (Database WalletId s xprv)
     -- ^ The database variable
     -> ModelOp WalletId s xprv a
