@@ -1,0 +1,30 @@
+name: Docker-compose Linux
+on:
+  schedule:
+  - cron:  "0 23 * * *"
+  workflow_dispatch:
+    inputs:
+      network:
+        description: 'NETWORK'
+        required: true
+        default: 'testnet'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-18.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7.1
+      - name: Install cardano_wallet gem
+        run: gem install cardano_wallet
+      - name: Check docker-compose
+        run: |
+          docker-compose up -d
+          ./scripts/connect_wallet.rb
+        env:
+          NETWORK: ${{ github.event.inputs.network || 'testnet' }}
