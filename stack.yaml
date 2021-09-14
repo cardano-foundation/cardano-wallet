@@ -48,9 +48,11 @@ ghc-options:
 
 nix:
   shell-file: nix/stack-shell.nix
-  # Disabling the pure nix-shell allows environment variables to be
-  # passed down to tests. We need this for integration tests.
-  pure: false
+  # NOTE: Using a pure nix-shell (the default setting in Stack)
+  # prevents environment variables from being passed down to tests.
+  # If an environment variable needs to be set, add --env VAR=VAL
+  # options on the test suite command line.
+  pure: true
 
 # This completely disables checking of Cabal file version bounds, and
 # is necessary for Stack to successfully construct its build plan.

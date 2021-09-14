@@ -47,6 +47,7 @@ library
     , HUnit
     , iohk-monitoring
     , lattices
+    , optparse-applicative
     , pretty-simple
     , QuickCheck
     , quickcheck-classes
@@ -65,6 +66,7 @@ library
       Test.Hspec.Extra
       Test.Hspec.Goldens
       Test.QuickCheck.Extra
+      Test.Utils.Env
       Test.Utils.FilePath
       Test.Utils.Laws
       Test.Utils.Laws.PartialOrd
@@ -92,10 +94,12 @@ test-suite unit
   build-depends:
       base
     , cardano-wallet-test-utils
+    , fmt
     , hspec
     , hspec-core
     , hspec-expectations-lifted
     , silently
+    , QuickCheck
     , unliftio
     , unliftio-core
   build-tools:

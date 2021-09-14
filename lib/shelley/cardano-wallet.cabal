@@ -211,6 +211,7 @@ test-suite unit
     , cardano-ledger-core
     , cardano-wallet
     , cardano-wallet-core
+    , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , containers
     , contra-tracer

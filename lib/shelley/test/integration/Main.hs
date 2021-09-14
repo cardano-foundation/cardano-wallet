@@ -116,12 +116,10 @@ import System.Environment
     ( setEnv )
 import System.FilePath
     ( (</>) )
-import Test.Hspec.Core.Runner
-    ( defaultConfig, hspecWith )
 import Test.Hspec.Core.Spec
     ( Spec, SpecWith, describe, parallel, sequential )
 import Test.Hspec.Extra
-    ( aroundAll, configWithExecutionTimes )
+    ( aroundAll, hspecMain )
 import Test.Integration.Faucet
     ( genRewardAccounts
     , maryIntegrationTestAssets
@@ -133,8 +131,6 @@ import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Utils.Paths
     ( getTestData, inNixBuild )
-import Test.Utils.Startup
-    ( withLineBuffering )
 import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
@@ -177,7 +173,7 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
-    hspecWith (configWithExecutionTimes defaultConfig) $ do
+    hspecMain $ do
         describe "No backend required" $
             parallelIf (not nix) $ describe "Miscellaneous CLI tests"
                 MiscellaneousCLI.spec
@@ -235,7 +231,7 @@ withTestsSetup action = do
     setEnv "CARDANO_WALLET_TEST_INTEGRATION" "1"
     -- Flush test output as soon as a line is printed.
     -- Set UTF-8, regardless of user locale.
-    withLineBuffering $ withUtf8Encoding $
+    withUtf8Encoding $
         -- This temporary directory will contain logs, and all other data
         -- produced by the integration tests.
         withSystemTempDir stdoutTextTracer "test" $ \testDir ->
