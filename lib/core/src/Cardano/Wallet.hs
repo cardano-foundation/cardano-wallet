@@ -123,6 +123,8 @@ module Cardano.Wallet
     , ErrWithdrawalNotWorth (..)
     , ErrConstructTx (..)
     , ErrMintBurnAssets (..)
+    , ErrBalanceTx (..)
+    , ErrUpdateSealedTx (..)
 
     -- ** Migration
     , createMigrationPlan
@@ -393,8 +395,11 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
+    , ErrDecodeSignedTx (..)
     , ErrMkTransaction (..)
+    , ErrMkTx (..)
     , ErrSignTx (..)
+    , ErrUpdateSealedTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -2593,6 +2598,13 @@ data ErrSignPayment
     | ErrSignPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSignPaymentWithRootKey ErrWithRootKey
     | ErrSignPaymentIncorrectTTL PastHorizonException
+    deriving (Show, Eq)
+
+-- | Errors that can occur when balancing transaction.
+data ErrBalanceTx
+    = ErrBalanceTxTxAlreadyBalanced
+    | ErrBalanceTxUpdateError ErrUpdateSealedTx
+    | ErrBalanceTxNotImplemented
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.
