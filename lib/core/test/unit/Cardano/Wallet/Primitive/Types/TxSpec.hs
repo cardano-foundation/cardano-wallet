@@ -9,7 +9,7 @@ module Cardano.Wallet.Primitive.Types.TxSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Tx
-    ( MockSealedTx (..), SealedTx (..), mockSealedTx, sealedTxFromBytes )
+    ( SealedTx (..), mockSealedTx, sealedTxFromBytes )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ()
 import Data.ByteString
@@ -41,7 +41,7 @@ prop_sealedTxGibberish (Gibberish bs) =
 
 prop_mockSealedTx :: Gibberish -> Property
 prop_mockSealedTx (Gibberish bs) =
-    serialisedTx (unMockSealedTx (mockSealedTx bs)) === bs
+    serialisedTx (mockSealedTx bs) === bs
 
 newtype Gibberish = Gibberish ByteString deriving (Show, Read, Eq)
 

@@ -153,7 +153,6 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
-    , MockSealedTx (..)
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -325,7 +324,10 @@ instance MockPrivKey (ByronKey 'RootK) where
       where (k, _) = unsafeDeserializeXPrv (zeroes <> ":", mempty)
 
 unMockTxId :: HasCallStack => Hash "Tx" -> SealedTx
-unMockTxId = unMockSealedTx . mockSealedTx . getHash
+unMockTxId = mockSealedTx . getHash
+
+reMockTxId :: SealedTx -> Hash "Tx"
+reMockTxId = Hash . serialisedTx
 
 {-------------------------------------------------------------------------------
   Language
@@ -370,7 +372,7 @@ data Success s wid
     | Checkpoint (Maybe (Wallet s))
     | Metadata (Maybe WalletMetadata)
     | TxHistory [TransactionInfo]
-    | LocalTxSubmission [LocalTxSubmissionStatus MockSealedTx]
+    | LocalTxSubmission [LocalTxSubmissionStatus (Hash "Tx")]
     | PrivateKey (Maybe MPrivKey)
     | GenesisParams (Maybe GenesisParameters)
     | BlockHeaders [BlockHeader]
@@ -436,7 +438,7 @@ runMock = \case
         first (Resp . fmap Unit)
         . mPutLocalTxSubmission wid tid (unMockTxId tid) sl
     ReadLocalTxSubmissionPending wid ->
-        first (Resp . fmap (LocalTxSubmission . map (fmap MockSealedTx)))
+        first (Resp . fmap (LocalTxSubmission . map (fmap reMockTxId)))
         . mReadLocalTxSubmissionPending wid
     UpdatePendingTxForExpiry wid sl ->
         first (Resp . fmap Unit) . mUpdatePendingTxForExpiry wid sl
@@ -511,7 +513,7 @@ runIO db@DBLayer{..} = fmap Resp . go
             mapExceptT atomically $
             putLocalTxSubmission wid tid (unMockTxId tid) sl
         ReadLocalTxSubmissionPending wid ->
-            Right . LocalTxSubmission . map (fmap MockSealedTx) <$>
+            Right . LocalTxSubmission . map (fmap reMockTxId) <$>
             atomically (readLocalTxSubmissionPending wid)
         UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ updatePendingTxForExpiry wid sl
@@ -994,9 +996,6 @@ instance ToExpr TxMeta where
     toExpr = genericToExpr
 
 instance ToExpr SealedTx where
-    toExpr = defaultExprViaShow
-
-instance ToExpr MockSealedTx where
     toExpr = defaultExprViaShow
 
 instance ToExpr Percentage where
