@@ -124,7 +124,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( padCoalesce )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin, subtractCoin, sumCoins )
+    ( Coin (..), subtractCoin )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -136,7 +136,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TokenBundleSizeAssessor (..)
     , TxIn
     , TxOut
-    , txOutCoin
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -450,24 +449,26 @@ selectionDeltaCoin
     -> SelectionDelta Coin
 selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
--- | Calculate the actual difference between the total outputs (incl. change)
--- and total inputs of a particular selection. By construction, this should be
--- greater than total fees and deposits.
+-- | Calculates the ada selection delta, assuming there is a surplus.
+--
+-- If there is a surplus, then this function returns that surplus.
+-- If there is a deficit, then this function returns zero.
+--
+-- Use 'selectionDeltaCoin' if you wish to handle the case where there is
+-- a deficit.
+--
 selectionDelta
     :: (change -> Coin)
+    -- ^ A function to extract the coin value from a change output.
     -> SelectionResult change
     -> Coin
-selectionDelta getChangeCoin sel@SelectionResult{inputsSelected,extraCoinSource} =
-    let
-        totalOut
-            = sumCoins (getChangeCoin <$> changeGenerated sel)
-            & addCoin  (sumCoins (txOutCoin <$> outputsCovered sel))
-
-        totalIn
-            = sumCoins (txOutCoin . snd <$> inputsSelected)
-            & addCoin (fromMaybe (Coin 0) extraCoinSource)
-    in
-        Coin.distance totalIn totalOut
+selectionDelta getChangeCoin result =
+    case selectionDeltaCoin result' of
+        SelectionSurplus surplus -> surplus
+        SelectionDeficit _       -> Coin 0
+  where
+    result' = result & over #changeGenerated
+        (fmap (TokenBundle.fromCoin . getChangeCoin))
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
