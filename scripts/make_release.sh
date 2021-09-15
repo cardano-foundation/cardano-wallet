@@ -84,7 +84,11 @@ CABAL_VERSION=$(tag_cabal_ver "$GIT_TAG")
 
 echo ""
 echo "Replacing $OLD_CABAL_VERSION with $CABAL_VERSION"
-git ls-files '*.nix' '*.cabal' '*swagger.yaml' docker-compose.yml | xargs sed -i "s/$OLD_CABAL_VERSION_RE/$CABAL_VERSION/"
+git ls-files '*.nix' '*.cabal' docker-compose.yml | xargs sed -i "s/$OLD_CABAL_VERSION_RE/$CABAL_VERSION/"
+echo ""
+
+echo "Updating swagger.yml with $GIT_TAG tag"
+sed -i "s|version: .*|version: $GIT_TAG|" specifications/api/swagger.yaml
 echo ""
 
 echo "Updating docker-compose.yml with $CARDANO_NODE_TAG cardano-node tag"
