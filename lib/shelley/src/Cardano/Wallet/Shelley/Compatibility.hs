@@ -227,7 +227,7 @@ import Data.Foldable
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust, mapMaybe )
+    ( fromMaybe, isJust, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -542,7 +542,7 @@ fromCardanoHash = W.Hash . fromShort . getOneEraHash
 
 fromPrevHash
     :: W.Hash "BlockHeader"
-    -> SL.PrevHash sc
+    -> SLAPI.PrevHash sc
     -> W.Hash "BlockHeader"
 fromPrevHash genesisHash = \case
     SL.GenesisHash -> genesisHash
@@ -1338,9 +1338,17 @@ toCardanoValue tb = Cardano.valueFromList $
 
 -- | Convert from reward account address (which is a hash of a public key)
 -- to a shelley ledger stake credential.
-toStakeCredential :: W.RewardAccount -> SL.StakeCredential crypto
+toStakeCredential
+    :: (Crypto.HashAlgorithm (SL.ADDRHASH crypto))
+    => W.RewardAccount
+    -> SL.StakeCredential crypto
 toStakeCredential = SL.KeyHashObj
-    . SL.KeyHash . UnsafeHash . toShort . W.unRewardAccount
+    . SL.KeyHash . unsafeHashFromBytes . W.unRewardAccount
+
+unsafeHashFromBytes :: Crypto.HashAlgorithm h => ByteString -> Hash h a
+unsafeHashFromBytes =
+    fromMaybe (error "unsafeHashFromBytes: wrong length")
+    . Crypto.hashFromBytes
 
 toStakeKeyDeregCert :: XPub -> Cardano.Certificate
 toStakeKeyDeregCert = Cardano.makeStakeAddressDeregistrationCertificate
