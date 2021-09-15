@@ -159,6 +159,10 @@ module Cardano.Wallet.Api.Types
     , ApiValidityInterval (..)
     , ApiValidityBound
     , PostMintBurnAssetData(..)
+    , ApiBalanceTransactionPostData (..)
+    , ApiExternalInput (..)
+    , ApiTxIn (..)
+    , ApiTxOut (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -213,6 +217,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlanPostDataT
     , ApiWalletMigrationPostDataT
     , PostMintBurnAssetDataT
+    , ApiBalanceTransactionPostDataT
 
     -- * API Type Conversions
     , coinToQuantity
@@ -993,6 +998,32 @@ data ApiSignedTransaction = ApiSignedTransaction
     , witnesses :: [ApiBase64]
     } deriving (Eq, Generic, Show, NFData)
 
+data ApiTxIn = ApiTxIn
+    { id :: !(ApiT (Hash "Tx"))
+    , index :: !Word32
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiTxOut (n :: NetworkDiscriminant) = ApiTxOut
+    { address :: !(ApiT Address, Proxy n)
+    , datum :: !(Maybe (ApiT (Hash "Datum")))
+    , amount :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
+    { txIn :: !ApiTxIn
+    , txOut :: !(ApiTxOut n)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiBalanceTransactionPostData (n :: NetworkDiscriminant) = ApiBalanceTransactionPostData
+    { transaction :: !(ApiT SealedTx)
+    , signatories :: ![ApiAccountPublicKey]
+    , inputs :: ![ApiExternalInput n]
+    } deriving (Eq, Generic, Show)
+
 data ApiFee = ApiFee
     { estimatedMin :: !(Quantity "lovelace" Natural)
     , estimatedMax :: !(Quantity "lovelace" Natural)
@@ -1521,6 +1552,7 @@ data ApiErrorCode
     | SharedWalletCannotUpdateKey
     | SharedWalletScriptTemplateInvalid
     | TokensMintedButNotSpentOrBurned
+    | TransactionAlreadyBalanced
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
@@ -3442,6 +3474,7 @@ type family PostMintBurnAssetDataT (n :: k) :: Type
 type family ApiWalletMigrationPlanPostDataT (n :: k) :: Type
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
 type family ApiPutAddressesDataT (n :: k) :: Type
+type family ApiBalanceTransactionPostDataT (n :: k) :: Type
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
@@ -3486,6 +3519,9 @@ type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbo
 
 type instance ApiMintedBurnedTransactionT (n :: NetworkDiscriminant) =
     ApiMintedBurnedTransaction n
+
+type instance ApiBalanceTransactionPostDataT (n :: NetworkDiscriminant) =
+    ApiBalanceTransactionPostData n
 
 {-------------------------------------------------------------------------------
                          SMASH interfacing types
