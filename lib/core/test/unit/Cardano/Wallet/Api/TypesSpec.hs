@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
     , ApiAsset (..)
+    , ApiBalanceTransactionPostData (..)
     , ApiBase64
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
@@ -85,6 +86,7 @@ import Cardano.Wallet.Api.Types
     , ApiEra (..)
     , ApiEraInfo (..)
     , ApiErrorCode (..)
+    , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey
     , ApiHealthCheck (..)
@@ -131,8 +133,10 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxCollateral (..)
     , ApiTxId (..)
+    , ApiTxIn (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
+    , ApiTxOut (..)
     , ApiUtxoStatistics (..)
     , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
@@ -508,6 +512,10 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiMultiDelegationAction
             jsonRoundtripAndGolden $ Proxy @ApiSignTransactionPostData
             jsonRoundtripAndGolden $ Proxy @ApiSignedTransaction
+            jsonRoundtripAndGolden $ Proxy @(ApiBalanceTransactionPostData ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiTxOut ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiExternalInput ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @ApiTxIn
             jsonRoundtripAndGolden $ Proxy @(PostTransactionOldData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeOldData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @WalletPostData
@@ -1071,7 +1079,22 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
-
+        it "ApiSerialisedTransaction" $ property $ \x ->
+            let
+                x' = ApiSerialisedTransaction
+                    { transaction = transaction (x :: ApiSerialisedTransaction)
+                    }
+             in
+                x' === x .&&. show x' === show x
+        it "ApiBalanceTransactionPostData" $ property $ \x ->
+            let
+                x' = ApiBalanceTransactionPostData
+                    { transaction = transaction (x :: ApiBalanceTransactionPostData ('Testnet 0))
+                    , signatories = signatories (x :: ApiBalanceTransactionPostData ('Testnet 0))
+                    , inputs = inputs (x :: ApiBalanceTransactionPostData ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiTransaction" $ property $ \x ->
             let
                 x' = ApiTransaction
@@ -2035,6 +2058,32 @@ instance Arbitrary (ApiConstructTransactionData n) where
         <*> arbitrary
         <*> pure Nothing
 
+instance Arbitrary (Hash "Datum") where
+    arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
+
+instance Arbitrary (ApiTxOut n) where
+    arbitrary = ApiTxOut
+        <$> ((, Proxy @n) <$> arbitrary)
+        <*> arbitrary
+        <*> arbitrary
+        <*> (ApiT <$> genTokenMapSmallRange)
+
+instance Arbitrary ApiTxIn where
+    arbitrary = ApiTxIn
+        <$> arbitrary
+        <*> choose (0, 255)
+
+instance Arbitrary (ApiExternalInput n) where
+    arbitrary = ApiExternalInput
+        <$> arbitrary
+        <*> arbitrary
+
+instance Arbitrary (ApiBalanceTransactionPostData n) where
+    arbitrary = ApiBalanceTransactionPostData
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
 instance Arbitrary (PostMintBurnAssetData n) where
     arbitrary = applyArbitrary4 PostMintBurnAssetData
 
@@ -2609,6 +2658,12 @@ instance Typeable n => ToSchema (PostTransactionFeeOldData n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionFeeData"
+
+instance Typeable n => ToSchema (ApiExternalInput n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiExternalInput"
+
+instance Typeable n => ToSchema (ApiBalanceTransactionPostData n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiBalanceTransactionPostData"
 
 instance Typeable n => ToSchema (PostMintBurnAssetData n) where
     declareNamedSchema _ = do
