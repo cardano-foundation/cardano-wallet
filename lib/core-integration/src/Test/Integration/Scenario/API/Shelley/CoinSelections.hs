@@ -342,7 +342,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         \Single output with excessively high number of assets." $
         \ctx -> runResourceT $ do
             let adaQuantity = Quantity . minUTxOValue $ _mainEra ctx
-            let assetCount = 1024
+            let assetCount = 1280
             let policyId = UnsafeTokenPolicyId $
                     Hash "1234567890123456789012345678"
             let tokenNames = UnsafeTokenName . T.encodeUtf8 . T.singleton <$>

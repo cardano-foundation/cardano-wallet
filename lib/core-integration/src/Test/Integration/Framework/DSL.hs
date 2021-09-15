@@ -679,7 +679,7 @@ maximumCollateralInputCountByEra = \case
     ApiAllegra -> 0
     ApiMary    -> 0
     -- value from alonzo-genesis.yaml:
-    ApiAlonzo  -> 1
+    ApiAlonzo  -> 3
 
 --
 -- Helpers
