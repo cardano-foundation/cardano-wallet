@@ -3980,6 +3980,18 @@ x-errAssetNotPresent: &errAssetNotPresent
       type: string
       enum: ['asset_not_present']
 
+x-errTransactionAlreadyBalanced: &errTransactionAlreadyBalanced
+  <<: *responsesErr
+  title: transaction_already_balanced
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when a transaction is already balanced.
+    code:
+      type: string
+      enum: ['transaction_already_balanced']
+
 x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
@@ -4804,6 +4816,35 @@ x-responsesGetSmashHealth: &responsesGetSmashHealth
       application/json:
         schema: *ApiHealthCheck
 
+x-responsesBalanceTransaction: &responsesBalanceTransaction
+  400:
+    description: Bad Request
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errBadRequest
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errAlreadyWithdrawing
+            - <<: *errUtxoTooSmall
+            - <<: *errCannotCoverFee
+            - <<: *errNotEnoughMoney
+            - <<: *errTransactionIsTooBig
+            - <<: *errTransactionAlreadyBalanced
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiConstructTransaction
 
 #############################################################################
 #                                                                           #
@@ -5502,6 +5543,24 @@ paths:
           application/json:
             schema: *ApiWalletMigrationPlanPostData
       responses: *responsesCreateWalletMigrationPlan
+
+  /wallets/{walletId}/transactions-balance:
+    post:
+      operationId: balanceTransaction
+      tags: ["Transactions New"]
+      summary: Balance
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+        Balance a transaction body of a given transaction, add needed inputs/outputs,
+        so as the transaction can be signed from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiBalanceTransactionPostData
+      responses: *responsesBalanceTransaction
 
   /byron-wallets:
     post:
