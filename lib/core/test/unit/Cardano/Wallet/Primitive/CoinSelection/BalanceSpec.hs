@@ -30,6 +30,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , OutputsInsufficientError (..)
     , RunSelectionParams (..)
     , SelectionCriteria (..)
+    , SelectionDelta (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
     , SelectionLens (..)
@@ -67,6 +68,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , runSelection
     , runSelectionNonEmptyWith
     , runSelectionStep
+    , selectionDeltaAllAssets
     , splitBundleIfAssetCountExcessive
     , splitBundlesWithExcessiveAssetCounts
     , splitBundlesWithExcessiveTokenQuantities
@@ -130,7 +132,7 @@ import Data.Bifunctor
 import Data.ByteString
     ( ByteString )
 import Data.Function
-    ( on, (&) )
+    ( (&) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -874,13 +876,6 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         } = criteria
 
     onSuccess result = do
-        let totalInputValue =
-                balanceSelected
-                    <> TokenBundle.fromTokenMap assetsToMint
-        let totalOutputValue =
-                F.foldMap (view #tokens) outputsCovered
-                    <> balanceChange
-                    <> TokenBundle.fromTokenMap assetsToBurn
         monitor $ counterexample $ unlines
             [ "available UTXO balance:"
             , pretty (Flat utxoBalanceAvailable)
@@ -888,14 +883,14 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , pretty (Flat utxoBalanceRequired)
             , "change balance:"
             , pretty (Flat balanceChange)
-            , "expected cost:"
-            , pretty expectedCost
+            , "actual delta:"
+            , pretty (Flat <$> delta)
+            , "minimum expected coin surplus:"
+            , pretty minExpectedCoinSurplus
+            , "maximum expected coin surplus:"
+            , pretty maxExpectedCoinSurplus
             , "absolute minimum coin quantity:"
             , pretty absoluteMinCoinValue
-            , "actual coin delta:"
-            , pretty (TokenBundle.getCoin delta)
-            , "maximum expected delta:"
-            , pretty maximumExpectedDelta
             , "number of outputs:"
             , pretty (length outputsCovered)
             , "number of change outputs:"
@@ -905,14 +900,14 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             "isUTxOBalanceSufficient criteria"
             (isUTxOBalanceSufficient criteria)
         assertOnSuccess
-            "on (==) (view #tokens) totalInputValue totalOutputValue"
-            (on (==) (view #tokens) totalInputValue totalOutputValue)
+            "view #tokens surplus == TokenMap.empty"
+            (view #tokens surplus == TokenMap.empty)
         assertOnSuccess
-            "TokenBundle.getCoin delta >= expectedCost"
-            (TokenBundle.getCoin delta >= expectedCost)
+            "TokenBundle.getCoin surplus >= minExpectedCoinSurplus"
+            (TokenBundle.getCoin surplus >= minExpectedCoinSurplus)
         assertOnSuccess
-            "TokenBundle.getCoin delta <= maximumExpectedDelta"
-            (TokenBundle.getCoin delta <= maximumExpectedDelta)
+            "TokenBundle.getCoin surplus <= maxExpectedCoinSurplus"
+            (TokenBundle.getCoin surplus <= maxExpectedCoinSurplus)
         assertOnSuccess
             "utxoAvailable == UTxOIndex.insertMany inputsSelected utxoRemaining"
             (utxoAvailable == UTxOIndex.insertMany inputsSelected utxoRemaining)
@@ -932,25 +927,20 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
       where
         assertOnSuccess = assertWith . (<>) "onSuccess: "
         absoluteMinCoinValue = mkMinCoinValueFor minCoinValueFor TokenMap.empty
-        delta :: TokenBundle
-        delta = balanceIn `TokenBundle.difference` balanceOut
+        delta :: SelectionDelta TokenBundle
+        delta = selectionDeltaAllAssets result
+        surplus :: TokenBundle
+        surplus = case delta of
+            SelectionSurplus s -> s
+            SelectionDeficit d -> error $ unwords
+                ["Unexpected deficit:", show d]
+        minExpectedCoinSurplus :: Coin
+        minExpectedCoinSurplus = mkCostFor costFor skeleton
+        maxExpectedCoinSurplus :: Coin
+        maxExpectedCoinSurplus = minExpectedCoinSurplus `addCoin` toAdd
           where
-            balanceIn =
-                TokenBundle.fromTokenMap (view #assetsToMint criteria)
-                `TokenBundle.add`
-                F.foldMap TokenBundle.fromCoin (view #extraCoinSource result)
-                `TokenBundle.add`
-                F.foldMap (view #tokens . snd) (view #inputsSelected result)
-            balanceOut =
-                TokenBundle.fromTokenMap (view #assetsToBurn criteria)
-                `TokenBundle.add`
-                F.foldMap (view #tokens) (view #outputsCovered result)
-                `TokenBundle.add`
-                F.fold (view #changeGenerated result)
-        maximumExpectedDelta =
-            expectedCost `addCoin`
-            (absoluteMinCoinValue `multiplyCoin`
-                (length outputsCovered - length changeGenerated))
+            toAdd = absoluteMinCoinValue `multiplyCoin`
+                (length outputsCovered - length changeGenerated)
         multiplyCoin :: Coin -> Int -> Coin
         multiplyCoin (Coin c) i = Coin $ c * fromIntegral i
         SelectionResult
@@ -969,12 +959,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             }
         txInsSelected :: NonEmpty TxIn
         txInsSelected = fst <$> inputsSelected
-        balanceSelected =
-            UTxOIndex.balance (UTxOIndex.fromSequence inputsSelected)
         balanceChange =
             F.fold changeGenerated
-        expectedCost =
-            mkCostFor costFor skeleton
 
     onFailure = \case
         BalanceInsufficient e ->
