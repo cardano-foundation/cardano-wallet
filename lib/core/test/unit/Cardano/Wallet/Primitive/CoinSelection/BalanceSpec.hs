@@ -144,8 +144,6 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe, isJust, isNothing )
-import Data.Semigroup
-    ( mtimesDefault )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -190,7 +188,6 @@ import Test.QuickCheck
     , oneof
     , property
     , shrinkList
-    , sublistOf
     , suchThat
     , tabulate
     , withMaxSuccess
@@ -629,8 +626,7 @@ genSelectionCriteria genUTxOIndex' = do
           )
         ]
     extraCoinSource <- oneof [ pure Nothing, Just <$> genCoin ]
-    (assetsToMint, assetsToBurn) <-
-        genAssetsToMintAndBurn utxoAvailable outputsToCover
+    (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
     pure $ SelectionCriteria
         { outputsToCover
         , utxoAvailable
@@ -640,61 +636,16 @@ genSelectionCriteria genUTxOIndex' = do
         , assetsToBurn
         }
   where
-    genAssetsToMintAndBurn
-        :: UTxOIndex
-        -> NonEmpty TxOut
-        -> Gen (TokenMap, TokenMap)
-    genAssetsToMintAndBurn utxoAvailable outputsToCover =
-        frequency
-            [ (95, genForSuccess)
-            , ( 5, genForFailureWhereSomeMintedAssetsNotSpentOrBurned)
-            ]
+    genAssetsToMintAndBurn :: UTxOIndex -> Gen (TokenMap, TokenMap)
+    genAssetsToMintAndBurn utxoAvailable = do
+        assetsToMint <- genTokenMapSmallRange
+        let assetsToBurn = adjustAllTokenMapQuantities
+                (`div` 2)
+                (utxoAvailableAssets <> assetsToMint)
+        pure (assetsToMint, assetsToBurn)
       where
-        assetsProvidedByUTxO =
-            view #tokens $ UTxOIndex.balance utxoAvailable
-        assetsSpentByUserSpecifiedOutputs =
-            F.foldMap (view (#tokens . #tokens)) outputsToCover
-
-        -- To make a successful coin selection, we must satisfy the following
-        -- inequalities:
-        --
-        -- (assetsInUTxO ∪ assetsToMint) ⊇ (assetsInOutputs ∪ assetsToBurn)
-        --                 assetsToMint  ⊆ (assetsInOutputs ∪ assetsToBurn)
-        --
-        genForSuccess :: Gen (TokenMap, TokenMap)
-        genForSuccess = do
-            let assetsAvailableToBurn = TokenMap.difference
-                    assetsProvidedByUTxO
-                    assetsSpentByUserSpecifiedOutputs
-            assetsToBurn <- TokenMap.fromFlatList <$>
-                sublistOf (TokenMap.toFlatList assetsAvailableToBurn)
-            let assetsAvailableToMint = TokenMap.add
-                    assetsToBurn
-                    assetsSpentByUserSpecifiedOutputs
-            assetsToMint <- TokenMap.fromFlatList <$>
-                sublistOf (TokenMap.toFlatList assetsAvailableToMint)
-            pure (assetsToMint, assetsToBurn)
-
-        -- For this generator, we purposefully violate the following condition:
-        --
-        -- assetsToMint ⊆ (assetsInOutputs ∪ assetsToBurn)
-        --
-        -- This allows us to provoke the 'OutputsInsufficient' error.
-        --
-        genForFailureWhereSomeMintedAssetsNotSpentOrBurned
-            :: Gen (TokenMap, TokenMap)
-        genForFailureWhereSomeMintedAssetsNotSpentOrBurned = do
-            let assetsAvailableToBurn = TokenMap.difference
-                    assetsProvidedByUTxO
-                    assetsSpentByUserSpecifiedOutputs
-            assetsToBurn <- TokenMap.fromFlatList <$>
-                sublistOf (TokenMap.toFlatList assetsAvailableToBurn)
-            let assetsAvailableToMint = TokenMap.add
-                    assetsToBurn
-                    assetsSpentByUserSpecifiedOutputs
-            -- Here we deliberately mint more than we have spent and burned:
-            let assetsToMint = mtimesDefault (2 :: Int) assetsAvailableToMint
-            pure (assetsToMint, assetsToBurn)
+        utxoAvailableAssets :: TokenMap
+        utxoAvailableAssets = view (#balance . #tokens) utxoAvailable
 
 prop_performSelection_small
     :: MinCoinValueFor
@@ -705,7 +656,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     checkCoverage $
 
     -- Inspect the balance:
-    cover 30 (isUTxOBalanceSufficient criteria)
+    cover 20 (isUTxOBalanceSufficient criteria)
         "balance sufficient" $
     cover 25 (not $ isUTxOBalanceSufficient criteria)
         "balance insufficient" $
@@ -755,9 +706,9 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
-        . cover 4 (selectionLimited && selectionSufficient result)
+        . cover 2 (selectionLimited && selectionSufficient result)
             "selection limited but sufficient"
-        . cover 10 (selectionLimited && selectionInsufficient result)
+        . cover 2 (selectionLimited && selectionInsufficient result)
             "selection limited and insufficient"
   where
     utxoHasAtLeastOneAsset = not
