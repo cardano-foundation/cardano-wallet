@@ -306,6 +306,10 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( fromNestedList, toNestedMap )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
@@ -451,7 +455,9 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
+import qualified Data.Map.Strict.NonEmptyMap as NEMap
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
@@ -2705,6 +2711,120 @@ instance DecodeAddress t => FromJSON (ApiConstructTransactionData t) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress t => ToJSON (ApiConstructTransactionData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT (Hash "Datum")) where
+    parseJSON = fromTextJSON "Datum"
+instance ToJSON (ApiT (Hash "Datum")) where
+    toJSON = toTextJSON
+
+instance FromJSON ApiTxIn where
+    parseJSON = withText "ApiTxIn" $ \txt -> do
+        let (txidTxt, rest) = T.breakOn "#" txt
+        txid <- parseJSON @(ApiT (Hash "Tx")) (String txidTxt)
+        case T.decimal @Integer (T.tail rest) of
+            Right (num,"") -> do
+                when (num < 0 || num > 255) $
+                        fail $ "Tx index should be between '0' and '255'"
+                pure $ ApiTxIn txid (fromIntegral num)
+            _ -> fail "tx input should be hex-encoded tx id and tx index spaced with '#'"
+instance ToJSON ApiTxIn where
+    toJSON (ApiTxIn hash ix) = String $
+        toText (getApiT hash) <> "#" <> toText (show ix)
+
+instance DecodeAddress n => FromJSON (ApiTxOut n) where
+    parseJSON = withObject "ApiTxOut" $ \o -> do
+        addr <- o .: "address"
+        datum <- o .:? "data"
+        amtsWithTokens <- parseValue <$> o .: "value"
+        let splitV (Just amt, Nothing) (acc1, acc2) = (amt:acc1, acc2)
+            splitV (Nothing, Just tokensPerPolicy) (acc1, acc2) = (acc1, tokensPerPolicy:acc2)
+            splitV _ _ = error "parseValue should either return ada or token"
+        (amts, tokens) <- foldr splitV ([],[]) <$> amtsWithTokens
+        let tokensGathered = ApiT $ fromNestedList tokens
+        case (datum, amts) of
+            (Nothing, [amt]) ->
+                pure $ ApiTxOut addr Nothing (Quantity amt) tokensGathered
+            (Just datum', [amt]) ->
+                pure $ ApiTxOut addr (Just datum') (Quantity amt) tokensGathered
+            (_, _) -> fail "there should be one 'lovelace' in 'value'"
+     where
+       parseValue = withObject "Value" $ \o ->
+           case HM.toList o of
+               [] -> fail "Value should not be empty"
+               cs -> for cs $ \pair ->
+                   parseAda pair <|> parseTokens pair
+       parseAda (numTxt, num) =
+           if numTxt == "lovelace" then do
+               q <- parseJSON num
+               pure (Just q, Nothing)
+           else
+               fail "expected 'lovelace' key"
+       parseTokens (numTxt, obj) =
+           if numTxt == "lovelace" then
+               fail "expected policyId"
+           else do
+               let processTokensPerPolicyId o =
+                       case HM.toList o of
+                           [] -> fail "tokens should not be empty"
+                           cs -> for (reverse cs) $ \(tNameTxt, tQuantity) -> do
+                               q <- parseJSON tQuantity
+                               let tNameE = W.mkTokenName $ T.encodeUtf8 tNameTxt
+                               case tNameE of
+                                   Right tName -> pure (tName, TokenQuantity q)
+                                   Left _ -> fail "invalid token name"
+               tokenPolicy <- parseJSON (String numTxt)
+               tokenPairs <- withObject "Tokens with given policyId" processTokensPerPolicyId obj
+               pure (Nothing, Just (tokenPolicy, NE.fromList tokenPairs))
+
+instance EncodeAddress n => ToJSON (ApiTxOut n) where
+    toJSON (ApiTxOut addr data' (Quantity amt) (ApiT assets')) = case data' of
+        Nothing -> object objShared
+        Just content ->  object (objShared ++ ["data" .= toJSON content])
+      where
+        objShared =
+            [ "address" .= toJSON addr
+            , "value" .= object (["lovelace" .= toJSON amt] ++ tokens)
+            ]
+        tokenPair (tName, (TokenQuantity quantity)) =
+            [T.decodeLatin1 (W.unTokenName tName) .= toJSON quantity]
+        addEntry policyId tokens' acc = acc ++
+            [ toText policyId .= object (concatMap tokenPair (NE.toList $ NEMap.toList tokens')) ]
+        tokens = Map.foldrWithKey addEntry [] $ toNestedMap assets'
+
+instance DecodeAddress n => FromJSON (ApiExternalInput n) where
+    parseJSON = withObject "ApiExternalInput" $ \o -> do
+        txInVal <- o .: "txIn"
+        txOutVal <- o .: "txOut"
+        ApiExternalInput <$> parseJSON txInVal <*> parseJSON txOutVal
+instance EncodeAddress n => ToJSON (ApiExternalInput n) where
+    toJSON (ApiExternalInput ins outs) = object
+        [ "txIn" .= toJSON ins
+        , "txOut" .= toJSON outs ]
+
+instance DecodeAddress n => FromJSON (ApiBalanceTransactionPostData n) where
+    parseJSON = withObject "ApiBalanceTransactionPostData" $ \o -> do
+        cbor <- o .: "transaction" >>= (\trObj -> trObj .: "cborHex")
+        cosigners <- o .: "signatories"
+        bs <- fmap getApiBytesT $ parseJSON @(ApiBytesT 'Base16 ByteString) cbor
+        let sealedTxFromBytes _x = undefined
+        case sealedTxFromBytes bs of
+            Left err -> fail $ "cborHex seems to be not deserializing correctly due to " -- <> show err
+            Right sealedTx -> do
+                inpsObj <- o .: "inputs"
+                ApiBalanceTransactionPostData (ApiT sealedTx)
+                    <$> parseJSON @[ApiAccountPublicKey] cosigners
+                    <*> parseJSON inpsObj
+
+instance EncodeAddress n => ToJSON (ApiBalanceTransactionPostData n) where
+    toJSON (ApiBalanceTransactionPostData sealedTx cosigners inps) = object
+        [ "transaction" .= object
+                [ "cborHex" .= String "undefined" --sealedTxBytesValue @'Base16 (getApiT sealedTx)
+                , "description" .= String ""
+                , "type" .= String "Tx AlonzoEra"
+                ]
+        , "signatories" .= toJSON cosigners
+        , "inputs" .= toJSON inps
+        ]
 
 instance ToJSON ApiValidityBound where
     toJSON ApiValidityBoundUnspecified = Aeson.Null
