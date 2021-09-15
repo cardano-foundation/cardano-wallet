@@ -48,6 +48,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , selectionDelta
     , selectionDeltaAllAssets
     , selectionDeltaCoin
+    , selectionHasValidSurplus
 
     -- * UTxO balance sufficiency
     , UTxOBalanceSufficiency (..)
@@ -459,6 +460,17 @@ selectionDeltaCoin
     -> SelectionDelta Coin
 selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
+-- | Indicates whether or not a selection result has a valid surplus.
+--
+selectionHasValidSurplus :: SelectionResult TokenBundle -> Bool
+selectionHasValidSurplus result =
+    case selectionDeltaAllAssets result of
+        SelectionSurplus surplus ->
+            -- If there is a surplus, then none of the non-ada assets can
+            -- have a surplus.
+            view #tokens surplus == TokenMap.empty
+        SelectionDeficit _ -> False
+
 -- | Calculates the ada selection surplus, assuming there is a surplus.
 --
 -- If there is a surplus, then this function returns that surplus.
@@ -646,28 +658,14 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 -- of the 'outputsToCover' plus the 'burned' values. That is, the minted values
 -- are not spent or burned.
 --
--- Provided that the total balance of 'utxoAvailable' is sufficient to cover
--- the total balance of 'outputsToCover', this function guarantees to return
--- an 'inputsSelected' value that satisfies:
+-- Provided that 'isUTxOBalanceSufficient' returns 'True' for the given
+-- selection criteria, this function guarantees to return a 'SelectionResult'
+-- for which 'selectionHasValidSurplus' returns 'True'.
 --
---    ada asset balance:
---      balance inputsSelected + balance extraAdaSource
---      > balance outputsToCover + balance changeGenerated
---    non-ada asset balance:
---      balance inputsSelected + balance minted
---      == balance outputsToCover
---       + balance burned
---       + balance changeGenerated
---
--- Note that the ada asset balance equation is an inequality because of the
--- existence of a fee, and the non-ada asset balance is an equality because
--- fees are paid in ada.
---
--- Finally, this function guarantees that:
+-- This function also guarantees that:
 --
 --    inputsSelected ∪ utxoRemaining == utxoAvailable
 --    inputsSelected ∩ utxoRemaining == ∅
---    outputsCovered + minted == outputsToCover + burned
 --
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
