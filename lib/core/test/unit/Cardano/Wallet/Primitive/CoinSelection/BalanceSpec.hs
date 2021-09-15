@@ -69,6 +69,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , runSelectionNonEmptyWith
     , runSelectionStep
     , selectionDeltaAllAssets
+    , selectionHasValidSurplus
     , splitBundleIfAssetCountExcessive
     , splitBundlesWithExcessiveAssetCounts
     , splitBundlesWithExcessiveTokenQuantities
@@ -899,6 +900,9 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         assertOnSuccess
             "isUTxOBalanceSufficient criteria"
             (isUTxOBalanceSufficient criteria)
+        assertOnSuccess
+            "selectionHasValidSurplus result"
+            (selectionHasValidSurplus result)
         assertOnSuccess
             "view #tokens surplus == TokenMap.empty"
             (view #tokens surplus == TokenMap.empty)
