@@ -112,6 +112,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata (..)
     , TxOut (..)
     , TxSize (..)
+    , getSealedTxBody
     , sealedTxFromCardano'
     , sealedTxFromCardanoBody
     , txOutCoin
@@ -494,40 +495,29 @@ _calcScriptExecutionCost
     :: ProtocolParameters
     -> SealedTx
     -> Coin
-_calcScriptExecutionCost pp sealedTx = case (prices, mexecutionUnits sealedTx) of
-    (Just exPrices, Just units) ->
-        Coin.unsafeNaturalToCoin
-        . ceiling
-        . sum
-        $ map (costOfExecutionUnits exPrices) units
-    (Nothing, Just _units) ->
-        -- This case probably means that the node tip is not yet in Alonzo.
-        --
-        -- TODO: Not sure what the calling code would look like. Should we
-        -- return @Nothing@, or continue throwing? We probably don't want to
-        -- return `Coin 0`, as the cost would then be underestimated.
-        error "_calcScriptExecutionCost: ExecutionUnitPrices is not available"
-    (_, Nothing) -> Coin 0
+_calcScriptExecutionCost pp tx = case view #executionUnitPrices pp of
+    Just prices -> totalCost $ map (executionCost prices) executionUnits
+    Nothing     -> Coin 0
   where
-    prices = view #executionUnitPrices pp
+    totalCost :: [Rational] -> Coin
+    totalCost = Coin.unsafeNaturalToCoin . ceiling . sum
 
-    costOfExecutionUnits :: ExecutionUnitPrices -> ExecutionUnits -> Rational
-    costOfExecutionUnits (ExecutionUnitPrices perStep perMem) (W.ExecutionUnits steps mem) =
+    executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Rational
+    executionCost (ExecutionUnitPrices perStep perMem) (W.ExecutionUnits steps mem) =
         perStep * (toRational steps) + perMem * (toRational mem)
 
-    -- | Return `ExecutionUnits` for each redeemer script in the tx. Returns
-    -- `Nothing` if the tx fails to deserialize.
-    mexecutionUnits :: SealedTx -> Maybe [ExecutionUnits]
-    mexecutionUnits (SealedTx bytes) =
-        case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAlonzoEra) bytes of
-            Right txValid ->
-                let getScriptData (Cardano.ShelleyTxBody _ _ _ scriptdata _ _) = scriptdata
-                    getScriptData _ = error "we should not expect Cardano.ByronTxBody here"
-                    getRedeemers Cardano.TxBodyNoScriptData = Nothing
-                    getRedeemers (Cardano.TxBodyScriptData _ _ redeemers) = Just redeemers
-                    getExtUnit (SL.Redeemers rmds) = map (fromLedgerExUnits . snd . snd) $ Map.toList rmds
-                in getExtUnit <$> getRedeemers (getScriptData $ Cardano.getTxBody txValid)
-            Left _ -> Nothing
+    -- | Return `ExecutionUnits` for each redeemer script in the tx.
+    executionUnits :: [ExecutionUnits]
+    executionUnits = case getSealedTxBody tx of
+        InAnyCardanoEra _ (Cardano.ShelleyTxBody _ _ _ scriptData _ _) ->
+            case scriptData of
+                Cardano.TxBodyScriptData _ _ (SL.Redeemers' rs) ->
+                    [ fromLedgerExUnits exUnits
+                    | (_data, exUnits) <- Map.elems rs ]
+                Cardano.TxBodyNoScriptData ->
+                    []
+        InAnyCardanoEra _ Byron.ByronTxBody{} ->
+            []
 
 txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints protocolParams witnessTag = TxConstraints
