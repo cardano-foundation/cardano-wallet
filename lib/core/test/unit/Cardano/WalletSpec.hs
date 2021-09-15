@@ -118,7 +118,6 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
-    , MockSealedTx (..)
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -696,9 +695,9 @@ prop_estimateFee (NonEmpty coins) =
 -------------------------------------------------------------------------------}
 
 data TxRetryTest = TxRetryTest
-    { retryTestPool :: [LocalTxSubmissionStatus MockSealedTx]
+    { retryTestPool :: [LocalTxSubmissionStatus SealedTx]
     , retryTestTxHistory :: GenTxHistory
-    , postTxResults :: [(MockSealedTx, Bool)]
+    , postTxResults :: [(SealedTx, Bool)]
     , testSlottingParameters :: SlottingParameters
     , retryTestWallet :: (WalletId, WalletName, DummyState)
     } deriving (Generic, Show, Eq)
@@ -752,10 +751,10 @@ instance Arbitrary TxRetryTest where
 
 mkLocalTxSubmissionStatus
     :: GenTxHistory
-    -> [LocalTxSubmissionStatus MockSealedTx]
+    -> [LocalTxSubmissionStatus SealedTx]
 mkLocalTxSubmissionStatus = mapMaybe getStatus . getTxHistory
   where
-    getStatus :: (Tx, TxMeta) -> Maybe (LocalTxSubmissionStatus MockSealedTx)
+    getStatus :: (Tx, TxMeta) -> Maybe (LocalTxSubmissionStatus SealedTx)
     getStatus (tx, txMeta)
         | isPending txMeta = Just st
         | otherwise = Nothing
@@ -789,7 +788,7 @@ data TxRetryTestState = TxRetryTestState
 data TxRetryTestResult a = TxRetryTestResult
     { resLogs :: [W.WalletWorkerLog]
     , resAction :: a
-    , resSubmittedTxs :: [MockSealedTx]
+    , resSubmittedTxs :: [SealedTx]
     } deriving (Generic, Show, Eq)
 
 -- | The test runs in this monad so that time can be mocked out.
@@ -819,7 +818,7 @@ prop_localTxSubmission tc = monadicIO $ do
             let txHistory = getTxHistory (retryTestTxHistory tc)
             unsafeRunExceptT $ putTxHistory wid txHistory
             forM_ (retryTestPool tc) $ \(LocalTxSubmissionStatus i tx _ sl) ->
-                unsafeRunExceptT $ putLocalTxSubmission wid i (unMockSealedTx tx) sl
+                unsafeRunExceptT $ putLocalTxSubmission wid i tx sl
 
         -- Run test
         let cfg = LocalTxSubmissionConfig (timeStep st) 10
@@ -864,13 +863,12 @@ prop_localTxSubmission tc = monadicIO $ do
                 testAction ctx
         TxRetryTestResult msgs res <$> readMVar submittedVar
 
-    mockNetwork :: MVar [MockSealedTx] -> NetworkLayer TxRetryTestM Block
+    mockNetwork :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Block
     mockNetwork var = dummyNetworkLayer
         { currentSlottingParameters = pure (testSlottingParameters tc)
         , postTx = \tx -> ExceptT $ do
-                let tx' = MockSealedTx tx
-                stash var tx'
-                pure $ case lookup tx' (postTxResults tc) of
+                stash var tx
+                pure $ case lookup tx (postTxResults tc) of
                     Just True -> Right ()
                     Just False -> Left (W.ErrPostTxValidationError "intended")
                     Nothing -> Left (W.ErrPostTxValidationError "unexpected")
@@ -1272,7 +1270,7 @@ dummyTransactionLayer = TransactionLayer
 
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
         let fakeBinary = fakeSealedTx (tx, NE.toList wit)
-        return (tx, unMockSealedTx fakeBinary)
+        return (tx, fakeBinary)
 
     , mkUnsignedTransaction =
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
@@ -1293,13 +1291,13 @@ dummyTransactionLayer = TransactionLayer
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
 
-fakeSealedTx :: HasCallStack => (Tx, [ByteString]) -> MockSealedTx
+fakeSealedTx :: HasCallStack => (Tx, [ByteString]) -> SealedTx
 fakeSealedTx (tx, wit) = mockSealedTx $ B8.pack repr
   where
     repr = show (view #txId tx, wit)
 
-fakeSealedTxId :: MockSealedTx -> Hash "Tx"
-fakeSealedTxId = fst . parse . B8.unpack . serialisedTx . unMockSealedTx
+fakeSealedTxId :: SealedTx -> Hash "Tx"
+fakeSealedTxId = fst . parse . B8.unpack . serialisedTx
   where
     parse :: String -> (Hash "Tx", [ByteString])
     parse = read

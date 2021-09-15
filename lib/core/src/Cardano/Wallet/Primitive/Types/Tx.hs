@@ -49,11 +49,11 @@ module Cardano.Wallet.Primitive.Types.Tx
     , SerialisedTxParts (..)
     , getSealedTxBody
     , getSealedTxWitnesses
+    , persistSealedTx
+    , unPersistSealedTx
 
     -- ** Unit testing helpers
-    , MockSealedTx (..)
     , mockSealedTx
-    , unMockSealedTxBytes
 
     -- * Functions
     , fromTransactionInfo
@@ -144,6 +144,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -159,8 +161,10 @@ import Data.Word
     ( Word32, Word64 )
 import Fmt
     ( Buildable (..)
+    , Builder
     , blockListF'
     , blockMapF
+    , hexF
     , nameF
     , ordinalF
     , prefixF
@@ -184,6 +188,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 import qualified Data.Text.Lazy.Builder as Builder
 
 -- | Primitive @Tx@-type.
@@ -478,45 +483,73 @@ instance Buildable a => Buildable (WithDirection a) where
 --
 -- Construct it with either 'sealedTxFromCardano' or 'sealedTxFromBytes'.
 data SealedTx = SealedTx
-    { cardanoTx :: InAnyCardanoEra Cardano.Tx
+    { valid :: Bool
+    -- ^ Internal flag - indicates that the 'serialisedTx' bytes encode a valid
+    -- Cardano transaction. If the "proper" constructors are used, this will
+    -- always be True, but it will be False if 'mockSealedTx' is used to
+    -- construct a 'SealedTx' for unit tests.
+
+    , cardanoTx :: InAnyCardanoEra Cardano.Tx
+    -- ^ Decoded transaction.
+
     , serialisedTx :: ByteString
+    -- ^ CBOR-serialised bytes of the transaction.
+
     } deriving stock Generic
 
 instance Show SealedTx where
     -- InAnyCardanoEra is missing a Show instance, so define one inline.
-    showsPrec d (SealedTx (InAnyCardanoEra era tx) bs) = showParen (d > 10) $
-        showString "SealedTx (InAnyCardanoEra " .
-        showsPrec 11 era .
+    showsPrec d (SealedTx v tx' bs) = showParen (d > 10) $
+        showString "SealedTx " .
+        (if v then showParen True (showsTx tx') else showString "undefined") .
         showChar ' ' .
-        showsPrec 11 tx .
-        showString ") " .
-        showsPrec 11 bs
+        showsPrec 11 bs .
+        showChar ' ' .
+        showsPrec 11 v
+      where
+        showsTx :: InAnyCardanoEra Cardano.Tx -> ShowS
+        showsTx (InAnyCardanoEra era tx) =
+            showString "InAnyCardanoEra" .
+            showChar ' ' .
+            showsPrec 11 era .
+            showChar ' ' .
+            showsPrec 11 tx
 
 instance Buildable SealedTx where
-    build (SealedTx (InAnyCardanoEra _ tx) _) = build $ pShowNoColor tx
+    build (SealedTx v tx' bs) = if v then buildTx tx' else hexF bs
+      where
+        buildTx :: InAnyCardanoEra Cardano.Tx -> Builder
+        buildTx (InAnyCardanoEra _ tx) = build $ pShowNoColor tx
 
 instance Eq SealedTx where
-    SealedTx (InAnyCardanoEra e1 _) a == SealedTx (InAnyCardanoEra e2 _) b =
-        case testEquality e1 e2 of
-            Just Refl -> a == b
-            Nothing -> False
+    SealedTx v1 tx1 bs1 == SealedTx v2 tx2 bs2
+        | v1 && v2 = sameEra tx1 tx2 && bs1 == bs2
+        | v1 == v2 = bs1 == bs2
+        | otherwise = False
+
+sameEra :: InAnyCardanoEra a -> InAnyCardanoEra a -> Bool
+sameEra (InAnyCardanoEra e1 _) (InAnyCardanoEra e2 _) =
+    case testEquality e1 e2 of
+        Just Refl -> True
+        Nothing -> False
 
 instance NFData SealedTx where
-    rnf (SealedTx (InAnyCardanoEra _ tx) bs) = tx' `deepseq` bs `deepseq` ()
+    rnf (SealedTx v (InAnyCardanoEra _ tx) bs) = tx' `deepseq` bs `deepseq` ()
       where
-        tx' = show tx -- should be good enough
+        -- Showing the transaction should be enough to fully evaluate it.
+        tx' = if v then show tx else ""
 
 getSealedTxBody :: SealedTx -> InAnyCardanoEra Cardano.TxBody
-getSealedTxBody (SealedTx (InAnyCardanoEra era tx) _) =
+getSealedTxBody (SealedTx _ (InAnyCardanoEra era tx) _) =
     InAnyCardanoEra era (Cardano.getTxBody tx)
 
 getSealedTxWitnesses :: SealedTx -> [InAnyCardanoEra Cardano.KeyWitness]
-getSealedTxWitnesses (SealedTx (InAnyCardanoEra era tx) _) =
+getSealedTxWitnesses (SealedTx _ (InAnyCardanoEra era tx) _) =
     [InAnyCardanoEra era w | w <- Cardano.getTxWitnesses tx]
 
 -- | Construct a 'SealedTx' from a "Cardano.Api" transaction.
 sealedTxFromCardano :: InAnyCardanoEra Cardano.Tx -> SealedTx
-sealedTxFromCardano tx = SealedTx tx (cardanoTxToBytes tx)
+sealedTxFromCardano tx = SealedTx True tx (cardanoTxToBytes tx)
   where
     cardanoTxToBytes :: InAnyCardanoEra Cardano.Tx -> ByteString
     cardanoTxToBytes (InAnyCardanoEra _era tx') = Cardano.serialiseToCBOR tx'
@@ -586,11 +619,41 @@ sealedTxFromBytes'
     :: AnyCardanoEra -- ^ Most recent era
     -> ByteString -- ^ Serialised transaction
     -> Either DecoderError SealedTx
-sealedTxFromBytes' era bs = SealedTx <$> cardanoTxFromBytes era bs <*> pure bs
+sealedTxFromBytes' era bs = SealedTx True
+    <$> cardanoTxFromBytes era bs
+    <*> pure bs
+
+-- | Serialise a 'SealedTx' for storage in a database field. The difference
+-- between 'persistSealedTx' and 'serialisedTx' is that this function has a
+-- special check for values created by 'mockSealedTx'.
+persistSealedTx :: SealedTx -> ByteString
+persistSealedTx tx = header <> serialisedTx tx
+  where
+    header = if valid tx then mempty else mockSealedTxMagic
+
+-- | Deserialise a 'SealedTx' which has been stored in a database field. This
+-- function includes a special check for 'mockSealedTx' values.
+unPersistSealedTx :: ByteString -> Either Text SealedTx
+unPersistSealedTx bs = case unPersistMock bs of
+    Nothing -> first (T.pack . show) $ sealedTxFromBytes bs
+    Just bs' -> Right $ mockSealedTx bs'
+
+-- | A header for use by 'persistSealedTx' and 'unPersistSealedTx'. A valid
+-- serialised Cardano transaction could not have this header, because they
+-- always start with a CBOR map.
+mockSealedTxMagic :: ByteString
+mockSealedTxMagic = "MOCK"
+
+unPersistMock :: ByteString -> Maybe ByteString
+unPersistMock bs
+    | header == mockSealedTxMagic = Just body
+    | otherwise = Nothing
+  where
+    (header, body) = B8.splitAt (B8.length mockSealedTxMagic) bs
 
 -- | Get the serialised transaction body and witnesses from a 'SealedTx'.
 getSerialisedTxParts :: SealedTx -> SerialisedTxParts
-getSerialisedTxParts (SealedTx (InAnyCardanoEra _ tx) _) = SerialisedTxParts
+getSerialisedTxParts (SealedTx _ (InAnyCardanoEra _ tx) _) = SerialisedTxParts
     { serialisedTxBody = serialiseToCBOR $ Cardano.getTxBody tx
     , serialisedTxWitnesses = serialiseToCBOR <$> Cardano.getTxWitnesses tx
     }
@@ -851,31 +914,11 @@ unsafeSealedTxFromBytes = either (internalError . errMsg) id . sealedTxFromBytes
   where
     errMsg reason = "unsafeSealedTxFromBytes: "+||reason||+""
 
--- | A helper type for mocking 'SealedTx' values by stuffing arbitrary strings
--- into the 'serialisedTx' field.
-newtype MockSealedTx = MockSealedTx { unMockSealedTx :: SealedTx }
-    deriving Generic
-
-instance Eq MockSealedTx where
-    MockSealedTx (SealedTx _ a) == MockSealedTx (SealedTx _ b) = a == b
-
-instance Buildable MockSealedTx where
-    build (MockSealedTx (SealedTx _ bs)) = build $ B8.unpack bs
-
-instance Show MockSealedTx where
-    show (MockSealedTx (SealedTx _ bs)) = "mockSealedTx " <> show bs
-
-instance NFData MockSealedTx where
-    rnf (MockSealedTx (SealedTx _ bs)) = bs `deepseq` ()
-
--- | Construct a 'MockSealedTx' from a string which need not be a well-formed
+-- | Construct a 'SealedTx' from a string which need not be a well-formed
 -- serialised Cardano transaction.
 --
--- Be careful using the embedded 'SealedTx', because any attempt to evaluate the
--- 'cardanoTx' field will likely crash.
-mockSealedTx :: HasCallStack => ByteString -> MockSealedTx
-mockSealedTx = MockSealedTx . SealedTx
+-- Be careful using the 'SealedTx', because any attempt to evaluate its
+-- 'cardanoTx' field will crash.
+mockSealedTx :: HasCallStack => ByteString -> SealedTx
+mockSealedTx = SealedTx False
     (internalError "mockSealedTx: attempted to decode gibberish")
-
-unMockSealedTxBytes :: MockSealedTx -> ByteString
-unMockSealedTxBytes = serialisedTx . unMockSealedTx
