@@ -273,6 +273,7 @@ import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -644,6 +645,10 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
             [ (TokenBundle.fromCoin $ Coin 1) ]
         , utxoRemaining =
             UTxOIndex.empty
+        , assetsToBurn =
+            TokenMap.empty
+        , assetsToMint =
+            TokenMap.empty
         }
 
     ctx = defaultTransactionCtx

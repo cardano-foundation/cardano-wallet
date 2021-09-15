@@ -31,7 +31,6 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
       performSelection
     , prepareOutputsWith
     , emptySkeleton
-    , selectionDelta
     , SelectionCriteria (..)
     , SelectionLimit
     , SelectionLimitOf (..)
@@ -43,6 +42,13 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
+
+    -- * Selection deltas
+    , SelectionDelta (..)
+    , selectionDelta
+    , selectionDeltaAllAssets
+    , selectionDeltaCoin
+    , selectionHasValidSurplus
 
     -- * UTxO balance sufficiency
     , UTxOBalanceSufficiency (..)
@@ -119,7 +125,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( padCoalesce )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin, subtractCoin, sumCoins )
+    ( Coin (..), subtractCoin )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -131,13 +137,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TokenBundleSizeAssessor (..)
     , TxIn
     , TxOut
-    , txOutCoin
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
+import Data.Bifunctor
+    ( first )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -157,7 +164,7 @@ import Data.Ord
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..), genericF, nameF, unlinesF )
+    ( Buildable (..), Builder, blockMapF, genericF, nameF, unlinesF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -373,27 +380,123 @@ data SelectionResult change = SelectionResult
         :: !UTxOIndex
         -- ^ The subset of 'utxoAvailable' that remains after performing
         -- the selection.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ The assets to mint.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ The assets to burn.
     }
     deriving (Generic, Eq, Show)
 
--- | Calculate the actual difference between the total outputs (incl. change)
--- and total inputs of a particular selection. By construction, this should be
--- greater than total fees and deposits.
+-- | Indicates the difference between total input value and total output value
+--   of a 'SelectionResult'.
+--
+-- There are two possibilities:
+--
+--  - 'SelectionSurplus'
+--
+--    Indicates a surplus, when the total input value is greater than or equal
+--    to the total output value.
+--
+--  - 'SelectionDeficit'
+--
+--    Indicates a deficit, when the total input value is NOT greater than or
+--    equal to the total output value.
+--
+data SelectionDelta a
+    = SelectionSurplus a
+    | SelectionDeficit a
+    deriving (Eq, Functor, Show)
+
+instance Buildable a => Buildable (SelectionDelta a) where
+    build d = case d of
+        SelectionSurplus surplus -> buildMap [("surplus", build surplus)]
+        SelectionDeficit deficit -> buildMap [("deficit", build deficit)]
+      where
+        buildMap :: [(String, Builder)] -> Builder
+        buildMap = blockMapF . fmap (first $ id @String)
+
+-- | Calculates the selection delta for all assets.
+--
+-- See 'SelectionDelta'.
+--
+selectionDeltaAllAssets
+    :: SelectionResult TokenBundle
+    -> SelectionDelta TokenBundle
+selectionDeltaAllAssets result
+    | balanceOut `leq` balanceIn =
+        SelectionSurplus $ TokenBundle.difference balanceIn balanceOut
+    | otherwise =
+        SelectionDeficit $ TokenBundle.difference balanceOut balanceIn
+  where
+    balanceIn =
+        TokenBundle.fromTokenMap assetsToMint
+        `TokenBundle.add`
+        F.foldMap TokenBundle.fromCoin extraCoinSource
+        `TokenBundle.add`
+        F.foldMap (view #tokens . snd) inputsSelected
+    balanceOut =
+        TokenBundle.fromTokenMap assetsToBurn
+        `TokenBundle.add`
+        F.foldMap (view #tokens) outputsCovered
+        `TokenBundle.add`
+        F.fold changeGenerated
+    SelectionResult
+        { assetsToMint
+        , assetsToBurn
+        , extraCoinSource
+        , inputsSelected
+        , outputsCovered
+        , changeGenerated
+        } = result
+
+-- | Calculates the ada selection delta.
+--
+-- See 'SelectionDelta'.
+--
+selectionDeltaCoin
+    :: SelectionResult TokenBundle
+    -> SelectionDelta Coin
+selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
+
+-- | Indicates whether or not a selection result has a valid surplus.
+--
+selectionHasValidSurplus :: SelectionResult TokenBundle -> Bool
+selectionHasValidSurplus result =
+    case selectionDeltaAllAssets result of
+        SelectionSurplus surplus ->
+            -- If there is a surplus, then none of the non-ada assets can
+            -- have a surplus.
+            view #tokens surplus == TokenMap.empty
+        SelectionDeficit _ -> False
+
+-- | Calculates the ada selection surplus, assuming there is a surplus.
+--
+-- If there is a surplus, then this function returns that surplus.
+-- If there is a deficit, then this function returns zero.
+--
+-- Use 'selectionDeltaCoin' if you wish to handle the case where there is
+-- a deficit.
+--
+selectionSurplusCoin
+    :: SelectionResult TokenBundle
+    -> Coin
+selectionSurplusCoin result =
+    case selectionDeltaCoin result of
+        SelectionSurplus surplus -> surplus
+        SelectionDeficit _       -> Coin 0
+
+-- | TODO: Deprecated. See 'selectionSurplusCoin'.
+--
 selectionDelta
     :: (change -> Coin)
+    -- ^ A function to extract the coin value from a change output.
     -> SelectionResult change
     -> Coin
-selectionDelta getChangeCoin sel@SelectionResult{inputsSelected,extraCoinSource} =
-    let
-        totalOut
-            = sumCoins (getChangeCoin <$> changeGenerated sel)
-            & addCoin  (sumCoins (txOutCoin <$> outputsCovered sel))
-
-        totalIn
-            = sumCoins (txOutCoin . snd <$> inputsSelected)
-            & addCoin (fromMaybe (Coin 0) extraCoinSource)
-    in
-        Coin.distance totalIn totalOut
+selectionDelta getChangeCoin
+    = selectionSurplusCoin
+    . over #changeGenerated (fmap (TokenBundle.fromCoin . getChangeCoin))
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
@@ -555,28 +658,14 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 -- of the 'outputsToCover' plus the 'burned' values. That is, the minted values
 -- are not spent or burned.
 --
--- Provided that the total balance of 'utxoAvailable' is sufficient to cover
--- the total balance of 'outputsToCover', this function guarantees to return
--- an 'inputsSelected' value that satisfies:
+-- Provided that 'isUTxOBalanceSufficient' returns 'True' for the given
+-- selection criteria, this function guarantees to return a 'SelectionResult'
+-- for which 'selectionHasValidSurplus' returns 'True'.
 --
---    ada asset balance:
---      balance inputsSelected + balance extraAdaSource
---      > balance outputsToCover + balance changeGenerated
---    non-ada asset balance:
---      balance inputsSelected + balance minted
---      == balance outputsToCover
---       + balance burned
---       + balance changeGenerated
---
--- Note that the ada asset balance equation is an inequality because of the
--- existence of a fee, and the non-ada asset balance is an equality because
--- fees are paid in ada.
---
--- Finally, this function guarantees that:
+-- This function also guarantees that:
 --
 --    inputsSelected ∪ utxoRemaining == utxoAvailable
 --    inputsSelected ∩ utxoRemaining == ∅
---    outputsCovered + minted == outputsToCover + burned
 --
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
@@ -809,6 +898,8 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
             , changeGenerated = changeGenerated
             , outputsCovered = NE.toList outputsToCover
             , utxoRemaining = leftover
+            , assetsToMint
+            , assetsToBurn
             }
 
         selectOneEntry = selectCoinQuantity selectionLimit

@@ -2052,6 +2052,8 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
             , utxoRemaining = UTxOIndex.empty
             , extraCoinSource
             , changeGenerated = []
+            , assetsToMint = TokenMap.empty
+            , assetsToBurn = TokenMap.empty
             }
 
         -- NOTE:
