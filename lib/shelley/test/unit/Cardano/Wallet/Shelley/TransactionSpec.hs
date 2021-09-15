@@ -451,6 +451,7 @@ spec = do
                       , outputsCovered = outs
                       , changeGenerated = chgs
                       , utxoRemaining = UTxOIndex.empty
+                      -- TODO: [ADP-346]
                       , assetsToMint = TokenMap.empty
                       , assetsToBurn = TokenMap.empty
                       }
@@ -547,6 +548,7 @@ spec = do
                     , outputsCovered = outs
                     , changeGenerated = chgs
                     , utxoRemaining = UTxOIndex.empty
+                    -- TODO: [ADP-346]
                     , assetsToMint = TokenMap.empty
                     , assetsToBurn = TokenMap.empty
                     }
@@ -695,6 +697,7 @@ prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md 
         , outputsCovered = []
         , changeGenerated = outs
         , utxoRemaining = UTxOIndex.empty
+        -- TODO: [ADP-346]
         , assetsToMint = TokenMap.empty
         , assetsToBurn = TokenMap.empty
         }
@@ -723,6 +726,7 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs
         , outputsCovered = []
         , changeGenerated = outs
         , utxoRemaining = UTxOIndex.empty
+        -- TODO: [ADP-346]
         , assetsToMint = TokenMap.empty
         , assetsToBurn = TokenMap.empty
         }
