@@ -142,6 +142,8 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
+import Data.Bifunctor
+    ( first )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -161,7 +163,7 @@ import Data.Ord
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..), genericF, nameF, unlinesF )
+    ( Buildable (..), Builder, blockMapF, genericF, nameF, unlinesF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -405,6 +407,14 @@ data SelectionDelta a
     = SelectionSurplus a
     | SelectionDeficit a
     deriving (Eq, Functor, Show)
+
+instance Buildable a => Buildable (SelectionDelta a) where
+    build d = case d of
+        SelectionSurplus surplus -> buildMap [("surplus", build surplus)]
+        SelectionDeficit deficit -> buildMap [("deficit", build deficit)]
+      where
+        buildMap :: [(String, Builder)] -> Builder
+        buildMap = blockMapF . fmap (first $ id @String)
 
 -- | Calculates the selection delta for all assets.
 --
