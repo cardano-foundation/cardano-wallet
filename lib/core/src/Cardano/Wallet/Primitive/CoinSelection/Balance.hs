@@ -459,7 +459,7 @@ selectionDeltaCoin
     -> SelectionDelta Coin
 selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
--- | Calculates the ada selection delta, assuming there is a surplus.
+-- | Calculates the ada selection surplus, assuming there is a surplus.
 --
 -- If there is a surplus, then this function returns that surplus.
 -- If there is a deficit, then this function returns zero.
@@ -467,18 +467,24 @@ selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 -- Use 'selectionDeltaCoin' if you wish to handle the case where there is
 -- a deficit.
 --
+selectionSurplusCoin
+    :: SelectionResult TokenBundle
+    -> Coin
+selectionSurplusCoin result =
+    case selectionDeltaCoin result of
+        SelectionSurplus surplus -> surplus
+        SelectionDeficit _       -> Coin 0
+
+-- | TODO: Deprecated. See 'selectionSurplusCoin'.
+--
 selectionDelta
     :: (change -> Coin)
     -- ^ A function to extract the coin value from a change output.
     -> SelectionResult change
     -> Coin
-selectionDelta getChangeCoin result =
-    case selectionDeltaCoin result' of
-        SelectionSurplus surplus -> surplus
-        SelectionDeficit _       -> Coin 0
-  where
-    result' = result & over #changeGenerated
-        (fmap (TokenBundle.fromCoin . getChangeCoin))
+selectionDelta getChangeCoin
+    = selectionSurplusCoin
+    . over #changeGenerated (fmap (TokenBundle.fromCoin . getChangeCoin))
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
