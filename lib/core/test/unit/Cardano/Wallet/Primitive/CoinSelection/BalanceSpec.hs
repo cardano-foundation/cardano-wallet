@@ -1153,7 +1153,7 @@ prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
         (balanceLeftover == TokenBundle.empty)
   where
     balanceAvailable = view #balance index
-    balanceRequested = adjustAllQuantities (* 2) balanceAvailable
+    balanceRequested = adjustAllTokenBundleQuantities (* 2) balanceAvailable
 
 prop_runSelection_UTxO_exactlyEnough
     :: Small UTxOIndex
@@ -1218,7 +1218,7 @@ prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
     assetsAvailable = TokenBundle.getAssets balanceAvailable
     assetsRequested = TokenBundle.getAssets balanceRequested
     balanceAvailable = view #balance index
-    balanceRequested = adjustAllQuantities (`div` 8) $
+    balanceRequested = adjustAllTokenBundleQuantities (`div` 8) $
         cutAssetSetSizeInHalf balanceAvailable
 
 prop_runSelection_UTxO_muchMoreThanEnough
@@ -1262,7 +1262,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
     assetsAvailable = TokenBundle.getAssets balanceAvailable
     assetsRequested = TokenBundle.getAssets balanceRequested
     balanceAvailable = view #balance index
-    balanceRequested = adjustAllQuantities (`div` 256) $
+    balanceRequested = adjustAllTokenBundleQuantities (`div` 256) $
         cutAssetSetSizeInHalf balanceAvailable
 
 --------------------------------------------------------------------------------
@@ -3575,8 +3575,9 @@ assertWith description condition = do
     monitor $ counterexample ("Assertion failed: " <> description)
     assert condition
 
-adjustAllQuantities :: (Natural -> Natural) -> TokenBundle -> TokenBundle
-adjustAllQuantities f b = uncurry TokenBundle.fromFlatList $ bimap
+adjustAllTokenBundleQuantities
+    :: (Natural -> Natural) -> TokenBundle -> TokenBundle
+adjustAllTokenBundleQuantities f b = uncurry TokenBundle.fromFlatList $ bimap
     (adjustCoin)
     (fmap (fmap adjustTokenQuantity))
     (TokenBundle.toFlatList b)
@@ -3586,6 +3587,12 @@ adjustAllQuantities f b = uncurry TokenBundle.fromFlatList $ bimap
 
     adjustTokenQuantity :: TokenQuantity -> TokenQuantity
     adjustTokenQuantity = TokenQuantity . f . unTokenQuantity
+
+adjustAllTokenMapQuantities
+    :: (Natural -> Natural) -> TokenMap -> TokenMap
+adjustAllTokenMapQuantities f m = view #tokens
+    $ adjustAllTokenBundleQuantities f
+    $ TokenBundle.fromTokenMap m
 
 cutAssetSetSizeInHalf :: TokenBundle -> TokenBundle
 cutAssetSetSizeInHalf = uncurry TokenBundle.fromFlatList
