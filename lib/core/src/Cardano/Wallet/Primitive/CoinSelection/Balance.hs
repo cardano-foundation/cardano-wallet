@@ -31,7 +31,6 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
       performSelection
     , prepareOutputsWith
     , emptySkeleton
-    , selectionDelta
     , SelectionCriteria (..)
     , SelectionLimit
     , SelectionLimitOf (..)
@@ -43,6 +42,12 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
+
+    -- * Selection deltas
+    , SelectionDelta (..)
+    , selectionDelta
+    , selectionDeltaAllAssets
+    , selectionDeltaCoin
 
     -- * UTxO balance sufficiency
     , UTxOBalanceSufficiency (..)
@@ -381,6 +386,69 @@ data SelectionResult change = SelectionResult
         -- ^ The assets to burn.
     }
     deriving (Generic, Eq, Show)
+
+-- | Indicates the difference between total input value and total output value
+--   of a 'SelectionResult'.
+--
+-- There are two possibilities:
+--
+--  - 'SelectionSurplus'
+--
+--    Indicates a surplus, when the total input value is greater than or equal
+--    to the total output value.
+--
+--  - 'SelectionDeficit'
+--
+--    Indicates a deficit, when the total input value is NOT greater than or
+--    equal to the total output value.
+--
+data SelectionDelta a
+    = SelectionSurplus a
+    | SelectionDeficit a
+    deriving (Eq, Functor, Show)
+
+-- | Calculates the selection delta for all assets.
+--
+-- See 'SelectionDelta'.
+--
+selectionDeltaAllAssets
+    :: SelectionResult TokenBundle
+    -> SelectionDelta TokenBundle
+selectionDeltaAllAssets result
+    | balanceOut `leq` balanceIn =
+        SelectionSurplus $ TokenBundle.difference balanceIn balanceOut
+    | otherwise =
+        SelectionDeficit $ TokenBundle.difference balanceOut balanceIn
+  where
+    balanceIn =
+        TokenBundle.fromTokenMap assetsToMint
+        `TokenBundle.add`
+        F.foldMap TokenBundle.fromCoin extraCoinSource
+        `TokenBundle.add`
+        F.foldMap (view #tokens . snd) inputsSelected
+    balanceOut =
+        TokenBundle.fromTokenMap assetsToBurn
+        `TokenBundle.add`
+        F.foldMap (view #tokens) outputsCovered
+        `TokenBundle.add`
+        F.fold changeGenerated
+    SelectionResult
+        { assetsToMint
+        , assetsToBurn
+        , extraCoinSource
+        , inputsSelected
+        , outputsCovered
+        , changeGenerated
+        } = result
+
+-- | Calculates the ada selection delta.
+--
+-- See 'SelectionDelta'.
+--
+selectionDeltaCoin
+    :: SelectionResult TokenBundle
+    -> SelectionDelta Coin
+selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
 -- | Calculate the actual difference between the total outputs (incl. change)
 -- and total inputs of a particular selection. By construction, this should be
