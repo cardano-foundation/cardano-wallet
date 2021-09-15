@@ -38,7 +38,7 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     )
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
+    ( ApiBalanceTransactionPostData, DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -48,6 +48,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey
     , publicKey
     )
+import System.FilePath
+    ( (</>) )
+import Data.Aeson
+    ( eitherDecode )
+import Test.Utils.Paths
+    ( getTestData )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -380,6 +386,74 @@ spec = do
         testScriptPreimages Cardano.SimpleScriptV1
         testScriptPreimages Cardano.SimpleScriptV2
         testTimelockScriptImagesLang
+
+
+    -- ADP-656 idea is here to decode every plutus example and try to Server.balanceTransaction
+    -- with wallets having enough funds, wallets not having enough funds.
+    -- It would be better to test it here rather than in integration testing.
+    -- Moreover, we can test some properties about contents of SealedTx like
+    -- it only gets bigger, fee only increase when adding new inputs, etc.
+    -- for now preparing infrastructure fo that
+    describe "decode plutus jsons and coin select for different wallets" $ do
+        let testPlutusDir = $(getTestData) </> "plutus"
+        let matrix =
+                [ "auction_1-2.json"
+                , "crowdfunding-success-4.json"
+                , "currency-2.json"
+                , "escrow-redeem_1-3.json"
+                , "escrow-redeem_2-4.json"
+                , "escrow-refund-2.json"
+                , "future-increase-margin-2.json"
+                , "future-increase-margin-5.json"
+                , "future-increase-margin-6.json"
+                , "future-increase-margin-7.json"
+                , "future-pay-out-2.json"
+                , "future-pay-out-5.json"
+                , "future-pay-out-6.json"
+                , "future-settle-early-2.json"
+                , "future-settle-early-5.json"
+                , "future-settle-early-6.json"
+                , "game-sm-success-2.json"
+                , "game-sm-success-4.json"
+                , "game-sm-success_2-2.json"
+                , "game-sm-success_2-4.json"
+                , "game-sm-success_2-6.json"
+                , "multisig-failure-2.json"
+                , "multisig-sm-10.json"
+                , "multisig-sm-11.json"
+                , "multisig-sm-2.json"
+                , "multisig-sm-3.json"
+                , "multisig-sm-4.json"
+                , "multisig-sm-5.json"
+                , "multisig-sm-6.json"
+                , "multisig-sm-7.json"
+                , "multisig-sm-8.json"
+                , "multisig-sm-9.json"
+                , "multisig-success-2.json"
+                , "ping-pong-2.json"
+                , "ping-pong-3.json"
+                , "ping-pong_2-2.json"
+                --, "prism-3.json" -- Error in $[0]: there should be one 'lovelace' in 'value'
+                , "pubkey-2.json"
+                --, "stablecoin_1-2.json" -- Error in $[0]: Value should not be empty
+                , "stablecoin_1-3.json"
+                , "stablecoin_1-4.json"
+                --, "stablecoin_2-2.json" --Error in $[0]: Value should not be empty
+                , "stablecoin_2-3.json"
+                , "token-account-2.json"
+                , "token-account-5.json"
+                , "uniswap-10.json"
+                , "uniswap-2.json"
+                , "uniswap-7.json"
+                --, "uniswap-9.json" -- Error in $[0]: there should be one 'lovelace' in 'value'
+                , "vesting-2.json"
+                ]
+        forM_ matrix $ \json -> do
+            let testFile = testPlutusDir </> json
+            it json $ property $ \(_thereWillBeWalletsHere :: Int) -> monadicIO $ do
+                bs <- run $ BL.readFile testFile
+                let decodeResult = eitherDecode @(ApiBalanceTransactionPostData 'Mainnet) bs
+                assert (isRight decodeResult)
 
 --------------------------------------------------------------------------------
 -- Conversions
