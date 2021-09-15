@@ -2704,7 +2704,7 @@ instance FromJSON ApiTxIn where
         case T.decimal @Integer (T.tail rest) of
             Right (num,"") -> do
                 when (num < 0 || num > 255) $
-                        fail $ "Tx index should be between '0' and '255'"
+                        fail "Tx index should be between '0' and '255'"
                 pure $ ApiTxIn txid (fromIntegral num)
             _ -> fail "tx input should be hex-encoded tx id and tx index spaced with '#'"
 instance ToJSON ApiTxIn where
@@ -2763,7 +2763,7 @@ instance EncodeAddress n => ToJSON (ApiTxOut n) where
       where
         objShared =
             [ "address" .= toJSON addr
-            , "value" .= object (["lovelace" .= toJSON amt] ++ tokens)
+            , "value" .= object ("lovelace" .= toJSON amt) : tokens
             ]
         tokenPair (tName, (TokenQuantity quantity)) =
             [T.decodeLatin1 (W.unTokenName tName) .= toJSON quantity]
@@ -2783,9 +2783,9 @@ instance EncodeAddress n => ToJSON (ApiExternalInput n) where
 
 instance DecodeAddress n => FromJSON (ApiBalanceTransactionPostData n) where
     parseJSON = withObject "ApiBalanceTransactionPostData" $ \o -> do
-        cbor <- o .: "transaction" >>= (\trObj -> trObj .: "cborHex")
+        cbor <- o .: "transaction" >>= (.: "cborHex")
         cosigners <- o .: "signatories"
-        bs <- fmap getApiBytesT $ parseJSON @(ApiBytesT 'Base16 ByteString) cbor
+        bs <- getApiBytesT <$> parseJSON @(ApiBytesT 'Base16 ByteString) cbor
         case sealedTxFromBytes bs of
             Left err -> fail $ "cborHex seems to be not deserializing correctly due to " <> show err
             Right sealedTx -> do
