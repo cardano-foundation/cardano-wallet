@@ -3,6 +3,7 @@
 { walletPackages ? import ../default.nix {}
 , pkgs ? walletPackages.private.pkgs
 , ghcVersion ? null
+, extraArgs ? []
 }:
 
 let
@@ -17,6 +18,7 @@ in
 
     # Build environment setup copied from
     # <nixpkgs/pkgs/development/haskell-modules/generic-stack-builder.nix>
-    GIT_SSL_CAINFO = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-    STACK_IN_NIX_SHELL = "true";
+    STACK_PLATFORM_VARIANT = "nix";
+    STACK_IN_NIX_SHELL = 1;
+    STACK_IN_NIX_EXTRA_ARGS = extraArgs;
   })

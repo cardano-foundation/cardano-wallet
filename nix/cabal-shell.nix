@@ -29,6 +29,7 @@ mkShell rec {
     haskell-build-tools.cabal-install
     nix
     pkgconfig
+    gnutar
   ]
   ++ lib.optional (!stdenv.isDarwin) git
   ++ (with walletPackages; [
@@ -38,10 +39,12 @@ mkShell rec {
   ++ lib.optional withCabalCache haskell-build-tools.cabal-cache;
 
   libs = [
+    xz
     zlib
+    bzip2
+    lzma
     gmp
     ncurses
-    lzma
     openssl
     libsodium-vrf
     pcre
@@ -64,4 +67,7 @@ mkShell rec {
 
   # Force a UTF-8 locale because many Haskell programs and tests assume this.
   LANG = "en_US.UTF-8";
+
+  # Provide SSL certificates for git, in case we are running in a pure nix-shell.
+  GIT_SSL_CAINFO = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
 }

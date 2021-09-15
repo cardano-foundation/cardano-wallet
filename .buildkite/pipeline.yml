@@ -27,7 +27,7 @@ steps:
       system: x86_64-linux
 
   - label: 'Check Cabal Configure'
-    command: 'nix-shell nix/cabal-shell.nix --run "scripts/buildkite/cabal-ci.sh configure"'
+    command: 'nix-shell --pure nix/cabal-shell.nix --run "scripts/buildkite/cabal-ci.sh configure"'
     agents:
       system: x86_64-linux
 
