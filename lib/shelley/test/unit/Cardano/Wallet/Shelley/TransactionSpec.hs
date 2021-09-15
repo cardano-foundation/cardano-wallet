@@ -192,6 +192,7 @@ import Test.QuickCheck.Random
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -450,6 +451,8 @@ spec = do
                       , outputsCovered = outs
                       , changeGenerated = chgs
                       , utxoRemaining = UTxOIndex.empty
+                      , assetsToMint = TokenMap.empty
+                      , assetsToBurn = TokenMap.empty
                       }
                   inps = Map.toList $ unUTxO utxo
         it "1 input, 2 outputs" $ do
@@ -544,6 +547,8 @@ spec = do
                     , outputsCovered = outs
                     , changeGenerated = chgs
                     , utxoRemaining = UTxOIndex.empty
+                    , assetsToMint = TokenMap.empty
+                    , assetsToBurn = TokenMap.empty
                     }
                   inps = Map.toList $ unUTxO utxo
         it "1 input, 2 outputs" $ do
@@ -690,6 +695,8 @@ prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md 
         , outputsCovered = []
         , changeGenerated = outs
         , utxoRemaining = UTxOIndex.empty
+        , assetsToMint = TokenMap.empty
+        , assetsToBurn = TokenMap.empty
         }
 
 prop_decodeSignedByronTxRoundtrip
@@ -716,6 +723,8 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs
         , outputsCovered = []
         , changeGenerated = outs
         , utxoRemaining = UTxOIndex.empty
+        , assetsToMint = TokenMap.empty
+        , assetsToBurn = TokenMap.empty
         }
 
 -- | Increasing the number of outputs reduces the number of inputs.

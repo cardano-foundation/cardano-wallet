@@ -373,6 +373,12 @@ data SelectionResult change = SelectionResult
         :: !UTxOIndex
         -- ^ The subset of 'utxoAvailable' that remains after performing
         -- the selection.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ The assets to mint.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ The assets to burn.
     }
     deriving (Generic, Eq, Show)
 
@@ -809,6 +815,8 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
             , changeGenerated = changeGenerated
             , outputsCovered = NE.toList outputsToCover
             , utxoRemaining = leftover
+            , assetsToMint
+            , assetsToBurn
             }
 
         selectOneEntry = selectCoinQuantity selectionLimit
