@@ -73,6 +73,8 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -159,6 +161,12 @@ data TransactionLayer k tx = TransactionLayer
 
     , decodeTx :: tx -> Tx
     -- ^ Decode an externally-created transaction.
+
+    , updateTx
+        :: tx
+        -> ( [TxIn], [TxOut] )
+        -> Either ErrUpdateSealedTx (tx, Word64)
+        -- ^ Update tx by adding additional inputs and outputs and give recalculated fee
     }
     deriving Generic
 
