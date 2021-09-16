@@ -459,6 +459,7 @@ spec = do
             it json $ property $ \(_thereWillBeWalletsHere :: Int) -> monadicIO $ do
                 bs <- run $ BL.readFile testFile
                 let decodeResult = eitherDecode @(ApiBalanceTransactionPostData 'Mainnet) bs
+                monitor $ counterexample ("decodeResult = " <> show decodeResult)
                 assert (isRight decodeResult)
 
 --------------------------------------------------------------------------------
