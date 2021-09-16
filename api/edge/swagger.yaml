@@ -267,13 +267,113 @@ x-addressState: &addressState
     - used
     - unused
 
+x-txType: &txType
+  type: string
+  pattern: "^Tx AlonzoEra$"
+
+x-txDescription: &txDescription
+  description: A description of transaction
+  type: string
+  minLength: 0
+  maxLength: 256
+  example: "Asset minting transaction"
+
+x-txInNode: &txInNode
+  type: string
+  pattern: "^[0-9abcdef]+#[0-9]+$"
+  minLength: 66
+  maxLength: 68
+  example: 2f8cd2ef706e5500307636b8477198ee2f204c4181b53c507f46d195140493cb#1
+
+x-dataHash: &dataHash
+  type: string
+  format: hex
+  minLength: 64
+  maxLength: 64
+  example: ca54c8836c475a77c6914b4fd598080acadb0f0067778773484d2c12ae7dc756
+
+x-adaQuantity: &adaQuantity
+  type: integer
+  minimum: 0
+  maximum: 45000000000000000
+
+x-assetQuantity: &assetQuantity
+  type: integer
+  description: |
+    Number of assets for the given `policy_id` and `asset_name`.
+  minimum: 0
+
+x-assetValueNode: &assetValueNode
+  description:
+     Map of asset values along with their quantities.
+     assetName in field name is expected (max lenght 64-character hex-encoded text)
+  type: object
+  additionalProperties: *assetQuantity
+  # Note: propertyNames pattern not supported in current OpenAPI version.
+  # propertyNames:
+  #   pattern: '^(assetName)$'
+  example:
+    - {"asset1": 12, "asset2": 33}
+
+x-valueNode: &valueNode
+  nullable: false
+  oneOf:
+    - <<: *adaQuantity
+      title: ada coin
+    - <<: *assetValueNode
+      title: asset value
+
+x-valueNodes: &valueNodes
+  description:
+     Map of values along with their quantities. Can be lovelace or asset.
+     In the former case 'lovelace' name is expected.
+     In the latter case assetPolicyId name is expected (56-character hex-encoded text)
+  type: object
+  additionalProperties: *valueNode
+  # Note: propertyNames pattern not supported in current OpenAPI version.
+  # propertyNames:
+  #   pattern: '^(lovelace)|(assetPolicyId)$'
+  example:
+    - {"lovelace": 1423}
+    - {"lovelace": 1423, "7191ae0e1286891fe5c027a5dc041b7401689938e18e14ec83cf74fb": {"asset1": 12, "asset2": 33}}
+
+x-txOutNodeWithoutDatum: &txOutNodeWithoutDatum
+  description: tx out without datum
+  type: object
+  required:
+    - address
+    - value
+  properties:
+    address: *addressId
+    value: *valueNodes
+
+x-txOutNodeWithDatum: &txOutNodeWithDatum
+  description: tx out without datum
+  type: object
+  required:
+    - address
+    - data
+    - value
+  properties:
+    address: *addressId
+    data: *dataHash
+    value: *valueNodes
+
+x-txOutNode: &txOutNode
+  nullable: false
+  oneOf:
+    - <<: *txOutNodeWithDatum
+      title: tx out with datum
+    - <<: *txOutNodeWithoutDatum
+      title: tx out without datum
+
 x-stakePoolId: &stakePoolId
   type: string
   format: hex|bech32
   example: pool1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: A unique identifier for the pool.
 
-x-walletAccountPubkey: &walletAccountPubkey
+x-walletAccountXPubkey: &walletAccountXPubkey
   description: An extended account public key (public key + chain code)
   type: string
   format: hex
@@ -288,7 +388,7 @@ x-cosigner: &cosigner
 x-cosigners: &cosigners
   description: Map of cosigners and their account public keys. Use key as in &cosigner, eg. "cosigner#"
   type: object
-  additionalProperties: *walletAccountPubkey
+  additionalProperties: *walletAccountXPubkey
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
@@ -303,7 +403,7 @@ x-self: &self
 x-accountPubkeyOrSelf: &accountPubkeyOrSelf
   nullable: false
   oneOf:
-    - <<: *walletAccountPubkey
+    - <<: *walletAccountXPubkey
       title: public key
     - <<: *self
       title: self
@@ -826,12 +926,6 @@ x-walletBalance: &walletBalance
       <<: *amount
       description: Total Ada balance (available balance plus pending change and reward balance).
 
-x-assetQuantity: &assetQuantity
-  type: integer
-  description: |
-    Number of assets for the given `policy_id` and `asset_name`.
-  minimum: 0
-
 x-walletAsset: &walletAsset
   description: |
     An asset on the Cardano blockchain. An asset is uniquely identified by
@@ -1267,10 +1361,21 @@ x-transactionResolvedWithdrawals: &transactionResolvedWithdrawals
       derivation_path: *derivationPath
       amount: *amount
 
-x-serialisedTransaction: &serialisedTransaction
-  description: CBOR transaction data, base64-encoded.
+x-serialisedTransactionBase64: &serialisedTransactionBase64
+  description: |
+    The CBOR-encoded transaction, represented in base64 encoding.
+    This always includes the transaction body and the witness set, even if the
+    latter is empty.
   type: string
   format: base64
+
+x-serialisedTransactionHex: &serialisedTransactionHex
+  description: |
+    The CBOR-encoded transaction, represented in hexadecimal encoding (base-16).
+    This always includes the transaction body and the witness set, even if the
+    latter is empty.
+  type: string
+  format: hex
 
 x-signedTransactionBlob: &signedTransactionBlob
   description: Signed transaction message binary blob.
@@ -2088,6 +2193,14 @@ components:
       properties:
         id: *transactionId
 
+    ApiSerialisedTransaction: &ApiSerialisedTransaction
+      description: |
+        An encoded transaction.
+      required:
+        - transaction
+      properties:
+        transaction: *serialisedTransactionBase64
+
     ApiConstructTransaction: &ApiConstructTransaction
       type: object
       required:
@@ -2095,7 +2208,7 @@ components:
         - coin_selection
         - fee
       properties:
-        transaction: *serialisedTransaction
+        transaction: *serialisedTransactionBase64
         coin_selection: *ApiCoinSelection
         fee: *amount
 
@@ -2143,12 +2256,12 @@ components:
 
     x-txBody: &txBody
       oneOf:
-        - <<: *serialisedTransaction
+        - <<: *serialisedTransactionBase64
           title: Serialized transaction body
 
     x-txWits: &txWitnesses
       type: array
-      items: *serialisedTransaction
+      items: *serialisedTransactionBase64
       title: Serialized transaction witnesses
 
     ApiSignedTransaction: &ApiSignedTransaction
@@ -2161,7 +2274,7 @@ components:
         - transaction
         - body
       properties:
-        transaction: *serialisedTransaction
+        transaction: *serialisedTransactionBase64
         body: *txBody
         witnesses: *txWitnesses
 
@@ -2267,7 +2380,7 @@ components:
         - account_public_key
       properties:
         name: *walletName
-        account_public_key: *walletAccountPubkey
+        account_public_key: *walletAccountXPubkey
         address_pool_gap: *walletAddressPoolGap
 
     ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
@@ -2369,7 +2482,7 @@ components:
         - payment_script_template
       properties:
         name: *walletName
-        account_public_key: *walletAccountPubkey
+        account_public_key: *walletAccountXPubkey
         account_index: *derivationSegment
         payment_script_template: *scriptTemplateEntry
         delegation_script_template: *scriptTemplateEntry
@@ -2787,7 +2900,7 @@ components:
         passphrase:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
-        transaction: *serialisedTransaction
+        transaction: *serialisedTransactionBase64
         withdrawal:
           oneOf:
             - <<: *transactionWithdrawalRequestSelf
@@ -3137,7 +3250,46 @@ components:
         metadata: *transactionMetadata
         time_to_live: *transactionTTL
 
+    ApiTransactionExtended: &ApiTransactionExtended
+      type: object
+      required:
+        - cborHex
+        - description
+        - type
+      properties:
+        cborHex: *serialisedTransactionHex
+        description: *txDescription
+        type: *txType
 
+    ApiExternalInput: &ApiExternalInput
+      type: object
+      required:
+        - txIn
+        - txOut
+      properties:
+        txIn: *txInNode
+        txOut: *txOutNode
+
+    ApiExternalInputs: &ApiExternalInputs
+      description: A flat list of node compliant inputs.
+      type: array
+      items: *ApiExternalInput
+
+    ApiTransactionSignatories: &ApiTransactionSignatories
+      description: A flat list of account public keys of parties engaged in transaction.
+      type: array
+      items: *walletAccountXPubkey
+
+    ApiBalanceTransactionPostData: &ApiBalanceTransactionPostData
+      type: object
+      required:
+        - transaction
+        - signatories
+        - inputs
+      properties:
+        transaction: *ApiTransactionExtended
+        signatories: *ApiTransactionSignatories
+        inputs: *ApiExternalInputs
 
 
 #############################################################################
@@ -3980,6 +4132,18 @@ x-errAssetNotPresent: &errAssetNotPresent
       type: string
       enum: ['asset_not_present']
 
+x-errTransactionAlreadyBalanced: &errTransactionAlreadyBalanced
+  <<: *responsesErr
+  title: transaction_already_balanced
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when a transaction is already balanced.
+    code:
+      type: string
+      enum: ['transaction_already_balanced']
+
 x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
@@ -4804,6 +4968,35 @@ x-responsesGetSmashHealth: &responsesGetSmashHealth
       application/json:
         schema: *ApiHealthCheck
 
+x-responsesBalanceTransaction: &responsesBalanceTransaction
+  400:
+    description: Bad Request
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errBadRequest
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errAlreadyWithdrawing
+            - <<: *errUtxoTooSmall
+            - <<: *errCannotCoverFee
+            - <<: *errNotEnoughMoney
+            - <<: *errTransactionIsTooBig
+            - <<: *errTransactionAlreadyBalanced
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiConstructTransaction
 
 #############################################################################
 #                                                                           #
@@ -5502,6 +5695,24 @@ paths:
           application/json:
             schema: *ApiWalletMigrationPlanPostData
       responses: *responsesCreateWalletMigrationPlan
+
+  /wallets/{walletId}/transactions-balance:
+    post:
+      operationId: balanceTransaction
+      tags: ["Transactions New"]
+      summary: Balance
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+        Balance a transaction body of a given transaction, add needed inputs/outputs,
+        so as the transaction can be signed from the wallet.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiBalanceTransactionPostData
+      responses: *responsesBalanceTransaction
 
   /byron-wallets:
     post:
