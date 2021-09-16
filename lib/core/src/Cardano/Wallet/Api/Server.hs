@@ -442,8 +442,6 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
-    , ErrCannotJoin (..)
-    , ErrCannotQuit (..)
     , ErrSignTx (..)
     , TransactionCtx (..)
     , TransactionLayer

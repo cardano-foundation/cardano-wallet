@@ -125,6 +125,8 @@ module Cardano.Wallet
     , ErrMintBurnAssets (..)
     , ErrBalanceTx (..)
     , ErrUpdateSealedTx (..)
+    , ErrCannotJoin (..)
+    , ErrCannotQuit (..)
 
     -- ** Migration
     , createMigrationPlan
@@ -395,9 +397,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
-    , ErrDecodeSignedTx (..)
     , ErrMkTransaction (..)
-    , ErrMkTx (..)
     , ErrSignTx (..)
     , ErrUpdateSealedTx (..)
     , TransactionCtx (..)

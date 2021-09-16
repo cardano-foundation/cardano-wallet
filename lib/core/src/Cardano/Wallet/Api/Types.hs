@@ -2806,9 +2806,8 @@ instance DecodeAddress n => FromJSON (ApiBalanceTransactionPostData n) where
         cbor <- o .: "transaction" >>= (\trObj -> trObj .: "cborHex")
         cosigners <- o .: "signatories"
         bs <- fmap getApiBytesT $ parseJSON @(ApiBytesT 'Base16 ByteString) cbor
-        let sealedTxFromBytes _x = undefined
         case sealedTxFromBytes bs of
-            Left err -> fail $ "cborHex seems to be not deserializing correctly due to " -- <> show err
+            Left err -> fail $ "cborHex seems to be not deserializing correctly due to "<> show err
             Right sealedTx -> do
                 inpsObj <- o .: "inputs"
                 ApiBalanceTransactionPostData (ApiT sealedTx)
@@ -2818,7 +2817,7 @@ instance DecodeAddress n => FromJSON (ApiBalanceTransactionPostData n) where
 instance EncodeAddress n => ToJSON (ApiBalanceTransactionPostData n) where
     toJSON (ApiBalanceTransactionPostData sealedTx cosigners inps) = object
         [ "transaction" .= object
-                [ "cborHex" .= String "undefined" --sealedTxBytesValue @'Base16 (getApiT sealedTx)
+                [ "cborHex" .= sealedTxBytesValue @'Base16 (getApiT sealedTx)
                 , "description" .= String ""
                 , "type" .= String "Tx AlonzoEra"
                 ]

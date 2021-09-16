@@ -31,8 +31,6 @@ module Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
-    , ErrMkTx (..)
-    , ErrDecodeSignedTx (..)
     , ErrUpdateSealedTx (..)
     ) where
 

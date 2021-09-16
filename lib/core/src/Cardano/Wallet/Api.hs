@@ -60,7 +60,6 @@ module Cardano.Wallet.Api
         , DeleteTransaction
         , CreateTransactionOld
         , PostTransactionFeeOld
-        , ConstructTransaction
         , BalanceTransaction
 
     , StakePools

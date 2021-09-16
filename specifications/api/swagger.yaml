@@ -2900,7 +2900,7 @@ components:
         passphrase:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
-        transaction: *serialisedTransaction
+        transaction: *serialisedTransactionBase64
         withdrawal:
           oneOf:
             - <<: *transactionWithdrawalRequestSelf
