@@ -1079,13 +1079,6 @@ spec = parallel $ do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiSerialisedTransaction" $ property $ \x ->
-            let
-                x' = ApiSerialisedTransaction
-                    { transaction = transaction (x :: ApiSerialisedTransaction)
-                    }
-             in
-                x' === x .&&. show x' === show x
         it "ApiBalanceTransactionPostData" $ property $ \x ->
             let
                 x' = ApiBalanceTransactionPostData
