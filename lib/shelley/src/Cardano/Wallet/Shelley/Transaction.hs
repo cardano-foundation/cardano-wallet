@@ -29,6 +29,11 @@
 module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
 
+    -- * Updating SealedTx
+    , ExtraTxBodyContent (..)
+    , noExtraTxBodyContent
+    , updateSealedTx
+
     -- * Internals
     , TxPayload (..)
     , TxSkeleton (..)
@@ -107,7 +112,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
     , TxConstraints (..)
+    , TxIn (..)
     , TxMetadata (..)
+    , TxOut (..)
     , TxOut (..)
     , TxSize (..)
     , getSealedTxBody
@@ -133,6 +140,7 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrMkTransaction (..)
+    , ErrUpdateSealedTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , withdrawalToCoin
@@ -140,7 +148,7 @@ import Cardano.Wallet.Transaction
 import Control.Arrow
     ( left, second )
 import Control.Monad
-    ( forM )
+    ( forM, unless )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -170,8 +178,12 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as SL
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as SL
+import qualified Cardano.Ledger.Core as Ledger
+import qualified Cardano.Ledger.ShelleyMA.TxBody as ShelleyMA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -182,8 +194,11 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.Map as Map
+import qualified Data.Sequence.Strict as StrictSeq
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
+import qualified Shelley.Spec.Ledger.Tx as Shelley
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -410,6 +425,143 @@ mkDelegationCertificates da accXPub =
                , toStakePoolDlgCert accXPub poolId
                ]
        Quit -> [toStakeKeyDeregCert accXPub]
+
+
+-- | Describes modifications that can be made to a `TxBody` using
+-- `updateSealedTx`.  See `updateSealedTx` for more details.
+data ExtraTxBodyContent = ExtraTxBodyContent
+    { extraInputs :: [TxIn]
+    , extraOutputs :: [TxOut]
+    , newFee :: Coin -> Coin
+        -- ^ Set the new fee, given the old one.
+        --
+        -- Note that you most likely won't care about the old fee at all. But it
+        -- is useful to allow defining a no-op `ExtraTxBodyContent` for the sake
+        -- of testing.
+    }
+
+
+-- | For testing that
+-- @
+--   forall tx. updateSealedTx noExtraTxBodyContent tx
+--      == Right tx or Left
+-- @
+noExtraTxBodyContent :: ExtraTxBodyContent
+noExtraTxBodyContent = ExtraTxBodyContent [] [] id
+
+-- Used to add inputs and outputs when balancing a transaction.
+--
+-- If the transaction contains existing key witnesses, it will return `Left`,
+-- *even if `noExtraTxBodyContent` is used*. This last detail could be changed.
+--
+-- == Notes on implementation choices
+--
+-- We cannot rely on cardano-api here because `Cardano.TxBodyContent BuildTx`
+-- cannot be extracted from an existing `TxBody`.
+--
+-- To avoid the need for `ledger -> wallet` conversions, this function can only
+-- be used to *add* tx body content.
+updateSealedTx
+    :: ExtraTxBodyContent
+    -> SealedTx
+    -> Either ErrUpdateSealedTx SealedTx
+updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
+
+    -- NOTE: The script witnesses are carried along with the cardano-api
+    -- `anyEraBody`.
+    let (Cardano.Tx anyEraBody existingKeyWits) = tx
+    body' <- modifyLedgerTxBody extraContent anyEraBody
+
+    unless (null existingKeyWits) $
+       Left $ ErrExistingKeyWitnesses $ length existingKeyWits
+
+    return $ sealedTxFromCardanoBody body'
+
+  where
+    modifyLedgerTxBody
+        :: ExtraTxBodyContent
+        -> Cardano.TxBody era
+        -> Either ErrUpdateSealedTx (Cardano.TxBody era)
+    modifyLedgerTxBody ebc (Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val) =
+            Right $ Cardano.ShelleyTxBody shelleyEra (adjust ebc shelleyEra bod) scripts scriptData aux val
+      where
+        -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
+        -- cases could perhaps be joined. It is not however. And we still need
+        -- to treat Alonzo and Shelley differently.
+        adjust
+            :: ExtraTxBodyContent
+            -> ShelleyBasedEra era
+            -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
+            -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
+        adjust (ExtraTxBodyContent extraInputs extraOutputs modifyFee) era body = case era of
+            ShelleyBasedEraAlonzo -> body
+                    { Alonzo.outputs = Alonzo.outputs body
+                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
+                    , Alonzo.inputs = Alonzo.inputs body
+                        <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
+                    , Alonzo.txfee = modifyFee' $ Alonzo.txfee body
+                    }
+            ShelleyBasedEraMary ->
+                let
+                    ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = body
+                in
+                    ShelleyMA.TxBody
+                        (inputs
+                            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+                        (outputs
+                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
+                        certs
+                        wdrls
+                        (modifyFee' txfee)
+                        vldt
+                        update
+                        adHash
+                        mint
+            ShelleyBasedEraAllegra ->
+                let
+                    ShelleyMA.TxBody inputs outputs certs wdrls txfee vldt update adHash mint = body
+                in
+                    ShelleyMA.TxBody
+                        (inputs
+                            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+                        (outputs
+                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
+                        certs
+                        wdrls
+                        (modifyFee' txfee)
+                        vldt
+                        update
+                        adHash
+                        mint
+            ShelleyBasedEraShelley ->
+                let
+                    Shelley.TxBody inputs outputs certs wdrls txfee ttl txUpdate mdHash = body
+                in
+                    Shelley.TxBody
+                        (inputs
+                            <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
+                        (outputs
+                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
+                        certs
+                        wdrls
+                        (modifyFee' txfee)
+                        ttl
+                        txUpdate
+                        mdHash
+          where
+            extraInputs' = toCardanoTxIn <$> extraInputs
+            extraOutputs' = toCardanoTxOut era <$> extraOutputs
+            modifyFee' old = toLedgerCoin $ modifyFee $ fromLedgerCoin old
+              where
+                toLedgerCoin (Coin c) =
+                    Ledger.word64ToCoin c
+                fromLedgerCoin (Ledger.Coin c) =
+                    Coin.unsafeNaturalToCoin $ fromIntegral c
+                    -- fromIntegral will throw "Exception: arithmetic underflow"
+                    -- if (c :: Integral) for some reason were to be negative.
+
+    modifyLedgerTxBody _ (Byron.ByronTxBody _)
+        = Left ErrByronTxNotSupported
 
 -- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
 -- estimate what would be the cost of a selecting a particular input. Indeed, an
@@ -1184,7 +1336,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         in
             Cardano.TxCertificates certSupported certs ctx
 
-    , Cardano.txFee = explicitFees fees
+    , Cardano.txFee = explicitFees era fees
 
     , Cardano.txValidityRange =
         ( Cardano.TxValidityNoLowerBound
@@ -1223,13 +1375,6 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         ShelleyBasedEraAllegra -> Cardano.CertificatesInAllegraEra
         ShelleyBasedEraMary    -> Cardano.CertificatesInMaryEra
         ShelleyBasedEraAlonzo -> Cardano.CertificatesInAlonzoEra
-
-    explicitFees :: Cardano.Lovelace -> Cardano.TxFee era
-    explicitFees = case era of
-        ShelleyBasedEraShelley -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra
-        ShelleyBasedEraAllegra -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra
-        ShelleyBasedEraMary    -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra
-        ShelleyBasedEraAlonzo -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAlonzoEra
 
     wdrlsSupported :: Cardano.WithdrawalsSupportedInEra era
     wdrlsSupported = case era of
@@ -1292,3 +1437,10 @@ mkByronWitness
     addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
         (toHDPayloadAddress addr)
         (Byron.toByronNetworkMagic nw)
+
+explicitFees :: ShelleyBasedEra era -> Cardano.Lovelace -> Cardano.TxFee era
+explicitFees era = case era of
+    ShelleyBasedEraShelley -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra
+    ShelleyBasedEraAllegra -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra
+    ShelleyBasedEraMary    -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra
+    ShelleyBasedEraAlonzo -> Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAlonzoEra

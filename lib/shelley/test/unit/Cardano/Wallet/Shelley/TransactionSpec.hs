@@ -7,6 +7,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
@@ -41,7 +42,11 @@ import Cardano.Api
     , cardanoEraStyle
     )
 import Cardano.Wallet
-    ( ErrSelectAssets (..), FeeEstimation (..), estimateFee )
+    ( ErrSelectAssets (..)
+    , ErrUpdateSealedTx (..)
+    , FeeEstimation (..)
+    , estimateFee
+    )
 import Cardano.Wallet.Api.Types
     ( ApiBalanceTransactionPostData (..), ApiT (..) )
 import Cardano.Wallet.Byron.Compatibility
@@ -106,6 +111,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxSize (..)
     , cardanoTx
+    , sealedTxFromBytes
     , sealedTxFromBytes'
     , sealedTxFromCardano'
     , serialisedTx
@@ -123,7 +129,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoLovelace
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( TxSkeleton (..)
+    ( ExtraTxBodyContent (..)
+    , TxSkeleton (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor
     , estimateTxCost
@@ -132,8 +139,11 @@ import Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , newTransactionLayer
+    , noExtraTxBodyContent
     , txConstraints
+    , updateSealedTx
     , _calcScriptExecutionCost
+    , _decodeSealedTx
     , _estimateMaxNumberOfInputs
     )
 import Cardano.Wallet.Transaction
@@ -154,6 +164,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Function
     ( on, (&) )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -175,7 +187,16 @@ import Ouroboros.Network.Block
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Spec, SpecWith, before_, describe, it, pendingWith, shouldBe, xdescribe )
+    ( Spec
+    , SpecWith
+    , before_
+    , describe
+    , expectationFailure
+    , it
+    , pendingWith
+    , shouldBe
+    , xdescribe
+    )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -227,6 +248,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -238,6 +260,7 @@ spec = do
     feeEstimationRegressionSpec
     forAllEras binaryCalculationsSpec
     transactionConstraintsSpec
+    updateSealedTxSpec
 
 forAllEras :: (AnyCardanoEra -> Spec) -> Spec
 forAllEras eraSpec = do
@@ -1599,3 +1622,146 @@ matrixNormalTxExamples =
         \8d280e80a0f5f6"
       )
     ]
+
+updateSealedTxSpec :: Spec
+updateSealedTxSpec = do
+    describe "updateSealedTx" $ do
+        describe "no existing key witnesses" $ do
+            it "combines ins, outs and sets new fee"
+                $ property prop_updateSealedTx
+
+            -- TODO [ADP-1140]: These should be mergable with the property
+            -- above, if we include the PAB examples in the arbitrary instance.
+            --
+            -- But we will also need to pattern match on the fee modifier,
+            -- currently a `Coin -> Coin`, so we might need to replace it with
+            -- either `Maybe Coin` or even just `Coin`.
+            describe "updateSealedTx tx noExtraTxBodyContent == Right tx" $ do
+                let testPlutusDir = $(getTestData) </> "plutus"
+                let matrix =
+                        [ "auction_1-2.json"
+                        , "crowdfunding-success-4.json"
+                        , "currency-2.json"
+                        , "escrow-redeem_1-3.json"
+                        , "escrow-redeem_2-4.json"
+                        , "escrow-refund-2.json"
+                        , "future-increase-margin-2.json"
+                        , "future-increase-margin-5.json"
+                        , "future-increase-margin-6.json"
+                        , "future-increase-margin-7.json"
+                        , "future-pay-out-2.json"
+                        , "future-pay-out-5.json"
+                        , "future-pay-out-6.json"
+                        , "future-settle-early-2.json"
+                        , "future-settle-early-5.json"
+                        , "future-settle-early-6.json"
+                        , "game-sm-success-2.json"
+                        , "game-sm-success-4.json"
+                        , "game-sm-success_2-2.json"
+                        , "game-sm-success_2-4.json"
+                        , "game-sm-success_2-6.json"
+                        , "multisig-failure-2.json"
+                        , "multisig-sm-10.json"
+                        , "multisig-sm-11.json"
+                        , "multisig-sm-2.json"
+                        , "multisig-sm-3.json"
+                        , "multisig-sm-4.json"
+                        , "multisig-sm-5.json"
+                        , "multisig-sm-6.json"
+                        , "multisig-sm-7.json"
+                        , "multisig-sm-8.json"
+                        , "multisig-sm-9.json"
+                        , "multisig-success-2.json"
+                        , "ping-pong-2.json"
+                        , "ping-pong-3.json"
+                        , "ping-pong_2-2.json"
+                        --, "prism-3.json" -- Error in $[0]: there should be one 'lovelace' in 'value'
+                        , "pubkey-2.json"
+                        --, "stablecoin_1-2.json" -- Error in $[0]: Value should not be empty
+                        , "stablecoin_1-3.json"
+                        , "stablecoin_1-4.json"
+                        --, "stablecoin_2-2.json" --Error in $[0]: Value should not be empty
+                        , "stablecoin_2-3.json"
+                        , "token-account-2.json"
+                        , "token-account-5.json"
+                        , "uniswap-10.json"
+                        , "uniswap-2.json"
+                        , "uniswap-7.json"
+                        --, "uniswap-9.json" -- Error in $[0]: there should be one 'lovelace' in 'value'
+                        , "vesting-2.json"
+                        ]
+                forM_ matrix $ \json -> do
+                    let testFile = testPlutusDir </> json
+                    it json $ do
+                        bs <- BL.readFile testFile
+                        let decodeResult = eitherDecode @(ApiBalanceTransactionPostData 'Mainnet) bs
+                        case decodeResult of
+                            Left e -> expectationFailure $ show e
+                            Right (ApiBalanceTransactionPostData (ApiT tx) _ _ ) -> do
+                                updateSealedTx noExtraTxBodyContent tx
+                                    `shouldBe` Right tx
+
+                forM_ matrixNormalTxExamples $ \(title, hexBytes) -> do
+                    it title $ do
+                        case sealedTxFromBytes $ unsafeFromHex hexBytes of
+                            Left e -> expectationFailure $ show e
+                            Right tx -> do
+                                updateSealedTx noExtraTxBodyContent tx
+                                    `shouldBe` Right tx
+
+        describe "existing key witnesses" $ do
+            it "returns `Left err` with noExtraTxBodyContent" $ do
+                -- Could be argued that it should instead return `Right tx`.
+                case sealedTxFromBytes $ unsafeFromHex txWithInputsOutputsAndWits of
+                    Left e -> expectationFailure $ show e
+                    Right tx -> do
+                        print $ updateSealedTx noExtraTxBodyContent tx
+                        updateSealedTx noExtraTxBodyContent tx
+                            `shouldBe` Left (ErrExistingKeyWitnesses 2)
+
+            it "returns `Left err` when extra body content is non-empty" $ do
+                pendingWith "todo: add test data"
+
+newtype PartialTx = PartialTx SealedTx
+    deriving (Show, Eq)
+
+instance Arbitrary PartialTx where
+    arbitrary = fmap PartialTx $ elements $ mconcat
+        [ map (either (error . show) id . sealedTxFromBytes . unsafeFromHex . snd)
+            matrixNormalTxExamples
+        ]
+
+prop_updateSealedTx :: PartialTx -> [TxIn] -> [TxOut] -> Coin -> Property
+prop_updateSealedTx (PartialTx tx) extraIns extraOuts newFee = do
+    let extra = ExtraTxBodyContent extraIns extraOuts (const newFee)
+    let tx' = either (error . show) id
+            $ updateSealedTx extra tx
+
+    conjoin
+        [ ins tx' === ins tx <> Set.fromList extraIns
+        , outs tx' === outs tx <> Set.fromList extraOuts
+        , fee tx' === Just newFee
+        ]
+  where
+    ins = Set.fromList . map fst . view #resolvedInputs . _decodeSealedTx
+    outs = Set.fromList . view #outputs . _decodeSealedTx
+    fee = view #fee . _decodeSealedTx
+
+
+txWithInputsOutputsAndWits :: ByteString
+txWithInputsOutputsAndWits =
+    "83a400828258200000000000000000000000000000000000000000000000000000\
+    \000000000000008258200000000000000000000000000000000000000000000000\
+    \000000000000000000010183825839010202020202020202020202020202020202\
+    \020202020202020202020202020202020202020202020202020202020202020202\
+    \0202020202021a005b8d8082583901030303030303030303030303030303030303\
+    \030303030303030303030303030303030303030303030303030303030303030303\
+    \03030303031a005b8d808258390104040404040404040404040404040404040404\
+    \040404040404040404040404040404040404040404040404040404040404040404\
+    \040404041a007801e0021a0002102003191e46a10082825820130ae82201d7072e\
+    \6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158405835ff78c6fc5e\
+    \4466a179ca659fa85c99b8a3fba083f3f3f42ba360d479c64ef169914b52ade49b\
+    \19a7208fd63a6e67a19c406b4826608fdc5307025506c307825820010000000000\
+    \00000000000000000000000000000000000000000000000000005840e8e769ecd0\
+    \f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a\
+    \5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80ef6"

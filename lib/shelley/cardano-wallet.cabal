@@ -77,6 +77,7 @@ library
     , retry
     , servant-server
     , shelley-spec-ledger
+    , strict-containers
     , strict-non-empty-containers
     , temporary
     , text
@@ -218,6 +219,7 @@ test-suite unit
     , contra-tracer
     , filepath
     , fmt
+    , generic-lens
     , hspec-core
     , iohk-monitoring
     , hspec
