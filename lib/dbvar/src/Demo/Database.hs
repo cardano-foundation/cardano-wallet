@@ -79,8 +79,7 @@ embedIso i = withIso i $ \ab ba -> mkEmbedding Embedding'
     , update = \_ _ -> fmap (fmap ab)
     }
 
-type StoreAddress = Store SqlPersistM
-    (DeltaChain Node [AddressInPool]) (Chain Node [AddressInPool])
+type StoreAddress = Store SqlPersistM (DeltaChain Node [AddressInPool])
 
 {-------------------------------------------------------------------------------
     Store using Persistent entities

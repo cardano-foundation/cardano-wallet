@@ -223,7 +223,7 @@ data Embedding' da db where
         } -> Embedding' da db
 
 -- | 'Embedding' with efficient composition 'o'.
--- To construct an embedding, use 'mkEmbedding''.
+-- To construct an embedding, use 'mkEmbedding'.
 data Embedding da db = Embedding
     { inject  :: Base da -> Machine da db
     , project :: Base db -> Maybe (Base da, Machine da db)

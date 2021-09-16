@@ -50,26 +50,36 @@ import Data.Delta
 {-------------------------------------------------------------------------------
     DBVar
 -------------------------------------------------------------------------------}
--- | A 'DBVar'@ m delta a@ is a mutable reference to a value of type 'a'.
+-- | A 'DBVar'@ m delta@ is a mutable reference to a value of type @a@.
+-- The type @delta@ is a delta encoding for this value type @a@, 
+-- that is we have @a ~ @'Base'@ delta@.
 --
 -- The value is kept in-memory.
 -- However, whenever the value is updated, a copy of will be written
 -- to persistent storage like a file or database on the hard disk.
--- For efficient updates, a delta encoding @delta@ is used.
+-- For efficient updates, the delta encoding @delta@ is used.
 --
 -- Concurrency:
 --
 -- * Updates are atomic and will block other updates.
 -- * Reads will /not/ be blocked during (most of) an update.
-data DBVar m delta a = DBVar
-    { readDBVar   :: m a
-    -- ^ Read the current value of the 'DBVar'.
-    , updateDBVar :: delta -> m ()
-    -- ^ Update the value of the 'DBVar' using a delta encoding.
+data DBVar m delta = DBVar
+    { readDBVar_   :: m (Base delta)
+    , updateDBVar_ :: delta -> m ()
     }
 
+-- | Read the current value of the 'DBVar'.
+readDBVar :: (Delta da, a ~ Base da) => DBVar m da -> m a
+readDBVar = readDBVar_
+
+-- | Update the value of the 'DBVar' using a delta encoding.
+updateDBVar :: Delta da => DBVar m da -> da -> m ()
+updateDBVar = updateDBVar_
+
 -- | Modify the value in a 'DBVar'.
-modifyDBVar :: Monad m => DBVar m delta a -> (a -> (delta, b)) -> m b
+modifyDBVar
+    :: (Delta da, Monad m, a ~ Base da)
+    => DBVar m da -> (a -> (da, b)) -> m b
 modifyDBVar var f = do
     a <- readDBVar var
     let (delta, b) = f a
@@ -78,19 +88,19 @@ modifyDBVar var f = do
 
 -- | Initialize a new 'DBVar' for a given 'Store'.
 initDBVar
-    :: (MonadSTM m, Delta delta, v ~ Base delta)
-    => Store m delta v -- ^ 'Store' for writing.
-    -> v -- ^ Initial value.
-    -> m (DBVar m delta v)
+    :: (MonadSTM m, Delta da, a ~ Base da)
+    => Store m da -- ^ 'Store' for writing.
+    -> a -- ^ Initial value.
+    -> m (DBVar m da)
 initDBVar store v = do
     writeS store v
     newWithCache (updateS store) v
 
 -- | Create a 'DBVar' by loading its value from an existing 'Store' (if successful).
 loadDBVar
-    :: (MonadSTM m, Delta delta, v ~ Base delta)
-    => Store m delta v -- ^ 'Store' for writing and for reading the initial value.
-    -> m (Maybe (DBVar m delta v))
+    :: (MonadSTM m, Delta da)
+    => Store m da -- ^ 'Store' for writing and for reading the initial value.
+    -> m (Maybe (DBVar m da))
 loadDBVar store =
     loadS store >>= \case
         Nothing -> pure Nothing
@@ -99,14 +109,14 @@ loadDBVar store =
 -- | Create 'DBVar' from an initial value and an update function
 -- using a 'TVar' as in-memory cache.
 newWithCache
-    :: (MonadSTM m, Delta delta, v ~ Base delta)
-    => (v -> delta -> m ()) -> v -> m (DBVar m delta v)
-newWithCache update v = do
-    cache  <- newTVarIO v
+    :: (MonadSTM m, Delta da, a ~ Base da)
+    => (a -> da -> m ()) -> a -> m (DBVar m da)
+newWithCache update a = do
+    cache  <- newTVarIO a
     locked <- newTVarIO False  -- lock for updating the cache
     pure $ DBVar
-        { readDBVar   = atomically $ readTVar cache
-        , updateDBVar = \delta -> do
+        { readDBVar_   = atomically $ readTVar cache
+        , updateDBVar_ = \delta -> do
             old <- atomically $ do
                 readTVar locked >>= \case
                     True  -> retry
@@ -123,7 +133,8 @@ newWithCache update v = do
 {-------------------------------------------------------------------------------
     Store
 -------------------------------------------------------------------------------}
--- | A 'Store' is an on-disk storage facility for values of type 'a'.
+-- | A 'Store' is an on-disk storage facility for values
+-- of type @a ~@'Base'@ da@.
 -- The store need not contain a properly formatted value at first.
 --
 -- The operations for a 'Store' are expected to satisfy several invariants.
@@ -139,19 +150,17 @@ newWithCache update v = do
 -- do not throw synchronous exceptions. In the worst case,
 -- 'loadS' should return 'Nothing' after reading or writing
 -- to the store was unsuccesful.
-data Store m delta a = Store
-    { loadS   :: m (Maybe a)
-    , writeS  :: a -> m ()
+data Store m da = Store
+    { loadS   :: m (Maybe (Base da))
+    , writeS  :: Base da -> m ()
     , updateS
-        :: a -- old value
-        -> delta -- delta to new value
+        :: Base da -- old value
+        -> da -- delta to new value
         -> m () -- write new value
     }
 
 -- | An in-memory 'Store' from a mutable variable ('TVar') for testing.
-newStore
-    :: (Delta delta, a ~ Base delta, MonadSTM m)
-    => m (Store m delta a)
+newStore :: (Delta da, MonadSTM m) => m (Store m da)
 newStore = do
     ref <- newTVarIO Nothing
     pure $ Store
@@ -167,8 +176,8 @@ newStore = do
 --
 -- FIXME: Safety with respect to asynchronous exceptions?
 cachedStore
-    :: forall m a delta. (MonadSTM m, Delta delta, a ~ Base delta)
-    => Store m delta a -> m (Store m delta a)
+    :: forall m da. (MonadSTM m, Delta da)
+    => Store m da -> m (Store m da)
 cachedStore Store{loadS,writeS,updateS} = do
     -- Lock that puts loadS, writeS and updateS into sequence
     islocked <- newTVarIO False
@@ -183,12 +192,12 @@ cachedStore Store{loadS,writeS,updateS} = do
 
     -- Cache that need not be filled in the beginning
     iscached <- newTVarIO False
-    cache    <- newTVarIO (Nothing :: Maybe a)
+    cache    <- newTVarIO (Nothing :: Maybe (Base da))
     let writeCache ma = writeTVar cache ma >> writeTVar iscached True
 
     -- Load the value from the Store only if it is not cached and
     -- nobody else is writing to the store.
-    let load :: m (Maybe a)
+    let load :: m (Maybe (Base da))
         load = do
             action <- atomically $
                 readTVar iscached >>= \case
@@ -214,8 +223,7 @@ cachedStore Store{loadS,writeS,updateS} = do
         }
 
 embedStore :: (MonadSTM m, Delta da, Delta db)
-    => Embedding da db
-    -> Store m db (Base db) -> m (Store m da (Base da))
+    => Embedding da db -> Store m db -> m (Store m da)
 embedStore embed bstore = do
     machine <- newTVarIO Nothing
     let readMachine  = atomically $ readTVar machine
@@ -245,8 +253,7 @@ embedStore embed bstore = do
 -- via an 'Embedding' of the first type into the second type.
 embedStore'
     :: (Monad m)
-    => Embedding' da db
-    -> Store m db (Base db) -> Store m da (Base da)
+    => Embedding' da db -> Store m db -> Store m da
 embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} = Store
     { loadS   = (load =<<) <$> loadS
     , writeS  = writeS . write
@@ -257,11 +264,11 @@ embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} = Store
             Just b  -> updateS b (update a b da)
     }
 
-
 -- | Combine two 'Stores' into a store for pairs.
-pairStores :: Monad m => Store m d1 a1 -> Store m d2 a2 -> Store m (d1, d2) (a1, a2)
-pairStores s1 s2 = Store
-    { loadS = liftA2 (,) <$> loadS s1 <*> loadS s2
-    , writeS = \(a1,a2) -> writeS s1 a1 >> writeS s2 a2
-    , updateS = \(a1,a2) (d1,d2) -> updateS s1 a1 d1 >> updateS s2 a2 d2
+pairStores :: (Monad m, Delta da, Delta db)
+    => Store m da -> Store m db -> Store m (da, db)
+pairStores sa sb = Store
+    { loadS = liftA2 (,) <$> loadS sa <*> loadS sb
+    , writeS = \(a,b) -> writeS sa a >> writeS sb b
+    , updateS = \(a,b) (da,db) -> updateS sa a da >> updateS sb b db
     }

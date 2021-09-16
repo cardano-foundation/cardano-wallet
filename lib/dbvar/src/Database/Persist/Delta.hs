@@ -121,7 +121,7 @@ sqlDB = Database
 -- each row in the database table.
 newSqlStore
     :: (MonadIO m, IsRow row, IsRow (row :. Col "id" Primary), Show row)
-    => m (Store SqlPersistM [DeltaDB Int row] (Table row))
+    => m (Store SqlPersistM [DeltaDB Int row])
 newSqlStore = newDatabaseStore sqlDB
 
 -- | Construct a 'Store' for 'Entity'.
@@ -133,14 +133,14 @@ newEntityStore
     ( PersistRecordBackend row SqlBackend
     , ToBackendKey SqlBackend row, Show row
     , MonadIO m )
-    => m (Store SqlPersistM [DeltaDB Int row] (Table row))
+    => m (Store SqlPersistM [DeltaDB Int row])
 newEntityStore = newDatabaseStore persistDB
 
 -- | Helper function to create a 'Store' using a 'Database' backend.
 newDatabaseStore
     :: forall m n row. (MonadIO m, MonadIO n, Show row)
     => Database m Int row
-    -> n (Store m [DeltaDB Int row] (Table row))
+    -> n (Store m [DeltaDB Int row])
 newDatabaseStore db = do
     ref <- liftIO $ newIORef Nothing
     let rememberSupply table = liftIO $ writeIORef ref $ Just $ uids table
