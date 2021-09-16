@@ -357,7 +357,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionResult (..)
     , UnableToConstructChangeError (..)
     , balanceMissing
-    , missingOutputAssets
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Delegation.UTxO
@@ -3797,13 +3796,6 @@ instance IsServerError ErrSelectAssets where
                         , "specify an ada value for an output. Otherwise, you "
                         , "must specify enough ada. Here are the problematic "
                         , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
-                        ]
-                Balance.OutputsInsufficient e ->
-                    apiError err403 TokensMintedButNotSpentOrBurned $ mconcat
-                        [ "I can't process this transaction because some "
-                        , "minted values were not spent or burned. These "
-                        , "are the values that should be spent or burned: "
-                        , pretty . Flat $ missingOutputAssets e
                         ]
                 Balance.UnableToConstructChange e ->
                     apiError err403 CannotCoverFee $ T.unwords
