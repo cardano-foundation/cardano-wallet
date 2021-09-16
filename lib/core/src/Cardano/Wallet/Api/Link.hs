@@ -665,7 +665,6 @@ signTransaction w = discriminate @style
   where
     wid = w ^. typed @(ApiT WalletId)
 
-
 --
 -- Stake Pools
 --

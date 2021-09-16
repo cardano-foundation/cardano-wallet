@@ -91,6 +91,7 @@ module Cardano.Wallet.Api.Server
     , patchSharedWallet
     , mkSharedWallet
     , mintBurnAssets
+    , balanceTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -128,6 +129,9 @@ import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
+    , ErrBalanceTx (..)
+    , ErrCannotJoin (..)
+    , ErrCannotQuit (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
@@ -156,6 +160,7 @@ import Cardano.Wallet
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
+    , ErrUpdateSealedTx (..)
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotResponding (..)
     , ErrWithRootKey (..)
@@ -190,6 +195,7 @@ import Cardano.Wallet.Api.Types
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
     , ApiAsset (..)
+    , ApiBalanceTransactionPostData
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
@@ -436,8 +442,6 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
-    , ErrCannotJoin (..)
-    , ErrCannotQuit (..)
     , ErrSignTx (..)
     , TransactionCtx (..)
     , TransactionLayer
@@ -2070,6 +2074,14 @@ constructTransaction ctx genChange (ApiT wid) body = do
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
+balanceTransaction
+    :: forall ctx (n :: NetworkDiscriminant). ctx
+    -> ApiT WalletId
+    -> ApiBalanceTransactionPostData n
+    -> Handler (ApiConstructTransaction n)
+balanceTransaction _ctx (ApiT _wid) _body =
+    liftHandler $ throwE ErrBalanceTxNotImplemented
+
 joinStakePool
     :: forall ctx s n k.
         ( ctx ~ ApiLayer s k
@@ -3450,6 +3462,19 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxReadRewardAccount e -> toServerError e
         ErrConstructTxIncorrectTTL e -> toServerError e
         ErrConstructTxNotImplemented _ ->
+            apiError err501 NotImplemented
+                "This feature is not yet implemented."
+
+instance IsServerError ErrBalanceTx where
+    toServerError = \case
+        ErrBalanceTxTxAlreadyBalanced ->
+            apiError err403 TransactionAlreadyBalanced $ mconcat
+                [ "The transaction is already balanced. "
+                , "Please send a transaction that requires more inputs/outputs to be picked to be balanced."
+                ]
+        ErrBalanceTxUpdateError (ErrUpdateSealedTxBodyError hint) ->
+            apiError err500 CreatedInvalidTransaction hint
+        ErrBalanceTxNotImplemented ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
 

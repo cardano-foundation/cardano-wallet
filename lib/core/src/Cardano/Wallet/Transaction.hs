@@ -31,6 +31,7 @@ module Cardano.Wallet.Transaction
     , ErrMkTransaction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
+    , ErrUpdateSealedTx (..)
     ) where
 
 import Prelude
@@ -70,6 +71,8 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Text
     ( Text )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -156,6 +159,12 @@ data TransactionLayer k tx = TransactionLayer
 
     , decodeTx :: tx -> Tx
     -- ^ Decode an externally-created transaction.
+
+    , updateTx
+        :: tx
+        -> ( [TxIn], [TxOut] )
+        -> Either ErrUpdateSealedTx (tx, Word64)
+        -- ^ Update tx by adding additional inputs and outputs and give recalculated fee
     }
     deriving Generic
 
@@ -237,4 +246,9 @@ data ErrCannotJoin
 data ErrCannotQuit
     = ErrNotDelegatingOrAboutTo
     | ErrNonNullRewards Coin
+    deriving (Eq, Show)
+
+newtype ErrUpdateSealedTx
+    = ErrUpdateSealedTxBodyError Text
+    -- ^ We failed to construct a transaction for some reasons.
     deriving (Generic, Eq, Show)

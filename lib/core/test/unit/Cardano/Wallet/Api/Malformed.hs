@@ -52,6 +52,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiAddressData
     , ApiAddressInspectData
+    , ApiBalanceTransactionPostData
     , ApiBytesT (..)
     , ApiConstructTransactionData
     , ApiMaintenanceActionPostData
@@ -1415,6 +1416,35 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
               )
             , ( [aesonQQ|{"withdrawal":["word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,","word,"]}|]
                , "Error in $.withdrawal: Found an unknown word not present in the pre-defined dictionary. The full dictionary is available here: https://github.com/input-output-hk/cardano-wallet/tree/master/specifications/mnemonic/english.txt"
+              )
+            ]
+
+instance Malformed (BodyParam (ApiBalanceTransactionPostData ('Testnet pm))) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing ApiBalanceTransactionPostData failed, expected Object, but encountered Number")
+            , ("\"hello\"", "Error in $: parsing ApiBalanceTransactionPostData failed, expected Object, but encountered String")
+            , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
+            , ("{\"transaction\": \"lah\"}", "Error in $.transaction: parsing HashMap ~Text failed, expected Object, but encountered String")
+            , ("{\"transaction\": {\"cborHex\": 1020344},\"signatories\":[],\"inputs\":[]}", "Error in $: parsing 'Base16 ByteString failed, expected String, but encountered Number")
+            , ("{\"transaction\": {\"cborHex\": {\"body\": 1020344 }},\"signatories\":[],\"inputs\":[]}", "Error in $: parsing 'Base16 ByteString failed, expected String, but encountered Object")
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$>
+            [
+              ( [aesonQQ|
+                { "transaction": { "cborHex" :#{validSealedTxBase64} },
+                  "signatories": [],
+                  "inputs": []
+                }|]
+              , "Error in $: Parse error. Expecting Base16-encoded format."
+              )
+            , ( [aesonQQ|
+               { "transaction": { "cborHex" :#{validSealedTxHex} },
+                 "signatories": ["something"],
+                 "inputs": []
+               }|]
+               , "Error in $[0]: Invalid account public key: expecting a hex-encoded value that is 64 bytes in length."
               )
             ]
 

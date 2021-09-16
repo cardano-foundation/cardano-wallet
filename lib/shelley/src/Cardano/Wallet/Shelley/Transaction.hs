@@ -403,6 +403,9 @@ newTransactionLayer networkId = TransactionLayer
     , constraints = \pp -> txConstraints pp (txWitnessTagFor @k)
 
     , decodeTx = _decodeSealedTx
+
+    , updateTx = \_sealedTx _inpsOuts ->
+            error "updateTx not implemented"
     }
   where
     unsafeSubtractCoin
