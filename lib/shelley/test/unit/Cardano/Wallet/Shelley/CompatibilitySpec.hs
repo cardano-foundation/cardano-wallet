@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -38,7 +39,11 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     )
 import Cardano.Wallet.Api.Types
-    ( ApiBalanceTransactionPostData, DecodeAddress (..), DecodeStakeAddress (..), EncodeStakeAddress (..) )
+    ( ApiBalanceTransactionPostData
+    , DecodeAddress (..)
+    , DecodeStakeAddress (..)
+    , EncodeStakeAddress (..)
+    )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -48,12 +53,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey
     , publicKey
     )
-import System.FilePath
-    ( (</>) )
-import Data.Aeson
-    ( eitherDecode )
-import Test.Utils.Paths
-    ( getTestData )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -107,6 +106,8 @@ import Codec.Binary.Encoding
     ( fromBase16 )
 import Control.Monad
     ( forM_ )
+import Data.Aeson
+    ( eitherDecode )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -133,6 +134,8 @@ import GHC.TypeLits
     ( natVal )
 import Ouroboros.Network.Block
     ( BlockNo (..), Point, SlotNo (..), Tip (..), getTipPoint )
+import System.FilePath
+    ( (</>) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.Hspec.Core.Spec
@@ -162,6 +165,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
+import Test.Utils.Paths
+    ( getTestData )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Address as SL
@@ -174,6 +179,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text.Encoding as T
 import qualified Shelley.Spec.Ledger.PParams as SL
 
