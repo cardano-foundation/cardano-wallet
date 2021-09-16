@@ -144,6 +144,7 @@
         "unit" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
             (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
             (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
@@ -158,6 +159,7 @@
             (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
             (hsPkgs."hspec-core" or (errorHandler.buildDepError "hspec-core"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
