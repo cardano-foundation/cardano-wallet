@@ -186,7 +186,6 @@ import Test.QuickCheck
     , genericShrink
     , ioProperty
     , label
-    , oneof
     , property
     , shrinkList
     , suchThat
@@ -625,7 +624,7 @@ genSelectionParams genUTxOIndex' = do
             (1, UTxOIndex.size utxoAvailable `div` 8)
           )
         ]
-    extraCoinSource <- oneof [ pure Nothing, Just <$> genCoin ]
+    extraCoinSource <- genCoin
     (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
     pure $ SelectionParams
         { outputsToCover
@@ -1526,7 +1525,7 @@ encodeBoundaryTestCriteria c = SelectionParams
     , selectionLimit =
         NoLimit
     , extraCoinSource =
-        Nothing
+        Coin 0
     , assetsToMint =
         TokenMap.empty
     , assetsToBurn =
@@ -1966,7 +1965,7 @@ isValidMakeChangeData p = (&&)
   where
     totalInputValue =
         F.fold (inputBundles p)
-            <> (F.foldMap TokenBundle.fromCoin (view #extraCoinSource p))
+            <> (TokenBundle.fromCoin (view #extraCoinSource p))
             <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
@@ -1980,8 +1979,8 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     MakeChangeCriteria
         <$> arbitrary
         <*> pure NoBundleSizeLimit
-        <*> genCoin
-        <*> oneof [pure Nothing, Just <$> genCoinPositive]
+        <*> genRequiredCost
+        <*> genExtraCoinSource
         <*> genTokenBundles inputBundleCount
         <*> genTokenBundles outputBundleCount
         <*> genAssetsToMint
@@ -1992,6 +1991,12 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
 
     genAssetsToBurn :: Gen TokenMap
     genAssetsToBurn = genTokenMapSmallRange
+
+    genExtraCoinSource :: Gen Coin
+    genExtraCoinSource = genCoin
+
+    genRequiredCost :: Gen Coin
+    genRequiredCost = genCoin
 
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
@@ -2015,7 +2020,7 @@ prop_makeChange_identity bundles = (===)
     criteria = MakeChangeCriteria
         { minCoinFor = const (Coin 0)
         , requiredCost = Coin 0
-        , extraCoinSource = Nothing
+        , extraCoinSource = Coin 0
         , bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
         , inputBundles = bundles
         , outputBundles = bundles
@@ -2232,7 +2237,7 @@ prop_makeChange_success_delta p change =
         ]
     totalInputValue =
         F.fold (inputBundles p)
-            <> F.foldMap TokenBundle.fromCoin (view #extraCoinSource p)
+            <> TokenBundle.fromCoin (view #extraCoinSource p)
             <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalInputCoin =
         TokenBundle.getCoin totalInputValue
@@ -2290,7 +2295,7 @@ prop_makeChange_fail_costTooBig p =
   where
     totalInputValue =
         F.fold (inputBundles p)
-            <> F.foldMap TokenBundle.fromCoin (view #extraCoinSource p)
+            <> TokenBundle.fromCoin (view #extraCoinSource p)
             <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
@@ -2339,7 +2344,7 @@ prop_makeChange_fail_minValueTooBig p =
   where
     totalInputValue =
         F.fold (inputBundles p)
-            <> F.foldMap TokenBundle.fromCoin (view #extraCoinSource p)
+            <> TokenBundle.fromCoin (view #extraCoinSource p)
             <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
@@ -2366,7 +2371,7 @@ unit_makeChange =
     matrix =
         -- Simple, only ada, should construct a single change output with 1 ada.
         [ ( noMinCoin, noCost
-          , Nothing
+          , Coin 0
           , b 2 [] :| []
           , b 1 [] :| []
           , Right [b 1 []]
@@ -2374,7 +2379,7 @@ unit_makeChange =
 
         -- Two outputs, no cost, changes are proportional, no extra assets
         , ( noMinCoin, noCost
-          , Nothing
+          , Coin 0
           , b 9 [(assetA, 9), (assetB, 6)] :| []
           , b 2 [(assetA, 1)] :| [b 1 [(assetA, 2), (assetB, 3)]]
           , Right
@@ -2386,7 +2391,7 @@ unit_makeChange =
         -- Extra non-user-specified assets. Large assets end up in 'large'
         -- bundles and small extra assets in smaller bundles.
         , ( noMinCoin, noCost
-          , Nothing
+          , Coin 0
           , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
           , b 1 [(assetA, 5)] :| [b 1 [(assetB, 1)]]
           , Right
