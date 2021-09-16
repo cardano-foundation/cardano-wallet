@@ -208,10 +208,11 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
-    , ApiConstructTransactionData
+    , ApiConstructTransactionData (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiEra (..)
     , ApiErrorCode (..)
+    , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
     , ApiMintedBurnedTransaction (..)
@@ -245,6 +246,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
+    , ApiTxOut (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
@@ -442,7 +444,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrSignTx (..)
     , TransactionCtx (..)
-    , TransactionLayer
+    , TransactionLayer (..)
     , Withdrawal (..)
     , defaultTransactionCtx
     )
@@ -2201,14 +2203,67 @@ balanceTransaction
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler (ApiConstructTransaction n)
-balanceTransaction ctx (ApiT _wid) _body = do
+balanceTransaction ctx (ApiT _wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
-    let _executionPrices = pp ^. #executionUnitPrices
+    let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
+    let _txCtx = defaultTransactionCtx
+            { txPlutusScriptExecutionCost = executionFee
+            }
+    let _txData = toApiConstructTransactionData txIncoming
 
-    liftHandler $ throwE ErrBalanceTxNotImplemented
+    -- TODO
+    -- here goes coin selection with external inputs
+    -- we call it with :
+    --    txCtx
+    --    _appliedExternalInps
+    --   txData :: ApiConstructTransactionData
+    let cs = undefined :: (ApiCoinSelection n)-- "coin selection accepting external inputs/txCtx will come here "
+    (sealedTxOutcoming, newfee) <-
+        case updateTx tl sealedTxIncoming (getInpsChange cs) of
+            Right result -> pure result
+            Left err ->
+                liftHandler $ throwE $ ErrBalanceTxUpdateError err
+    pure $ ApiConstructTransaction
+        { transaction = ApiT sealedTxOutcoming
+        , coinSelection = cs
+        , fee = Quantity $ fromIntegral newfee
+        }
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
+    toTxIn (ApiCoinSelectionInput (ApiT txid) ix _ _ _ _) =
+        TxIn txid ix
+    toTxOut (ApiCoinSelectionChange (ApiT addr,_) (Quantity amt) (ApiT assets) _) =
+        TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
+    getInpsChange cs =
+        ( map toTxIn $ NE.toList $ cs ^. #inputs
+        , map toTxOut $ cs ^. #change)
+    apiExternalInps = body ^. #inputs
+    getAmtFromExternalInps (ApiExternalInput _ (ApiTxOut _ _ (Quantity amt) _)) = amt
+    _appliedExternalInps = sum $ getAmtFromExternalInps <$> apiExternalInps
+    sealedTxIncoming = body ^. #transaction . #getApiT
+    txIncoming = decodeTx tl sealedTxIncoming
+
+    -- TODO - maybe we can fill in more below
+    toApiConstructTransactionData (Tx _id _fee _coll _inps outs wdrlM mdM _validity) = ApiConstructTransactionData
+        { payments = toApiPaymentDesination outs
+        , withdrawal = toApiWdrl wdrlM
+        , metadata = ApiT <$> mdM
+        , mint = Nothing
+        , delegations = Nothing
+        , validityInterval = Nothing
+        }
+    toApiWdrl :: Map RewardAccount Coin -> Maybe ApiWithdrawalPostData
+    toApiWdrl _ = Nothing --TODO in ADP-656 - I need to lookup the wallet rewardAcct against this map?
+    toApiPaymentDesination = \case
+        [] -> Nothing
+        txouts -> Just $ ApiPaymentAddresses $ NE.fromList $ toAddressAmount <$> txouts
+    toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
+    toAddressAmount (TxOut addr (TokenBundle coin tokenMap)) = AddressAmount
+        { address = (ApiT addr, Proxy)
+        , amount = Quantity $ fromIntegral (unCoin coin)
+        , assets = ApiT tokenMap
+        }
 
 joinStakePool
     :: forall ctx s n k.
