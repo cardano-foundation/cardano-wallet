@@ -1543,7 +1543,10 @@ instance Malformed (BodyParam (ApiBytesT 'Base64 SerialisedTx))
 -- in Server.hs. Tested by integration tests.
 
 instance Malformed (BodyParam (ApiT SealedTx)) where
-    malformed = [] -- fixme: add a couple things
+    malformed = first BodyParam <$>
+        [ ("", "DecoderErrorDeserialiseFailure 'Shelley Tx' (DeserialiseFailure 0 'end of input')")
+        , ("cafecafe", "DecoderErrorDeserialiseFailure 'Shelley Tx' (DeserialiseFailure 0 'expected list len or indef')")
+        ]
 
 instance Malformed (BodyParam ApiPostRandomAddressData) where
     malformed = first (BodyParam . Aeson.encode) <$>
