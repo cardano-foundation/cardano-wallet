@@ -229,6 +229,9 @@ data SelectionParams = SelectionParams
     , extraCoinSource
         :: !Coin
         -- ^ An extra source of ada.
+    , extraCoinSink
+        :: !Coin
+        -- ^ An extra sink for ada.
     , assetsToMint
         :: !TokenMap
         -- ^ Assets to mint: these provide input value to a transaction.
@@ -290,6 +293,8 @@ computeUTxOBalanceRequired params =
         TokenBundle.fromCoin (view #extraCoinSource params)
     balanceOut =
         TokenBundle.fromTokenMap (view #assetsToBurn params)
+        `TokenBundle.add`
+        TokenBundle.fromCoin (view #extraCoinSink params)
         `TokenBundle.add`
         F.foldMap (view #tokens) (view #outputsToCover params)
 
@@ -388,6 +393,9 @@ data SelectionResult change = SelectionResult
     , extraCoinSource
         :: !Coin
         -- ^ An extra source of ada.
+    , extraCoinSink
+        :: !Coin
+        -- ^ An extra sink for ada.
     , outputsCovered
         :: ![TxOut]
         -- ^ A list of outputs covered.
@@ -465,6 +473,8 @@ selectionDeltaAllAssets result
     balanceOut =
         TokenBundle.fromTokenMap assetsToBurn
         `TokenBundle.add`
+        TokenBundle.fromCoin extraCoinSink
+        `TokenBundle.add`
         F.foldMap (view #tokens) outputsCovered
         `TokenBundle.add`
         F.fold changeGenerated
@@ -472,6 +482,7 @@ selectionDeltaAllAssets result
         { assetsToMint
         , assetsToBurn
         , extraCoinSource
+        , extraCoinSink
         , inputsSelected
         , outputsCovered
         , changeGenerated
@@ -692,6 +703,7 @@ performSelection constraints params
         , utxoAvailable
         , selectionLimit
         , extraCoinSource
+        , extraCoinSink
         , assetsToMint
         , assetsToBurn
         } = params
@@ -772,6 +784,7 @@ performSelection constraints params
             , bundleSizeAssessor = assessTokenBundleSize
             , requiredCost = noCost
             , extraCoinSource
+            , extraCoinSink
             , inputBundles
             , outputBundles
             , assetsToMint
@@ -850,6 +863,7 @@ performSelection constraints params
             , bundleSizeAssessor = assessTokenBundleSize
             , requiredCost
             , extraCoinSource
+            , extraCoinSink
             , inputBundles = view #tokens . snd <$> inputsSelected
             , outputBundles = view #tokens <$> outputsToCover
             , assetsToMint
@@ -860,6 +874,7 @@ performSelection constraints params
         mkSelectionResult changeGenerated = SelectionResult
             { inputsSelected
             , extraCoinSource
+            , extraCoinSink
             , changeGenerated = changeGenerated
             , outputsCovered = NE.toList outputsToCover
             , utxoRemaining = leftover
@@ -899,7 +914,8 @@ performSelection constraints params
         [ "performSelection: couldn't construct change for a selection with no "
         , "minimum coin value and no cost!"
         , "inputs: " <> show inputs_
-        , "extra input source: " <> show extraCoinSource
+        , "extra coin source: " <> show extraCoinSource
+        , "extra coin sink: " <> show extraCoinSink
         , "outputs: " <> show outputsToCover
         ]
 
@@ -925,6 +941,7 @@ data SelectionReportSummarized = SelectionReportSummarized
     , totalAdaBalanceOut :: Coin
     , adaBalanceOfSelectedInputs :: Coin
     , adaBalanceOfExtraCoinSource :: Coin
+    , adaBalanceOfExtraCoinSink :: Coin
     , adaBalanceOfRequestedOutputs :: Coin
     , adaBalanceOfGeneratedChangeOutputs :: Coin
     , numberOfSelectedInputs :: Int
@@ -974,6 +991,8 @@ makeSelectionReportSummarized s = SelectionReportSummarized {..}
         = F.foldMap (view (#tokens . #coin) . snd) $ view #inputsSelected s
     adaBalanceOfExtraCoinSource
         = view #extraCoinSource s
+    adaBalanceOfExtraCoinSink
+        = view #extraCoinSink s
     adaBalanceOfGeneratedChangeOutputs
         = F.foldMap (view #coin) $ view #changeGenerated s
     adaBalanceOfRequestedOutputs
@@ -1267,6 +1286,8 @@ data MakeChangeCriteria minCoinFor bundleSizeAssessor = MakeChangeCriteria
       -- This typically captures fees plus key deposits.
     , extraCoinSource :: Coin
         -- ^ An extra source of ada.
+    , extraCoinSink :: Coin
+        -- ^ An extra sink for ada.
     , inputBundles :: NonEmpty TokenBundle
         -- ^ Token bundles of selected inputs.
     , outputBundles :: NonEmpty TokenBundle
@@ -1328,6 +1349,7 @@ makeChange criteria
         , bundleSizeAssessor
         , requiredCost
         , extraCoinSource
+        , extraCoinSink
         , inputBundles
         , outputBundles
         , assetsToMint
@@ -1471,6 +1493,7 @@ makeChange criteria
     totalOutputValue :: TokenBundle
     totalOutputValue =
         F.fold outputBundles
+            <> TokenBundle.fromCoin extraCoinSink
             -- Burns represent extra outputs to "the void"
             <> TokenBundle.fromTokenMap assetsToBurn
 

@@ -625,11 +625,13 @@ genSelectionParams genUTxOIndex' = do
           )
         ]
     extraCoinSource <- genCoin
+    extraCoinSink <- genCoin
     (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
     pure $ SelectionParams
         { outputsToCover
         , utxoAvailable
         , extraCoinSource
+        , extraCoinSink
         , selectionLimit
         , assetsToMint
         , assetsToBurn
@@ -805,6 +807,8 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
         monitor $ counterexample $ unlines
             [ "extraCoinSource:"
             , show extraCoinSource
+            , "extraCoinSink:"
+            , show extraCoinSink
             , "selectionLimit:"
             , show selectionLimit
             , "assetsToMint:"
@@ -826,6 +830,7 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
         { outputsToCover
         , utxoAvailable
         , extraCoinSource
+        , extraCoinSink
         , selectionLimit
         , assetsToMint
         , assetsToBurn
@@ -1526,6 +1531,8 @@ encodeBoundaryTestCriteria c = SelectionParams
         NoLimit
     , extraCoinSource =
         Coin 0
+    , extraCoinSink =
+        Coin 0
     , assetsToMint =
         TokenMap.empty
     , assetsToBurn =
@@ -1965,10 +1972,11 @@ isValidMakeChangeData p = (&&)
   where
     totalInputValue =
         F.fold (inputBundles p)
-            <> (TokenBundle.fromCoin (view #extraCoinSource p))
+            <> TokenBundle.fromCoin (view #extraCoinSource p)
             <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
+            <> TokenBundle.fromCoin (view #extraCoinSink p)
             <> TokenBundle.fromTokenMap (view #assetsToBurn p)
     totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
 
@@ -1981,6 +1989,7 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
         <*> pure NoBundleSizeLimit
         <*> genRequiredCost
         <*> genExtraCoinSource
+        <*> genExtraCoinSink
         <*> genTokenBundles inputBundleCount
         <*> genTokenBundles outputBundleCount
         <*> genAssetsToMint
@@ -1994,6 +2003,9 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
 
     genExtraCoinSource :: Gen Coin
     genExtraCoinSource = genCoin
+
+    genExtraCoinSink :: Gen Coin
+    genExtraCoinSink = genCoin
 
     genRequiredCost :: Gen Coin
     genRequiredCost = genCoin
@@ -2021,6 +2033,7 @@ prop_makeChange_identity bundles = (===)
         { minCoinFor = const (Coin 0)
         , requiredCost = Coin 0
         , extraCoinSource = Coin 0
+        , extraCoinSink = Coin 0
         , bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
         , inputBundles = bundles
         , outputBundles = bundles
@@ -2243,6 +2256,7 @@ prop_makeChange_success_delta p change =
         TokenBundle.getCoin totalInputValue
     totalOutputValue =
         F.fold (outputBundles p)
+            <> TokenBundle.fromCoin (view #extraCoinSink p)
             <> TokenBundle.fromTokenMap (view #assetsToBurn p)
     totalOutputCoin =
         TokenBundle.getCoin totalOutputValue
@@ -2299,6 +2313,7 @@ prop_makeChange_fail_costTooBig p =
             <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
+            <> TokenBundle.fromCoin (view #extraCoinSink p)
             <> TokenBundle.fromTokenMap (view #assetsToBurn p)
 
 -- The 'makeChange' function will fail if there is not enough ada to assign
@@ -2348,17 +2363,26 @@ prop_makeChange_fail_minValueTooBig p =
             <> TokenBundle.fromTokenMap (view #assetsToMint p)
     totalOutputValue =
         F.fold (outputBundles p)
+            <> TokenBundle.fromCoin (view #extraCoinSink p)
             <> TokenBundle.fromTokenMap (view #assetsToBurn p)
 
 unit_makeChange
     :: [Expectation]
 unit_makeChange =
     [ makeChange criteria `shouldBe` expectation
-    | (minCoinFor, requiredCost, extraCoinSource, i, o, expectation) <- matrix
+    | ( minCoinFor
+      , requiredCost
+      , extraCoinSource
+      , extraCoinSink
+      , i
+      , o
+      , expectation
+      ) <- matrix
     , let criteria = MakeChangeCriteria
               { minCoinFor
               , requiredCost
               , extraCoinSource
+              , extraCoinSink
               , bundleSizeAssessor
               , inputBundles = i
               , outputBundles = o
@@ -2372,6 +2396,7 @@ unit_makeChange =
         -- Simple, only ada, should construct a single change output with 1 ada.
         [ ( noMinCoin, noCost
           , Coin 0
+          , Coin 0
           , b 2 [] :| []
           , b 1 [] :| []
           , Right [b 1 []]
@@ -2379,6 +2404,7 @@ unit_makeChange =
 
         -- Two outputs, no cost, changes are proportional, no extra assets
         , ( noMinCoin, noCost
+          , Coin 0
           , Coin 0
           , b 9 [(assetA, 9), (assetB, 6)] :| []
           , b 2 [(assetA, 1)] :| [b 1 [(assetA, 2), (assetB, 3)]]
@@ -2391,6 +2417,7 @@ unit_makeChange =
         -- Extra non-user-specified assets. Large assets end up in 'large'
         -- bundles and small extra assets in smaller bundles.
         , ( noMinCoin, noCost
+          , Coin 0
           , Coin 0
           , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
           , b 1 [(assetA, 5)] :| [b 1 [(assetB, 1)]]

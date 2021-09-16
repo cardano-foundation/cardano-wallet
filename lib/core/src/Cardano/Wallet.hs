@@ -2020,6 +2020,7 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
             , outputsCovered
             , utxoRemaining = UTxOIndex.empty
             , extraCoinSource
+            , extraCoinSink = Coin 0
             , changeGenerated = []
             , assetsToMint = TokenMap.empty
             , assetsToBurn = TokenMap.empty

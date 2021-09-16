@@ -115,6 +115,9 @@ performSelection selectionConstraints selectionParams =
                     { assetsToBurn
                     , assetsToMint
                     , extraCoinSource = fromMaybe (Coin 0) rewardWithdrawal
+                      -- TODO: Use this for stake key deposits and anything else
+                      -- that consumes ada:
+                    , extraCoinSink = Coin 0
                     , outputsToCover = preparedOutputsToCover
                     , selectionLimit =
                         computeSelectionLimit $ F.toList preparedOutputsToCover
