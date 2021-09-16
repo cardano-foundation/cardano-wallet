@@ -327,7 +327,9 @@ titled heading action = do
 -- Weeder - uses .hie files in .stack-work to determine unused dependencies
 
 weederStep :: DryRun -> IO ExitCode
-weederStep dryRun = titled "Weeder" $ run dryRun "weeder" []
+weederStep dryRun = titled "Weeder (temporarily disabled)" $
+    pure ExitSuccess
+    -- run dryRun "weeder" []
 
 findHie :: FilePath -> IO [FilePath]
 findHie dir = fold (find (suffix ".hie") dir) Fold.list
