@@ -29,13 +29,13 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , MakeChangeCriteria (..)
     , RunSelectionParams (..)
     , SelectionConstraints (..)
-    , SelectionCriteria (..)
     , SelectionDelta (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
     , SelectionLens (..)
     , SelectionLimit
     , SelectionLimitOf (..)
+    , SelectionParams (..)
     , SelectionResult (..)
     , SelectionSkeleton (..)
     , SelectionState (..)
@@ -264,14 +264,13 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
             -- The UTxO index is generated outside of the property here to avoid
             -- the cost of re-generating it on every pass. This would still
             -- generate interesting cases since the selection within that large
-            -- index is random. Plus, other selection criteria still vary.
+            -- index is random. Plus, other selection parameters still vary.
             utxoAvailable <- generate (genUTxOIndexLargeN 50000)
-            pure $ property $ \minCoin costFor (Large criteria) ->
+            pure $ property $ \minCoin costFor (Large params) ->
                 let
-                    criteria' = Blind $
-                        set #utxoAvailable utxoAvailable criteria
+                    params' = Blind $ set #utxoAvailable utxoAvailable params
                 in
-                    prop_performSelection minCoin costFor criteria' (const id)
+                    prop_performSelection minCoin costFor params' (const id)
                         & withMaxSuccess 5
 
     parallel $ describe "Selection states" $ do
@@ -611,8 +610,8 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
 type PerformSelectionResult =
     Either SelectionError (SelectionResult TokenBundle)
 
-genSelectionCriteria :: Gen UTxOIndex -> Gen SelectionCriteria
-genSelectionCriteria genUTxOIndex' = do
+genSelectionParams :: Gen UTxOIndex -> Gen SelectionParams
+genSelectionParams genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
     outputCount <- max 1 <$>
         choose (1, UTxOIndex.size utxoAvailable `div` 8)
@@ -628,7 +627,7 @@ genSelectionCriteria genUTxOIndex' = do
         ]
     extraCoinSource <- oneof [ pure Nothing, Just <$> genCoin ]
     (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
-    pure $ SelectionCriteria
+    pure $ SelectionParams
         { outputsToCover
         , utxoAvailable
         , extraCoinSource
@@ -651,15 +650,15 @@ genSelectionCriteria genUTxOIndex' = do
 prop_performSelection_small
     :: MinCoinValueFor
     -> CostFor
-    -> Blind (Small SelectionCriteria)
+    -> Blind (Small SelectionParams)
     -> Property
-prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
+prop_performSelection_small minCoinValueFor costFor (Blind (Small params)) =
     checkCoverage $
 
     -- Inspect the balance:
-    cover 20 (isUTxOBalanceSufficient criteria)
+    cover 20 (isUTxOBalanceSufficient params)
         "balance sufficient" $
-    cover 25 (not $ isUTxOBalanceSufficient criteria)
+    cover 25 (not $ isUTxOBalanceSufficient params)
         "balance insufficient" $
 
     -- Inspect the UTxO and user-specified outputs:
@@ -671,13 +670,13 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
         "Assets to cover, but no assets in UTxO" $
 
     -- Inspect the sets of minted and burned assets:
-    cover 20 (view #assetsToMint criteria /= TokenMap.empty)
+    cover 20 (view #assetsToMint params /= TokenMap.empty)
         "Have some assets to mint" $
-    cover 20 (view #assetsToBurn criteria /= TokenMap.empty)
+    cover 20 (view #assetsToBurn params /= TokenMap.empty)
         "Have some assets to burn" $
-    cover 2 (view #assetsToMint criteria == TokenMap.empty)
+    cover 2 (view #assetsToMint params == TokenMap.empty)
         "Have no assets to mint" $
-    cover 2 (view #assetsToBurn criteria == TokenMap.empty)
+    cover 2 (view #assetsToBurn params == TokenMap.empty)
         "Have no assets to burn" $
 
     -- Inspect the intersection between minted assets and burned assets:
@@ -704,7 +703,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     cover 2 (not allMintedAssetsEitherBurnedOrSpent)
         "Some minted assets were neither spent nor burned" $
 
-    prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
+    prop_performSelection minCoinValueFor costFor (Blind params) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
         . cover 2 (selectionLimited && selectionSufficient result)
@@ -715,7 +714,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     utxoHasAtLeastOneAsset = not
         . Set.null
         . UTxOIndex.assets
-        $ view #utxoAvailable criteria
+        $ view #utxoAvailable params
 
     outputsHaveAtLeastOneAsset =
         not . Set.null $ TokenBundle.getAssets outputTokens
@@ -723,10 +722,10 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
         outputTokens = mconcat
             . F.toList
             . fmap (view #tokens)
-            $ outputsToCover criteria
+            $ outputsToCover params
 
     selectionLimited :: Bool
-    selectionLimited = case view #selectionLimit criteria of
+    selectionLimited = case view #selectionLimit params of
         MaximumInputLimit _ -> True
         NoLimit -> False
 
@@ -745,26 +744,26 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
 
     assetsSpentByUserSpecifiedOutputs :: TokenMap
     assetsSpentByUserSpecifiedOutputs =
-        F.foldMap (view (#tokens . #tokens)) (outputsToCover criteria)
+        F.foldMap (view (#tokens . #tokens)) (outputsToCover params)
 
     allMintedAssetsEitherBurnedOrSpent :: Bool
     allMintedAssetsEitherBurnedOrSpent =
-        view #assetsToMint criteria `leq` TokenMap.add
-            (view #assetsToBurn criteria)
+        view #assetsToMint params `leq` TokenMap.add
+            (view #assetsToBurn params)
             (assetsSpentByUserSpecifiedOutputs)
 
     someAssetsAreBothMintedAndBurned :: Bool
     someAssetsAreBothMintedAndBurned
         = TokenMap.isNotEmpty
         $ TokenMap.intersection
-            (view #assetsToMint criteria)
-            (view #assetsToBurn criteria)
+            (view #assetsToMint params)
+            (view #assetsToBurn params)
 
     someAssetsAreBothMintedAndSpent :: Bool
     someAssetsAreBothMintedAndSpent
         = TokenMap.isNotEmpty
         $ TokenMap.intersection
-            (view #assetsToMint criteria)
+            (view #assetsToMint params)
             (assetsSpentByUserSpecifiedOutputs)
 
     someAssetsAreBothSpentAndBurned :: Bool
@@ -772,7 +771,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
         = TokenMap.isNotEmpty
         $ TokenMap.intersection
             (assetsSpentByUserSpecifiedOutputs)
-            (view #assetsToBurn criteria)
+            (view #assetsToBurn params)
 
     noAssetsAreBothMintedAndBurned :: Bool
     noAssetsAreBothMintedAndBurned = not someAssetsAreBothMintedAndBurned
@@ -786,23 +785,23 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
 prop_performSelection_large
     :: MinCoinValueFor
     -> CostFor
-    -> Blind (Large SelectionCriteria)
+    -> Blind (Large SelectionParams)
     -> Property
-prop_performSelection_large minCoinValueFor costFor (Blind (Large criteria)) =
+prop_performSelection_large minCoinValueFor costFor (Blind (Large params)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
     withMaxSuccess 100 $
     checkCoverage $
-    cover 50 (isUTxOBalanceSufficient criteria)
+    cover 50 (isUTxOBalanceSufficient params)
         "UTxO balance sufficient" $
-    prop_performSelection minCoinValueFor costFor (Blind criteria) (const id)
+    prop_performSelection minCoinValueFor costFor (Blind params) (const id)
 
 prop_performSelection
     :: MinCoinValueFor
     -> CostFor
-    -> Blind SelectionCriteria
+    -> Blind SelectionParams
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
-prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
+prop_performSelection minCoinValueFor costFor (Blind params) coverage =
     monadicIO $ do
         monitor $ counterexample $ unlines
             [ "extraCoinSource:"
@@ -814,7 +813,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "assetsToBurn:"
             , pretty (Flat assetsToBurn)
             ]
-        result <- run $ performSelection constraints criteria
+        result <- run $ performSelection constraints params
         monitor (coverage result)
         either onFailure onSuccess result
   where
@@ -824,14 +823,14 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         , computeMinimumCost = mkCostFor costFor
         }
 
-    SelectionCriteria
+    SelectionParams
         { outputsToCover
         , utxoAvailable
         , extraCoinSource
         , selectionLimit
         , assetsToMint
         , assetsToBurn
-        } = criteria
+        } = params
 
     onSuccess result = do
         monitor $ counterexample $ unlines
@@ -855,8 +854,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , pretty (length changeGenerated)
             ]
         assertOnSuccess
-            "isUTxOBalanceSufficient criteria"
-            (isUTxOBalanceSufficient criteria)
+            "isUTxOBalanceSufficient params"
+            (isUTxOBalanceSufficient params)
         assertOnSuccess
             "selectionHasValidSurplus result"
             (selectionHasValidSurplus result)
@@ -945,8 +944,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , pretty (Flat $ balanceMissing e)
             ]
         assertOnBalanceInsufficient
-            "not $ isUTxOBalanceSufficient criteria"
-            (not $ isUTxOBalanceSufficient criteria)
+            "not $ isUTxOBalanceSufficient params"
+            (not $ isUTxOBalanceSufficient params)
         assertOnBalanceInsufficient
             "utxoBalanceAvailable == errorBalanceAvailable"
             (utxoBalanceAvailable == errorBalanceAvailable)
@@ -1004,7 +1003,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         assertOnUnableToConstructChange
             "shortfall e > Coin 0"
             (shortfall e > Coin 0)
-        let criteria' = set #selectionLimit NoLimit criteria
+        let params' = set #selectionLimit NoLimit params
         let assessBundleSize =
                 mkBundleSizeAssessor NoBundleSizeLimit
         let constraints' = SelectionConstraints
@@ -1012,7 +1011,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
                 , computeMinimumAdaQuantity = noMinCoin
                 , computeMinimumCost = const noCost
                 }
-        let performSelection' = performSelection constraints' criteria'
+        let performSelection' = performSelection constraints' params'
         run performSelection' >>= \case
             Left e' -> do
                 monitor $ counterexample $ unlines
@@ -1030,9 +1029,9 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         "utxoAvailable == UTxOIndex.empty"
         (utxoAvailable == UTxOIndex.empty)
 
-    utxoBalanceAvailable = computeUTxOBalanceAvailable criteria
-    utxoBalanceRequired = computeUTxOBalanceRequired criteria
-    utxoBalanceSufficiencyInfo = computeUTxOBalanceSufficiencyInfo criteria
+    utxoBalanceAvailable = computeUTxOBalanceAvailable params
+    utxoBalanceRequired = computeUTxOBalanceRequired params
+    utxoBalanceSufficiencyInfo = computeUTxOBalanceSufficiencyInfo params
 
 --------------------------------------------------------------------------------
 -- Selection states
@@ -1502,20 +1501,20 @@ data BoundaryTestResult = BoundaryTestResult
 type BoundaryTestEntry = (Coin, [(AssetId, TokenQuantity)])
 
 mkBoundaryTestExpectation :: BoundaryTestData -> Expectation
-mkBoundaryTestExpectation (BoundaryTestData criteria expectedResult) = do
+mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
     actualResult <- performSelection constraints
-        (encodeBoundaryTestCriteria criteria)
+        (encodeBoundaryTestCriteria params)
     fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
   where
     constraints = SelectionConstraints
         { computeMinimumAdaQuantity = noMinCoin
         , computeMinimumCost = mkCostFor NoCost
         , assessTokenBundleSize = mkBundleSizeAssessor $
-            boundaryTestBundleSizeAssessor criteria
+            boundaryTestBundleSizeAssessor params
         }
 
-encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionCriteria
-encodeBoundaryTestCriteria c = SelectionCriteria
+encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams
+encodeBoundaryTestCriteria c = SelectionParams
     { outputsToCover = NE.fromList $
         zipWith TxOut
             (dummyAddresses)
@@ -3661,12 +3660,12 @@ newtype Small a = Small
     { getSmall:: a }
     deriving (Eq, Show)
 
-instance Arbitrary (Large SelectionCriteria) where
-    arbitrary = Large <$> genSelectionCriteria genUTxOIndexLarge
+instance Arbitrary (Large SelectionParams) where
+    arbitrary = Large <$> genSelectionParams genUTxOIndexLarge
     -- No shrinking
 
-instance Arbitrary (Small SelectionCriteria) where
-    arbitrary = Small <$> genSelectionCriteria genUTxOIndex
+instance Arbitrary (Small SelectionParams) where
+    arbitrary = Small <$> genSelectionParams genUTxOIndex
     -- No shrinking
 
 instance Arbitrary (Large UTxOIndex) where

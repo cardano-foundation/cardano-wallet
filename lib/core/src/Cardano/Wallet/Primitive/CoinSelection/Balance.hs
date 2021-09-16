@@ -32,7 +32,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , prepareOutputsWith
     , emptySkeleton
     , SelectionConstraints (..)
-    , SelectionCriteria (..)
+    , SelectionParams (..)
     , SelectionLimit
     , SelectionLimitOf (..)
     , SelectionSkeleton (..)
@@ -214,9 +214,9 @@ data SelectionConstraints = SelectionConstraints
     }
     deriving Generic
 
--- | Criteria for performing a selection.
+-- | Specifies all parameters that are specific to a given selection.
 --
-data SelectionCriteria = SelectionCriteria
+data SelectionParams = SelectionParams
     { outputsToCover
         :: !(NonEmpty TxOut)
         -- ^ The complete set of outputs to be covered.
@@ -275,29 +275,29 @@ data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
 
 -- | Computes the balance of UTxO entries available for selection.
 --
-computeUTxOBalanceAvailable :: SelectionCriteria -> TokenBundle
+computeUTxOBalanceAvailable :: SelectionParams -> TokenBundle
 computeUTxOBalanceAvailable = UTxOIndex.balance . view #utxoAvailable
 
 -- | Computes the balance of UTxO entries required to be selected.
 --
-computeUTxOBalanceRequired :: SelectionCriteria -> TokenBundle
-computeUTxOBalanceRequired criteria =
+computeUTxOBalanceRequired :: SelectionParams -> TokenBundle
+computeUTxOBalanceRequired params =
     balanceOut `TokenBundle.difference` balanceIn
   where
     balanceIn =
-        TokenBundle.fromTokenMap (view #assetsToMint criteria)
+        TokenBundle.fromTokenMap (view #assetsToMint params)
         `TokenBundle.add`
-        F.foldMap TokenBundle.fromCoin (view #extraCoinSource criteria)
+        F.foldMap TokenBundle.fromCoin (view #extraCoinSource params)
     balanceOut =
-        TokenBundle.fromTokenMap (view #assetsToBurn criteria)
+        TokenBundle.fromTokenMap (view #assetsToBurn params)
         `TokenBundle.add`
-        F.foldMap (view #tokens) (view #outputsToCover criteria)
+        F.foldMap (view #tokens) (view #outputsToCover params)
 
 -- | Computes the UTxO balance sufficiency.
 --
 -- See 'UTxOBalanceSufficiency'.
 --
-computeUTxOBalanceSufficiency :: SelectionCriteria -> UTxOBalanceSufficiency
+computeUTxOBalanceSufficiency :: SelectionParams -> UTxOBalanceSufficiency
 computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 
 -- | Computes information about the UTxO balance sufficiency.
@@ -305,13 +305,13 @@ computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 -- See 'UTxOBalanceSufficiencyInfo'.
 --
 computeUTxOBalanceSufficiencyInfo
-    :: SelectionCriteria
+    :: SelectionParams
     -> UTxOBalanceSufficiencyInfo
-computeUTxOBalanceSufficiencyInfo criteria =
+computeUTxOBalanceSufficiencyInfo params =
     UTxOBalanceSufficiencyInfo {available, required, difference, sufficiency}
   where
-    available = computeUTxOBalanceAvailable criteria
-    required = computeUTxOBalanceRequired criteria
+    available = computeUTxOBalanceAvailable params
+    required = computeUTxOBalanceRequired params
     sufficiency =
         if required `leq` available
         then UTxOBalanceSufficient
@@ -326,9 +326,9 @@ computeUTxOBalanceSufficiencyInfo criteria =
 -- The balance of available UTxO entries is sufficient if (and only if) it
 -- is greater than or equal to the required balance.
 --
-isUTxOBalanceSufficient :: SelectionCriteria -> Bool
-isUTxOBalanceSufficient criteria =
-    case computeUTxOBalanceSufficiency criteria of
+isUTxOBalanceSufficient :: SelectionParams -> Bool
+isUTxOBalanceSufficient params =
+    case computeUTxOBalanceSufficiency params of
         UTxOBalanceSufficient   -> True
         UTxOBalanceInsufficient -> False
 
@@ -651,9 +651,9 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
     => SelectionConstraints
-    -> SelectionCriteria
+    -> SelectionParams
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection constraints criteria
+performSelection constraints params
     -- Is the total available UTXO balance sufficient?
     | not utxoBalanceSufficient =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
@@ -687,14 +687,14 @@ performSelection constraints criteria
         , computeMinimumAdaQuantity
         , computeMinimumCost
         } = constraints
-    SelectionCriteria
+    SelectionParams
         { outputsToCover
         , utxoAvailable
         , selectionLimit
         , extraCoinSource
         , assetsToMint
         , assetsToBurn
-        } = criteria
+        } = params
 
     selectionInsufficientError :: [(TxIn, TxOut)] -> m (Either SelectionError a)
     selectionInsufficientError inputsSelected =
@@ -708,13 +708,13 @@ performSelection constraints criteria
         fromMaybe invariantSelectAnyInputs . NE.nonEmpty . UTxOIndex.toList
 
     utxoBalanceAvailable :: TokenBundle
-    utxoBalanceAvailable = computeUTxOBalanceAvailable criteria
+    utxoBalanceAvailable = computeUTxOBalanceAvailable params
 
     utxoBalanceRequired :: TokenBundle
-    utxoBalanceRequired = computeUTxOBalanceRequired criteria
+    utxoBalanceRequired = computeUTxOBalanceRequired params
 
     utxoBalanceSufficient :: Bool
-    utxoBalanceSufficient = isUTxOBalanceSufficient criteria
+    utxoBalanceSufficient = isUTxOBalanceSufficient params
 
     insufficientMinCoinValues :: [InsufficientMinCoinValueError]
     insufficientMinCoinValues =
@@ -755,8 +755,8 @@ performSelection constraints criteria
     --
     --     flat predictChange `isSubsetOf` assets selectedInputs
     --
-    --     ∃ criteria. / isRight (performSelection criteria) =>
-    --         Right predictedChange === assets <$> performSelection criteria
+    --     ∃ params. / isRight (performSelection params) =>
+    --         Right predictedChange === assets <$> performSelection params
     --
     --     (That is, the predicted change is necessarily equal to the change
     --     assets of the final resulting selection).

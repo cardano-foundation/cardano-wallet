@@ -109,7 +109,7 @@ performSelection selectionConstraints selectionParams =
                     , computeMinimumCost
                     , assessTokenBundleSize
                     }
-                Balance.SelectionCriteria
+                Balance.SelectionParams
                     { assetsToBurn
                     , assetsToMint
                     , extraCoinSource = rewardWithdrawal
