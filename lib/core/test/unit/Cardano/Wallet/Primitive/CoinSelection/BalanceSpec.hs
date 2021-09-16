@@ -186,6 +186,7 @@ import Test.QuickCheck
     , genericShrink
     , ioProperty
     , label
+    , oneof
     , property
     , shrinkList
     , suchThat
@@ -624,8 +625,10 @@ genSelectionParams genUTxOIndex' = do
             (1, UTxOIndex.size utxoAvailable `div` 8)
           )
         ]
-    extraCoinSource <- genCoin
-    extraCoinSink <- genCoin
+    extraCoinSource <-
+        oneof [pure $ Coin 0, genCoinPositive]
+    extraCoinSink <-
+        oneof [pure $ Coin 0, genCoinPositive]
     (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
     pure $ SelectionParams
         { outputsToCover
@@ -2002,10 +2005,10 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     genAssetsToBurn = genTokenMapSmallRange
 
     genExtraCoinSource :: Gen Coin
-    genExtraCoinSource = genCoin
+    genExtraCoinSource = oneof [pure $ Coin 0, genCoinPositive]
 
     genExtraCoinSink :: Gen Coin
-    genExtraCoinSink = genCoin
+    genExtraCoinSink = oneof [pure $ Coin 0, genCoinPositive]
 
     genRequiredCost :: Gen Coin
     genRequiredCost = genCoin
