@@ -673,6 +673,25 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small params)) =
     cover 2 (outputsHaveAtLeastOneAsset && not utxoHasAtLeastOneAsset)
         "Assets to cover, but no assets in UTxO" $
 
+    -- Inspect the extra coin source and sink:
+    let nonZeroExtraCoinSource =
+            Coin 0 < (params & view #extraCoinSource)
+        nonZeroExtraCoinSink =
+            Coin 0 < (params & view #extraCoinSink)
+    in
+    cover 20
+        (nonZeroExtraCoinSource && nonZeroExtraCoinSink)
+        "nonZeroExtraCoinSource && nonZeroExtraCoinSink" $
+    cover 20
+        (not nonZeroExtraCoinSource && nonZeroExtraCoinSink)
+        "not nonZeroExtraCoinSource && nonZeroExtraCoinSink" $
+    cover 20
+        (nonZeroExtraCoinSource && not nonZeroExtraCoinSink)
+        "nonZeroExtraCoinSource && not nonZeroExtraCoinSink" $
+    cover 20
+        (not nonZeroExtraCoinSource && not nonZeroExtraCoinSink)
+        "not nonZeroExtraCoinSource && not nonZeroExtraCoinSink" $
+
     -- Inspect the sets of minted and burned assets:
     cover 20 (view #assetsToMint params /= TokenMap.empty)
         "Have some assets to mint" $
@@ -884,6 +903,12 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
         assertOnSuccess
             "outputsCovered == NE.toList outputsToCover"
             (outputsCovered == NE.toList outputsToCover)
+        assertOnSuccess
+            "view #extraCoinSource result == view #extraCoinSource params"
+            (view #extraCoinSource result == view #extraCoinSource params)
+        assertOnSuccess
+            "view #extraCoinSink result == view #extraCoinSink params"
+            (view #extraCoinSink result == view #extraCoinSink params)
         case selectionLimit of
             MaximumInputLimit limit ->
                 assertOnSuccess
