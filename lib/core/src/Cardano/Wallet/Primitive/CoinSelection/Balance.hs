@@ -31,7 +31,8 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
       performSelection
     , prepareOutputsWith
     , emptySkeleton
-    , SelectionCriteria (..)
+    , SelectionConstraints (..)
+    , SelectionParams (..)
     , SelectionLimit
     , SelectionLimitOf (..)
     , SelectionSkeleton (..)
@@ -186,9 +187,36 @@ import qualified Data.Set as Set
 -- Performing a selection
 --------------------------------------------------------------------------------
 
--- | Criteria for performing a selection.
+-- | Specifies all constraints required for coin selection.
 --
-data SelectionCriteria = SelectionCriteria
+-- Selection constraints:
+--
+--    - place limits on the coin selection algorithm, enabling it to produce
+--      selections that are acceptable to the ledger.
+--
+--    - are dependent on the current set of protocol parameters.
+--
+--    - are not specific to a given selection.
+--
+data SelectionConstraints = SelectionConstraints
+    { assessTokenBundleSize
+        :: TokenBundleSizeAssessor
+        -- ^ Assesses the size of a token bundle relative to the upper limit of
+        -- what can be included in a transaction output. See documentation for
+        -- the 'TokenBundleSizeAssessor' type to learn about the expected
+        -- properties of this field.
+    , computeMinimumAdaQuantity
+        :: TokenMap -> Coin
+        -- ^ Computes the minimum ada quantity required for a given output.
+    , computeMinimumCost
+        :: SelectionSkeleton -> Coin
+        -- ^ Computes the minimum cost of a given selection skeleton.
+    }
+    deriving Generic
+
+-- | Specifies all parameters that are specific to a given selection.
+--
+data SelectionParams = SelectionParams
     { outputsToCover
         :: !(NonEmpty TxOut)
         -- ^ The complete set of outputs to be covered.
@@ -247,29 +275,29 @@ data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
 
 -- | Computes the balance of UTxO entries available for selection.
 --
-computeUTxOBalanceAvailable :: SelectionCriteria -> TokenBundle
+computeUTxOBalanceAvailable :: SelectionParams -> TokenBundle
 computeUTxOBalanceAvailable = UTxOIndex.balance . view #utxoAvailable
 
 -- | Computes the balance of UTxO entries required to be selected.
 --
-computeUTxOBalanceRequired :: SelectionCriteria -> TokenBundle
-computeUTxOBalanceRequired criteria =
+computeUTxOBalanceRequired :: SelectionParams -> TokenBundle
+computeUTxOBalanceRequired params =
     balanceOut `TokenBundle.difference` balanceIn
   where
     balanceIn =
-        TokenBundle.fromTokenMap (view #assetsToMint criteria)
+        TokenBundle.fromTokenMap (view #assetsToMint params)
         `TokenBundle.add`
-        F.foldMap TokenBundle.fromCoin (view #extraCoinSource criteria)
+        F.foldMap TokenBundle.fromCoin (view #extraCoinSource params)
     balanceOut =
-        TokenBundle.fromTokenMap (view #assetsToBurn criteria)
+        TokenBundle.fromTokenMap (view #assetsToBurn params)
         `TokenBundle.add`
-        F.foldMap (view #tokens) (view #outputsToCover criteria)
+        F.foldMap (view #tokens) (view #outputsToCover params)
 
 -- | Computes the UTxO balance sufficiency.
 --
 -- See 'UTxOBalanceSufficiency'.
 --
-computeUTxOBalanceSufficiency :: SelectionCriteria -> UTxOBalanceSufficiency
+computeUTxOBalanceSufficiency :: SelectionParams -> UTxOBalanceSufficiency
 computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 
 -- | Computes information about the UTxO balance sufficiency.
@@ -277,13 +305,13 @@ computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 -- See 'UTxOBalanceSufficiencyInfo'.
 --
 computeUTxOBalanceSufficiencyInfo
-    :: SelectionCriteria
+    :: SelectionParams
     -> UTxOBalanceSufficiencyInfo
-computeUTxOBalanceSufficiencyInfo criteria =
+computeUTxOBalanceSufficiencyInfo params =
     UTxOBalanceSufficiencyInfo {available, required, difference, sufficiency}
   where
-    available = computeUTxOBalanceAvailable criteria
-    required = computeUTxOBalanceRequired criteria
+    available = computeUTxOBalanceAvailable params
+    required = computeUTxOBalanceRequired params
     sufficiency =
         if required `leq` available
         then UTxOBalanceSufficient
@@ -298,9 +326,9 @@ computeUTxOBalanceSufficiencyInfo criteria =
 -- The balance of available UTxO entries is sufficient if (and only if) it
 -- is greater than or equal to the required balance.
 --
-isUTxOBalanceSufficient :: SelectionCriteria -> Bool
-isUTxOBalanceSufficient criteria =
-    case computeUTxOBalanceSufficiency criteria of
+isUTxOBalanceSufficient :: SelectionParams -> Bool
+isUTxOBalanceSufficient params =
+    case computeUTxOBalanceSufficiency params of
         UTxOBalanceSufficient   -> True
         UTxOBalanceInsufficient -> False
 
@@ -622,21 +650,10 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 --
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
-    => (TokenMap -> Coin)
-        -- ^ A function that computes the minimum ada quantity required by the
-        -- protocol for a particular output.
-    -> (SelectionSkeleton -> Coin)
-        -- ^ A function that computes the extra cost corresponding to a given
-        -- selection. This function must not depend on the magnitudes of
-        -- individual asset quantities held within each change output.
-    -> TokenBundleSizeAssessor
-        -- ^ A function that assesses the size of a token bundle. See the
-        -- documentation for 'TokenBundleSizeAssessor' to learn about the
-        -- expected properties of this function.
-    -> SelectionCriteria
-        -- ^ The selection goal to satisfy.
+    => SelectionConstraints
+    -> SelectionParams
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection minCoinFor costFor bundleSizeAssessor criteria
+performSelection constraints params
     -- Is the total available UTXO balance sufficient?
     | not utxoBalanceSufficient =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
@@ -665,14 +682,19 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
                 then makeChangeRepeatedly selection
                 else selectionInsufficientError (UTxOIndex.toList utxoSelected)
   where
-    SelectionCriteria
+    SelectionConstraints
+        { assessTokenBundleSize
+        , computeMinimumAdaQuantity
+        , computeMinimumCost
+        } = constraints
+    SelectionParams
         { outputsToCover
         , utxoAvailable
         , selectionLimit
         , extraCoinSource
         , assetsToMint
         , assetsToBurn
-        } = criteria
+        } = params
 
     selectionInsufficientError :: [(TxIn, TxOut)] -> m (Either SelectionError a)
     selectionInsufficientError inputsSelected =
@@ -686,13 +708,13 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         fromMaybe invariantSelectAnyInputs . NE.nonEmpty . UTxOIndex.toList
 
     utxoBalanceAvailable :: TokenBundle
-    utxoBalanceAvailable = computeUTxOBalanceAvailable criteria
+    utxoBalanceAvailable = computeUTxOBalanceAvailable params
 
     utxoBalanceRequired :: TokenBundle
-    utxoBalanceRequired = computeUTxOBalanceRequired criteria
+    utxoBalanceRequired = computeUTxOBalanceRequired params
 
     utxoBalanceSufficient :: Bool
-    utxoBalanceSufficient = isUTxOBalanceSufficient criteria
+    utxoBalanceSufficient = isUTxOBalanceSufficient params
 
     insufficientMinCoinValues :: [InsufficientMinCoinValueError]
     insufficientMinCoinValues =
@@ -708,7 +730,8 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
                 Just $ InsufficientMinCoinValueError
                     { expectedMinCoinValue, outputWithInsufficientAda = o }
           where
-            expectedMinCoinValue = minCoinFor (view (#tokens . #tokens) o)
+            expectedMinCoinValue = computeMinimumAdaQuantity
+                (view (#tokens . #tokens) o)
 
     -- Given a UTxO index that corresponds to a valid selection covering
     -- 'outputsToCover', 'predictChange' yields a non-empty list of assets
@@ -732,8 +755,8 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
     --
     --     flat predictChange `isSubsetOf` assets selectedInputs
     --
-    --     ∃ criteria. / isRight (performSelection criteria) =>
-    --         Right predictedChange === assets <$> performSelection criteria
+    --     ∃ params. / isRight (performSelection params) =>
+    --         Right predictedChange === assets <$> performSelection params
     --
     --     (That is, the predicted change is necessarily equal to the change
     --     assets of the final resulting selection).
@@ -746,7 +769,7 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
         (fmap (TokenMap.getAssets . view #tokens))
         (makeChange MakeChangeCriteria
             { minCoinFor = noMinimumCoin
-            , bundleSizeAssessor
+            , bundleSizeAssessor = assessTokenBundleSize
             , requiredCost = noCost
             , extraCoinSource
             , inputBundles
@@ -823,8 +846,8 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
       where
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
         mChangeGenerated = makeChange MakeChangeCriteria
-            { minCoinFor
-            , bundleSizeAssessor
+            { minCoinFor = computeMinimumAdaQuantity
+            , bundleSizeAssessor = assessTokenBundleSize
             , requiredCost
             , extraCoinSource
             , inputBundles = view #tokens . snd <$> inputsSelected
@@ -848,7 +871,7 @@ performSelection minCoinFor costFor bundleSizeAssessor criteria
 
         SelectionState {selected, leftover} = s
 
-        requiredCost = costFor SelectionSkeleton
+        requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOIndex.size selected
             , skeletonOutputs = NE.toList outputsToCover
             , skeletonChange
@@ -1382,7 +1405,7 @@ makeChange criteria
             --
             assessBundleSizeWithMaxCoin :: TokenBundleSizeAssessor
             assessBundleSizeWithMaxCoin = TokenBundleSizeAssessor
-                $ assessTokenBundleSize bundleSizeAssessor
+                $ view #assessTokenBundleSize bundleSizeAssessor
                 . flip TokenBundle.setCoin (maxBound @Coin)
 
     -- Change for user-specified assets: assets that were present in the

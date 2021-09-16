@@ -34,11 +34,7 @@ module Cardano.Wallet.Primitive.CoinSelection
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionCriteria (..)
-    , SelectionLimit
-    , SelectionResult
-    , SelectionSkeleton
-    )
+    ( SelectionLimit, SelectionResult, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -108,10 +104,12 @@ performSelection selectionConstraints selectionParams =
             pure $ Left $ SelectionOutputsError e
         Right preparedOutputsToCover ->
             first SelectionBalanceError <$> Balance.performSelection
-                computeMinimumAdaQuantity
-                computeMinimumCost
-                assessTokenBundleSize
-                SelectionCriteria
+                Balance.SelectionConstraints
+                    { computeMinimumAdaQuantity
+                    , computeMinimumCost
+                    , assessTokenBundleSize
+                    }
+                Balance.SelectionParams
                     { assetsToBurn
                     , assetsToMint
                     , extraCoinSource = rewardWithdrawal
