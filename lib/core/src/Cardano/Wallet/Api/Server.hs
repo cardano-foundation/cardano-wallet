@@ -2193,12 +2193,22 @@ constructTransaction ctx genChange (ApiT wid) body = do
     ti = timeInterpreter (ctx ^. networkLayer)
 
 balanceTransaction
-    :: forall ctx (n :: NetworkDiscriminant). ctx
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k
+        , HasNetworkLayer IO ctx
+        )
+    => ctx
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler (ApiConstructTransaction n)
-balanceTransaction _ctx (ApiT _wid) _body =
+balanceTransaction ctx (ApiT _wid) _body = do
+    pp <- liftIO $ NW.currentProtocolParameters nl
+    let _executionPrices = pp ^. #executionUnitPrices
+
     liftHandler $ throwE ErrBalanceTxNotImplemented
+  where
+    nl = ctx ^. networkLayer
+    tl = ctx ^. W.transactionLayer @k
 
 joinStakePool
     :: forall ctx s n k.
