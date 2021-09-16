@@ -28,6 +28,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
     , RunSelectionParams (..)
+    , SelectionConstraints (..)
     , SelectionCriteria (..)
     , SelectionDelta (..)
     , SelectionError (..)
@@ -813,14 +814,16 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "assetsToBurn:"
             , pretty (Flat assetsToBurn)
             ]
-        result <- run $ performSelection
-            (mkMinCoinValueFor minCoinValueFor)
-            (mkCostFor costFor)
-            (mkBundleSizeAssessor NoBundleSizeLimit)
-            (criteria)
+        result <- run $ performSelection constraints criteria
         monitor (coverage result)
         either onFailure onSuccess result
   where
+    constraints = SelectionConstraints
+        { assessTokenBundleSize = mkBundleSizeAssessor NoBundleSizeLimit
+        , computeMinimumAdaQuantity = mkMinCoinValueFor minCoinValueFor
+        , computeMinimumCost = mkCostFor costFor
+        }
+
     SelectionCriteria
         { outputsToCover
         , utxoAvailable
@@ -1004,8 +1007,12 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         let criteria' = set #selectionLimit NoLimit criteria
         let assessBundleSize =
                 mkBundleSizeAssessor NoBundleSizeLimit
-        let performSelection' = performSelection
-                noMinCoin (const noCost) assessBundleSize criteria'
+        let constraints' = SelectionConstraints
+                { assessTokenBundleSize = assessBundleSize
+                , computeMinimumAdaQuantity = noMinCoin
+                , computeMinimumCost = const noCost
+                }
+        let performSelection' = performSelection constraints' criteria'
         run performSelection' >>= \case
             Left e' -> do
                 monitor $ counterexample $ unlines
@@ -1496,12 +1503,16 @@ type BoundaryTestEntry = (Coin, [(AssetId, TokenQuantity)])
 
 mkBoundaryTestExpectation :: BoundaryTestData -> Expectation
 mkBoundaryTestExpectation (BoundaryTestData criteria expectedResult) = do
-    actualResult <- performSelection
-        (noMinCoin)
-        (mkCostFor NoCost)
-        (mkBundleSizeAssessor $ boundaryTestBundleSizeAssessor criteria)
+    actualResult <- performSelection constraints
         (encodeBoundaryTestCriteria criteria)
     fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
+  where
+    constraints = SelectionConstraints
+        { computeMinimumAdaQuantity = noMinCoin
+        , computeMinimumCost = mkCostFor NoCost
+        , assessTokenBundleSize = mkBundleSizeAssessor $
+            boundaryTestBundleSizeAssessor criteria
+        }
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionCriteria
 encodeBoundaryTestCriteria c = SelectionCriteria
