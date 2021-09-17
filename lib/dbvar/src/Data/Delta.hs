@@ -181,13 +181,17 @@ three components.
 * 'load' attempts to retrieve the value of type @a@
     from the type @b@, but does not necessarily succeed.
 * 'update' maps a delta encoding @da@ to a delta encoding @db@.
+    For this mapping, the value of type @a@ and a corresponding
+    value of type @b@ are provided;
+    the delta encodings of types @da@ and @db@ are
+    relative to these values.
 
 The embedding of one type into the other is characterized by the following
 properties:
 
 * The embedding need __not__ be __surjective__:
     The type @b@ may contain many values that do not correspond to
-    a value of type @a@. Hence, @load@ has a 'Maybe' result.
+    a value of type @a@. Hence, 'load' has a 'Maybe' result.
     However, retrieving a written value always succeeds, we have
 
         > load . write = Just
@@ -214,6 +218,7 @@ properties:
 
 -- | Specification of an embedding of a type @a@ with delta encoding @da@
 -- into the type @b@ with delta encoding @db@.
+-- See 'Embedding' for a more detailed description.
 data Embedding' da db where
     Embedding'
         :: (Delta da, Delta db, a ~ Base da, b ~ Base db) =>

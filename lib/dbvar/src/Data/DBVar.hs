@@ -21,6 +21,9 @@ module Data.DBVar (
     -- * Store
     , Store (..), newStore
     , embedStore, pairStores
+
+    -- * Testing
+    , embedStore'
     ) where
 
 import Prelude
@@ -133,23 +136,60 @@ newWithCache update a = do
 {-------------------------------------------------------------------------------
     Store
 -------------------------------------------------------------------------------}
--- | A 'Store' is an on-disk storage facility for values
--- of type @a ~@'Base'@ da@.
--- The store need not contain a properly formatted value at first.
---
--- The operations for a 'Store' are expected to satisfy several invariants.
--- For example, reading and writing should be inverse to each other.
---
--- > writeS s a >> loadS s = pure (Just a)
---
--- Also, the delta encoding should satisfy
---
--- > updateS s old delta = writeS s (apply delta old)
---
--- It is expected that the functions 'loadS', 'updateS', 'writeS'
--- do not throw synchronous exceptions. In the worst case,
--- 'loadS' should return 'Nothing' after reading or writing
--- to the store was unsuccesful.
+{- |
+A 'Store' is an on-disk storage facility for values of type @a ~@'Base'@ da@.
+Typical use cases are a file or a database.
+
+A 'Store' has many similarities with an 'Embedding'.
+The main difference is that storing value in a 'Store' has side effects.
+A 'Store' is described by three action:
+
+* 'writeS' writes a value to the store.
+* 'loadS' loads a value from the store.
+* 'updateS' uses a delta encoding of type @da@ to efficiently update
+    the store.
+    In order to avoid performing an expensive 'loadS' operation,
+    the action 'updateS' expects the value described by the store
+    as an argument, but no check is performed whether the provided
+    value matches the contents of the store.
+    Also, not every store inspects this argument.
+
+A 'Store' is characterized by the following properties:
+
+* The store __need not contain__ a properly formatted __value__:
+    Loading a value from the store may fail, and this is why 'loadS'
+    has a 'Maybe' result. For example, if the 'Store' represents
+    a file on disk, then the file may corrupted or in an incompatible
+    file format when first opened.
+    However, loading a value after writing it should always suceed,
+    we have
+
+        > writeS s a >> loadS s  =  pure (Just a)
+
+* The store is __redundant__:
+    Two stores with different contents may describe
+    the same value of type @a@.
+    For example, two files with different whitespace
+    may describe the same JSON value.
+    In general, we have
+
+        > loadS s >>= writeS s  ≠  pure ()
+
+* Updating a store __commutes with 'apply'__:
+    We have
+
+        > updateS s a da >> loadS s  =  pure $ Just $ apply a da
+
+    However, since the store is redundant, we often have
+
+        > updateS s a da  ≠  writeS s (apply a da)
+
+* __Exceptions__:
+    It is expected that the functions 'loadS', 'updateS', 'writeS'
+    do not throw synchronous exceptions. In the worst case,
+    'loadS' should return 'Nothing' after reading or writing
+    to the store was unsuccesful.
+-}
 data Store m da = Store
     { loadS   :: m (Maybe (Base da))
     , writeS  :: Base da -> m ()
@@ -159,7 +199,8 @@ data Store m da = Store
         -> m () -- write new value
     }
 
--- | An in-memory 'Store' from a mutable variable ('TVar') for testing.
+-- | An in-memory 'Store' from a mutable variable ('TVar').
+-- Useful for testing.
 newStore :: (Delta da, MonadSTM m) => m (Store m da)
 newStore = do
     ref <- newTVarIO Nothing
@@ -169,6 +210,7 @@ newStore = do
         , updateS = \_ -> atomically . modifyTVar' ref . fmap . apply
         }
 
+{-
 -- | Add a caching layer to a 'Store'.
 --
 -- Access to the underlying 'Store' is enforced to be sequential,
@@ -221,13 +263,18 @@ cachedStore Store{loadS,writeS,updateS} = do
             atomically $ writeCache $ Just $ apply delta old
             updateS old delta
         }
+-}
 
 embedStore :: (MonadSTM m, Delta da, Delta db)
     => Embedding da db -> Store m db -> m (Store m da)
 embedStore embed bstore = do
+    -- For reasons of efficiency, we have to store the 'Machine'
+    -- that is created within the 'Embedding'.
     machine <- newTVarIO Nothing
     let readMachine  = atomically $ readTVar machine
         writeMachine = atomically . writeTVar machine . Just
+
+    -- Operations of the result 'Store'.
     let load = loadS bstore >>= \mb -> case project embed =<< mb of
                 Nothing      -> pure Nothing
                 Just (a,mab) -> do
@@ -245,12 +292,14 @@ embedStore embed bstore = do
                     let (db, mab2) = step_ mab1 (a,da)
                     updateS bstore (state_ mab2) db
                     writeMachine mab2
-
     pure $ Store {loadS=load,writeS=write,updateS=update}
 
 
 -- | Obtain a 'Store' for one type @a1@ from a 'Store' for another type @a2@
--- via an 'Embedding' of the first type into the second type.
+-- via an 'Embedding'' of the first type into the second type.
+--
+-- Note: This function is exported for testing and documentation only,
+-- use the more efficient 'embedStore' instead.
 embedStore'
     :: (Monad m)
     => Embedding' da db -> Store m db -> Store m da
