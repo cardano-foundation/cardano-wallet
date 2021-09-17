@@ -189,6 +189,7 @@ import Test.QuickCheck
     , oneof
     , property
     , shrinkList
+    , sized
     , suchThat
     , tabulate
     , withMaxSuccess
@@ -1984,6 +1985,20 @@ data MockAssessTokenBundleSize
       -- ^ Indicates an inclusive upper bound on the number of assets in a
       -- token bundle.
     deriving (Eq, Show)
+
+genMockAssessTokenBundleSize :: Gen MockAssessTokenBundleSize
+genMockAssessTokenBundleSize = oneof
+    [ pure MockAssessTokenBundleSizeUnlimited
+    , MockAssessTokenBundleSizeUpperLimit <$> sized (\n -> choose (1, max 1 n))
+    ]
+
+shrinkMockAssessTokenBundleSize
+    :: MockAssessTokenBundleSize -> [MockAssessTokenBundleSize]
+shrinkMockAssessTokenBundleSize = \case
+    MockAssessTokenBundleSizeUnlimited ->
+        []
+    MockAssessTokenBundleSizeUpperLimit n ->
+        MockAssessTokenBundleSizeUpperLimit <$> filter (> 0) (shrink n)
 
 unMockAssessTokenBundleSize
     :: MockAssessTokenBundleSize -> (TokenBundle -> TokenBundleSizeAssessment)
