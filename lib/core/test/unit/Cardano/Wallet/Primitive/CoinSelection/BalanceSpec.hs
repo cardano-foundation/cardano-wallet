@@ -843,9 +843,8 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
         either onFailure onSuccess result
   where
     constraints = SelectionConstraints
-        { assessTokenBundleSize
-            = view #assessTokenBundleSize
-            $ mkBundleSizeAssessor NoBundleSizeLimit
+        { assessTokenBundleSize =
+            unMockAssessTokenBundleSize MockAssessTokenBundleSizeUnlimited
         , computeMinimumAdaQuantity = mkMinCoinValueFor minCoinValueFor
         , computeMinimumCost = mkCostFor costFor
         }
@@ -1039,9 +1038,8 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
             (shortfall e > Coin 0)
         let params' = set #selectionLimit NoLimit params
         let constraints' = SelectionConstraints
-                { assessTokenBundleSize
-                    = view #assessTokenBundleSize
-                    $ mkBundleSizeAssessor NoBundleSizeLimit
+                { assessTokenBundleSize = unMockAssessTokenBundleSize
+                    MockAssessTokenBundleSizeUnlimited
                 , computeMinimumAdaQuantity = noMinCoin
                 , computeMinimumCost = const noCost
                 }
@@ -1516,7 +1514,7 @@ data BoundaryTestData = BoundaryTestData
 
 data BoundaryTestCriteria = BoundaryTestCriteria
     { boundaryTestBundleSizeAssessor
-        :: MockTokenBundleSizeAssessor
+        :: MockAssessTokenBundleSize
     , boundaryTestOutputs
         :: [BoundaryTestEntry]
     , boundaryTestUTxO
@@ -1543,9 +1541,8 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
     constraints = SelectionConstraints
         { computeMinimumAdaQuantity = noMinCoin
         , computeMinimumCost = mkCostFor NoCost
-        , assessTokenBundleSize = view #assessTokenBundleSize
-            $ mkBundleSizeAssessor
-            $ boundaryTestBundleSizeAssessor params
+        , assessTokenBundleSize = unMockAssessTokenBundleSize $
+            boundaryTestBundleSizeAssessor params
         }
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams
@@ -1613,7 +1610,7 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
     }
   where
     (q1, q2) = (TokenQuantity 1, TokenQuantity.pred txOutMaxTokenQuantity)
-    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1642,7 +1639,7 @@ boundaryTest_largeTokenQuantities_2 = BoundaryTestData
     }
   where
     q1 :| [q2] = TokenQuantity.equipartition txOutMaxTokenQuantity (() :| [()])
-    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1672,7 +1669,7 @@ boundaryTest_largeTokenQuantities_3 = BoundaryTestData
   where
     q1 :| [q2] = TokenQuantity.equipartition
         (TokenQuantity.succ txOutMaxTokenQuantity) (() :| [()])
-    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1702,7 +1699,7 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1730,7 +1727,7 @@ boundaryTest_largeTokenQuantities_5 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestOutputs =
       [ (Coin 2_000_000, []) ]
     boundaryTestUTxO =
@@ -1768,7 +1765,7 @@ boundaryTest_largeTokenQuantities_6 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestOutputs =
       [ (Coin 1_000_000, [])
       , (Coin 1_000_000, [])
@@ -1818,7 +1815,7 @@ boundaryTest_largeAssetCounts_1 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 4
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 4
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -1849,7 +1846,7 @@ boundaryTest_largeAssetCounts_2 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 3
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 3
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -1875,7 +1872,7 @@ boundaryTest_largeAssetCounts_3 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 2
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 2
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -1901,7 +1898,7 @@ boundaryTest_largeAssetCounts_4 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 1
+    boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUpperLimit 1
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
@@ -1980,20 +1977,20 @@ linearCost s
 -- Assessing token bundle sizes
 --------------------------------------------------------------------------------
 
-data MockTokenBundleSizeAssessor
-    = NoBundleSizeLimit
+data MockAssessTokenBundleSize
+    = MockAssessTokenBundleSizeUnlimited
       -- ^ Indicates that there is no limit on a token bundle's size.
-    | BundleAssetCountUpperLimit Int
+    | MockAssessTokenBundleSizeUpperLimit Int
       -- ^ Indicates an inclusive upper bound on the number of assets in a
       -- token bundle.
     deriving (Eq, Show)
 
-mkBundleSizeAssessor
-    :: MockTokenBundleSizeAssessor -> TokenBundleSizeAssessor
-mkBundleSizeAssessor m = TokenBundleSizeAssessor $ case m of
-    NoBundleSizeLimit ->
+unMockAssessTokenBundleSize
+    :: MockAssessTokenBundleSize -> (TokenBundle -> TokenBundleSizeAssessment)
+unMockAssessTokenBundleSize = \case
+    MockAssessTokenBundleSizeUnlimited ->
         const TokenBundleSizeWithinLimit
-    BundleAssetCountUpperLimit upperLimit ->
+    MockAssessTokenBundleSizeUpperLimit upperLimit ->
         \bundle ->
             let assetCount = Set.size $ TokenBundle.getAssets bundle in
             case assetCount `compare` upperLimit of
@@ -2001,12 +1998,17 @@ mkBundleSizeAssessor m = TokenBundleSizeAssessor $ case m of
                 EQ -> TokenBundleSizeWithinLimit
                 GT -> OutputTokenBundleSizeExceedsLimit
 
+mkTokenBundleSizeAssessor
+    :: MockAssessTokenBundleSize -> TokenBundleSizeAssessor
+mkTokenBundleSizeAssessor =
+    TokenBundleSizeAssessor . unMockAssessTokenBundleSize
+
 --------------------------------------------------------------------------------
 -- Making change
 --------------------------------------------------------------------------------
 
 type MakeChangeData =
-    MakeChangeCriteria MinCoinValueFor MockTokenBundleSizeAssessor
+    MakeChangeCriteria MinCoinValueFor MockAssessTokenBundleSize
 
 isValidMakeChangeData :: MakeChangeData -> Bool
 isValidMakeChangeData p = (&&)
@@ -2029,7 +2031,7 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     let inputBundleCount = outputBundleCount * 4
     MakeChangeCriteria
         <$> arbitrary
-        <*> pure NoBundleSizeLimit
+        <*> pure MockAssessTokenBundleSizeUnlimited
         <*> genRequiredCost
         <*> genExtraCoinSource
         <*> genExtraCoinSink
@@ -2063,7 +2065,7 @@ makeChangeWith
     -> Either UnableToConstructChangeError [TokenBundle]
 makeChangeWith p = makeChange p
     { minCoinFor = mkMinCoinValueFor $ minCoinFor p
-    , bundleSizeAssessor = mkBundleSizeAssessor $ bundleSizeAssessor p
+    , bundleSizeAssessor = mkTokenBundleSizeAssessor $ bundleSizeAssessor p
     }
 
 prop_makeChange_identity
@@ -2077,7 +2079,8 @@ prop_makeChange_identity bundles = (===)
         , requiredCost = Coin 0
         , extraCoinSource = Coin 0
         , extraCoinSink = Coin 0
-        , bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
+        , bundleSizeAssessor =
+            mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
         , inputBundles = bundles
         , outputBundles = bundles
         , assetsToMint = TokenMap.empty
@@ -2135,11 +2138,13 @@ prop_makeChange_length p =
 
     mChangeUnsplit =
         makeChange zeroCostMakeChangeScenario
-            { bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit }
+            { bundleSizeAssessor =
+                mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
+            }
     mChangeSplit = mChangeUnsplit >>= \changeUnsplit ->
         makeChange zeroCostMakeChangeScenario
-            { bundleSizeAssessor = mkBundleSizeAssessor
-                $ BundleAssetCountUpperLimit
+            { bundleSizeAssessor = mkTokenBundleSizeAssessor
+                $ MockAssessTokenBundleSizeUpperLimit
                 $ max 1
                 $ (`div` 2)
                 $ getLargestAssetSetSize changeUnsplit
@@ -2434,7 +2439,8 @@ unit_makeChange =
               }
     ]
   where
-    bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
+    bundleSizeAssessor =
+        mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
     matrix =
         -- Simple, only ada, should construct a single change output with 1 ada.
         [ ( noMinCoin, noCost
