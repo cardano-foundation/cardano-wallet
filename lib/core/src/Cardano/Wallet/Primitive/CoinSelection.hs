@@ -109,7 +109,8 @@ performSelection selectionConstraints selectionParams =
                 Balance.SelectionConstraints
                     { computeMinimumAdaQuantity
                     , computeMinimumCost
-                    , assessTokenBundleSize
+                    , assessTokenBundleSize =
+                        view #assessTokenBundleSize assessTokenBundleSize
                     }
                 Balance.SelectionParams
                     { assetsToBurn

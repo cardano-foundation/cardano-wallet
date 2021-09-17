@@ -200,7 +200,7 @@ import qualified Data.Set as Set
 --
 data SelectionConstraints = SelectionConstraints
     { assessTokenBundleSize
-        :: TokenBundleSizeAssessor
+        :: TokenBundle -> TokenBundleSizeAssessment
         -- ^ Assesses the size of a token bundle relative to the upper limit of
         -- what can be included in a transaction output. See documentation for
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
@@ -781,7 +781,7 @@ performSelection constraints params
         (fmap (TokenMap.getAssets . view #tokens))
         (makeChange MakeChangeCriteria
             { minCoinFor = noMinimumCoin
-            , bundleSizeAssessor = assessTokenBundleSize
+            , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
             , requiredCost = noCost
             , extraCoinSource
             , extraCoinSink
@@ -860,7 +860,7 @@ performSelection constraints params
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
         mChangeGenerated = makeChange MakeChangeCriteria
             { minCoinFor = computeMinimumAdaQuantity
-            , bundleSizeAssessor = assessTokenBundleSize
+            , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
             , requiredCost
             , extraCoinSource
             , extraCoinSink

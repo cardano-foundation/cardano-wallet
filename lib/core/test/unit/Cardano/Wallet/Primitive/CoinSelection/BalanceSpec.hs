@@ -843,7 +843,9 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
         either onFailure onSuccess result
   where
     constraints = SelectionConstraints
-        { assessTokenBundleSize = mkBundleSizeAssessor NoBundleSizeLimit
+        { assessTokenBundleSize
+            = view #assessTokenBundleSize
+            $ mkBundleSizeAssessor NoBundleSizeLimit
         , computeMinimumAdaQuantity = mkMinCoinValueFor minCoinValueFor
         , computeMinimumCost = mkCostFor costFor
         }
@@ -1036,10 +1038,10 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
             "shortfall e > Coin 0"
             (shortfall e > Coin 0)
         let params' = set #selectionLimit NoLimit params
-        let assessBundleSize =
-                mkBundleSizeAssessor NoBundleSizeLimit
         let constraints' = SelectionConstraints
-                { assessTokenBundleSize = assessBundleSize
+                { assessTokenBundleSize
+                    = view #assessTokenBundleSize
+                    $ mkBundleSizeAssessor NoBundleSizeLimit
                 , computeMinimumAdaQuantity = noMinCoin
                 , computeMinimumCost = const noCost
                 }
@@ -1541,8 +1543,9 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
     constraints = SelectionConstraints
         { computeMinimumAdaQuantity = noMinCoin
         , computeMinimumCost = mkCostFor NoCost
-        , assessTokenBundleSize = mkBundleSizeAssessor $
-            boundaryTestBundleSizeAssessor params
+        , assessTokenBundleSize = view #assessTokenBundleSize
+            $ mkBundleSizeAssessor
+            $ boundaryTestBundleSizeAssessor params
         }
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams
