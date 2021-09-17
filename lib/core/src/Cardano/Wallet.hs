@@ -2025,6 +2025,7 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
             , outputsCovered
             , utxoRemaining = UTxOIndex.empty
             , extraCoinSource
+            , extraCoinSink = Coin 0
             , changeGenerated = []
             , assetsToMint = TokenMap.empty
             , assetsToBurn = TokenMap.empty
@@ -2045,10 +2046,7 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
         -- and have the transaction layer calculate the actual fee based only
         -- on the contents of that record.
         --
-        extraCoinSource =
-            if (view #rewardWithdrawal migrationSelection) > Coin 0
-            then Just (view #rewardWithdrawal migrationSelection)
-            else Nothing
+        extraCoinSource = view #rewardWithdrawal migrationSelection
 
         withdrawal =
             if (view #rewardWithdrawal migrationSelection) > Coin 0

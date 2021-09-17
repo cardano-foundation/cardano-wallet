@@ -38,7 +38,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -63,6 +63,8 @@ import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Word
     ( Word16 )
 import GHC.Generics
@@ -112,7 +114,10 @@ performSelection selectionConstraints selectionParams =
                 Balance.SelectionParams
                     { assetsToBurn
                     , assetsToMint
-                    , extraCoinSource = rewardWithdrawal
+                    , extraCoinSource = fromMaybe (Coin 0) rewardWithdrawal
+                      -- TODO: Use this for stake key deposits and anything else
+                      -- that consumes ada:
+                    , extraCoinSink = Coin 0
                     , outputsToCover = preparedOutputsToCover
                     , selectionLimit =
                         computeSelectionLimit $ F.toList preparedOutputsToCover
