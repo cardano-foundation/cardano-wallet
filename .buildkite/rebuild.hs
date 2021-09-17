@@ -166,8 +166,6 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
         checkUnclean dryRun "lib/core/test/data"
     , when' runIntegration $ titled "Integration tests on latest era" $
         timeout 60 $ integrationTest ""
-    , when' runIntegration $ titled "Integration tests on past era (Mary)" $
-        timeout 60 $ integrationTest "mary"
     ]
   where
     projectOpt = Fast
