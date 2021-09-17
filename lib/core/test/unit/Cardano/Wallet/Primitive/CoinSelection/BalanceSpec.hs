@@ -190,7 +190,6 @@ import Test.QuickCheck
     , property
     , shrinkList
     , shrinkMapBy
-    , sized
     , suchThat
     , tabulate
     , withMaxSuccess
@@ -270,11 +269,11 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
             -- generate interesting cases since the selection within that large
             -- index is random. Plus, other selection parameters still vary.
             utxoAvailable <- generate (genUTxOIndexLargeN 50000)
-            pure $ property $ \minCoin costFor (Large params) ->
+            pure $ property $ \mockConstraints (Large params) ->
                 let
                     params' = Blind $ set #utxoAvailable utxoAvailable params
                 in
-                    prop_performSelection minCoin costFor params' (const id)
+                    prop_performSelection mockConstraints params' (const id)
                         & withMaxSuccess 5
 
     parallel $ describe "Selection states" $ do
@@ -656,11 +655,10 @@ genSelectionParams genUTxOIndex' = do
         utxoAvailableAssets = view (#balance . #tokens) utxoAvailable
 
 prop_performSelection_small
-    :: MockComputeMinimumAdaQuantity
-    -> MockComputeMinimumCost
+    :: MockSelectionConstraints
     -> Blind (Small SelectionParams)
     -> Property
-prop_performSelection_small minCoinValueFor costFor (Blind (Small params)) =
+prop_performSelection_small mockConstraints (Blind (Small params)) =
     checkCoverage $
 
     -- Inspect the balance:
@@ -730,7 +728,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small params)) =
     cover 2 (not allMintedAssetsEitherBurnedOrSpent)
         "Some minted assets were neither spent nor burned" $
 
-    prop_performSelection minCoinValueFor costFor (Blind params) $ \result ->
+    prop_performSelection mockConstraints (Blind params) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
         . cover 2 (selectionLimited && selectionSufficient result)
@@ -810,25 +808,23 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small params)) =
     noAssetsAreBothSpentAndBurned = not someAssetsAreBothSpentAndBurned
 
 prop_performSelection_large
-    :: MockComputeMinimumAdaQuantity
-    -> MockComputeMinimumCost
+    :: MockSelectionConstraints
     -> Blind (Large SelectionParams)
     -> Property
-prop_performSelection_large minCoinValueFor costFor (Blind (Large params)) =
+prop_performSelection_large mockConstraints (Blind (Large params)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
     withMaxSuccess 100 $
     checkCoverage $
     cover 50 (isUTxOBalanceSufficient params)
         "UTxO balance sufficient" $
-    prop_performSelection minCoinValueFor costFor (Blind params) (const id)
+    prop_performSelection mockConstraints (Blind params) (const id)
 
 prop_performSelection
-    :: MockComputeMinimumAdaQuantity
-    -> MockComputeMinimumCost
+    :: MockSelectionConstraints
     -> Blind SelectionParams
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
-prop_performSelection minCoinValueFor costFor (Blind params) coverage =
+prop_performSelection mockConstraints (Blind params) coverage =
     monadicIO $ do
         monitor $ counterexample $ unlines
             [ "extraCoinSource:"
@@ -846,14 +842,8 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
         monitor (coverage result)
         either onFailure onSuccess result
   where
-    constraints = SelectionConstraints
-        { assessTokenBundleSize =
-            unMockAssessTokenBundleSize MockAssessTokenBundleSizeUnlimited
-        , computeMinimumAdaQuantity =
-            unMockComputeMinimumAdaQuantity minCoinValueFor
-        , computeMinimumCost =
-            unMockComputeMinimumCost costFor
-        }
+    constraints :: SelectionConstraints
+    constraints = unMockSelectionConstraints mockConstraints
 
     SelectionParams
         { outputsToCover
@@ -925,7 +915,8 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
                 assert True
       where
         assertOnSuccess = assertWith . (<>) "onSuccess: "
-        absoluteMinCoinValue = unMockComputeMinimumAdaQuantity minCoinValueFor TokenMap.empty
+        absoluteMinCoinValue =
+            view #computeMinimumAdaQuantity constraints TokenMap.empty
         delta :: SelectionDelta TokenBundle
         delta = selectionDeltaAllAssets result
         surplus :: TokenBundle
@@ -934,7 +925,7 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
             SelectionDeficit d -> error $ unwords
                 ["Unexpected deficit:", show d]
         minExpectedCoinSurplus :: Coin
-        minExpectedCoinSurplus = unMockComputeMinimumCost costFor skeleton
+        minExpectedCoinSurplus = view #computeMinimumCost constraints skeleton
         maxExpectedCoinSurplus :: Coin
         maxExpectedCoinSurplus = minExpectedCoinSurplus `addCoin` toAdd
           where
@@ -2058,10 +2049,15 @@ data MockAssessTokenBundleSize
     deriving (Eq, Show)
 
 genMockAssessTokenBundleSize :: Gen MockAssessTokenBundleSize
-genMockAssessTokenBundleSize = oneof
-    [ pure MockAssessTokenBundleSizeUnlimited
-    , MockAssessTokenBundleSizeUpperLimit <$> sized (\n -> choose (1, max 1 n))
-    ]
+genMockAssessTokenBundleSize =
+    -- TODO:
+    --
+    -- We currently only test with constraints where the token bundle size is
+    -- unlimited.
+    --
+    -- We should add coverage of the case where token bundle sizes are limited.
+    --
+    pure MockAssessTokenBundleSizeUnlimited
 
 shrinkMockAssessTokenBundleSize
     :: MockAssessTokenBundleSize -> [MockAssessTokenBundleSize]
@@ -3851,6 +3847,10 @@ instance Arbitrary (Small UTxOIndex) where
 instance Arbitrary Coin where
     arbitrary = genCoinPositive
     shrink = shrinkCoinPositive
+
+instance Arbitrary MockSelectionConstraints where
+    arbitrary = genMockSelectionConstraints
+    shrink = shrinkMockSelectionConstraints
 
 instance Arbitrary MockComputeMinimumAdaQuantity where
     arbitrary = genMockComputeMinimumAdaQuantity
