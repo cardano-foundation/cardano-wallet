@@ -190,6 +190,7 @@ import Test.QuickCheck
     , property
     , shrinkList
     , shrinkMapBy
+    , sized
     , suchThat
     , tabulate
     , withMaxSuccess
@@ -2035,6 +2036,37 @@ computeMinimumCostLinear s
     $ skeletonInputCount s
     + F.length (skeletonOutputs s)
     + F.length (skeletonChange s)
+
+--------------------------------------------------------------------------------
+-- Computing selection limits
+--------------------------------------------------------------------------------
+
+data MockComputeSelectionLimit
+    = MockComputeSelectionLimitNone
+    | MockComputeSelectionLimit Int
+    deriving (Eq, Show)
+
+genMockComputeSelectionLimit :: Gen MockComputeSelectionLimit
+genMockComputeSelectionLimit = oneof
+    [ pure MockComputeSelectionLimitNone
+    , MockComputeSelectionLimit <$> sized (\n -> choose (1, max 1 n))
+    ]
+
+shrinkMockComputeSelectionLimit
+    :: MockComputeSelectionLimit -> [MockComputeSelectionLimit]
+shrinkMockComputeSelectionLimit = \case
+    MockComputeSelectionLimitNone ->
+        []
+    MockComputeSelectionLimit n ->
+        MockComputeSelectionLimit <$> filter (> 0) (shrink n)
+
+unMockComputeSelectionLimit
+    :: MockComputeSelectionLimit -> ([TxOut] -> SelectionLimit)
+unMockComputeSelectionLimit = \case
+    MockComputeSelectionLimitNone ->
+        const NoLimit
+    MockComputeSelectionLimit n ->
+        const $ MaximumInputLimit n
 
 --------------------------------------------------------------------------------
 -- Assessing token bundle sizes
