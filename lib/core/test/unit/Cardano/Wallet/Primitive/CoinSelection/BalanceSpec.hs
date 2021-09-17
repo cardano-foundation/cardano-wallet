@@ -189,6 +189,7 @@ import Test.QuickCheck
     , oneof
     , property
     , shrinkList
+    , shrinkMapBy
     , sized
     , suchThat
     , tabulate
@@ -199,6 +200,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
+import Test.QuickCheck.Extra
+    ( liftShrink3 )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -1918,6 +1921,46 @@ boundaryTest_largeAssetCounts_4 = BoundaryTestData
       , (Coin 250_000, [mockAssetQuantity "C" 1])
       , (Coin 250_000, [mockAssetQuantity "D" 1])
       ]
+
+--------------------------------------------------------------------------------
+-- Selection constraints
+--------------------------------------------------------------------------------
+
+data MockSelectionConstraints = MockSelectionConstraints
+    { assessTokenBundleSize
+        :: MockAssessTokenBundleSize
+    , computeMinimumAdaQuantity
+        :: MockComputeMinimumAdaQuantity
+    , computeMinimumCost
+        :: MockComputeMinimumCost
+    } deriving (Eq, Generic, Show)
+
+genMockSelectionConstraints :: Gen MockSelectionConstraints
+genMockSelectionConstraints = MockSelectionConstraints
+    <$> genMockAssessTokenBundleSize
+    <*> genMockComputeMinimumAdaQuantity
+    <*> genMockComputeMinimumCost
+
+shrinkMockSelectionConstraints
+    :: MockSelectionConstraints -> [MockSelectionConstraints]
+shrinkMockSelectionConstraints =
+    shrinkMapBy tupleToMock mockToTuple $ liftShrink3
+        shrinkMockAssessTokenBundleSize
+        shrinkMockComputeMinimumAdaQuantity
+        shrinkMockComputeMinimumCost
+  where
+    mockToTuple (MockSelectionConstraints a b c) = (a, b, c)
+    tupleToMock (a, b, c) = (MockSelectionConstraints a b c)
+
+unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
+unMockSelectionConstraints m = SelectionConstraints
+    { assessTokenBundleSize =
+        unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
+    , computeMinimumAdaQuantity =
+        unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
+    , computeMinimumCost =
+        unMockComputeMinimumCost $ view #computeMinimumCost m
+    }
 
 --------------------------------------------------------------------------------
 -- Computing minimum ada quantities
