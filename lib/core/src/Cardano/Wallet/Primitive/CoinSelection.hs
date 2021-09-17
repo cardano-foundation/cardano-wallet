@@ -109,6 +109,7 @@ performSelection selectionConstraints selectionParams =
                 Balance.SelectionConstraints
                     { computeMinimumAdaQuantity
                     , computeMinimumCost
+                    , computeSelectionLimit
                     , assessTokenBundleSize =
                         view #assessTokenBundleSize assessTokenBundleSize
                     }
@@ -120,8 +121,6 @@ performSelection selectionConstraints selectionParams =
                       -- that consumes ada:
                     , extraCoinSink = Coin 0
                     , outputsToCover = preparedOutputsToCover
-                    , selectionLimit =
-                        computeSelectionLimit $ F.toList preparedOutputsToCover
                     , utxoAvailable
                     }
   where

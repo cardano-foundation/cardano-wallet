@@ -201,7 +201,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( liftShrink3 )
+    ( liftShrink4 )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -621,8 +621,6 @@ genSelectionParams genUTxOIndex' = do
         choose (1, UTxOIndex.size utxoAvailable `div` 8)
     outputsToCover <- NE.fromList <$>
         replicateM outputCount genTxOut
-    selectionLimit <- ($ []) . unMockComputeSelectionLimit <$>
-        genMockComputeSelectionLimit
     extraCoinSource <-
         oneof [pure $ Coin 0, genCoinPositive]
     extraCoinSink <-
@@ -633,7 +631,6 @@ genSelectionParams genUTxOIndex' = do
         , utxoAvailable
         , extraCoinSource
         , extraCoinSink
-        , selectionLimit
         , assetsToMint
         , assetsToBurn
         }
@@ -744,8 +741,16 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
             . fmap (view #tokens)
             $ outputsToCover params
 
+    constraints :: SelectionConstraints
+    constraints = unMockSelectionConstraints mockConstraints
+
+    selectionLimit :: SelectionLimit
+    selectionLimit = view #computeSelectionLimit constraints
+        $ F.toList
+        $ view #outputsToCover params
+
     selectionLimited :: Bool
-    selectionLimited = case view #selectionLimit params of
+    selectionLimited = case selectionLimit of
         MaximumInputLimit _ -> True
         NoLimit -> False
 
@@ -845,7 +850,6 @@ prop_performSelection mockConstraints (Blind params) coverage =
         , utxoAvailable
         , extraCoinSource
         , extraCoinSink
-        , selectionLimit
         , assetsToMint
         , assetsToBurn
         } = params
@@ -1028,14 +1032,14 @@ prop_performSelection mockConstraints (Blind params) coverage =
         assertOnUnableToConstructChange
             "shortfall e > Coin 0"
             (shortfall e > Coin 0)
-        let params' = set #selectionLimit NoLimit params
         let constraints' = SelectionConstraints
                 { assessTokenBundleSize = unMockAssessTokenBundleSize
                     MockAssessTokenBundleSizeUnlimited
                 , computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
                 , computeMinimumCost = computeMinimumCostZero
+                , computeSelectionLimit = const NoLimit
                 }
-        let performSelection' = performSelection constraints' params'
+        let performSelection' = performSelection constraints' params
         run performSelection' >>= \case
             Left e' -> do
                 monitor $ counterexample $ unlines
@@ -1053,6 +1057,8 @@ prop_performSelection mockConstraints (Blind params) coverage =
         "utxoAvailable == UTxOIndex.empty"
         (utxoAvailable == UTxOIndex.empty)
 
+    selectionLimit = view #computeSelectionLimit constraints $
+        F.toList outputsToCover
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
     utxoBalanceRequired = computeUTxOBalanceRequired params
     utxoBalanceSufficiencyInfo = computeUTxOBalanceSufficiencyInfo params
@@ -1535,6 +1541,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , computeMinimumCost = computeMinimumCostZero
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
+        , computeSelectionLimit = const NoLimit
         }
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams
@@ -1547,8 +1554,6 @@ encodeBoundaryTestCriteria c = SelectionParams
         zipWith TxOut
             (dummyAddresses)
             (uncurry TokenBundle.fromFlatList <$> boundaryTestUTxO c)
-    , selectionLimit =
-        NoLimit
     , extraCoinSource =
         Coin 0
     , extraCoinSink =
@@ -1919,6 +1924,8 @@ data MockSelectionConstraints = MockSelectionConstraints
         :: MockComputeMinimumAdaQuantity
     , computeMinimumCost
         :: MockComputeMinimumCost
+    , computeSelectionLimit
+        :: MockComputeSelectionLimit
     } deriving (Eq, Generic, Show)
 
 genMockSelectionConstraints :: Gen MockSelectionConstraints
@@ -1926,17 +1933,19 @@ genMockSelectionConstraints = MockSelectionConstraints
     <$> genMockAssessTokenBundleSize
     <*> genMockComputeMinimumAdaQuantity
     <*> genMockComputeMinimumCost
+    <*> genMockComputeSelectionLimit
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
 shrinkMockSelectionConstraints =
-    shrinkMapBy tupleToMock mockToTuple $ liftShrink3
+    shrinkMapBy tupleToMock mockToTuple $ liftShrink4
         shrinkMockAssessTokenBundleSize
         shrinkMockComputeMinimumAdaQuantity
         shrinkMockComputeMinimumCost
+        shrinkMockComputeSelectionLimit
   where
-    mockToTuple (MockSelectionConstraints a b c) = (a, b, c)
-    tupleToMock (a, b, c) = (MockSelectionConstraints a b c)
+    mockToTuple (MockSelectionConstraints a b c d) = (a, b, c, d)
+    tupleToMock (a, b, c, d) = (MockSelectionConstraints a b c d)
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
 unMockSelectionConstraints m = SelectionConstraints
@@ -1946,6 +1955,8 @@ unMockSelectionConstraints m = SelectionConstraints
         unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
     , computeMinimumCost =
         unMockComputeMinimumCost $ view #computeMinimumCost m
+    , computeSelectionLimit =
+        unMockComputeSelectionLimit $ view #computeSelectionLimit m
     }
 
 --------------------------------------------------------------------------------

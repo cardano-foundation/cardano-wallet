@@ -211,6 +211,10 @@ data SelectionConstraints = SelectionConstraints
     , computeMinimumCost
         :: SelectionSkeleton -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
+    , computeSelectionLimit
+        :: [TxOut] -> SelectionLimit
+        -- ^ Computes an upper bound for the number of ordinary inputs to
+        -- select, given a current set of outputs.
     }
     deriving Generic
 
@@ -223,9 +227,6 @@ data SelectionParams = SelectionParams
     , utxoAvailable
         :: !UTxOIndex
         -- ^ A UTxO set from which inputs can be selected.
-    , selectionLimit
-        :: !SelectionLimit
-        -- ^ Specifies a limit to be adhered to when performing selection.
     , extraCoinSource
         :: !Coin
         -- ^ An extra source of ada.
@@ -697,11 +698,11 @@ performSelection constraints params
         { assessTokenBundleSize
         , computeMinimumAdaQuantity
         , computeMinimumCost
+        , computeSelectionLimit
         } = constraints
     SelectionParams
         { outputsToCover
         , utxoAvailable
-        , selectionLimit
         , extraCoinSource
         , extraCoinSink
         , assetsToMint
@@ -718,6 +719,9 @@ performSelection constraints params
     mkInputsSelected :: UTxOIndex -> NonEmpty (TxIn, TxOut)
     mkInputsSelected =
         fromMaybe invariantSelectAnyInputs . NE.nonEmpty . UTxOIndex.toList
+
+    selectionLimit :: SelectionLimit
+    selectionLimit = computeSelectionLimit (F.toList outputsToCover)
 
     utxoBalanceAvailable :: TokenBundle
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
