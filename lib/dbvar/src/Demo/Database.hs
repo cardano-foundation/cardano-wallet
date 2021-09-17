@@ -22,8 +22,7 @@ module Demo.Database where
 import Prelude
 
 import Data.Chain
-    ( Chain
-    , DeltaChain (..)
+    ( DeltaChain (..)
     , Edge (..)
     , chainIntoTable
     )

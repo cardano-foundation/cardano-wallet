@@ -10,7 +10,7 @@ module Data.Chain (
     , member, ChainContext, lookup
     --, singleton
     , fromEdge, fromEdges
-    , edges, toEdges, summary
+    , edges, nodes, toEdges, summary
 
     -- * DeltaChain
     , DeltaChain (..)
@@ -37,18 +37,13 @@ import Data.List
     ( unfoldr )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Semigroupoid
     ( o )
-import Data.Set
-    ( Set )
 import Data.Table
     ( Table , DeltaTable (..), Pile (..) )
 
 import qualified Data.Table as Table
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
     Chain
@@ -128,6 +123,16 @@ edges Chain{prev,next,tip} = unfoldr backwards tip
         before <- join $ Map.lookup now prev
         (e,_)  <- Map.lookup before next
         pure (e,before)
+
+-- | List all nodes in the 'Chain'.
+-- The tip is listed /first/.
+nodes :: Ord node => Chain node edge -> [node]
+nodes Chain{prev,next,tip} = tip : unfoldr backwards tip
+  where
+    backwards now = do
+        before <- join $ Map.lookup now prev
+        (_,_)  <- Map.lookup before next
+        pure (before,before)
 
 -- | Convert a 'Chain' into a list of 'Edge'.
 toEdges :: Chain node edge -> [Edge node edge]
@@ -237,7 +242,7 @@ addEdge Edge{from,to,via} chain@Chain{next,prev,tip} =
 -- Importantly, we may not assume that the table stores
 -- the rows in any particular order.
 chainIntoTable
-    :: (Ord node, Ord e, Semigroup edge)
+    :: (Ord node, Semigroup edge)
     => (edge -> Pile e) -> (Pile e -> edge)
     -> Embedding (DeltaChain node edge) [DeltaTable (Edge node e)]
 chainIntoTable toPile fromPile = mkEmbedding Embedding'{load,write,update}

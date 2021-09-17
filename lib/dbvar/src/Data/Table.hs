@@ -199,7 +199,7 @@ fromSet = Pile . Set.toList
 --      let (index, g2) = randomR (1,n) g1
 
 -- | Map a 'DeltaSet' to a 'Pile' of single element insertions and deltions.
-deltaSetToPile :: Ord a => DeltaSet a -> Pile (DeltaSet1 a)
+deltaSetToPile :: DeltaSet a -> Pile (DeltaSet1 a)
 deltaSetToPile = Pile . Delta.deltaSetToList
 
 -- | Restore a 'DeltaSet' from a 'Pile' of single element
