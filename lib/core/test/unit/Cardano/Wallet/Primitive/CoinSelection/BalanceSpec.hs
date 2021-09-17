@@ -553,26 +553,26 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 --------------------------------------------------------------------------------
 
 prop_prepareOutputsWith_twice
-    :: MinCoinValueFor
+    :: MockComputeMinimumAdaQuantity
     -> NonEmpty TxOut
     -> Property
 prop_prepareOutputsWith_twice minCoinValueDef outs =
     once === twice
   where
-    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
     (_:once:twice:_) = iterate (prepareOutputsWith minCoinValueFor) outs
 
 prop_prepareOutputsWith_length
-    :: MinCoinValueFor
+    :: MockComputeMinimumAdaQuantity
     -> NonEmpty TxOut
     -> Property
 prop_prepareOutputsWith_length minCoinValueDef outs =
     F.length (prepareOutputsWith minCoinValueFor outs) === F.length outs
   where
-    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
 
 prop_prepareOutputsWith_assetsUnchanged
-    :: MinCoinValueFor
+    :: MockComputeMinimumAdaQuantity
     -> NonEmpty TxOut
     -> Property
 prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
@@ -580,17 +580,17 @@ prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
     ===
     (txOutAssets <$> outs)
   where
-    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
     txOutAssets = TokenBundle.getAssets . view #tokens
 
 prop_prepareOutputsWith_preparedOrExistedBefore
-    :: MinCoinValueFor
+    :: MockComputeMinimumAdaQuantity
     -> NonEmpty TxOut
     -> Property
 prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
     property $ F.all isPreparedOrExistedBefore (NE.zip outs outs')
   where
-    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
     outs' = prepareOutputsWith minCoinValueFor outs
 
     isPreparedOrExistedBefore :: (TxOut, TxOut) -> Bool
@@ -653,7 +653,7 @@ genSelectionParams genUTxOIndex' = do
         utxoAvailableAssets = view (#balance . #tokens) utxoAvailable
 
 prop_performSelection_small
-    :: MinCoinValueFor
+    :: MockComputeMinimumAdaQuantity
     -> MockComputeMinimumCost
     -> Blind (Small SelectionParams)
     -> Property
@@ -807,7 +807,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small params)) =
     noAssetsAreBothSpentAndBurned = not someAssetsAreBothSpentAndBurned
 
 prop_performSelection_large
-    :: MinCoinValueFor
+    :: MockComputeMinimumAdaQuantity
     -> MockComputeMinimumCost
     -> Blind (Large SelectionParams)
     -> Property
@@ -820,7 +820,7 @@ prop_performSelection_large minCoinValueFor costFor (Blind (Large params)) =
     prop_performSelection minCoinValueFor costFor (Blind params) (const id)
 
 prop_performSelection
-    :: MinCoinValueFor
+    :: MockComputeMinimumAdaQuantity
     -> MockComputeMinimumCost
     -> Blind SelectionParams
     -> (PerformSelectionResult -> Property -> Property)
@@ -846,8 +846,10 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
     constraints = SelectionConstraints
         { assessTokenBundleSize =
             unMockAssessTokenBundleSize MockAssessTokenBundleSizeUnlimited
-        , computeMinimumAdaQuantity = mkMinCoinValueFor minCoinValueFor
-        , computeMinimumCost = unMockComputeMinimumCost costFor
+        , computeMinimumAdaQuantity =
+            unMockComputeMinimumAdaQuantity minCoinValueFor
+        , computeMinimumCost =
+            unMockComputeMinimumCost costFor
         }
 
     SelectionParams
@@ -920,7 +922,7 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
                 assert True
       where
         assertOnSuccess = assertWith . (<>) "onSuccess: "
-        absoluteMinCoinValue = mkMinCoinValueFor minCoinValueFor TokenMap.empty
+        absoluteMinCoinValue = unMockComputeMinimumAdaQuantity minCoinValueFor TokenMap.empty
         delta :: SelectionDelta TokenBundle
         delta = selectionDeltaAllAssets result
         surplus :: TokenBundle
@@ -1041,7 +1043,7 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
         let constraints' = SelectionConstraints
                 { assessTokenBundleSize = unMockAssessTokenBundleSize
                     MockAssessTokenBundleSizeUnlimited
-                , computeMinimumAdaQuantity = noMinCoin
+                , computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
                 , computeMinimumCost = computeMinimumCostZero
                 }
         let performSelection' = performSelection constraints' params'
@@ -1540,7 +1542,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
     fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
   where
     constraints = SelectionConstraints
-        { computeMinimumAdaQuantity = noMinCoin
+        { computeMinimumAdaQuantity = computeMinimumAdaQuantityZero
         , computeMinimumCost = computeMinimumCostZero
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
@@ -1921,17 +1923,34 @@ boundaryTest_largeAssetCounts_4 = BoundaryTestData
 -- Computing minimum ada quantities
 --------------------------------------------------------------------------------
 
-data MinCoinValueFor
-    = NoMinCoin
-    | LinearMinCoin
+data MockComputeMinimumAdaQuantity
+    = MockComputeMinimumAdaQuantityZero
+    | MockComputeMinimumAdaQuantityLinear
     deriving (Eq, Show, Bounded, Enum)
 
-mkMinCoinValueFor
-    :: MinCoinValueFor
-    -> (TokenMap -> Coin)
-mkMinCoinValueFor = \case
-    NoMinCoin -> noMinCoin
-    LinearMinCoin -> linearMinCoin
+genMockComputeMinimumAdaQuantity :: Gen MockComputeMinimumAdaQuantity
+genMockComputeMinimumAdaQuantity = arbitraryBoundedEnum
+
+shrinkMockComputeMinimumAdaQuantity
+    :: MockComputeMinimumAdaQuantity -> [MockComputeMinimumAdaQuantity]
+shrinkMockComputeMinimumAdaQuantity = \case
+    MockComputeMinimumAdaQuantityZero ->
+        []
+    MockComputeMinimumAdaQuantityLinear ->
+        [MockComputeMinimumAdaQuantityZero]
+
+unMockComputeMinimumAdaQuantity
+    :: MockComputeMinimumAdaQuantity -> (TokenMap -> Coin)
+unMockComputeMinimumAdaQuantity = \case
+    MockComputeMinimumAdaQuantityZero ->
+        computeMinimumAdaQuantityZero
+    MockComputeMinimumAdaQuantityLinear ->
+        computeMinimumAdaQuantityLinear
+
+-- | Returns a constant minimum ada quantity of zero.
+--
+computeMinimumAdaQuantityZero :: TokenMap -> Coin
+computeMinimumAdaQuantityZero = const (Coin 0)
 
 -- | A dummy function for calculating the minimum ada quantity to pay for a
 --   token map.
@@ -1940,12 +1959,9 @@ mkMinCoinValueFor = \case
 -- expensive with the number of unique assets in the map. So, looking at the
 -- size of the asset set is enough.
 --
-linearMinCoin :: TokenMap -> Coin
-linearMinCoin m =
+computeMinimumAdaQuantityLinear :: TokenMap -> Coin
+computeMinimumAdaQuantityLinear m =
     Coin (1 + fromIntegral (Set.size (TokenMap.getAssets m)))
-
-noMinCoin :: TokenMap -> Coin
-noMinCoin = const (Coin 0)
 
 --------------------------------------------------------------------------------
 -- Computing minimum costs
@@ -2035,7 +2051,7 @@ mkTokenBundleSizeAssessor =
 --------------------------------------------------------------------------------
 
 type MakeChangeData =
-    MakeChangeCriteria MinCoinValueFor MockAssessTokenBundleSize
+    MakeChangeCriteria MockComputeMinimumAdaQuantity MockAssessTokenBundleSize
 
 isValidMakeChangeData :: MakeChangeData -> Bool
 isValidMakeChangeData p = (&&)
@@ -2091,7 +2107,7 @@ makeChangeWith
     :: MakeChangeData
     -> Either UnableToConstructChangeError [TokenBundle]
 makeChangeWith p = makeChange p
-    { minCoinFor = mkMinCoinValueFor $ minCoinFor p
+    { minCoinFor = unMockComputeMinimumAdaQuantity $ minCoinFor p
     , bundleSizeAssessor = mkTokenBundleSizeAssessor $ bundleSizeAssessor p
     }
 
@@ -2181,7 +2197,7 @@ prop_makeChange_length p =
     getLargestAssetSetSize = F.maximum . fmap (Set.size . TokenBundle.getAssets)
 
     zeroCostMakeChangeScenario = p
-        { minCoinFor = noMinCoin
+        { minCoinFor = computeMinimumAdaQuantityZero
         , requiredCost = Coin 0
         }
 
@@ -2350,7 +2366,7 @@ prop_makeChange_success_minValueRespected p =
     F.foldr ((.&&.) . checkMinValue) (property True)
   where
     minCoinValueFor :: TokenMap -> Coin
-    minCoinValueFor = mkMinCoinValueFor (minCoinFor p)
+    minCoinValueFor = unMockComputeMinimumAdaQuantity (minCoinFor p)
 
     checkMinValue :: TokenBundle -> Property
     checkMinValue m@TokenBundle{coin,tokens} =
@@ -2402,7 +2418,7 @@ prop_makeChange_fail_minValueTooBig
 prop_makeChange_fail_minValueTooBig p =
     let makeChangeData = p
             { requiredCost = Coin 0
-            , minCoinFor = NoMinCoin
+            , minCoinFor = MockComputeMinimumAdaQuantityZero
             }
     in
     case makeChangeWith makeChangeData of
@@ -2434,7 +2450,7 @@ prop_makeChange_fail_minValueTooBig p =
                 totalInputValue
                 totalOutputValue
             minCoinValueFor =
-                mkMinCoinValueFor (minCoinFor p)
+                unMockComputeMinimumAdaQuantity (minCoinFor p)
             totalMinCoinDeposit = F.foldr addCoin (Coin 0)
                 (minCoinValueFor . view #tokens <$> change)
   where
@@ -2475,7 +2491,7 @@ unit_makeChange =
         mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
     matrix =
         -- Simple, only ada, should construct a single change output with 1 ada.
-        [ ( noMinCoin
+        [ ( computeMinimumAdaQuantityZero
           , Coin 0
           , Coin 0
           , b 2 [] :| []
@@ -2484,7 +2500,7 @@ unit_makeChange =
           )
 
         -- Two outputs, no cost, changes are proportional, no extra assets
-        , ( noMinCoin
+        , ( computeMinimumAdaQuantityZero
           , Coin 0
           , Coin 0
           , b 9 [(assetA, 9), (assetB, 6)] :| []
@@ -2497,7 +2513,7 @@ unit_makeChange =
 
         -- Extra non-user-specified assets. Large assets end up in 'large'
         -- bundles and small extra assets in smaller bundles.
-        , ( noMinCoin
+        , ( computeMinimumAdaQuantityZero
           , Coin 0
           , Coin 0
           , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
@@ -2747,35 +2763,35 @@ unit_assignCoinsToChangeMaps =
     matrix =
         -- Simple case with a single Ada-only output
         [ ( Coin 1
-          , linearMinCoin
+          , computeMinimumAdaQuantityLinear
           , m 42 [] :| []
           , Just [b 1 []]
           )
 
         -- Simple case, with a single MA output
         , ( Coin 2
-          , linearMinCoin
+          , computeMinimumAdaQuantityLinear
           , m 42 [(assetA, 1337)] :| []
           , Just [b 2 [(assetA, 1337)]]
           )
 
         -- Single Ada-only output, but not enough left to create a change
         , ( Coin 1
-          , (`addCoin` Coin 1) . linearMinCoin
+          , (`addCoin` Coin 1) . computeMinimumAdaQuantityLinear
           , m 42 [] :| []
           , Just []
           )
 
         -- Single MA output, but not enough left to create a change
         , ( Coin 1
-          , linearMinCoin
+          , computeMinimumAdaQuantityLinear
           , m 42 [(assetA, 1337)] :| []
           , Nothing
           )
 
         -- Multiple Ada-only change, not enough Ada left to create them all
         , ( Coin 2
-          , linearMinCoin
+          , computeMinimumAdaQuantityLinear
           , NE.fromList
             [ m 1337 []
             , m   14 []
@@ -2786,7 +2802,7 @@ unit_assignCoinsToChangeMaps =
 
         -- Hybrid Ada & MA, not enough to cover both => Ada change is dropped
         , ( Coin 2
-          , linearMinCoin
+          , computeMinimumAdaQuantityLinear
           , NE.fromList
             [ m 42 []
             , m 14 []
@@ -3793,11 +3809,9 @@ instance Arbitrary Coin where
     arbitrary = genCoinPositive
     shrink = shrinkCoinPositive
 
-instance Arbitrary MinCoinValueFor where
-    arbitrary = arbitraryBoundedEnum
-    shrink = \case
-        NoMinCoin -> []
-        LinearMinCoin -> [NoMinCoin]
+instance Arbitrary MockComputeMinimumAdaQuantity where
+    arbitrary = genMockComputeMinimumAdaQuantity
+    shrink = shrinkMockComputeMinimumAdaQuantity
 
 instance Arbitrary MockComputeMinimumCost where
     arbitrary = genMockComputeMinimumCost
