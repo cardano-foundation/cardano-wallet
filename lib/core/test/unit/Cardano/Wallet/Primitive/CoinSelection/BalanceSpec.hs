@@ -621,14 +621,8 @@ genSelectionParams genUTxOIndex' = do
         choose (1, UTxOIndex.size utxoAvailable `div` 8)
     outputsToCover <- NE.fromList <$>
         replicateM outputCount genTxOut
-    selectionLimit <- frequency
-        [ (5, pure NoLimit)
-        , (1, pure $ MaximumInputLimit 0)
-        , (1, pure $ MaximumInputLimit (UTxOIndex.size utxoAvailable))
-        , (4, MaximumInputLimit <$> choose
-            (1, UTxOIndex.size utxoAvailable `div` 8)
-          )
-        ]
+    selectionLimit <- ($ []) . unMockComputeSelectionLimit <$>
+        genMockComputeSelectionLimit
     extraCoinSource <-
         oneof [pure $ Coin 0, genCoinPositive]
     extraCoinSink <-
