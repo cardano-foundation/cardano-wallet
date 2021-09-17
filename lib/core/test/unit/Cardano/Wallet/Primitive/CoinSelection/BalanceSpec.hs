@@ -1920,7 +1920,7 @@ boundaryTest_largeAssetCounts_4 = BoundaryTestData
       ]
 
 --------------------------------------------------------------------------------
--- Making change
+-- Computing minimum ada quantities
 --------------------------------------------------------------------------------
 
 data MinCoinValueFor
@@ -1949,6 +1949,10 @@ linearMinCoin m =
 noMinCoin :: TokenMap -> Coin
 noMinCoin = const (Coin 0)
 
+--------------------------------------------------------------------------------
+-- Computing minimum costs
+--------------------------------------------------------------------------------
+
 data CostFor
     = NoCost
     | LinearCost
@@ -1972,8 +1976,9 @@ linearCost s
     + F.length (skeletonOutputs s)
     + F.length (skeletonChange s)
 
-type MakeChangeData =
-    MakeChangeCriteria MinCoinValueFor MockTokenBundleSizeAssessor
+--------------------------------------------------------------------------------
+-- Assessing token bundle sizes
+--------------------------------------------------------------------------------
 
 data MockTokenBundleSizeAssessor
     = NoBundleSizeLimit
@@ -1995,6 +2000,13 @@ mkBundleSizeAssessor m = TokenBundleSizeAssessor $ case m of
                 LT -> TokenBundleSizeWithinLimit
                 EQ -> TokenBundleSizeWithinLimit
                 GT -> OutputTokenBundleSizeExceedsLimit
+
+--------------------------------------------------------------------------------
+-- Making change
+--------------------------------------------------------------------------------
+
+type MakeChangeData =
+    MakeChangeCriteria MinCoinValueFor MockTokenBundleSizeAssessor
 
 isValidMakeChangeData :: MakeChangeData -> Bool
 isValidMakeChangeData p = (&&)
