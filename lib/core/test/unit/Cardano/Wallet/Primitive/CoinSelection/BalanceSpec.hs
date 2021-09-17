@@ -654,7 +654,7 @@ genSelectionParams genUTxOIndex' = do
 
 prop_performSelection_small
     :: MinCoinValueFor
-    -> CostFor
+    -> MockComputeMinimumCost
     -> Blind (Small SelectionParams)
     -> Property
 prop_performSelection_small minCoinValueFor costFor (Blind (Small params)) =
@@ -808,7 +808,7 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small params)) =
 
 prop_performSelection_large
     :: MinCoinValueFor
-    -> CostFor
+    -> MockComputeMinimumCost
     -> Blind (Large SelectionParams)
     -> Property
 prop_performSelection_large minCoinValueFor costFor (Blind (Large params)) =
@@ -821,7 +821,7 @@ prop_performSelection_large minCoinValueFor costFor (Blind (Large params)) =
 
 prop_performSelection
     :: MinCoinValueFor
-    -> CostFor
+    -> MockComputeMinimumCost
     -> Blind SelectionParams
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
@@ -847,7 +847,7 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
         { assessTokenBundleSize =
             unMockAssessTokenBundleSize MockAssessTokenBundleSizeUnlimited
         , computeMinimumAdaQuantity = mkMinCoinValueFor minCoinValueFor
-        , computeMinimumCost = mkCostFor costFor
+        , computeMinimumCost = unMockComputeMinimumCost costFor
         }
 
     SelectionParams
@@ -929,7 +929,7 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
             SelectionDeficit d -> error $ unwords
                 ["Unexpected deficit:", show d]
         minExpectedCoinSurplus :: Coin
-        minExpectedCoinSurplus = mkCostFor costFor skeleton
+        minExpectedCoinSurplus = unMockComputeMinimumCost costFor skeleton
         maxExpectedCoinSurplus :: Coin
         maxExpectedCoinSurplus = minExpectedCoinSurplus `addCoin` toAdd
           where
@@ -1042,7 +1042,7 @@ prop_performSelection minCoinValueFor costFor (Blind params) coverage =
                 { assessTokenBundleSize = unMockAssessTokenBundleSize
                     MockAssessTokenBundleSizeUnlimited
                 , computeMinimumAdaQuantity = noMinCoin
-                , computeMinimumCost = const noCost
+                , computeMinimumCost = computeMinimumCostZero
                 }
         let performSelection' = performSelection constraints' params'
         run performSelection' >>= \case
@@ -1541,7 +1541,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
   where
     constraints = SelectionConstraints
         { computeMinimumAdaQuantity = noMinCoin
-        , computeMinimumCost = mkCostFor NoCost
+        , computeMinimumCost = computeMinimumCostZero
         , assessTokenBundleSize = unMockAssessTokenBundleSize $
             boundaryTestBundleSizeAssessor params
         }
@@ -1951,23 +1951,35 @@ noMinCoin = const (Coin 0)
 -- Computing minimum costs
 --------------------------------------------------------------------------------
 
-data CostFor
-    = NoCost
-    | LinearCost
+data MockComputeMinimumCost
+    = MockComputeMinimumCostZero
+    | MockComputeMinimumCostLinear
     deriving (Eq, Show, Bounded, Enum)
 
-mkCostFor
-    :: CostFor
-    -> (SelectionSkeleton -> Coin)
-mkCostFor = \case
-    NoCost -> const noCost
-    LinearCost -> linearCost
+genMockComputeMinimumCost :: Gen MockComputeMinimumCost
+genMockComputeMinimumCost = arbitraryBoundedEnum
 
-noCost :: Coin
-noCost = Coin 0
+shrinkMockComputeMinimumCost
+    :: MockComputeMinimumCost -> [MockComputeMinimumCost]
+shrinkMockComputeMinimumCost = \case
+    MockComputeMinimumCostZero ->
+        []
+    MockComputeMinimumCostLinear ->
+        [MockComputeMinimumCostZero]
 
-linearCost :: SelectionSkeleton -> Coin
-linearCost s
+unMockComputeMinimumCost
+    :: MockComputeMinimumCost -> (SelectionSkeleton -> Coin)
+unMockComputeMinimumCost = \case
+    MockComputeMinimumCostZero ->
+        computeMinimumCostZero
+    MockComputeMinimumCostLinear ->
+        computeMinimumCostLinear
+
+computeMinimumCostZero :: SelectionSkeleton -> Coin
+computeMinimumCostZero = const $ Coin 0
+
+computeMinimumCostLinear :: SelectionSkeleton -> Coin
+computeMinimumCostLinear s
     = Coin
     $ fromIntegral
     $ skeletonInputCount s
@@ -2170,7 +2182,7 @@ prop_makeChange_length p =
 
     zeroCostMakeChangeScenario = p
         { minCoinFor = noMinCoin
-        , requiredCost = noCost
+        , requiredCost = Coin 0
         }
 
 prop_makeChange
@@ -2388,11 +2400,17 @@ prop_makeChange_fail_minValueTooBig
     :: MakeChangeData
     -> Property
 prop_makeChange_fail_minValueTooBig p =
-    case makeChangeWith p {requiredCost = noCost, minCoinFor = NoMinCoin} of
+    let makeChangeData = p
+            { requiredCost = Coin 0
+            , minCoinFor = NoMinCoin
+            }
+    in
+    case makeChangeWith makeChangeData of
         Left{} ->
             property False & counterexample "makeChange failed with no cost!"
         -- If 'makeChange' failed to generate change, we try to re-run it with
-        -- noCost and noMinValue requirement. The result _must_ be 'Just'.
+        -- computeMinimumCostZero and noMinValue requirement.
+        -- The result _must_ be 'Just'.
         --
         -- From there, we can manually compute the total deposit needed for all
         -- change generated and make sure that there were indeed not enough
@@ -2434,7 +2452,6 @@ unit_makeChange
 unit_makeChange =
     [ makeChange criteria `shouldBe` expectation
     | ( minCoinFor
-      , requiredCost
       , extraCoinSource
       , extraCoinSink
       , i
@@ -2443,7 +2460,7 @@ unit_makeChange =
       ) <- matrix
     , let criteria = MakeChangeCriteria
               { minCoinFor
-              , requiredCost
+              , requiredCost = Coin 0
               , extraCoinSource
               , extraCoinSink
               , bundleSizeAssessor
@@ -2458,7 +2475,7 @@ unit_makeChange =
         mkTokenBundleSizeAssessor MockAssessTokenBundleSizeUnlimited
     matrix =
         -- Simple, only ada, should construct a single change output with 1 ada.
-        [ ( noMinCoin, noCost
+        [ ( noMinCoin
           , Coin 0
           , Coin 0
           , b 2 [] :| []
@@ -2467,7 +2484,7 @@ unit_makeChange =
           )
 
         -- Two outputs, no cost, changes are proportional, no extra assets
-        , ( noMinCoin, noCost
+        , ( noMinCoin
           , Coin 0
           , Coin 0
           , b 9 [(assetA, 9), (assetB, 6)] :| []
@@ -2480,7 +2497,7 @@ unit_makeChange =
 
         -- Extra non-user-specified assets. Large assets end up in 'large'
         -- bundles and small extra assets in smaller bundles.
-        , ( noMinCoin, noCost
+        , ( noMinCoin
           , Coin 0
           , Coin 0
           , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
@@ -3782,8 +3799,6 @@ instance Arbitrary MinCoinValueFor where
         NoMinCoin -> []
         LinearMinCoin -> [NoMinCoin]
 
-instance Arbitrary CostFor where
-    arbitrary = arbitraryBoundedEnum
-    shrink = \case
-        NoCost -> []
-        LinearCost -> [NoCost]
+instance Arbitrary MockComputeMinimumCost where
+    arbitrary = genMockComputeMinimumCost
+    shrink = shrinkMockComputeMinimumCost
