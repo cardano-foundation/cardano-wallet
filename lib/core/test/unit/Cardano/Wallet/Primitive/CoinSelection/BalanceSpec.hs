@@ -264,18 +264,8 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
             property prop_performSelection_small
         it "prop_performSelection_large" $
             property prop_performSelection_large
-        it "prop_performSelection_huge" $ ioProperty $ do
-            -- The UTxO index is generated outside of the property here to avoid
-            -- the cost of re-generating it on every pass. This would still
-            -- generate interesting cases since the selection within that large
-            -- index is random. Plus, other selection parameters still vary.
-            utxoAvailable <- generate (genUTxOIndexLargeN 50000)
-            pure $ property $ \mockConstraints (Large params) ->
-                let
-                    params' = Blind $ set #utxoAvailable utxoAvailable params
-                in
-                    prop_performSelection mockConstraints params' (const id)
-                        & withMaxSuccess 5
+        it "prop_performSelection_huge" $
+            property prop_performSelection_huge
 
     parallel $ describe "Selection states" $ do
 
@@ -818,6 +808,25 @@ prop_performSelection_large mockConstraints (Blind (Large params)) =
     cover 50 (isUTxOBalanceSufficient params)
         "UTxO balance sufficient" $
     prop_performSelection mockConstraints (Blind params) (const id)
+
+prop_performSelection_huge :: Property
+prop_performSelection_huge = ioProperty $
+    -- The UTxO index is generated outside of the property in order to avoid
+    -- the cost of re-generating it on every pass. This will still generate
+    -- interesting cases, since selection within that large index is random.
+    property . prop_performSelection_huge_inner
+        <$> generate (genUTxOIndexLargeN 50000)
+
+prop_performSelection_huge_inner
+    :: UTxOIndex
+    -> MockSelectionConstraints
+    -> Large SelectionParams
+    -> Property
+prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
+    withMaxSuccess 5 $
+    prop_performSelection mockConstraints (Blind params') (const id)
+  where
+    params' = params & set #utxoAvailable utxoAvailable
 
 prop_performSelection
     :: MockSelectionConstraints
