@@ -644,13 +644,6 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 
 -- | Performs a coin selection and generates change bundles in one step.
 --
--- Returns 'BalanceInsufficient' if the total balance of 'utxoAvailable' is not
--- strictly greater than or equal to the total balance of 'outputsToCover'.
---
--- Returns 'OutputsInsufficientError' if the 'minted' values are not a subset
--- of the 'outputsToCover' plus the 'burned' values. That is, the minted values
--- are not spent or burned.
---
 -- Provided that 'isUTxOBalanceSufficient' returns 'True' for the given
 -- selection criteria, this function guarantees to return a 'SelectionResult'
 -- for which 'selectionHasValidSurplus' returns 'True'.
