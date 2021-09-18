@@ -37,7 +37,8 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionLimit
     , SelectionLimitOf (..)
     , SelectionSkeleton (..)
-    , SelectionResult (..)
+    , SelectionResult
+    , SelectionResultOf (..)
     , SelectionError (..)
     , BalanceInsufficientError (..)
     , SelectionInsufficientError (..)
@@ -394,9 +395,11 @@ instance Ord a => Ord (SelectionLimitOf a) where
         (NoLimit            , MaximumInputLimit _) -> GT
         (MaximumInputLimit x, MaximumInputLimit y) -> compare x y
 
+type SelectionResult change = SelectionResultOf [TxOut] change
+
 -- | The result of performing a successful selection.
 --
-data SelectionResult change = SelectionResult
+data SelectionResultOf outputs change = SelectionResult
     { inputsSelected
         :: !(NonEmpty (TxIn, TxOut))
         -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
@@ -407,16 +410,8 @@ data SelectionResult change = SelectionResult
         :: !Coin
         -- ^ An extra sink for ada.
     , outputsCovered
-        :: ![TxOut]
+        :: !outputs
         -- ^ A list of outputs covered.
-        -- FIXME: Left as a list to allow to work-around the limitation of
-        -- 'performSelection' which cannot run for no output targets (e.g. in
-        -- the context of a delegation transaction). This allows callers to
-        -- specify a dummy 'TxOut' as argument, and remove it later in the
-        -- result; Ideally, we want to handle this in a better way by allowing
-        -- 'performSelection' to work with empty output targets. At the moment
-        -- of writing these lines, I've already been yak-shaving for a while and
-        -- this is the last remaining obstacle, not worth the effort _yet_.
     , changeGenerated
         :: ![change]
         -- ^ A list of generated change outputs.

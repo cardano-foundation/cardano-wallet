@@ -304,7 +304,8 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionReportDetailed
     , SelectionReportSummarized
-    , SelectionResult (..)
+    , SelectionResult
+    , SelectionResultOf (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , makeSelectionReportDetailed
