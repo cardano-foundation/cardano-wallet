@@ -32,7 +32,8 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , prepareOutputsWith
     , emptySkeleton
     , SelectionConstraints (..)
-    , SelectionParams (..)
+    , SelectionParams
+    , SelectionParamsOf (..)
     , SelectionLimit
     , SelectionLimitOf (..)
     , SelectionSkeleton (..)
@@ -218,11 +219,13 @@ data SelectionConstraints = SelectionConstraints
     }
     deriving Generic
 
+type SelectionParams = SelectionParamsOf (NonEmpty TxOut)
+
 -- | Specifies all parameters that are specific to a given selection.
 --
-data SelectionParams = SelectionParams
+data SelectionParamsOf outputs = SelectionParams
     { outputsToCover
-        :: !(NonEmpty TxOut)
+        :: !outputs
         -- ^ The complete set of outputs to be covered.
     , utxoAvailable
         :: !UTxOIndex
