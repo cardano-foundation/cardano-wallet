@@ -549,7 +549,7 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 
 prop_prepareOutputsWith_twice
     :: MockComputeMinimumAdaQuantity
-    -> NonEmpty TxOut
+    -> [TxOut]
     -> Property
 prop_prepareOutputsWith_twice minCoinValueDef outs =
     once === twice
@@ -559,7 +559,7 @@ prop_prepareOutputsWith_twice minCoinValueDef outs =
 
 prop_prepareOutputsWith_length
     :: MockComputeMinimumAdaQuantity
-    -> NonEmpty TxOut
+    -> [TxOut]
     -> Property
 prop_prepareOutputsWith_length minCoinValueDef outs =
     F.length (prepareOutputsWith minCoinValueFor outs) === F.length outs
@@ -568,7 +568,7 @@ prop_prepareOutputsWith_length minCoinValueDef outs =
 
 prop_prepareOutputsWith_assetsUnchanged
     :: MockComputeMinimumAdaQuantity
-    -> NonEmpty TxOut
+    -> [TxOut]
     -> Property
 prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
     (txOutAssets <$> (prepareOutputsWith minCoinValueFor outs))
@@ -580,10 +580,10 @@ prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
 
 prop_prepareOutputsWith_preparedOrExistedBefore
     :: MockComputeMinimumAdaQuantity
-    -> NonEmpty TxOut
+    -> [TxOut]
     -> Property
 prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
-    property $ F.all isPreparedOrExistedBefore (NE.zip outs outs')
+    property $ F.all isPreparedOrExistedBefore (zip outs outs')
   where
     minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
     outs' = prepareOutputsWith minCoinValueFor outs

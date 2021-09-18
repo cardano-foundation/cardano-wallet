@@ -102,7 +102,7 @@ performSelection selectionConstraints selectionParams =
     -- https://input-output.atlassian.net/browse/ADP-1070
     -- Adjust coin selection and fee estimation to handle pre-existing inputs
     --
-    case prepareOutputs selectionConstraints outputsToCover of
+    case prepareOutputs selectionConstraints (NE.toList outputsToCover) of
         Left e ->
             pure $ Left $ SelectionOutputsError e
         Right preparedOutputsToCover ->
@@ -121,7 +121,7 @@ performSelection selectionConstraints selectionParams =
                       -- TODO: Use this for stake key deposits and anything else
                       -- that consumes ada:
                     , extraCoinSink = Coin 0
-                    , outputsToCover = NE.toList preparedOutputsToCover
+                    , outputsToCover = preparedOutputsToCover
                     , utxoAvailable
                     }
   where
@@ -207,8 +207,8 @@ data SelectionError
 --
 prepareOutputs
     :: SelectionConstraints
-    -> NonEmpty TxOut
-    -> Either ErrPrepareOutputs (NonEmpty TxOut)
+    -> [TxOut]
+    -> Either ErrPrepareOutputs [TxOut]
 prepareOutputs constraints outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $

@@ -691,8 +691,8 @@ data UnableToConstructChangeError = UnableToConstructChangeError
 --
 prepareOutputsWith
     :: (TokenMap -> Coin)
-    -> NonEmpty TxOut
-    -> NonEmpty TxOut
+    -> [TxOut]
+    -> [TxOut]
 prepareOutputsWith minCoinValueFor = fmap $ \out ->
     out { Tx.tokens = augmentBundle (Tx.tokens out) }
   where
