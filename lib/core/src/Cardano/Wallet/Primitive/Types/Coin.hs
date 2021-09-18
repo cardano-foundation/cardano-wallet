@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.Types.Coin
     , addCoin
     , subtractCoin
     , sumCoins
+    , difference
     , distance
 
       -- * Partitioning
@@ -165,6 +166,13 @@ addCoin (Coin a) (Coin b) = Coin (a + b)
 -- | Add a list of coins together.
 sumCoins :: Foldable t => t Coin -> Coin
 sumCoins = foldl' addCoin (Coin 0)
+
+-- | Subtracts the second coin from the first.
+--
+-- Returns 'Coin 0' if the second coin is strictly greater than the first.
+--
+difference :: Coin -> Coin -> Coin
+difference a b = fromMaybe (Coin 0) (subtractCoin a b)
 
 -- | Absolute difference between two coin amounts. The result is never negative.
 distance :: Coin -> Coin -> Coin
