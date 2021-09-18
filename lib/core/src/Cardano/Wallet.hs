@@ -1421,7 +1421,7 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
     deposit <- calcMinimumDeposit @_ @s @k ctx wid
     let dummyAddress = Address ""
     let dummyOutput  = TxOut dummyAddress (TokenBundle.fromCoin deposit)
-    let outs = dummyOutput :| []
+    let outs = [dummyOutput]
     selectAssets @ctx @s @k ctx wal tx outs $ \s sel -> transform s $ sel
         { outputsCovered = mempty
         , changeGenerated =
@@ -1515,7 +1515,7 @@ selectAssets
     => ctx
     -> (UTxOIndex, Wallet s, Set Tx)
     -> TransactionCtx
-    -> NonEmpty TxOut
+    -> [TxOut]
     -> (s -> SelectionResult TokenBundle -> result)
     -> ExceptT ErrSelectAssets IO result
 selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
@@ -2822,7 +2822,7 @@ data WalletFollowLog
 
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
-    = MsgSelectionStart UTxOIndex (NonEmpty TxOut)
+    = MsgSelectionStart UTxOIndex [TxOut]
     | MsgSelectionError SelectionError
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed
@@ -2868,7 +2868,7 @@ instance ToText WalletLog where
         MsgSelectionStart utxo recipients ->
             "Starting coin selection " <>
             "|utxo| = "+|UTxOIndex.size utxo|+" " <>
-            "#recipients = "+|NE.length recipients|+""
+            "#recipients = "+|length recipients|+""
         MsgSelectionError e ->
             "Failed to select assets:\n"+|| e ||+""
         MsgSelectionReportSummarized s ->

@@ -1553,7 +1553,7 @@ selectCoins ctx genChange (ApiT wid) body = do
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         utx <- liftHandler
-            $ W.selectAssets  @_ @s @k wrk w txCtx outs transform
+            $ W.selectAssets  @_ @s @k wrk w txCtx (F.toList outs) transform
 
         pure $ mkApiCoinSelection [] Nothing md utx
 
@@ -1858,7 +1858,8 @@ postTransactionOld ctx genChange (ApiT wid) body = do
       atomicallyWithHandler (ctx ^. walletLocks) (PostTransactionOld wid) $ do
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         sel <- liftHandler
-            $ W.selectAssets @_ @s @k wrk w txCtx outs (const Prelude.id)
+            $ W.selectAssets @_ @s @k
+                wrk w txCtx (F.toList outs) (const Prelude.id)
         sel' <- liftHandler
             $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
@@ -1985,9 +1986,10 @@ postTransactionFeeOld ctx (ApiT wid) body = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         let outs = addressAmountToTxOut <$> body ^. #payments
-        let runSelection = W.selectAssets @_ @s @k wrk w txCtx outs getFee
+        let runSelection = W.selectAssets @_ @s @k
+              wrk w txCtx (F.toList outs) getFee
               where getFee = const (selectionDelta TokenBundle.getCoin)
-        minCoins <- NE.toList <$> liftIO (W.calcMinimumCoinValues @_ @k wrk outs)
+        minCoins <- liftIO (W.calcMinimumCoinValues @_ @k wrk (F.toList outs))
         liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
 constructTransaction
@@ -2052,8 +2054,12 @@ constructTransaction ctx genChange (ApiT wid) body = do
             Just (ApiPaymentAddresses content) -> do
                 let outs = addressAmountToTxOut <$> content
                 utx <- liftHandler
-                    $ W.selectAssets  @_ @s @k wrk w txCtx outs (const Prelude.id)
-                (FeeEstimation estMin _) <- liftHandler $ W.estimateFee $ W.selectAssets @_ @s @k wrk w txCtx outs getFee
+                    $ W.selectAssets @_ @s @k
+                        wrk w txCtx (F.toList outs) (const Prelude.id)
+                (FeeEstimation estMin _) <- liftHandler
+                    $ W.estimateFee
+                    $ W.selectAssets @_ @s @k
+                        wrk w txCtx (F.toList outs) getFee
                 sel <- liftHandler $
                     W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
                 sel' <- liftHandler

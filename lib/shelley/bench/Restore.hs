@@ -166,8 +166,6 @@ import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
 import Data.List
     ( foldl' )
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -459,7 +457,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         let txCtx = defaultTransactionCtx
         let getFee = const (selectionDelta TokenBundle.getCoin)
         wal <- unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
-        let runSelection = W.selectAssets @_ @s @k w wal txCtx (out :| []) getFee
+        let runSelection = W.selectAssets @_ @s @k w wal txCtx [out] getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     oneAddress <- genAddresses 1 cp
@@ -550,7 +548,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         let txCtx = defaultTransactionCtx
         let getFee = const (selectionDelta TokenBundle.getCoin)
         wal <- unsafeRunExceptT $ W.readWalletUTxOIndex w wid
-        let runSelection = W.selectAssets @_ @s @k w wal txCtx (out :| []) getFee
+        let runSelection = W.selectAssets @_ @s @k w wal txCtx [out] getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
