@@ -76,6 +76,7 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 
 -- | Performs a coin selection.
@@ -120,7 +121,7 @@ performSelection selectionConstraints selectionParams =
                       -- TODO: Use this for stake key deposits and anything else
                       -- that consumes ada:
                     , extraCoinSink = Coin 0
-                    , outputsToCover = preparedOutputsToCover
+                    , outputsToCover = NE.toList preparedOutputsToCover
                     , utxoAvailable
                     }
   where

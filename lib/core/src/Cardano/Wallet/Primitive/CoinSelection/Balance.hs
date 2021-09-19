@@ -29,6 +29,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     (
     -- * Performing a selection
       performSelection
+    , performSelectionNonEmpty
     , prepareOutputsWith
     , emptySkeleton
     , SelectionConstraints (..)
@@ -127,6 +128,8 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
     ( padCoalesce )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), subtractCoin )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -139,7 +142,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
     , TxIn
-    , TxOut
+    , TxOut (..)
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -698,6 +701,11 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
         then bundle { coin = minCoinValueFor (view #tokens bundle) }
         else bundle
 
+type PerformSelection m outputs change =
+    SelectionConstraints ->
+    SelectionParamsOf outputs ->
+    m (Either SelectionError (SelectionResultOf outputs change))
+
 -- | Performs a coin selection and generates change bundles in one step.
 --
 -- Provided that 'isUTxOBalanceSufficient' returns 'True' for the given
@@ -711,10 +719,89 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 --
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
-    => SelectionConstraints
-    -> SelectionParams
-    -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection constraints params
+    => PerformSelection m [TxOut] TokenBundle
+performSelection = performSelectionEmpty performSelectionNonEmpty
+
+-- | Transforms a coin selection function that requires a non-empty list of
+--   outputs into a function that accepts an empty list of outputs.
+--
+-- If the original list is already non-empty, this function does not alter the
+-- parameters or the result in any way, such that:
+--
+--    params == transformParams params
+--    result == transformResult result
+--
+-- If the original list is empty, this function:
+--
+--   1. applies a balance-preserving transformation to the parameters, adding
+--      a single minimal ada-only output to act as a change generation target,
+--      such that:
+--
+--          computeUTxOBalanceSufficiencyInfo params ==
+--          computeUTxOBalanceSufficiencyInfo (transformParams params)
+--
+--   2. applies an inverse transformation to the result, removing the output,
+--      such that:
+--
+--          selectionSurplus result ==
+--          selectionSurplus (transformResult result)
+--
+--          selectionHasValidSurplus constraints result ==>
+--          selectionHasValidSurplus constraints (transformResult result)
+--
+performSelectionEmpty
+    :: Functor m
+    => PerformSelection m (NonEmpty TxOut) change
+    -> PerformSelection m [         TxOut] change
+performSelectionEmpty performSelectionFn constraints params =
+    fmap transformResult <$>
+    performSelectionFn constraints (transformParams params)
+  where
+    transformParams
+        :: SelectionParamsOf [         TxOut]
+        -> SelectionParamsOf (NonEmpty TxOut)
+    transformParams
+        = over #extraCoinSource
+            (transform (`Coin.addCoin` minCoin) (const id))
+        . over #outputsToCover
+            (transform (const (dummyOutput :| [])) (const . id))
+
+    transformResult
+        :: SelectionResultOf (NonEmpty TxOut) change
+        -> SelectionResultOf [         TxOut] change
+    transformResult
+        = over #extraCoinSource
+            (transform (`Coin.difference` minCoin) (const id))
+        . over #outputsCovered
+            (transform (const []) (const . F.toList))
+
+    transform :: a -> (NonEmpty TxOut -> a) -> a
+    transform x y = maybe x y $ NE.nonEmpty $ view #outputsToCover params
+
+    dummyOutput :: TxOut
+    dummyOutput = TxOut (Address "") $ TokenBundle.fromCoin minCoin
+
+    -- The 'performSelectionNonEmpty' function imposes a precondition that all
+    -- outputs must have at least the minimum ada quantity. Therefore, the
+    -- dummy output must also satisfy this condition.
+    --
+    -- However, we must also ensure that the value is non-zero, since:
+    --
+    --   1. Under some cost models, the 'computeMinimumAdaQuantity' function
+    --      has a constant value of zero.
+    --
+    --   2. The change generation algorithm requires that the total ada balance
+    --      of all outputs is non-zero.
+    --
+    minCoin :: Coin
+    minCoin = max
+        (Coin 1)
+        (view #computeMinimumAdaQuantity constraints TokenMap.empty)
+
+performSelectionNonEmpty
+    :: forall m. (HasCallStack, MonadRandom m)
+    => PerformSelection m (NonEmpty TxOut) TokenBundle
+performSelectionNonEmpty constraints params
     -- Is the total available UTXO balance sufficient?
     | not utxoBalanceSufficient =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
@@ -870,7 +957,8 @@ performSelection constraints params
     --
     makeChangeRepeatedly
         :: SelectionState
-        -> m (Either SelectionError (SelectionResult TokenBundle))
+        -> m (Either SelectionError
+                (SelectionResultOf (NonEmpty TxOut) TokenBundle))
     makeChangeRepeatedly s = case mChangeGenerated of
 
         Right change | length change >= length outputsToCover ->
@@ -923,13 +1011,15 @@ performSelection constraints params
             , assetsToBurn
             }
 
-        mkSelectionResult :: [TokenBundle] -> SelectionResult TokenBundle
+        mkSelectionResult
+            :: [TokenBundle]
+            -> SelectionResultOf (NonEmpty TxOut) TokenBundle
         mkSelectionResult changeGenerated = SelectionResult
             { inputsSelected
             , extraCoinSource
             , extraCoinSink
             , changeGenerated = changeGenerated
-            , outputsCovered = NE.toList outputsToCover
+            , outputsCovered = outputsToCover
             , assetsToMint
             , assetsToBurn
             }
