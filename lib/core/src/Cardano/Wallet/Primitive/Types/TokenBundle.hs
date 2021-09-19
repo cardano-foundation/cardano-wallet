@@ -92,8 +92,6 @@ import Data.Map.Strict
     ( Map )
 import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Set
     ( Set )
 import Fmt
@@ -293,11 +291,13 @@ subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 -- >>> let oneToken = fromFlatList coin [(aid, TokenQuantity 1)]
 -- >>> (mempty `difference` oneToken) `add` oneToken
 -- oneToken
+--
 difference :: TokenBundle -> TokenBundle -> TokenBundle
 difference (TokenBundle c1 m1) (TokenBundle c2 m2) =
     TokenBundle
-        (fromMaybe (Coin 0) $ Coin.subtractCoin c1 c2)
+        (Coin.difference c1 c2)
         (TokenMap.difference m1 m2)
+
 --------------------------------------------------------------------------------
 -- Quantities
 --------------------------------------------------------------------------------

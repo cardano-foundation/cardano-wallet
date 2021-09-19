@@ -66,8 +66,6 @@ import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Semigroup
     ( mtimesDefault, stimes )
 import Data.Word
@@ -558,7 +556,7 @@ prop_minimizeFeeStep_inner mockConstraints feeExcessBefore outputBefore =
     costOfEliminatingFeeExcess = Coin.distance
         (txOutputCoinCost constraints outputCoinAfter)
         (txOutputCoinCost constraints (outputCoinAfter <> feeExcessAfter))
-    gainOfEliminatingFeeExcess = fromMaybe (Coin 0) $ Coin.subtractCoin
+    gainOfEliminatingFeeExcess = Coin.difference
         feeExcessAfter
         costOfEliminatingFeeExcess
 
