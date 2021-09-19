@@ -18,6 +18,8 @@ module Test.QuickCheck.Extra
       -- * Shrinking
     , liftShrink3
     , liftShrink4
+    , liftShrink5
+    , liftShrink6
     , liftShrink7
     , shrinkInterleaved
     , shrinkMapWith
@@ -151,6 +153,46 @@ liftShrink4 s1 s2 s3 s4 (a1, a2, a3, a4) =
     , [ (a1 , a2', a3 , a4 ) | a2' <- s2 a2 ]
     , [ (a1 , a2 , a3', a4 ) | a3' <- s3 a3 ]
     , [ (a1 , a2 , a3 , a4') | a4' <- s4 a4 ]
+    ]
+
+-- | Similar to 'liftShrink2', but applicable to 5-tuples.
+--
+liftShrink5
+    :: (a1 -> [a1])
+    -> (a2 -> [a2])
+    -> (a3 -> [a3])
+    -> (a4 -> [a4])
+    -> (a5 -> [a5])
+    -> (a1, a2, a3, a4, a5)
+    -> [(a1, a2, a3, a4, a5)]
+liftShrink5 s1 s2 s3 s4 s5 (a1, a2, a3, a4, a5) =
+    interleaveRoundRobin
+    [ [ (a1', a2 , a3 , a4 , a5 ) | a1' <- s1 a1 ]
+    , [ (a1 , a2', a3 , a4 , a5 ) | a2' <- s2 a2 ]
+    , [ (a1 , a2 , a3', a4 , a5 ) | a3' <- s3 a3 ]
+    , [ (a1 , a2 , a3 , a4', a5 ) | a4' <- s4 a4 ]
+    , [ (a1 , a2 , a3 , a4 , a5') | a5' <- s5 a5 ]
+    ]
+
+-- | Similar to 'liftShrink2', but applicable to 6-tuples.
+--
+liftShrink6
+    :: (a1 -> [a1])
+    -> (a2 -> [a2])
+    -> (a3 -> [a3])
+    -> (a4 -> [a4])
+    -> (a5 -> [a5])
+    -> (a6 -> [a6])
+    -> (a1, a2, a3, a4, a5, a6)
+    -> [(a1, a2, a3, a4, a5, a6)]
+liftShrink6 s1 s2 s3 s4 s5 s6 (a1, a2, a3, a4, a5, a6) =
+    interleaveRoundRobin
+    [ [ (a1', a2 , a3 , a4 , a5 , a6 ) | a1' <- s1 a1 ]
+    , [ (a1 , a2', a3 , a4 , a5 , a6 ) | a2' <- s2 a2 ]
+    , [ (a1 , a2 , a3', a4 , a5 , a6 ) | a3' <- s3 a3 ]
+    , [ (a1 , a2 , a3 , a4', a5 , a6 ) | a4' <- s4 a4 ]
+    , [ (a1 , a2 , a3 , a4 , a5', a6 ) | a5' <- s5 a5 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6') | a6' <- s6 a6 ]
     ]
 
 -- | Similar to 'liftShrink2', but applicable to 7-tuples.
