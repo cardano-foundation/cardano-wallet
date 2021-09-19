@@ -45,12 +45,14 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
 
-    -- * Selection deltas
+    -- * Querying selections
     , SelectionDelta (..)
     , selectionDelta
     , selectionDeltaAllAssets
     , selectionDeltaCoin
     , selectionHasValidSurplus
+    , selectionMinimumCost
+    , selectionSkeleton
 
     -- * UTxO balance sufficiency
     , UTxOBalanceSufficiency (..)
@@ -553,6 +555,29 @@ selectionDelta
 selectionDelta getChangeCoin
     = selectionSurplusCoin
     . over #changeGenerated (fmap (TokenBundle.fromCoin . getChangeCoin))
+
+-- | Converts a selection into a skeleton.
+--
+selectionSkeleton
+    :: Foldable f
+    => SelectionResultOf (f TxOut) TokenBundle
+    -> SelectionSkeleton
+selectionSkeleton s = SelectionSkeleton
+    { skeletonInputCount = F.length (view #inputsSelected s)
+    , skeletonOutputs = F.toList (view #outputsCovered s)
+    , skeletonChange = TokenBundle.getAssets <$> view #changeGenerated s
+    , skeletonAssetsToMint = view #assetsToMint s
+    , skeletonAssetsToBurn = view #assetsToBurn s
+    }
+
+-- | Computes the minimum required cost of a selection.
+--
+selectionMinimumCost
+    :: Foldable f
+    => SelectionConstraints
+    -> SelectionResultOf (f TxOut) TokenBundle
+    -> Coin
+selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
