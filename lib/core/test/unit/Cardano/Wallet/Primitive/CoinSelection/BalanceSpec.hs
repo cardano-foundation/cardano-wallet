@@ -34,7 +34,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionLens (..)
     , SelectionLimit
     , SelectionLimitOf (..)
-    , SelectionParams
     , SelectionParamsOf (..)
     , SelectionResultOf (..)
     , SelectionSkeleton (..)
@@ -59,7 +58,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
     , performSelection
-    , performSelectionNonEmpty
     , prepareOutputsWith
     , reduceTokenQuantities
     , removeBurnValueFromChangeMaps
@@ -1524,7 +1522,7 @@ type BoundaryTestEntry = (Coin, [(AssetId, TokenQuantity)])
 
 mkBoundaryTestExpectation :: BoundaryTestData -> Expectation
 mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
-    actualResult <- performSelectionNonEmpty constraints
+    actualResult <- performSelection constraints
         (encodeBoundaryTestCriteria params)
     fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
   where
@@ -1536,9 +1534,9 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , computeSelectionLimit = const NoLimit
         }
 
-encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams
+encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParamsOf [TxOut]
 encodeBoundaryTestCriteria c = SelectionParams
-    { outputsToCover = NE.fromList $
+    { outputsToCover =
         zipWith TxOut
             (dummyAddresses)
             (uncurry TokenBundle.fromFlatList <$> boundaryTestOutputs c)
@@ -1563,7 +1561,7 @@ encodeBoundaryTestCriteria c = SelectionParams
     dummyTxIns = [TxIn (Hash "") x | x <- [0 ..]]
 
 decodeBoundaryTestResult
-    :: SelectionResultOf (NonEmpty TxOut) TokenBundle -> BoundaryTestResult
+    :: SelectionResultOf [TxOut] TokenBundle -> BoundaryTestResult
 decodeBoundaryTestResult r = BoundaryTestResult
     { boundaryTestInputs = L.sort $ NE.toList $
         TokenBundle.toFlatList . view #tokens . snd <$> view #inputsSelected r
