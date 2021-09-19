@@ -681,7 +681,7 @@ prop_equipartitionAssets_coverage m = checkCoverage $
         "32 <= asset count <= 63"
     True
   where
-    assetCount = Set.size $ TokenMap.getAssets $ getLarge $ getBlind m
+    assetCount = TokenMap.size $ getLarge $ getBlind m
 
 prop_equipartitionAssets_length
     :: Blind (Large TokenMap) -> NonEmpty () -> Property
@@ -694,7 +694,7 @@ prop_equipartitionAssets_sizes (Blind (Large m)) count = (.||.)
     (assetCountDifference == 0)
     (assetCountDifference == 1)
   where
-    assetCounts = Set.size . TokenMap.getAssets <$> results
+    assetCounts = TokenMap.size <$> results
     assetCountMin = F.minimum assetCounts
     assetCountMax = F.maximum assetCounts
     assetCountDifference = assetCountMax - assetCountMin

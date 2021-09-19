@@ -2013,7 +2013,7 @@ computeMinimumAdaQuantityZero = const (Coin 0)
 --
 computeMinimumAdaQuantityLinear :: TokenMap -> Coin
 computeMinimumAdaQuantityLinear m =
-    Coin (1 + fromIntegral (Set.size (TokenMap.getAssets m)))
+    Coin (1 + fromIntegral (TokenMap.size m))
 
 --------------------------------------------------------------------------------
 -- Computing minimum costs

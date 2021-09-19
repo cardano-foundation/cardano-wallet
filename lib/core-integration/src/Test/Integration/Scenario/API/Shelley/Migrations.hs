@@ -115,7 +115,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec as Hspec
 
@@ -243,7 +242,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 [ expectField (#balance . #available . #getQuantity)
                     (.> 0)
                 , expectField (#assets . #available . #getApiT)
-                    ((.> 0) . Set.size . TokenMap.getAssets)
+                    ((.> 0) . TokenMap.size)
                 ]
 
             targetWallet <- emptyWallet ctx
@@ -404,9 +403,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectField (#balance . #total . #getQuantity)
                     (`shouldBe` expectedBalanceAda)
                 , expectField (#assets . #available . #getApiT)
-                    ((`shouldBe` expectedAssetCount)
-                        . Set.size
-                        . TokenMap.getAssets)
+                    ((`shouldBe` expectedAssetCount) . TokenMap.size)
                 ]
             let expectedSourceDistributionAfterMinting =
                     [ ( 10_000_000, 120)
@@ -443,15 +440,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectField (#balanceSelected . #ada . #getQuantity)
                     (`shouldBe` expectedBalanceAda)
                 , expectField (#balanceSelected . #assets . #getApiT)
-                    ((`shouldBe` expectedAssetCount)
-                        . Set.size
-                        . TokenMap.getAssets)
+                    ((`shouldBe` expectedAssetCount) . TokenMap.size)
                 , expectField (#balanceLeftover . #ada . #getQuantity)
                     (`shouldBe` 0)
                 , expectField (#balanceLeftover . #assets . #getApiT)
-                    ((`shouldBe` 0)
-                        . Set.size
-                        . TokenMap.getAssets)
+                    ((`shouldBe` 0) . TokenMap.size)
                 ]
 
     Hspec.it "SHELLEY_CREATE_MIGRATION_PLAN_08 - \
@@ -530,9 +523,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectField (#balance . #total . #getQuantity)
                     (`shouldBe` expectedBalanceAda)
                 , expectField (#assets . #available . #getApiT)
-                    ((`shouldBe` expectedAssetCount)
-                        . Set.size
-                        . TokenMap.getAssets)
+                    ((`shouldBe` expectedAssetCount) . TokenMap.size)
                 ]
             let expectedSourceDistributionAfterMinting =
                     [ ( 10_000_000, 120)
@@ -572,13 +563,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectField (#balanceLeftover . #ada . #getQuantity)
                     (`shouldBe`  29_687_500)
                 , expectField (#balanceSelected . #assets . #getApiT)
-                    ((.> 0)
-                        . Set.size
-                        . TokenMap.getAssets)
+                    ((.> 0) . TokenMap.size)
                 , expectField (#balanceLeftover . #assets . #getApiT)
-                    ((.> 0)
-                        . Set.size
-                        . TokenMap.getAssets)
+                    ((.> 0) . TokenMap.size)
                 ]
 
     describe "SHELLEY_MIGRATE_01 - \
@@ -1027,9 +1014,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     , expectField (#balance . #total . #getQuantity)
                         (`shouldBe` expectedAdaBalance)
                     , expectField (#assets . #available . #getApiT)
-                        ((`shouldBe` 8) . Set.size . TokenMap.getAssets)
+                        ((`shouldBe` 8) . TokenMap.size)
                     , expectField (#assets . #total . #getApiT)
-                        ((`shouldBe` 8) . Set.size . TokenMap.getAssets)
+                        ((`shouldBe` 8) . TokenMap.size)
                     ]
                 let balanceAda = response
                         & getFromResponse (#balance . #available . #getQuantity)

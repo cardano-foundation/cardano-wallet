@@ -110,7 +110,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 
 spec :: Spec
@@ -855,7 +854,7 @@ unMockTxOutputMinimumAdaQuantity
     :: MockTxOutputMinimumAdaQuantity
     -> (TokenMap -> Coin)
 unMockTxOutputMinimumAdaQuantity mock m =
-    let assetCount = Set.size $ TokenMap.getAssets m in
+    let assetCount = TokenMap.size m in
     perOutput mock
         <> mtimesDefault assetCount (perOutputAsset mock)
 
