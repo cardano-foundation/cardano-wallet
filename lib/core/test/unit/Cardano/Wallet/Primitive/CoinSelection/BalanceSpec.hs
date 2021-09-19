@@ -34,8 +34,9 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionLens (..)
     , SelectionLimit
     , SelectionLimitOf (..)
+    , SelectionParams
     , SelectionParamsOf (..)
-    , SelectionResultOf (..)
+    , SelectionResult
     , SelectionSkeleton (..)
     , SelectionState (..)
     , UnableToConstructChangeError (..)
@@ -604,9 +605,9 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
 -- We define this type alias to shorten type signatures.
 --
 type PerformSelectionResult =
-    Either SelectionError (SelectionResultOf [TxOut] TokenBundle)
+    Either SelectionError (SelectionResult TokenBundle)
 
-genSelectionParams :: Gen UTxOIndex -> Gen (SelectionParamsOf [TxOut])
+genSelectionParams :: Gen UTxOIndex -> Gen SelectionParams
 genSelectionParams genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
     outputCount <- elements
@@ -638,8 +639,7 @@ genSelectionParams genUTxOIndex' = do
         utxoAvailableAssets :: TokenMap
         utxoAvailableAssets = view (#balance . #tokens) utxoAvailable
 
-shrinkSelectionParams
-    :: SelectionParamsOf [TxOut] -> [SelectionParamsOf [TxOut]]
+shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams =
     shrinkMapBy tupleToParams paramsToTuple $ liftShrink6
         (shrinkList shrinkTxOut)
@@ -654,7 +654,7 @@ shrinkSelectionParams =
 
 prop_performSelection_small
     :: MockSelectionConstraints
-    -> Blind (Small (SelectionParamsOf [TxOut]))
+    -> Blind (Small SelectionParams)
     -> Property
 prop_performSelection_small mockConstraints (Blind (Small params)) =
     checkCoverage $
@@ -821,7 +821,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
 prop_performSelection_large
     :: MockSelectionConstraints
-    -> Blind (Large (SelectionParamsOf [TxOut]))
+    -> Blind (Large SelectionParams)
     -> Property
 prop_performSelection_large mockConstraints (Blind (Large params)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
@@ -842,7 +842,7 @@ prop_performSelection_huge = ioProperty $
 prop_performSelection_huge_inner
     :: UTxOIndex
     -> MockSelectionConstraints
-    -> Large (SelectionParamsOf [TxOut])
+    -> Large SelectionParams
     -> Property
 prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
     withMaxSuccess 5 $
@@ -852,7 +852,7 @@ prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
 
 prop_performSelection
     :: MockSelectionConstraints
-    -> Blind (SelectionParamsOf [TxOut])
+    -> Blind SelectionParams
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
 prop_performSelection mockConstraints (Blind params) coverage =
@@ -1534,7 +1534,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
         , computeSelectionLimit = const NoLimit
         }
 
-encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParamsOf [TxOut]
+encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams
 encodeBoundaryTestCriteria c = SelectionParams
     { outputsToCover =
         zipWith TxOut
@@ -1560,8 +1560,7 @@ encodeBoundaryTestCriteria c = SelectionParams
     dummyTxIns :: [TxIn]
     dummyTxIns = [TxIn (Hash "") x | x <- [0 ..]]
 
-decodeBoundaryTestResult
-    :: SelectionResultOf [TxOut] TokenBundle -> BoundaryTestResult
+decodeBoundaryTestResult :: SelectionResult TokenBundle -> BoundaryTestResult
 decodeBoundaryTestResult r = BoundaryTestResult
     { boundaryTestInputs = L.sort $ NE.toList $
         TokenBundle.toFlatList . view #tokens . snd <$> view #inputsSelected r
@@ -3856,11 +3855,11 @@ newtype Small a = Small
     { getSmall:: a }
     deriving (Eq, Show)
 
-instance Arbitrary (Large (SelectionParamsOf [TxOut])) where
+instance Arbitrary (Large SelectionParams) where
     arbitrary = Large <$> genSelectionParams genUTxOIndexLarge
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
-instance Arbitrary (Small (SelectionParamsOf [TxOut])) where
+instance Arbitrary (Small SelectionParams) where
     arbitrary = Small <$> genSelectionParams genUTxOIndex
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 

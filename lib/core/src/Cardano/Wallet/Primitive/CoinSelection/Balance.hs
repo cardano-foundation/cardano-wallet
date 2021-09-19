@@ -224,7 +224,7 @@ data SelectionConstraints = SelectionConstraints
     }
     deriving Generic
 
-type SelectionParams = SelectionParamsOf (NonEmpty TxOut)
+type SelectionParams = SelectionParamsOf [TxOut]
 
 -- | Specifies all parameters that are specific to a given selection.
 --
