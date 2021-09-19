@@ -283,12 +283,17 @@ data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
 
 -- | Computes the balance of UTxO entries available for selection.
 --
-computeUTxOBalanceAvailable :: SelectionParams -> TokenBundle
+computeUTxOBalanceAvailable
+    :: SelectionParamsOf (f TxOut)
+    -> TokenBundle
 computeUTxOBalanceAvailable = UTxOIndex.balance . view #utxoAvailable
 
 -- | Computes the balance of UTxO entries required to be selected.
 --
-computeUTxOBalanceRequired :: SelectionParams -> TokenBundle
+computeUTxOBalanceRequired
+    :: Foldable f
+    => SelectionParamsOf (f TxOut)
+    -> TokenBundle
 computeUTxOBalanceRequired params =
     balanceOut `TokenBundle.difference` balanceIn
   where
@@ -307,7 +312,10 @@ computeUTxOBalanceRequired params =
 --
 -- See 'UTxOBalanceSufficiency'.
 --
-computeUTxOBalanceSufficiency :: SelectionParams -> UTxOBalanceSufficiency
+computeUTxOBalanceSufficiency
+    :: Foldable f
+    => SelectionParamsOf (f TxOut)
+    -> UTxOBalanceSufficiency
 computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 
 -- | Computes information about the UTxO balance sufficiency.
@@ -315,7 +323,8 @@ computeUTxOBalanceSufficiency = sufficiency . computeUTxOBalanceSufficiencyInfo
 -- See 'UTxOBalanceSufficiencyInfo'.
 --
 computeUTxOBalanceSufficiencyInfo
-    :: SelectionParams
+    :: Foldable f
+    => SelectionParamsOf (f TxOut)
     -> UTxOBalanceSufficiencyInfo
 computeUTxOBalanceSufficiencyInfo params =
     UTxOBalanceSufficiencyInfo {available, required, difference, sufficiency}
@@ -336,7 +345,10 @@ computeUTxOBalanceSufficiencyInfo params =
 -- The balance of available UTxO entries is sufficient if (and only if) it
 -- is greater than or equal to the required balance.
 --
-isUTxOBalanceSufficient :: SelectionParams -> Bool
+isUTxOBalanceSufficient
+    :: Foldable f
+    => SelectionParamsOf (f TxOut)
+    -> Bool
 isUTxOBalanceSufficient params =
     case computeUTxOBalanceSufficiency params of
         UTxOBalanceSufficient   -> True
