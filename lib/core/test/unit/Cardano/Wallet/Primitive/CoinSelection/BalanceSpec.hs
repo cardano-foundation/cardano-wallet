@@ -907,6 +907,12 @@ prop_performSelection mockConstraints (Blind params) coverage =
             "outputsCovered == NE.toList outputsToCover"
             (outputsCovered == NE.toList outputsToCover)
         assertOnSuccess
+            "view #assetsToMint result == view #assetsToMint params"
+            (view #assetsToMint result == view #assetsToMint params)
+        assertOnSuccess
+            "view #assetsToBurn result == view #assetsToBurn params"
+            (view #assetsToBurn result == view #assetsToBurn params)
+        assertOnSuccess
             "view #extraCoinSource result == view #extraCoinSource params"
             (view #extraCoinSource result == view #extraCoinSource params)
         assertOnSuccess
