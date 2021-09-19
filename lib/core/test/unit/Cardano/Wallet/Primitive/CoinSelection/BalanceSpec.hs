@@ -37,7 +37,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionParams
     , SelectionParamsOf (..)
     , SelectionResult
-    , SelectionResultOf (..)
     , SelectionSkeleton (..)
     , SelectionState (..)
     , UnableToConstructChangeError (..)
@@ -889,15 +888,15 @@ prop_performSelection mockConstraints (Blind params) coverage =
             , "required UTXO balance:"
             , pretty (Flat utxoBalanceRequired)
             , "change balance:"
-            , pretty (Flat balanceChange)
+            , pretty (Flat $ F.fold $ view #changeGenerated result)
             , "actual delta:"
             , pretty (Flat <$> selectionDeltaAllAssets result)
             , "minimum cost:"
             , pretty (selectionMinimumCost constraints result)
             , "number of outputs:"
-            , pretty (length outputsCovered)
+            , pretty (length $ view #outputsCovered result)
             , "number of change outputs:"
-            , pretty (length changeGenerated)
+            , pretty (length $ view #changeGenerated result)
             ]
         assertOnSuccess
             "isUTxOBalanceSufficient params"
@@ -909,8 +908,8 @@ prop_performSelection mockConstraints (Blind params) coverage =
             "utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable"
             (utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable)
         assertOnSuccess
-            "outputsCovered == NE.toList outputsToCover"
-            (outputsCovered == NE.toList outputsToCover)
+            "view #outputsCovered result == NE.toList outputsToCover"
+            (view #outputsCovered result == NE.toList outputsToCover)
         assertOnSuccess
             "view #assetsToMint result == view #assetsToMint params"
             (view #assetsToMint result == view #assetsToMint params)
@@ -926,21 +925,17 @@ prop_performSelection mockConstraints (Blind params) coverage =
         case selectionLimit of
             MaximumInputLimit limit ->
                 assertOnSuccess
-                    "NE.length inputsSelected <= limit"
-                    (NE.length inputsSelected <= limit)
+                    "NE.length (view #inputsSelected result) <= limit"
+                    (NE.length (view #inputsSelected result) <= limit)
             NoLimit ->
                 assert True
       where
         assertOnSuccess = assertWith . (<>) "onSuccess: "
-        SelectionResult
-            { inputsSelected
-            , changeGenerated
-            , outputsCovered
-            } = result
         utxoSelected :: UTxO
-        utxoSelected = UTxO $ Map.fromList $ F.toList inputsSelected
-        balanceChange =
-            F.fold changeGenerated
+        utxoSelected = UTxO
+            $ Map.fromList
+            $ F.toList
+            $ view #inputsSelected result
 
     onFailure = \case
         BalanceInsufficient e ->
