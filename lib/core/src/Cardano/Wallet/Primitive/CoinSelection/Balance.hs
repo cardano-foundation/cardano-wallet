@@ -518,15 +518,28 @@ selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 --
 selectionHasValidSurplus
     :: Foldable f
-    => SelectionResultOf (f TxOut) TokenBundle
+    => SelectionConstraints
+    -> SelectionResultOf (f TxOut) TokenBundle
     -> Bool
-selectionHasValidSurplus result =
-    case selectionDeltaAllAssets result of
-        SelectionSurplus surplus ->
-            -- If there is a surplus, then none of the non-ada assets can
-            -- have a surplus.
-            view #tokens surplus == TokenMap.empty
+selectionHasValidSurplus constraints selection =
+    case selectionDeltaAllAssets selection of
+        SelectionSurplus s -> surplusIsValid s
         SelectionDeficit _ -> False
+  where
+    surplusIsValid :: TokenBundle -> Bool
+    surplusIsValid = (&&)
+        <$> surplusHasNoNonAdaAssets
+        <*> surplusNotBelowMinimumCost
+
+    -- None of the non-ada assets can have a surplus.
+    surplusHasNoNonAdaAssets :: TokenBundle -> Bool
+    surplusHasNoNonAdaAssets surplus =
+        view #tokens surplus == TokenMap.empty
+
+    -- The surplus must not be less than the minimum cost.
+    surplusNotBelowMinimumCost :: TokenBundle -> Bool
+    surplusNotBelowMinimumCost surplus =
+        view #coin surplus >= selectionMinimumCost constraints selection
 
 -- | Calculates the ada selection surplus, assuming there is a surplus.
 --

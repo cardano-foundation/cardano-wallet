@@ -908,8 +908,8 @@ prop_performSelection mockConstraints (Blind params) coverage =
             "isUTxOBalanceSufficient params"
             (isUTxOBalanceSufficient params)
         assertOnSuccess
-            "selectionHasValidSurplus result"
-            (selectionHasValidSurplus result)
+            "selectionHasValidSurplus constraints result"
+            (selectionHasValidSurplus constraints result)
         assertOnSuccess
             "view #tokens surplus == TokenMap.empty"
             (view #tokens surplus == TokenMap.empty)
