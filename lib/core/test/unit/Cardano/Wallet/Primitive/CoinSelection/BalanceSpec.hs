@@ -29,7 +29,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , MakeChangeCriteria (..)
     , RunSelectionParams (..)
     , SelectionConstraints (..)
-    , SelectionDelta (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
     , SelectionLens (..)
@@ -892,13 +891,9 @@ prop_performSelection mockConstraints (Blind params) coverage =
             , "change balance:"
             , pretty (Flat balanceChange)
             , "actual delta:"
-            , pretty (Flat <$> delta)
-            , "minimum expected coin surplus:"
-            , pretty minExpectedCoinSurplus
-            , "maximum expected coin surplus:"
-            , pretty maxExpectedCoinSurplus
-            , "absolute minimum coin quantity:"
-            , pretty absoluteMinCoinValue
+            , pretty (Flat <$> selectionDeltaAllAssets result)
+            , "minimum cost:"
+            , pretty (selectionMinimumCost constraints result)
             , "number of outputs:"
             , pretty (length outputsCovered)
             , "number of change outputs:"
@@ -910,15 +905,6 @@ prop_performSelection mockConstraints (Blind params) coverage =
         assertOnSuccess
             "selectionHasValidSurplus constraints result"
             (selectionHasValidSurplus constraints result)
-        assertOnSuccess
-            "view #tokens surplus == TokenMap.empty"
-            (view #tokens surplus == TokenMap.empty)
-        assertOnSuccess
-            "TokenBundle.getCoin surplus >= minExpectedCoinSurplus"
-            (TokenBundle.getCoin surplus >= minExpectedCoinSurplus)
-        assertOnSuccess
-            "TokenBundle.getCoin surplus <= maxExpectedCoinSurplus"
-            (TokenBundle.getCoin surplus <= maxExpectedCoinSurplus)
         assertOnSuccess
             "utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable"
             (utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable)
@@ -946,24 +932,6 @@ prop_performSelection mockConstraints (Blind params) coverage =
                 assert True
       where
         assertOnSuccess = assertWith . (<>) "onSuccess: "
-        absoluteMinCoinValue =
-            view #computeMinimumAdaQuantity constraints TokenMap.empty
-        delta :: SelectionDelta TokenBundle
-        delta = selectionDeltaAllAssets result
-        surplus :: TokenBundle
-        surplus = case delta of
-            SelectionSurplus s -> s
-            SelectionDeficit d -> error $ unwords
-                ["Unexpected deficit:", show d]
-        minExpectedCoinSurplus :: Coin
-        minExpectedCoinSurplus = selectionMinimumCost constraints result
-        maxExpectedCoinSurplus :: Coin
-        maxExpectedCoinSurplus = minExpectedCoinSurplus `addCoin` toAdd
-          where
-            toAdd = absoluteMinCoinValue `multiplyCoin`
-                (length outputsCovered - length changeGenerated)
-        multiplyCoin :: Coin -> Int -> Coin
-        multiplyCoin (Coin c) i = Coin $ c * fromIntegral i
         SelectionResult
             { inputsSelected
             , changeGenerated
