@@ -469,7 +469,8 @@ instance Buildable a => Buildable (SelectionDelta a) where
 -- See 'SelectionDelta'.
 --
 selectionDeltaAllAssets
-    :: SelectionResult TokenBundle
+    :: Foldable f
+    => SelectionResultOf (f TxOut) TokenBundle
     -> SelectionDelta TokenBundle
 selectionDeltaAllAssets result
     | balanceOut `leq` balanceIn =
@@ -506,13 +507,17 @@ selectionDeltaAllAssets result
 -- See 'SelectionDelta'.
 --
 selectionDeltaCoin
-    :: SelectionResult TokenBundle
+    :: Foldable f
+    => SelectionResultOf (f TxOut) TokenBundle
     -> SelectionDelta Coin
 selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
 -- | Indicates whether or not a selection result has a valid surplus.
 --
-selectionHasValidSurplus :: SelectionResult TokenBundle -> Bool
+selectionHasValidSurplus
+    :: Foldable f
+    => SelectionResultOf (f TxOut) TokenBundle
+    -> Bool
 selectionHasValidSurplus result =
     case selectionDeltaAllAssets result of
         SelectionSurplus surplus ->
@@ -530,7 +535,8 @@ selectionHasValidSurplus result =
 -- a deficit.
 --
 selectionSurplusCoin
-    :: SelectionResult TokenBundle
+    :: Foldable f
+    => SelectionResultOf (f TxOut) TokenBundle
     -> Coin
 selectionSurplusCoin result =
     case selectionDeltaCoin result of
