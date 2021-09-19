@@ -224,7 +224,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -839,7 +838,6 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
             , extraCoinSink = Coin 0
             , outputsCovered = outs
             , changeGenerated = chgs
-            , utxoRemaining = UTxOIndex.empty
             , assetsToMint = mempty
             , assetsToBurn = mempty
             }
@@ -921,7 +919,6 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
         , extraCoinSink = Coin 0
         , outputsCovered = []
         , changeGenerated = outs
-        , utxoRemaining = UTxOIndex.empty
         -- TODO: [ADP-346]
         , assetsToMint = TokenMap.empty
         , assetsToBurn = TokenMap.empty
@@ -958,7 +955,6 @@ makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
         , extraCoinSink = Coin 0
         , outputsCovered = []
         , changeGenerated = outs
-        , utxoRemaining = UTxOIndex.empty
         -- TODO: [ADP-346]
         , assetsToMint = TokenMap.empty
         , assetsToBurn = TokenMap.empty

@@ -411,10 +411,6 @@ data SelectionResult change = SelectionResult
     , changeGenerated
         :: ![change]
         -- ^ A list of generated change outputs.
-    , utxoRemaining
-        :: !UTxOIndex
-        -- ^ The subset of 'utxoAvailable' that remains after performing
-        -- the selection.
     , assetsToMint
         :: !TokenMap
         -- ^ The assets to mint.
@@ -874,14 +870,13 @@ performSelection constraints params
             , extraCoinSink
             , changeGenerated = changeGenerated
             , outputsCovered = NE.toList outputsToCover
-            , utxoRemaining = leftover
             , assetsToMint
             , assetsToBurn
             }
 
         selectOneEntry = selectCoinQuantity selectionLimit
 
-        SelectionState {selected, leftover} = s
+        SelectionState {selected} = s
 
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOIndex.size selected
@@ -947,7 +942,6 @@ data SelectionReportSummarized = SelectionReportSummarized
     , numberOfUniqueNonAdaAssetsInSelectedInputs :: Int
     , numberOfUniqueNonAdaAssetsInRequestedOutputs :: Int
     , numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs :: Int
-    , sizeOfRemainingUtxoSet :: Int
     }
     deriving (Eq, Generic, Show)
 
@@ -1012,8 +1006,6 @@ makeSelectionReportSummarized s = SelectionReportSummarized {..}
         = Set.size
         $ F.foldMap TokenBundle.getAssets
         $ view #changeGenerated s
-    sizeOfRemainingUtxoSet
-        = UTxOIndex.size $ utxoRemaining s
 
 makeSelectionReportDetailed
     :: SelectionResult TokenBundle -> SelectionReportDetailed

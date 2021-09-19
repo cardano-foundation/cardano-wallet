@@ -210,6 +210,7 @@ import Test.Utils.Laws
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
@@ -900,11 +901,8 @@ prop_performSelection mockConstraints (Blind params) coverage =
             "TokenBundle.getCoin surplus <= maxExpectedCoinSurplus"
             (TokenBundle.getCoin surplus <= maxExpectedCoinSurplus)
         assertOnSuccess
-            "utxoAvailable == UTxOIndex.insertMany inputsSelected utxoRemaining"
-            (utxoAvailable == UTxOIndex.insertMany inputsSelected utxoRemaining)
-        assertOnSuccess
-            "utxoRemaining == UTxOIndex.deleteMany txInsSelected utxoAvailable"
-            (utxoRemaining == UTxOIndex.deleteMany txInsSelected utxoAvailable)
+            "utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable"
+            (utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable)
         assertOnSuccess
             "outputsCovered == NE.toList outputsToCover"
             (outputsCovered == NE.toList outputsToCover)
@@ -945,7 +943,6 @@ prop_performSelection mockConstraints (Blind params) coverage =
             { inputsSelected
             , changeGenerated
             , outputsCovered
-            , utxoRemaining
             } = result
         skeleton = SelectionSkeleton
             { skeletonInputCount =
@@ -955,8 +952,8 @@ prop_performSelection mockConstraints (Blind params) coverage =
             , skeletonChange =
                 fmap (TokenMap.getAssets . view #tokens) changeGenerated
             }
-        txInsSelected :: NonEmpty TxIn
-        txInsSelected = fst <$> inputsSelected
+        utxoSelected :: UTxO
+        utxoSelected = UTxO $ Map.fromList $ F.toList inputsSelected
         balanceChange =
             F.fold changeGenerated
 

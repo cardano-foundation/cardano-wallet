@@ -2023,7 +2023,6 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
         selection = SelectionResult
             { inputsSelected = view #inputIds migrationSelection
             , outputsCovered
-            , utxoRemaining = UTxOIndex.empty
             , extraCoinSource
             , extraCoinSink = Coin 0
             , changeGenerated = []
