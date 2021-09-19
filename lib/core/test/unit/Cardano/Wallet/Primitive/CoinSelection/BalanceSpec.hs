@@ -2073,20 +2073,16 @@ data MockAssessTokenBundleSize
     = MockAssessTokenBundleSizeUnlimited
       -- ^ Indicates that there is no limit on a token bundle's size.
     | MockAssessTokenBundleSizeUpperLimit Int
-      -- ^ Indicates an inclusive upper bound on the number of assets in a
-      -- token bundle.
+      -- ^ Indicates an inclusive positive upper bound on the number of assets
+      -- in a token bundle.
     deriving (Eq, Show)
 
 genMockAssessTokenBundleSize :: Gen MockAssessTokenBundleSize
-genMockAssessTokenBundleSize =
-    -- TODO:
-    --
-    -- We currently only test with constraints where the token bundle size is
-    -- unlimited.
-    --
-    -- We should add coverage of the case where token bundle sizes are limited.
-    --
-    pure MockAssessTokenBundleSizeUnlimited
+genMockAssessTokenBundleSize = oneof
+    [ pure MockAssessTokenBundleSizeUnlimited
+    , MockAssessTokenBundleSizeUpperLimit . getPositive
+        <$> arbitrary @(Positive Int)
+    ]
 
 shrinkMockAssessTokenBundleSize
     :: MockAssessTokenBundleSize -> [MockAssessTokenBundleSize]
@@ -2094,7 +2090,8 @@ shrinkMockAssessTokenBundleSize = \case
     MockAssessTokenBundleSizeUnlimited ->
         []
     MockAssessTokenBundleSizeUpperLimit n ->
-        MockAssessTokenBundleSizeUpperLimit <$> filter (> 0) (shrink n)
+        MockAssessTokenBundleSizeUpperLimit . getPositive
+            <$> shrink (Positive n)
 
 unMockAssessTokenBundleSize
     :: MockAssessTokenBundleSize -> (TokenBundle -> TokenBundleSizeAssessment)
