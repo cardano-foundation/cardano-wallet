@@ -957,6 +957,10 @@ prop_performSelection mockConstraints (Blind params) coverage =
                 NE.toList outputsToCover
             , skeletonChange =
                 fmap (TokenMap.getAssets . view #tokens) changeGenerated
+            , skeletonAssetsToMint =
+                assetsToMint
+            , skeletonAssetsToBurn =
+                assetsToBurn
             }
         utxoSelected :: UTxO
         utxoSelected = UTxO $ Map.fromList $ F.toList inputsSelected
