@@ -130,7 +130,7 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), subtractCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -150,6 +150,8 @@ import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Bifunctor
     ( first )
+import Data.Either.Extra
+    ( maybeToEither )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -1479,8 +1481,10 @@ makeChange criteria
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
         totalOutputCoinValueIsZero
     | otherwise =
-        maybe (Left changeError) Right $ do
-            adaAvailable <- excessCoin `subtractCoin` requiredCost
+        first mkUnableToConstructChangeError $ do
+            adaAvailable <- maybeToEither
+                (requiredCost `Coin.difference` excessCoin)
+                (excessCoin `Coin.subtractCoin` requiredCost)
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs
   where
@@ -1600,22 +1604,11 @@ makeChange criteria
     totalOutputCoinValueIsZero = error
         "makeChange: not (totalOutputCoinValue > 0)"
 
-    changeError :: UnableToConstructChangeError
-    changeError = UnableToConstructChangeError
+    mkUnableToConstructChangeError :: Coin -> UnableToConstructChangeError
+    mkUnableToConstructChangeError shortfall = UnableToConstructChangeError
         { requiredCost
-        , shortfall =
-            -- This conversion is safe because we know that the distance is
-            -- small-ish. If it wasn't, we would have have enough coins to
-            -- construct the change.
-            unsafeNaturalToCoin $ distance
-                (coinToNatural excessCoin)
-                (coinToNatural requiredCost + totalMinCoinValue)
-            }
-      where
-        totalMinCoinValue = F.sum $ coinToNatural . minCoinFor <$>
-            NE.zipWith (<>)
-                changeForUserSpecifiedAssets
-                changeForNonUserSpecifiedAssets
+        , shortfall
+        }
 
     outputMaps :: NonEmpty TokenMap
     outputMaps = view #tokens <$> outputBundles
@@ -1707,8 +1700,8 @@ collateNonUserSpecifiedAssetQuantities inputMaps userSpecifiedAssetIds =
 --      possible to assign a minimum ada quantity to a suffix of the given
 --      list.
 --
---    - returns 'Nothing' if (and only if) there was not enough ada available
---      to assign the minimum ada quantity to all non-empty change maps.
+--    - fails if (and only if) there was not enough ada available to assign the
+--      minimum ada quantity to all non-empty change maps.
 --
 assignCoinsToChangeMaps
     :: HasCallStack
@@ -1721,9 +1714,10 @@ assignCoinsToChangeMaps
     -- ^ A list of pre-computed asset change maps paired with original output
     -- coins, sorted into an order that ensures all empty token maps are at the
     -- start of the list.
-    -> Maybe [TokenBundle]
-    -- ^ Resulting change bundles, or 'Nothing' if there was not enough ada
-    -- available to assign a minimum ada quantity to all non-empty token maps.
+    -> Either Coin [TokenBundle]
+    -- ^ Resulting change bundles, or the shortfall quantity if there was not
+    -- enough ada available to assign a minimum ada quantity to all non-empty
+    -- token maps.
 assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
     | not changeMapsCorrectlyOrdered =
         changeMapsNotCorrectlyOrderedError
@@ -1749,7 +1743,7 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
                     makeChangeForCoin outputCoinsRemaining adaRemaining in
             -- Finally, combine the minimal coin asset bundles with the
             -- bundles obtained by partitioning the remaining ada amount:
-            Just $ NE.toList $ NE.zipWith (<>)
+            Right $ NE.toList $ NE.zipWith (<>)
                 bundlesForAssetsWithMinimumCoins
                 bundlesForOutputCoins
 
@@ -1766,12 +1760,12 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
             -- also don't have enough ada available to pay even for a single
             -- change output. We just burn the available ada amount (which
             -- will be small), returning no change.
-            Just []
+            Right []
 
         _ ->
             -- We don't have enough ada available, and there are no empty token
             -- maps available to drop. We have to give up at this point.
-            Nothing
+            Left (adaRequired `Coin.difference` adaAvailable)
 
     adaRequiredAtStart = F.fold $ minCoinFor . fst <$> pairsAtStart
 
@@ -2280,12 +2274,6 @@ newtype AssetCount a = AssetCount
 --------------------------------------------------------------------------------
 -- Utility functions
 --------------------------------------------------------------------------------
-
-coinToNatural :: Coin -> Natural
-coinToNatural = fromIntegral . unCoin
-
-unsafeNaturalToCoin :: Natural -> Coin
-unsafeNaturalToCoin = Coin . fromIntegral
 
 distance :: Natural -> Natural -> Natural
 distance a b

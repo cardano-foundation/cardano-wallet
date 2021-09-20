@@ -2830,28 +2830,28 @@ unit_assignCoinsToChangeMaps =
         [ ( Coin 1
           , computeMinimumAdaQuantityLinear
           , m 42 [] :| []
-          , Just [b 1 []]
+          , Right [b 1 []]
           )
 
         -- Simple case, with a single MA output
         , ( Coin 2
           , computeMinimumAdaQuantityLinear
           , m 42 [(assetA, 1337)] :| []
-          , Just [b 2 [(assetA, 1337)]]
+          , Right [b 2 [(assetA, 1337)]]
           )
 
         -- Single Ada-only output, but not enough left to create a change
         , ( Coin 1
           , (`addCoin` Coin 1) . computeMinimumAdaQuantityLinear
           , m 42 [] :| []
-          , Just []
+          , Right []
           )
 
         -- Single MA output, but not enough left to create a change
         , ( Coin 1
           , computeMinimumAdaQuantityLinear
           , m 42 [(assetA, 1337)] :| []
-          , Nothing
+          , Left (Coin 1)
           )
 
         -- Multiple Ada-only change, not enough Ada left to create them all
@@ -2862,7 +2862,7 @@ unit_assignCoinsToChangeMaps =
             , m   14 []
             , m   42 []
             ]
-          , Just [b 1 [], b 1 []]
+          , Right [b 1 [], b 1 []]
           )
 
         -- Hybrid Ada & MA, not enough to cover both => Ada change is dropped
@@ -2873,7 +2873,7 @@ unit_assignCoinsToChangeMaps =
             , m 14 []
             , m  2 [(assetA, 1337)]
             ]
-          , Just [b 2 [(assetA, 1337)]]
+          , Right [b 2 [(assetA, 1337)]]
           )
         ]
 
