@@ -97,6 +97,7 @@ module Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidDuplicateXPub
     , errMsg403TemplateInvalidScript
     , errMsg403InvalidConstructTx
+    , errMsg403transactionAlreadyBalanced
     ) where
 
 import Prelude
@@ -620,6 +621,10 @@ errMsg400ScriptTimelocksContradictory =
 errMsg400ScriptNotUniformRoles :: String
 errMsg400ScriptNotUniformRoles =
     "All keys of a script must have the same role: either payment or delegation."
+
+errMsg403transactionAlreadyBalanced :: String
+errMsg403transactionAlreadyBalanced =
+    "The transaction is already balanced. Please send a transaction that requires more inputs/outputs to be picked to be balanced."
 
 --------------------------------------------------------------------------------
 -- Transaction metadata
