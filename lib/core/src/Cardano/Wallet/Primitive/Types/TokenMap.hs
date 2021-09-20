@@ -60,6 +60,9 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , difference
     , intersection
 
+    -- * Queries
+    , size
+
     -- * Tests
     , isEmpty
     , isNotEmpty
@@ -567,6 +570,15 @@ intersection m1 m2 =
 
     sharedAssets :: Set AssetId
     sharedAssets = Set.intersection (getAssets m1) (getAssets m2)
+
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+-- | Returns the number of unique assets in a token map.
+--
+size :: TokenMap -> Int
+size = Set.size . getAssets
 
 --------------------------------------------------------------------------------
 -- Tests

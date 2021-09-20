@@ -200,7 +200,7 @@ import qualified Data.Set as Set
 --
 data SelectionConstraints = SelectionConstraints
     { assessTokenBundleSize
-        :: TokenBundleSizeAssessor
+        :: TokenBundle -> TokenBundleSizeAssessment
         -- ^ Assesses the size of a token bundle relative to the upper limit of
         -- what can be included in a transaction output. See documentation for
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
@@ -211,6 +211,10 @@ data SelectionConstraints = SelectionConstraints
     , computeMinimumCost
         :: SelectionSkeleton -> Coin
         -- ^ Computes the minimum cost of a given selection skeleton.
+    , computeSelectionLimit
+        :: [TxOut] -> SelectionLimit
+        -- ^ Computes an upper bound for the number of ordinary inputs to
+        -- select, given a current set of outputs.
     }
     deriving Generic
 
@@ -223,9 +227,6 @@ data SelectionParams = SelectionParams
     , utxoAvailable
         :: !UTxOIndex
         -- ^ A UTxO set from which inputs can be selected.
-    , selectionLimit
-        :: !SelectionLimit
-        -- ^ Specifies a limit to be adhered to when performing selection.
     , extraCoinSource
         :: !Coin
         -- ^ An extra source of ada.
@@ -410,10 +411,6 @@ data SelectionResult change = SelectionResult
     , changeGenerated
         :: ![change]
         -- ^ A list of generated change outputs.
-    , utxoRemaining
-        :: !UTxOIndex
-        -- ^ The subset of 'utxoAvailable' that remains after performing
-        -- the selection.
     , assetsToMint
         :: !TokenMap
         -- ^ The assets to mint.
@@ -643,13 +640,6 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 
 -- | Performs a coin selection and generates change bundles in one step.
 --
--- Returns 'BalanceInsufficient' if the total balance of 'utxoAvailable' is not
--- strictly greater than or equal to the total balance of 'outputsToCover'.
---
--- Returns 'OutputsInsufficientError' if the 'minted' values are not a subset
--- of the 'outputsToCover' plus the 'burned' values. That is, the minted values
--- are not spent or burned.
---
 -- Provided that 'isUTxOBalanceSufficient' returns 'True' for the given
 -- selection criteria, this function guarantees to return a 'SelectionResult'
 -- for which 'selectionHasValidSurplus' returns 'True'.
@@ -697,11 +687,11 @@ performSelection constraints params
         { assessTokenBundleSize
         , computeMinimumAdaQuantity
         , computeMinimumCost
+        , computeSelectionLimit
         } = constraints
     SelectionParams
         { outputsToCover
         , utxoAvailable
-        , selectionLimit
         , extraCoinSource
         , extraCoinSink
         , assetsToMint
@@ -718,6 +708,9 @@ performSelection constraints params
     mkInputsSelected :: UTxOIndex -> NonEmpty (TxIn, TxOut)
     mkInputsSelected =
         fromMaybe invariantSelectAnyInputs . NE.nonEmpty . UTxOIndex.toList
+
+    selectionLimit :: SelectionLimit
+    selectionLimit = computeSelectionLimit (F.toList outputsToCover)
 
     utxoBalanceAvailable :: TokenBundle
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
@@ -781,7 +774,7 @@ performSelection constraints params
         (fmap (TokenMap.getAssets . view #tokens))
         (makeChange MakeChangeCriteria
             { minCoinFor = noMinimumCoin
-            , bundleSizeAssessor = assessTokenBundleSize
+            , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
             , requiredCost = noCost
             , extraCoinSource
             , extraCoinSink
@@ -860,7 +853,7 @@ performSelection constraints params
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
         mChangeGenerated = makeChange MakeChangeCriteria
             { minCoinFor = computeMinimumAdaQuantity
-            , bundleSizeAssessor = assessTokenBundleSize
+            , bundleSizeAssessor = TokenBundleSizeAssessor assessTokenBundleSize
             , requiredCost
             , extraCoinSource
             , extraCoinSink
@@ -877,14 +870,13 @@ performSelection constraints params
             , extraCoinSink
             , changeGenerated = changeGenerated
             , outputsCovered = NE.toList outputsToCover
-            , utxoRemaining = leftover
             , assetsToMint
             , assetsToBurn
             }
 
         selectOneEntry = selectCoinQuantity selectionLimit
 
-        SelectionState {selected, leftover} = s
+        SelectionState {selected} = s
 
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOIndex.size selected
@@ -950,7 +942,6 @@ data SelectionReportSummarized = SelectionReportSummarized
     , numberOfUniqueNonAdaAssetsInSelectedInputs :: Int
     , numberOfUniqueNonAdaAssetsInRequestedOutputs :: Int
     , numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs :: Int
-    , sizeOfRemainingUtxoSet :: Int
     }
     deriving (Eq, Generic, Show)
 
@@ -1015,8 +1006,6 @@ makeSelectionReportSummarized s = SelectionReportSummarized {..}
         = Set.size
         $ F.foldMap TokenBundle.getAssets
         $ view #changeGenerated s
-    sizeOfRemainingUtxoSet
-        = UTxOIndex.size $ utxoRemaining s
 
 makeSelectionReportDetailed
     :: SelectionResult TokenBundle -> SelectionReportDetailed
@@ -2131,7 +2120,7 @@ instance Ord (AssetCount TokenMap) where
             GT -> GT
             EQ -> comparing TokenMap.toNestedList m1 m2
       where
-        assetCount = Set.size . TokenMap.getAssets
+        assetCount = TokenMap.size
 
 newtype AssetCount a = AssetCount
     { unAssetCount :: a }

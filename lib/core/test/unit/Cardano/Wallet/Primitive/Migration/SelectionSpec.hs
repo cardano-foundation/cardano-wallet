@@ -66,8 +66,6 @@ import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Semigroup
     ( mtimesDefault, stimes )
 import Data.Word
@@ -112,7 +110,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 
 spec :: Spec
@@ -558,7 +555,7 @@ prop_minimizeFeeStep_inner mockConstraints feeExcessBefore outputBefore =
     costOfEliminatingFeeExcess = Coin.distance
         (txOutputCoinCost constraints outputCoinAfter)
         (txOutputCoinCost constraints (outputCoinAfter <> feeExcessAfter))
-    gainOfEliminatingFeeExcess = fromMaybe (Coin 0) $ Coin.subtractCoin
+    gainOfEliminatingFeeExcess = Coin.difference
         feeExcessAfter
         costOfEliminatingFeeExcess
 
@@ -857,7 +854,7 @@ unMockTxOutputMinimumAdaQuantity
     :: MockTxOutputMinimumAdaQuantity
     -> (TokenMap -> Coin)
 unMockTxOutputMinimumAdaQuantity mock m =
-    let assetCount = Set.size $ TokenMap.getAssets m in
+    let assetCount = TokenMap.size m in
     perOutput mock
         <> mtimesDefault assetCount (perOutputAsset mock)
 
