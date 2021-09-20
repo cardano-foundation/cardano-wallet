@@ -85,7 +85,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoin, genCoinPositive, shrinkCoinPositive )
+    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -201,7 +201,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( liftShrink4 )
+    ( liftShrink4, liftShrink6 )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -636,6 +636,22 @@ genSelectionParams genUTxOIndex' = do
       where
         utxoAvailableAssets :: TokenMap
         utxoAvailableAssets = view (#balance . #tokens) utxoAvailable
+
+shrinkSelectionParams :: SelectionParams -> [SelectionParams]
+shrinkSelectionParams =
+    shrinkMapBy tupleToParams paramsToTuple $ liftShrink6
+        (shrinkListNonEmpty shrinkTxOut)
+        (shrinkUTxOIndex)
+        (shrinkCoin)
+        (shrinkCoin)
+        (shrinkTokenMap)
+        (shrinkTokenMap)
+  where
+    paramsToTuple (SelectionParams a b c d e f) = (a, b, c, d, e, f)
+    tupleToParams (a, b, c, d, e, f) = (SelectionParams a b c d e f)
+
+    shrinkListNonEmpty :: (a -> [a]) -> NonEmpty a -> [NonEmpty a]
+    shrinkListNonEmpty f = Maybe.mapMaybe NE.nonEmpty . shrinkList f . NE.toList
 
 prop_performSelection_small
     :: MockSelectionConstraints
@@ -3883,11 +3899,11 @@ newtype Small a = Small
 
 instance Arbitrary (Large SelectionParams) where
     arbitrary = Large <$> genSelectionParams genUTxOIndexLarge
-    -- No shrinking
+    shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
 instance Arbitrary (Small SelectionParams) where
     arbitrary = Small <$> genSelectionParams genUTxOIndex
-    -- No shrinking
+    shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
 instance Arbitrary (Large UTxOIndex) where
     arbitrary = Large <$> genUTxOIndexLarge
