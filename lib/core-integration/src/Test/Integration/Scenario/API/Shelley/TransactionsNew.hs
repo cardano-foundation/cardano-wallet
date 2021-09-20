@@ -819,6 +819,41 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
         verify rTx
             [ expectErrorMessage "Error in $: cborHex seems to be not deserializing correctly due to DecoderErrorDeserialiseFailure 'Shelley Tx' (DeserialiseFailure 5 'expected bytes'" ]
+
+    it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
+
+        liftIO $ pendingWith "Coin selection not integrated with balanceTransaction - to be fixed in ADP-656"
+        -- constructing source wallet
+        let initialAmt = 110_000_000_000
+        let inpAmt = minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        let serializedTx =
+                "84a600818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1\
+                \770e07fa22ba86480d0d800182825839010acce4f85ade867308f048fe4516\
+                \c0383b38cc04602ea6f7a6a1e75f29450899547b0e4bb194132452d45fea30\
+                \212aebeafc69bca8744ea61a002dc67e8258390110a9b4666ba80e4878491d\
+                \1ac20465c9893a8df5581dc705770626203d4d23fe6a7acdda5a1b41f56100\
+                \f02bfa270a3c560c4e55cf8312331b00000017484721ca021a0001ffb80319\
+                \8d280e80a0f5f6" :: Text
+        let balancePayload = Json [json|{
+              "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
+              "signatories": [],
+              "inputs": [
+                  { "txIn" : "0eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648#13"
+                  , "txOut" :
+                      { "value" : { "lovelace": #{inpAmt} }
+                      , "address": "addr1vxtlefx3dd5ga5d3cqcfycxsc5tv20txpx7qlmlt2kwnfds2mywcr"
+                      }
+                  }]
+          }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.balanceTransaction @'Shelley wa) Default balancePayload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+            ]
   where
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
