@@ -355,16 +355,22 @@ data SelectionSkeleton = SelectionSkeleton
         :: ![TxOut]
     , skeletonChange
         :: ![Set AssetId]
+    , skeletonAssetsToMint
+        :: !TokenMap
+    , skeletonAssetsToBurn
+        :: !TokenMap
     }
     deriving (Eq, Generic, Show)
 
--- | Creates an empty 'SelectionSkeleton' with no inputs, no outputs and no
--- change.
+-- | Creates an empty 'SelectionSkeleton'.
+--
 emptySkeleton :: SelectionSkeleton
 emptySkeleton = SelectionSkeleton
     { skeletonInputCount = 0
     , skeletonOutputs = mempty
     , skeletonChange = mempty
+    , skeletonAssetsToMint = TokenMap.empty
+    , skeletonAssetsToBurn = TokenMap.empty
     }
 
 -- | Specifies a limit to adhere to when performing a selection.
@@ -882,6 +888,8 @@ performSelection constraints params
             { skeletonInputCount = UTxOIndex.size selected
             , skeletonOutputs = NE.toList outputsToCover
             , skeletonChange
+            , skeletonAssetsToMint = assetsToMint
+            , skeletonAssetsToBurn = assetsToBurn
             }
 
         skeletonChange = predictChange selected

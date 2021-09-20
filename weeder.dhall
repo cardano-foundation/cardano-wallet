@@ -19,7 +19,7 @@
   , "^UnliftIO\\.Compat\\.mkRetryHandler\$"
   , "^Spec\\.main\$"
   , "^Test\\..*\\.spec\$"
-  , "^Test\\.QuickCheck\\.Extra\\.liftShrink3\$"
+  , "^Test\\.QuickCheck\\.Extra\\.liftShrink\$"
   , "^Test\\.Utils\\.Paths\\.getTestData"
   , "^Cardano\\.Wallet\\.Api\\.Malformed\\."
   , "^Cardano\\.Wallet\\.DB\\.StateMachine\\.showLabelledExamples\$"
