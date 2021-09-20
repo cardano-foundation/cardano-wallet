@@ -3907,11 +3907,11 @@ instance Arbitrary (Small SelectionParams) where
 
 instance Arbitrary (Large UTxOIndex) where
     arbitrary = Large <$> genUTxOIndexLarge
-    -- No shrinking
+    shrink = shrinkMapBy Large getLarge shrinkUTxOIndex
 
 instance Arbitrary (Small UTxOIndex) where
     arbitrary = Small <$> genUTxOIndex
-    shrink = fmap Small . shrinkUTxOIndex . getSmall
+    shrink = shrinkMapBy Small getSmall shrinkUTxOIndex
 
 instance Arbitrary Coin where
     arbitrary = genCoinPositive
