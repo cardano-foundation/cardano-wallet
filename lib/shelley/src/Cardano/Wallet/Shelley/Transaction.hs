@@ -119,14 +119,11 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoTx
     , fromLedgerExUnits
-    , toAllegraTxOut
-    , toAlonzoTxOut
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
+    , toCardanoTxOut
     , toHDPayloadAddress
-    , toMaryTxOut
-    , toShelleyTxOut
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
@@ -1153,7 +1150,7 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
         . fst <$> F.toList (view #inputs cs)
 
     , Cardano.txOuts =
-        toShelleyBasedTxOut <$> view #outputs cs ++ F.toList (view #change cs)
+        toCardanoTxOut era <$> view #outputs cs ++ F.toList (view #change cs)
 
     , Cardano.txWithdrawals =
         let
@@ -1212,13 +1209,6 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
   where
     toErrMkTx :: Cardano.TxBodyError -> ErrMkTransaction
     toErrMkTx = ErrMkTransactionTxBodyError . T.pack . Cardano.displayError
-
-    toShelleyBasedTxOut :: TxOut -> Cardano.TxOut era
-    toShelleyBasedTxOut = case era of
-        ShelleyBasedEraShelley -> toShelleyTxOut
-        ShelleyBasedEraAllegra -> toAllegraTxOut
-        ShelleyBasedEraMary -> toMaryTxOut
-        ShelleyBasedEraAlonzo -> toAlonzoTxOut
 
     metadataSupported :: Cardano.TxMetadataSupportedInEra era
     metadataSupported = case era of
