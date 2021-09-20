@@ -789,6 +789,21 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403transactionAlreadyBalanced
             ]
+
+    it "TRANS_NEW_BALANCE_01b - incorrect cbor - not hex-encoded" $ \ctx -> runResourceT $ do
+        let initialAmt = minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        let serializedTx = "84a600818gfrddd" :: Text
+        let balancePayload = Json [json|{
+              "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
+              "signatories": [],
+              "inputs": []
+          }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.balanceTransaction @'Shelley wa) Default balancePayload
+        verify rTx
+            [ expectErrorMessage "Error in $: Parse error. Expecting Base16-encoded format." ]
   where
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
