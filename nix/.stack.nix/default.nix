@@ -9,7 +9,7 @@
         "hspec-discover" = (((hackage.hspec-discover)."2.8.2").revisions).default;
         "cryptonite" = (((hackage.cryptonite)."0.27").revisions).default;
         "Cabal" = (((hackage.Cabal)."3.4.0.0").revisions).default;
-        "containers" = (((hackage.containers)."0.5.11.0").revisions).default;
+        "containers" = (((hackage.containers)."0.6.4.1").revisions).default;
         "dns" = (((hackage.dns)."3.0.4").revisions).default;
         "network" = (((hackage.network)."3.1.2.1").revisions).default;
         "ral" = (((hackage.ral)."0.1").revisions).default;
@@ -38,6 +38,7 @@
         "regex-posix-clib" = (((hackage.regex-posix-clib)."2.7").revisions).default;
         "row-types" = (((hackage.row-types)."1.0.1.0").revisions).default;
         "servant-subscriber" = (((hackage.servant-subscriber)."0.7.0.0").revisions).default;
+        "dom-lt" = (((hackage.dom-lt)."0.2.2.1").revisions).default;
         "servant-websockets" = (((hackage.servant-websockets)."2.0.0").revisions).default;
         "size-based" = (((hackage.size-based)."0.1.2.0").revisions).default;
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions).default;
@@ -82,6 +83,7 @@
         cardano-ledger-core = ./cardano-ledger-core.nix;
         small-steps = ./small-steps.nix;
         small-steps-test = ./small-steps-test.nix;
+        cardano-protocol-tpraos = ./cardano-protocol-tpraos.nix;
         shelley-spec-non-integral = ./shelley-spec-non-integral.nix;
         shelley-spec-ledger = ./shelley-spec-ledger.nix;
         shelley-spec-ledger-test = ./shelley-spec-ledger-test.nix;

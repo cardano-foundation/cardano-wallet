@@ -177,6 +177,7 @@ import Ouroboros.Consensus.Cardano.Block
     ( BlockQuery (..)
     , CardanoEras
     , CodecConfig (..)
+    , EraCrypto
     , StandardAllegra
     , StandardAlonzo
     , StandardMary
@@ -264,7 +265,9 @@ import UnliftIO.Exception
     ( Handler (..), IOException )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Wallet.Primitive.SyncProgress as SyncProgress
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -881,11 +884,12 @@ fetchRewardAccounts tr queryRewardQ accounts = do
         liftIO $ traceWith tr $
             MsgFetchRewardAccountBalance accounts
 
-        let qry = byronOrShelleyBased (pure (byronValue, [])) $
-                   fmap fromBalanceResult
-                    . LSQry
-                    . Shelley.GetFilteredDelegationsAndRewardAccounts
-                    $ Set.map toStakeCredential accounts
+        let qry = onAnyEra
+                (pure (byronValue, []))
+                shelleyQry
+                shelleyQry
+                shelleyQry
+                shelleyQry
 
         (res,logs) <- bracketQuery "queryRewards" tr (send queryRewardQ (SomeLSQ qry))
         liftIO $ mapM_ (traceWith tr) logs
@@ -893,6 +897,18 @@ fetchRewardAccounts tr queryRewardQ accounts = do
   where
     byronValue :: Map W.RewardAccount W.Coin
     byronValue = Map.fromList . map (, minBound) $ Set.toList accounts
+
+    shelleyQry
+        :: (Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra)))
+        => LSQ
+            (Shelley.ShelleyBlock shelleyEra)
+            IO
+            (Map W.RewardAccount W.Coin, [NetworkLayerLog])
+    shelleyQry =
+       fmap fromBalanceResult
+        . LSQry
+        . Shelley.GetFilteredDelegationsAndRewardAccounts
+        $ Set.map toStakeCredential accounts
 
     fromBalanceResult
         :: ( Map (SL.Credential 'SL.Staking crypto)

@@ -11,15 +11,15 @@
     flags = {};
     package = {
       specVersion = "2.4";
-      identifier = { name = "cardano-ledger-core"; version = "0.1.0.0"; };
+      identifier = { name = "cardano-protocol-tpraos"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "2021 Input Output (Hong Kong) Ltd.";
       maintainer = "formal.methods@iohk.io";
       author = "IOHK Formal Methods Team";
       homepage = "";
       url = "";
-      synopsis = "Core components of Cardano ledgers from the Shelley release on.";
-      description = "Cardano ledgers from the Shelley release onwards share a core basis rooted in\nthe Shelley ledger specification. This package abstracts a number of components\nwhich we expect to be shared amongst all future ledgers implemented around this base.";
+      synopsis = "";
+      description = "Cardano Protocol: Transitional Praos";
       buildType = "Simple";
       isLocal = true;
       };
@@ -28,32 +28,18 @@
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
-          (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
-          (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
-          (hsPkgs."cardano-crypto-praos" or (errorHandler.buildDepError "cardano-crypto-praos"))
-          (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
-          (hsPkgs."cardano-ledger-byron" or (errorHandler.buildDepError "cardano-ledger-byron"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
+          (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
-          (hsPkgs."groups" or (errorHandler.buildDepError "groups"))
-          (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
-          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."network" or (errorHandler.buildDepError "network"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."partial-order" or (errorHandler.buildDepError "partial-order"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
-          (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
           (hsPkgs."shelley-spec-non-integral" or (errorHandler.buildDepError "shelley-spec-non-integral"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
-          (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           ];
         buildable = true;
@@ -69,5 +55,5 @@
       rev = "ec51e4fb1b17461ab612cf427b79f1742942e8cb";
       sha256 = "05bwy7x1asyfshqsfsyv2c70qwrxp4680xlvhwdm1hz9bi0lpq41";
       };
-    postUnpack = "sourceRoot+=/cardano-ledger-core; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/cardano-protocol-tpraos; echo source root reset to \$sourceRoot";
     }
