@@ -303,9 +303,12 @@ tokenMetadataServerFromEnv = envFromText "TOKEN_METADATA_SERVER" >>= \case
 -- | Collect 'DebugConfig' from environment variables.
 debugConfigFromEnv :: IO DebugConfig
 debugConfigFromEnv = do
-    noCacheLocalStateQuery <- isJust <$>
-        lookupEnvNonEmpty "NO_CACHE_LOCALSTATEQUERY"
-    pure DebugConfig{..}
+    mttl <- envFromText "CACHE_LOCALSTATEQUERY_TTL" >>= \case
+        Nothing        -> pure $ Just 6 -- default value
+        Just (Right s) -> pure $ Just s
+        Just (Left e)  -> die $ show e
+    no   <- isJust <$> lookupEnvNonEmpty "NO_CACHE_LOCALSTATEQUERY"
+    pure DebugConfig{ cacheLocalStateQueryTTL = if no then Nothing else mttl }
 
 -- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.

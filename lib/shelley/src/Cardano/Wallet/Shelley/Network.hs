@@ -190,7 +190,6 @@ import Ouroboros.Consensus.Cardano.Block
     , CardanoEras
     , CodecConfig (..)
     , EraCrypto
-    , GenTx (..)
     , StandardAllegra
     , StandardAlonzo
     , StandardMary

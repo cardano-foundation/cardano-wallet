@@ -147,8 +147,6 @@ import Data.Set
     ( Set )
 import Data.Text.Class
     ( ToText (..) )
-import Data.Time.Clock
-    ( NominalDiffTime )
 import Data.Time.Clock.POSIX
     ( getPOSIXTime, posixDayLength )
 import Data.Tuple.Extra
@@ -230,13 +228,11 @@ newStakePoolLayer
     -> IO ()
     -> IO (CacheWorker, StakePoolLayer)
 newStakePoolLayer gcStatus nl db@DBLayer {..} mkCacheWorker restartSyncThread = do
-    let ttl = 60 * 60 :: NominalDiffTime -- one hour
-        grace = 3 :: NominalDiffTime
-    (worker, _stakeDistribution) <- mkCacheWorker ttl grace (stakeDistribution nl) 
+    (worker, _stakeDistribution) <- mkCacheWorker $ stakeDistribution nl
     pure (worker, StakePoolLayer
         { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
         , knownPools = _knownPools
-        , listStakePools = _listPools
+        , listStakePools = _listPools _stakeDistribution
         , forceMetadataGC = _forceMetadataGC
         , putSettings = _putSettings
         , getSettings = _getSettings
@@ -275,12 +271,14 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} mkCacheWorker restartSyncThread = 
     _getSettings = liftIO $ atomically readSettings
 
     _listPools
-        :: EpochNo
-        -- Exclude all pools that retired in or before this epoch.
+        :: IO (Maybe StakePoolsSummary)
+        -- ^ Potentially cached action that retrieves the stake pools summary.
+        -> EpochNo
+        -- ^ Exclude all pools that retired in or before this epoch.
         -> Coin
         -> IO [Api.ApiStakePool]
-    _listPools currentEpoch userStake =
-        stakeDistribution nl >>= \case
+    _listPools stakeDistribution currentEpoch userStake =
+        stakeDistribution >>= \case
                 -- we seem to be in the Byron era and cannot stake
             Nothing -> pure []
             Just nlData -> do

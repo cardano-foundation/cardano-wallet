@@ -37,9 +37,8 @@ import UnliftIO.STM
 -- runs a function periodically and caches the result.
 newtype CacheWorker = CacheWorker { runCacheWorker :: IO () }
 
--- | Synonym for the type of 'newCacheWorker' to increase readability.
-type MkCacheWorker a =
-    NominalDiffTime -> NominalDiffTime -> IO a -> IO (CacheWorker, IO a)
+-- | Type synonym for an action that creates a 'CacheWorker'.
+type MkCacheWorker a = IO a -> IO (CacheWorker, IO a)
 
 -- | Run an action periodically and cache the results.
 -- 
@@ -78,7 +77,7 @@ newCacheWorker ttl gracePeriod action = do
 -- | For testing: A worker that does not run anything,
 -- the action is simply performed each time that its result is requested.
 don'tCacheWorker :: MkCacheWorker a
-don'tCacheWorker _ _ action = pure (CacheWorker $ pure (), action)
+don'tCacheWorker action = pure (CacheWorker $ pure (), action)
 
 -- | Variant of 'threadDelay' where the argument has type 'NominalDiffTime'.
 --

@@ -166,6 +166,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Time.Clock
+    ( NominalDiffTime )
 import GHC.Generics
     ( Generic )
 import Network.Ntp
@@ -226,12 +228,14 @@ deriving instance Show SomeNetworkDiscriminant
 -- | Various settings that modify the behavior 'serveWallet' in order
 -- to make it easier to test.
 data DebugConfig = DebugConfig
-    { noCacheLocalStateQuery :: Bool
-    -- ^ Do /not/ cache local state queries ('LSQ') to a cardano-node.
+    { cacheLocalStateQueryTTL :: Maybe NominalDiffTime
+    -- ^ Time to live (TTL) for caching local state queries ('LSQ')
+    -- to a cardano-node.
+    -- If this value is 'Nothing', then queries are /not/ cached.
+    -- 
     -- Some functions such as 'listStakePools' will query
     -- the node at the program start and cache the value
     -- in order to become more responsive.
-    -- Setting this flag to 'True' will disable this caching behavior.
     } deriving (Show, Generic, Eq)
 
 -- | The @cardano-wallet@ main function. It takes the configuration
@@ -404,9 +408,15 @@ serveWallet
                     (Retry.skipAsyncExceptions ++ [traceEx]) (\_ -> maction)
             let mkCacheWorker :: forall a. MkCacheWorker a
                 mkCacheWorker = case mdebug of
-                    Just DebugConfig{noCacheLocalStateQuery=True} ->
+                    Just DebugConfig{cacheLocalStateQueryTTL=Nothing} ->
                         don'tCacheWorker
-                    _ -> \t1 t2 -> newCacheWorker t1 t2 . withRetries
+                    Just DebugConfig{cacheLocalStateQueryTTL=Just ttl} ->
+                        newCacheWorker ttl grace . withRetries
+                    Nothing -> -- production environment
+                        newCacheWorker one_hour grace . withRetries
+                  where
+                    grace = 3 -- seconds
+                    one_hour = 60*60 -- seconds
 
             (worker, spl) <-
                 newStakePoolLayer gcStatus nl db mkCacheWorker restartMetadataThread
