@@ -390,6 +390,7 @@ optimalRewards params s sigma = Coin . round
     s'     = min (fromRational $ getPercentage s) z0_
 
 -- | The desirabilty of a pool is equal to the member rewards at saturation
+-- IF the owner meets their pledge.
 desirability :: RewardParams -> RewardProvenancePool -> Coin
 desirability rp RewardProvenancePool{..}
     = afterFees cost margin
@@ -457,24 +458,22 @@ listPools ti StakePoolsSummary{rewardParams,pools} dbData userStake =
     lsqButNoDb  = dropMissing
     -- When a pool is registered (with a registration certificate) but not
     -- currently active (and therefore not causing pool metrics data to be
-    -- available over local state query), we use a default value of /zero/
-    -- for all stake pool metric values so that the pool can still be
-    -- included in the list of all known stake pools:
+    -- available over local state query), we show the pool,
+    -- but we assume that the owner does not meet the pledge yet,
+    -- and that the pool does not produce blocks yet.
     dbButNoLsq = mapMissing $ \_ db ->
-        let ownerStake_ = poolPledge $ registrationCert db
+        let ownerStake_ = Coin 0
+            ownerStakeRelative_ = unsafeMkPercentage 0
+            -- ownerStake_ = poolPledge $ registrationCert db
+            -- ownerStakeRelative_ = unsafeMkPercentage $ ownerStake_ `proportionTo` (totalStake rewardParams)
             poolDefault = RewardProvenancePool
-                { stakeRelative = minBound
+                { stakeRelative = ownerStakeRelative_
                 , ownerPledge = poolPledge $ registrationCert db
-                    -- To get a first impression of the pool desirability
-                    -- and non-myopic member rewards,
-                    -- we assume that the pool onwer is honest and honors
-                    -- their pledge.
                 , ownerStake = ownerStake_
-                , ownerStakeRelative = unsafeMkPercentage 
-                    $ ownerStake_ `proportionTo` (totalStake rewardParams)
+                , ownerStakeRelative = ownerStakeRelative_
                 , cost = poolCost $ registrationCert db
                 , margin = poolMargin $ registrationCert db
-                , performanceEstimate = 1
+                , performanceEstimate = 0
                 }
         in (poolDefault, db)
 
