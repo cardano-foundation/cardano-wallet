@@ -370,7 +370,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
-import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 

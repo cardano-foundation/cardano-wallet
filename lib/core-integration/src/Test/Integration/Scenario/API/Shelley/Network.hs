@@ -53,8 +53,8 @@ spec = describe "SHELLEY_NETWORK" $ do
         expectResponseCode @IO HTTP.status200 r
         let Right d = Quantity <$> mkPercentage (3 % 4)
         -- for Shelley desiredPoolNumber is node's nOpt protocol parameter
-        -- in integration test setup it is 3
-        let nOpt = 3
+        -- in integration test setup it is 2
+        let nOpt = 2
         let
             expectEraField
                 :: (Maybe ApiEpochInfo -> Expectation)
