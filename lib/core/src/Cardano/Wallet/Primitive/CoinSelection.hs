@@ -61,8 +61,6 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
 import Data.Word
@@ -182,7 +180,7 @@ data SelectionParams = SelectionParams
         :: !TokenMap
         -- ^ Specifies a set of assets to mint.
     , outputsToCover
-        :: !(NonEmpty TxOut)
+        :: ![TxOut]
         -- ^ Specifies a set of outputs that must be paid for.
     , rewardWithdrawal
         :: !(Maybe Coin)
@@ -206,8 +204,8 @@ data SelectionError
 --
 prepareOutputs
     :: SelectionConstraints
-    -> NonEmpty TxOut
-    -> Either ErrPrepareOutputs (NonEmpty TxOut)
+    -> [TxOut]
+    -> Either ErrPrepareOutputs [TxOut]
 prepareOutputs constraints outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $

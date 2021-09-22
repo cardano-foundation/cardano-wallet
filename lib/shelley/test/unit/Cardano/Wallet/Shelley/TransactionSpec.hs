@@ -67,7 +67,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.CoinSelection
     ( SelectionError (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionResult (..)
+    ( SelectionResultOf (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , selectionDelta

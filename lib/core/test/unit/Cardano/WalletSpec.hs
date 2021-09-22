@@ -79,7 +79,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.CoinSelection
     ( SelectionError (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionResult (..) )
+    ( SelectionResultOf (..) )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
 import Cardano.Wallet.Primitive.SyncProgress

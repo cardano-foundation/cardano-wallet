@@ -82,7 +82,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimitOf (..)
-    , SelectionResult (changeGenerated, inputsSelected, outputsCovered)
+    , SelectionResult
+    , SelectionResultOf (..)
     , SelectionSkeleton (..)
     , selectionDelta
     )

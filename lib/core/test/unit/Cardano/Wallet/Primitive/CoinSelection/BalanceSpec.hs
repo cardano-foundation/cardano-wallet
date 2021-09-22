@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -27,16 +28,18 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
+    , PerformSelection
     , RunSelectionParams (..)
     , SelectionConstraints (..)
-    , SelectionDelta (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
     , SelectionLens (..)
     , SelectionLimit
     , SelectionLimitOf (..)
-    , SelectionParams (..)
-    , SelectionResult (..)
+    , SelectionParams
+    , SelectionParamsOf (..)
+    , SelectionResult
+    , SelectionResultOf (..)
     , SelectionSkeleton (..)
     , SelectionState (..)
     , UnableToConstructChangeError (..)
@@ -47,6 +50,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , balanceMissing
     , coinSelectionLens
     , collateNonUserSpecifiedAssetQuantities
+    , computeDeficitInOut
     , computeUTxOBalanceAvailable
     , computeUTxOBalanceRequired
     , computeUTxOBalanceSufficiencyInfo
@@ -59,6 +63,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
     , performSelection
+    , performSelectionEmpty
     , prepareOutputsWith
     , reduceTokenQuantities
     , removeBurnValueFromChangeMaps
@@ -69,6 +74,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , runSelectionStep
     , selectionDeltaAllAssets
     , selectionHasValidSurplus
+    , selectionMinimumCost
     , splitBundleIfAssetCountExcessive
     , splitBundlesWithExcessiveAssetCounts
     , splitBundlesWithExcessiveTokenQuantities
@@ -180,6 +186,7 @@ import Test.QuickCheck
     , counterexample
     , cover
     , disjoin
+    , elements
     , forAll
     , frequency
     , generate
@@ -267,6 +274,11 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
             property prop_performSelection_large
         it "prop_performSelection_huge" $
             property prop_performSelection_huge
+
+    parallel $ describe "Performing a selection with zero outputs" $ do
+
+        it "prop_performSelectionEmpty" $
+            property prop_performSelectionEmpty
 
     parallel $ describe "Selection states" $ do
 
@@ -548,7 +560,7 @@ prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
 
 prop_prepareOutputsWith_twice
     :: MockComputeMinimumAdaQuantity
-    -> NonEmpty TxOut
+    -> [TxOut]
     -> Property
 prop_prepareOutputsWith_twice minCoinValueDef outs =
     once === twice
@@ -558,7 +570,7 @@ prop_prepareOutputsWith_twice minCoinValueDef outs =
 
 prop_prepareOutputsWith_length
     :: MockComputeMinimumAdaQuantity
-    -> NonEmpty TxOut
+    -> [TxOut]
     -> Property
 prop_prepareOutputsWith_length minCoinValueDef outs =
     F.length (prepareOutputsWith minCoinValueFor outs) === F.length outs
@@ -567,7 +579,7 @@ prop_prepareOutputsWith_length minCoinValueDef outs =
 
 prop_prepareOutputsWith_assetsUnchanged
     :: MockComputeMinimumAdaQuantity
-    -> NonEmpty TxOut
+    -> [TxOut]
     -> Property
 prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
     (txOutAssets <$> (prepareOutputsWith minCoinValueFor outs))
@@ -579,10 +591,10 @@ prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
 
 prop_prepareOutputsWith_preparedOrExistedBefore
     :: MockComputeMinimumAdaQuantity
-    -> NonEmpty TxOut
+    -> [TxOut]
     -> Property
 prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
-    property $ F.all isPreparedOrExistedBefore (NE.zip outs outs')
+    property $ F.all isPreparedOrExistedBefore (zip outs outs')
   where
     minCoinValueFor = unMockComputeMinimumAdaQuantity minCoinValueDef
     outs' = prepareOutputsWith minCoinValueFor outs
@@ -608,9 +620,9 @@ type PerformSelectionResult =
 genSelectionParams :: Gen UTxOIndex -> Gen SelectionParams
 genSelectionParams genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
-    outputCount <- max 1 <$>
-        choose (1, UTxOIndex.size utxoAvailable `div` 8)
-    outputsToCover <- NE.fromList <$>
+    outputCount <- elements
+        [0, 1, max 2 $ UTxOIndex.size utxoAvailable `div` 8]
+    outputsToCover <-
         replicateM outputCount genTxOut
     extraCoinSource <-
         oneof [pure $ Coin 0, genCoinPositive]
@@ -640,7 +652,7 @@ genSelectionParams genUTxOIndex' = do
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams =
     shrinkMapBy tupleToParams paramsToTuple $ liftShrink6
-        (shrinkListNonEmpty shrinkTxOut)
+        (shrinkList shrinkTxOut)
         (shrinkUTxOIndex)
         (shrinkCoin)
         (shrinkCoin)
@@ -649,9 +661,6 @@ shrinkSelectionParams =
   where
     paramsToTuple (SelectionParams a b c d e f) = (a, b, c, d, e, f)
     tupleToParams (a, b, c, d, e, f) = (SelectionParams a b c d e f)
-
-    shrinkListNonEmpty :: (a -> [a]) -> NonEmpty a -> [NonEmpty a]
-    shrinkListNonEmpty f = Maybe.mapMaybe NE.nonEmpty . shrinkList f . NE.toList
 
 prop_performSelection_small
     :: MockSelectionConstraints
@@ -673,6 +682,12 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
         "No assets to cover" $
     cover 2 (outputsHaveAtLeastOneAsset && not utxoHasAtLeastOneAsset)
         "Assets to cover, but no assets in UTxO" $
+    cover 10 (null (view #outputsToCover params))
+        "Outputs to cover = 0" $
+    cover 10 (length (view #outputsToCover params) == 1)
+        "Outputs to cover = 1" $
+    cover 10 (length (view #outputsToCover params) > 1)
+        "Outputs to cover > 1" $
 
     -- Inspect the extra coin source and sink:
     let nonZeroExtraCoinSource =
@@ -887,41 +902,28 @@ prop_performSelection mockConstraints (Blind params) coverage =
             , "required UTXO balance:"
             , pretty (Flat utxoBalanceRequired)
             , "change balance:"
-            , pretty (Flat balanceChange)
+            , pretty (Flat $ F.fold $ view #changeGenerated result)
             , "actual delta:"
-            , pretty (Flat <$> delta)
-            , "minimum expected coin surplus:"
-            , pretty minExpectedCoinSurplus
-            , "maximum expected coin surplus:"
-            , pretty maxExpectedCoinSurplus
-            , "absolute minimum coin quantity:"
-            , pretty absoluteMinCoinValue
+            , pretty (Flat <$> selectionDeltaAllAssets result)
+            , "minimum cost:"
+            , pretty (selectionMinimumCost constraints result)
             , "number of outputs:"
-            , pretty (length outputsCovered)
+            , pretty (length $ view #outputsCovered result)
             , "number of change outputs:"
-            , pretty (length changeGenerated)
+            , pretty (length $ view #changeGenerated result)
             ]
         assertOnSuccess
             "isUTxOBalanceSufficient params"
             (isUTxOBalanceSufficient params)
         assertOnSuccess
-            "selectionHasValidSurplus result"
-            (selectionHasValidSurplus result)
-        assertOnSuccess
-            "view #tokens surplus == TokenMap.empty"
-            (view #tokens surplus == TokenMap.empty)
-        assertOnSuccess
-            "TokenBundle.getCoin surplus >= minExpectedCoinSurplus"
-            (TokenBundle.getCoin surplus >= minExpectedCoinSurplus)
-        assertOnSuccess
-            "TokenBundle.getCoin surplus <= maxExpectedCoinSurplus"
-            (TokenBundle.getCoin surplus <= maxExpectedCoinSurplus)
+            "selectionHasValidSurplus constraints result"
+            (selectionHasValidSurplus constraints result)
         assertOnSuccess
             "utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable"
             (utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable)
         assertOnSuccess
-            "outputsCovered == NE.toList outputsToCover"
-            (outputsCovered == NE.toList outputsToCover)
+            "view #outputsCovered result == view #outputsToCover params"
+            (view #outputsCovered result == view #outputsToCover params)
         assertOnSuccess
             "view #assetsToMint result == view #assetsToMint params"
             (view #assetsToMint result == view #assetsToMint params)
@@ -937,51 +939,17 @@ prop_performSelection mockConstraints (Blind params) coverage =
         case selectionLimit of
             MaximumInputLimit limit ->
                 assertOnSuccess
-                    "NE.length inputsSelected <= limit"
-                    (NE.length inputsSelected <= limit)
+                    "NE.length (view #inputsSelected result) <= limit"
+                    (NE.length (view #inputsSelected result) <= limit)
             NoLimit ->
                 assert True
       where
         assertOnSuccess = assertWith . (<>) "onSuccess: "
-        absoluteMinCoinValue =
-            view #computeMinimumAdaQuantity constraints TokenMap.empty
-        delta :: SelectionDelta TokenBundle
-        delta = selectionDeltaAllAssets result
-        surplus :: TokenBundle
-        surplus = case delta of
-            SelectionSurplus s -> s
-            SelectionDeficit d -> error $ unwords
-                ["Unexpected deficit:", show d]
-        minExpectedCoinSurplus :: Coin
-        minExpectedCoinSurplus = view #computeMinimumCost constraints skeleton
-        maxExpectedCoinSurplus :: Coin
-        maxExpectedCoinSurplus = minExpectedCoinSurplus `addCoin` toAdd
-          where
-            toAdd = absoluteMinCoinValue `multiplyCoin`
-                (length outputsCovered - length changeGenerated)
-        multiplyCoin :: Coin -> Int -> Coin
-        multiplyCoin (Coin c) i = Coin $ c * fromIntegral i
-        SelectionResult
-            { inputsSelected
-            , changeGenerated
-            , outputsCovered
-            } = result
-        skeleton = SelectionSkeleton
-            { skeletonInputCount =
-                length inputsSelected
-            , skeletonOutputs =
-                NE.toList outputsToCover
-            , skeletonChange =
-                fmap (TokenMap.getAssets . view #tokens) changeGenerated
-            , skeletonAssetsToMint =
-                assetsToMint
-            , skeletonAssetsToBurn =
-                assetsToBurn
-            }
         utxoSelected :: UTxO
-        utxoSelected = UTxO $ Map.fromList $ F.toList inputsSelected
-        balanceChange =
-            F.fold changeGenerated
+        utxoSelected = UTxO
+            $ Map.fromList
+            $ F.toList
+            $ view #inputsSelected result
 
     onFailure = \case
         BalanceInsufficient e ->
@@ -1094,6 +1062,156 @@ prop_performSelection mockConstraints (Blind params) coverage =
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
     utxoBalanceRequired = computeUTxOBalanceRequired params
     utxoBalanceSufficiencyInfo = computeUTxOBalanceSufficiencyInfo params
+
+--------------------------------------------------------------------------------
+-- Performing a selection with an empty output list
+--------------------------------------------------------------------------------
+
+-- | Verifies that 'performSelectionEmpty' performs a valid transformation
+--   on 'performSelectionNonEmpty'.
+--
+-- Both the parameters and the result are verified.
+--
+prop_performSelectionEmpty
+    :: MockSelectionConstraints -> Small SelectionParams -> Property
+prop_performSelectionEmpty mockConstraints (Small params) =
+    checkCoverage $
+    cover 10 (null (view #outputsToCover params))
+        "number of outputs = 0" $
+    cover 10 (not $ null (view #outputsToCover params))
+        "number of outputs > 0" $
+    cover 20 (isUTxOBalanceSufficient params)
+        "UTxO balance is sufficient" $
+    conjoin
+        [ prop_conservation
+        , prop_transformation
+        ]
+  where
+    -- Checks that functions on the parameters and the result are conserved.
+    prop_conservation = conjoin
+        [ prop_computeUTxOBalanceSufficiencyInfo
+        , prop_computeDeficitInOut
+        , prop_selectionDeltaAllAssets
+        , prop_selectionHasValidSurplus
+        ]
+      where
+        prop_computeUTxOBalanceSufficiencyInfo =
+            counterexample "computeUTxOBalanceSufficiencyInfo" $
+            computeUTxOBalanceSufficiencyInfo params ===
+            computeUTxOBalanceSufficiencyInfo paramsTransformed
+
+        prop_computeDeficitInOut =
+            counterexample "computeDeficitInOut" $
+            computeDeficitInOut params ===
+            computeDeficitInOut paramsTransformed
+
+        prop_selectionDeltaAllAssets =
+            counterexample "selectionDeltaAllAssets" $
+            selectionDeltaAllAssets result ===
+            selectionDeltaAllAssets resultTransformed
+
+        prop_selectionHasValidSurplus =
+            counterexample "selectionHasValidSurplus" $
+            selectionHasValidSurplus constraints result .&&.
+            selectionHasValidSurplus constraints resultTransformed
+
+    -- Checks that the transformation is correct.
+    prop_transformation =
+        counterexample "transformation correct" $
+        conjoin $ if null (view #outputsToCover params)
+        then
+            [ length (view #outputsToCover paramsTransformed) === 1
+            , length (view #outputsCovered resultTransformed) === 0
+            ]
+        else
+            -- If the initial list of outputs is non-empty, then no
+            -- transformation should take place:
+            [ params === (paramsTransformed & over #outputsToCover F.toList)
+            , resultTransformed === (result & over #outputsCovered F.toList)
+            ]
+
+    constraints :: SelectionConstraints
+    constraints = unMockSelectionConstraints mockConstraints
+
+    paramsTransformed :: SelectionParamsOf (NonEmpty TxOut)
+    paramsTransformed = view #paramsTransformed report
+
+    result :: SelectionResultOf (NonEmpty TxOut) TokenBundle
+    result = expectRight $ view #result report
+
+    resultTransformed :: SelectionResultOf [TxOut] TokenBundle
+    resultTransformed = expectRight $ view #resultTransformed report
+
+    -- Provides a report of how 'performSelectionEmpty' has transformed
+    -- both the parameters and result of 'mockPerformSelectionNonEmpty'.
+    --
+    report = performSelectionEmpty f constraints params
+      where
+        f constraints' params' = withTransformationReport params'
+            $ runIdentity
+            $ mockPerformSelectionNonEmpty constraints' params'
+
+-- | Provides a report of how function 'f' transforms function 'g', where
+--   function 'f' modifies both the parameters and the result of 'g'.
+--
+data TransformationReport paramsTransformed result resultTransformed =
+    TransformationReport
+        { paramsTransformed :: paramsTransformed
+            -- ^ The transformed parameters.
+        , result :: result
+            -- ^ The untransformed result.
+        , resultTransformed :: resultTransformed
+            -- ^ The transformed result.
+        }
+    deriving (Functor, Generic)
+
+-- | Constructs a function transformation report.
+--
+-- Both results are initially untransformed. The 'Functor' instance allows the
+-- final result to be transformed by the function transformer.
+--
+withTransformationReport
+    :: params -> result -> TransformationReport params result result
+withTransformationReport p r = TransformationReport p r r
+
+-- | A mock implementation of 'performSelectionNonEmpty' that always succeeds.
+--
+-- This function always returns a balanced selection that covers the minimum
+-- cost exactly, by creating:
+--
+--    - a single input to cover the cost and input deficit.
+--    - a single change output to cover the output deficit.
+--
+mockPerformSelectionNonEmpty
+    :: PerformSelection Identity (NonEmpty TxOut) TokenBundle
+mockPerformSelectionNonEmpty constraints params = Identity $ Right result
+  where
+    result :: SelectionResultOf (NonEmpty TxOut) TokenBundle
+    result = resultWithoutDelta & set #inputsSelected
+        (makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost)
+      where
+        minimumCost :: Coin
+        minimumCost = selectionMinimumCost constraints resultWithoutDelta
+
+    resultWithoutDelta :: SelectionResultOf (NonEmpty TxOut) TokenBundle
+    resultWithoutDelta = SelectionResult
+        { inputsSelected = makeInputsOfValue deficitIn
+        , changeGenerated = makeChangeOfValue deficitOut
+        , assetsToBurn = view #assetsToBurn params
+        , assetsToMint = view #assetsToMint params
+        , extraCoinSink = view #extraCoinSink params
+        , extraCoinSource = view #extraCoinSource params
+        , outputsCovered = view #outputsToCover params
+        }
+
+    makeInputsOfValue :: TokenBundle -> NonEmpty (TxIn, TxOut)
+    makeInputsOfValue v = (TxIn (Hash "") 0, TxOut (Address "") v) :| []
+
+    makeChangeOfValue :: TokenBundle -> [TokenBundle]
+    makeChangeOfValue v = [v]
+
+    deficitIn, deficitOut :: TokenBundle
+    (deficitIn, deficitOut) = computeDeficitInOut params
 
 --------------------------------------------------------------------------------
 -- Selection states
@@ -1578,7 +1696,7 @@ mkBoundaryTestExpectation (BoundaryTestData params expectedResult) = do
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionParams
 encodeBoundaryTestCriteria c = SelectionParams
-    { outputsToCover = NE.fromList $
+    { outputsToCover =
         zipWith TxOut
             (dummyAddresses)
             (uncurry TokenBundle.fromFlatList <$> boundaryTestOutputs c)
@@ -2071,8 +2189,10 @@ computeMinimumCostLinear s
     = Coin
     $ fromIntegral
     $ skeletonInputCount s
-    + F.length (skeletonOutputs s)
-    + F.length (skeletonChange s)
+    + F.length (TokenMap.size . view (#tokens . #tokens) <$> skeletonOutputs s)
+    + F.sum (Set.size <$> skeletonChange s)
+    + TokenMap.size (skeletonAssetsToMint s)
+    + TokenMap.size (skeletonAssetsToBurn s)
 
 --------------------------------------------------------------------------------
 -- Computing selection limits
@@ -2113,20 +2233,16 @@ data MockAssessTokenBundleSize
     = MockAssessTokenBundleSizeUnlimited
       -- ^ Indicates that there is no limit on a token bundle's size.
     | MockAssessTokenBundleSizeUpperLimit Int
-      -- ^ Indicates an inclusive upper bound on the number of assets in a
-      -- token bundle.
+      -- ^ Indicates an inclusive positive upper bound on the number of assets
+      -- in a token bundle.
     deriving (Eq, Show)
 
 genMockAssessTokenBundleSize :: Gen MockAssessTokenBundleSize
-genMockAssessTokenBundleSize =
-    -- TODO:
-    --
-    -- We currently only test with constraints where the token bundle size is
-    -- unlimited.
-    --
-    -- We should add coverage of the case where token bundle sizes are limited.
-    --
-    pure MockAssessTokenBundleSizeUnlimited
+genMockAssessTokenBundleSize = oneof
+    [ pure MockAssessTokenBundleSizeUnlimited
+    , MockAssessTokenBundleSizeUpperLimit . getPositive
+        <$> arbitrary @(Positive Int)
+    ]
 
 shrinkMockAssessTokenBundleSize
     :: MockAssessTokenBundleSize -> [MockAssessTokenBundleSize]
@@ -2134,7 +2250,8 @@ shrinkMockAssessTokenBundleSize = \case
     MockAssessTokenBundleSizeUnlimited ->
         []
     MockAssessTokenBundleSizeUpperLimit n ->
-        MockAssessTokenBundleSizeUpperLimit <$> filter (> 0) (shrink n)
+        MockAssessTokenBundleSizeUpperLimit . getPositive
+            <$> shrink (Positive n)
 
 unMockAssessTokenBundleSize
     :: MockAssessTokenBundleSize -> (TokenBundle -> TokenBundleSizeAssessment)
@@ -2873,28 +2990,28 @@ unit_assignCoinsToChangeMaps =
         [ ( Coin 1
           , computeMinimumAdaQuantityLinear
           , m 42 [] :| []
-          , Just [b 1 []]
+          , Right [b 1 []]
           )
 
         -- Simple case, with a single MA output
         , ( Coin 2
           , computeMinimumAdaQuantityLinear
           , m 42 [(assetA, 1337)] :| []
-          , Just [b 2 [(assetA, 1337)]]
+          , Right [b 2 [(assetA, 1337)]]
           )
 
         -- Single Ada-only output, but not enough left to create a change
         , ( Coin 1
           , (`addCoin` Coin 1) . computeMinimumAdaQuantityLinear
           , m 42 [] :| []
-          , Just []
+          , Right []
           )
 
         -- Single MA output, but not enough left to create a change
         , ( Coin 1
           , computeMinimumAdaQuantityLinear
           , m 42 [(assetA, 1337)] :| []
-          , Nothing
+          , Left (Coin 1)
           )
 
         -- Multiple Ada-only change, not enough Ada left to create them all
@@ -2905,7 +3022,7 @@ unit_assignCoinsToChangeMaps =
             , m   14 []
             , m   42 []
             ]
-          , Just [b 1 [], b 1 []]
+          , Right [b 1 [], b 1 []]
           )
 
         -- Hybrid Ada & MA, not enough to cover both => Ada change is dropped
@@ -2916,7 +3033,7 @@ unit_assignCoinsToChangeMaps =
             , m 14 []
             , m  2 [(assetA, 1337)]
             ]
-          , Just [b 2 [(assetA, 1337)]]
+          , Right [b 2 [(assetA, 1337)]]
           )
         ]
 
@@ -3806,6 +3923,11 @@ consecutivePairs :: [a] -> [(a, a)]
 consecutivePairs xs = case tailMay xs of
     Nothing -> []
     Just ys -> xs `zip` ys
+
+expectRight :: Either a b -> b
+expectRight = \case
+    Left _a -> error "Expected right"
+    Right b -> b
 
 matchSingletonList :: [a] -> Maybe a
 matchSingletonList = \case
