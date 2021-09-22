@@ -90,7 +90,7 @@ performSelection
     => SelectionConstraints
     -> SelectionParams
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection constraints params =
+performSelection constraints params = do
     -- TODO:
     --
     -- https://input-output.atlassian.net/browse/ADP-1037
@@ -99,42 +99,55 @@ performSelection constraints params =
     -- https://input-output.atlassian.net/browse/ADP-1070
     -- Adjust coin selection and fee estimation to handle pre-existing inputs
     --
-    case prepareOutputs constraints outputsToCover of
+    case prepareOutputs constraints (view #outputsToCover params) of
         Left e ->
             pure $ Left $ SelectionOutputsError e
         Right preparedOutputsToCover ->
-            first SelectionBalanceError <$> Balance.performSelection
-                Balance.SelectionConstraints
-                    { computeMinimumAdaQuantity
-                    , computeMinimumCost
-                    , computeSelectionLimit
-                    , assessTokenBundleSize =
-                        view #assessTokenBundleSize assessTokenBundleSize
-                    }
-                Balance.SelectionParams
-                    { assetsToBurn
-                    , assetsToMint
-                    , extraCoinSource = fromMaybe (Coin 0) rewardWithdrawal
-                      -- TODO: Use this for stake key deposits and anything else
-                      -- that consumes ada:
-                    , extraCoinSink = Coin 0
-                    , outputsToCover = preparedOutputsToCover
-                    , utxoAvailable
-                    }
+            performSelectionInner constraints params
+                { outputsToCover = preparedOutputsToCover
+                }
+
+performSelectionInner
+    :: (HasCallStack, MonadRandom m)
+    => SelectionConstraints
+    -> SelectionParams
+    -> m (Either SelectionError (SelectionResult TokenBundle))
+performSelectionInner constraints params =
+    first SelectionBalanceError <$> uncurry Balance.performSelection
+        (toBalanceConstraintsParams (constraints, params))
+
+toBalanceConstraintsParams
+    :: (        SelectionConstraints,         SelectionParams)
+    -> (Balance.SelectionConstraints, Balance.SelectionParams)
+toBalanceConstraintsParams (constraints, params) =
+    (balanceConstraints, balanceParams)
   where
-    SelectionConstraints
-        { assessTokenBundleSize
-        , computeMinimumAdaQuantity
-        , computeMinimumCost
-        , computeSelectionLimit
-        } = constraints
-    SelectionParams
-        { assetsToBurn
-        , assetsToMint
-        , outputsToCover
-        , rewardWithdrawal
-        , utxoAvailable
-        } = params
+    balanceConstraints = Balance.SelectionConstraints
+        { computeMinimumAdaQuantity =
+            view #computeMinimumAdaQuantity constraints
+        , computeMinimumCost =
+            view #computeMinimumCost constraints
+        , computeSelectionLimit =
+            view #computeSelectionLimit constraints
+        , assessTokenBundleSize =
+            view (#assessTokenBundleSize . #assessTokenBundleSize) constraints
+        }
+    balanceParams = Balance.SelectionParams
+        { assetsToBurn =
+            view #assetsToBurn params
+        , assetsToMint =
+            view #assetsToMint params
+        , extraCoinSource =
+            fromMaybe (Coin 0) (view #rewardWithdrawal params)
+        , extraCoinSink =
+          -- TODO: Use this for stake key deposits and anything else that
+          -- consumes ada:
+            Coin 0
+        , outputsToCover =
+            view #outputsToCover params
+        , utxoAvailable =
+            view #utxoAvailable params
+        }
 
 -- | Specifies all constraints required for coin selection.
 --
@@ -169,6 +182,7 @@ data SelectionConstraints = SelectionConstraints
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
         -- that can be selected as collateral.
     }
+    deriving Generic
 
 -- | Specifies all parameters that are specific to a given selection.
 --
