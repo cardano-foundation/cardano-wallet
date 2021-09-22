@@ -169,6 +169,10 @@ data SelectionConstraints = SelectionConstraints
         :: [TxOut] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
+    , depositAmount
+        :: Coin
+        -- ^ Amount that should be taken from/returned back to the wallet for
+        -- each stake key registration/de-registration in the transaction.
     , maximumCollateralInputCount
         :: Word16
         -- ^ Specifies an inclusive upper bound on the number of unique inputs

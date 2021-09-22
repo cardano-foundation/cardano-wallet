@@ -1533,6 +1533,8 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
                 calcMinimumCost tl pp txCtx
             , computeSelectionLimit =
                 view #computeSelectionLimit tl pp txCtx
+            , depositAmount =
+                view #stakeKeyDeposit pp
             , maximumCollateralInputCount =
                 view #maximumCollateralInputCount pp
             }
