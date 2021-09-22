@@ -1544,14 +1544,15 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
             , assetsToMint = TokenMap.empty
             , outputsToCover = outputs
             , rewardWithdrawal =
-                addCoin (withdrawalToCoin $ view #txWithdrawal txCtx)
-                $ case view #txDelegationAction txCtx of
-                    Just Quit -> stakeKeyDeposit pp
-                    _ -> Coin 0
-            -- TODO: [ADP-919]
-            , certificateDepositsReturned = 0
-            -- TODO: [ADP-919]
-            , certificateDepositsTaken = 0
+                withdrawalToCoin $ view #txWithdrawal txCtx
+            , certificateDepositsReturned =
+                case view #txDelegationAction txCtx of
+                    Just Quit -> 1
+                    _ -> 0
+            , certificateDepositsTaken =
+                case view #txDelegationAction txCtx of
+                    Just (RegisterKeyAndJoin _) -> 1
+                    _ -> 0
             , utxoAvailable
             }
     case mSel of
