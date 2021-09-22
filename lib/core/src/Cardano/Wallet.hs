@@ -1548,6 +1548,10 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
                 $ case view #txDelegationAction txCtx of
                     Just Quit -> stakeKeyDeposit pp
                     _ -> Coin 0
+            -- TODO: [ADP-919]
+            , certificateDepositsReturned = 0
+            -- TODO: [ADP-919]
+            , certificateDepositsTaken = 0
             , utxoAvailable
             }
     case mSel of
