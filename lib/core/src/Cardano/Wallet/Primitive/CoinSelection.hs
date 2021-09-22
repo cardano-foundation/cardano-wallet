@@ -61,8 +61,6 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
-import Data.Maybe
-    ( fromMaybe )
 import Data.Word
     ( Word16 )
 import GHC.Generics
@@ -130,7 +128,7 @@ toBalanceConstraintsParams (constraints, params) =
         , assetsToMint =
             view #assetsToMint params
         , extraCoinSource =
-            fromMaybe (Coin 0) (view #rewardWithdrawal params)
+            view #rewardWithdrawal params
         , extraCoinSink =
           -- TODO: Use this for stake key deposits and anything else that
           -- consumes ada:
@@ -193,7 +191,7 @@ data SelectionParams = SelectionParams
         :: ![TxOut]
         -- ^ Specifies a set of outputs that must be paid for.
     , rewardWithdrawal
-        :: !(Maybe Coin)
+        :: !Coin
         -- ^ Specifies the value of a withdrawal from a reward account.
     , utxoAvailable
         :: !UTxOIndex

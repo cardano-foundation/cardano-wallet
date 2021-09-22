@@ -1543,8 +1543,8 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
               assetsToBurn = TokenMap.empty
             , assetsToMint = TokenMap.empty
             , outputsToCover = outputs
-            , rewardWithdrawal = Just
-                $ addCoin (withdrawalToCoin $ view #txWithdrawal txCtx)
+            , rewardWithdrawal =
+                addCoin (withdrawalToCoin $ view #txWithdrawal txCtx)
                 $ case view #txDelegationAction txCtx of
                     Just Quit -> stakeKeyDeposit pp
                     _ -> Coin 0
