@@ -28,7 +28,9 @@
 module Cardano.Wallet.Primitive.CoinSelection.Balance
     (
     -- * Performing a selection
-      performSelection
+      PerformSelection
+    , performSelection
+    , performSelectionEmpty
     , prepareOutputsWith
     , emptySkeleton
     , SelectionConstraints (..)

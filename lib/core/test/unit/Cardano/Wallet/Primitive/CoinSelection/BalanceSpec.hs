@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , MakeChangeCriteria (..)
+    , PerformSelection
     , RunSelectionParams (..)
     , SelectionConstraints (..)
     , SelectionError (..)
@@ -37,6 +38,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionParams
     , SelectionParamsOf (..)
     , SelectionResult
+    , SelectionResultOf (..)
     , SelectionSkeleton (..)
     , SelectionState (..)
     , UnableToConstructChangeError (..)
@@ -47,6 +49,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , balanceMissing
     , coinSelectionLens
     , collateNonUserSpecifiedAssetQuantities
+    , computeDeficitInOut
     , computeUTxOBalanceAvailable
     , computeUTxOBalanceRequired
     , computeUTxOBalanceSufficiencyInfo
@@ -59,6 +62,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
     , performSelection
+    , performSelectionEmpty
     , prepareOutputsWith
     , reduceTokenQuantities
     , removeBurnValueFromChangeMaps
@@ -269,6 +273,11 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
             property prop_performSelection_large
         it "prop_performSelection_huge" $
             property prop_performSelection_huge
+
+    parallel $ describe "Performing a selection with zero outputs" $ do
+
+        it "prop_performSelectionEmpty" $
+            property prop_performSelectionEmpty
 
     parallel $ describe "Selection states" $ do
 
@@ -1052,6 +1061,163 @@ prop_performSelection mockConstraints (Blind params) coverage =
     utxoBalanceAvailable = computeUTxOBalanceAvailable params
     utxoBalanceRequired = computeUTxOBalanceRequired params
     utxoBalanceSufficiencyInfo = computeUTxOBalanceSufficiencyInfo params
+
+--------------------------------------------------------------------------------
+-- Performing a selection with an empty output list
+--------------------------------------------------------------------------------
+
+-- | Verifies that 'performSelectionEmpty' performs a valid transformation
+--   on 'performSelectionNonEmpty'.
+--
+-- Both the parameters and the result are verified.
+--
+prop_performSelectionEmpty
+    :: MockSelectionConstraints -> Small SelectionParams -> Property
+prop_performSelectionEmpty mockConstraints (Small params) =
+    checkCoverage $
+    cover 10 (null (view #outputsToCover params))
+        "number of outputs = 0" $
+    cover 10 (not $ null (view #outputsToCover params))
+        "number of outputs > 0" $
+    cover 20 (isUTxOBalanceSufficient params)
+        "UTxO balance is sufficient" $
+    conjoin
+        [ prop_conservation
+        , prop_transformation
+        ]
+  where
+    -- Checks that functions on the parameters and the result are conserved.
+    prop_conservation = conjoin
+        [ prop_computeUTxOBalanceSufficiencyInfo
+        , prop_computeDeficitInOut
+        , prop_selectionDeltaAllAssets
+        , prop_selectionHasValidSurplus
+        ]
+      where
+        prop_computeUTxOBalanceSufficiencyInfo =
+            counterexample "computeUTxOBalanceSufficiencyInfo" $
+            computeUTxOBalanceSufficiencyInfo params ===
+            computeUTxOBalanceSufficiencyInfo paramsTransformed
+
+        prop_computeDeficitInOut =
+            counterexample "computeDeficitInOut" $
+            computeDeficitInOut params ===
+            computeDeficitInOut paramsTransformed
+
+        prop_selectionDeltaAllAssets =
+            counterexample "selectionDeltaAllAssets" $
+            selectionDeltaAllAssets result ===
+            selectionDeltaAllAssets resultTransformed
+
+        prop_selectionHasValidSurplus =
+            counterexample "selectionHasValidSurplus" $
+            selectionHasValidSurplus constraints result .&&.
+            selectionHasValidSurplus constraints resultTransformed
+
+    -- Checks that the transformation is correct.
+    prop_transformation =
+        counterexample "transformation correct" $
+        conjoin $ if null (view #outputsToCover params)
+        then
+            [ length (view #outputsToCover paramsTransformed) === 1
+            , length (view #outputsCovered resultTransformed) === 0
+            ]
+        else
+            -- If the initial list of outputs is non-empty, then no
+            -- transformation should take place:
+            [ params === (paramsTransformed & over #outputsToCover F.toList)
+            , resultTransformed === (result & over #outputsCovered F.toList)
+            ]
+
+    constraints :: SelectionConstraints
+    constraints = unMockSelectionConstraints mockConstraints
+
+    paramsTransformed :: SelectionParamsOf (NonEmpty TxOut)
+    paramsTransformed = view #paramsTransformed report
+
+    result :: SelectionResultOf (NonEmpty TxOut) TokenBundle
+    result = expectRight $ view #result report
+
+    resultTransformed :: SelectionResultOf [TxOut] TokenBundle
+    resultTransformed = expectRight $ view #resultTransformed report
+
+    -- Provides a report of how 'performSelectionEmpty' has transformed
+    -- both the parameters and result of 'mockPerformSelectionNonEmpty'.
+    --
+    report = performSelectionEmpty f constraints params
+      where
+        f constraints' params' = withTransformationReport params'
+            $ runIdentity
+            $ mockPerformSelectionNonEmpty constraints' params'
+
+-- | Provides a report of how function 'f' transforms function 'g', where
+--   function 'f' modifies both the parameters and the result of 'g'.
+--
+data TransformationReport paramsTransformed result resultTransformed =
+    TransformationReport
+        { paramsTransformed :: paramsTransformed
+            -- ^ The transformed parameters.
+        , result :: result
+            -- ^ The untransformed result.
+        , resultTransformed :: resultTransformed
+            -- ^ The transformed result.
+        }
+    deriving Generic
+
+-- | A functor instance on 'TransformationReport' that allows the final result
+--   value to be transformed by a function transformer.
+--
+instance Functor (TransformationReport paramsTransformed result) where
+    fmap f (TransformationReport paramsTransformed result resultUntransformed)
+        = TransformationReport paramsTransformed result (f resultUntransformed)
+
+-- | Constructs a function transformation report.
+--
+-- Both results are initially untransformed. The 'Functor' instance allows the
+-- final result to be transformed by the function transformer.
+--
+withTransformationReport
+    :: params -> result -> TransformationReport params result result
+withTransformationReport p r = TransformationReport p r r
+
+-- | A mock implementation of 'performSelectionNonEmpty' that always succeeds.
+--
+-- This function always returns a balanced selection that covers the minimum
+-- cost exactly, by creating:
+--
+--    - a single input to cover the cost and input deficit.
+--    - a single change output to cover the output deficit.
+--
+mockPerformSelectionNonEmpty
+    :: PerformSelection Identity (NonEmpty TxOut) TokenBundle
+mockPerformSelectionNonEmpty constraints params = Identity $ Right result
+  where
+    result :: SelectionResultOf (NonEmpty TxOut) TokenBundle
+    result = resultWithoutDelta & set #inputsSelected
+        (makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost)
+      where
+        minimumCost :: Coin
+        minimumCost = selectionMinimumCost constraints resultWithoutDelta
+
+    resultWithoutDelta :: SelectionResultOf (NonEmpty TxOut) TokenBundle
+    resultWithoutDelta = SelectionResult
+        { inputsSelected = makeInputsOfValue deficitIn
+        , changeGenerated = makeChangeOfValue deficitOut
+        , assetsToBurn = view #assetsToBurn params
+        , assetsToMint = view #assetsToMint params
+        , extraCoinSink = view #extraCoinSink params
+        , extraCoinSource = view #extraCoinSource params
+        , outputsCovered = view #outputsToCover params
+        }
+
+    makeInputsOfValue :: TokenBundle -> NonEmpty (TxIn, TxOut)
+    makeInputsOfValue v = (TxIn (Hash "") 0, TxOut (Address "") v) :| []
+
+    makeChangeOfValue :: TokenBundle -> [TokenBundle]
+    makeChangeOfValue v = [v]
+
+    deficitIn, deficitOut :: TokenBundle
+    (deficitIn, deficitOut) = computeDeficitInOut params
 
 --------------------------------------------------------------------------------
 -- Selection states
@@ -3763,6 +3929,11 @@ consecutivePairs :: [a] -> [(a, a)]
 consecutivePairs xs = case tailMay xs of
     Nothing -> []
     Just ys -> xs `zip` ys
+
+expectRight :: Either a b -> b
+expectRight = \case
+    Left _a -> error "Expected right"
+    Right b -> b
 
 matchSingletonList :: [a] -> Maybe a
 matchSingletonList = \case
