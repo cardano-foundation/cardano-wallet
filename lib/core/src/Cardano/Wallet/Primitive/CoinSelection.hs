@@ -55,8 +55,8 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Control.Monad.Random.Class
     ( MonadRandom )
-import Data.Bifunctor
-    ( first )
+import Control.Monad.Trans.Except
+    ( ExceptT (..), except, withExceptT )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -89,7 +89,7 @@ performSelection
     :: (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
-    -> m (Either SelectionError (SelectionResult TokenBundle))
+    -> ExceptT SelectionError m (SelectionResult TokenBundle)
 performSelection constraints params = do
     -- TODO:
     --
@@ -99,22 +99,14 @@ performSelection constraints params = do
     -- https://input-output.atlassian.net/browse/ADP-1070
     -- Adjust coin selection and fee estimation to handle pre-existing inputs
     --
-    case prepareOutputs constraints (view #outputsToCover params) of
-        Left e ->
-            pure $ Left $ SelectionOutputsError e
-        Right preparedOutputsToCover ->
-            performSelectionInner constraints params
-                { outputsToCover = preparedOutputsToCover
-                }
-
-performSelectionInner
-    :: (HasCallStack, MonadRandom m)
-    => SelectionConstraints
-    -> SelectionParams
-    -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelectionInner constraints params =
-    first SelectionBalanceError <$> uncurry Balance.performSelection
-        (toBalanceConstraintsParams (constraints, params))
+    preparedOutputs <- withExceptT SelectionOutputsError $ except
+        $ prepareOutputs constraints (view #outputsToCover params)
+    withExceptT SelectionBalanceError $ ExceptT
+        $ uncurry Balance.performSelection
+        $ toBalanceConstraintsParams
+            ( constraints
+            , params {outputsToCover = preparedOutputs}
+            )
 
 toBalanceConstraintsParams
     :: (        SelectionConstraints,         SelectionParams)

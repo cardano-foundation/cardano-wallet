@@ -1522,7 +1522,7 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
     guardPendingWithdrawal
     pp <- liftIO $ currentProtocolParameters nl
     liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outputs
-    mSel <- performSelection
+    mSel <- runExceptT $ performSelection
         SelectionConstraints
             { assessTokenBundleSize =
                 tokenBundleSizeAssessor tl $
