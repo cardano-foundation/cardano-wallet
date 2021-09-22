@@ -54,9 +54,11 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , selectionMinimumCost
     , selectionSkeleton
 
-    -- * UTxO balance sufficiency
+    -- * Querying parameters
     , UTxOBalanceSufficiency (..)
     , UTxOBalanceSufficiencyInfo (..)
+    , computeBalanceInOut
+    , computeDeficitInOut
     , computeUTxOBalanceAvailable
     , computeUTxOBalanceRequired
     , computeUTxOBalanceSufficiency
@@ -300,8 +302,14 @@ computeUTxOBalanceRequired
     :: Foldable f
     => SelectionParamsOf (f TxOut)
     -> TokenBundle
-computeUTxOBalanceRequired params =
-    balanceOut `TokenBundle.difference` balanceIn
+computeUTxOBalanceRequired = fst . computeDeficitInOut
+
+computeBalanceInOut
+    :: Foldable f
+    => SelectionParamsOf (f TxOut)
+    -> (TokenBundle, TokenBundle)
+computeBalanceInOut params =
+    (balanceIn, balanceOut)
   where
     balanceIn =
         TokenBundle.fromTokenMap (view #assetsToMint params)
@@ -313,6 +321,20 @@ computeUTxOBalanceRequired params =
         TokenBundle.fromCoin (view #extraCoinSink params)
         `TokenBundle.add`
         F.foldMap (view #tokens) (view #outputsToCover params)
+
+computeDeficitInOut
+    :: Foldable f
+    => SelectionParamsOf (f TxOut)
+    -> (TokenBundle, TokenBundle)
+computeDeficitInOut params =
+    (deficitIn, deficitOut)
+  where
+    deficitIn =
+        TokenBundle.difference balanceOut balanceIn
+    deficitOut =
+        TokenBundle.difference balanceIn balanceOut
+    (balanceIn, balanceOut) =
+        computeBalanceInOut params
 
 -- | Computes the UTxO balance sufficiency.
 --
