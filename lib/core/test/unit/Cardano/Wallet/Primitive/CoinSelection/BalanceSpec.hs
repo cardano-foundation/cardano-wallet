@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -1162,14 +1163,7 @@ data TransformationReport paramsTransformed result resultTransformed =
         , resultTransformed :: resultTransformed
             -- ^ The transformed result.
         }
-    deriving Generic
-
--- | A functor instance on 'TransformationReport' that allows the final result
---   value to be transformed by a function transformer.
---
-instance Functor (TransformationReport paramsTransformed result) where
-    fmap f (TransformationReport paramsTransformed result resultUntransformed)
-        = TransformationReport paramsTransformed result (f resultUntransformed)
+    deriving (Functor, Generic)
 
 -- | Constructs a function transformation report.
 --
