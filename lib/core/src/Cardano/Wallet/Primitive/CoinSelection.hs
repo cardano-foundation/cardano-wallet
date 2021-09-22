@@ -90,7 +90,7 @@ performSelection
     => SelectionConstraints
     -> SelectionParams
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection selectionConstraints selectionParams =
+performSelection constraints params =
     -- TODO:
     --
     -- https://input-output.atlassian.net/browse/ADP-1037
@@ -99,7 +99,7 @@ performSelection selectionConstraints selectionParams =
     -- https://input-output.atlassian.net/browse/ADP-1070
     -- Adjust coin selection and fee estimation to handle pre-existing inputs
     --
-    case prepareOutputs selectionConstraints outputsToCover of
+    case prepareOutputs constraints outputsToCover of
         Left e ->
             pure $ Left $ SelectionOutputsError e
         Right preparedOutputsToCover ->
@@ -127,14 +127,14 @@ performSelection selectionConstraints selectionParams =
         , computeMinimumAdaQuantity
         , computeMinimumCost
         , computeSelectionLimit
-        } = selectionConstraints
+        } = constraints
     SelectionParams
         { assetsToBurn
         , assetsToMint
         , outputsToCover
         , rewardWithdrawal
         , utxoAvailable
-        } = selectionParams
+        } = params
 
 -- | Specifies all constraints required for coin selection.
 --
