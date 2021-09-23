@@ -2062,7 +2062,8 @@ constructTransaction ctx genChange (ApiT wid) body = do
                 sel <- liftHandler $
                     W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
                 sel' <- liftHandler
-                    $ W.selectAssets @_ @s @k wrk w txCtx [] transform
+                    $ W.selectAssets @_ @s @k wrk w txCtx (F.toList outs)
+                        transform
                 pure (sel, sel', estMin)
             Just (ApiPaymentAll _) -> do
                 liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-909"
