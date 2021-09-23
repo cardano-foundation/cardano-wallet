@@ -97,7 +97,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), subtractCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -163,12 +163,8 @@ import Data.Type.Equality
     ( type (==) )
 import Data.Word
     ( Word16, Word64, Word8 )
-import Fmt
-    ( Buildable, pretty )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -338,7 +334,7 @@ newTransactionLayer
     => NetworkId
     -> TransactionLayer k SealedTx
 newTransactionLayer networkId = TransactionLayer
-    { mkTransaction = \era stakeCreds keystore pp ctx selection -> do
+    { mkTransaction = \era stakeCreds keystore _pp ctx selection -> do
         let ttl   = txTimeToLive ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
@@ -346,8 +342,8 @@ newTransactionLayer networkId = TransactionLayer
             Nothing -> do
                 withShelleyBasedEra era $ do
                     let payload = TxPayload (view #txMetadata ctx) mempty mempty
-                    let fees = delta
-                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
+                    mkTx networkId payload ttl stakeCreds keystore wdrl
+                        selection delta
 
             Just action -> do
                 withShelleyBasedEra era $ do
@@ -357,14 +353,10 @@ newTransactionLayer networkId = TransactionLayer
                             [ mkShelleyWitness unsigned stakeCreds
                             ]
                     let payload = TxPayload (view #txMetadata ctx) certs mkWits
-                    let fees = case action of
-                            RegisterKeyAndJoin{} ->
-                                unsafeSubtractCoin selection delta (stakeKeyDeposit pp)
-                            _ ->
-                                delta
-                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
+                    mkTx networkId payload ttl stakeCreds keystore wdrl
+                        selection delta
 
-    , mkUnsignedTransaction = \era stakeXPub pp ctx selection -> do
+    , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
         let ttl   = txTimeToLive ctx
         let wdrl  = withdrawalToCoin $ view #txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
@@ -373,19 +365,15 @@ newTransactionLayer networkId = TransactionLayer
             Nothing -> do
                 withShelleyBasedEra era $ do
                     let md = view #txMetadata ctx
-                    let fees = delta
-                    constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl selection fees
+                    constructUnsignedTx networkId (md, []) ttl rewardAcct wdrl
+                        selection delta
 
             Just action -> do
                 withShelleyBasedEra era $ do
                     let certs = mkDelegationCertificates action stakeXPub
                     let payload = (view #txMetadata ctx, certs)
-                    let fees = case action of
-                            RegisterKeyAndJoin{} ->
-                                unsafeSubtractCoin selection delta (stakeKeyDeposit pp)
-                            _ ->
-                                delta
-                    constructUnsignedTx networkId payload ttl rewardAcct wdrl selection fees
+                    constructUnsignedTx networkId payload ttl rewardAcct wdrl
+                        selection delta
 
     , calcMinimumCost = \pp ctx skeleton ->
         estimateTxCost pp $
@@ -409,18 +397,6 @@ newTransactionLayer networkId = TransactionLayer
     , updateTx = \_sealedTx _inpsOuts ->
             error "updateTx not implemented"
     }
-  where
-    unsafeSubtractCoin
-        :: (HasCallStack, Buildable ctx) => ctx -> Coin -> Coin -> Coin
-    unsafeSubtractCoin ctx a b = case a `subtractCoin` b of
-        Nothing -> error $ unlines
-            [ "unsafeSubtractCoin: got a negative value. Tried to subtract "
-            <> show b <> " from " <> show a <> "."
-            , "In the context of: "
-            , pretty ctx
-            ]
-        Just c ->
-            c
 
 _decodeSealedTx :: SealedTx -> Tx
 _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
