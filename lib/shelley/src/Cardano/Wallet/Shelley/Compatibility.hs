@@ -74,6 +74,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoStakeCredential
     , toCardanoValue
     , fromCardanoValue
+    , fromCardanoLovelace
     , rewardAccountFromAddress
     , fromShelleyPParams
     , fromAlonzoPParams
@@ -1106,17 +1107,20 @@ fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
             then Just W.TxScriptValid
             else Just W.TxScriptInvalid
 
+-- Lovelace to coin. Quantities from ledger should always fit in Word64.
+fromCardanoLovelace :: Cardano.Lovelace -> W.Coin
+fromCardanoLovelace =
+    W.Coin . unsafeIntToWord . unQuantity . Cardano.lovelaceToQuantity
+  where
+    unQuantity (Cardano.Quantity q) = q
+
 fromCardanoValue :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
 fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
   where
     extract value =
-        ( mkCoin $ Cardano.selectLovelace value
+        ( fromCardanoLovelace $ Cardano.selectLovelace value
         , mkBundle $ Cardano.valueToList value
         )
-
-    -- Lovelace to coin. Quantities from ledger should always fit in Word64.
-    mkCoin :: Cardano.Lovelace -> W.Coin
-    mkCoin = W.Coin . unsafeIntToWord . unQuantity . Cardano.lovelaceToQuantity
 
     -- Do Integer to Natural conversion. Quantities from ledger TxOuts can
     -- never be negative (but unminted values could be negative).
@@ -1134,8 +1138,6 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
 
     mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
     mkTokenName = W.UnsafeTokenName . Cardano.serialiseToRawBytes
-
-    unQuantity (Cardano.Quantity q) = q
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $

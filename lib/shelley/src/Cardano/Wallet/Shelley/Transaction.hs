@@ -124,7 +124,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txSizeDistance
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoTx
+    ( fromCardanoLovelace
+    , fromCardanoTx
     , fromLedgerExUnits
     , toCardanoLovelace
     , toCardanoStakeCredential
@@ -629,7 +630,21 @@ _evaluateMinimumFee
     :: Cardano.ProtocolParameters
     -> SealedTx
     -> Coin
-_evaluateMinimumFee _ _ = undefined
+_evaluateMinimumFee pp tx =
+    fromCardanoLovelace minFee
+  where
+    minFee = case getSealedTxBody tx of
+        InAnyCardanoEra ShelleyEra txbody ->
+            Cardano.evaluateTransactionFee @Cardano.ShelleyEra pp txbody (witsNum txbody) 0
+        InAnyCardanoEra AllegraEra txbody ->
+            Cardano.evaluateTransactionFee @Cardano.AllegraEra pp txbody (witsNum txbody) 0
+        InAnyCardanoEra MaryEra txbody ->
+            Cardano.evaluateTransactionFee @Cardano.MaryEra pp txbody (witsNum txbody) 0
+        InAnyCardanoEra AlonzoEra txbody ->
+            Cardano.evaluateTransactionFee @Cardano.AlonzoEra pp txbody (witsNum txbody) 0
+        InAnyCardanoEra ByronEra _ -> error "evaluation not supported for byron era"
+
+    witsNum _txbody = 0
 
 _calcScriptExecutionCost
     :: ProtocolParameters
