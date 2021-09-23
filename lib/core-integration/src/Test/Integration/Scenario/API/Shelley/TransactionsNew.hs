@@ -151,7 +151,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_02 - Only metadata" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
-        let expectedFee = 1129500
+        let expectedFee = 129500
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default metadata
