@@ -186,7 +186,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (_, mw) <- rewardWallet ctx
         wa <- fixtureWallet ctx
         let withdrawal = Json [json|{ "withdrawal": #{mnemonicToText mw} }|]
-        let expectedFee = 1139500
+        let expectedFee = 139500
         -- let withdrawalAmt = 1000000000000
 
         rTx <- request @(ApiConstructTransaction n) ctx
