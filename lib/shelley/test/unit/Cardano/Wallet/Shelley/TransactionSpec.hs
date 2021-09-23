@@ -196,7 +196,6 @@ import Test.Hspec
     , pendingWith
     , shouldBe
     , xdescribe
-    , xit
     )
 import Test.Hspec.QuickCheck
     ( prop )
@@ -322,11 +321,11 @@ decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
 estimateMaxInputsSpec :: Spec
 estimateMaxInputsSpec = do
     estimateMaxInputsTests @ShelleyKey
-        [(1,114),(5,109),(10,103),(20,91),(50,51)]
+        [(1,115),(5,109),(10,104),(20,93),(50,54)]
     estimateMaxInputsTests @ByronKey
-        [(1,73),(5,69),(10,65),(20,56),(50,27)]
+        [(1,73),(5,69),(10,65),(20,57),(50,29)]
     estimateMaxInputsTests @IcarusKey
-        [(1,73),(5,69),(10,65),(20,56),(50,27)]
+        [(1,73),(5,69),(10,65),(20,57),(50,29)]
 
 feeCalculationSpec :: Spec
 feeCalculationSpec = describe "fee calculations" $ do
@@ -1084,7 +1083,7 @@ instance Arbitrary Coin where
 instance Arbitrary TxOut where
     arbitrary = TxOut addr <$> scale (`mod` 4) genTokenBundleSmallRange
       where
-        addr = Address $ BS.pack (1:replicate 64 0)
+        addr = Address $ BS.pack (1:replicate 56 0)
 
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRange
@@ -1103,7 +1102,7 @@ instance Arbitrary UTxO where
     arbitrary = do
         n <- choose (1,10)
         inps <- vectorOf n arbitrary
-        let addr = Address $ BS.pack (1:replicate 64 0)
+        let addr = Address $ BS.pack (1:replicate 56 0)
         coins <- vectorOf n arbitrary
         let outs = map (TxOut addr) coins
         pure $ UTxO $ Map.fromList $ zip inps outs
@@ -1148,7 +1147,7 @@ instance Arbitrary (Quantity "byte" Word16) where
 
 dummyAddress :: Word8 -> Address
 dummyAddress b =
-    Address $ BS.pack $ 1 : replicate 64 b
+    Address $ BS.pack $ 1 : replicate 56 b
 
 coinToBundle :: Word64 -> TokenBundle
 coinToBundle = TokenBundle.fromCoin . Coin
@@ -1628,8 +1627,7 @@ updateSealedTxSpec :: Spec
 updateSealedTxSpec = do
     describe "updateSealedTx" $ do
         describe "no existing key witnesses" $ do
-            -- TODO: [ADP-1140] dummyAddress has wrong length and gets cut off.
-            xit "combines ins, outs and sets new fee"
+            it "combines ins, outs and sets new fee"
                 $ property prop_updateSealedTx
 
             -- TODO [ADP-1140]: These should be mergable with the property
