@@ -391,6 +391,9 @@ newTransactionLayer networkId = TransactionLayer
     , calcScriptExecutionCost =
        _calcScriptExecutionCost
 
+    , evaluateMinimumFee =
+      _evaluateMinimumFee
+
     , computeSelectionLimit = \pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
         MaximumInputLimit $
@@ -621,6 +624,12 @@ dummySkeleton inputCount outputs = SelectionSkeleton
     , skeletonAssetsToBurn =
         TokenMap.empty
     }
+
+_evaluateMinimumFee
+    :: Cardano.ProtocolParameters
+    -> SealedTx
+    -> Coin
+_evaluateMinimumFee _ _ = undefined
 
 _calcScriptExecutionCost
     :: ProtocolParameters

@@ -80,6 +80,9 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Api.Shelley as Node
+
+
 data TransactionLayer k tx = TransactionLayer
     { mkTransaction
         :: AnyCardanoEra
@@ -142,6 +145,15 @@ data TransactionLayer k tx = TransactionLayer
             -- The constructed transaction that could contain plutus scripts
         -> Coin
         -- ^ Compute an execution costs of scripts in a given transaction.
+
+    , evaluateMinimumFee
+        :: Node.ProtocolParameters
+            -- Current protocol parameters
+        -> tx
+            -- The sealed transaction
+        -> Coin
+        -- ^ Evaluate a minimal fee amount necessary to pay for a given tx
+        -- using ledger's functionality
 
     , computeSelectionLimit
         :: ProtocolParameters
