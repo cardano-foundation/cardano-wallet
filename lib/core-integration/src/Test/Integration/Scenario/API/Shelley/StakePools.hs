@@ -141,7 +141,6 @@ import Test.Integration.Framework.TestData
     , errMsg403Fee
     , errMsg403NonNullReward
     , errMsg403NotDelegating
-    , errMsg403NotEnoughMoney
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
     , errMsg404NoSuchPool
@@ -967,7 +966,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         w <- emptyWallet ctx
         delegationFee ctx w >>= flip verify
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
+            , expectErrorMessage errMsg403EmptyUTxO
             ]
 
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do

@@ -61,12 +61,16 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.Semigroup
+    ( mtimesDefault )
 import Data.Word
     ( Word16 )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Numeric.Natural
+    ( Natural )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -128,11 +132,14 @@ toBalanceConstraintsParams (constraints, params) =
         , assetsToMint =
             view #assetsToMint params
         , extraCoinSource =
-            view #rewardWithdrawal params
+            view #rewardWithdrawal params <>
+            mtimesDefault
+                (view #certificateDepositsReturned params)
+                (view #depositAmount constraints)
         , extraCoinSink =
-          -- TODO: Use this for stake key deposits and anything else that
-          -- consumes ada:
-            Coin 0
+            mtimesDefault
+                (view #certificateDepositsTaken params)
+                (view #depositAmount constraints)
         , outputsToCover =
             view #outputsToCover params
         , utxoAvailable =
@@ -193,6 +200,12 @@ data SelectionParams = SelectionParams
     , rewardWithdrawal
         :: !Coin
         -- ^ Specifies the value of a withdrawal from a reward account.
+    , certificateDepositsTaken
+        :: !Natural
+        -- ^ Number of deposits for stake key registrations.
+    , certificateDepositsReturned
+        :: !Natural
+        -- ^ Number of deposits from stake key de-registrations.
     , utxoAvailable
         :: !UTxOIndex
         -- ^ Specifies the set of all available UTxO entries. The algorithm
