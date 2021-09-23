@@ -100,7 +100,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromPoolId
     , mkStakePoolsSummary
     , RewardConstants
-    , StakePoolsData
+    , StakePoolsData (..)
     , rewardConstantsfromPParams
     , getProducer
 
@@ -1203,21 +1203,24 @@ fromGenesisData g initialFunds =
 fromPoolId :: forall crypto. SL.KeyHash 'SL.StakePool crypto -> W.PoolId
 fromPoolId (SL.KeyHash x) = W.PoolId $ hashToBytes x
 
-fromRewardProvenancePool
+toRewardInfoPool
     :: forall crypto. ()
     => W.Coin
+    -> SL.PoolParams crypto
+    -> SL.IndividualPoolStake crypto
     -> SL.RewardProvenancePool crypto
-    -> W.RewardProvenancePool
-fromRewardProvenancePool totalStake SL.RewardProvenancePool{..} =
-  W.RewardProvenancePool
-    { stakeRelative = clipToPercentage sigmaP
-    , ownerPledge = toWalletCoin (SL._poolPledge poolParamsP)
+    -> W.RewardInfoPool
+toRewardInfoPool totalStake SL.PoolParams{..} ips
+    SL.RewardProvenancePool{ownerStakeP,appPerfP}
+  = W.RewardInfoPool
+    { stakeRelative = clipToPercentage (SLAPI.individualPoolStake ips)
     , ownerStake = toWalletCoin ownerStakeP
     , ownerStakeRelative = clipToPercentage
         $ fromIntegral (SL.unCoin ownerStakeP)
           `proportionTo` fromIntegral (W.unCoin totalStake)
-    , cost = toWalletCoin (SL._poolCost poolParamsP)
-    , margin = fromUnitInterval (SL._poolMargin poolParamsP)
+    , ownerPledge = toWalletCoin _poolPledge
+    , cost = toWalletCoin _poolCost
+    , margin = fromUnitInterval _poolMargin
     , performanceEstimate = appPerfP
     }
   where
@@ -1230,7 +1233,19 @@ data RewardConstants = RewardConstants
     { _nOpt :: Natural
     , _a0   :: SL.NonNegativeInterval
     } deriving (Eq, Show)
-type StakePoolsData = (RewardConstants, SL.RewardProvenance StandardCrypto)
+-- | Stake distribution and pool that we retrieve using a local state query
+data StakePoolsData = StakePoolsData
+    { _rewardConstants
+        :: RewardConstants
+    , _stakePoolParams
+        :: Map
+            (SL.KeyHash 'SL.StakePool StandardCrypto)
+            (SL.PoolParams StandardCrypto)
+    , _stakeDistribution
+        :: SLAPI.PoolDistr StandardCrypto
+    , _rewardProvenance
+        :: SL.RewardProvenance StandardCrypto
+    } deriving (Eq, Show)
 
 rewardConstantsfromPParams
     :: ( HasField "_nOpt" pparams Natural
@@ -1241,15 +1256,21 @@ rewardConstantsfromPParams pp =
     RewardConstants (getField @"_nOpt" pp) (getField @"_a0" pp)
 
 mkStakePoolsSummary :: StakePoolsData -> W.StakePoolsSummary
-mkStakePoolsSummary (RewardConstants{_a0,_nOpt}, SL.RewardProvenance{totalStake,pools,r})
-  = W.StakePoolsSummary
-    { rewardParams = rp
+mkStakePoolsSummary StakePoolsData{..} = W.StakePoolsSummary
+    { rewardParams = rewardParams
     , pools
-        = Map.map (fromRewardProvenancePool $ toWalletCoin totalStake)
-        $ Map.mapKeys fromPoolId pools
+        = Map.mapKeys fromPoolId
+        $ combine3 (toRewardInfoPool $ toWalletCoin totalStake)
+            _stakePoolParams stakeDistr pools
     }
   where
-    rp = W.RewardParams 
+    RewardConstants{_a0,_nOpt} = _rewardConstants
+    SL.RewardProvenance{totalStake,pools,r} = _rewardProvenance
+
+    SLAPI.PoolDistr stakeDistr = _stakeDistribution
+    combine3 f3 a b c = Map.intersectionWith ($) (Map.intersectionWith f3 a b) c
+
+    rewardParams = W.RewardParams 
         { nOpt = fromIntegral _nOpt
         , a0   = fromNonNegativeInterval _a0
         , r    = toWalletCoin r

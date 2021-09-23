@@ -84,7 +84,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , RewardParams (..)
-    , RewardProvenancePool (..)
+    , RewardInfoPool (..)
     , Settings (..)
     , SlotLength (..)
     , SlotNo (..)
@@ -344,11 +344,11 @@ z0 RewardParams{nOpt} = 1 / fromIntegral nOpt
 
 nonMyopicMemberReward
     :: RewardParams
-    -> RewardProvenancePool
+    -> RewardInfoPool
     -> Bool -- ^ The pool ranks in the top @nOpt@ pools
     -> Coin -- ^ stake that the member wants to delegate
     -> Coin
-nonMyopicMemberReward rp RewardProvenancePool{..} isTop tcoin
+nonMyopicMemberReward rp RewardInfoPool{..} isTop tcoin
     | ownerStake < ownerPledge = Coin 0
     | otherwise
         = afterFees cost margin
@@ -391,15 +391,15 @@ optimalRewards params s sigma = Coin . round
 
 -- | The desirabilty of a pool is equal to the member rewards at saturation
 -- IF the owner meets their pledge.
-desirability :: RewardParams -> RewardProvenancePool -> Coin
-desirability rp RewardProvenancePool{..}
+desirability :: RewardParams -> RewardInfoPool -> Coin
+desirability rp RewardInfoPool{..}
     = afterFees cost margin
     $ performanceEstimate `fractionOf` optimalRewards rp ownerStakeRelative (z0 rp)
 
 -- | The saturation of a pool is the ratio of the current pool stake
 -- to the fully saturated stake.
-poolSaturation :: RewardParams -> RewardProvenancePool -> Double
-poolSaturation rp RewardProvenancePool{stakeRelative}
+poolSaturation :: RewardParams -> RewardInfoPool -> Double
+poolSaturation rp RewardInfoPool{stakeRelative}
     = fromRational (getPercentage stakeRelative) / fromRational (z0 rp)
 
 data PoolScore = PoolScore
@@ -415,9 +415,9 @@ data PoolScore = PoolScore
 scorePools
     :: Ord poolId
     => RewardParams
-    -> Map poolId (RewardProvenancePool, a)
+    -> Map poolId (RewardInfoPool, a)
     -> Coin -- ^ Stake that the user wants to delegate
-    -> Map poolId (PoolScore, RewardProvenancePool, a)
+    -> Map poolId (PoolScore, RewardInfoPool, a)
 scorePools params pools t
     = Map.fromList $ zipWith doScore sortedByDesirability areTop
   where
@@ -440,6 +440,61 @@ scorePools params pools t
 {-------------------------------------------------------------------------------
     List Stake Pools
 -------------------------------------------------------------------------------}
+{- NOTE [RewardEpochs]
+
+We need to be careful to show the right information at the right time
+in order prevent manipulation of the proof-of-stake protocol.
+
+In particular, we need to show those pool costs, margins, and owner stakes
+that will affect the rewards for a delegation choice made at the present moment.
+
+The reward cycle is illustrated in Section 11.2 of SL-D1, here a brief sketch.
+
+@
+                    mark   set     go
+                  +------.------.------
+                  |
+    |e0----|e1----|e2----|e3----|e4----|e5----|
+              ^
+          we are here
+@
+
+We imagine that we are in epoch e1, and choose to delegate to a pool.
+At the end of epoch e1, a snapshot of the stake distribution will be taken.
+This snapshot will be labeled "mark" during epoch e2, "set" during epoch e3,
+and "go" during epoch e4.
+Blocks will be produced randomly according to this stake distribution when
+it is labeled "set", i.e. in epoch e3.
+Rewards for this block production will be computed when this stake
+distribution is labeled "go", i.e. during epoch e4, and these rewards will
+paid out at the beginning of epoch e5.
+
+The owner stake is part of the snapshot taken at the end of epoch e1.
+If the pool is newly registered, its cost, margin and pledge are also
+immediately available in epoch e1. However, if a pool re-registers,
+the changes to its cost, margin and pledge will not be visible until the
+next epoch; put differently, the rewards for the stake snapshot taken
+at the end of epoch e1 will only depend on changes to cost, margin,
+and pledge that the pool owner initiated in epoch e0.
+This prevents pool owners from duping delegators by changing pool costs
+during an epoch. However, the pool owner could still choose to undelegate
+his stake, and fail to meet his pledge at the end of epoch e1,
+which results in zero rewards paid out at the beginning of e5.
+
+During epoch e1, the following local state queries show the following
+information:
+
+* @GetStakeDistribution@ shows the current stake distribution (in e1)
+* @GetStakePoolParams@ shows the "current" pool parameters (either new pool in e1,
+    or changes only from epoch e0 or earlier.)
+* @GetRewardProvenance@ shows the rewards for the stake distribution
+    that was taken at the end of epoch *e_-2*.
+
+Thus, `GetRewardProvenance` alone does not provide enough information
+to make a meaningful choice of delegation.
+
+-}
+
 -- | Create a presentable list of stake pools
 -- by combining LocalStateQuery data and DB data
 -- and then scoring the pools.
@@ -464,9 +519,7 @@ listPools ti StakePoolsSummary{rewardParams,pools} dbData userStake =
     dbButNoLsq = mapMissing $ \_ db ->
         let ownerStake_ = Coin 0
             ownerStakeRelative_ = unsafeMkPercentage 0
-            -- ownerStake_ = poolPledge $ registrationCert db
-            -- ownerStakeRelative_ = unsafeMkPercentage $ ownerStake_ `proportionTo` (totalStake rewardParams)
-            poolDefault = RewardProvenancePool
+            poolDefault = RewardInfoPool
                 { stakeRelative = ownerStakeRelative_
                 , ownerPledge = poolPledge $ registrationCert db
                 , ownerStake = ownerStake_
@@ -478,14 +531,18 @@ listPools ti StakePoolsSummary{rewardParams,pools} dbData userStake =
         in (poolDefault, db)
 
     mkApiPool
-        :: (PoolId, (PoolScore, RewardProvenancePool, PoolDbData))
+        :: (PoolId, (PoolScore, RewardInfoPool, PoolDbData))
         -> IO Api.ApiStakePool
     mkApiPool (pid, (score, pool, db)) = do
         let mRetirementEpoch = retirementEpoch <$> retirementCert db
         retirementEpochInfo <- traverse
             (interpretQuery (unsafeExtendSafeZone ti) . toApiEpochInfo)
             mRetirementEpoch
-        let pledge = poolPledge $ registrationCert db
+        -- Cave: The timing of re-registration certificates is important,
+        -- we need to rely on information from the local state query,
+        -- instead of just looking at the certificates that we collected
+        -- from the chain. See note [RewardEpochs] for details.
+        let pledge = ownerPledge pool
         pure $ Api.ApiStakePool
             { Api.id = (ApiT pid)
             , Api.metrics = Api.ApiStakePoolMetrics
@@ -501,11 +558,11 @@ listPools ti StakePoolsSummary{rewardParams,pools} dbData userStake =
             , Api.metadata =
                 ApiT <$> metadata db
             , Api.cost =
-                Api.coinToQuantity $ poolCost $ registrationCert db
+                Api.coinToQuantity $ cost pool
             , Api.pledge =
                 Api.coinToQuantity pledge
             , Api.margin =
-                Quantity $ poolMargin $ registrationCert db
+                Quantity $ margin pool
             , Api.retirement =
                 retirementEpochInfo
             , Api.flags =

@@ -114,7 +114,7 @@ module Cardano.Wallet.Primitive.Types
     , encodePoolIdBech32
     , StakePoolsSummary (..)
     , RewardParams (..)
-    , RewardProvenancePool (..)
+    , RewardInfoPool (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
@@ -767,7 +767,7 @@ instance ToJSON PoolOwner where
 -- This information is mostly derived from the @RewardProvenancePool@
 -- type in 'Shelley.Spec.Ledger.RewardProvenance',
 -- but reorganized and shortened.
-data RewardProvenancePool = RewardProvenancePool
+data RewardInfoPool = RewardInfoPool
     { stakeRelative :: Percentage -- ^ sigma = pool stake / total stake
     , ownerPledge :: Coin -- ^ pledge of pool owner(s)
     , ownerStake :: Coin -- ^ absolute stake delegated by pool owner(s)
@@ -777,8 +777,8 @@ data RewardProvenancePool = RewardProvenancePool
     , performanceEstimate :: Rational
     } deriving (Show, Eq)
 
-instance Buildable RewardProvenancePool where
-    build RewardProvenancePool
+instance Buildable RewardInfoPool where
+    build RewardInfoPool
             {stakeRelative,ownerPledge,ownerStake,ownerStakeRelative
             ,cost,margin,performanceEstimate
             }
@@ -812,7 +812,7 @@ instance Buildable RewardParams where
 -- | Summary of stake distribution and stake pools obtained from network
 data StakePoolsSummary = StakePoolsSummary
     { rewardParams :: RewardParams
-    , pools :: Map PoolId RewardProvenancePool
+    , pools :: Map PoolId RewardInfoPool
     } deriving (Show, Eq)
 
 instance Buildable StakePoolsSummary where

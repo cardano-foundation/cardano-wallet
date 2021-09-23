@@ -85,7 +85,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( RewardConstants
-    , StakePoolsData
+    , StakePoolsData (..)
     , StandardCrypto
     , fromAlonzoPParams
     , fromLedgerPParams
@@ -475,8 +475,12 @@ withNetworkLayerBase tr net np conn versionData tol action = do
             :: LSQ (CardanoBlock StandardCrypto) IO (Maybe StakePoolsData)
         qryStakePoolsData = do
             ma <- qryRewardConstants
-            mb <- shelleyBased $ LSQry Shelley.GetRewardProvenance
-            pure $ (,) <$> ma <*> mb
+            mb <- shelleyBased $ do
+                pools <- LSQry Shelley.GetStakePools
+                LSQry $ Shelley.GetStakePoolParams pools
+            mc <- shelleyBased $ LSQry Shelley.GetStakeDistribution
+            md <- shelleyBased $ LSQry Shelley.GetRewardProvenance
+            pure $ StakePoolsData <$> ma <*> mb <*> mc <*> md
 
         qryRewardConstants :: LSQ (CardanoBlock StandardCrypto) IO (Maybe RewardConstants)
         qryRewardConstants = onAnyEra
