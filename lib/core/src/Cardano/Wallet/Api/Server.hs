@@ -579,7 +579,6 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -2185,10 +2184,10 @@ delegationFee ctx (ApiT wid) = do
     txCtx :: TransactionCtx
     txCtx = defaultTransactionCtx
 
-    runSelection wrk deposit wal =
+    runSelection wrk _deposit wal =
         W.selectAssets @_ @s @k wrk wal txCtx [] calcFee
       where
-        calcFee _ = Coin.distance deposit . selectionDelta TokenBundle.getCoin
+        calcFee _ = selectionDelta TokenBundle.getCoin
 
 quitStakePool
     :: forall ctx s n k.
