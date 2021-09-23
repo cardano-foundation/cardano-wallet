@@ -55,14 +55,12 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Control.Monad.Random.Class
     ( MonadRandom )
-import Data.Bifunctor
-    ( first )
+import Control.Monad.Trans.Except
+    ( ExceptT (..), except, withExceptT )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
-import Data.Maybe
-    ( fromMaybe )
 import Data.Word
     ( Word16 )
 import GHC.Generics
@@ -89,8 +87,8 @@ performSelection
     :: (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
-    -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection selectionConstraints selectionParams =
+    -> ExceptT SelectionError m (SelectionResult TokenBundle)
+performSelection constraints params = do
     -- TODO:
     --
     -- https://input-output.atlassian.net/browse/ADP-1037
@@ -99,42 +97,47 @@ performSelection selectionConstraints selectionParams =
     -- https://input-output.atlassian.net/browse/ADP-1070
     -- Adjust coin selection and fee estimation to handle pre-existing inputs
     --
-    case prepareOutputs selectionConstraints outputsToCover of
-        Left e ->
-            pure $ Left $ SelectionOutputsError e
-        Right preparedOutputsToCover ->
-            first SelectionBalanceError <$> Balance.performSelection
-                Balance.SelectionConstraints
-                    { computeMinimumAdaQuantity
-                    , computeMinimumCost
-                    , computeSelectionLimit
-                    , assessTokenBundleSize =
-                        view #assessTokenBundleSize assessTokenBundleSize
-                    }
-                Balance.SelectionParams
-                    { assetsToBurn
-                    , assetsToMint
-                    , extraCoinSource = fromMaybe (Coin 0) rewardWithdrawal
-                      -- TODO: Use this for stake key deposits and anything else
-                      -- that consumes ada:
-                    , extraCoinSink = Coin 0
-                    , outputsToCover = preparedOutputsToCover
-                    , utxoAvailable
-                    }
+    preparedOutputs <- withExceptT SelectionOutputsError $ except
+        $ prepareOutputs constraints (view #outputsToCover params)
+    withExceptT SelectionBalanceError $ ExceptT
+        $ uncurry Balance.performSelection
+        $ toBalanceConstraintsParams
+            ( constraints
+            , params {outputsToCover = preparedOutputs}
+            )
+
+toBalanceConstraintsParams
+    :: (        SelectionConstraints,         SelectionParams)
+    -> (Balance.SelectionConstraints, Balance.SelectionParams)
+toBalanceConstraintsParams (constraints, params) =
+    (balanceConstraints, balanceParams)
   where
-    SelectionConstraints
-        { assessTokenBundleSize
-        , computeMinimumAdaQuantity
-        , computeMinimumCost
-        , computeSelectionLimit
-        } = selectionConstraints
-    SelectionParams
-        { assetsToBurn
-        , assetsToMint
-        , outputsToCover
-        , rewardWithdrawal
-        , utxoAvailable
-        } = selectionParams
+    balanceConstraints = Balance.SelectionConstraints
+        { computeMinimumAdaQuantity =
+            view #computeMinimumAdaQuantity constraints
+        , computeMinimumCost =
+            view #computeMinimumCost constraints
+        , computeSelectionLimit =
+            view #computeSelectionLimit constraints
+        , assessTokenBundleSize =
+            view (#assessTokenBundleSize . #assessTokenBundleSize) constraints
+        }
+    balanceParams = Balance.SelectionParams
+        { assetsToBurn =
+            view #assetsToBurn params
+        , assetsToMint =
+            view #assetsToMint params
+        , extraCoinSource =
+            view #rewardWithdrawal params
+        , extraCoinSink =
+          -- TODO: Use this for stake key deposits and anything else that
+          -- consumes ada:
+            Coin 0
+        , outputsToCover =
+            view #outputsToCover params
+        , utxoAvailable =
+            view #utxoAvailable params
+        }
 
 -- | Specifies all constraints required for coin selection.
 --
@@ -164,11 +167,16 @@ data SelectionConstraints = SelectionConstraints
         :: [TxOut] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
+    , depositAmount
+        :: Coin
+        -- ^ Amount that should be taken from/returned back to the wallet for
+        -- each stake key registration/de-registration in the transaction.
     , maximumCollateralInputCount
         :: Word16
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
         -- that can be selected as collateral.
     }
+    deriving Generic
 
 -- | Specifies all parameters that are specific to a given selection.
 --
@@ -183,7 +191,7 @@ data SelectionParams = SelectionParams
         :: ![TxOut]
         -- ^ Specifies a set of outputs that must be paid for.
     , rewardWithdrawal
-        :: !(Maybe Coin)
+        :: !Coin
         -- ^ Specifies the value of a withdrawal from a reward account.
     , utxoAvailable
         :: !UTxOIndex

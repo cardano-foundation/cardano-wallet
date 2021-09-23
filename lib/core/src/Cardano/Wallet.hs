@@ -1522,7 +1522,7 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
     guardPendingWithdrawal
     pp <- liftIO $ currentProtocolParameters nl
     liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outputs
-    mSel <- performSelection
+    mSel <- runExceptT $ performSelection
         SelectionConstraints
             { assessTokenBundleSize =
                 tokenBundleSizeAssessor tl $
@@ -1533,6 +1533,8 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
                 calcMinimumCost tl pp txCtx
             , computeSelectionLimit =
                 view #computeSelectionLimit tl pp txCtx
+            , depositAmount =
+                view #stakeKeyDeposit pp
             , maximumCollateralInputCount =
                 view #maximumCollateralInputCount pp
             }
@@ -1541,8 +1543,8 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
               assetsToBurn = TokenMap.empty
             , assetsToMint = TokenMap.empty
             , outputsToCover = outputs
-            , rewardWithdrawal = Just
-                $ addCoin (withdrawalToCoin $ view #txWithdrawal txCtx)
+            , rewardWithdrawal =
+                addCoin (withdrawalToCoin $ view #txWithdrawal txCtx)
                 $ case view #txDelegationAction txCtx of
                     Just Quit -> stakeKeyDeposit pp
                     _ -> Coin 0
