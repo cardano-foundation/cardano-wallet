@@ -3660,7 +3660,7 @@ runMockRoundRobin
     :: forall k n. (Ord k, Integral n)
     => MockRoundRobinState k n
     -> MockRoundRobinState k n
-runMockRoundRobin initialState = runRoundRobin initialState processors
+runMockRoundRobin initialState = runRoundRobin initialState id processors
   where
     processors :: [MockRoundRobinState k n -> Maybe (MockRoundRobinState k n)]
     processors = mkProcessor <$> Map.toList (processorLifetimes initialState)
@@ -3684,7 +3684,7 @@ runMockRoundRobin initialState = runRoundRobin initialState processors
 prop_runRoundRobin_identity
     :: forall state. (Eq state, Show state) => state -> [()] -> Property
 prop_runRoundRobin_identity state processors =
-    runRoundRobin state (const Nothing <$ processors) === state
+    runRoundRobin state id (const Nothing <$ processors) === state
 
 prop_runRoundRobin_iterationCount
     :: forall k n. (Ord k, Integral n)

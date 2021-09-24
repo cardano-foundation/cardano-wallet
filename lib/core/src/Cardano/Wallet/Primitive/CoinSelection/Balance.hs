@@ -1251,7 +1251,7 @@ runSelectionNonEmptyWith selectSingleEntry result
 runSelection
     :: forall m. MonadRandom m => RunSelectionParams -> m SelectionState
 runSelection params =
-    runRoundRobinM initialState selectors
+    runRoundRobinM initialState id selectors
   where
     RunSelectionParams
         { selectionLimit
@@ -2247,19 +2247,19 @@ ungroupByKey m = [(k, v) | (k, vs) <- Map.toList m, v <- NE.toList vs]
 -- Round-robin processing
 --------------------------------------------------------------------------------
 
-runRoundRobin :: s -> [(s -> Maybe s)] -> s
-runRoundRobin state processors =
-    runIdentity $ runRoundRobinM state $ fmap Identity <$> processors
+runRoundRobin :: s -> (s' -> s) -> [(s -> Maybe s')] -> s
+runRoundRobin state demote processors =
+    runIdentity $ runRoundRobinM state demote $ fmap Identity <$> processors
 
-runRoundRobinM :: Monad m => s -> [(s -> m (Maybe s))] -> m s
-runRoundRobinM state processors = go state processors []
+runRoundRobinM :: Monad m => s -> (s' -> s) -> [(s -> m (Maybe s'))] -> m s
+runRoundRobinM state demote processors = go state processors []
   where
     go !s []        [] = pure s
     go !s []       !qs = go s (L.reverse qs) []
     go !s (p : ps) !qs = p s >>=
         \case
-            Nothing -> go s  ps      qs
-            Just s' -> go s' ps (p : qs)
+            Nothing -> go         s   ps      qs
+            Just s' -> go (demote s') ps (p : qs)
 
 --------------------------------------------------------------------------------
 -- Accessor functions
