@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -18,7 +19,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
+    ( coarbitraryTxIn, genTxIn, genTxOut, shrinkTxIn, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -45,9 +46,11 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , CoArbitrary (..)
     , Confidence (..)
     , Gen
     , Property
+    , Testable
     , checkCoverage
     , checkCoverageWith
     , conjoin
@@ -69,6 +72,7 @@ import Test.Utils.Laws
     ( testLawsMany )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex.Internal as UTxOIndex
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -76,7 +80,7 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec =
-    describe "Indexed UTxO set properties" $ do
+    describe "Cardano.Wallet.Primitive.Types.UTxOIndexSpec" $ do
 
     parallel $ describe "Class instances obey laws" $ do
         testLawsMany @UTxOIndex
@@ -130,6 +134,17 @@ spec =
             property prop_insert_lookup
         it "prop_insert_size" $
             property prop_insert_size
+
+    parallel $ describe "Filtering and partitioning" $ do
+
+        it "prop_filter_disjoint" $
+            property prop_filter_disjoint
+        it "prop_filter_partition" $
+            property prop_filter_partition
+        it "prop_filter_toList" $
+            property prop_filter_toList
+        it "prop_partition_disjoint" $
+            property prop_partition_disjoint
 
     parallel $ describe "Index Selection" $ do
 
@@ -310,6 +325,58 @@ prop_insert_size i o u =
             UTxOIndex.size u + 1
         Just _ ->
             UTxOIndex.size u
+
+--------------------------------------------------------------------------------
+-- Filtering and partitioning
+--------------------------------------------------------------------------------
+
+prop_filter_disjoint :: (TxIn -> Bool) -> UTxOIndex -> Property
+prop_filter_disjoint f u =
+    checkCoverage_filter_partition f u $
+    UTxOIndex.filter f u `UTxOIndex.disjoint` UTxOIndex.filter (not . f) u
+        === True
+
+prop_filter_partition :: (TxIn -> Bool) -> UTxOIndex -> Property
+prop_filter_partition f u =
+    checkCoverage_filter_partition f u $
+    (UTxOIndex.filter f u, UTxOIndex.filter (not . f) u)
+        === UTxOIndex.partition f u
+
+prop_filter_toList :: (TxIn -> Bool) -> UTxOIndex -> Property
+prop_filter_toList f u =
+    checkCoverage_filter_partition f u $
+    UTxOIndex.toList (UTxOIndex.filter f u)
+        === L.filter (f . fst) (UTxOIndex.toList u)
+
+prop_partition_disjoint :: (TxIn -> Bool) -> UTxOIndex -> Property
+prop_partition_disjoint f u =
+    checkCoverage_filter_partition f u $
+    uncurry UTxOIndex.disjoint (UTxOIndex.partition f u) === True
+
+checkCoverage_filter_partition
+    :: Testable prop => (TxIn -> Bool) -> UTxOIndex -> (prop -> Property)
+checkCoverage_filter_partition f u
+    = checkCoverage
+    . cover 10
+        (UTxOIndex.filter f u `isNonEmptyProperSubsetOf` u)
+        "UTxOIndex.filter f u `isNonEmptyProperSubsetOf` u"
+    . cover 10
+        (UTxOIndex.filter (not . f) u `isNonEmptyProperSubsetOf` u)
+        "UTxOIndex.filter (not . f) u `isNonEmptyProperSubsetOf` u"
+    . cover 10
+        (filterSize f u > filterSize (not . f) u)
+        "filterSize f u > filterSize (not . f) u"
+    . cover 10
+        (filterSize f u < filterSize (not . f) u)
+        "filterSize f u < filterSize (not . f) u"
+  where
+    u1 `isNonEmptyProperSubsetOf` u2 = and
+        [ not (UTxOIndex.null u1)
+        , UTxOIndex.toUTxO u1 `UTxO.isSubsetOf` UTxOIndex.toUTxO u2
+        , u1 /= u2
+        ]
+
+    filterSize g = UTxOIndex.size . UTxOIndex.filter g
 
 --------------------------------------------------------------------------------
 -- Index selection properties
@@ -692,6 +759,9 @@ instance Arbitrary TxIn where
     arbitrary = genTxIn
     shrink = shrinkTxIn
 
+instance CoArbitrary TxIn where
+    coarbitrary = coarbitraryTxIn
+
 instance Arbitrary TxOut where
     arbitrary = genTxOut
     shrink = shrinkTxOut
@@ -720,3 +790,10 @@ shrinkSelectionFilterSmallRange = \case
         case WithAssetOnly <$> shrinkAssetId a of
             [] -> [WithAsset a]
             xs -> xs
+
+--------------------------------------------------------------------------------
+-- Show instances
+--------------------------------------------------------------------------------
+
+instance Show (TxIn -> Bool) where
+    show = const "(TxIn -> Bool)"

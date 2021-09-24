@@ -52,6 +52,10 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     , delete
     , deleteMany
 
+    -- * Filtering and partitioning
+    , filter
+    , partition
+
     -- * Queries
     , assets
     , balance
@@ -62,6 +66,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
 
     -- * Set operations
     , difference
+    , disjoint
 
     -- * Selection
     , SelectionFilter (..)
@@ -82,7 +87,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     ) where
 
 import Prelude hiding
-    ( lookup, null )
+    ( filter, lookup, null )
 
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
@@ -98,6 +103,8 @@ import Control.Monad.Extra
     ( firstJustM )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
+import Data.Bifunctor
+    ( bimap )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -296,6 +303,20 @@ deleteMany :: Foldable f => f TxIn -> UTxOIndex -> UTxOIndex
 deleteMany = flip $ F.foldl' $ \u i -> delete i u
 
 --------------------------------------------------------------------------------
+-- Filtering and partitioning
+--------------------------------------------------------------------------------
+
+-- | Filters an index.
+--
+filter :: (TxIn -> Bool) -> UTxOIndex -> UTxOIndex
+filter f = fromUTxO . UTxO.filter f . toUTxO
+
+-- | Partitions an index.
+--
+partition :: (TxIn -> Bool) -> UTxOIndex -> (UTxOIndex, UTxOIndex)
+partition f = bimap fromUTxO fromUTxO . UTxO.partition f . toUTxO
+
+--------------------------------------------------------------------------------
 -- Queries
 --------------------------------------------------------------------------------
 
@@ -332,6 +353,11 @@ size = Map.size . utxo
 
 difference :: UTxOIndex -> UTxOIndex -> UTxOIndex
 difference a b = fromUTxO $ UTxO.difference (toUTxO a) (toUTxO b)
+
+-- | Indicates whether a pair of UTxO indices are disjoint.
+--
+disjoint :: UTxOIndex -> UTxOIndex -> Bool
+disjoint u1 u2 = toUTxO u1 `UTxO.disjoint` toUTxO u2
 
 --------------------------------------------------------------------------------
 -- Selection
