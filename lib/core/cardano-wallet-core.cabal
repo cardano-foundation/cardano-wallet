@@ -206,6 +206,7 @@ library
       Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Primitive.Types.UTxOIndex
       Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
+      Cardano.Wallet.Primitive.Types.UTxOSelection
       Cardano.Wallet.Registry
       Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Transaction
