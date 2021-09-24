@@ -30,6 +30,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , computeStatistics
     , computeUtxoStatistics
     , difference
+    , disjoint
     , excluding
     , isSubsetOf
     , empty
@@ -38,12 +39,15 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , restrictedBy
     , restrictedTo
     , size
+    , filter
     , filterByAddressM
     , filterByAddress
+    , partition
+    , toList
     ) where
 
 import Prelude hiding
-    ( null )
+    ( filter, null )
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
@@ -56,7 +60,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
-    ( first )
+    ( bimap, first )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
@@ -82,6 +86,10 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+
+--------------------------------------------------------------------------------
+-- UTxO
+--------------------------------------------------------------------------------
 
 newtype UTxO = UTxO { unUTxO :: Map TxIn TxOut }
     deriving stock (Show, Generic, Eq, Ord)
@@ -123,6 +131,11 @@ balance =
 difference :: UTxO -> UTxO -> UTxO
 difference a b = a `excluding` Map.keysSet (unUTxO b)
 
+-- | Indicates whether a pair of UTxO sets are disjoint.
+--
+disjoint :: UTxO -> UTxO -> Bool
+disjoint u1 u2 = unUTxO u1 `Map.disjoint` unUTxO u2
+
 -- | ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
 excluding (UTxO utxo) =
@@ -152,6 +165,11 @@ null (UTxO u) = Map.null u
 size :: UTxO -> Int
 size (UTxO u) = Map.size u
 
+-- | Filters a UTxO set according to a condition.
+--
+filter :: (TxIn -> Bool) -> UTxO -> UTxO
+filter f (UTxO u) = UTxO $ Map.filterWithKey (const . f) u
+
 -- | Filters a 'UTxO' set with an indicator function on 'Address' values.
 --
 -- Returns the subset of UTxO entries that have addresses for which the given
@@ -177,6 +195,20 @@ filterByAddressM isOursF (UTxO m) =
 -- filterByAddress f u `isSubsetOf` u
 filterByAddress :: (Address -> Bool) -> UTxO -> UTxO
 filterByAddress f = runIdentity . filterByAddressM (pure . f)
+
+-- | Partitions a UTxO set according to a condition.
+--
+partition :: (TxIn -> Bool) -> UTxO -> (UTxO, UTxO)
+partition f (UTxO u) = bimap UTxO UTxO $ Map.partitionWithKey (const . f) u
+
+-- | Converts a UTxO set into a list of UTxO elements.
+--
+toList :: UTxO -> [(TxIn, TxOut)]
+toList = Map.toList . unUTxO
+
+--------------------------------------------------------------------------------
+-- UTxO Statistics
+--------------------------------------------------------------------------------
 
 data UTxOStatistics = UTxOStatistics
     { histogram :: ![HistogramBar]
