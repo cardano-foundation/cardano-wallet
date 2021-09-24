@@ -5,10 +5,8 @@
 module Cardano.Wallet.Primitive.CoinSelection.Gen
     ( genSelectionLimit
     , genSelectionSkeleton
-    , genSelectionState
     , shrinkSelectionLimit
     , shrinkSelectionSkeleton
-    , shrinkSelectionState
     )
     where
 
@@ -18,23 +16,15 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimit
     , SelectionLimitOf (..)
     , SelectionSkeleton (..)
-    , SelectionState (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId, genTokenMap, shrinkAssetId, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOut, shrinkTxOut )
-import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndex, shrinkUTxOIndex )
-import Data.Function
-    ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( over, view )
 import Test.QuickCheck
     ( Gen
     , NonNegative (..)
     , arbitrary
-    , liftShrink2
     , listOf
     , oneof
     , shrink
@@ -44,7 +34,6 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( liftShrink5 )
 
-import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
@@ -110,28 +99,3 @@ shrinkSelectionSkeleton =
 
     skeletonToTuple (SelectionSkeleton a b c d e) = (a, b, c, d, e)
     tupleToSkeleton (a, b, c, d, e) = (SelectionSkeleton a b c d e)
-
---------------------------------------------------------------------------------
--- Selection states
---------------------------------------------------------------------------------
-
-genSelectionState :: Gen SelectionState
-genSelectionState =
-    makeSelectionStateValid <$> genSelectionStateUnvalidated
-  where
-    genSelectionStateUnvalidated :: Gen SelectionState
-    genSelectionStateUnvalidated = SelectionState
-        <$> genUTxOIndex
-        <*> genUTxOIndex
-
-shrinkSelectionState :: SelectionState -> [SelectionState]
-shrinkSelectionState = fmap makeSelectionStateValid <$>
-    shrinkMapBy tupleToState stateToTuple
-        (liftShrink2 shrinkUTxOIndex shrinkUTxOIndex)
-  where
-    stateToTuple (SelectionState a b) = (a, b)
-    tupleToState (a, b) = (SelectionState a b)
-
-makeSelectionStateValid :: SelectionState -> SelectionState
-makeSelectionStateValid state = state
-    & over #leftover (`UTxOIndex.difference` view #selected state)

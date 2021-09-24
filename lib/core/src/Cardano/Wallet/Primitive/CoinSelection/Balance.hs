@@ -80,7 +80,6 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , runSelectionNonEmpty
     , runSelectionNonEmptyWith
     , RunSelectionParams (..)
-    , SelectionState (..)
 
     -- * Running a selection step
     , runSelectionStep
@@ -150,6 +149,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
+import Cardano.Wallet.Primitive.Types.UTxOSelection
+    ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Bifunctor
@@ -189,6 +190,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -849,7 +851,7 @@ performSelectionNonEmpty constraints params
             Nothing ->
                 pure $ Left EmptyUTxO
             Just selection -> do
-                let utxoSelected = selected selection
+                let utxoSelected = UTxOSelection.selectedIndex selection
                 let utxoBalanceSelected = UTxOIndex.balance utxoSelected
                 if utxoBalanceRequired `leq` utxoBalanceSelected
                 then makeChangeRepeatedly selection
@@ -876,10 +878,6 @@ performSelectionNonEmpty constraints params
             { inputsSelected
             , utxoBalanceRequired
             }
-
-    mkInputsSelected :: UTxOIndex -> NonEmpty (TxIn, TxOut)
-    mkInputsSelected =
-        fromMaybe invariantSelectAnyInputs . NE.nonEmpty . UTxOIndex.toList
 
     selectionLimit :: SelectionLimit
     selectionLimit = computeSelectionLimit (F.toList outputsToCover)
@@ -939,10 +937,10 @@ performSelectionNonEmpty constraints params
     --     assets of the final resulting selection).
     --
     predictChange
-        :: UTxOIndex
+        :: UTxOSelectionNonEmpty
         -> [Set AssetId]
-    predictChange inputsPreSelected = either
-        (const $ invariantResultWithNoCost inputsPreSelected)
+    predictChange s = either
+        (const $ invariantResultWithNoCost $ UTxOSelection.selectedIndex s)
         (fmap (TokenMap.getAssets . view #tokens))
         (makeChange MakeChangeCriteria
             { minCoinFor = noMinimumCoin
@@ -957,7 +955,7 @@ performSelectionNonEmpty constraints params
             }
         )
       where
-        inputBundles = view #tokens . snd <$> mkInputsSelected inputsPreSelected
+        inputBundles = view #tokens . snd <$> UTxOSelection.selectedList s
         outputBundles = view #tokens <$> outputsToCover
 
         noMinimumCoin :: TokenMap -> Coin
@@ -981,7 +979,7 @@ performSelectionNonEmpty constraints params
     -- function won't make associated outputs for them.
     --
     makeChangeRepeatedly
-        :: SelectionState
+        :: UTxOSelectionNonEmpty
         -> m (Either SelectionError
                 (SelectionResultOf (NonEmpty TxOut) TokenBundle))
     makeChangeRepeatedly s = case mChangeGenerated of
@@ -1051,29 +1049,16 @@ performSelectionNonEmpty constraints params
 
         selectOneEntry = selectCoinQuantity selectionLimit
 
-        SelectionState {selected} = s
-
         requiredCost = computeMinimumCost SelectionSkeleton
-            { skeletonInputCount = UTxOIndex.size selected
+            { skeletonInputCount = UTxOSelection.selectedSize s
             , skeletonOutputs = NE.toList outputsToCover
             , skeletonChange
             , skeletonAssetsToMint = assetsToMint
             , skeletonAssetsToBurn = assetsToBurn
             }
 
-        skeletonChange = predictChange selected
-        inputsSelected = mkInputsSelected selected
-
-    invariantSelectAnyInputs =
-        -- This should be impossible, as we have already determined
-        -- that the UTxO balance is sufficient.
-        error $ unlines
-            [ "performSelection: unable to select any inputs!"
-            , "UTxO balance required:"
-            , show utxoBalanceRequired
-            , "UTxO balance available:"
-            , show utxoBalanceAvailable
-            ]
+        skeletonChange = predictChange s
+        inputsSelected = UTxOSelection.selectedList s
 
     invariantResultWithNoCost inputs_ = error $ unlines
         -- This should be impossible, as the 'makeChange' function should
@@ -1211,14 +1196,6 @@ instance Buildable (SelectionResult TxOut) where
 -- Running a selection (without making change)
 --------------------------------------------------------------------------------
 
-data SelectionState = SelectionState
-    { selected
-        :: !UTxOIndex
-    , leftover
-        :: !UTxOIndex
-    }
-    deriving (Eq, Generic, Show)
-
 -- | Parameters for 'runSelection'.
 --
 data RunSelectionParams = RunSelectionParams
@@ -1232,26 +1209,25 @@ data RunSelectionParams = RunSelectionParams
     deriving (Eq, Generic, Show)
 
 runSelectionNonEmpty
-    :: MonadRandom m => RunSelectionParams -> m (Maybe SelectionState)
+    :: MonadRandom m => RunSelectionParams -> m (Maybe UTxOSelectionNonEmpty)
 runSelectionNonEmpty = (=<<)
     <$> runSelectionNonEmptyWith . selectCoinQuantity . view #selectionLimit
     <*> runSelection
 
 runSelectionNonEmptyWith
     :: Monad m
-    => (SelectionState -> m (Maybe SelectionState))
-    -> SelectionState
-    -> m (Maybe SelectionState)
-runSelectionNonEmptyWith selectSingleEntry result
-    | UTxOIndex.null (selected result) =
-        result & selectSingleEntry
-    | otherwise =
-        pure (Just result)
+    => (UTxOSelection -> m (Maybe UTxOSelectionNonEmpty))
+    -> UTxOSelection
+    -> m (Maybe UTxOSelectionNonEmpty)
+runSelectionNonEmptyWith selectSingleEntry result =
+    UTxOSelection.toNonEmpty result & maybe
+        (result & selectSingleEntry)
+        (pure . Just)
 
 runSelection
-    :: forall m. MonadRandom m => RunSelectionParams -> m SelectionState
+    :: forall m. MonadRandom m => RunSelectionParams -> m UTxOSelection
 runSelection params =
-    runRoundRobinM initialState id selectors
+    runRoundRobinM initialState UTxOSelection.fromNonEmpty selectors
   where
     RunSelectionParams
         { selectionLimit
@@ -1259,17 +1235,14 @@ runSelection params =
         , minimumBalance
         } = params
 
-    initialState :: SelectionState
-    initialState = SelectionState
-        { selected = UTxOIndex.empty
-        , leftover = utxoAvailable
-        }
+    initialState :: UTxOSelection
+    initialState = UTxOSelection.fromIndex utxoAvailable
 
     -- NOTE: We run the 'coinSelector' last, because we know that every input
     -- necessarily has a non-zero ada amount. By running the other selectors
     -- first, we increase the probability that the coin selector will be able
     -- to terminate without needing to select an additional coin.
-    selectors :: [SelectionState -> m (Maybe SelectionState)]
+    selectors :: [UTxOSelection -> m (Maybe UTxOSelectionNonEmpty)]
     selectors =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
@@ -1285,9 +1258,10 @@ assetSelectionLens
     :: MonadRandom m
     => SelectionLimit
     -> (AssetId, TokenQuantity)
-    -> SelectionLens m SelectionState
+    -> SelectionLens m UTxOSelection UTxOSelectionNonEmpty
 assetSelectionLens limit (asset, minimumAssetQuantity) = SelectionLens
-    { currentQuantity = assetQuantity asset . selected
+    { currentQuantity = selectedAssetQuantity asset
+    , updatedQuantity = selectedAssetQuantity asset
     , minimumQuantity = unTokenQuantity minimumAssetQuantity
     , selectQuantity = selectAssetQuantity asset limit
     }
@@ -1297,9 +1271,10 @@ coinSelectionLens
     => SelectionLimit
     -> Coin
     -- ^ Minimum coin quantity.
-    -> SelectionLens m SelectionState
+    -> SelectionLens m UTxOSelection UTxOSelectionNonEmpty
 coinSelectionLens limit minimumCoinQuantity = SelectionLens
-    { currentQuantity = coinQuantity . selected
+    { currentQuantity = selectedCoinQuantity
+    , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
     , selectQuantity  = selectCoinQuantity limit
     }
@@ -1308,10 +1283,11 @@ coinSelectionLens limit minimumCoinQuantity = SelectionLens
 --
 selectAssetQuantity
     :: MonadRandom m
+    => IsUTxOSelection utxoSelection
     => AssetId
     -> SelectionLimit
-    -> SelectionState
-    -> m (Maybe SelectionState)
+    -> utxoSelection
+    -> m (Maybe UTxOSelectionNonEmpty)
 selectAssetQuantity asset =
     selectMatchingQuantity (WithAssetOnly asset :| [WithAsset asset])
 
@@ -1319,9 +1295,10 @@ selectAssetQuantity asset =
 --
 selectCoinQuantity
     :: MonadRandom m
+    => IsUTxOSelection utxoSelection
     => SelectionLimit
-    -> SelectionState
-    -> m (Maybe SelectionState)
+    -> utxoSelection
+    -> m (Maybe UTxOSelectionNonEmpty)
 selectCoinQuantity =
     selectMatchingQuantity (WithAdaOnly :| [Any])
 
@@ -1343,31 +1320,30 @@ selectCoinQuantity =
 --
 selectMatchingQuantity
     :: MonadRandom m
+    => IsUTxOSelection utxoSelection
     => NonEmpty SelectionFilter
         -- ^ A list of selection filters to be traversed from left-to-right,
         -- in descending order of priority.
     -> SelectionLimit
         -- ^ A limit to adhere to when selecting entries.
-    -> SelectionState
+    -> utxoSelection
         -- ^ The current selection state.
-    -> m (Maybe SelectionState)
+    -> m (Maybe UTxOSelectionNonEmpty)
         -- ^ An updated selection state that includes a matching UTxO entry,
         -- or 'Nothing' if no such entry could be found.
 selectMatchingQuantity filters limit s
     | limitReached =
         pure Nothing
     | otherwise =
-        fmap updateState <$>
-            UTxOIndex.selectRandomWithPriority (leftover s) filters
+        (updateState =<<) <$> UTxOIndex.selectRandomWithPriority
+            (UTxOSelection.leftoverIndex s) filters
   where
     limitReached = case limit of
-        MaximumInputLimit m -> UTxOIndex.size (selected s) >= m
+        MaximumInputLimit m -> UTxOSelection.selectedSize s >= m
         NoLimit -> False
 
-    updateState ((i, o), remaining) = SelectionState
-        { leftover = remaining
-        , selected = UTxOIndex.insert i o (selected s)
-        }
+    updateState :: ((TxIn, TxOut), UTxOIndex) -> Maybe UTxOSelectionNonEmpty
+    updateState ((i, _o), _remaining) = UTxOSelection.select i s
 
 --------------------------------------------------------------------------------
 -- Running a selection step
@@ -1378,11 +1354,13 @@ selectMatchingQuantity filters limit s
 -- A 'SelectionLens' gives 'runSelectionStep' just the information it needs to
 -- make a decision, and no more.
 --
-data SelectionLens m state = SelectionLens
+data SelectionLens m state state' = SelectionLens
     { currentQuantity
         :: state -> Natural
+    , updatedQuantity
+        :: state' -> Natural
     , selectQuantity
-        :: state -> m (Maybe state)
+        :: state -> m (Maybe state')
     , minimumQuantity
         :: Natural
     }
@@ -1405,25 +1383,33 @@ data SelectionLens m state = SelectionLens
 --      output token quantity, but not further away.
 --
 runSelectionStep
-    :: forall m state. Monad m
-    => SelectionLens m state
+    :: forall m state state'. Monad m
+    => SelectionLens m state state'
     -> state
-    -> m (Maybe state)
+    -> m (Maybe state')
 runSelectionStep lens s
     | currentQuantity s < minimumQuantity =
         selectQuantity s
     | otherwise =
         (requireImprovement =<<) <$> selectQuantity s
   where
-    SelectionLens {currentQuantity, selectQuantity, minimumQuantity} = lens
+    SelectionLens
+        { currentQuantity
+        , updatedQuantity
+        , minimumQuantity
+        , selectQuantity
+        } = lens
 
-    requireImprovement :: state -> Maybe state
+    requireImprovement :: state' -> Maybe state'
     requireImprovement s'
-        | distanceFromTarget s' < distanceFromTarget s = Just s'
+        | updatedDistanceFromTarget s' < currentDistanceFromTarget s = Just s'
         | otherwise = Nothing
 
-    distanceFromTarget :: state -> Natural
-    distanceFromTarget = distance targetQuantity . currentQuantity
+    currentDistanceFromTarget :: state -> Natural
+    currentDistanceFromTarget = distance targetQuantity . currentQuantity
+
+    updatedDistanceFromTarget :: state' -> Natural
+    updatedDistanceFromTarget = distance targetQuantity . updatedQuantity
 
     targetQuantity :: Natural
     targetQuantity = minimumQuantity * 2
@@ -2265,13 +2251,18 @@ runRoundRobinM state demote processors = go state processors []
 -- Accessor functions
 --------------------------------------------------------------------------------
 
-assetQuantity :: AssetId -> UTxOIndex -> Natural
-assetQuantity asset =
-    unTokenQuantity . flip TokenBundle.getQuantity asset . view #balance
+selectedAssetQuantity :: IsUTxOSelection s => AssetId -> s -> Natural
+selectedAssetQuantity asset
+    = unTokenQuantity
+    . flip TokenBundle.getQuantity asset
+    . UTxOSelection.selectedBalance
 
-coinQuantity :: UTxOIndex -> Natural
-coinQuantity =
-    fromIntegral . unCoin . TokenBundle.getCoin . UTxOIndex.balance
+selectedCoinQuantity :: IsUTxOSelection s => s -> Natural
+selectedCoinQuantity
+    = fromIntegral
+    . unCoin
+    . TokenBundle.getCoin
+    . UTxOSelection.selectedBalance
 
 --------------------------------------------------------------------------------
 -- Utility types
