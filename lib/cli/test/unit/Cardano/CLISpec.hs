@@ -18,6 +18,7 @@ import Prelude
 import Cardano.CLI
     ( Port (..)
     , TxId
+    , cacheListPoolsOption
     , cli
     , cmdAddress
     , cmdKey
@@ -46,6 +47,10 @@ import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..) )
+import Control.Cache
+    ( CacheConfig (..) )
+import Control.Monad
+    ( forM_ )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -271,15 +276,7 @@ spec = do
             , ("null 3", "{ }", ok (Just (ApiT mempty)))
             ]
 
-    describe "Tx TTL option" $ do
-        let parse arg = execParserPure defaultPrefs
-                (info timeToLiveOption mempty) ["--ttl", arg]
-        let ok ex (Success res) = Just (Quantity ex) == res
-            ok _ _ = False
-        let err (Failure _) = True
-            err _ = False
-        mapM_
-            (\(desc, arg, tst) -> it desc (parse arg `shouldSatisfy` tst))
+    let parseTimeTests =
             [ ("valid integer", "1s", ok 1)
             , ("valid zero", "0s", ok 0)
             , ("invalid negative", "-1s", err)
@@ -290,6 +287,25 @@ spec = do
             , ("malformed emptyish", "s", err)
             , ("malformed leading", "a1s", err)
             ]
+          where
+            ok ex (Success res) = Just (Quantity ex) == res
+            ok _ _ = False
+            err (Failure _) = True
+            err _ = False
+
+    describe "Tx TTL option" $ do
+        let parse arg = execParserPure defaultPrefs
+                (info timeToLiveOption mempty) ["--ttl", arg]
+        forM_ parseTimeTests $ \(desc, arg, tst) ->
+            it desc $ parse arg `shouldSatisfy` tst
+
+    describe "Cache listpools TTL option" $ do
+        let parse arg = execParserPure defaultPrefs
+                (info cacheListPoolsOption mempty) ["--cache-listpools-ttl", arg]
+        let toMaybe (CacheTTL x) = Just (Quantity x)
+            toMaybe (NoCache) = Nothing
+        forM_ parseTimeTests $ \(desc, arg, tst) ->
+            it desc $ parse arg `shouldSatisfy` (tst . fmap toMaybe)
 
   where
     backspace :: Text

@@ -34,6 +34,7 @@ import Cardano.BM.Trace
 import Cardano.CLI
     ( LogOutput (..)
     , LoggingOptions
+    , cacheListPoolsOption
     , cli
     , cmdAddress
     , cmdKey
@@ -107,6 +108,8 @@ import Cardano.Wallet.Version
     ( GitRevision, Version, showFullVersion )
 import Control.Applicative
     ( Const (..), optional )
+import Control.Cache
+    ( CacheConfig (..) )
 import Control.Exception.Base
     ( AsyncException (..) )
 import Control.Monad
@@ -186,6 +189,7 @@ data ServeArgs = ServeArgs
     , _enableShutdownHandler :: Bool
     , _poolMetadataSourceOpt :: Maybe PoolMetadataSource
     , _tokenMetadataSourceOpt :: Maybe TokenMetadataServer
+    , _cacheListPools :: CacheConfig
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 
@@ -207,6 +211,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> shutdownHandlerFlag
         <*> optional poolMetadataSourceOption
         <*> optional tokenMetadataSourceOption
+        <*> cacheListPoolsOption
         <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs -> IO ()
@@ -221,6 +226,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       enableShutdownHandler
       poolMetadataFetching
       tokenMetadataServerURI
+      cacheListPools
       logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
@@ -245,7 +251,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     tlsConfig
                     (fmap Settings poolMetadataFetching)
                     tokenMetadataServerURI
-                    Nothing
+                    cacheListPools
                     conn
                     block0
                     (gp, vData)

@@ -237,6 +237,7 @@ library
       Cardano.Wallet.Util
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
+      Control.Cache
       Control.Concurrent.Concierge
       Control.Monad.Random.Extra
       Crypto.Hash.Utils

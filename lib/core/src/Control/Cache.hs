@@ -1,10 +1,12 @@
+{-# LANGUAGE DeriveGeneric #-}
 -- |
 -- Copyright: © 2021 IOHK
 -- License: Apache-2.0
 --
 -- This module provides a utility for caching the results of long running actions.
 module Control.Cache
-    ( CacheWorker (..)
+    ( CacheConfig (..)
+    , CacheWorker (..)
     , MkCacheWorker
     , newCacheWorker
     , don'tCacheWorker
@@ -21,6 +23,8 @@ import Control.Monad
     ( forever )
 import Data.Time.Clock
     ( NominalDiffTime )
+import GHC.Generics
+    ( Generic )
 import UnliftIO
     ( MonadIO )
 import UnliftIO.Concurrent
@@ -33,6 +37,15 @@ import UnliftIO.STM
 {-------------------------------------------------------------------------------
     Cache Worker
 -------------------------------------------------------------------------------}
+-- | Caching behavior configuration.
+data CacheConfig
+    = NoCache
+    -- ^ The value is not cached at all.
+    | CacheTTL NominalDiffTime
+    -- ^ The value is cached immediately
+    -- and re-requested after the time to live (TTL) has passed.
+    deriving (Eq, Ord, Show, Generic)
+
 -- | A worker (an action of type @IO ()@) that
 -- runs a function periodically and caches the result.
 newtype CacheWorker = CacheWorker { runCacheWorker :: IO () }

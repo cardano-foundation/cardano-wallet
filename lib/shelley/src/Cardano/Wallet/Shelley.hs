@@ -26,7 +26,6 @@
 
 module Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
-    , DebugConfig (..)
     , serveWallet
 
       -- * Tracing
@@ -151,7 +150,12 @@ import Cardano.Wallet.Transaction
 import Control.Applicative
     ( Const (..) )
 import Control.Cache
-    ( CacheWorker (..), MkCacheWorker, don'tCacheWorker, newCacheWorker )
+    ( CacheConfig (..)
+    , CacheWorker (..)
+    , MkCacheWorker
+    , don'tCacheWorker
+    , newCacheWorker
+    )
 import Control.Monad
     ( forM_, void )
 import Control.Tracer
@@ -166,8 +170,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
-import Data.Time.Clock
-    ( NominalDiffTime )
 import GHC.Generics
     ( Generic )
 import Network.Ntp
@@ -224,19 +226,13 @@ data SomeNetworkDiscriminant where
 
 deriving instance Show SomeNetworkDiscriminant
 
-{- HLINT ignore DebugConfig "Use newtype instead of data" -}
--- | Various settings that modify the behavior 'serveWallet' in order
--- to make it easier to test.
-data DebugConfig = DebugConfig
-    { cacheLocalStateQueryTTL :: Maybe NominalDiffTime
-    -- ^ Time to live (TTL) for caching local state queries ('LSQ')
-    -- to a cardano-node.
-    -- If this value is 'Nothing', then queries are /not/ cached.
-    -- 
-    -- Some functions such as 'listStakePools' will query
-    -- the node at the program start and cache the value
-    -- in order to become more responsive.
-    } deriving (Show, Generic, Eq)
+-- | Configuration of caching of local state queries.
+--
+-- The function 'listStakePools' will query
+-- the node at the program start and cache the value
+-- in order to become more responsive.
+-- This type specifies how this caching should be done.
+type CacheConfigLocalStateQuery = CacheConfig
 
 -- | The @cardano-wallet@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
@@ -261,8 +257,8 @@ serveWallet
     -> Maybe Settings
     -- ^ Settings to be set at application start, will be written into DB.
     -> Maybe TokenMetadataServer
-    -> Maybe DebugConfig
-    -- ^ Optional behavior change to simplify debugging and testing.
+    -> CacheConfigLocalStateQuery
+    -- ^ How to cache the 'listStakePools' local state query.
     -> CardanoNodeConn
     -- ^ Socket for communicating with the node
     -> Block
@@ -285,7 +281,7 @@ serveWallet
   tlsConfig
   settings
   tokenMetaUri
-  mDebugConfig
+  cacheListPools
   conn
   block0
   (np, vData)
@@ -314,7 +310,8 @@ serveWallet
                 multisigApi <- apiLayer txLayerUdefined nl
                     Server.idleWorker
 
-                withPoolsMonitoring databaseDir np nl mDebugConfig $ \spl -> do
+                withPoolsMonitoring databaseDir np nl cacheListPools $
+                  \spl -> do
                     startServer
                         proxy
                         socket
@@ -366,10 +363,10 @@ serveWallet
         :: Maybe FilePath
         -> NetworkParameters
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
-        -> Maybe DebugConfig
+        -> CacheConfig
         -> (StakePoolLayer -> IO a)
         -> IO a
-    withPoolsMonitoring dir (NetworkParameters _ sp _) nl mdebug action =
+    withPoolsMonitoring dir (NetworkParameters _ sp _) nl cachepools action =
         Pool.withDecoratedDBLayer
                 poolDatabaseDecorator
                 poolsDbTracer
@@ -407,16 +404,11 @@ serveWallet
                 withRetries maction = Retry.recovering policy
                     (Retry.skipAsyncExceptions ++ [traceEx]) (\_ -> maction)
             let mkCacheWorker :: forall a. MkCacheWorker a
-                mkCacheWorker = case mdebug of
-                    Just DebugConfig{cacheLocalStateQueryTTL=Nothing} ->
-                        don'tCacheWorker
-                    Just DebugConfig{cacheLocalStateQueryTTL=Just ttl} ->
-                        newCacheWorker ttl grace . withRetries
-                    Nothing -> -- production environment
-                        newCacheWorker one_hour grace . withRetries
+                mkCacheWorker = case cachepools of
+                    NoCache      -> don'tCacheWorker
+                    CacheTTL ttl -> newCacheWorker ttl grace . withRetries
                   where
                     grace = 3 -- seconds
-                    one_hour = 60*60 -- seconds
 
             (worker, spl) <-
                 newStakePoolLayer gcStatus nl db mkCacheWorker restartMetadataThread
