@@ -10,7 +10,8 @@
 module Test.QuickCheck.Extra
     (
       -- * Generation
-      genMapWith
+      genFunction
+    , genMapWith
     , genSized2
     , genSized2With
     , reasonablySized
@@ -58,6 +59,8 @@ import Test.QuickCheck
     , suchThat
     , (.&&.)
     )
+import Test.QuickCheck.Gen.Unsafe
+    ( promote )
 import Test.Utils.Pretty
     ( pShowBuilder )
 
@@ -244,6 +247,17 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
+
+--------------------------------------------------------------------------------
+-- Generating functions
+--------------------------------------------------------------------------------
+
+-- | Generates a function.
+--
+-- This is based on the implementation of 'Arbitrary' for 'a -> b'.
+--
+genFunction :: (a -> Gen b -> Gen b) -> Gen b -> Gen (a -> b)
+genFunction coarbitraryFn gen = promote (`coarbitraryFn` gen)
 
 --------------------------------------------------------------------------------
 -- Generating and shrinking key-value maps
