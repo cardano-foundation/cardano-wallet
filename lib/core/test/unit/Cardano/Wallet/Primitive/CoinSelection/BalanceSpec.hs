@@ -41,7 +41,6 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionResult
     , SelectionResultOf (..)
     , SelectionSkeleton (..)
-    , SelectionState (..)
     , UnableToConstructChangeError (..)
     , addMintValueToChangeMaps
     , addMintValuesToChangeMaps
@@ -81,11 +80,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , ungroupByKey
     )
 import Cardano.Wallet.Primitive.CoinSelection.Gen
-    ( genSelectionLimit
-    , genSelectionState
-    , shrinkSelectionLimit
-    , shrinkSelectionState
-    )
+    ( genSelectionLimit, shrinkSelectionLimit )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -131,6 +126,10 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, genUTxOIndexLarge, genUTxOIndexLargeN, shrinkUTxOIndex )
+import Cardano.Wallet.Primitive.Types.UTxOSelection
+    ( UTxOSelection, UTxOSelectionNonEmpty )
+import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
+    ( genUTxOSelection, shrinkUTxOSelection )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
@@ -187,7 +186,6 @@ import Test.QuickCheck
     , cover
     , disjoin
     , elements
-    , forAll
     , frequency
     , generate
     , genericShrink
@@ -219,6 +217,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -279,15 +278,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.BalanceSpec" $
 
         it "prop_performSelectionEmpty" $
             property prop_performSelectionEmpty
-
-    parallel $ describe "Selection states" $ do
-
-        it "prop_genSelectionState_coverage" $
-            property prop_genSelectionState_coverage
-        it "prop_genSelectionState_valid" $
-            property prop_genSelectionState_valid
-        it "prop_shrinkSelectionState_valid" $
-            property prop_shrinkSelectionState_valid
 
     parallel $ describe "Running a selection (without making change)" $ do
 
@@ -1214,55 +1204,19 @@ mockPerformSelectionNonEmpty constraints params = Identity $ Right result
     (deficitIn, deficitOut) = computeDeficitInOut params
 
 --------------------------------------------------------------------------------
--- Selection states
---------------------------------------------------------------------------------
-
-prop_genSelectionState_coverage :: Property
-prop_genSelectionState_coverage =
-    forAll genSelectionState prop_genSelectionState_coverage_inner
-
-prop_genSelectionState_coverage_inner :: SelectionState -> Property
-prop_genSelectionState_coverage_inner state =
-    checkCoverage $
-    cover 0.1 (noneLeftover && noneSelected) "noneLeftover && noneSelected" $
-    cover 1.0 (haveLeftover && noneSelected) "haveLeftover && noneSelected" $
-    cover 1.0 (noneLeftover && haveSelected) "noneLeftover && haveSelected" $
-    cover 8.0 (haveLeftover && haveSelected) "haveLeftover && haveSelected" $
-    property True
-  where
-    haveLeftover = view #leftover state /= UTxOIndex.empty
-    noneLeftover = view #leftover state == UTxOIndex.empty
-    haveSelected = view #selected state /= UTxOIndex.empty
-    noneSelected = view #selected state == UTxOIndex.empty
-
-prop_genSelectionState_valid :: Property
-prop_genSelectionState_valid =
-    forAll genSelectionState isSelectionStateValid
-
-prop_shrinkSelectionState_valid :: Property
-prop_shrinkSelectionState_valid =
-    forAll genSelectionState $ \state ->
-        all isSelectionStateValid (shrinkSelectionState state)
-
-isSelectionStateValid :: SelectionState -> Bool
-isSelectionStateValid state = Set.disjoint
-    (Map.keysSet $ unUTxO $ UTxOIndex.toUTxO $ view #selected state)
-    (Map.keysSet $ unUTxO $ UTxOIndex.toUTxO $ view #leftover state)
-
---------------------------------------------------------------------------------
 -- Running a selection (without making change)
 --------------------------------------------------------------------------------
 
 prop_runSelection_UTxO_empty :: TokenBundle -> Property
 prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
-    SelectionState {selected, leftover} <-
-        run $ runSelection RunSelectionParams
+    result <- run $ runSelection
+        RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable = UTxOIndex.empty
             , minimumBalance = balanceRequested
             }
-    let balanceSelected = view #balance selected
-    let balanceLeftover = view #balance leftover
+    let balanceSelected = UTxOSelection.selectedBalance result
+    let balanceLeftover = UTxOSelection.leftoverBalance result
     assertWith
         "balanceSelected == TokenBundle.empty"
         (balanceSelected == TokenBundle.empty)
@@ -1274,14 +1228,14 @@ prop_runSelection_UTxO_notEnough
     :: Small UTxOIndex
     -> Property
 prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
-    SelectionState {selected, leftover} <-
-        run $ runSelection RunSelectionParams
+    result <- run $ runSelection
+        RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable = index
             , minimumBalance = balanceRequested
             }
-    let balanceSelected = view #balance selected
-    let balanceLeftover = view #balance leftover
+    let balanceSelected = UTxOSelection.selectedBalance result
+    let balanceLeftover = UTxOSelection.leftoverBalance result
     assertWith
         "balanceSelected == balanceAvailable"
         (balanceSelected == balanceAvailable)
@@ -1296,14 +1250,14 @@ prop_runSelection_UTxO_exactlyEnough
     :: Small UTxOIndex
     -> Property
 prop_runSelection_UTxO_exactlyEnough (Small index) = monadicIO $ do
-    SelectionState {selected, leftover} <-
-        run $ runSelection RunSelectionParams
+    result <- run $ runSelection
+        RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable = index
             , minimumBalance = balanceRequested
             }
-    let balanceSelected = view #balance selected
-    let balanceLeftover = view #balance leftover
+    let balanceSelected = UTxOSelection.selectedBalance result
+    let balanceLeftover = UTxOSelection.leftoverBalance result
     assertWith
         "balanceLeftover == TokenBundle.empty"
         (balanceLeftover == TokenBundle.empty)
@@ -1322,14 +1276,14 @@ prop_runSelection_UTxO_moreThanEnough
     :: Small UTxOIndex
     -> Property
 prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
-    SelectionState {selected, leftover} <-
-        run $ runSelection RunSelectionParams
+    result <- run $ runSelection
+        RunSelectionParams
             { selectionLimit = NoLimit
             , utxoAvailable = index
             , minimumBalance = balanceRequested
             }
-    let balanceSelected = view #balance selected
-    let balanceLeftover = view #balance leftover
+    let balanceSelected = UTxOSelection.selectedBalance result
+    let balanceLeftover = UTxOSelection.leftoverBalance result
     monitor $ cover 80
         (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
         "assetsRequested ⊂ assetsAvailable"
@@ -1366,14 +1320,14 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
     withMaxSuccess 100 $
     checkCoverage $
     monadicIO $ do
-        SelectionState {selected, leftover} <-
-            run $ runSelection RunSelectionParams
+        result <- run $ runSelection
+            RunSelectionParams
                 { selectionLimit = NoLimit
                 , utxoAvailable = index
                 , minimumBalance = balanceRequested
                 }
-        let balanceSelected = view #balance selected
-        let balanceLeftover = view #balance leftover
+        let balanceSelected = UTxOSelection.selectedBalance result
+        let balanceLeftover = UTxOSelection.leftoverBalance result
         monitor $ cover 80
             (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
             "assetsRequested ⊂ assetsAvailable"
@@ -1406,14 +1360,8 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
 -- Running a selection (non-empty)
 --------------------------------------------------------------------------------
 
-prop_runSelectionNonEmpty :: SelectionState -> Property
-prop_runSelectionNonEmpty result = conjoin
-    [ prop_genSelectionState_coverage_inner result
-    , prop_runSelectionNonEmpty_inner result
-    ]
-
-prop_runSelectionNonEmpty_inner :: SelectionState -> Property
-prop_runSelectionNonEmpty_inner result =
+prop_runSelectionNonEmpty :: UTxOSelection -> Property
+prop_runSelectionNonEmpty result =
     case (haveLeftover, haveSelected) of
         (False, False) ->
             -- In this case, the available UTxO set was completely empty.
@@ -1423,12 +1371,12 @@ prop_runSelectionNonEmpty_inner result =
             -- In this case, we've already selected all entries from the
             -- available UTxO, so there's no more work to do. We need to check
             -- that 'runSelectionNonEmpty' does not expand the selection:
-            maybeResultNonEmpty === Just result
+            maybeResultNonEmpty === UTxOSelection.toNonEmpty result
         (True, True) ->
             -- In this case, we've already selected some entries from the
             -- available UTxO, so there's no more work to do. We need to check
             -- that 'runSelectionNonEmpty' does not expand the selection:
-            maybeResultNonEmpty === Just result
+            maybeResultNonEmpty === UTxOSelection.toNonEmpty result
         (True, False) ->
             -- This represents the case where 'runSelection' does not select
             -- anything at all, even though we do have at least one UTxO entry
@@ -1437,8 +1385,8 @@ prop_runSelectionNonEmpty_inner result =
             -- entry, and no more:
             checkResultNonEmpty
   where
-    haveLeftover = view #leftover result /= UTxOIndex.empty
-    haveSelected = view #selected result /= UTxOIndex.empty
+    haveLeftover = UTxOSelection.leftoverSize result > 0
+    haveSelected = UTxOSelection.selectedSize result > 0
 
     checkResultNonEmpty :: Property
     checkResultNonEmpty = checkSelectedElement &
@@ -1448,27 +1396,26 @@ prop_runSelectionNonEmpty_inner result =
         checkSelectedElement = do
             resultNonEmpty <- maybeResultNonEmpty
             (i, o) <- matchSingletonList $
-                UTxOIndex.toList $ view #selected resultNonEmpty
+                UTxOSelection.selectedList resultNonEmpty
             pure $
-                UTxOIndex.insert i o (view #leftover resultNonEmpty)
-                === view #leftover result
+                UTxOIndex.insert i o
+                    (UTxOSelection.leftoverIndex resultNonEmpty)
+                === UTxOSelection.leftoverIndex result
 
-    maybeResultNonEmpty :: Maybe SelectionState
+    maybeResultNonEmpty :: Maybe UTxOSelectionNonEmpty
     maybeResultNonEmpty = runIdentity $ runSelectionNonEmptyWith
         (Identity <$> mockSelectSingleEntry)
         (result)
 
-mockSelectSingleEntry :: SelectionState -> Maybe SelectionState
+mockSelectSingleEntry :: UTxOSelection -> Maybe UTxOSelectionNonEmpty
 mockSelectSingleEntry state =
-    selectEntry <$> firstLeftoverEntry state
+    selectEntry =<< firstLeftoverEntry state
   where
-    firstLeftoverEntry :: SelectionState -> Maybe (TxIn, TxOut)
-    firstLeftoverEntry = Map.lookupMin . unUTxO . UTxOIndex.toUTxO . leftover
+    firstLeftoverEntry :: UTxOSelection -> Maybe (TxIn, TxOut)
+    firstLeftoverEntry = Map.lookupMin . unUTxO . UTxOSelection.leftoverUTxO
 
-    selectEntry :: (TxIn, TxOut) -> SelectionState
-    selectEntry (i, o) = state
-        & over #selected (UTxOIndex.insert i o)
-        & over #leftover (UTxOIndex.delete i)
+    selectEntry :: (TxIn, TxOut) -> Maybe UTxOSelectionNonEmpty
+    selectEntry (i, _o) = UTxOSelection.select i state
 
 --------------------------------------------------------------------------------
 -- Running a selection step
@@ -1488,9 +1435,10 @@ runMockSelectionStep :: MockSelectionStepData -> Maybe Natural
 runMockSelectionStep d =
     runIdentity $ runSelectionStep lens $ mockSelected d
   where
-    lens :: SelectionLens Identity Natural
+    lens :: SelectionLens Identity Natural Natural
     lens = SelectionLens
         { currentQuantity = id
+        , updatedQuantity = id
         , minimumQuantity = mockMinimum d
         , selectQuantity = \s -> pure $ (+ s) <$> mockNext d
         }
@@ -1597,8 +1545,8 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
                 -- _something_ that matches.
                 monitor $ counterexample "Error: unable to select any entry"
                 assert False
-            Just SelectionState {selected} -> do
-                let output = head $ snd <$> UTxOIndex.toList selected
+            Just result -> do
+                let output = NE.head $ snd <$> UTxOSelection.selectedList result
                 let bundle = view #tokens output
                 case F.toList $ TokenBundle.getAssets bundle of
                     [a] -> assertWith
@@ -1610,7 +1558,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
   where
     asset = Set.findMin $ UTxOIndex.assets u
     assetCount = Set.size $ UTxOIndex.assets u
-    initialState = SelectionState UTxOIndex.empty u
+    initialState = UTxOSelection.fromIndex u
     lens = assetSelectionLens NoLimit (asset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
@@ -1633,15 +1581,15 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
                 -- _something_ that matches.
                 monitor $ counterexample "Error: unable to select any entry"
                 assert False
-            Just SelectionState {selected} -> do
-                let output = head $ snd <$> UTxOIndex.toList selected
+            Just result -> do
+                let output = NE.head $ snd <$> UTxOSelection.selectedList result
                 let bundle = view #tokens output
                 case F.toList $ TokenBundle.getAssets bundle of
                     [] -> assertWith     "hasCoin" (    hasCoin)
                     _  -> assertWith "not hasCoin" (not hasCoin)
   where
     entryCount = UTxOIndex.size u
-    initialState = SelectionState UTxOIndex.empty u
+    initialState = UTxOSelection.fromIndex u
     lens = coinSelectionLens NoLimit minimumCoinQuantity
     minimumCoinQuantity = Coin 1
 
@@ -3660,7 +3608,7 @@ runMockRoundRobin
     :: forall k n. (Ord k, Integral n)
     => MockRoundRobinState k n
     -> MockRoundRobinState k n
-runMockRoundRobin initialState = runRoundRobin initialState processors
+runMockRoundRobin initialState = runRoundRobin initialState id processors
   where
     processors :: [MockRoundRobinState k n -> Maybe (MockRoundRobinState k n)]
     processors = mkProcessor <$> Map.toList (processorLifetimes initialState)
@@ -3684,7 +3632,7 @@ runMockRoundRobin initialState = runRoundRobin initialState processors
 prop_runRoundRobin_identity
     :: forall state. (Eq state, Show state) => state -> [()] -> Property
 prop_runRoundRobin_identity state processors =
-    runRoundRobin state (const Nothing <$ processors) === state
+    runRoundRobin state id (const Nothing <$ processors) === state
 
 prop_runRoundRobin_iterationCount
     :: forall k n. (Ord k, Integral n)
@@ -3929,9 +3877,9 @@ expectRight = \case
     Left _a -> error "Expected right"
     Right b -> b
 
-matchSingletonList :: [a] -> Maybe a
+matchSingletonList :: NonEmpty a -> Maybe a
 matchSingletonList = \case
-    [a] -> Just a
+    a :| [] -> Just a
     _   -> Nothing
 
 mockAsset :: ByteString -> AssetId
@@ -3946,7 +3894,7 @@ unitTests lbl cases =
         it (lbl <> " example #" <> show @Int i) test
 
 --------------------------------------------------------------------------------
--- Arbitraries
+-- Arbitrary instances
 --------------------------------------------------------------------------------
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
@@ -3995,10 +3943,6 @@ instance Arbitrary SelectionLimit where
     arbitrary = genSelectionLimit
     shrink = shrinkSelectionLimit
 
-instance Arbitrary SelectionState where
-    arbitrary = genSelectionState
-    shrink = shrinkSelectionState
-
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
     shrink = shrinkTokenMap
@@ -4010,6 +3954,10 @@ instance Arbitrary TokenQuantity where
 instance Arbitrary TxOut where
     arbitrary = genTxOut
     shrink = shrinkTxOut
+
+instance Arbitrary UTxOSelection where
+    arbitrary = genUTxOSelection
+    shrink = shrinkUTxOSelection
 
 newtype Large a = Large
     { getLarge :: a }

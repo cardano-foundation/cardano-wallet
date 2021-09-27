@@ -5,7 +5,8 @@
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 
 module Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTx
+    ( coarbitraryTxIn
+    , genTx
     , genTxHash
     , genTxIndex
     , genTxIn
@@ -56,6 +57,7 @@ import Data.Word
 import Test.QuickCheck
     ( Gen
     , arbitrary
+    , coarbitrary
     , elements
     , liftArbitrary
     , liftArbitrary2
@@ -171,6 +173,9 @@ genTxHashLargeRange = Hash . B8.pack <$> replicateM 32 arbitrary
 --------------------------------------------------------------------------------
 -- Transaction indices generated according to the size parameter
 --------------------------------------------------------------------------------
+
+coarbitraryTxIn :: TxIn -> Gen a -> Gen a
+coarbitraryTxIn = coarbitrary . show
 
 genTxIndex :: Gen Word32
 genTxIndex = sized $ \size -> elements $ take (max 1 size) txIndices

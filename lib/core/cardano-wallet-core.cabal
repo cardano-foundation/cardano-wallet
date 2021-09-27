@@ -206,6 +206,7 @@ library
       Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Primitive.Types.UTxOIndex
       Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
+      Cardano.Wallet.Primitive.Types.UTxOSelection
       Cardano.Wallet.Registry
       Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Transaction
@@ -244,6 +245,7 @@ library
       Cardano.Wallet.Primitive.Types.Tx.Gen
       Cardano.Wallet.Primitive.Types.UTxO.Gen
       Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+      Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
       Cardano.Wallet.Gen
   other-modules:
       Paths_cardano_wallet_core
@@ -414,6 +416,8 @@ test-suite unit
       Cardano.Wallet.Primitive.Types.UTxOSpec
       Cardano.Wallet.Primitive.Types.UTxOIndexSpec
       Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
+      Cardano.Wallet.Primitive.Types.UTxOSelectionSpec
+      Cardano.Wallet.Primitive.Types.UTxOSelectionSpec.TypeErrorSpec
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.TokenMetadataSpec
       Cardano.Wallet.RegistrySpec
