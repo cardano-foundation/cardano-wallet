@@ -70,6 +70,7 @@ library
     , generic-arbitrary
     , hashable
     , hedgehog
+    , hedgehog-quickcheck
     , http-api-data
     , http-client
     , http-client-tls
@@ -309,9 +310,11 @@ test-suite unit
     , foldl
     , generic-arbitrary
     , generic-lens
+    , hedgehog
     , hedgehog-quickcheck
     , hspec >= 2.8.2
     , hspec-core >= 2.8.2
+    , hspec-hedgehog
     , http-api-data
     , http-client
     , http-client-tls

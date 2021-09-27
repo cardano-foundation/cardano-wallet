@@ -91,7 +91,6 @@ import Test.Cardano.Chain.UTxO.Gen
 import Test.Cardano.Crypto.Gen
     ( genProtocolMagicId )
 
-
 import qualified Cardano.Api as Api
 import qualified Cardano.Binary as CBOR
 import qualified Cardano.Crypto.Hash as Crypto
@@ -133,7 +132,6 @@ genKESPeriod = KESPeriod <$> Gen.word Range.constantBounded
 
 genLovelace :: Gen Lovelace
 genLovelace = Lovelace <$> Gen.integral (Range.linear 0 5000)
-
 
 ----------------------------------------------------------------------------
 -- SimpleScript generators
@@ -236,7 +234,6 @@ genScriptHash = do
     ScriptInAnyLang _ script <- genScriptInAnyLang
     return (hashScript script)
 
-
 ----------------------------------------------------------------------------
 -- Multi-asset generators
 --
@@ -297,7 +294,6 @@ genValueForMinting = genValue genAssetIdNoAda genSignedQuantity
 -- asset ID and a positive quantity.
 genValueForTxOut :: Gen Value
 genValueForTxOut = genValue genAssetId genUnsignedQuantity
-
 
 -- Note that we expect to sometimes generate duplicate policy id keys since we
 -- pick 90% of policy ids from a set of just three.
@@ -582,10 +578,14 @@ genWitnesses era =
   case cardanoEraStyle era of
     LegacyByronEra    -> Gen.list (Range.constant 1 10) genByronKeyWitness
     ShelleyBasedEra _ -> do
-      bsWits  <- Gen.list (Range.constant 0 10)
-                          (genShelleyBootstrapWitness era)
-      keyWits <- Gen.list (Range.constant 0 10)
-                          (genShelleyKeyWitness era)
+      bsWits  <- Gen.frequency
+                 [ (3, Gen.list (Range.constant 0 10) (genShelleyBootstrapWitness era))
+                 , (1, pure [])
+                 ]
+      keyWits <- Gen.frequency
+                 [ (3, Gen.list (Range.constant 0 10) (genShelleyKeyWitness era))
+                 , (1, pure [])
+                 ]
       return $ bsWits ++ keyWits
 
 genVerificationKey :: Key keyrole => AsType keyrole -> Gen (VerificationKey keyrole)
@@ -741,7 +741,6 @@ genProtocolParametersUpdate =
     <*> Gen.maybe genNat
     <*> Gen.maybe genNat
     <*> Gen.maybe genNat
-
 
 genUpdateProposal :: Gen UpdateProposal
 genUpdateProposal =
