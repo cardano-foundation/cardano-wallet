@@ -520,6 +520,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.ByteArray as BA
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -1458,7 +1459,7 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
                 case view #txDelegationAction txCtx of
                     Just (RegisterKeyAndJoin _) -> 1
                     _ -> 0
-            , utxoAvailable
+            , utxoAvailable = UTxOSelection.fromIndex utxoAvailable
             }
     case mSel of
         Left e -> liftIO $

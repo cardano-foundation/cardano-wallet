@@ -138,6 +138,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -215,7 +217,6 @@ import Test.Utils.Laws
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
-import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.ByteString.Char8 as B8
@@ -620,7 +621,7 @@ genSelectionParams genUTxOIndex' = do
     (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
     pure $ SelectionParams
         { outputsToCover
-        , utxoAvailable
+        , utxoAvailable = UTxOSelection.fromIndex utxoAvailable
         , extraCoinSource
         , extraCoinSink
         , assetsToMint
@@ -642,7 +643,7 @@ shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams =
     shrinkMapBy tupleToParams paramsToTuple $ liftShrink6
         (shrinkList shrinkTxOut)
-        (shrinkUTxOIndex)
+        (shrinkUTxOSelection)
         (shrinkCoin)
         (shrinkCoin)
         (shrinkTokenMap)
@@ -741,8 +742,8 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
   where
     utxoHasAtLeastOneAsset = not
         . Set.null
-        . UTxOIndex.assets
-        $ view #utxoAvailable params
+        . TokenBundle.getAssets
+        $ computeUTxOBalanceAvailable params
 
     outputsHaveAtLeastOneAsset =
         not . Set.null $ TokenBundle.getAssets outputTokens
@@ -847,7 +848,8 @@ prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
     withMaxSuccess 5 $
     prop_performSelection mockConstraints (Blind params') (const id)
   where
-    params' = params & set #utxoAvailable utxoAvailable
+    params' = params & set #utxoAvailable
+        (UTxOSelection.fromIndex utxoAvailable)
 
 prop_performSelection
     :: MockSelectionConstraints
@@ -877,7 +879,6 @@ prop_performSelection mockConstraints (Blind params) coverage =
 
     SelectionParams
         { outputsToCover
-        , utxoAvailable
         , extraCoinSource
         , extraCoinSink
         , assetsToMint
@@ -908,8 +909,8 @@ prop_performSelection mockConstraints (Blind params) coverage =
             "selectionHasValidSurplus constraints result"
             (selectionHasValidSurplus constraints result)
         assertOnSuccess
-            "utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable"
-            (utxoSelected `UTxO.isSubsetOf` UTxOIndex.toUTxO utxoAvailable)
+            "initialSelectionIsSubsetOfFinalSelection"
+            (initialSelectionIsSubsetOfFinalSelection)
         assertOnSuccess
             "view #outputsCovered result == view #outputsToCover params"
             (view #outputsCovered result == view #outputsToCover params)
@@ -934,11 +935,14 @@ prop_performSelection mockConstraints (Blind params) coverage =
                 assert True
       where
         assertOnSuccess = assertWith . (<>) "onSuccess: "
-        utxoSelected :: UTxO
-        utxoSelected = UTxO
-            $ Map.fromList
-            $ F.toList
-            $ view #inputsSelected result
+
+        initialSelectionIsSubsetOfFinalSelection :: Bool
+        initialSelectionIsSubsetOfFinalSelection =
+            view #utxoAvailable params
+            `UTxOSelection.isSubSelectionOf`
+            UTxOSelection.selectMany
+                (view #inputsSelected result <&> fst)
+                (view #utxoAvailable params)
 
     onFailure = \case
         BalanceInsufficient e ->
@@ -1043,8 +1047,8 @@ prop_performSelection mockConstraints (Blind params) coverage =
             assertWith . (<>) "onUnableToConstructChange: "
 
     onEmptyUTxO = assertWith
-        "utxoAvailable == UTxOIndex.empty"
-        (utxoAvailable == UTxOIndex.empty)
+        "view #utxoAvailable params == UTxOSelection.empty"
+        (view #utxoAvailable params == UTxOSelection.empty)
 
     selectionLimit = view #computeSelectionLimit constraints $
         F.toList outputsToCover
@@ -1210,7 +1214,7 @@ prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
-            , utxoAvailable = UTxOIndex.empty
+            , utxoAvailable = UTxOSelection.fromIndex UTxOIndex.empty
             , minimumBalance = balanceRequested
             }
     let balanceSelected = UTxOSelection.selectedBalance result
@@ -1229,7 +1233,7 @@ prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
-            , utxoAvailable = index
+            , utxoAvailable = UTxOSelection.fromIndex index
             , minimumBalance = balanceRequested
             }
     let balanceSelected = UTxOSelection.selectedBalance result
@@ -1251,7 +1255,7 @@ prop_runSelection_UTxO_exactlyEnough (Small index) = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
-            , utxoAvailable = index
+            , utxoAvailable = UTxOSelection.fromIndex index
             , minimumBalance = balanceRequested
             }
     let balanceSelected = UTxOSelection.selectedBalance result
@@ -1277,7 +1281,7 @@ prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
-            , utxoAvailable = index
+            , utxoAvailable = UTxOSelection.fromIndex index
             , minimumBalance = balanceRequested
             }
     let balanceSelected = UTxOSelection.selectedBalance result
@@ -1321,7 +1325,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
         result <- run $ runSelection
             RunSelectionParams
                 { selectionLimit = NoLimit
-                , utxoAvailable = index
+                , utxoAvailable = UTxOSelection.fromIndex index
                 , minimumBalance = balanceRequested
                 }
         let balanceSelected = UTxOSelection.selectedBalance result
@@ -1646,8 +1650,11 @@ encodeBoundaryTestCriteria c = SelectionParams
         zipWith TxOut
             (dummyAddresses)
             (uncurry TokenBundle.fromFlatList <$> boundaryTestOutputs c)
-    , utxoAvailable = UTxOIndex.fromSequence $ zip dummyTxIns $
-        zipWith TxOut
+    , utxoAvailable =
+        UTxOSelection.fromIndex
+        $ UTxOIndex.fromSequence
+        $ zip dummyTxIns
+        $ zipWith TxOut
             (dummyAddresses)
             (uncurry TokenBundle.fromFlatList <$> boundaryTestUTxO c)
     , extraCoinSource =

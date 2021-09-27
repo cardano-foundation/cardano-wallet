@@ -232,8 +232,11 @@ data SelectionParamsOf outputs = SelectionParams
         :: !outputs
         -- ^ The complete set of outputs to be covered.
     , utxoAvailable
-        :: !UTxOIndex
-        -- ^ A UTxO set from which inputs can be selected.
+        :: !UTxOSelection
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- inputs and optionally, a subset that has already been selected.
+        --
+        -- Further entries from this set will be selected to cover any deficit.
     , extraCoinSource
         :: !Coin
         -- ^ An extra source of ada.
@@ -289,7 +292,8 @@ data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
 computeUTxOBalanceAvailable
     :: SelectionParamsOf (f TxOut)
     -> TokenBundle
-computeUTxOBalanceAvailable = UTxOIndex.balance . view #utxoAvailable
+computeUTxOBalanceAvailable =
+    UTxOSelection.availableBalance . view #utxoAvailable
 
 -- | Computes the balance of UTxO entries required to be selected.
 --
@@ -1050,7 +1054,7 @@ performSelectionNonEmpty constraints params
 data RunSelectionParams = RunSelectionParams
     { selectionLimit :: SelectionLimit
         -- ^ A limit to adhere to when performing a selection.
-    , utxoAvailable :: UTxOIndex
+    , utxoAvailable :: UTxOSelection
         -- ^ UTxO entries available for selection.
     , minimumBalance :: TokenBundle
         -- ^ Minimum balance to cover.
@@ -1076,16 +1080,13 @@ runSelectionNonEmptyWith selectSingleEntry result =
 runSelection
     :: forall m. MonadRandom m => RunSelectionParams -> m UTxOSelection
 runSelection params =
-    runRoundRobinM initialState UTxOSelection.fromNonEmpty selectors
+    runRoundRobinM utxoAvailable UTxOSelection.fromNonEmpty selectors
   where
     RunSelectionParams
         { selectionLimit
         , utxoAvailable
         , minimumBalance
         } = params
-
-    initialState :: UTxOSelection
-    initialState = UTxOSelection.fromIndex utxoAvailable
 
     -- NOTE: We run the 'coinSelector' last, because we know that every input
     -- necessarily has a non-zero ada amount. By running the other selectors

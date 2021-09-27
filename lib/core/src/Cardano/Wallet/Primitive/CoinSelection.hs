@@ -68,8 +68,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut
     , txOutMaxTokenQuantity
     )
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
+import Cardano.Wallet.Primitive.Types.UTxOSelection
+    ( UTxOSelection )
 import Control.Monad.Random.Class
     ( MonadRandom )
 import Control.Monad.Trans.Except
@@ -271,10 +271,12 @@ data SelectionParams = SelectionParams
         :: !Natural
         -- ^ Number of deposits from stake key de-registrations.
     , utxoAvailable
-        :: !UTxOIndex
-        -- ^ Specifies the set of all available UTxO entries. The algorithm
-        -- will choose entries from this set when selecting ordinary inputs
-        -- and collateral inputs.
+        :: !UTxOSelection
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- ordinary inputs and optionally, a subset that has already been
+        -- selected.
+        --
+        -- Further entries from this set will be selected to cover any deficit.
     }
     deriving (Eq, Generic, Show)
 
