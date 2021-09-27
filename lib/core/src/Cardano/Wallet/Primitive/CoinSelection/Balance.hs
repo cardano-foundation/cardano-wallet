@@ -430,11 +430,11 @@ instance Ord a => Ord (SelectionLimitOf a) where
         (NoLimit            , MaximumInputLimit _) -> GT
         (MaximumInputLimit x, MaximumInputLimit y) -> compare x y
 
-type SelectionResult change = SelectionResultOf [TxOut] change
+type SelectionResult = SelectionResultOf [TxOut]
 
 -- | The result of performing a successful selection.
 --
-data SelectionResultOf outputs change = SelectionResult
+data SelectionResultOf outputs = SelectionResult
     { inputsSelected
         :: !(NonEmpty (TxIn, TxOut))
         -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
@@ -448,7 +448,7 @@ data SelectionResultOf outputs change = SelectionResult
         :: !outputs
         -- ^ A list of outputs covered.
     , changeGenerated
-        :: ![change]
+        :: ![TokenBundle]
         -- ^ A list of generated change outputs.
     , assetsToMint
         :: !TokenMap
@@ -492,9 +492,7 @@ instance Buildable a => Buildable (SelectionDelta a) where
 -- See 'SelectionDelta'.
 --
 selectionDeltaAllAssets
-    :: Foldable f
-    => SelectionResultOf (f TxOut) TokenBundle
-    -> SelectionDelta TokenBundle
+    :: Foldable f => SelectionResultOf (f TxOut) -> SelectionDelta TokenBundle
 selectionDeltaAllAssets result
     | balanceOut `leq` balanceIn =
         SelectionSurplus $ TokenBundle.difference balanceIn balanceOut
@@ -530,9 +528,7 @@ selectionDeltaAllAssets result
 -- See 'SelectionDelta'.
 --
 selectionDeltaCoin
-    :: Foldable f
-    => SelectionResultOf (f TxOut) TokenBundle
-    -> SelectionDelta Coin
+    :: Foldable f => SelectionResultOf (f TxOut) -> SelectionDelta Coin
 selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 
 -- | Indicates whether or not a selection result has a valid surplus.
@@ -540,7 +536,7 @@ selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
 selectionHasValidSurplus
     :: Foldable f
     => SelectionConstraints
-    -> SelectionResultOf (f TxOut) TokenBundle
+    -> SelectionResultOf (f TxOut)
     -> Bool
 selectionHasValidSurplus constraints selection =
     case selectionDeltaAllAssets selection of
@@ -570,8 +566,7 @@ selectionHasValidSurplus constraints selection =
 -- Use 'selectionDeltaCoin' if you wish to handle the case where there is
 -- a deficit.
 --
-selectionSurplusCoin
-    :: Foldable f => SelectionResultOf (f TxOut) -> Coin
+selectionSurplusCoin :: Foldable f => SelectionResultOf (f TxOut) -> Coin
 selectionSurplusCoin result =
     case selectionDeltaCoin result of
         SelectionSurplus surplus -> surplus
@@ -580,9 +575,7 @@ selectionSurplusCoin result =
 -- | Converts a selection into a skeleton.
 --
 selectionSkeleton
-    :: Foldable f
-    => SelectionResultOf (f TxOut) TokenBundle
-    -> SelectionSkeleton
+    :: Foldable f => SelectionResultOf (f TxOut) -> SelectionSkeleton
 selectionSkeleton s = SelectionSkeleton
     { skeletonInputCount = F.length (view #inputsSelected s)
     , skeletonOutputs = F.toList (view #outputsCovered s)
@@ -596,7 +589,7 @@ selectionSkeleton s = SelectionSkeleton
 selectionMinimumCost
     :: Foldable f
     => SelectionConstraints
-    -> SelectionResultOf (f TxOut) TokenBundle
+    -> SelectionResultOf (f TxOut)
     -> Coin
 selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 
@@ -706,10 +699,10 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
         then bundle { coin = minCoinValueFor (view #tokens bundle) }
         else bundle
 
-type PerformSelection m outputs change =
+type PerformSelection m outputs =
     SelectionConstraints ->
     SelectionParamsOf outputs ->
-    m (Either SelectionError (SelectionResultOf outputs change))
+    m (Either SelectionError (SelectionResultOf outputs))
 
 -- | Performs a coin selection and generates change bundles in one step.
 --
@@ -724,7 +717,7 @@ type PerformSelection m outputs change =
 --
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
-    => PerformSelection m [TxOut] TokenBundle
+    => PerformSelection m [TxOut]
 performSelection = performSelectionEmpty performSelectionNonEmpty
 
 -- | Transforms a coin selection function that requires a non-empty list of
@@ -756,8 +749,8 @@ performSelection = performSelectionEmpty performSelectionNonEmpty
 --
 performSelectionEmpty
     :: Functor m
-    => PerformSelection m (NonEmpty TxOut) change
-    -> PerformSelection m [         TxOut] change
+    => PerformSelection m (NonEmpty TxOut)
+    -> PerformSelection m [         TxOut]
 performSelectionEmpty performSelectionFn constraints params =
     fmap transformResult <$>
     performSelectionFn constraints (transformParams params)
@@ -772,8 +765,8 @@ performSelectionEmpty performSelectionFn constraints params =
             (transform (const (dummyOutput :| [])) (const . id))
 
     transformResult
-        :: SelectionResultOf (NonEmpty TxOut) change
-        -> SelectionResultOf [         TxOut] change
+        :: SelectionResultOf (NonEmpty TxOut)
+        -> SelectionResultOf [         TxOut]
     transformResult
         = over #extraCoinSource
             (transform (`Coin.difference` minCoin) (const id))
@@ -805,7 +798,7 @@ performSelectionEmpty performSelectionFn constraints params =
 
 performSelectionNonEmpty
     :: forall m. (HasCallStack, MonadRandom m)
-    => PerformSelection m (NonEmpty TxOut) TokenBundle
+    => PerformSelection m (NonEmpty TxOut)
 performSelectionNonEmpty constraints params
     -- Is the total available UTXO balance sufficient?
     | not utxoBalanceSufficient =
@@ -958,8 +951,7 @@ performSelectionNonEmpty constraints params
     --
     makeChangeRepeatedly
         :: UTxOSelectionNonEmpty
-        -> m (Either SelectionError
-                (SelectionResultOf (NonEmpty TxOut) TokenBundle))
+        -> m (Either SelectionError (SelectionResultOf (NonEmpty TxOut)))
     makeChangeRepeatedly s = case mChangeGenerated of
 
         Right change | length change >= length outputsToCover ->
@@ -1012,9 +1004,7 @@ performSelectionNonEmpty constraints params
             , assetsToBurn
             }
 
-        mkSelectionResult
-            :: [TokenBundle]
-            -> SelectionResultOf (NonEmpty TxOut) TokenBundle
+        mkSelectionResult :: [TokenBundle] -> SelectionResultOf (NonEmpty TxOut)
         mkSelectionResult changeGenerated = SelectionResult
             { inputsSelected
             , extraCoinSource

@@ -176,7 +176,7 @@ toBalanceConstraintsParams (constraints, params) =
 -- Adjust this function to accept the result of a collateral selection as a
 -- parameter.
 --
-mkSelection :: Balance.SelectionResult TokenBundle -> Selection
+mkSelection :: Balance.SelectionResult -> Selection
 mkSelection balanceResult = Selection
     { inputs = view #inputsSelected balanceResult
     , collateral = [] --TODO: [ADP-1037]
@@ -188,7 +188,7 @@ mkSelection balanceResult = Selection
     , extraCoinSink = view #extraCoinSink balanceResult
     }
 
-toBalanceSelection :: Selection -> Balance.SelectionResult TokenBundle
+toBalanceSelection :: Selection -> Balance.SelectionResult
 toBalanceSelection selection = Balance.SelectionResult
     { inputsSelected = view #inputs selection
     , outputsCovered = view #outputs selection
