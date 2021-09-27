@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Primitive.CoinSelection.Gen
@@ -13,10 +12,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimit
-    , SelectionLimitOf (..)
-    , SelectionSkeleton (..)
-    )
+    ( SelectionLimit, SelectionLimitOf (..), SelectionSkeleton (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId, genTokenMap, shrinkAssetId, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.Tx.Gen

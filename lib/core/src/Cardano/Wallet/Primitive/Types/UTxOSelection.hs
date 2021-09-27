@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -109,7 +110,7 @@ import GHC.Generics
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F
-import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.List.NonEmpty as NE
 
 --------------------------------------------------------------------------------
 -- Classes
@@ -169,7 +170,7 @@ instance IsUTxOSelection UTxOSelection where
 
 instance IsUTxOSelection UTxOSelectionNonEmpty where
     type SelectedList UTxOSelectionNonEmpty = NonEmpty (TxIn, TxOut)
-    selectedList = NonEmpty.fromList . UTxOIndex.toList . selectedIndex
+    selectedList = NE.fromList . UTxOIndex.toList . selectedIndex
 
 --------------------------------------------------------------------------------
 -- Construction and deconstruction

@@ -80,9 +80,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , ungroupByKey
     )
 import Cardano.Wallet.Primitive.CoinSelection.Gen
-    ( genSelectionLimit
-    , shrinkSelectionLimit
-    )
+    ( genSelectionLimit, shrinkSelectionLimit )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
