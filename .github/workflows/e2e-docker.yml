@@ -8,7 +8,7 @@ on:
       nodeTag:
         description: 'Node tag (docker)'
         required: true
-        default: '1.27.0'
+        default: '1.30.0'
       walletTag:
         description: 'Wallet tag (docker)'
         required: true
@@ -29,6 +29,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Get supported node tag
+      run: |
+        export TAG=`cat ../../nix/.stack.nix/cardano-node.nix | grep -o 'version = ".*"' | awk '{ print $3 }' | sed 's/"//g'`
+        if [ -z "${{github.event.inputs.nodeTag}}" ]; then
+          echo "::set-output name=NODE_TAG::$TAG"
+          echo "Using tag from cardano-node.nix = $TAG"
+        else
+          echo "::set-output name=NODE_TAG::${{github.event.inputs.nodeTag}}"
+          echo "Using tag from workflow trigger parameter = ${{github.event.inputs.nodeTag}}"
+        fi
+      id: cardano-node-tag
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
@@ -55,14 +67,14 @@ jobs:
     - name: Set up cardano-wallet and cardano-node
       run: |
         echo "Wallet: $WALLET"
-        echo "Node: $NODE"
-        NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml up --detach
+        echo "Node: ${{steps.cardano-node-tag.outputs.NODE_TAG}}"
+        NODE=${{steps.cardano-node-tag.outputs.NODE_TAG}} NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml up --detach
         ls ~/node-db-nightly-docker
 
     - name: Display versions
       run: |
         docker run --rm inputoutput/cardano-wallet:$WALLET version
-        docker run --rm inputoutput/cardano-node:$NODE cli version
+        docker run --rm inputoutput/cardano-node:${{steps.cardano-node-tag.outputs.NODE_TAG}} cli version
 
     - name: Wait until node is synced
       run: rake wait_until_node_synced
@@ -87,5 +99,4 @@ jobs:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       NETWORK: ${{ github.event.inputs.network || 'testnet' }}
       WALLET: ${{ github.event.inputs.walletTag || 'dev-master' }}
-      NODE: ${{ github.event.inputs.nodeTag || '1.29.0' }}
       TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
