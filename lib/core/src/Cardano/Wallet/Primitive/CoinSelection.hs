@@ -446,6 +446,7 @@ data SelectionReportSummarized = SelectionReportSummarized
     , adaBalanceOfRequestedOutputs :: Coin
     , adaBalanceOfGeneratedChangeOutputs :: Coin
     , numberOfSelectedInputs :: Int
+    , numberOfSelectedCollateralInputs :: Int
     , numberOfRequestedOutputs :: Int
     , numberOfGeneratedChangeOutputs :: Int
     , numberOfUniqueNonAdaAssetsInSelectedInputs :: Int
@@ -458,6 +459,7 @@ data SelectionReportSummarized = SelectionReportSummarized
 --
 data SelectionReportDetailed = SelectionReportDetailed
     { selectedInputs :: [(TxIn, TxOut)]
+    , selectedCollateral :: [(TxIn, TxOut)]
     , requestedOutputs :: [TxOut]
     , generatedChangeOutputs :: [TokenBundle.Flat TokenBundle]
     }
@@ -497,6 +499,8 @@ makeSelectionReportSummarized s = SelectionReportSummarized {..}
         = F.foldMap (view (#tokens . #coin)) $ view #outputs s
     numberOfSelectedInputs
         = length $ view #inputs s
+    numberOfSelectedCollateralInputs
+        = length $ view #collateral s
     numberOfRequestedOutputs
         = length $ view #outputs s
     numberOfGeneratedChangeOutputs
@@ -518,6 +522,8 @@ makeSelectionReportDetailed :: Selection -> SelectionReportDetailed
 makeSelectionReportDetailed s = SelectionReportDetailed
     { selectedInputs
         = F.toList $ view #inputs s
+    , selectedCollateral
+        = F.toList $ view #collateral s
     , requestedOutputs
         = view #outputs s
     , generatedChangeOutputs
