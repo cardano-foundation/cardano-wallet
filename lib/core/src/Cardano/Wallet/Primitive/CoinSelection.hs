@@ -27,11 +27,16 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionConstraints (..)
     , SelectionParams (..)
     , SelectionError (..)
+    , Selection
+    , SelectionOf (..)
 
     , prepareOutputs
     , ErrPrepareOutputs (..)
     , ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
+
+    -- * Queries
+    , selectionDelta
 
     -- * Reporting
     , SelectionReport (..)
@@ -45,7 +50,7 @@ module Cardano.Wallet.Primitive.CoinSelection
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimit, SelectionResult, SelectionSkeleton )
+    ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -73,6 +78,8 @@ import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Generics.Labels
     ()
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Semigroup
     ( mtimesDefault )
 import Data.Word
@@ -106,7 +113,7 @@ performSelection
     :: (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
-    -> ExceptT SelectionError m (SelectionResult TokenBundle)
+    -> ExceptT SelectionError m Selection
 performSelection constraints params = do
     -- TODO:
     --
@@ -118,7 +125,9 @@ performSelection constraints params = do
     --
     preparedOutputs <- withExceptT SelectionOutputsError $ except
         $ prepareOutputs constraints (view #outputsToCover params)
-    withExceptT SelectionBalanceError $ ExceptT
+    withExceptT SelectionBalanceError
+        $ fmap mkSelection
+        $ ExceptT
         $ uncurry Balance.performSelection
         $ toBalanceConstraintsParams
             ( constraints
@@ -160,6 +169,47 @@ toBalanceConstraintsParams (constraints, params) =
         , utxoAvailable =
             view #utxoAvailable params
         }
+
+-- | Makes a selection from an ordinary selection and a collateral selection.
+--
+-- TODO: [ADP-1037]
+-- Adjust this function to accept the result of a collateral selection as a
+-- parameter.
+--
+mkSelection :: Balance.SelectionResult TokenBundle -> Selection
+mkSelection balanceResult = Selection
+    { inputs = view #inputsSelected balanceResult
+    , collateral = [] --TODO: [ADP-1037]
+    , outputs = view #outputsCovered balanceResult
+    , change = view #changeGenerated balanceResult
+    , assetsToMint = view #assetsToMint balanceResult
+    , assetsToBurn = view #assetsToBurn balanceResult
+    , extraCoinSource = view #extraCoinSource balanceResult
+    , extraCoinSink = view #extraCoinSink balanceResult
+    }
+
+toBalanceSelection :: Selection -> Balance.SelectionResult TokenBundle
+toBalanceSelection selection = Balance.SelectionResult
+    { inputsSelected = view #inputs selection
+    , outputsCovered = view #outputs selection
+    , changeGenerated = view #change selection
+    , assetsToMint = view #assetsToMint selection
+    , assetsToBurn = view #assetsToBurn selection
+    , extraCoinSource = view #extraCoinSource selection
+    , extraCoinSink = view #extraCoinSink selection
+    }
+
+-- | Computes the delta of the given selection, assuming there is a surplus.
+--
+selectionDelta
+    :: (change -> Coin)
+    -- ^ A function to extract the coin value from a change value.
+    -> SelectionOf change
+    -> Coin
+selectionDelta getChangeCoin
+    = Balance.selectionSurplusCoin
+    . toBalanceSelection
+    . over #change (fmap (TokenBundle.fromCoin . getChangeCoin))
 
 -- | Specifies all constraints required for coin selection.
 --
@@ -235,6 +285,42 @@ data SelectionError
     = SelectionBalanceError Balance.SelectionError
     | SelectionOutputsError ErrPrepareOutputs
     deriving (Eq, Show)
+
+-- | Represents a balanced selection.
+--
+data SelectionOf change = Selection
+    { inputs
+        :: !(NonEmpty (TxIn, TxOut))
+        -- ^ Selected inputs.
+    , collateral
+        :: ![(TxIn, TxOut)]
+        -- ^ Selected collateral inputs.
+    , outputs
+        :: ![TxOut]
+        -- ^ User-specified outputs
+    , change
+        :: ![change]
+        -- ^ Generated change outputs.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Assets to mint.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ Assets to burn.
+    , extraCoinSource
+        :: !Coin
+        -- ^ An extra source of ada.
+    , extraCoinSink
+        :: !Coin
+        -- ^ An extra sink for ada.
+    }
+    deriving (Generic, Eq, Show)
+
+-- | The default type of selection.
+--
+-- In this type of selection, change values do not have addresses assigned.
+--
+type Selection = SelectionOf TokenBundle
 
 -- | Prepares the given user-specified outputs, ensuring that they are valid.
 --
@@ -384,15 +470,13 @@ instance Buildable SelectionReportSummarized where
 instance Buildable SelectionReportDetailed where
     build = genericF
 
-makeSelectionReport
-    :: Balance.SelectionResult TokenBundle -> SelectionReport
+makeSelectionReport :: Selection -> SelectionReport
 makeSelectionReport s = SelectionReport
     { summary = makeSelectionReportSummarized s
     , detail = makeSelectionReportDetailed s
     }
 
-makeSelectionReportSummarized
-    :: Balance.SelectionResult TokenBundle -> SelectionReportSummarized
+makeSelectionReportSummarized :: Selection -> SelectionReportSummarized
 makeSelectionReportSummarized s = SelectionReportSummarized {..}
   where
     computedFee
@@ -402,53 +486,52 @@ makeSelectionReportSummarized s = SelectionReportSummarized {..}
     totalAdaBalanceOut
         = adaBalanceOfGeneratedChangeOutputs <> adaBalanceOfRequestedOutputs
     adaBalanceOfSelectedInputs
-        = F.foldMap (view (#tokens . #coin) . snd) $ view #inputsSelected s
+        = F.foldMap (view (#tokens . #coin) . snd) $ view #inputs s
     adaBalanceOfExtraCoinSource
         = view #extraCoinSource s
     adaBalanceOfExtraCoinSink
         = view #extraCoinSink s
     adaBalanceOfGeneratedChangeOutputs
-        = F.foldMap (view #coin) $ view #changeGenerated s
+        = F.foldMap (view #coin) $ view #change s
     adaBalanceOfRequestedOutputs
-        = F.foldMap (view (#tokens . #coin)) $ view #outputsCovered s
+        = F.foldMap (view (#tokens . #coin)) $ view #outputs s
     numberOfSelectedInputs
-        = length $ view #inputsSelected s
+        = length $ view #inputs s
     numberOfRequestedOutputs
-        = length $ view #outputsCovered s
+        = length $ view #outputs s
     numberOfGeneratedChangeOutputs
-        = length $ view #changeGenerated s
+        = length $ view #change s
     numberOfUniqueNonAdaAssetsInSelectedInputs
         = Set.size
         $ F.foldMap (TokenBundle.getAssets . view #tokens . snd)
-        $ view #inputsSelected s
+        $ view #inputs s
     numberOfUniqueNonAdaAssetsInRequestedOutputs
         = Set.size
         $ F.foldMap (TokenBundle.getAssets . view #tokens)
-        $ view #outputsCovered s
+        $ view #outputs s
     numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs
         = Set.size
         $ F.foldMap TokenBundle.getAssets
-        $ view #changeGenerated s
+        $ view #change s
 
-makeSelectionReportDetailed
-    :: SelectionResult TokenBundle -> SelectionReportDetailed
+makeSelectionReportDetailed :: Selection -> SelectionReportDetailed
 makeSelectionReportDetailed s = SelectionReportDetailed
     { selectedInputs
-        = F.toList $ view #inputsSelected s
+        = F.toList $ view #inputs s
     , requestedOutputs
-        = view #outputsCovered s
+        = view #outputs s
     , generatedChangeOutputs
-        = TokenBundle.Flat <$> view #changeGenerated s
+        = TokenBundle.Flat <$> view #change s
     }
 
 -- A convenience instance for 'Buildable' contexts that include a nested
--- 'SelectionResult' value.
-instance Buildable (SelectionResult TokenBundle) where
+-- 'SelectionOf TokenBundle' value.
+instance Buildable (SelectionOf TokenBundle) where
     build = build . makeSelectionReport
 
 -- A convenience instance for 'Buildable' contexts that include a nested
--- 'SelectionResult' value.
-instance Buildable (SelectionResult TxOut) where
+-- 'SelectionOf TxOut' value.
+instance Buildable (SelectionOf TxOut) where
     build = build
         . makeSelectionReport
-        . over #changeGenerated (fmap $ view #tokens)
+        . over #change (fmap $ view #tokens)

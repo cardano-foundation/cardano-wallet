@@ -358,13 +358,11 @@ import Cardano.Wallet.Primitive.CoinSelection
     , ErrOutputTokenQuantityExceedsLimit (..)
     , ErrPrepareOutputs (..)
     , SelectionError (..)
-    )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionResultOf (..)
-    , UnableToConstructChangeError (..)
-    , balanceMissing
+    , SelectionOf (..)
     , selectionDelta
     )
+import Cardano.Wallet.Primitive.CoinSelection.Balance
+    ( UnableToConstructChangeError (..), balanceMissing )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )
 import Cardano.Wallet.Primitive.Migration
@@ -1875,7 +1873,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             , txFee = tx ^. #fee
               -- TODO: ADP-957:
             , txCollateral = []
-            , txInputs = NE.toList $ second Just <$> sel ^. #inputsSelected
+            , txInputs = NE.toList $ second Just <$> sel ^. #inputs
             , txOutputs = tx ^. #outputs
             , txWithdrawals = tx ^. #withdrawals
             , txMeta
@@ -2153,7 +2151,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             , txFee = tx ^. #fee
               -- Joining a stake pool does not require collateral:
             , txCollateral = []
-            , txInputs = NE.toList $ second Just <$> sel ^. #inputsSelected
+            , txInputs = NE.toList $ second Just <$> sel ^. #inputs
             , txOutputs = tx ^. #outputs
             , txWithdrawals = tx ^. #withdrawals
             , txMeta
@@ -2244,7 +2242,7 @@ quitStakePool ctx (ApiT wid) body = do
             , txFee = tx ^. #fee
               -- Quitting a stake pool does not require collateral:
             , txCollateral = []
-            , txInputs = NE.toList $ second Just <$> sel ^. #inputsSelected
+            , txInputs = NE.toList $ second Just <$> sel ^. #inputs
             , txOutputs = tx ^. #outputs
             , txWithdrawals = tx ^. #withdrawals
             , txMeta
@@ -2413,7 +2411,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
     maybeSelections = fmap mkApiCoinSelectionForMigration <$> maybeUnsignedTxs
 
     maybeSelectionWithdrawals
-        :: Maybe (NonEmpty (W.SelectionResultWithoutChange, Withdrawal))
+        :: Maybe (NonEmpty (W.SelectionWithoutChange, Withdrawal))
     maybeSelectionWithdrawals
         = W.migrationPlanToSelectionWithdrawals plan rewardWithdrawal
         $ getApiT . fst <$> addresses
@@ -2421,7 +2419,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
     maybeUnsignedTxs = fmap mkUnsignedTx <$> maybeSelectionWithdrawals
       where
         mkUnsignedTx (selection, withdrawal) = W.selectionToUnsignedTx
-            withdrawal (selection {changeGenerated = []}) s
+            withdrawal (selection {change = []}) s
 
     totalFee :: Quantity "lovelace" Natural
     totalFee = coinToQuantity $ view #totalFee plan
@@ -2487,7 +2485,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                     }
             (tx, txMeta, txTime, sealedTx) <- liftHandler $
                 W.buildAndSignTransaction @_ @s @k wrk wid mkRewardAccount pwd
-                    txContext (selection {changeGenerated = []})
+                    txContext (selection {change = []})
             liftHandler $
                 W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
             liftIO $ mkApiTransaction
@@ -2499,7 +2497,7 @@ migrateWallet ctx withdrawalType (ApiT wid) postData = do
                       -- Migrations never require collateral:
                     , txCollateral = []
                     , txInputs =
-                        NE.toList $ second Just <$> selection ^. #inputsSelected
+                        NE.toList $ second Just <$> selection ^. #inputs
                     , txOutputs = tx ^. #outputs
                     , txWithdrawals = tx ^. #withdrawals
                     , txMeta

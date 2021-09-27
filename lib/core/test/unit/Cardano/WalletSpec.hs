@@ -31,7 +31,7 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , LocalTxSubmissionConfig (..)
-    , SelectionResultWithoutChange
+    , SelectionWithoutChange
     , WalletLayer (..)
     , migrationPlanToSelectionWithdrawals
     , runLocalTxSubmissionPool
@@ -78,8 +78,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( SelectionError (..) )
-import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionResultOf (..) )
 import Cardano.Wallet.Primitive.Migration.SelectionSpec
     ( MockTxConstraints (..), genTokenBundleMixed, unMockTxConstraints )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -1072,17 +1070,17 @@ prop_migrationPlanToSelectionWithdrawals_addresses_inner
             Just selectionWithdrawals ->
                 test (fst <$> selectionWithdrawals)
   where
-    test :: NonEmpty SelectionResultWithoutChange -> Property
+    test :: NonEmpty SelectionWithoutChange -> Property
     test selections = makeCoverage $ makeReports $
         cycledTargetAddressesActual ==
         cycledTargetAddressesExpected
       where
         cycledTargetAddressesActual = view #address <$>
-            (view #outputsCovered =<< NE.toList selections)
+            (view #outputs =<< NE.toList selections)
         cycledTargetAddressesExpected = NE.take
             (length cycledTargetAddressesActual)
             (NE.cycle targetAddresses)
-        totalOutputCount = F.sum (length . view #outputsCovered <$> selections)
+        totalOutputCount = F.sum (length . view #outputs <$> selections)
         makeCoverage
             = cover 4 (totalOutputCount > length targetAddresses)
                 "total output count > target address count"
@@ -1137,7 +1135,7 @@ prop_migrationPlanToSelectionWithdrawals_io_inner
             Just selectionWithdrawals ->
                 test (fst <$> selectionWithdrawals)
   where
-    test :: NonEmpty SelectionResultWithoutChange -> Property
+    test :: NonEmpty SelectionWithoutChange -> Property
     test selections = makeCoverage $ makeReports $ conjoin
         [ inputsActual == inputsExpected
         , outputsActual == outputsExpected
@@ -1145,14 +1143,14 @@ prop_migrationPlanToSelectionWithdrawals_io_inner
       where
         inputsActual :: [[(TxIn, TxOut)]]
         inputsActual =
-            NE.toList (NE.toList . view #inputsSelected <$> selections)
+            NE.toList (NE.toList . view #inputs <$> selections)
         inputsExpected :: [[(TxIn, TxOut)]]
         inputsExpected =
             NE.toList . view #inputIds <$> view #selections plan
 
         outputsActual :: [[TokenBundle]]
         outputsActual = NE.toList
-            (fmap (view #tokens) . view #outputsCovered <$> selections)
+            (fmap (view #tokens) . view #outputs <$> selections)
         outputsExpected :: [[TokenBundle]]
         outputsExpected =
             NE.toList . view #outputs <$> view #selections plan
@@ -1246,21 +1244,21 @@ setupFixture (wid, wname, wstate) = do
 dummyTransactionLayer :: TransactionLayer ShelleyKey SealedTx
 dummyTransactionLayer = TransactionLayer
     { mkTransaction = \_era _stakeCredentials keystore _pp _ctx cs -> do
-        let inps' = NE.toList $ second txOutCoin <$> inputsSelected cs
+        let inps' = NE.toList $ second txOutCoin <$> view #inputs cs
         -- TODO: (ADP-957)
         let cinps' = []
-        let tid = mkTxId inps' (outputsCovered cs) mempty Nothing
+        let tid = mkTxId inps' (view #outputs cs) mempty Nothing
         let tx = Tx
                  { txId = tid
                  , fee = Nothing
                  , resolvedInputs = inps'
                  , resolvedCollateral = cinps'
-                 , outputs = outputsCovered cs
+                 , outputs = view #outputs cs
                  , withdrawals = mempty
                  , metadata = Nothing
                  , scriptValidity = Nothing
                  }
-        wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
+        wit <- forM (view #inputs cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keystore addr
             let sigData = tx ^. #txId . #getHash

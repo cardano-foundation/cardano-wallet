@@ -80,13 +80,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( SelectionOf (..), selectionDelta )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimitOf (..)
-    , SelectionResult
-    , SelectionResultOf (..)
-    , SelectionSkeleton (..)
-    , selectionDelta
-    )
+    ( SelectionLimitOf (..), SelectionSkeleton (..) )
 import Cardano.Wallet.Primitive.Types
     ( ExecutionUnitPrices (..)
     , ExecutionUnits (..)
@@ -256,7 +253,7 @@ constructUnsignedTx
     -- ^ Reward account
     -> Coin
     -- ^ An optional withdrawal amount, can be zero
-    -> SelectionResult TxOut
+    -> SelectionOf TxOut
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
@@ -284,7 +281,7 @@ mkTx
     -- ^ Key store
     -> Coin
     -- ^ An optional withdrawal amount, can be zero
-    -> SelectionResult TxOut
+    -> SelectionOf TxOut
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
@@ -301,7 +298,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
 
     wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do
-            addrWits <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
+            addrWits <- forM (view #inputs cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
                 pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
 
@@ -313,14 +310,14 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
             pure $ mkExtraWits unsigned <> F.toList addrWits <> wdrlsWits
 
         TxWitnessByronUTxO{} -> do
-            bootstrapWits <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
+            bootstrapWits <- forM (view #inputs cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
                 pure $ mkByronWitness unsigned networkId addr (getRawKey k, pwd)
             pure $ F.toList bootstrapWits <> mkExtraWits unsigned
 
     let signed = Cardano.makeSignedTransaction wits unsigned
     let withResolvedInputs tx = tx
-            { resolvedInputs = second txOutCoin <$> F.toList (inputsSelected cs)
+            { resolvedInputs = second txOutCoin <$> F.toList (view #inputs cs)
             }
     Right ( withResolvedInputs (fromCardanoTx signed)
           , sealedTxFromCardano' signed
@@ -1142,7 +1139,7 @@ mkUnsignedTx
     :: forall era.  Cardano.IsCardanoEra era
     => ShelleyBasedEra era
     -> Cardano.SlotNo
-    -> SelectionResult TxOut
+    -> SelectionOf TxOut
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
@@ -1153,10 +1150,10 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
     { Cardano.txIns =
         (,Cardano.BuildTxWith (Cardano.KeyWitness Cardano.KeyWitnessForSpending))
         . toCardanoTxIn
-        . fst <$> F.toList (inputsSelected cs)
+        . fst <$> F.toList (view #inputs cs)
 
     , Cardano.txOuts =
-        toShelleyBasedTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
+        toShelleyBasedTxOut <$> view #outputs cs ++ F.toList (view #change cs)
 
     , Cardano.txWithdrawals =
         let

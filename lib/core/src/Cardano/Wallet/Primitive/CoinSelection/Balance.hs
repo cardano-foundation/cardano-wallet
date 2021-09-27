@@ -48,10 +48,10 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
 
     -- * Querying selections
     , SelectionDelta (..)
-    , selectionDelta
     , selectionDeltaAllAssets
     , selectionDeltaCoin
     , selectionHasValidSurplus
+    , selectionSurplusCoin
     , selectionMinimumCost
     , selectionSkeleton
 
@@ -571,24 +571,11 @@ selectionHasValidSurplus constraints selection =
 -- a deficit.
 --
 selectionSurplusCoin
-    :: Foldable f
-    => SelectionResultOf (f TxOut) TokenBundle
-    -> Coin
+    :: Foldable f => SelectionResultOf (f TxOut) -> Coin
 selectionSurplusCoin result =
     case selectionDeltaCoin result of
         SelectionSurplus surplus -> surplus
         SelectionDeficit _       -> Coin 0
-
--- | TODO: Deprecated. See 'selectionSurplusCoin'.
---
-selectionDelta
-    :: (change -> Coin)
-    -- ^ A function to extract the coin value from a change output.
-    -> SelectionResult change
-    -> Coin
-selectionDelta getChangeCoin
-    = selectionSurplusCoin
-    . over #changeGenerated (fmap (TokenBundle.fromCoin . getChangeCoin))
 
 -- | Converts a selection into a skeleton.
 --
