@@ -123,10 +123,10 @@ checkCoverage_filter_partition f u
         (UTxO.size (UTxO.filter f u) < UTxO.size (UTxO.filter (not . f) u))
         "UTxO.size (UTxO.filter f u) < UTxO.size (UTxO.filter (not . f) u)"
   where
-    u1 `isNonEmptyProperSubsetOf` u2 = True
-        && (not (UTxO.null u1))
-        && (u1 `UTxO.isSubsetOf` u2)
-        && (u1 /= u2)
+    u1 `isNonEmptyProperSubsetOf` u2 =
+        not (UTxO.null u1)
+        && u1 `UTxO.isSubsetOf` u2
+        && u1 /= u2
 
 --------------------------------------------------------------------------------
 -- Filtering by address

@@ -370,11 +370,10 @@ checkCoverage_filter_partition f u
         (filterSize f u < filterSize (not . f) u)
         "filterSize f u < filterSize (not . f) u"
   where
-    u1 `isNonEmptyProperSubsetOf` u2 = and
-        [ not (UTxOIndex.null u1)
-        , UTxOIndex.toUTxO u1 `UTxO.isSubsetOf` UTxOIndex.toUTxO u2
-        , u1 /= u2
-        ]
+    u1 `isNonEmptyProperSubsetOf` u2 =
+        not (UTxOIndex.null u1)
+        && UTxOIndex.toUTxO u1 `UTxO.isSubsetOf` UTxOIndex.toUTxO u2
+        && u1 /= u2
 
     filterSize g = UTxOIndex.size . UTxOIndex.filter g
 

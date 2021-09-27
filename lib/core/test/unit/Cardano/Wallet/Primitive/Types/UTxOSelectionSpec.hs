@@ -353,12 +353,12 @@ isValidSelection s = UTxOIndex.disjoint
     (UTxOSelection.leftoverIndex s)
 
 isValidSelectionNonEmpty :: UTxOSelectionNonEmpty -> Bool
-isValidSelectionNonEmpty s = True
-    && (isValidSelection s)
-    && (UTxOSelection.isNonEmpty s)
-    && (UTxOSelection.selectedSize s > 0)
-    && (UTxOSelection.selectedIndex s /= UTxOIndex.empty)
-    && (not (null (UTxOSelection.selectedList s)))
+isValidSelectionNonEmpty s =
+    isValidSelection s
+    && UTxOSelection.isNonEmpty s
+    && UTxOSelection.selectedSize s > 0
+    && UTxOSelection.selectedIndex s /= UTxOIndex.empty
+    && not (null (UTxOSelection.selectedList s))
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances
