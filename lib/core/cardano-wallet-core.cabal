@@ -33,6 +33,7 @@ library
       aeson
     , async
     , base
+    , base16-bytestring
     , bech32
     , bech32-th
     , binary
@@ -41,8 +42,11 @@ library
     , cardano-api
     , cardano-binary
     , cardano-crypto
+    , cardano-crypto-class
+    , cardano-crypto-test
     , cardano-numeric
     , cardano-ledger-core
+    , cardano-ledger-byron-test
     , cardano-slotting
     , cborg
     , containers
@@ -65,6 +69,7 @@ library
     , generic-lens
     , generic-arbitrary
     , hashable
+    , hedgehog
     , http-api-data
     , http-client
     , http-client-tls
@@ -89,6 +94,7 @@ library
     , persistent >=2.13 && <2.14
     , persistent-sqlite >=2.13 && <2.14
     , persistent-template >=2.12 && <2.13
+    , plutus-ledger-api
     , pretty-simple
     , profunctors
     , quiet
@@ -102,6 +108,7 @@ library
     , servant
     , servant-client
     , servant-server
+    , shelley-spec-ledger
     , split
     , splitmix
     , statistics
@@ -245,6 +252,11 @@ library
       Cardano.Wallet.Primitive.Types.UTxO.Gen
       Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
       Cardano.Wallet.Gen
+        -- TODO:
+        --
+        -- Use cardano-api:gen to import these generators from cardano-api
+      Cardano.Api.Typed.Gen
+      Cardano.Api.Metadata.Gen
   other-modules:
       Paths_cardano_wallet_core
 
@@ -363,6 +375,7 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
+      Cardano.Api.Typed.GenSpec
       Cardano.Byron.Codec.CborSpec
       Cardano.DB.Sqlite.DeleteSpec
       Cardano.Pool.DB.Arbitrary
