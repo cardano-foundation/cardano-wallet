@@ -1,8 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -29,6 +32,14 @@ module Cardano.Wallet.Primitive.CoinSelection
     , ErrPrepareOutputs (..)
     , ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
+
+    -- * Reporting
+    , SelectionReport (..)
+    , SelectionReportSummarized (..)
+    , SelectionReportDetailed (..)
+    , makeSelectionReport
+    , makeSelectionReportSummarized
+    , makeSelectionReportDetailed
     ) where
 
 import Prelude
@@ -48,6 +59,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
+    , TxIn
     , TxOut
     , txOutMaxTokenQuantity
     )
@@ -58,13 +70,15 @@ import Control.Monad.Random.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, withExceptT )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.Generics.Labels
     ()
 import Data.Semigroup
     ( mtimesDefault )
 import Data.Word
     ( Word16 )
+import Fmt
+    ( Buildable (..), genericF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -73,6 +87,7 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
@@ -318,3 +333,122 @@ data ErrOutputTokenQuantityExceedsLimit = ErrOutputTokenQuantityExceedsLimit
       -- ^ The maximum allowable token quantity.
     }
     deriving (Eq, Generic, Show)
+
+--------------------------------------------------------------------------------
+-- Reporting
+--------------------------------------------------------------------------------
+
+-- | Includes both summarized and detailed information about a selection.
+--
+data SelectionReport = SelectionReport
+    { summary :: SelectionReportSummarized
+    , detail :: SelectionReportDetailed
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Includes summarized information about a selection.
+--
+-- Each data point can be serialized as a single line of text.
+--
+data SelectionReportSummarized = SelectionReportSummarized
+    { computedFee :: Coin
+    , totalAdaBalanceIn :: Coin
+    , totalAdaBalanceOut :: Coin
+    , adaBalanceOfSelectedInputs :: Coin
+    , adaBalanceOfExtraCoinSource :: Coin
+    , adaBalanceOfExtraCoinSink :: Coin
+    , adaBalanceOfRequestedOutputs :: Coin
+    , adaBalanceOfGeneratedChangeOutputs :: Coin
+    , numberOfSelectedInputs :: Int
+    , numberOfRequestedOutputs :: Int
+    , numberOfGeneratedChangeOutputs :: Int
+    , numberOfUniqueNonAdaAssetsInSelectedInputs :: Int
+    , numberOfUniqueNonAdaAssetsInRequestedOutputs :: Int
+    , numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs :: Int
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Includes detailed information about a selection.
+--
+data SelectionReportDetailed = SelectionReportDetailed
+    { selectedInputs :: [(TxIn, TxOut)]
+    , requestedOutputs :: [TxOut]
+    , generatedChangeOutputs :: [TokenBundle.Flat TokenBundle]
+    }
+    deriving (Eq, Generic, Show)
+
+instance Buildable SelectionReport where
+    build = genericF
+instance Buildable SelectionReportSummarized where
+    build = genericF
+instance Buildable SelectionReportDetailed where
+    build = genericF
+
+makeSelectionReport
+    :: Balance.SelectionResult TokenBundle -> SelectionReport
+makeSelectionReport s = SelectionReport
+    { summary = makeSelectionReportSummarized s
+    , detail = makeSelectionReportDetailed s
+    }
+
+makeSelectionReportSummarized
+    :: Balance.SelectionResult TokenBundle -> SelectionReportSummarized
+makeSelectionReportSummarized s = SelectionReportSummarized {..}
+  where
+    computedFee
+        = Coin.distance totalAdaBalanceIn totalAdaBalanceOut
+    totalAdaBalanceIn
+        = adaBalanceOfSelectedInputs <> adaBalanceOfExtraCoinSource
+    totalAdaBalanceOut
+        = adaBalanceOfGeneratedChangeOutputs <> adaBalanceOfRequestedOutputs
+    adaBalanceOfSelectedInputs
+        = F.foldMap (view (#tokens . #coin) . snd) $ view #inputsSelected s
+    adaBalanceOfExtraCoinSource
+        = view #extraCoinSource s
+    adaBalanceOfExtraCoinSink
+        = view #extraCoinSink s
+    adaBalanceOfGeneratedChangeOutputs
+        = F.foldMap (view #coin) $ view #changeGenerated s
+    adaBalanceOfRequestedOutputs
+        = F.foldMap (view (#tokens . #coin)) $ view #outputsCovered s
+    numberOfSelectedInputs
+        = length $ view #inputsSelected s
+    numberOfRequestedOutputs
+        = length $ view #outputsCovered s
+    numberOfGeneratedChangeOutputs
+        = length $ view #changeGenerated s
+    numberOfUniqueNonAdaAssetsInSelectedInputs
+        = Set.size
+        $ F.foldMap (TokenBundle.getAssets . view #tokens . snd)
+        $ view #inputsSelected s
+    numberOfUniqueNonAdaAssetsInRequestedOutputs
+        = Set.size
+        $ F.foldMap (TokenBundle.getAssets . view #tokens)
+        $ view #outputsCovered s
+    numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs
+        = Set.size
+        $ F.foldMap TokenBundle.getAssets
+        $ view #changeGenerated s
+
+makeSelectionReportDetailed
+    :: SelectionResult TokenBundle -> SelectionReportDetailed
+makeSelectionReportDetailed s = SelectionReportDetailed
+    { selectedInputs
+        = F.toList $ view #inputsSelected s
+    , requestedOutputs
+        = view #outputsCovered s
+    , generatedChangeOutputs
+        = TokenBundle.Flat <$> view #changeGenerated s
+    }
+
+-- A convenience instance for 'Buildable' contexts that include a nested
+-- 'SelectionResult' value.
+instance Buildable (SelectionResult TokenBundle) where
+    build = build . makeSelectionReport
+
+-- A convenience instance for 'Buildable' contexts that include a nested
+-- 'SelectionResult' value.
+instance Buildable (SelectionResult TxOut) where
+    build = build
+        . makeSelectionReport
+        . over #changeGenerated (fmap $ view #tokens)

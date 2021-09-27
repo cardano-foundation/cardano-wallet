@@ -298,17 +298,17 @@ import Cardano.Wallet.Primitive.CoinSelection
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionParams (..)
+    , SelectionReportDetailed
+    , SelectionReportSummarized
+    , makeSelectionReportDetailed
+    , makeSelectionReportSummarized
     , performSelection
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionReportDetailed
-    , SelectionReportSummarized
-    , SelectionResult
+    ( SelectionResult
     , SelectionResultOf (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
-    , makeSelectionReportDetailed
-    , makeSelectionReportSummarized
     )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
