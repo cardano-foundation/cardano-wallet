@@ -604,8 +604,7 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
 --
 -- We define this type alias to shorten type signatures.
 --
-type PerformSelectionResult =
-    Either SelectionError (SelectionResult TokenBundle)
+type PerformSelectionResult = Either SelectionError SelectionResult
 
 genSelectionParams :: Gen UTxOIndex -> Gen SelectionParams
 genSelectionParams genUTxOIndex' = do
@@ -1126,10 +1125,10 @@ prop_performSelectionEmpty mockConstraints (Small params) =
     paramsTransformed :: SelectionParamsOf (NonEmpty TxOut)
     paramsTransformed = view #paramsTransformed report
 
-    result :: SelectionResultOf (NonEmpty TxOut) TokenBundle
+    result :: SelectionResultOf (NonEmpty TxOut)
     result = expectRight $ view #result report
 
-    resultTransformed :: SelectionResultOf [TxOut] TokenBundle
+    resultTransformed :: SelectionResultOf [TxOut]
     resultTransformed = expectRight $ view #resultTransformed report
 
     -- Provides a report of how 'performSelectionEmpty' has transformed
@@ -1172,18 +1171,17 @@ withTransformationReport p r = TransformationReport p r r
 --    - a single input to cover the cost and input deficit.
 --    - a single change output to cover the output deficit.
 --
-mockPerformSelectionNonEmpty
-    :: PerformSelection Identity (NonEmpty TxOut) TokenBundle
+mockPerformSelectionNonEmpty :: PerformSelection Identity (NonEmpty TxOut)
 mockPerformSelectionNonEmpty constraints params = Identity $ Right result
   where
-    result :: SelectionResultOf (NonEmpty TxOut) TokenBundle
+    result :: SelectionResultOf (NonEmpty TxOut)
     result = resultWithoutDelta & set #inputsSelected
         (makeInputsOfValue $ deficitIn <> TokenBundle.fromCoin minimumCost)
       where
         minimumCost :: Coin
         minimumCost = selectionMinimumCost constraints resultWithoutDelta
 
-    resultWithoutDelta :: SelectionResultOf (NonEmpty TxOut) TokenBundle
+    resultWithoutDelta :: SelectionResultOf (NonEmpty TxOut)
     resultWithoutDelta = SelectionResult
         { inputsSelected = makeInputsOfValue deficitIn
         , changeGenerated = makeChangeOfValue deficitOut
@@ -1668,7 +1666,7 @@ encodeBoundaryTestCriteria c = SelectionParams
     dummyTxIns :: [TxIn]
     dummyTxIns = [TxIn (Hash "") x | x <- [0 ..]]
 
-decodeBoundaryTestResult :: SelectionResult TokenBundle -> BoundaryTestResult
+decodeBoundaryTestResult :: SelectionResult -> BoundaryTestResult
 decodeBoundaryTestResult r = BoundaryTestResult
     { boundaryTestInputs = L.sort $ NE.toList $
         TokenBundle.toFlatList . view #tokens . snd <$> view #inputsSelected r

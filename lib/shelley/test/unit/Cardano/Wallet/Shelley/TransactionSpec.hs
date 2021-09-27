@@ -65,13 +65,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionError (..) )
+    ( SelectionError (..), SelectionOf (..), selectionDelta )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionResultOf (..)
-    , UnableToConstructChangeError (..)
-    , emptySkeleton
-    , selectionDelta
-    )
+    ( UnableToConstructChangeError (..), emptySkeleton )
 import Cardano.Wallet.Primitive.Types
     ( ExecutionUnitPrices (..)
     , ExecutionUnits (..)
@@ -832,12 +828,13 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta txOutCoin cs
           Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
-          cs = SelectionResult
-            { inputsSelected = NE.fromList inps
+          cs = Selection
+            { inputs = NE.fromList inps
+            , collateral = []
             , extraCoinSource = Coin 0
             , extraCoinSink = Coin 0
-            , outputsCovered = outs
-            , changeGenerated = chgs
+            , outputs = outs
+            , change = chgs
             , assetsToMint = mempty
             , assetsToBurn = mempty
             }
@@ -913,12 +910,13 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
     fee = toCardanoLovelace $ selectionDelta txOutCoin cs
     Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
     addrWits = map (mkShelleyWitness unsigned) pairs
-    cs = SelectionResult
-        { inputsSelected = NE.fromList inps
+    cs = Selection
+        { inputs = NE.fromList inps
+        , collateral = []
         , extraCoinSource = Coin 0
         , extraCoinSink = Coin 0
-        , outputsCovered = []
-        , changeGenerated = outs
+        , outputs = []
+        , change = outs
         -- TODO: [ADP-346]
         , assetsToMint = TokenMap.empty
         , assetsToBurn = TokenMap.empty
@@ -949,12 +947,13 @@ makeByronTx era testCase = Cardano.makeSignedTransaction byronWits unsigned
     Right unsigned = mkUnsignedTx era slotNo cs Nothing mempty [] fee
     -- byronWits = map (mkByronWitness unsigned ntwrk Nothing) pairs
     byronWits = map (error "makeByronTx: broken") pairs  -- TODO: [ADP-919]
-    cs = SelectionResult
-        { inputsSelected = NE.fromList inps
+    cs = Selection
+        { inputs = NE.fromList inps
+        , collateral = []
         , extraCoinSource = Coin 0
         , extraCoinSink = Coin 0
-        , outputsCovered = []
-        , changeGenerated = outs
+        , outputs = []
+        , change = outs
         -- TODO: [ADP-346]
         , assetsToMint = TokenMap.empty
         , assetsToBurn = TokenMap.empty

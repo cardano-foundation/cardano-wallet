@@ -42,8 +42,10 @@ import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex, Passphrase )
+import Cardano.Wallet.Primitive.CoinSelection
+    ( SelectionOf (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimit, SelectionResult, SelectionSkeleton )
+    ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
@@ -90,7 +92,7 @@ data TransactionLayer k tx = TransactionLayer
             -- Current protocol parameters
         -> TransactionCtx
             -- An additional context about the transaction
-        -> SelectionResult TxOut
+        -> SelectionOf TxOut
             -- A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTransaction (Tx, tx)
@@ -111,7 +113,7 @@ data TransactionLayer k tx = TransactionLayer
             -- Current protocol parameters
         -> TransactionCtx
             -- An additional context about the transaction
-        -> SelectionResult TxOut
+        -> SelectionOf TxOut
             -- A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTransaction tx

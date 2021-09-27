@@ -1,8 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -24,17 +27,30 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionConstraints (..)
     , SelectionParams (..)
     , SelectionError (..)
+    , Selection
+    , SelectionOf (..)
 
     , prepareOutputs
     , ErrPrepareOutputs (..)
     , ErrOutputTokenBundleSizeExceedsLimit (..)
     , ErrOutputTokenQuantityExceedsLimit (..)
+
+    -- * Queries
+    , selectionDelta
+
+    -- * Reporting
+    , SelectionReport (..)
+    , SelectionReportSummarized (..)
+    , SelectionReportDetailed (..)
+    , makeSelectionReport
+    , makeSelectionReportSummarized
+    , makeSelectionReportDetailed
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimit, SelectionResult, SelectionSkeleton )
+    ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -48,6 +64,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
+    , TxIn
     , TxOut
     , txOutMaxTokenQuantity
     )
@@ -58,13 +75,17 @@ import Control.Monad.Random.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, withExceptT )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.Generics.Labels
     ()
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Semigroup
     ( mtimesDefault )
 import Data.Word
     ( Word16 )
+import Fmt
+    ( Buildable (..), genericF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -91,7 +112,7 @@ performSelection
     :: (HasCallStack, MonadRandom m)
     => SelectionConstraints
     -> SelectionParams
-    -> ExceptT SelectionError m (SelectionResult TokenBundle)
+    -> ExceptT SelectionError m Selection
 performSelection constraints params = do
     -- TODO:
     --
@@ -103,7 +124,9 @@ performSelection constraints params = do
     --
     preparedOutputs <- withExceptT SelectionOutputsError $ except
         $ prepareOutputs constraints (view #outputsToCover params)
-    withExceptT SelectionBalanceError $ ExceptT
+    withExceptT SelectionBalanceError
+        $ fmap mkSelection
+        $ ExceptT
         $ uncurry Balance.performSelection
         $ toBalanceConstraintsParams
             ( constraints
@@ -145,6 +168,47 @@ toBalanceConstraintsParams (constraints, params) =
         , utxoAvailable =
             view #utxoAvailable params
         }
+
+-- | Makes a selection from an ordinary selection and a collateral selection.
+--
+-- TODO: [ADP-1037]
+-- Adjust this function to accept the result of a collateral selection as a
+-- parameter.
+--
+mkSelection :: Balance.SelectionResult -> Selection
+mkSelection balanceResult = Selection
+    { inputs = view #inputsSelected balanceResult
+    , collateral = [] --TODO: [ADP-1037]
+    , outputs = view #outputsCovered balanceResult
+    , change = view #changeGenerated balanceResult
+    , assetsToMint = view #assetsToMint balanceResult
+    , assetsToBurn = view #assetsToBurn balanceResult
+    , extraCoinSource = view #extraCoinSource balanceResult
+    , extraCoinSink = view #extraCoinSink balanceResult
+    }
+
+toBalanceSelection :: Selection -> Balance.SelectionResult
+toBalanceSelection selection = Balance.SelectionResult
+    { inputsSelected = view #inputs selection
+    , outputsCovered = view #outputs selection
+    , changeGenerated = view #change selection
+    , assetsToMint = view #assetsToMint selection
+    , assetsToBurn = view #assetsToBurn selection
+    , extraCoinSource = view #extraCoinSource selection
+    , extraCoinSink = view #extraCoinSink selection
+    }
+
+-- | Computes the delta of the given selection, assuming there is a surplus.
+--
+selectionDelta
+    :: (change -> Coin)
+    -- ^ A function to extract the coin value from a change value.
+    -> SelectionOf change
+    -> Coin
+selectionDelta getChangeCoin
+    = Balance.selectionSurplusCoin
+    . toBalanceSelection
+    . over #change (fmap (TokenBundle.fromCoin . getChangeCoin))
 
 -- | Specifies all constraints required for coin selection.
 --
@@ -220,6 +284,42 @@ data SelectionError
     = SelectionBalanceError Balance.SelectionError
     | SelectionOutputsError ErrPrepareOutputs
     deriving (Eq, Show)
+
+-- | Represents a balanced selection.
+--
+data SelectionOf change = Selection
+    { inputs
+        :: !(NonEmpty (TxIn, TxOut))
+        -- ^ Selected inputs.
+    , collateral
+        :: ![(TxIn, TxOut)]
+        -- ^ Selected collateral inputs.
+    , outputs
+        :: ![TxOut]
+        -- ^ User-specified outputs
+    , change
+        :: ![change]
+        -- ^ Generated change outputs.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Assets to mint.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ Assets to burn.
+    , extraCoinSource
+        :: !Coin
+        -- ^ An extra source of ada.
+    , extraCoinSink
+        :: !Coin
+        -- ^ An extra sink for ada.
+    }
+    deriving (Generic, Eq, Show)
+
+-- | The default type of selection.
+--
+-- In this type of selection, change values do not have addresses assigned.
+--
+type Selection = SelectionOf TokenBundle
 
 -- | Prepares the given user-specified outputs, ensuring that they are valid.
 --
@@ -318,3 +418,119 @@ data ErrOutputTokenQuantityExceedsLimit = ErrOutputTokenQuantityExceedsLimit
       -- ^ The maximum allowable token quantity.
     }
     deriving (Eq, Generic, Show)
+
+--------------------------------------------------------------------------------
+-- Reporting
+--------------------------------------------------------------------------------
+
+-- | Includes both summarized and detailed information about a selection.
+--
+data SelectionReport = SelectionReport
+    { summary :: SelectionReportSummarized
+    , detail :: SelectionReportDetailed
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Includes summarized information about a selection.
+--
+-- Each data point can be serialized as a single line of text.
+--
+data SelectionReportSummarized = SelectionReportSummarized
+    { computedFee :: Coin
+    , adaBalanceOfSelectedInputs :: Coin
+    , adaBalanceOfExtraCoinSource :: Coin
+    , adaBalanceOfExtraCoinSink :: Coin
+    , adaBalanceOfRequestedOutputs :: Coin
+    , adaBalanceOfGeneratedChangeOutputs :: Coin
+    , numberOfSelectedInputs :: Int
+    , numberOfSelectedCollateralInputs :: Int
+    , numberOfRequestedOutputs :: Int
+    , numberOfGeneratedChangeOutputs :: Int
+    , numberOfUniqueNonAdaAssetsInSelectedInputs :: Int
+    , numberOfUniqueNonAdaAssetsInRequestedOutputs :: Int
+    , numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs :: Int
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Includes detailed information about a selection.
+--
+data SelectionReportDetailed = SelectionReportDetailed
+    { selectedInputs :: [(TxIn, TxOut)]
+    , selectedCollateral :: [(TxIn, TxOut)]
+    , requestedOutputs :: [TxOut]
+    , generatedChangeOutputs :: [TokenBundle.Flat TokenBundle]
+    }
+    deriving (Eq, Generic, Show)
+
+instance Buildable SelectionReport where
+    build = genericF
+instance Buildable SelectionReportSummarized where
+    build = genericF
+instance Buildable SelectionReportDetailed where
+    build = genericF
+
+makeSelectionReport :: Selection -> SelectionReport
+makeSelectionReport s = SelectionReport
+    { summary = makeSelectionReportSummarized s
+    , detail = makeSelectionReportDetailed s
+    }
+
+makeSelectionReportSummarized :: Selection -> SelectionReportSummarized
+makeSelectionReportSummarized s = SelectionReportSummarized {..}
+  where
+    computedFee
+        = selectionDelta TokenBundle.getCoin s
+    adaBalanceOfSelectedInputs
+        = F.foldMap (view (#tokens . #coin) . snd) $ view #inputs s
+    adaBalanceOfExtraCoinSource
+        = view #extraCoinSource s
+    adaBalanceOfExtraCoinSink
+        = view #extraCoinSink s
+    adaBalanceOfGeneratedChangeOutputs
+        = F.foldMap (view #coin) $ view #change s
+    adaBalanceOfRequestedOutputs
+        = F.foldMap (view (#tokens . #coin)) $ view #outputs s
+    numberOfSelectedInputs
+        = length $ view #inputs s
+    numberOfSelectedCollateralInputs
+        = length $ view #collateral s
+    numberOfRequestedOutputs
+        = length $ view #outputs s
+    numberOfGeneratedChangeOutputs
+        = length $ view #change s
+    numberOfUniqueNonAdaAssetsInSelectedInputs
+        = Set.size
+        $ F.foldMap (TokenBundle.getAssets . view #tokens . snd)
+        $ view #inputs s
+    numberOfUniqueNonAdaAssetsInRequestedOutputs
+        = Set.size
+        $ F.foldMap (TokenBundle.getAssets . view #tokens)
+        $ view #outputs s
+    numberOfUniqueNonAdaAssetsInGeneratedChangeOutputs
+        = Set.size
+        $ F.foldMap TokenBundle.getAssets
+        $ view #change s
+
+makeSelectionReportDetailed :: Selection -> SelectionReportDetailed
+makeSelectionReportDetailed s = SelectionReportDetailed
+    { selectedInputs
+        = F.toList $ view #inputs s
+    , selectedCollateral
+        = F.toList $ view #collateral s
+    , requestedOutputs
+        = view #outputs s
+    , generatedChangeOutputs
+        = TokenBundle.Flat <$> view #change s
+    }
+
+-- A convenience instance for 'Buildable' contexts that include a nested
+-- 'SelectionOf TokenBundle' value.
+instance Buildable (SelectionOf TokenBundle) where
+    build = build . makeSelectionReport
+
+-- A convenience instance for 'Buildable' contexts that include a nested
+-- 'SelectionOf TxOut' value.
+instance Buildable (SelectionOf TxOut) where
+    build = build
+        . makeSelectionReport
+        . over #change (fmap $ view #tokens)

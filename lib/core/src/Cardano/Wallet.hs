@@ -130,7 +130,7 @@ module Cardano.Wallet
     -- ** Migration
     , createMigrationPlan
     , migrationPlanToSelectionWithdrawals
-    , SelectionResultWithoutChange
+    , SelectionWithoutChange
     , ErrCreateMigrationPlan (..)
 
     -- ** Delegation
@@ -295,21 +295,19 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( ErrPrepareOutputs (..)
+    , Selection
     , SelectionConstraints (..)
     , SelectionError (..)
+    , SelectionOf (..)
     , SelectionParams (..)
+    , SelectionReportDetailed
+    , SelectionReportSummarized
+    , makeSelectionReportDetailed
+    , makeSelectionReportSummarized
     , performSelection
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionReportDetailed
-    , SelectionReportSummarized
-    , SelectionResult
-    , SelectionResultOf (..)
-    , UnableToConstructChangeError (..)
-    , emptySkeleton
-    , makeSelectionReportDetailed
-    , makeSelectionReportSummarized
-    )
+    ( UnableToConstructChangeError (..), emptySkeleton )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
@@ -1261,14 +1259,14 @@ normalizeDelegationAddress s addr = do
 assignChangeAddresses
     :: forall s. GenChange s
     => ArgGenChange s
-    -> SelectionResult TokenBundle
+    -> Selection
     -> s
-    -> (SelectionResult TxOut, s)
+    -> (SelectionOf TxOut, s)
 assignChangeAddresses argGenChange sel = runState $ do
-    changeOuts <- forM (changeGenerated sel) $ \bundle -> do
+    changeOuts <- forM (view #change sel) $ \bundle -> do
         addr <- state (genChange argGenChange)
         pure $ TxOut addr bundle
-    pure $ sel { changeGenerated = changeOuts }
+    pure $ sel { change = changeOuts }
 
 assignChangeAddressesAndUpdateDb
     :: forall ctx s k.
@@ -1278,8 +1276,8 @@ assignChangeAddressesAndUpdateDb
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> SelectionResult TokenBundle
-    -> ExceptT ErrSignPayment IO (SelectionResult TxOut)
+    -> Selection
+    -> ExceptT ErrSignPayment IO (SelectionOf TxOut)
 assignChangeAddressesAndUpdateDb ctx wid generateChange selection =
     db & \DBLayer{..} -> mapExceptT atomically $ do
         cp <- withExceptT ErrSignPaymentNoSuchWallet $
@@ -1300,8 +1298,8 @@ assignChangeAddressesWithoutDbUpdate
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> SelectionResult TokenBundle
-    -> ExceptT ErrConstructTx IO (SelectionResult TxOut)
+    -> Selection
+    -> ExceptT ErrConstructTx IO (SelectionOf TxOut)
 assignChangeAddressesWithoutDbUpdate ctx wid generateChange selection =
     db & \DBLayer{..} -> mapExceptT atomically $ do
         cp <- withExceptT ErrConstructTxNoSuchWallet $
@@ -1321,28 +1319,23 @@ selectionToUnsignedTx
         , withdrawal ~ (RewardAccount, Coin, NonEmpty DerivationIndex)
         )
     => Withdrawal
-    -> SelectionResult TxOut
+    -> SelectionOf TxOut
     -> s
     -> (UnsignedTx input output change withdrawal)
 selectionToUnsignedTx wdrl sel s =
     UnsignedTx
         { unsignedInputs =
-            fullyQualifiedInputs $ inputsSelected sel
+            fullyQualifiedInputs $ view #inputs sel
         , unsignedOutputs =
-            outputsCovered sel
+            view #outputs sel
         , unsignedChange =
-            fullyQualifiedChange $ changeGenerated sel
+            fullyQualifiedChange $ view #change sel
         , unsignedCollateral =
-            fullyQualifiedInputs collateral
+            fullyQualifiedInputs $ view #collateral sel
         , unsignedWithdrawals =
             fullyQualifiedWithdrawal wdrl
         }
   where
-    collateral :: [(TxIn, TxOut)]
-    collateral =
-        -- TODO: (ADP-957)
-        []
-
     qualifyAddresses
         :: forall a t. (Traversable t)
         => (a -> Address)
@@ -1428,7 +1421,7 @@ selectAssets
     -> (UTxOIndex, Wallet s, Set Tx)
     -> TransactionCtx
     -> [TxOut]
-    -> (s -> SelectionResult TokenBundle -> result)
+    -> (s -> Selection -> result)
     -> ExceptT ErrSelectAssets IO result
 selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
     guardPendingWithdrawal
@@ -1532,7 +1525,7 @@ buildAndSignTransaction
        -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
     -> TransactionCtx
-    -> SelectionResult TxOut
+    -> SelectionOf TxOut
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl
@@ -1569,7 +1562,7 @@ constructTransaction
     => ctx
     -> WalletId
     -> TransactionCtx
-    -> SelectionResult TxOut
+    -> SelectionOf TxOut
     -> ExceptT ErrConstructTx IO SealedTx
 constructTransaction ctx wid txCtx sel = db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl
@@ -1615,17 +1608,17 @@ mkTxMeta
     -> BlockHeader
     -> s
     -> TransactionCtx
-    -> SelectionResult TxOut
+    -> SelectionOf TxOut
     -> IO (UTCTime, TxMeta)
 mkTxMeta ti' blockHeader wState txCtx sel =
     let
         amtOuts = sumCoins $
-            (txOutCoin <$> changeGenerated sel)
+            (txOutCoin <$> view #change sel)
             ++
-            mapMaybe ourCoin (outputsCovered sel)
+            mapMaybe ourCoin (view #outputs sel)
 
         amtInps
-            = sumCoins (txOutCoin . snd <$> inputsSelected sel)
+            = sumCoins (txOutCoin . snd <$> view #inputs sel)
             -- NOTE: In case where rewards were pulled from an external
             -- source, they aren't added to the calculation because the
             -- money is considered to come from outside of the wallet; which
@@ -1915,13 +1908,13 @@ createMigrationPlan ctx wid rewardWithdrawal = do
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
 
-type SelectionResultWithoutChange = SelectionResult Void
+type SelectionWithoutChange = SelectionOf Void
 
 migrationPlanToSelectionWithdrawals
     :: MigrationPlan
     -> Withdrawal
     -> NonEmpty Address
-    -> Maybe (NonEmpty (SelectionResultWithoutChange, Withdrawal))
+    -> Maybe (NonEmpty (SelectionWithoutChange, Withdrawal))
 migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
     = NE.nonEmpty
     $ L.reverse
@@ -1933,19 +1926,20 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
   where
     accumulate
         :: Migration.Selection (TxIn, TxOut)
-        -> ([(SelectionResultWithoutChange, Withdrawal)], [Address])
-        -> ([(SelectionResultWithoutChange, Withdrawal)], [Address])
+        -> ([(SelectionWithoutChange, Withdrawal)], [Address])
+        -> ([(SelectionWithoutChange, Withdrawal)], [Address])
     accumulate migrationSelection (selectionWithdrawals, outputAddresses) =
         ( (selection, withdrawal) : selectionWithdrawals
         , outputAddressesRemaining
         )
       where
-        selection = SelectionResult
-            { inputsSelected = view #inputIds migrationSelection
-            , outputsCovered
+        selection = Selection
+            { inputs = view #inputIds migrationSelection
+            , collateral = []
+            , outputs
             , extraCoinSource
             , extraCoinSink = Coin 0
-            , changeGenerated = []
+            , change = []
             , assetsToMint = TokenMap.empty
             , assetsToBurn = TokenMap.empty
             }
@@ -1972,14 +1966,14 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
             then rewardWithdrawal
             else NoWithdrawal
 
-        outputsCovered :: [TxOut]
-        outputsCovered = zipWith TxOut
+        outputs :: [TxOut]
+        outputs = zipWith TxOut
             (outputAddresses)
             (NE.toList $ view #outputs migrationSelection)
 
         outputAddressesRemaining :: [Address]
         outputAddressesRemaining =
-            drop (length outputsCovered) outputAddresses
+            drop (length outputs) outputAddresses
 
 {-------------------------------------------------------------------------------
                                   Delegation
