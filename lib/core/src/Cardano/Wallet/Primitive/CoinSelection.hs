@@ -94,7 +94,6 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
@@ -438,8 +437,6 @@ data SelectionReport = SelectionReport
 --
 data SelectionReportSummarized = SelectionReportSummarized
     { computedFee :: Coin
-    , totalAdaBalanceIn :: Coin
-    , totalAdaBalanceOut :: Coin
     , adaBalanceOfSelectedInputs :: Coin
     , adaBalanceOfExtraCoinSource :: Coin
     , adaBalanceOfExtraCoinSink :: Coin
@@ -482,11 +479,7 @@ makeSelectionReportSummarized :: Selection -> SelectionReportSummarized
 makeSelectionReportSummarized s = SelectionReportSummarized {..}
   where
     computedFee
-        = Coin.distance totalAdaBalanceIn totalAdaBalanceOut
-    totalAdaBalanceIn
-        = adaBalanceOfSelectedInputs <> adaBalanceOfExtraCoinSource
-    totalAdaBalanceOut
-        = adaBalanceOfGeneratedChangeOutputs <> adaBalanceOfRequestedOutputs
+        = selectionDelta TokenBundle.getCoin s
     adaBalanceOfSelectedInputs
         = F.foldMap (view (#tokens . #coin) . snd) $ view #inputs s
     adaBalanceOfExtraCoinSource
