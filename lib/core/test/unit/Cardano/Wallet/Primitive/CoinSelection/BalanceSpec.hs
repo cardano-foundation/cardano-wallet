@@ -32,10 +32,10 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , RunSelectionParams (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionInsufficientError (..)
     , SelectionLens (..)
     , SelectionLimit
     , SelectionLimitOf (..)
+    , SelectionLimitReachedError (..)
     , SelectionParams
     , SelectionParamsOf (..)
     , SelectionResult
@@ -791,7 +791,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
     selectionInsufficient :: PerformSelectionResult -> Bool
     selectionInsufficient = \case
-        Left (SelectionInsufficient _) -> True
+        Left (SelectionLimitReached _) -> True
         _ -> False
 
     assetsSpentByUserSpecifiedOutputs :: TokenMap
@@ -962,8 +962,8 @@ prop_performSelection mockConstraints (Blind params) coverage =
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
-        SelectionInsufficient e ->
-            onSelectionInsufficient e
+        SelectionLimitReached e ->
+            onSelectionLimitReached e
         InsufficientMinCoinValues es ->
             onInsufficientMinCoinValues es
         UnableToConstructChange e ->
@@ -997,23 +997,23 @@ prop_performSelection mockConstraints (Blind params) coverage =
             assertWith . (<>) "onBalanceInsufficient: "
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
-    onSelectionInsufficient e = do
+    onSelectionLimitReached e = do
         monitor $ counterexample $ unlines
             [ "required balance:"
             , pretty (Flat errorBalanceRequired)
             , "selected balance:"
             , pretty (Flat errorBalanceSelected)
             ]
-        assertOnSelectionInsufficient
+        assertOnSelectionLimitReached
             "selectionLimit <= MaximumInputLimit (length errorInputsSelected)"
             (selectionLimit <= MaximumInputLimit (length errorInputsSelected))
-        assertOnSelectionInsufficient
+        assertOnSelectionLimitReached
             "utxoBalanceRequired == errorBalanceRequired"
             (utxoBalanceRequired == errorBalanceRequired)
       where
-        assertOnSelectionInsufficient =
-            assertWith . (<>) "onSelectionInsufficient: "
-        SelectionInsufficientError
+        assertOnSelectionLimitReached =
+            assertWith . (<>) "onSelectionLimitReached: "
+        SelectionLimitReachedError
             errorBalanceRequired errorInputsSelected = e
         errorBalanceSelected =
             F.foldMap (view #tokens . snd) errorInputsSelected

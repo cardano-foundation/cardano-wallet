@@ -40,7 +40,6 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionResultOf (..)
     , SelectionError (..)
     , BalanceInsufficientError (..)
-    , SelectionInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
 
@@ -48,6 +47,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionLimit
     , SelectionLimitOf (..)
     , selectionLimitExceeded
+    , SelectionLimitReachedError (..)
 
     -- * Querying selections
     , SelectionDelta (..)
@@ -612,8 +612,8 @@ selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 data SelectionError
     = BalanceInsufficient
         BalanceInsufficientError
-    | SelectionInsufficient
-        SelectionInsufficientError
+    | SelectionLimitReached
+        SelectionLimitReachedError
     | InsufficientMinCoinValues
         (NonEmpty InsufficientMinCoinValueError)
     | UnableToConstructChange
@@ -622,12 +622,9 @@ data SelectionError
     deriving (Generic, Eq, Show)
 
 -- | Indicates that the balance of selected UTxO entries was insufficient to
---   cover the balance required.
+--   cover the balance required while remaining within the selection limit.
 --
--- This typically occurs when more entries are available, but those entries
--- cannot be selected without breaching the 'selectionLimit'.
---
-data SelectionInsufficientError = SelectionInsufficientError
+data SelectionLimitReachedError = SelectionLimitReachedError
     { utxoBalanceRequired
         :: !TokenBundle
       -- ^ The UTXO balance required.
@@ -832,18 +829,18 @@ performSelectionNonEmpty constraints params
             }
         case maybeSelection of
             Nothing | selectionLimit <= MaximumInputLimit 0 ->
-                selectionInsufficientError []
+                selectionLimitReachedError []
             Nothing ->
                 pure $ Left EmptyUTxO
             Just selection | selectionLimitExceeded selection selectionLimit ->
-                selectionInsufficientError $ F.toList $
+                selectionLimitReachedError $ F.toList $
                     UTxOSelection.selectedList selection
             Just selection -> do
                 let utxoSelected = UTxOSelection.selectedIndex selection
                 let utxoBalanceSelected = UTxOIndex.balance utxoSelected
                 if utxoBalanceRequired `leq` utxoBalanceSelected
                 then makeChangeRepeatedly selection
-                else selectionInsufficientError (UTxOIndex.toList utxoSelected)
+                else selectionLimitReachedError (UTxOIndex.toList utxoSelected)
   where
     SelectionConstraints
         { assessTokenBundleSize
@@ -860,9 +857,9 @@ performSelectionNonEmpty constraints params
         , assetsToBurn
         } = params
 
-    selectionInsufficientError :: [(TxIn, TxOut)] -> m (Either SelectionError a)
-    selectionInsufficientError inputsSelected =
-        pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
+    selectionLimitReachedError :: [(TxIn, TxOut)] -> m (Either SelectionError a)
+    selectionLimitReachedError inputsSelected =
+        pure $ Left $ SelectionLimitReached $ SelectionLimitReachedError
             { inputsSelected
             , utxoBalanceRequired
             }

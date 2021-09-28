@@ -3808,7 +3808,7 @@ instance IsServerError ErrSelectAssets where
                         , "enough funds available in the wallet. I am "
                         , "missing: ", pretty . Flat $ balanceMissing e
                         ]
-                Balance.SelectionInsufficient e ->
+                Balance.SelectionLimitReached e ->
                     apiError err403 TransactionIsTooBig $ mconcat
                         [ "I am not able to finalize the transaction "
                         , "because I need to select additional inputs and "
