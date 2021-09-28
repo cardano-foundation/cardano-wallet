@@ -835,6 +835,9 @@ performSelectionNonEmpty constraints params
                 selectionInsufficientError []
             Nothing ->
                 pure $ Left EmptyUTxO
+            Just selection | selectionLimitExceeded selection selectionLimit ->
+                selectionInsufficientError $ F.toList $
+                    UTxOSelection.selectedList selection
             Just selection -> do
                 let utxoSelected = UTxOSelection.selectedIndex selection
                 let utxoBalanceSelected = UTxOIndex.balance utxoSelected

@@ -119,7 +119,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxOut, shrinkTxOut )
+    ( genTxInFunction, genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -607,9 +607,13 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
 --
 type PerformSelectionResult = Either SelectionError SelectionResult
 
-genSelectionParams :: Gen UTxOIndex -> Gen SelectionParams
-genSelectionParams genUTxOIndex' = do
+genSelectionParams :: Gen (TxIn -> Bool) -> Gen UTxOIndex -> Gen SelectionParams
+genSelectionParams genPreselectedInputs genUTxOIndex' = do
     utxoAvailable <- genUTxOIndex'
+    isInputPreselected <- oneof
+        [ genPreselectedInputs
+        , genPreselectedInputsNone
+        ]
     outputCount <- elements
         [0, 1, max 2 $ UTxOIndex.size utxoAvailable `div` 8]
     outputsToCover <-
@@ -621,7 +625,8 @@ genSelectionParams genUTxOIndex' = do
     (assetsToMint, assetsToBurn) <- genAssetsToMintAndBurn utxoAvailable
     pure $ SelectionParams
         { outputsToCover
-        , utxoAvailable = UTxOSelection.fromIndex utxoAvailable
+        , utxoAvailable =
+            UTxOSelection.fromIndexFiltered isInputPreselected utxoAvailable
         , extraCoinSource
         , extraCoinSink
         , assetsToMint
@@ -638,6 +643,9 @@ genSelectionParams genUTxOIndex' = do
       where
         utxoAvailableAssets :: TokenMap
         utxoAvailableAssets = view (#balance . #tokens) utxoAvailable
+
+    genPreselectedInputsNone :: Gen (TxIn -> Bool)
+    genPreselectedInputsNone = pure $ const False
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams =
@@ -678,6 +686,13 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
         "Outputs to cover = 1" $
     cover 10 (length (view #outputsToCover params) > 1)
         "Outputs to cover > 1" $
+
+    cover 10 (UTxOSelection.selectedSize (view #utxoAvailable params) == 0)
+        "Number of inputs preselected == 0" $
+    cover 2 (UTxOSelection.selectedSize (view #utxoAvailable params) == 1)
+        "Number of inputs preselected == 1" $
+    cover 10 (UTxOSelection.selectedSize (view #utxoAvailable params) >= 2)
+        "Number of inputs preselected >= 2" $
 
     -- Inspect the extra coin source and sink:
     let nonZeroExtraCoinSource =
@@ -990,8 +1005,8 @@ prop_performSelection mockConstraints (Blind params) coverage =
             , pretty (Flat errorBalanceSelected)
             ]
         assertOnSelectionInsufficient
-            "selectionLimit == MaximumInputLimit (length errorInputsSelected)"
-            (selectionLimit == MaximumInputLimit (length errorInputsSelected))
+            "selectionLimit <= MaximumInputLimit (length errorInputsSelected)"
+            (selectionLimit <= MaximumInputLimit (length errorInputsSelected))
         assertOnSelectionInsufficient
             "utxoBalanceRequired == errorBalanceRequired"
             (utxoBalanceRequired == errorBalanceRequired)
@@ -3973,11 +3988,15 @@ newtype Small a = Small
     deriving (Eq, Show)
 
 instance Arbitrary (Large SelectionParams) where
-    arbitrary = Large <$> genSelectionParams genUTxOIndexLarge
+    arbitrary = Large <$> genSelectionParams
+        (genTxInFunction (arbitrary @Bool))
+        (genUTxOIndexLarge)
     shrink = shrinkMapBy Large getLarge shrinkSelectionParams
 
 instance Arbitrary (Small SelectionParams) where
-    arbitrary = Small <$> genSelectionParams genUTxOIndex
+    arbitrary = Small <$> genSelectionParams
+        (genTxInFunction (arbitrary @Bool))
+        (genUTxOIndex)
     shrink = shrinkMapBy Small getSmall shrinkSelectionParams
 
 instance Arbitrary (Large UTxOIndex) where
