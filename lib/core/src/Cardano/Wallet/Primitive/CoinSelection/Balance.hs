@@ -828,8 +828,6 @@ performSelectionNonEmpty constraints params
             , minimumBalance = utxoBalanceRequired
             }
         case maybeSelection of
-            Nothing | selectionLimit <= MaximumInputLimit 0 ->
-                selectionLimitReachedError []
             Nothing ->
                 pure $ Left EmptyUTxO
             Just selection | selectionLimitExceeded selection selectionLimit ->
