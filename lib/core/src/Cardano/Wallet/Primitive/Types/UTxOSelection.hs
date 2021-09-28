@@ -61,6 +61,8 @@ module Cardano.Wallet.Primitive.Types.UTxOSelection
     , isProperSubSelectionOf
 
       -- * Accessor functions
+    , availableBalance
+    , availableUTxO
     , leftoverBalance
     , leftoverSize
     , leftoverIndex
@@ -297,6 +299,35 @@ isProperSubSelectionOf u1 u2 = state u1 /= state u2 && u1 `isSubSelectionOf` u2
 --------------------------------------------------------------------------------
 -- Accessor functions
 --------------------------------------------------------------------------------
+
+-- | Computes the available balance.
+--
+-- The available balance is the sum of the selected and the leftover balances.
+--
+-- It predicts what 'selectedBalance' would be if every single UTxO were
+-- selected.
+--
+-- This result of this function remains constant over applications of 'select'
+-- and 'selectMany':
+--
+-- >>> availableBalance u == availableBalance (selectMany is u)
+--
+availableBalance :: IsUTxOSelection u => u -> TokenBundle
+availableBalance u = leftoverBalance u <> selectedBalance u
+
+-- | Computes the available UTxO set.
+--
+-- The available UTxO set is the union of the selected and leftover UTxO sets.
+--
+-- It predicts what 'selectedUTxO' would be if every single UTxO were selected.
+--
+-- This result of this function remains constant over applications of 'select'
+-- and 'selectMany':
+--
+-- >>> availableUTxO u == availableUTxO (selectMany is u)
+--
+availableUTxO :: IsUTxOSelection u => u -> UTxO
+availableUTxO u = leftoverUTxO u <> selectedUTxO u
 
 -- | Retrieves the balance of leftover UTxOs.
 --

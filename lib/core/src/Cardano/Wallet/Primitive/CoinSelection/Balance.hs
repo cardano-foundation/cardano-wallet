@@ -35,16 +35,19 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionConstraints (..)
     , SelectionParams
     , SelectionParamsOf (..)
-    , SelectionLimit
-    , SelectionLimitOf (..)
     , SelectionSkeleton (..)
     , SelectionResult
     , SelectionResultOf (..)
     , SelectionError (..)
     , BalanceInsufficientError (..)
-    , SelectionInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
+
+    -- * Selection limits
+    , SelectionLimit
+    , SelectionLimitOf (..)
+    , selectionLimitExceeded
+    , SelectionLimitReachedError (..)
 
     -- * Querying selections
     , SelectionDelta (..)
@@ -232,8 +235,11 @@ data SelectionParamsOf outputs = SelectionParams
         :: !outputs
         -- ^ The complete set of outputs to be covered.
     , utxoAvailable
-        :: !UTxOIndex
-        -- ^ A UTxO set from which inputs can be selected.
+        :: !UTxOSelection
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- inputs and optionally, a subset that has already been selected.
+        --
+        -- Further entries from this set will be selected to cover any deficit.
     , extraCoinSource
         :: !Coin
         -- ^ An extra source of ada.
@@ -289,7 +295,8 @@ data UTxOBalanceSufficiencyInfo = UTxOBalanceSufficiencyInfo
 computeUTxOBalanceAvailable
     :: SelectionParamsOf (f TxOut)
     -> TokenBundle
-computeUTxOBalanceAvailable = UTxOIndex.balance . view #utxoAvailable
+computeUTxOBalanceAvailable =
+    UTxOSelection.availableBalance . view #utxoAvailable
 
 -- | Computes the balance of UTxO entries required to be selected.
 --
@@ -429,6 +436,13 @@ instance Ord a => Ord (SelectionLimitOf a) where
         (MaximumInputLimit _, NoLimit            ) -> LT
         (NoLimit            , MaximumInputLimit _) -> GT
         (MaximumInputLimit x, MaximumInputLimit y) -> compare x y
+
+-- | Indicates whether or not the given selection limit has been exceeded.
+--
+selectionLimitExceeded :: IsUTxOSelection s => s -> SelectionLimit -> Bool
+selectionLimitExceeded s = \case
+    NoLimit -> False
+    MaximumInputLimit n -> UTxOSelection.selectedSize s > n
 
 type SelectionResult = SelectionResultOf [TxOut]
 
@@ -598,8 +612,8 @@ selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
 data SelectionError
     = BalanceInsufficient
         BalanceInsufficientError
-    | SelectionInsufficient
-        SelectionInsufficientError
+    | SelectionLimitReached
+        SelectionLimitReachedError
     | InsufficientMinCoinValues
         (NonEmpty InsufficientMinCoinValueError)
     | UnableToConstructChange
@@ -608,12 +622,9 @@ data SelectionError
     deriving (Generic, Eq, Show)
 
 -- | Indicates that the balance of selected UTxO entries was insufficient to
---   cover the balance required.
+--   cover the balance required while remaining within the selection limit.
 --
--- This typically occurs when more entries are available, but those entries
--- cannot be selected without breaching the 'selectionLimit'.
---
-data SelectionInsufficientError = SelectionInsufficientError
+data SelectionLimitReachedError = SelectionLimitReachedError
     { utxoBalanceRequired
         :: !TokenBundle
       -- ^ The UTXO balance required.
@@ -817,16 +828,17 @@ performSelectionNonEmpty constraints params
             , minimumBalance = utxoBalanceRequired
             }
         case maybeSelection of
-            Nothing | selectionLimit <= MaximumInputLimit 0 ->
-                selectionInsufficientError []
             Nothing ->
                 pure $ Left EmptyUTxO
+            Just selection | selectionLimitExceeded selection selectionLimit ->
+                selectionLimitReachedError $ F.toList $
+                    UTxOSelection.selectedList selection
             Just selection -> do
                 let utxoSelected = UTxOSelection.selectedIndex selection
                 let utxoBalanceSelected = UTxOIndex.balance utxoSelected
                 if utxoBalanceRequired `leq` utxoBalanceSelected
                 then makeChangeRepeatedly selection
-                else selectionInsufficientError (UTxOIndex.toList utxoSelected)
+                else selectionLimitReachedError (UTxOIndex.toList utxoSelected)
   where
     SelectionConstraints
         { assessTokenBundleSize
@@ -843,9 +855,9 @@ performSelectionNonEmpty constraints params
         , assetsToBurn
         } = params
 
-    selectionInsufficientError :: [(TxIn, TxOut)] -> m (Either SelectionError a)
-    selectionInsufficientError inputsSelected =
-        pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
+    selectionLimitReachedError :: [(TxIn, TxOut)] -> m (Either SelectionError a)
+    selectionLimitReachedError inputsSelected =
+        pure $ Left $ SelectionLimitReached $ SelectionLimitReachedError
             { inputsSelected
             , utxoBalanceRequired
             }
@@ -1050,7 +1062,7 @@ performSelectionNonEmpty constraints params
 data RunSelectionParams = RunSelectionParams
     { selectionLimit :: SelectionLimit
         -- ^ A limit to adhere to when performing a selection.
-    , utxoAvailable :: UTxOIndex
+    , utxoAvailable :: UTxOSelection
         -- ^ UTxO entries available for selection.
     , minimumBalance :: TokenBundle
         -- ^ Minimum balance to cover.
@@ -1076,16 +1088,13 @@ runSelectionNonEmptyWith selectSingleEntry result =
 runSelection
     :: forall m. MonadRandom m => RunSelectionParams -> m UTxOSelection
 runSelection params =
-    runRoundRobinM initialState UTxOSelection.fromNonEmpty selectors
+    runRoundRobinM utxoAvailable UTxOSelection.fromNonEmpty selectors
   where
     RunSelectionParams
         { selectionLimit
         , utxoAvailable
         , minimumBalance
         } = params
-
-    initialState :: UTxOSelection
-    initialState = UTxOSelection.fromIndex utxoAvailable
 
     -- NOTE: We run the 'coinSelector' last, because we know that every input
     -- necessarily has a non-zero ada amount. By running the other selectors

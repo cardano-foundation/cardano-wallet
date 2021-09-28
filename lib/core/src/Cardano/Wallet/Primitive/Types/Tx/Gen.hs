@@ -10,6 +10,7 @@ module Cardano.Wallet.Primitive.Types.Tx.Gen
     , genTxHash
     , genTxIndex
     , genTxIn
+    , genTxInFunction
     , genTxInLargeRange
     , genTxOut
     , genTxScriptValidity
@@ -73,7 +74,8 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Extra
-    ( genMapWith
+    ( genFunction
+    , genMapWith
     , genSized2With
     , liftShrink7
     , shrinkInterleaved
@@ -174,9 +176,6 @@ genTxHashLargeRange = Hash . B8.pack <$> replicateM 32 arbitrary
 -- Transaction indices generated according to the size parameter
 --------------------------------------------------------------------------------
 
-coarbitraryTxIn :: TxIn -> Gen a -> Gen a
-coarbitraryTxIn = coarbitrary . show
-
 genTxIndex :: Gen Word32
 genTxIndex = sized $ \size -> elements $ take (max 1 size) txIndices
 
@@ -198,6 +197,16 @@ shrinkTxIn :: TxIn -> [TxIn]
 shrinkTxIn (TxIn h i) = uncurry TxIn <$> shrinkInterleaved
     (h, shrinkTxHash)
     (i, shrinkTxIndex)
+
+--------------------------------------------------------------------------------
+-- Transaction input functions
+--------------------------------------------------------------------------------
+
+coarbitraryTxIn :: TxIn -> Gen a -> Gen a
+coarbitraryTxIn = coarbitrary . show
+
+genTxInFunction :: Gen a -> Gen (TxIn -> a)
+genTxInFunction = genFunction coarbitraryTxIn
 
 --------------------------------------------------------------------------------
 -- Transaction inputs chosen from a large range (to minimize collisions)

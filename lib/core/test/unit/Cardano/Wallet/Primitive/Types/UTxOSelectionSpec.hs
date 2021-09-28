@@ -43,6 +43,7 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 
@@ -85,6 +86,8 @@ spec =
 
     parallel $ describe "Indicator and accessor functions" $ do
 
+        it "prop_availableBalance_availableUTxO" $
+            property prop_availableBalance_availableUTxO
         it "prop_isNonEmpty_selectedSize" $
             property prop_isNonEmpty_selectedSize
         it "prop_isNonEmpty_selectedIndex" $
@@ -108,6 +111,10 @@ spec =
             property prop_select_isSelected
         it "prop_select_isProperSubSelectionOf" $
             property prop_select_isProperSubSelectionOf
+        it "prop_select_availableBalance" $
+            property prop_select_availableBalance
+        it "prop_select_availableUTxO" $
+            property prop_select_availableUTxO
         it "prop_select_leftoverSize" $
             property prop_select_leftoverSize
         it "prop_select_selectedSize" $
@@ -223,6 +230,12 @@ prop_toNonEmpty_fromNonEmpty s =
 -- Indicator and accessor functions
 --------------------------------------------------------------------------------
 
+prop_availableBalance_availableUTxO :: UTxOSelection -> Property
+prop_availableBalance_availableUTxO s =
+    checkCoverage_UTxOSelection s $
+    UTxOSelection.availableBalance s
+    === UTxO.balance (UTxOSelection.availableUTxO s)
+
 prop_isNonEmpty_selectedSize :: UTxOSelection -> Property
 prop_isNonEmpty_selectedSize s =
     checkCoverage_UTxOSelection s $
@@ -292,6 +305,24 @@ prop_select_isProperSubSelectionOf i s =
     (UTxOSelection.isProperSubSelectionOf s <$> UTxOSelection.select i s)
     ===
     if UTxOSelection.isLeftover i s then Just True else Nothing
+
+prop_select_availableBalance :: TxIn -> UTxOSelection -> Property
+prop_select_availableBalance i s =
+    checkCoverage_select i s $
+    (UTxOSelection.availableBalance <$> UTxOSelection.select i s)
+    ===
+    if UTxOSelection.isLeftover i s
+    then Just (UTxOSelection.availableBalance s)
+    else Nothing
+
+prop_select_availableUTxO :: TxIn -> UTxOSelection -> Property
+prop_select_availableUTxO i s =
+    checkCoverage_select i s $
+    (UTxOSelection.availableUTxO <$> UTxOSelection.select i s)
+    ===
+    if UTxOSelection.isLeftover i s
+    then Just (UTxOSelection.availableUTxO s)
+    else Nothing
 
 prop_select_leftoverSize :: TxIn -> UTxOSelection -> Property
 prop_select_leftoverSize i s =

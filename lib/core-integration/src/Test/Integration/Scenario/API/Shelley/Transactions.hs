@@ -161,7 +161,6 @@ import Test.Integration.Framework.TestData
     , errMsg403MinUTxOValue
     , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
-    , errMsg403TxTooBig
     , errMsg403WithdrawalNotWorth
     , errMsg403WrongPass
     , errMsg404CannotFindTx
@@ -1112,7 +1111,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransactionOld @'Shelley wa) Default payload
 
         expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403TxTooBig r
+        expectErrorMessage errMsg403EmptyUTxO r
 
     it "TRANSMETA_ESTIMATE_01 - fee estimation includes metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -1175,7 +1174,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403TxTooBig
+            , expectErrorMessage errMsg403EmptyUTxO
             ]
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
