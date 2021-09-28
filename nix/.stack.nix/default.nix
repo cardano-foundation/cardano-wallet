@@ -83,7 +83,6 @@
         cardano-ledger-core = ./cardano-ledger-core.nix;
         small-steps = ./small-steps.nix;
         small-steps-test = ./small-steps-test.nix;
-        cardano-protocol-tpraos = ./cardano-protocol-tpraos.nix;
         shelley-spec-non-integral = ./shelley-spec-non-integral.nix;
         shelley-spec-ledger = ./shelley-spec-ledger.nix;
         shelley-spec-ledger-test = ./shelley-spec-ledger-test.nix;

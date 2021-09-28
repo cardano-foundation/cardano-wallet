@@ -1458,7 +1458,7 @@ timeToLiveOption = optional $ fmap Quantity $ optionT $ mempty
     <> metavar "DURATION"
     <> help ("Time-to-live value. "
              <> "Expressed in seconds with a trailing 's'. "
-             <> "Default is 3600s (2 hours).")
+             <> "Default is 7200s (2 hours).")
 
 -- | <address=ADDRESS>
 addressIdArgument :: Parser Text

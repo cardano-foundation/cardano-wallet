@@ -16,4 +16,4 @@ Available options:
                            cardano-wallet OpenAPI specification.
   --ttl DURATION           Time-to-live value. Expressed in
                            seconds with a trailing 's'. Default
-                           is 3600s (2 hours).
+                           is 7200s (2 hours).

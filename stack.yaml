@@ -131,7 +131,7 @@ extra-deps:
   commit: 7497a29cb998721a9068d5725d49461f2bba0e7a
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: 592aa61d657ad5935a33bace1243abce3728b643
+  commit: e8a48cf0500b03c744c7fc6f2fedb86e8bdbe055
   subdirs:
   - base-deriving-via
   - binary
@@ -148,7 +148,7 @@ extra-deps:
   commit: 07397f0e50da97eaa0575d93bee7ac4b2b2576ec
 
 - git: https://github.com/input-output-hk/cardano-ledger-specs
-  commit: ec51e4fb1b17461ab612cf427b79f1742942e8cb
+  commit: f827a4321e42f528e25f6079f7af3eb18f10d391
   subdirs:
   - alonzo/impl
   - alonzo/test
@@ -161,7 +161,6 @@ extra-deps:
   - cardano-ledger-core
   - semantics/executable-spec
   - semantics/small-steps-test
-  - cardano-protocol-tpraos
   - shelley/chain-and-ledger/dependencies/non-integer
   - shelley/chain-and-ledger/executable-spec
   - shelley/chain-and-ledger/shelley-spec-ledger-test
@@ -169,7 +168,7 @@ extra-deps:
   - shelley-ma/shelley-ma-test
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 191b91eec3c7d845a55347781329d50bf36871d7
+  commit: 0fb43f4e3da8b225f4f86557aed90a183981a64f
   subdirs:
   - cardano-api
   - cardano-cli
@@ -210,7 +209,7 @@ extra-deps:
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: 5d37a927046bc7da2887830d8e35cf604622ce09
+  commit: aa7bc087737edca29133844b14bb7cba2cd213f2
   subdirs:
   - io-classes
   - io-sim
@@ -236,7 +235,7 @@ extra-deps:
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: 15121dd4dc66df7c17c6c0f2f4a8702ad841c020
+  commit: edc6d4672c41de4485444122ff843bc86ff421a0
   subdirs:
     - freer-extras
     - playground-common

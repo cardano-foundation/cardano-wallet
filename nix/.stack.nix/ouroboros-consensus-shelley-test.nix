@@ -33,7 +33,6 @@
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
-          (hsPkgs."cardano-protocol-tpraos" or (errorHandler.buildDepError "cardano-protocol-tpraos"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."generic-random" or (errorHandler.buildDepError "generic-random"))
@@ -86,12 +85,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "5d37a927046bc7da2887830d8e35cf604622ce09";
-      sha256 = "1620zcnivgm1wp1kq3vqc44g77lv7dalzgywc96qsblf1sv9fw3p";
+      rev = "aa7bc087737edca29133844b14bb7cba2cd213f2";
+      sha256 = "1rcjlj5z8igrfy07lkdrlm4xcx9a3g0jl69wvqk0vvff4hfr00ar";
       }) // {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "5d37a927046bc7da2887830d8e35cf604622ce09";
-      sha256 = "1620zcnivgm1wp1kq3vqc44g77lv7dalzgywc96qsblf1sv9fw3p";
+      rev = "aa7bc087737edca29133844b14bb7cba2cd213f2";
+      sha256 = "1rcjlj5z8igrfy07lkdrlm4xcx9a3g0jl69wvqk0vvff4hfr00ar";
       };
     postUnpack = "sourceRoot+=/ouroboros-consensus-shelley-test; echo source root reset to \$sourceRoot";
     }

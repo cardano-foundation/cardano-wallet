@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "3.0";
-      identifier = { name = "cardano-api"; version = "1.30.0"; };
+      identifier = { name = "cardano-api"; version = "1.30.1"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -44,7 +44,6 @@
           (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
           (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
-          (hsPkgs."cardano-protocol-tpraos" or (errorHandler.buildDepError "cardano-protocol-tpraos"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
@@ -143,12 +142,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "191b91eec3c7d845a55347781329d50bf36871d7";
-      sha256 = "1y0a80fmrqf7561yqp4p2vx36yrhh83222b01sall2rk791y4yf0";
+      rev = "0fb43f4e3da8b225f4f86557aed90a183981a64f";
+      sha256 = "0mkir1pg78hp7adxgb8cz6jj4izs07np23fxxnwhkvf0ql92nan7";
       }) // {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "191b91eec3c7d845a55347781329d50bf36871d7";
-      sha256 = "1y0a80fmrqf7561yqp4p2vx36yrhh83222b01sall2rk791y4yf0";
+      rev = "0fb43f4e3da8b225f4f86557aed90a183981a64f";
+      sha256 = "0mkir1pg78hp7adxgb8cz6jj4izs07np23fxxnwhkvf0ql92nan7";
       };
     postUnpack = "sourceRoot+=/cardano-api; echo source root reset to \$sourceRoot";
     }
