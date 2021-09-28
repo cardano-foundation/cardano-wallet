@@ -112,7 +112,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Cache
-    ( CacheWorker, MkCacheWorker )
+    ( CacheWorker, MkCacheWorker, readCache )
 import Control.Monad
     ( forM, forM_, forever, void, when )
 import Control.Monad.IO.Class
@@ -226,10 +226,11 @@ newStakePoolLayer
     -> DBLayer IO
     -> (forall a. MkCacheWorker a)
     -> IO ()
-    -> IO (CacheWorker, StakePoolLayer)
+    -> IO (CacheWorker (Maybe StakePoolsSummary), StakePoolLayer)
 newStakePoolLayer gcStatus nl db@DBLayer {..} mkCacheWorker restartSyncThread = do
-    (worker, _stakeDistribution) <- mkCacheWorker $ stakeDistribution nl
-    pure (worker, StakePoolLayer
+    cache <- mkCacheWorker $ stakeDistribution nl
+    let _stakeDistribution = readCache cache
+    pure (cache, StakePoolLayer
         { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
         , knownPools = _knownPools
         , listStakePools = _listPools _stakeDistribution

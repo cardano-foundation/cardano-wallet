@@ -151,10 +151,10 @@ import Control.Applicative
     ( Const (..) )
 import Control.Cache
     ( CacheConfig (..)
-    , CacheWorker (..)
     , MkCacheWorker
     , don'tCacheWorker
     , newCacheWorker
+    , runWorker
     )
 import Control.Monad
     ( forM_, void )
