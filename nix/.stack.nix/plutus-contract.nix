@@ -34,11 +34,6 @@
           (hsPkgs."freer-extras" or (errorHandler.buildDepError "freer-extras"))
           (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
           (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
-          (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
-          (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
-          (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
-          (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
-          (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."aeson-pretty" or (errorHandler.buildDepError "aeson-pretty"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
@@ -115,12 +110,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "15121dd4dc66df7c17c6c0f2f4a8702ad841c020";
-      sha256 = "1g5jm1r58x5ly3vsk8hr3dviqnv1bqhxi2b87vmr53554pd6zcqp";
+      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
+      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
       }) // {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "15121dd4dc66df7c17c6c0f2f4a8702ad841c020";
-      sha256 = "1g5jm1r58x5ly3vsk8hr3dviqnv1bqhxi2b87vmr53554pd6zcqp";
+      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
+      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
       };
     postUnpack = "sourceRoot+=/plutus-contract; echo source root reset to \$sourceRoot";
     }

@@ -30,6 +30,7 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."array" or (errorHandler.buildDepError "array"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
@@ -88,12 +89,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "ec51e4fb1b17461ab612cf427b79f1742942e8cb";
-      sha256 = "05bwy7x1asyfshqsfsyv2c70qwrxp4680xlvhwdm1hz9bi0lpq41";
+      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
+      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
       }) // {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "ec51e4fb1b17461ab612cf427b79f1742942e8cb";
-      sha256 = "05bwy7x1asyfshqsfsyv2c70qwrxp4680xlvhwdm1hz9bi0lpq41";
+      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
+      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
       };
     postUnpack = "sourceRoot+=/shelley-ma/shelley-ma-test; echo source root reset to \$sourceRoot";
     }
