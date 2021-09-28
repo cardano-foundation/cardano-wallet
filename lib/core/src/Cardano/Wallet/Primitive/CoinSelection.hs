@@ -5,6 +5,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -70,7 +71,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad.Random.Class
@@ -85,6 +86,8 @@ import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Ratio
+    ( (%) )
 import Data.Semigroup
     ( mtimesDefault )
 import Fmt
@@ -194,6 +197,31 @@ toBalanceConstraintsParams (constraints, params) =
             view #outputsToCover params
         , utxoAvailable =
             view #utxoAvailableForInputs params
+        }
+
+toCollateralConstraintsParams
+    :: Balance.SelectionResult
+    -> (           SelectionConstraints,            SelectionParams)
+    -> (Collateral.SelectionConstraints, Collateral.SelectionParams)
+toCollateralConstraintsParams balanceSelection (constraints, params) =
+    (collateralConstraints, collateralParams)
+  where
+    collateralConstraints = Collateral.SelectionConstraints
+        { maximumSelectionSize =
+            view #maximumCollateralInputCount constraints
+        , searchSpaceLimit =
+            Collateral.searchSpaceLimitDefault
+        }
+    collateralParams = Collateral.SelectionParams
+        { coinsAvailable =
+            Map.mapMaybeWithKey
+                (curry (view #utxoSuitableForCollateral constraints))
+                (unUTxO (view #utxoAvailableForCollateral params))
+        , minimumSelectionAmount =
+            Coin . ceiling . (% 100) . unCoin $
+            mtimesDefault
+                (view #minimumCollateralPercentage constraints)
+                (Balance.selectionSurplusCoin balanceSelection)
         }
 
 -- | Makes a selection from an ordinary selection and a collateral selection.
