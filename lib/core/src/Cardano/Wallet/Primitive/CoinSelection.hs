@@ -24,6 +24,7 @@
 --
 module Cardano.Wallet.Primitive.CoinSelection
     ( performSelection
+    , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionParams (..)
     , SelectionError (..)
@@ -274,6 +275,9 @@ data SelectionParams = SelectionParams
     , certificateDepositsReturned
         :: !Natural
         -- ^ Number of deposits from stake key de-registrations.
+    , collateralRequirement
+        :: !SelectionCollateralRequirement
+        -- ^ Specifies the collateral requirement for this selection.
     , utxoAvailableForCollateral
         :: !UTxO
         -- ^ Specifies a set of UTxOs that are available for selection as
@@ -290,6 +294,15 @@ data SelectionParams = SelectionParams
         -- Further entries from this set will be selected to cover any deficit.
     }
     deriving (Eq, Generic, Show)
+
+-- | Indicates the collateral requirement for a selection.
+--
+data SelectionCollateralRequirement
+    = SelectionCollateralRequired
+    -- ^ Indicates that collateral is required.
+    | SelectionCollateralNotRequired
+    -- ^ Indicates that collateral is not required.
+    deriving (Eq, Show)
 
 -- | Indicates that an error occurred while performing a coin selection.
 --
