@@ -1241,14 +1241,12 @@ prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
         "balanceLeftover == TokenBundle.empty"
         (balanceLeftover == TokenBundle.empty)
 
-prop_runSelection_UTxO_notEnough
-    :: Small UTxOIndex
-    -> Property
-prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
+prop_runSelection_UTxO_notEnough :: UTxOSelection -> Property
+prop_runSelection_UTxO_notEnough utxoAvailable = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
-            , utxoAvailable = UTxOSelection.fromIndex index
+            , utxoAvailable
             , minimumBalance = balanceRequested
             }
     let balanceSelected = UTxOSelection.selectedBalance result
@@ -1260,17 +1258,15 @@ prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
         "balanceLeftover == TokenBundle.empty"
         (balanceLeftover == TokenBundle.empty)
   where
-    balanceAvailable = view #balance index
+    balanceAvailable = UTxOSelection.availableBalance utxoAvailable
     balanceRequested = adjustAllTokenBundleQuantities (* 2) balanceAvailable
 
-prop_runSelection_UTxO_exactlyEnough
-    :: Small UTxOIndex
-    -> Property
-prop_runSelection_UTxO_exactlyEnough (Small index) = monadicIO $ do
+prop_runSelection_UTxO_exactlyEnough :: UTxOSelection -> Property
+prop_runSelection_UTxO_exactlyEnough utxoAvailable = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
-            , utxoAvailable = UTxOSelection.fromIndex index
+            , utxoAvailable
             , minimumBalance = balanceRequested
             }
     let balanceSelected = UTxOSelection.selectedBalance result
@@ -1278,7 +1274,7 @@ prop_runSelection_UTxO_exactlyEnough (Small index) = monadicIO $ do
     assertWith
         "balanceLeftover == TokenBundle.empty"
         (balanceLeftover == TokenBundle.empty)
-    if UTxOIndex.null index then
+    if utxoAvailable == UTxOSelection.empty then
         assertWith
             "balanceSelected == TokenBundle.empty"
             (balanceSelected == TokenBundle.empty)
@@ -1287,16 +1283,14 @@ prop_runSelection_UTxO_exactlyEnough (Small index) = monadicIO $ do
             "balanceSelected == balanceRequested"
             (balanceSelected == balanceRequested)
   where
-    balanceRequested = view #balance index
+    balanceRequested = UTxOSelection.availableBalance utxoAvailable
 
-prop_runSelection_UTxO_moreThanEnough
-    :: Small UTxOIndex
-    -> Property
-prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
+prop_runSelection_UTxO_moreThanEnough :: UTxOSelection -> Property
+prop_runSelection_UTxO_moreThanEnough utxoAvailable = monadicIO $ do
     result <- run $ runSelection
         RunSelectionParams
             { selectionLimit = NoLimit
-            , utxoAvailable = UTxOSelection.fromIndex index
+            , utxoAvailable
             , minimumBalance = balanceRequested
             }
     let balanceSelected = UTxOSelection.selectedBalance result
@@ -1325,7 +1319,7 @@ prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
   where
     assetsAvailable = TokenBundle.getAssets balanceAvailable
     assetsRequested = TokenBundle.getAssets balanceRequested
-    balanceAvailable = view #balance index
+    balanceAvailable = UTxOSelection.availableBalance utxoAvailable
     balanceRequested = adjustAllTokenBundleQuantities (`div` 8) $
         cutAssetSetSizeInHalf balanceAvailable
 
