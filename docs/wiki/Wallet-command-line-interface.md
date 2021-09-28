@@ -162,6 +162,11 @@ Serve API that listens for commands/actions. Before launching user should start 
 >                            metadata will not be fetched. By using this option,
 >                            you are fully trusting the operator of the metadata
 >                            server to provide authentic token metadata.
+>   --no-cache-listpools     Do not cache the stake-pools listing.
+>   --cache-listpools-ttl TTL
+>                            Cache time to live (TTL) for stake-pools listing.
+>                            Expressed in seconds with a trailing 's'.
+>                            (default: 3600s)
 >   --log-level SEVERITY     Global minimum severity for a message to be logged.
 >                            Individual tracers severities still need to be
 >                            configured independently. Defaults to "DEBUG".
