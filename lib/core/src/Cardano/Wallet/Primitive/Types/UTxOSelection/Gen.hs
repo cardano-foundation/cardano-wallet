@@ -13,7 +13,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( coarbitraryTxIn )
+    ( genTxInFunction )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndex, shrinkUTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -22,8 +22,6 @@ import Data.Maybe
     ( mapMaybe )
 import Test.QuickCheck
     ( Gen, arbitrary, liftShrink2, shrinkMapBy, suchThatMap )
-import Test.QuickCheck.Extra
-    ( genFunction )
 
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 
@@ -37,7 +35,7 @@ genUTxOSelection = UTxOSelection.fromIndexFiltered
     <*> genUTxOIndex
   where
     genFilter :: Gen (TxIn -> Bool)
-    genFilter = genFunction coarbitraryTxIn (arbitrary @Bool)
+    genFilter = genTxInFunction (arbitrary @Bool)
 
 shrinkUTxOSelection :: UTxOSelection -> [UTxOSelection]
 shrinkUTxOSelection =
