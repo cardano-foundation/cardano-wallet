@@ -22,6 +22,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
 
       performSelection
     , PerformSelection
+    , SelectionConstraints (..)
     , SelectionParams (..)
     , SelectionResult (..)
     , SelectionError (..)
@@ -85,26 +86,41 @@ import qualified Numeric.SpecFunctions as MathFast
 --------------------------------------------------------------------------------
 
 type PerformSelection inputId =
+    SelectionConstraints ->
     SelectionParams inputId ->
     Either (SelectionError inputId) (SelectionResult inputId)
 
--- | Specifies the parameters for selecting collateral.
+-- | Specifies all constraints required for collateral selection.
+--
+-- Selection constraints:
+--
+--    - are dependent on the current set of protocol parameters.
+--
+--    - are not specific to a given selection.
+--
+--    - place limits on the selection algorithm, enabling it to produce
+--      selections that are acceptable to the ledger.
+--
+data SelectionConstraints = SelectionConstraints
+    { maximumSelectionSize
+        :: Int
+        -- ^ An upper bound on the number of unique coins that can be selected
+        -- as collateral.
+    , searchSpaceLimit
+        :: SearchSpaceLimit
+        -- ^ An upper bound on the search space size, to protect the wallet
+        -- against computations that use excessive amounts of time or space.
+    }
+
+-- | Specifies all parameters that are specific to a given selection.
 --
 data SelectionParams inputId = SelectionParams
     { coinsAvailable
         :: Map inputId Coin
         -- ^ The set of all coins available for selection as collateral.
-    , maximumSelectionSize
-        :: Int
-        -- ^ An upper bound on the number of unique coins that can be selected
-        -- as collateral.
     , minimumSelectionAmount
         :: Coin
         -- ^ A lower bound on the sum of coins to be selected as collateral.
-    , searchSpaceLimit
-        :: SearchSpaceLimit
-        -- ^ An upper bound on the search space size, to protect the wallet
-        -- against computations that use excessive amounts of time or space.
     }
     deriving (Eq, Generic, Show)
 
@@ -169,8 +185,8 @@ newtype SelectionError inputId = SelectionError
 --    >>>      largestCombinationAvailable ⊆ coinsAvailable
 --
 performSelection :: forall inputId. Ord inputId => PerformSelection inputId
-performSelection =
-    firstRight
+performSelection constraints =
+    firstRight $ fmap ($ constraints)
         [ selectCollateralSmallest
         , selectCollateralLargest
         ]
@@ -193,7 +209,7 @@ performSelection =
 --
 selectCollateralSmallest
     :: forall inputId. Ord inputId => PerformSelection inputId
-selectCollateralSmallest params =
+selectCollateralSmallest constraints params =
     case smallestValidCombination of
         Just coinsSelected ->
             Right SelectionResult {coinsSelected}
@@ -237,11 +253,13 @@ selectCollateralSmallest params =
             SearchSpaceRequirement
             (numberOfCoinsToConsider `numberOfSubsequencesOfSize` size)
 
+    SelectionConstraints
+        { maximumSelectionSize
+        , searchSpaceLimit
+        } = constraints
     SelectionParams
         { coinsAvailable
-        , maximumSelectionSize
         , minimumSelectionAmount
-        , searchSpaceLimit
         } = params
 
 --------------------------------------------------------------------------------
@@ -257,7 +275,7 @@ selectCollateralSmallest params =
 --
 selectCollateralLargest
     :: forall inputId. Ord inputId => PerformSelection inputId
-selectCollateralLargest params =
+selectCollateralLargest constraints params =
     case smallestValidSubmapOfLargestCombinationAvailable of
         Just coinsSelected ->
             Right SelectionResult {coinsSelected}
@@ -283,9 +301,11 @@ selectCollateralLargest params =
             & fmap fst
             & listToMaybe
 
+    SelectionConstraints
+        { maximumSelectionSize
+        } = constraints
     SelectionParams
         { coinsAvailable
-        , maximumSelectionSize
         , minimumSelectionAmount
         } = params
 
