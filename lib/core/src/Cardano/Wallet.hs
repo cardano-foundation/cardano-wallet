@@ -1459,6 +1459,7 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
                 case view #txDelegationAction txCtx of
                     Just (RegisterKeyAndJoin _) -> 1
                     _ -> 0
+            , utxoAvailableForCollateral = UTxOIndex.toUTxO utxoAvailable
             , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
             }
     case mSel of

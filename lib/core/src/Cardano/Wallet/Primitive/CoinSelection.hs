@@ -68,6 +68,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut
     , txOutMaxTokenQuantity
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad.Random.Class
@@ -267,6 +269,13 @@ data SelectionParams = SelectionParams
     , certificateDepositsReturned
         :: !Natural
         -- ^ Number of deposits from stake key de-registrations.
+    , utxoAvailableForCollateral
+        :: !UTxO
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- collateral inputs.
+        --
+        -- This set is allowed to intersect with 'utxoAvailableForInputs',
+        -- since the ledger does not require that these sets are disjoint.
     , utxoAvailableForInputs
         :: !UTxOSelection
         -- ^ Specifies a set of UTxOs that are available for selection as
