@@ -180,10 +180,10 @@ import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as SL
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as SL
-import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.ShelleyMA.TxBody as ShelleyMA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -201,6 +201,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 import qualified Shelley.Spec.Ledger.Tx as Shelley
+import qualified Shelley.Spec.Ledger.TxBody as Shelley
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -636,16 +637,24 @@ _evaluateMinimumFee pp tx =
   where
     minFee = case getSealedTxBody tx of
         InAnyCardanoEra ShelleyEra txbody ->
-            Cardano.evaluateTransactionFee @Cardano.ShelleyEra pp txbody (witsNum txbody) 0
+            let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
+                certNum = length $ Shelley._certs ledgertxbody
+            in Cardano.evaluateTransactionFee @Cardano.ShelleyEra pp txbody (witsNum txbody certNum) 0
         InAnyCardanoEra AllegraEra txbody ->
-            Cardano.evaluateTransactionFee @Cardano.AllegraEra pp txbody (witsNum txbody) 0
+            let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
+                certNum = length $ ShelleyMA.certs' ledgertxbody
+            in Cardano.evaluateTransactionFee @Cardano.AllegraEra pp txbody (witsNum txbody certNum) 0
         InAnyCardanoEra MaryEra txbody ->
-            Cardano.evaluateTransactionFee @Cardano.MaryEra pp txbody (witsNum txbody) 0
+            let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
+                certNum = length $ ShelleyMA.certs' ledgertxbody
+            in Cardano.evaluateTransactionFee @Cardano.MaryEra pp txbody (witsNum txbody certNum) 0
         InAnyCardanoEra AlonzoEra txbody ->
-            Cardano.evaluateTransactionFee @Cardano.AlonzoEra pp txbody (witsNum txbody) 0
+            let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
+                certNum = length $ Alonzo.txcerts ledgertxbody
+            in Cardano.evaluateTransactionFee @Cardano.AlonzoEra pp txbody (witsNum txbody certNum) 0
         InAnyCardanoEra ByronEra _ -> error "minium fee evaluation not supported for byron era"
 
-    witsNum txbody =
+    witsNum txbody certNum =
         let (Cardano.TxBody txbodycontent) = txbody
             txIns = Cardano.txIns txbodycontent
             txIns' = [ txin | (txin, Cardano.ViewTx) <- txIns ]
@@ -663,8 +672,6 @@ _evaluateMinimumFee pp tx =
                 Cardano.TxWithdrawals _ wdls ->
                     [ () | (_, _, Cardano.ViewTx) <- wdls ]
                 _ -> []
-            _txCertificates = Cardano.txCertificates txbodycontent
-            --TODO - get wits here probably from ledger internals
             txUpdateProposal = Cardano.txUpdateProposal txbodycontent
             txUpdateProposal' = case txUpdateProposal of
                 Cardano.TxUpdateProposal _ (Cardano.UpdateProposal updatePerGenesisKey _) ->
@@ -674,7 +681,8 @@ _evaluateMinimumFee pp tx =
            length txInsUnique +
            length txExtraKeyWits' +
            length txWithdrawals' +
-           txUpdateProposal'
+           txUpdateProposal' +
+           certNum
 
 _calcScriptExecutionCost
     :: ProtocolParameters
