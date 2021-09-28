@@ -250,7 +250,9 @@ data ErrCannotQuit
     | ErrNonNullRewards Coin
     deriving (Eq, Show)
 
-newtype ErrUpdateSealedTx
-    = ErrUpdateSealedTxBodyError Text
-    -- ^ We failed to construct a transaction for some reasons.
+data ErrUpdateSealedTx
+    = ErrExistingKeyWitnesses Int
+    -- ^ The `SealedTx` couldn't not be updated because the *n* existing
+    -- key-witnesses would have been rendered invalid.
+    | ErrByronTxNotSupported
     deriving (Generic, Eq, Show)

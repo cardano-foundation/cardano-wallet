@@ -3476,8 +3476,17 @@ instance IsServerError ErrBalanceTx where
                 [ "The transaction is already balanced. "
                 , "Please send a transaction that requires more inputs/outputs to be picked to be balanced."
                 ]
-        ErrBalanceTxUpdateError (ErrUpdateSealedTxBodyError hint) ->
-            apiError err500 CreatedInvalidTransaction hint
+        ErrBalanceTxUpdateError ErrByronTxNotSupported ->
+            apiError err403 CreatedInvalidTransaction
+                "Balancing Byron transactions is not supported."
+        ErrBalanceTxUpdateError (ErrExistingKeyWitnesses n) ->
+            apiError err403 CreatedInvalidTransaction $ mconcat
+                [ "The transaction could not be balanced, because it contains "
+                , T.pack (show n), " "
+                , "existing key-witnesses which would be invalid after "
+                , "the transaction body is modified. "
+                , "Please sign the transaction after it is balanced instead."
+                ]
         ErrBalanceTxNotImplemented ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."

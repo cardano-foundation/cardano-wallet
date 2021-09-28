@@ -61,10 +61,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toPoint
     , toCardanoTxId
     , toCardanoTxIn
-    , toShelleyTxOut
-    , toAllegraTxOut
-    , toMaryTxOut
-    , toAlonzoTxOut
+    , toCardanoTxOut
     , toCardanoLovelace
     , toStakeKeyRegCert
     , toStakeKeyDeregCert
@@ -1251,70 +1248,77 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
     safeCast :: Word64 -> Integer
     safeCast = fromIntegral
 
-toShelleyTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ShelleyEra
-toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
-    Cardano.TxOut
-        addrInEra
-        (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
-        Cardano.TxOutDatumHashNone
+toCardanoTxOut :: ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut era
+toCardanoTxOut era = case era of
+    ShelleyBasedEraShelley -> toShelleyTxOut
+    ShelleyBasedEraAllegra -> toAllegraTxOut
+    ShelleyBasedEraMary    -> toMaryTxOut
+    ShelleyBasedEraAlonzo  -> toAlonzoTxOut
   where
-    adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
-    addrInEra = tina "toCardanoTxOut: malformed address"
-        [ Cardano.AddressInEra
-            (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
-            <$> deserialiseFromRawBytes AsShelleyAddress addr
+    toShelleyTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ShelleyEra
+    toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
+        Cardano.TxOut
+            addrInEra
+            (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
+            Cardano.TxOutDatumHashNone
+      where
+        adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
+        addrInEra = tina "toCardanoTxOut: malformed address"
+            [ Cardano.AddressInEra
+                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
+                <$> deserialiseFromRawBytes AsShelleyAddress addr
 
-        , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-            <$> deserialiseFromRawBytes AsByronAddress addr
-        ]
+            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
+                <$> deserialiseFromRawBytes AsByronAddress addr
+            ]
 
-toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AllegraEra
-toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
-    Cardano.TxOut
-        addrInEra
-        (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
-        Cardano.TxOutDatumHashNone
-  where
-    adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
-    addrInEra = tina "toCardanoTxOut: malformed address"
-        [ Cardano.AddressInEra
-            (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra)
-            <$> deserialiseFromRawBytes AsShelleyAddress addr
+    toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AllegraEra
+    toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
+        Cardano.TxOut
+            addrInEra
+            (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
+            Cardano.TxOutDatumHashNone
+      where
+        adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
+        addrInEra = tina "toCardanoTxOut: malformed address"
+            [ Cardano.AddressInEra
+                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra)
+                <$> deserialiseFromRawBytes AsShelleyAddress addr
 
-        , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-            <$> deserialiseFromRawBytes AsByronAddress addr
-        ]
+            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
+                <$> deserialiseFromRawBytes AsByronAddress addr
+            ]
 
-toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut MaryEra
-toMaryTxOut (W.TxOut (W.Address addr) tokens) =
-    Cardano.TxOut
-        addrInEra
-        (Cardano.TxOutValue Cardano.MultiAssetInMaryEra $ toCardanoValue tokens)
-        Cardano.TxOutDatumHashNone
-  where
-    addrInEra = tina "toCardanoTxOut: malformed address"
-        [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
-            <$> deserialiseFromRawBytes AsShelleyAddress addr
+    toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut MaryEra
+    toMaryTxOut (W.TxOut (W.Address addr) tokens) =
+        Cardano.TxOut
+            addrInEra
+            (Cardano.TxOutValue Cardano.MultiAssetInMaryEra $ toCardanoValue tokens)
+            Cardano.TxOutDatumHashNone
+      where
+        addrInEra = tina "toCardanoTxOut: malformed address"
+            [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
+                <$> deserialiseFromRawBytes AsShelleyAddress addr
 
-        , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-            <$> deserialiseFromRawBytes AsByronAddress addr
-        ]
+            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
+                <$> deserialiseFromRawBytes AsByronAddress addr
+            ]
 
-toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AlonzoEra
-toAlonzoTxOut (W.TxOut (W.Address addr) tokens) =
-    Cardano.TxOut
-        addrInEra
-        (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra $ toCardanoValue tokens)
-        datumHash
-  where
-    datumHash = Cardano.TxOutDatumHashNone
-    addrInEra = tina "toCardanoTxOut: malformed address"
-        [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
-            <$> deserialiseFromRawBytes AsShelleyAddress addr
+    toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AlonzoEra
+    toAlonzoTxOut (W.TxOut (W.Address addr) tokens) =
+        Cardano.TxOut
+            addrInEra
+            (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra $ toCardanoValue tokens)
+            datumHash
+      where
+        datumHash = Cardano.TxOutDatumHashNone
+        addrInEra = tina "toCardanoTxOut: malformed address"
+            [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
+                <$> deserialiseFromRawBytes AsShelleyAddress addr
 
-        , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-            <$> deserialiseFromRawBytes AsByronAddress addr
-        ]
+            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
+                <$> deserialiseFromRawBytes AsByronAddress addr
+            ]
 
 toCardanoValue :: HasCallStack => TokenBundle.TokenBundle -> Cardano.Value
 toCardanoValue tb = Cardano.valueFromList $
