@@ -163,7 +163,7 @@ toBalanceConstraintsParams (constraints, params) =
         , outputsToCover =
             view #outputsToCover params
         , utxoAvailable =
-            view #utxoAvailable params
+            view #utxoAvailableForInputs params
         }
 
 -- | Makes a selection from an ordinary selection and a collateral selection.
@@ -267,7 +267,7 @@ data SelectionParams = SelectionParams
     , certificateDepositsReturned
         :: !Natural
         -- ^ Number of deposits from stake key de-registrations.
-    , utxoAvailable
+    , utxoAvailableForInputs
         :: !UTxOSelection
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- ordinary inputs and optionally, a subset that has already been
