@@ -35,8 +35,6 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionConstraints (..)
     , SelectionParams
     , SelectionParamsOf (..)
-    , SelectionLimit
-    , SelectionLimitOf (..)
     , SelectionSkeleton (..)
     , SelectionResult
     , SelectionResultOf (..)
@@ -45,6 +43,11 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , UnableToConstructChangeError (..)
+
+    -- * Selection limits
+    , SelectionLimit
+    , SelectionLimitOf (..)
+    , selectionLimitExceeded
 
     -- * Querying selections
     , SelectionDelta (..)
@@ -433,6 +436,13 @@ instance Ord a => Ord (SelectionLimitOf a) where
         (MaximumInputLimit _, NoLimit            ) -> LT
         (NoLimit            , MaximumInputLimit _) -> GT
         (MaximumInputLimit x, MaximumInputLimit y) -> compare x y
+
+-- | Indicates whether or not the given selection limit has been exceeded.
+--
+selectionLimitExceeded :: IsUTxOSelection s => s -> SelectionLimit -> Bool
+selectionLimitExceeded s = \case
+    NoLimit -> False
+    MaximumInputLimit n -> UTxOSelection.selectedSize s > n
 
 type SelectionResult = SelectionResultOf [TxOut]
 
