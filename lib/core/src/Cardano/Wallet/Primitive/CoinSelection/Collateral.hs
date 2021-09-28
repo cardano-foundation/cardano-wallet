@@ -14,17 +14,17 @@
 -- Provides functions for selecting coins for use as collateral from a UTxO
 -- set.
 --
--- See the documentation for 'selectCollateral' for more details.
+-- See the documentation for 'performSelection' for more details.
 --
 module Cardano.Wallet.Primitive.CoinSelection.Collateral
     (
     -- * Public API
 
-      selectCollateral
-    , SelectCollateral
-    , SelectCollateralParams (..)
-    , SelectCollateralResult (..)
-    , SelectCollateralError (..)
+      performSelection
+    , PerformSelection
+    , SelectionParams (..)
+    , SelectionResult (..)
+    , SelectionError (..)
     , SearchSpaceLimit (..)
 
     -- * Internal API
@@ -84,13 +84,13 @@ import qualified Numeric.SpecFunctions as MathFast
 -- Public API
 --------------------------------------------------------------------------------
 
-type SelectCollateral inputId =
-    SelectCollateralParams inputId ->
-    Either (SelectCollateralError inputId) (SelectCollateralResult inputId)
+type PerformSelection inputId =
+    SelectionParams inputId ->
+    Either (SelectionError inputId) (SelectionResult inputId)
 
 -- | Specifies the parameters for selecting collateral.
 --
-data SelectCollateralParams inputId = SelectCollateralParams
+data SelectionParams inputId = SelectionParams
     { coinsAvailable
         :: Map inputId Coin
         -- ^ The set of all coins available for selection as collateral.
@@ -121,7 +121,7 @@ data SearchSpaceLimit
 
 -- | Represents a successful selection of collateral.
 --
-newtype SelectCollateralResult inputId = SelectCollateralResult
+newtype SelectionResult inputId = SelectionResult
     { coinsSelected :: Map inputId Coin
         -- ^ The coins that were selected for collateral.
     }
@@ -129,7 +129,7 @@ newtype SelectCollateralResult inputId = SelectCollateralResult
 
 -- | Represents an unsuccessful attempt to select collateral.
 --
-newtype SelectCollateralError inputId = SelectCollateralError
+newtype SelectionError inputId = SelectionError
     { largestCombinationAvailable :: Map inputId Coin
         -- ^ The largest combination of coins available.
     }
@@ -168,8 +168,8 @@ newtype SelectCollateralError inputId = SelectCollateralError
 --    >>> size largestCombinationAvailable ≤ maximumSelectionSize
 --    >>>      largestCombinationAvailable ⊆ coinsAvailable
 --
-selectCollateral :: forall inputId. Ord inputId => SelectCollateral inputId
-selectCollateral =
+performSelection :: forall inputId. Ord inputId => PerformSelection inputId
+performSelection =
     firstRight
         [ selectCollateralSmallest
         , selectCollateralLargest
@@ -192,13 +192,13 @@ selectCollateral =
 -- function will return without computing a result.
 --
 selectCollateralSmallest
-    :: forall inputId. Ord inputId => SelectCollateral inputId
+    :: forall inputId. Ord inputId => PerformSelection inputId
 selectCollateralSmallest params =
     case smallestValidCombination of
         Just coinsSelected ->
-            Right SelectCollateralResult {coinsSelected}
+            Right SelectionResult {coinsSelected}
         Nothing ->
-            Left (SelectCollateralError mempty)
+            Left (SelectionError mempty)
   where
     coinsToConsider :: [(inputId, Coin)]
     coinsToConsider = coinsAvailable
@@ -237,7 +237,7 @@ selectCollateralSmallest params =
             SearchSpaceRequirement
             (numberOfCoinsToConsider `numberOfSubsequencesOfSize` size)
 
-    SelectCollateralParams
+    SelectionParams
         { coinsAvailable
         , maximumSelectionSize
         , minimumSelectionAmount
@@ -256,13 +256,13 @@ selectCollateralSmallest params =
 -- This result can be computed very quickly, without using much search space.
 --
 selectCollateralLargest
-    :: forall inputId. Ord inputId => SelectCollateral inputId
+    :: forall inputId. Ord inputId => PerformSelection inputId
 selectCollateralLargest params =
     case smallestValidSubmapOfLargestCombinationAvailable of
         Just coinsSelected ->
-            Right SelectCollateralResult {coinsSelected}
+            Right SelectionResult {coinsSelected}
         Nothing ->
-            Left SelectCollateralError {largestCombinationAvailable}
+            Left SelectionError {largestCombinationAvailable}
   where
     largestCombinationAvailable :: Map inputId Coin
     largestCombinationAvailable =
@@ -283,7 +283,7 @@ selectCollateralLargest params =
             & fmap fst
             & listToMaybe
 
-    SelectCollateralParams
+    SelectionParams
         { coinsAvailable
         , maximumSelectionSize
         , minimumSelectionAmount
