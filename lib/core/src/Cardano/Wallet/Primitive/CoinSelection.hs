@@ -119,9 +119,6 @@ performSelection constraints params = do
     -- https://input-output.atlassian.net/browse/ADP-1037
     -- Adjust coin selection and fee estimation to handle collateral inputs
     --
-    -- https://input-output.atlassian.net/browse/ADP-1070
-    -- Adjust coin selection and fee estimation to handle pre-existing inputs
-    --
     preparedOutputs <- withExceptT SelectionOutputsError $ except
         $ prepareOutputs constraints (view #outputsToCover params)
     withExceptT SelectionBalanceError
