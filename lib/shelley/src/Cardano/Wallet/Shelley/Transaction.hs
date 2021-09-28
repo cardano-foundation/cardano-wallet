@@ -194,6 +194,7 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
@@ -642,9 +643,38 @@ _evaluateMinimumFee pp tx =
             Cardano.evaluateTransactionFee @Cardano.MaryEra pp txbody (witsNum txbody) 0
         InAnyCardanoEra AlonzoEra txbody ->
             Cardano.evaluateTransactionFee @Cardano.AlonzoEra pp txbody (witsNum txbody) 0
-        InAnyCardanoEra ByronEra _ -> error "evaluation not supported for byron era"
+        InAnyCardanoEra ByronEra _ -> error "minium fee evaluation not supported for byron era"
 
-    witsNum _txbody = 0
+    witsNum txbody =
+        let (Cardano.TxBody txbodycontent) = txbody
+            txIns = Cardano.txIns txbodycontent
+            txIns' = [ txin | (txin, Cardano.ViewTx) <- txIns ]
+            txInsCollateral = Cardano.txInsCollateral txbodycontent
+            txIns'' = case txInsCollateral of
+                Cardano.TxInsCollateral _ collaterals -> collaterals
+                _ -> []
+            txInsUnique =  L.nub $ txIns' ++ txIns''
+            txExtraKeyWits = Cardano.txExtraKeyWits txbodycontent
+            txExtraKeyWits' = case txExtraKeyWits of
+                Cardano.TxExtraKeyWitnesses _ khs -> khs
+                _ -> []
+            txWithdrawals = Cardano.txWithdrawals txbodycontent
+            txWithdrawals' = case txWithdrawals of
+                Cardano.TxWithdrawals _ wdls ->
+                    [ () | (_, _, Cardano.ViewTx) <- wdls ]
+                _ -> []
+            _txCertificates = Cardano.txCertificates txbodycontent
+            --TODO - get wits here probably from ledger internals
+            txUpdateProposal = Cardano.txUpdateProposal txbodycontent
+            txUpdateProposal' = case txUpdateProposal of
+                Cardano.TxUpdateProposal _ (Cardano.UpdateProposal updatePerGenesisKey _) ->
+                    Map.size updatePerGenesisKey
+                _ -> 0
+        in fromIntegral $
+           length txInsUnique +
+           length txExtraKeyWits' +
+           length txWithdrawals' +
+           txUpdateProposal'
 
 _calcScriptExecutionCost
     :: ProtocolParameters
