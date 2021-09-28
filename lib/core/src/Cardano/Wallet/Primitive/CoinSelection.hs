@@ -100,7 +100,9 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 -- | Performs a coin selection.
@@ -125,14 +127,17 @@ performSelection constraints params = do
     --
     preparedOutputs <- withExceptT SelectionOutputsError $ except
         $ prepareOutputs constraints (view #outputsToCover params)
-    withExceptT SelectionBalanceError
-        $ fmap mkSelection
-        $ ExceptT
-        $ uncurry Balance.performSelection
-        $ toBalanceConstraintsParams
+    balanceResult <- withExceptT SelectionBalanceError $ ExceptT $
+        uncurry Balance.performSelection $
+        toBalanceConstraintsParams
             ( constraints
             , params {outputsToCover = preparedOutputs}
             )
+    pure $ mkSelection params balanceResult emptyCollateralResult
+  where
+    emptyCollateralResult :: Collateral.SelectionResult
+    emptyCollateralResult = Collateral.SelectionResult
+        { coinsSelected = Map.empty }
 
 toBalanceConstraintsParams
     :: (        SelectionConstraints,         SelectionParams)
@@ -193,14 +198,17 @@ toBalanceConstraintsParams (constraints, params) =
 
 -- | Makes a selection from an ordinary selection and a collateral selection.
 --
--- TODO: [ADP-1037]
--- Adjust this function to accept the result of a collateral selection as a
--- parameter.
---
-mkSelection :: Balance.SelectionResult -> Selection
-mkSelection balanceResult = Selection
+mkSelection
+    :: SelectionParams
+    -> Balance.SelectionResult
+    -> Collateral.SelectionResult
+    -> Selection
+mkSelection params balanceResult collateralResult = Selection
     { inputs = view #inputsSelected balanceResult
-    , collateral = [] --TODO: [ADP-1037]
+    , collateral = UTxO.toList $
+        view #utxoAvailableForCollateral params
+        `UTxO.restrictedBy`
+        Map.keysSet (view #coinsSelected collateralResult)
     , outputs = view #outputsCovered balanceResult
     , change = view #changeGenerated balanceResult
     , assetsToMint = view #assetsToMint balanceResult
