@@ -85,8 +85,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Semigroup
     ( mtimesDefault )
-import Data.Word
-    ( Word16 )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -243,7 +241,7 @@ data SelectionConstraints = SelectionConstraints
         -- ^ Amount that should be taken from/returned back to the wallet for
         -- each stake key registration/de-registration in the transaction.
     , maximumCollateralInputCount
-        :: Word16
+        :: Int
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
         -- that can be selected as collateral.
     , utxoSuitableForCollateral
