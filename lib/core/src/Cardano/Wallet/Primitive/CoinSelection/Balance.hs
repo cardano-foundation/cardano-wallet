@@ -159,6 +159,8 @@ import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Generics.Labels
     ()
+import Data.IntCast
+    ( intCast )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -1128,7 +1130,7 @@ coinSelectionLens
 coinSelectionLens limit minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
-    , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
+    , minimumQuantity = intCast $ unCoin minimumCoinQuantity
     , selectQuantity  = selectCoinQuantity limit
     }
 
@@ -2112,7 +2114,7 @@ selectedAssetQuantity asset
 
 selectedCoinQuantity :: IsUTxOSelection s => s -> Natural
 selectedCoinQuantity
-    = fromIntegral
+    = intCast
     . unCoin
     . TokenBundle.getCoin
     . UTxOSelection.selectedBalance
