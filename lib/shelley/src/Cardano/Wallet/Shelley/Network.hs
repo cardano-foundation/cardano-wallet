@@ -81,6 +81,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromAlonzoPParams
     , fromCardanoHash
     , fromChainHash
+    , fromLedgerPParams
     , fromNonMyopicMemberRewards
     , fromPoolDistr
     , fromShelleyCoin
@@ -771,14 +772,14 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                     <$> LSQry Shelley.GetCurrentPParams)
 
             ppNode <- onAnyEra
-                Nothing
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraShelley
+                (pure Nothing)
+                (Just . fromLedgerPParams Cardano.ShelleyBasedEraShelley
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAllegra
+                (Just . fromLedgerPParams Cardano.ShelleyBasedEraAllegra
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraMary
+                (Just . fromLedgerPParams Cardano.ShelleyBasedEraMary
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
+                (Just . fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
                     <$> LSQry Shelley.GetCurrentPParams)
 
             return ((pp, ppNode), sp)

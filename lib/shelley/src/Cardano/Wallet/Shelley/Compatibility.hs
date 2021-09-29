@@ -79,6 +79,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromShelleyPParams
     , fromAlonzoPParams
     , fromLedgerExUnits
+    , fromLedgerPParams
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -297,6 +298,7 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
@@ -716,6 +718,12 @@ txParametersFromPParams maxBundleSize pp = W.TxParameters
   where
     naturalToDouble :: Natural -> Double
     naturalToDouble = fromIntegral
+
+fromLedgerPParams
+  :: ShelleyBasedEra era
+  -> Ledger.PParams (Cardano.ShelleyLedgerEra era)
+  -> Cardano.ProtocolParameters
+fromLedgerPParams _ _ = undefined
 
 desiredNumberOfStakePoolsFromPParams
     :: HasField "_nOpt" pparams Natural
