@@ -35,6 +35,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Collateral
     , guardSearchSpaceSize
     , numberOfSubsequencesOfSize
     , performSelection
+    , searchSpaceLimitDefault
     , selectCollateralLargest
     , selectCollateralSmallest
     , submaps
@@ -207,7 +208,7 @@ prop_performSelection_general_withFunction performSelectionFn =
         $ \maximumSelectionSize ->
     let constraints = SelectionConstraints
             { maximumSelectionSize
-            , searchSpaceLimit = SearchSpaceLimit 1_000_000
+            , searchSpaceLimit = searchSpaceLimitDefault
             } in
     let params = SelectionParams
             { coinsAvailable

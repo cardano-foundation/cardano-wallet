@@ -2,6 +2,7 @@
 
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -27,6 +28,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
     , SelectionResult (..)
     , SelectionError (..)
     , SearchSpaceLimit (..)
+    , searchSpaceLimitDefault
 
     -- * Internal API
 
@@ -134,6 +136,15 @@ data SearchSpaceLimit
     -- ^ Specifies that there is no search space limit. This should only be
     -- used for testing purposes.
     deriving (Eq, Show)
+
+-- | The default search space limit.
+--
+-- This constant is used by the test suite, so we can be reasonably confident
+-- that performing selections with this limit will not use inordinate amounts
+-- of time and space.
+--
+searchSpaceLimitDefault :: SearchSpaceLimit
+searchSpaceLimitDefault = SearchSpaceLimit 1_000_000
 
 -- | Represents a successful selection of collateral.
 --
