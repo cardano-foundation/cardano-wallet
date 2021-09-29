@@ -134,7 +134,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             verify response
                 [ expectResponseCode HTTP.status202
                 , expectField (#totalFee . #getQuantity)
-                    (`shouldBe` 334_700)
+                    (`shouldBe` 333_900)
                 , expectField (#selections)
                     ((`shouldBe` 1) . length)
                 , expectField (#balanceSelected . #ada . #getQuantity)
@@ -305,7 +305,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField
                 (#totalFee . #getQuantity)
-                (`shouldBe` 2_461_400)
+                (`shouldBe` 2_459_800)
             , expectField
                 (#selections)
                 ((`shouldBe` 2) . length)
@@ -396,7 +396,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT @IO $ do
 
-            let feeExpected = 334_700
+            let feeExpected = 333_900
 
             -- Restore a source wallet with funds.
             sourceWallet <- fixtureByronWallet ctx

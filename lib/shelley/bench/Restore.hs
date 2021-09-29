@@ -216,6 +216,8 @@ import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -456,8 +458,18 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
         let getFee = const (selectionDelta TokenBundle.getCoin)
-        wal <- unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
-        let runSelection = W.selectAssets @_ @s @k w wal txCtx [out] getFee
+        (utxoAvailable, wallet, pendingTxs) <-
+            unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
+        let runSelection = W.selectAssets @_ @s @k w W.SelectAssetsParams
+                { outputs = [out]
+                , pendingTxs
+                , txContext = txCtx
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
+                , wallet
+                } getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     oneAddress <- genAddresses 1 cp
@@ -547,8 +559,18 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
         let getFee = const (selectionDelta TokenBundle.getCoin)
-        wal <- unsafeRunExceptT $ W.readWalletUTxOIndex w wid
-        let runSelection = W.selectAssets @_ @s @k w wal txCtx [out] getFee
+        (utxoAvailable, wallet, pendingTxs) <-
+            unsafeRunExceptT $ W.readWalletUTxOIndex w wid
+        let runSelection = W.selectAssets @_ @s @k w W.SelectAssetsParams
+                { outputs = [out]
+                , pendingTxs
+                , txContext = txCtx
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
+                , wallet
+                } getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}

@@ -731,11 +731,10 @@ txConstraints protocolParams witnessTag = TxConstraints
         dummyAddress = Address $ BS.replicate dummyAddressLength nullByte
 
         dummyAddressLength :: Int
-        dummyAddressLength = 65
-        -- Note: This is almost certainly too high. However, we are at liberty
-        -- to overestimate the length of an address (which is safe). Therefore,
-        -- we can choose a length that we know is greater than or equal to all
-        -- address lengths.
+        dummyAddressLength = 57
+        -- Note: We are at liberty to overestimate the length of an address
+        -- (which is safe). Therefore, we can choose a length that we know is
+        -- greater than or equal to all address lengths.
 
         nullByte :: Word8
         nullByte = 0

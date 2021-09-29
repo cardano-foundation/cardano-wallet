@@ -107,6 +107,7 @@ module Cardano.Wallet
 
     -- ** Payment
     , getTxExpiry
+    , SelectAssetsParams (..)
     , selectAssets
     , readWalletUTxOIndex
     , assignChangeAddresses
@@ -394,6 +395,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
+import Cardano.Wallet.Primitive.Types.UTxOSelection
+    ( UTxOSelection )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -522,6 +525,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.ByteArray as BA
@@ -1411,6 +1415,18 @@ calcMinimumCoinValues ctx outs = do
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
 
+-- | Parameters for the 'selectAssets' function.
+--
+data SelectAssetsParams s result = SelectAssetsParams
+    { outputs :: [TxOut]
+    , pendingTxs :: Set Tx
+    , txContext :: TransactionCtx
+    , utxoAvailableForCollateral :: UTxO
+    , utxoAvailableForInputs :: UTxOSelection
+    , wallet :: Wallet s
+    }
+    deriving Generic
+
 -- | Selects assets from the wallet's UTxO to satisfy the requested outputs in
 -- the given transaction context. In case of success, returns the selection
 -- and its associated cost. That is, the cost is equal to the difference between
@@ -1422,15 +1438,15 @@ selectAssets
         , HasNetworkLayer IO ctx
         )
     => ctx
-    -> (UTxOIndex, Wallet s, Set Tx)
-    -> TransactionCtx
-    -> [TxOut]
+    -> SelectAssetsParams s result
     -> (s -> Selection -> result)
     -> ExceptT ErrSelectAssets IO result
-selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
+selectAssets ctx params transform = do
     guardPendingWithdrawal
     pp <- liftIO $ currentProtocolParameters nl
-    liftIO $ traceWith tr $ MsgSelectionStart utxoAvailable outputs
+    liftIO $ traceWith tr $ MsgSelectionStart
+        (UTxOSelection.availableUTxO $ params ^. #utxoAvailableForInputs)
+        (params ^. #outputs)
     mSel <- runExceptT $ performSelection
         SelectionConstraints
             { assessTokenBundleSize =
@@ -1439,9 +1455,9 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
             , computeMinimumAdaQuantity =
                 view #txOutputMinimumAdaQuantity $ constraints tl pp
             , computeMinimumCost =
-                calcMinimumCost tl pp txCtx
+                calcMinimumCost tl pp $ params ^. #txContext
             , computeSelectionLimit =
-                view #computeSelectionLimit tl pp txCtx
+                view #computeSelectionLimit tl pp $ params ^. #txContext
             , depositAmount =
                 view #stakeKeyDeposit pp
             , maximumCollateralInputCount =
@@ -1453,23 +1469,25 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
             { -- Until we properly support minting and burning, set to empty:
               assetsToBurn = TokenMap.empty
             , assetsToMint = TokenMap.empty
-            , outputsToCover = outputs
+            , outputsToCover = params ^. #outputs
             , rewardWithdrawal =
-                withdrawalToCoin $ view #txWithdrawal txCtx
+                withdrawalToCoin $ params ^. (#txContext . #txWithdrawal)
             , certificateDepositsReturned =
-                case view #txDelegationAction txCtx of
+                case params ^. (#txContext . #txDelegationAction) of
                     Just Quit -> 1
                     _ -> 0
             , certificateDepositsTaken =
-                case view #txDelegationAction txCtx of
+                case params ^. (#txContext . #txDelegationAction) of
                     Just (RegisterKeyAndJoin _) -> 1
                     _ -> 0
               -- TODO: [ADP-957]
               -- Until support for collateral is fully integrated, specify
               -- that collateral is not required:
             , collateralRequirement = SelectionCollateralNotRequired
-            , utxoAvailableForCollateral = UTxOIndex.toUTxO utxoAvailable
-            , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
+            , utxoAvailableForCollateral =
+                params ^. #utxoAvailableForCollateral
+            , utxoAvailableForInputs =
+                params ^. #utxoAvailableForInputs
             }
     case mSel of
         Left e -> liftIO $
@@ -1480,7 +1498,7 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
             traceWith tr $ MsgSelectionReportDetailed
                 $ makeSelectionReportDetailed sel
     withExceptT ErrSelectAssetsSelectionError $ except $
-        transform (getState cp) <$> mSel
+        transform (getState $ params ^. #wallet) <$> mSel
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
@@ -1493,15 +1511,18 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
     -- one of them to never be inserted), we warn users early on about it.
     guardPendingWithdrawal :: ExceptT ErrSelectAssets IO ()
     guardPendingWithdrawal =
-        case Set.lookupMin $ Set.filter hasWithdrawal pending of
+        case Set.lookupMin $ Set.filter hasWithdrawal $ params ^. #pendingTxs of
             Just pendingWithdrawal
-                | withdrawalToCoin (txWithdrawal txCtx) /= Coin 0 ->
+                | withdrawalToCoin txWithdrawal /= Coin 0 ->
                     throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal
             _otherwise ->
                 pure ()
       where
         hasWithdrawal :: Tx -> Bool
         hasWithdrawal = not . null . withdrawals
+
+        txWithdrawal :: Withdrawal
+        txWithdrawal = params ^. (#txContext . #txWithdrawal)
 
 signTransaction
     :: ctx
@@ -2746,7 +2767,7 @@ data WalletFollowLog
 
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
-    = MsgSelectionStart UTxOIndex [TxOut]
+    = MsgSelectionStart UTxO [TxOut]
     | MsgSelectionError SelectionError
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed
@@ -2791,7 +2812,7 @@ instance ToText WalletLog where
     toText = \case
         MsgSelectionStart utxo recipients ->
             "Starting coin selection " <>
-            "|utxo| = "+|UTxOIndex.size utxo|+" " <>
+            "|utxo| = "+|UTxO.size utxo|+" " <>
             "#recipients = "+|length recipients|+""
         MsgSelectionError e ->
             "Failed to select assets:\n"+|| e ||+""
