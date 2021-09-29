@@ -580,6 +580,8 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.Aeson as Aeson
@@ -1555,7 +1557,10 @@ selectCoins ctx genChange (ApiT wid) body = do
                 { outputs = F.toList outs
                 , pendingTxs
                 , txContext = txCtx
-                , utxoAvailable
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 }
                 transform
@@ -1603,7 +1608,10 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 { outputs = []
                 , pendingTxs
                 , txContext = txCtx
-                , utxoAvailable
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 }
                 transform
@@ -1645,7 +1653,10 @@ selectCoinsForQuit ctx (ApiT wid) = do
                 { outputs = []
                 , pendingTxs
                 , txContext = txCtx
-                , utxoAvailable
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 }
                 transform
@@ -1884,7 +1895,10 @@ postTransactionOld ctx genChange (ApiT wid) body = do
                 { outputs = F.toList outs
                 , pendingTxs
                 , txContext = txCtx
-                , utxoAvailable
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 }
                 (const Prelude.id)
@@ -2019,7 +2033,10 @@ postTransactionFeeOld ctx (ApiT wid) body = do
                 { outputs = F.toList outs
                 , pendingTxs
                 , txContext = txCtx
-                , utxoAvailable
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 } getFee
               where getFee = const (selectionDelta TokenBundle.getCoin)
@@ -2081,7 +2098,10 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         { outputs = []
                         , pendingTxs
                         , txContext = txCtx
-                        , utxoAvailable
+                        , utxoAvailableForInputs =
+                            UTxOSelection.fromIndex utxoAvailable
+                        , utxoAvailableForCollateral =
+                            UTxOIndex.toUTxO utxoAvailable
                         , wallet
                         }
                         (const Prelude.id)
@@ -2091,7 +2111,10 @@ constructTransaction ctx genChange (ApiT wid) body = do
                             { outputs = []
                             , pendingTxs
                             , txContext = txCtx
-                            , utxoAvailable
+                            , utxoAvailableForInputs =
+                                UTxOSelection.fromIndex utxoAvailable
+                            , utxoAvailableForCollateral =
+                                UTxOIndex.toUTxO utxoAvailable
                             , wallet
                             }
                             getFee
@@ -2102,7 +2125,10 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         { outputs = []
                         , pendingTxs
                         , txContext = txCtx
-                        , utxoAvailable
+                        , utxoAvailableForInputs =
+                            UTxOSelection.fromIndex utxoAvailable
+                        , utxoAvailableForCollateral =
+                            UTxOIndex.toUTxO utxoAvailable
                         , wallet
                         }
                         transform
@@ -2115,7 +2141,10 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         { outputs = F.toList outs
                         , pendingTxs
                         , txContext = txCtx
-                        , utxoAvailable
+                        , utxoAvailableForInputs =
+                            UTxOSelection.fromIndex utxoAvailable
+                        , utxoAvailableForCollateral =
+                            UTxOIndex.toUTxO utxoAvailable
                         , wallet
                         }
                         (const Prelude.id)
@@ -2125,7 +2154,10 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         { outputs = F.toList outs
                         , pendingTxs
                         , txContext = txCtx
-                        , utxoAvailable
+                        , utxoAvailableForInputs =
+                            UTxOSelection.fromIndex utxoAvailable
+                        , utxoAvailableForCollateral =
+                            UTxOIndex.toUTxO utxoAvailable
                         , wallet
                         }
                         getFee
@@ -2136,7 +2168,10 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         { outputs = F.toList outs
                         , pendingTxs
                         , txContext = txCtx
-                        , utxoAvailable
+                        , utxoAvailableForInputs =
+                            UTxOSelection.fromIndex utxoAvailable
+                        , utxoAvailableForCollateral =
+                            UTxOIndex.toUTxO utxoAvailable
                         , wallet
                         }
                         transform
@@ -2215,7 +2250,10 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 { outputs = []
                 , pendingTxs
                 , txContext = txCtx
-                , utxoAvailable
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 }
                 (const Prelude.id)
@@ -2273,7 +2311,10 @@ delegationFee ctx (ApiT wid) = do
             { outputs = []
             , pendingTxs
             , txContext = txCtx
-            , utxoAvailable
+            , utxoAvailableForInputs =
+                UTxOSelection.fromIndex utxoAvailable
+            , utxoAvailableForCollateral =
+                UTxOIndex.toUTxO utxoAvailable
             , wallet
             } calcFee
       where
@@ -2319,7 +2360,10 @@ quitStakePool ctx (ApiT wid) body = do
                 { outputs = []
                 , pendingTxs
                 , txContext = txCtx
-                , utxoAvailable
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 }
                 (const Prelude.id)

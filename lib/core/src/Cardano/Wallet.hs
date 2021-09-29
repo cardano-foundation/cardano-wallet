@@ -395,6 +395,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
+import Cardano.Wallet.Primitive.Types.UTxOSelection
+    ( UTxOSelection )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
@@ -523,6 +525,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.ByteArray as BA
@@ -1418,7 +1421,8 @@ data SelectAssetsParams s result = SelectAssetsParams
     { outputs :: [TxOut]
     , pendingTxs :: Set Tx
     , txContext :: TransactionCtx
-    , utxoAvailable :: UTxOIndex
+    , utxoAvailableForCollateral :: UTxO
+    , utxoAvailableForInputs :: UTxOSelection
     , wallet :: Wallet s
     }
     deriving Generic
@@ -1441,7 +1445,7 @@ selectAssets ctx params transform = do
     guardPendingWithdrawal
     pp <- liftIO $ currentProtocolParameters nl
     liftIO $ traceWith tr $ MsgSelectionStart
-        (params ^. #utxoAvailable)
+        (UTxOSelection.availableUTxO $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
     mSel <- runExceptT $ performSelection
         SelectionConstraints
@@ -1480,10 +1484,10 @@ selectAssets ctx params transform = do
               -- Until support for collateral is fully integrated, specify
               -- that collateral is not required:
             , collateralRequirement = SelectionCollateralNotRequired
-            , utxoAvailableForCollateral = UTxOIndex.toUTxO
-                $ params ^. #utxoAvailable
-            , utxoAvailableForInputs = UTxOSelection.fromIndex
-                $ params ^. #utxoAvailable
+            , utxoAvailableForCollateral =
+                params ^. #utxoAvailableForCollateral
+            , utxoAvailableForInputs =
+                params ^. #utxoAvailableForInputs
             }
     case mSel of
         Left e -> liftIO $
@@ -2763,7 +2767,7 @@ data WalletFollowLog
 
 -- | Log messages from API server actions running in a wallet worker context.
 data WalletLog
-    = MsgSelectionStart UTxOIndex [TxOut]
+    = MsgSelectionStart UTxO [TxOut]
     | MsgSelectionError SelectionError
     | MsgSelectionReportSummarized SelectionReportSummarized
     | MsgSelectionReportDetailed SelectionReportDetailed
@@ -2808,7 +2812,7 @@ instance ToText WalletLog where
     toText = \case
         MsgSelectionStart utxo recipients ->
             "Starting coin selection " <>
-            "|utxo| = "+|UTxOIndex.size utxo|+" " <>
+            "|utxo| = "+|UTxO.size utxo|+" " <>
             "#recipients = "+|length recipients|+""
         MsgSelectionError e ->
             "Failed to select assets:\n"+|| e ||+""
