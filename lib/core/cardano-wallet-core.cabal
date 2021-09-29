@@ -70,6 +70,7 @@ library
     , http-client-tls
     , http-media
     , http-types
+    , int-cast
     , io-classes
     , iohk-monitoring
     , lattices
