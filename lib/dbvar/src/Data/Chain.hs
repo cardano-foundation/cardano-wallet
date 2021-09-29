@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeFamilies #-}
+{- HLINT ignore "Fuse foldr/map" -}
 module Data.Chain (
     -- * Synopsis
     -- | 'Chain'@ node edge@ is a linear chain of nodes with directed
@@ -19,20 +20,20 @@ module Data.Chain (
 
     -- * Edge
     , Edge (..), flattenEdge
+
+    -- * Testing
+    , testChain
     ) where
 
-import Prelude hiding (lookup)
+import Prelude hiding
+    ( lookup )
 
 import Control.Monad
-    ( (<=<)
-    , guard
-    , join
-    )
+    ( guard, join, (<=<) )
+import Data.Bifunctor
+    ( first )
 import Data.Delta
-    ( Delta (..)
-    , Embedding, Embedding' (..), mkEmbedding
-    , liftUpdates
-    )
+    ( Delta (..), Embedding, Embedding' (..), liftUpdates, mkEmbedding )
 import Data.List
     ( unfoldr )
 import Data.Map.Strict
@@ -40,10 +41,10 @@ import Data.Map.Strict
 import Data.Semigroupoid
     ( o )
 import Data.Table
-    ( Table , DeltaTable (..), Pile (..) )
+    ( DeltaTable (..), Pile (..), Table )
 
+import qualified Data.Map.Strict as Map
 import qualified Data.Table as Table
-import qualified Data.Map as Map
 
 {-------------------------------------------------------------------------------
     Chain
@@ -61,7 +62,7 @@ data Chain node edge = Chain
     } deriving (Eq, Show)
 
 instance Functor (Chain node) where
-    fmap f chain = chain{ next = fmap (\(e,n) -> (f e, n)) (next chain) }
+    fmap f chain = chain{ next = fmap (first f) (next chain) }
 
 -- | Test whether a node is contained in the chain.
 member :: Ord node => node -> Chain node edge -> Bool
@@ -161,7 +162,7 @@ data DeltaChain node edge
     -- ^ See 'rollbackTo'.
 
 instance (Ord node, Semigroup edge) => Delta (DeltaChain node edge) where
-    type instance Base (DeltaChain node edge) = Chain node edge
+    type Base (DeltaChain node edge) = Chain node edge
     apply (AppendTip n e) = appendTip n e
     apply (CollapseNode n) = collapseNode n
     apply (RollbackTo n ) = rollbackTo n
@@ -248,8 +249,8 @@ chainIntoTable
 chainIntoTable toPile fromPile = mkEmbedding Embedding'{load,write,update}
   where
     load = fmap (fmap $ fromPile . Pile) . fromEdges . getPile . Table.toPile
-    write = Table.fromList . concatMap flattenEdge
-        . map (fmap (getPile . toPile)) . toEdges
+    write = Table.fromList
+        . concatMap (flattenEdge . fmap (getPile . toPile)) . toEdges
 
     update Chain{tip=from} _ (AppendTip to vias) =
         [InsertMany [Edge{from,to,via} | via <- getPile $ toPile vias]]
@@ -276,8 +277,8 @@ chainIntoTable toPile fromPile = mkEmbedding Embedding'{load,write,update}
 {-------------------------------------------------------------------------------
     Tests
 -------------------------------------------------------------------------------}
-test :: (Table (Edge Int Char), [[Table.DeltaDB Int (Edge Int Char)]])
-test = liftUpdates (Table.tableIntoDatabase `o` chainIntoTable Pile getPile)
+testChain :: (Table (Edge Int Char), [[Table.DeltaDB Int (Edge Int Char)]])
+testChain = liftUpdates (Table.tableIntoDatabase `o` chainIntoTable Pile getPile)
     [CollapseNode 1, CollapseNode 2, AppendTip 3 "c", AppendTip 2 "b"]
     $ fromEdge Edge{from=0,to=1,via="a"}
 

@@ -22,24 +22,28 @@ module Database.Schema (
     -- * SQL Queries
     , Query, callSql, runSql
     , createTable, selectAll, insertOne, repsertOne, updateOne, deleteAll, deleteOne
+    
+    -- * Testing
+    , testPerson
     ) where
 
 import Prelude
 
-import Control.Monad.IO.Class ( MonadIO )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
 import Database.Persist
-    ( PersistValue, PersistField (..) )
+    ( PersistField (..), PersistValue )
 import Database.Persist.Sql
-    ( SqlType (..), PersistFieldSql (..), SqlPersistT, RawSql (..) )
+    ( PersistFieldSql (..), RawSql (..), SqlPersistT, SqlType (..) )
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
 
-import qualified Database.Persist.Sql as Persist
 import qualified Data.Text as T
+import qualified Database.Persist.Sql as Persist
 
 {-------------------------------------------------------------------------------
     Types for database columns
@@ -53,7 +57,7 @@ newtype Primary = Primary { getPrimary :: Int }
 --
 -- > INTEGER  PRIMARY KEY NOT NULL
 -- > TEXT  NOT NULL
-data SqlColType = SqlColType Text
+newtype SqlColType = SqlColType Text
     deriving (Eq,Ord,Show)
 
 -- | Helper for converting 'SqlType' into an SQL column type with constraints.

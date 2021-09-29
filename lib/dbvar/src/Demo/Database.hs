@@ -7,36 +7,40 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Demo.Database where
 
 import Prelude
 
+import Conduit
+    ( ResourceT )
+import Control.Monad.Class.MonadSTM
+    ( MonadSTM (..) )
+import Control.Monad.IO.Class
+    ( liftIO )
+import Control.Monad.Logger
+    ( NoLoggingT )
 import Data.Chain
-    ( DeltaChain (..)
-    , Edge (..)
-    , chainIntoTable
-    )
+    ( DeltaChain (..), Edge (..), chainIntoTable )
 import Data.Generics.Internal.VL
     ( Iso', iso, withIso )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Table
+    ( DeltaDB (..), Pile (..), tableIntoDatabase )
 import Data.Text
     ( Text )
-import Data.Table
-    ( DeltaDB (..)
-    , tableIntoDatabase
-    , Pile (..)
-    )
 import Data.Word
     ( Word32 )
 import Database.Persist.Delta
@@ -44,9 +48,15 @@ import Database.Persist.Delta
 import Database.Persist.Sql
     ( SqlPersistM )
 import Database.Persist.TH
-    ( mkMigrate, mkPersist, mpsPrefixFields, persistLowerCase, share, sqlSettings )
+    ( mkMigrate
+    , mkPersist
+    , mpsPrefixFields
+    , persistLowerCase
+    , share
+    , sqlSettings
+    )
 import Database.Schema
-    ( (:.) (..), Table (..), Col (..), Primary )
+    ( (:.) (..), Col (..), Primary, Table (..) )
 import GHC.Generics
     ( Generic )
 import Say
@@ -124,6 +134,11 @@ newStoreAddress = embedStore addressChainIntoTable =<< newEntityStore
 {-------------------------------------------------------------------------------
     Store using SQL row types
 -------------------------------------------------------------------------------}
+-- | 'MonadSTM' instance for the 'SqlPersistM' monad.
+instance MonadSTM (NoLoggingT (ResourceT IO)) where
+    type STM (NoLoggingT (ResourceT IO)) = STM IO
+    atomically = liftIO . atomically
+
 newStoreAddressSql :: SqlPersistM StoreAddress
 newStoreAddressSql = do
     Sql.runSql $ Sql.createTable (Proxy :: Proxy (AddressRow :. Col "id" Primary))

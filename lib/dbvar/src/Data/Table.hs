@@ -34,24 +34,31 @@ module Data.Table (
 
 import Prelude
 
-import Control.Monad ( forM )
-import Control.Monad.Trans.State.Strict ( state , evalState )
+import Control.Monad
+    ( forM )
+import Control.Monad.Trans.State.Strict
+    ( evalState, state )
 import Data.Delta
     ( Delta (..)
     , DeltaList (..)
     , DeltaSet
     , DeltaSet1 (..)
-    , Embedding, mkEmbedding
+    , Embedding
     , Embedding' (..)
+    , mkEmbedding
     )
-import Data.List ( sort, sortOn )
-import Data.IntMap.Strict ( IntMap )
-import Data.Ord ( Down (..) )
-import Data.Set ( Set )
+import Data.IntMap.Strict
+    ( IntMap )
+import Data.List
+    ( sort, sortOn )
+import Data.Ord
+    ( Down (..) )
+import Data.Set
+    ( Set )
 
+import qualified Data.Delta as Delta
 import qualified Data.IntMap.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Delta as Delta
 
 {-------------------------------------------------------------------------------
     Table
@@ -128,7 +135,7 @@ instance Show row => Show (DeltaTable row) where
       where app_prec = 10
 
 instance Delta (DeltaTable row) where
-    type instance Base (DeltaTable row) = Table row
+    type Base (DeltaTable row) = Table row
     apply (InsertMany rows) = insertMany rows
     apply (DeleteWhere p)   = deleteWhere p
     apply (UpdateWhere p f) = updateWhere p f
@@ -146,15 +153,15 @@ instance Functor (DeltaDB key) where
     fmap f (UpdateManyDB zs) = UpdateManyDB [ (k, f r) | (k,r) <- zs ]
 
 instance (key ~ Int) => Delta (DeltaDB key row) where
-    type instance Base (DeltaDB key row) = Table row
+    type Base (DeltaDB key row) = Table row
     apply (InsertManyDB zs) table@Table{rows,uids} = table
-        { rows = foldr (.) id [ Map.insert k r | (k,r) <- zs ] rows
+        { rows = foldr ($) rows [ Map.insert k r | (k,r) <- zs ]
         , uids = consume (map fst zs) uids
         }
     apply (DeleteManyDB ks) table@Table{rows} =
-        table{ rows = foldr (.) id [ Map.delete k | k <- ks ] rows }
+        table{ rows = foldr ($) rows [ Map.delete k | k <- ks ] }
     apply (UpdateManyDB zs) table@Table{rows} =
-        table{ rows = foldr (.) id [ Map.adjust (const r) k | (k,r) <- zs ] rows }
+        table{ rows = foldr ($) rows [ Map.adjust (const r) k | (k,r) <- zs ] }
 
 tableIntoDatabase :: Embedding [DeltaTable row] [DeltaDB Int row]
 tableIntoDatabase = mkEmbedding Embedding'
@@ -224,13 +231,13 @@ deltaListFromPile = Append . map snd . sortOn (Down . fst) . getPile
     Supply
 -------------------------------------------------------------------------------}
 -- | A supply of unique IDs.
-data Supply = Supply
+newtype Supply = Supply
     { now  :: Int -- ^ Largest unique ID that is *in use*.
     }
 
 instance Show Supply where
     showsPrec d (Supply{now}) = showParen (d > app_prec) $
-        showString "Supply {now = " . showsPrec 0 now . showString "} "
+        showString "Supply {now = " . shows now . showString "} "
       where app_prec = 10
 
 -- | Fresh supply of unique IDs.

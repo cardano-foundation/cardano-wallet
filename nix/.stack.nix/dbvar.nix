@@ -13,7 +13,7 @@
       specVersion = "1.10";
       identifier = { name = "dbvar"; version = "2021.8.23"; };
       license = "Apache-2.0";
-      copyright = "2022 IOHK";
+      copyright = "2021 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK Engineering Team";
       homepage = "https://github.com/input-output-hk/cardano-wallet";
@@ -36,6 +36,7 @@
           (hsPkgs."persistent-sqlite" or (errorHandler.buildDepError "persistent-sqlite"))
           (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
           (hsPkgs."say" or (errorHandler.buildDepError "say"))
+          (hsPkgs."semigroupoids" or (errorHandler.buildDepError "semigroupoids"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           ];

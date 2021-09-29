@@ -1,8 +1,7 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -15,18 +14,15 @@ module Database.Persist.Delta (
     newEntityStore, newSqlStore
     ) where
 
-import Prelude hiding (all)
+import Prelude hiding
+    ( all )
 
-import Conduit
-    ( ResourceT )
 import Control.Monad
-    ( forM, void )
-import Control.Monad.Class.MonadSTM
-    ( MonadSTM (..) )
+    ( forM_, void )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
-import Control.Monad.Logger
-    ( NoLoggingT )
+import Data.Bifunctor
+    ( first )
 import Data.DBVar
     ( Store (..) )
 import Data.Delta
@@ -34,13 +30,13 @@ import Data.Delta
 import Data.Proxy
     ( Proxy (..) )
 import Data.Table
-    ( Table (..), DeltaDB (..), Pile (..) )
+    ( DeltaDB (..), Pile (..), Table (..) )
 import Database.Persist
-    ( Filter, PersistRecordBackend, ToBackendKey, Key, )
+    ( Filter, Key, PersistRecordBackend, ToBackendKey )
 import Database.Persist.Sql
-    ( fromSqlKey, toSqlKey, SqlBackend, SqlPersistM )
+    ( SqlBackend, SqlPersistM, fromSqlKey, toSqlKey )
 import Database.Schema
-    ( IsRow, (:.) (..), Col (..), Primary (..) )
+    ( (:.) (..), Col (..), IsRow, Primary (..) )
 import Say
     ( say, sayShow )
 
@@ -64,20 +60,15 @@ data Database m key row = Database
     , updateOne   :: (key, row) -> m ()
     }
 
--- | 'MonadSTM' instance for the 'SqlPersistM' monad.
-instance MonadSTM (NoLoggingT (ResourceT IO)) where
-    type instance STM (NoLoggingT (ResourceT IO)) = STM IO
-    atomically = liftIO . atomically
-
 -- | Database table for 'Entity'.
 persistDB
     :: forall row. ( PersistRecordBackend row SqlBackend
-    , ToBackendKey SqlBackend row, Show row )
+    , ToBackendKey SqlBackend row )
     => Database SqlPersistM Int row
 persistDB = Database
     { selectAll = map toPair <$> Persist.selectList all []
     , deleteAll = Persist.deleteWhere all
-    , repsertMany = Persist.repsertMany . map (\(key,val) -> (toKey key, val))
+    , repsertMany = Persist.repsertMany . map (first toKey)
     , deleteOne = Persist.delete . toKey
     , updateOne = \(key,val) -> Persist.replace (toKey key) val
     }
@@ -97,14 +88,13 @@ sqlDB
 sqlDB = Database
     { selectAll = map toPair <$> Sql.callSql Sql.selectAll
     , deleteAll = Sql.runSql $ Sql.deleteAll proxy
-    , repsertMany = \zs -> void $ forM zs $
+    , repsertMany = \zs -> forM_ zs $
         Sql.runSql . Sql.repsertOne . fromPair
     , deleteOne = Sql.runSql . Sql.deleteOne proxy . Col . Primary
     , updateOne = Sql.runSql . Sql.updateOne . fromPair
     }
   where
     proxy = Proxy :: Proxy row
-    table = Sql.getTableName proxy
 
     fromPair :: (Int,row) -> (row :. Col "id" Primary)
     fromPair (key,row) = row :. (Col (Primary key) :: Col "id" Primary)
@@ -164,8 +154,8 @@ newDatabaseStore db = do
         , updateS = \table ds -> do
             debug $ do
                 say "\n** updateS table deltas"
-                sayShow $ table
-                sayShow $ ds
+                sayShow table
+                sayShow ds
             mapM_ (update1 table) ds
             rememberSupply (apply ds table) -- need to use updated supply
         }
@@ -173,8 +163,8 @@ newDatabaseStore db = do
     debug m = if False then m else pure ()
 
     update1 _ (InsertManyDB zs) = void $ repsertMany db zs
-    update1 _ (DeleteManyDB ks) = void $ forM ks $ deleteOne db
-    update1 _ (UpdateManyDB zs) = void $ forM zs $ updateOne db
+    update1 _ (DeleteManyDB ks) = forM_ ks $ deleteOne db
+    update1 _ (UpdateManyDB zs) = forM_ zs $ updateOne db
 
 {- Note [Unique ID supply in newDBStore]
 

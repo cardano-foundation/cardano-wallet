@@ -4,7 +4,7 @@ synopsis:            Mutable variables that are written to disk using delta enco
 homepage:            https://github.com/input-output-hk/cardano-wallet
 author:              IOHK Engineering Team
 maintainer:          operations@iohk.io
-copyright:           2022 IOHK
+copyright:           2021 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
