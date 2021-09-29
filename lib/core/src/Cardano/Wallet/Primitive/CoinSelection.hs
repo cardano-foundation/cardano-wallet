@@ -77,6 +77,8 @@ import Control.Monad.Random.Class
     ( MonadRandom )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, withExceptT )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Generics.Labels
@@ -143,11 +145,32 @@ toBalanceConstraintsParams (constraints, params) =
             view #computeMinimumAdaQuantity constraints
         , computeMinimumCost =
             view #computeMinimumCost constraints
+                & adjustComputeMinimumCost
         , computeSelectionLimit =
             view #computeSelectionLimit constraints
+                & adjustComputeSelectionLimit
         , assessTokenBundleSize =
             view (#assessTokenBundleSize . #assessTokenBundleSize) constraints
         }
+      where
+        adjustComputeMinimumCost
+            :: (SelectionSkeleton -> Coin)
+            -> (SelectionSkeleton -> Coin)
+        adjustComputeMinimumCost =
+            whenCollateralRequired params (. adjustSelectionSkeleton)
+          where
+            adjustSelectionSkeleton :: SelectionSkeleton -> SelectionSkeleton
+            adjustSelectionSkeleton = over #skeletonInputCount
+                (+ view #maximumCollateralInputCount constraints)
+        adjustComputeSelectionLimit
+            :: ([TxOut] -> SelectionLimit)
+            -> ([TxOut] -> SelectionLimit)
+        adjustComputeSelectionLimit =
+            whenCollateralRequired params (fmap adjustSelectionLimit)
+          where
+            adjustSelectionLimit :: SelectionLimit -> SelectionLimit
+            adjustSelectionLimit = fmap
+                (`subtract` (view #maximumCollateralInputCount constraints))
     balanceParams = Balance.SelectionParams
         { assetsToBurn =
             view #assetsToBurn params
@@ -306,6 +329,17 @@ data SelectionCollateralRequirement
     | SelectionCollateralNotRequired
     -- ^ Indicates that collateral is not required.
     deriving (Eq, Show)
+
+-- | Applies the given transformation function only when collateral is required.
+--
+whenCollateralRequired
+    :: SelectionParams
+    -> (a -> a)
+    -> (a -> a)
+whenCollateralRequired params f =
+    case view #collateralRequirement params of
+        SelectionCollateralRequired    -> f
+        SelectionCollateralNotRequired -> id
 
 -- | Indicates that an error occurred while performing a coin selection.
 --
