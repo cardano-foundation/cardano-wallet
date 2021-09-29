@@ -245,6 +245,11 @@ data SelectionConstraints = SelectionConstraints
         :: Word16
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
         -- that can be selected as collateral.
+    , utxoSuitableForCollateral
+        :: (TxIn, TxOut) -> Maybe Coin
+        -- ^ Indicates whether an individual UTxO entry is suitable for use as
+        -- a collateral input. This function should return a 'Coin' value if
+        -- (and only if) the given UTxO is suitable for use as collateral.
     }
     deriving Generic
 

@@ -308,6 +308,8 @@ import Cardano.Wallet.Primitive.CoinSelection
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( UnableToConstructChangeError (..), emptySkeleton )
+import Cardano.Wallet.Primitive.Collateral
+    ( asCollateral )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
@@ -1443,6 +1445,8 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
                 view #stakeKeyDeposit pp
             , maximumCollateralInputCount =
                 view #maximumCollateralInputCount pp
+            , utxoSuitableForCollateral =
+                asCollateral . snd
             }
         SelectionParams
             { -- Until we properly support minting and burning, set to empty:
