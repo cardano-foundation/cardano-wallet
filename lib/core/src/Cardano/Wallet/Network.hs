@@ -152,7 +152,7 @@ data NetworkLayer m block = NetworkLayer
         -- only change once per epoch.
 
     , currentNodeProtocolParameters
-        :: m Node.ProtocolParameters
+        :: m (Maybe Node.ProtocolParameters)
         -- ^ Get the last known node's protocol parameters. In principle, these can
         -- only change once per epoch.
 

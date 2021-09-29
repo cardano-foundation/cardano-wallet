@@ -398,7 +398,7 @@ withNetworkLayerBase tr net np conn versionData tol action = do
         :: HasCallStack
         => RetryHandlers
         -> IO ( STM IO (Tip (CardanoBlock StandardCrypto))
-              , TMVar IO ((W.ProtocolParameters, Cardano.ProtocolParameters), W.SlottingParameters)
+              , TMVar IO ((W.ProtocolParameters, Maybe Cardano.ProtocolParameters), W.SlottingParameters)
               , TMVar IO (CardanoInterpreter StandardCrypto)
               , TMVar IO AnyCardanoEra
               )
@@ -727,7 +727,7 @@ mkTipSyncClient
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
-    -> ((W.ProtocolParameters, Cardano.ProtocolParameters) -> W.SlottingParameters -> m ())
+    -> ((W.ProtocolParameters, Maybe Cardano.ProtocolParameters) -> W.SlottingParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> (CardanoInterpreter StandardCrypto -> m ())
         -- ^ Notifier callback for when time interpreter is updated.
@@ -740,7 +740,7 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
 
     tipVar <- newTVarIO (Just $ AnyCardanoEra ByronEra, TipGenesis)
 
-    (onPParamsUpdate' :: ((W.ProtocolParameters, Cardano.ProtocolParameters), W.SlottingParameters) -> m ()) <-
+    (onPParamsUpdate' :: ((W.ProtocolParameters, Maybe Cardano.ProtocolParameters), W.SlottingParameters) -> m ()) <-
         debounce $ \(pp, sp) -> do
             traceWith tr $ MsgProtocolParameters (fst pp) sp
             onPParamsUpdate pp sp
@@ -771,14 +771,14 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
                     <$> LSQry Shelley.GetCurrentPParams)
 
             ppNode <- onAnyEra
-                (error "not sure at this moment how to handle that")
-                (Cardano.fromLedgerPParams Cardano.ShelleyBasedEraShelley
+                Nothing
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraShelley
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAllegra
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAllegra
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Cardano.fromLedgerPParams Cardano.ShelleyBasedEraMary
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraMary
                     <$> LSQry Shelley.GetCurrentPParams)
-                (Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
+                (Just . Cardano.fromLedgerPParams Cardano.ShelleyBasedEraAlonzo
                     <$> LSQry Shelley.GetCurrentPParams)
 
             return ((pp, ppNode), sp)
