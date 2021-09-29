@@ -721,11 +721,6 @@ type PerformSelection m outputs =
 -- selection criteria, this function guarantees to return a 'SelectionResult'
 -- for which 'selectionHasValidSurplus' returns 'True'.
 --
--- This function also guarantees that:
---
---    inputsSelected ∪ utxoRemaining == utxoAvailable
---    inputsSelected ∩ utxoRemaining == ∅
---
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
     => PerformSelection m [TxOut]

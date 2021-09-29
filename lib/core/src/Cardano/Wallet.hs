@@ -296,6 +296,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Cardano.Wallet.Primitive.CoinSelection
     ( ErrPrepareOutputs (..)
     , Selection
+    , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (..)
@@ -308,6 +309,8 @@ import Cardano.Wallet.Primitive.CoinSelection
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( UnableToConstructChangeError (..), emptySkeleton )
+import Cardano.Wallet.Primitive.Collateral
+    ( asCollateral )
 import Cardano.Wallet.Primitive.Migration
     ( MigrationPlan (..) )
 import Cardano.Wallet.Primitive.Model
@@ -1443,6 +1446,8 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
                 view #stakeKeyDeposit pp
             , maximumCollateralInputCount =
                 view #maximumCollateralInputCount pp
+            , utxoSuitableForCollateral =
+                asCollateral . snd
             }
         SelectionParams
             { -- Until we properly support minting and burning, set to empty:
@@ -1459,7 +1464,12 @@ selectAssets ctx (utxoAvailable, cp, pending) txCtx outputs transform = do
                 case view #txDelegationAction txCtx of
                     Just (RegisterKeyAndJoin _) -> 1
                     _ -> 0
-            , utxoAvailable = UTxOSelection.fromIndex utxoAvailable
+              -- TODO: [ADP-957]
+              -- Until support for collateral is fully integrated, specify
+              -- that collateral is not required:
+            , collateralRequirement = SelectionCollateralNotRequired
+            , utxoAvailableForCollateral = UTxOIndex.toUTxO utxoAvailable
+            , utxoAvailableForInputs = UTxOSelection.fromIndex utxoAvailable
             }
     case mSel of
         Left e -> liftIO $

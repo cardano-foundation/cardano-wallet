@@ -24,6 +24,7 @@
 --
 module Cardano.Wallet.Primitive.CoinSelection
     ( performSelection
+    , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionParams (..)
     , SelectionError (..)
@@ -68,6 +69,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut
     , txOutMaxTokenQuantity
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad.Random.Class
@@ -119,9 +122,6 @@ performSelection constraints params = do
     -- https://input-output.atlassian.net/browse/ADP-1037
     -- Adjust coin selection and fee estimation to handle collateral inputs
     --
-    -- https://input-output.atlassian.net/browse/ADP-1070
-    -- Adjust coin selection and fee estimation to handle pre-existing inputs
-    --
     preparedOutputs <- withExceptT SelectionOutputsError $ except
         $ prepareOutputs constraints (view #outputsToCover params)
     withExceptT SelectionBalanceError
@@ -166,7 +166,7 @@ toBalanceConstraintsParams (constraints, params) =
         , outputsToCover =
             view #outputsToCover params
         , utxoAvailable =
-            view #utxoAvailable params
+            view #utxoAvailableForInputs params
         }
 
 -- | Makes a selection from an ordinary selection and a collateral selection.
@@ -246,6 +246,11 @@ data SelectionConstraints = SelectionConstraints
         :: Word16
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
         -- that can be selected as collateral.
+    , utxoSuitableForCollateral
+        :: (TxIn, TxOut) -> Maybe Coin
+        -- ^ Indicates whether an individual UTxO entry is suitable for use as
+        -- a collateral input. This function should return a 'Coin' value if
+        -- (and only if) the given UTxO is suitable for use as collateral.
     }
     deriving Generic
 
@@ -270,7 +275,17 @@ data SelectionParams = SelectionParams
     , certificateDepositsReturned
         :: !Natural
         -- ^ Number of deposits from stake key de-registrations.
-    , utxoAvailable
+    , collateralRequirement
+        :: !SelectionCollateralRequirement
+        -- ^ Specifies the collateral requirement for this selection.
+    , utxoAvailableForCollateral
+        :: !UTxO
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- collateral inputs.
+        --
+        -- This set is allowed to intersect with 'utxoAvailableForInputs',
+        -- since the ledger does not require that these sets are disjoint.
+    , utxoAvailableForInputs
         :: !UTxOSelection
         -- ^ Specifies a set of UTxOs that are available for selection as
         -- ordinary inputs and optionally, a subset that has already been
@@ -279,6 +294,15 @@ data SelectionParams = SelectionParams
         -- Further entries from this set will be selected to cover any deficit.
     }
     deriving (Eq, Generic, Show)
+
+-- | Indicates the collateral requirement for a selection.
+--
+data SelectionCollateralRequirement
+    = SelectionCollateralRequired
+    -- ^ Indicates that collateral is required.
+    | SelectionCollateralNotRequired
+    -- ^ Indicates that collateral is not required.
+    deriving (Eq, Show)
 
 -- | Indicates that an error occurred while performing a coin selection.
 --

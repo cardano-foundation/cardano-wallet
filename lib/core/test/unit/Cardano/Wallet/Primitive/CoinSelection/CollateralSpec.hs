@@ -24,16 +24,17 @@ import Prelude hiding
     ( sequence )
 
 import Cardano.Wallet.Primitive.CoinSelection.Collateral
-    ( SearchSpaceLimit (..)
+    ( PerformSelection
+    , SearchSpaceLimit (..)
     , SearchSpaceRequirement (..)
-    , SelectCollateral
-    , SelectCollateralError (..)
-    , SelectCollateralParams (..)
-    , SelectCollateralResult (..)
+    , SelectionConstraints (..)
+    , SelectionError (..)
+    , SelectionParams (..)
+    , SelectionResult (..)
     , firstRight
     , guardSearchSpaceSize
     , numberOfSubsequencesOfSize
-    , selectCollateral
+    , performSelection
     , selectCollateralLargest
     , selectCollateralSmallest
     , submaps
@@ -102,10 +103,10 @@ import qualified Data.Text.Lazy as TL
 spec :: Spec
 spec = do
 
-    parallel $ describe "selectCollateral" $ do
+    parallel $ describe "performSelection" $ do
 
-        it "prop_selectCollateral_general" $
-            property prop_selectCollateral_general
+        it "prop_performSelection_general" $
+            property prop_performSelection_general
 
     parallel $ describe "selectCollateralSmallest" $ do
 
@@ -194,9 +195,9 @@ spec = do
 --  - minimum selection amounts
 --  - maximum selection sizes
 --
-prop_selectCollateral_general_withFunction
-    :: SelectCollateral LongInputId -> Property
-prop_selectCollateral_general_withFunction selectCollateralFn =
+prop_performSelection_general_withFunction
+    :: PerformSelection LongInputId -> Property
+prop_performSelection_general_withFunction performSelectionFn =
     checkCoverage $
     forAll (arbitrary @(Map LongInputId Coin))
         $ \coinsAvailable ->
@@ -204,50 +205,56 @@ prop_selectCollateral_general_withFunction selectCollateralFn =
         $ \(MinimumSelectionAmount minimumSelectionAmount) ->
     forAll (choose (1, 4))
         $ \maximumSelectionSize ->
-    let params = SelectCollateralParams
-            { coinsAvailable
-            , maximumSelectionSize
-            , minimumSelectionAmount
+    let constraints = SelectionConstraints
+            { maximumSelectionSize
             , searchSpaceLimit = SearchSpaceLimit 1_000_000
             } in
-    prop_selectCollateral_general_withResult params $ selectCollateralFn params
+    let params = SelectionParams
+            { coinsAvailable
+            , minimumSelectionAmount
+            } in
+    prop_performSelection_general_withResult constraints params $
+        performSelectionFn constraints params
 
-prop_selectCollateral_general_withResult
+prop_performSelection_general_withResult
     :: (Ord inputId, Show inputId)
-    => SelectCollateralParams inputId
-    -> Either (SelectCollateralError inputId) (SelectCollateralResult inputId)
+    => SelectionConstraints
+    -> SelectionParams inputId
+    -> Either (SelectionError inputId) (SelectionResult inputId)
     -> Property
-prop_selectCollateral_general_withResult params eitherErrorResult =
+prop_performSelection_general_withResult constraints params eitherErrorResult =
     cover 20.0 (isLeft  eitherErrorResult) "Failure" $
     cover 20.0 (isRight eitherErrorResult) "Success" $
     counterexample ("Params: " <> show (Pretty params)) $
     either
-        (prop_selectCollateral_onFailure params)
-        (prop_selectCollateral_onSuccess params)
+        (prop_performSelection_onFailure constraints params)
+        (prop_performSelection_onSuccess constraints params)
         (eitherErrorResult)
 
-prop_selectCollateral_onFailure
+prop_performSelection_onFailure
     :: (Ord inputId, Show inputId)
-    => SelectCollateralParams inputId
-    -> SelectCollateralError inputId
+    => SelectionConstraints
+    -> SelectionParams inputId
+    -> SelectionError inputId
     -> Property
-prop_selectCollateral_onFailure params err =
+prop_performSelection_onFailure constraints params err =
     counterexample ("Error: " <> show (Pretty err)) $
     conjoin
         [ F.fold (largestCombinationAvailable err)
             < minimumSelectionAmount params
         , F.length (largestCombinationAvailable err)
-            <= maximumSelectionSize params
+            <= maximumSelectionSize constraints
         , largestCombinationAvailable err
             `Map.isSubmapOf` coinsAvailable params
         ]
 
-prop_selectCollateral_onSuccess
+prop_performSelection_onSuccess
     :: (Ord inputId, Show inputId)
-    => SelectCollateralParams inputId
-    -> SelectCollateralResult inputId
+    => SelectionConstraints
+    -> SelectionParams inputId
+    -> SelectionResult inputId
     -> Property
-prop_selectCollateral_onSuccess params result =
+prop_performSelection_onSuccess constraints params result =
     counterexample ("Result: " <> show (Pretty result)) $
     conjoin
         [ F.fold (coinsAvailable params)
@@ -255,7 +262,7 @@ prop_selectCollateral_onSuccess params result =
         , F.fold (coinsSelected result)
             >= minimumSelectionAmount params
         , F.length (coinsSelected result)
-            <= maximumSelectionSize params
+            <= maximumSelectionSize constraints
         , coinsSelected result
             `Map.isSubmapOf` coinsAvailable params
         ]
@@ -264,11 +271,11 @@ prop_selectCollateral_onSuccess params result =
 -- Selecting collateral (top-level function)
 --------------------------------------------------------------------------------
 
--- Tests that general properties hold for 'selectCollateral'.
+-- Tests that general properties hold for 'performSelection'.
 --
-prop_selectCollateral_general :: Property
-prop_selectCollateral_general =
-    prop_selectCollateral_general_withFunction selectCollateral
+prop_performSelection_general :: Property
+prop_performSelection_general =
+    prop_performSelection_general_withFunction performSelection
 
 --------------------------------------------------------------------------------
 -- Selecting collateral by giving priority to smallest values first
@@ -278,7 +285,7 @@ prop_selectCollateral_general =
 --
 prop_selectCollateralSmallest_general :: Property
 prop_selectCollateralSmallest_general =
-    prop_selectCollateral_general_withFunction selectCollateralSmallest
+    prop_performSelection_general_withFunction selectCollateralSmallest
 
 -- In this test, we only consider sets of available coins that when sorted into
 -- ascending order are prefixes of the following sequence, consisting of the
@@ -323,7 +330,8 @@ prop_selectCollateralSmallest_optimal
     (MinimumSelectionAmount minimumSelectionAmount) =
     checkCoverage $
     conjoin
-        [ prop_selectCollateral_general_withResult params eitherErrorResult
+        [ prop_performSelection_general_withResult
+            constraints params eitherErrorResult
         , prop_extra
         ]
   where
@@ -339,14 +347,16 @@ prop_selectCollateralSmallest_optimal
                 , F.fold   (coinsSelected r) == minimumSelectionAmount
                 ]
 
-    params = SelectCollateralParams
-        { coinsAvailable
-        , maximumSelectionSize
-        , minimumSelectionAmount
+    constraints = SelectionConstraints
+        { maximumSelectionSize
         , searchSpaceLimit = UnsafeNoSearchSpaceLimit
         }
+    params = SelectionParams
+        { coinsAvailable
+        , minimumSelectionAmount
+        }
 
-    eitherErrorResult = selectCollateralSmallest params
+    eitherErrorResult = selectCollateralSmallest constraints params
 
     -- Specify a maximum number of collateral entries that makes it possible to
     -- make a selection that's exactly equal to the minimum collateral amount:
@@ -379,7 +389,8 @@ prop_selectCollateralSmallest_constrainedSelectionCount
     (MinimumSelectionAmount minimumSelectionAmount) =
     checkCoverage $
     conjoin
-        [ prop_selectCollateral_general_withResult params eitherErrorResult
+        [ prop_performSelection_general_withResult
+            constraints params eitherErrorResult
         , prop_extra
         ]
   where
@@ -408,14 +419,16 @@ prop_selectCollateralSmallest_constrainedSelectionCount
                         < minimumSelectionAmount `scaleCoin` 2
                     ]
 
-    params = SelectCollateralParams
-        { coinsAvailable
-        , maximumSelectionSize
-        , minimumSelectionAmount
+    constraints = SelectionConstraints
+        { maximumSelectionSize
         , searchSpaceLimit = UnsafeNoSearchSpaceLimit
         }
+    params = SelectionParams
+        { coinsAvailable
+        , minimumSelectionAmount
+        }
 
-    eitherErrorResult = selectCollateralSmallest params
+    eitherErrorResult = selectCollateralSmallest constraints params
 
     -- Deliberately constrain the maximum number of collateral entries so that
     -- it's impossible to make a selection that's exactly equal to the minimum
@@ -435,19 +448,23 @@ prop_selectCollateralSmallest_constrainedSelectionCount
 unitTests_selectCollateralSmallest_optimal :: Spec
 unitTests_selectCollateralSmallest_optimal = unitTests
     "unitTests_selectCollateralSmallest_optimal"
-    selectCollateralSmallest
+    (uncurry selectCollateralSmallest)
     (mkTest <$> tests)
   where
     coinsAvailable =
         [A ▶ 1, B ▶ 2, C ▶ 4, D ▶ 8, E ▶ 16, F ▶ 32, G ▶ 64, H ▶ 128]
     mkTest (minimumSelectionAmount, coinsSelected) = UnitTestData
-        { params = SelectCollateralParams
-            { coinsAvailable = Coin <$> coinsAvailable
-            , maximumSelectionSize = Map.size coinsAvailable
-            , minimumSelectionAmount = Coin minimumSelectionAmount
-            , searchSpaceLimit = UnsafeNoSearchSpaceLimit
-            }
-        , result = Right $ SelectCollateralResult $ Coin <$> coinsSelected
+        { params =
+            ( SelectionConstraints
+                { maximumSelectionSize = Map.size coinsAvailable
+                , searchSpaceLimit = UnsafeNoSearchSpaceLimit
+                }
+            , SelectionParams
+                { coinsAvailable = Coin <$> coinsAvailable
+                , minimumSelectionAmount = Coin minimumSelectionAmount
+                }
+            )
+        , result = Right $ SelectionResult $ Coin <$> coinsSelected
         }
     tests =
         [ (1, [A ▶ 1                    ])
@@ -463,19 +480,23 @@ unitTests_selectCollateralSmallest_optimal = unitTests
 unitTests_selectCollateralSmallest_constrainedSelectionCount :: Spec
 unitTests_selectCollateralSmallest_constrainedSelectionCount = unitTests
     "unitTests_selectCollateralSmallest_constrainedSelectionCount"
-    selectCollateralSmallest
+    (uncurry selectCollateralSmallest)
     (mkTest <$> tests)
   where
     coinsAvailable =
         [A ▶ 1, B ▶ 2, C ▶ 4, D ▶ 8, E ▶ 16, F ▶ 32, G ▶ 64, H ▶ 128]
     mkTest (minimumSelectionAmount, coinsSelected) = UnitTestData
-        { params = SelectCollateralParams
-            { coinsAvailable = Coin <$> coinsAvailable
-            , maximumSelectionSize = 1
-            , minimumSelectionAmount = Coin minimumSelectionAmount
-            , searchSpaceLimit = UnsafeNoSearchSpaceLimit
-            }
-        , result = Right $ SelectCollateralResult $ Coin <$> coinsSelected
+        { params =
+            ( SelectionConstraints
+                { maximumSelectionSize = 1
+                , searchSpaceLimit = UnsafeNoSearchSpaceLimit
+                }
+            , SelectionParams
+                { coinsAvailable = Coin <$> coinsAvailable
+                , minimumSelectionAmount = Coin minimumSelectionAmount
+                }
+            )
+        , result = Right $ SelectionResult $ Coin <$> coinsSelected
         }
     tests =
         [ (1, [A ▶ 1])
@@ -491,7 +512,7 @@ unitTests_selectCollateralSmallest_constrainedSelectionCount = unitTests
 unitTests_selectCollateralSmallest_constrainedSearchSpace :: Spec
 unitTests_selectCollateralSmallest_constrainedSearchSpace = unitTests
     "unitTests_selectCollateralSmallest_constrainedSearchSpace"
-    selectCollateralSmallest
+    (uncurry selectCollateralSmallest)
     (mkTest <$> tests)
   where
     coinsAvailable =
@@ -501,13 +522,17 @@ unitTests_selectCollateralSmallest_constrainedSearchSpace = unitTests
     Just searchSpaceLimit = SearchSpaceLimit <$>
         maximumSelectionSize `numberOfSubsequencesOfSize` 2
     mkTest (minimumSelectionAmount, coinsSelected) = UnitTestData
-        { params = SelectCollateralParams
-            { coinsAvailable = Coin <$> coinsAvailable
-            , maximumSelectionSize
-            , minimumSelectionAmount = Coin minimumSelectionAmount
-            , searchSpaceLimit
-            }
-        , result = Right $ SelectCollateralResult $ Coin <$> coinsSelected
+        { params =
+            ( SelectionConstraints
+                { maximumSelectionSize
+                , searchSpaceLimit
+                }
+            , SelectionParams
+                { coinsAvailable = Coin <$> coinsAvailable
+                , minimumSelectionAmount = Coin minimumSelectionAmount
+                }
+            )
+        , result = Right $ SelectionResult $ Coin <$> coinsSelected
         }
     tests =
         [ (129, [A ▶ 1, H ▶ 128])
@@ -528,7 +553,7 @@ unitTests_selectCollateralSmallest_constrainedSearchSpace = unitTests
 --
 prop_selectCollateralLargest_general :: Property
 prop_selectCollateralLargest_general =
-    prop_selectCollateral_general_withFunction selectCollateralLargest
+    prop_performSelection_general_withFunction selectCollateralLargest
 
 -- In this test, we test that 'selectCollateralLargest' only fails if:
 --
@@ -546,7 +571,8 @@ prop_selectCollateralLargest_optimal
     (MinimumSelectionAmount minimumSelectionAmount) =
     checkCoverage $
     conjoin
-        [ prop_selectCollateral_general_withResult params eitherErrorResult
+        [ prop_performSelection_general_withResult
+            constraints params eitherErrorResult
         , prop_extra
         ]
   where
@@ -566,13 +592,15 @@ prop_selectCollateralLargest_optimal
                     "Number of coins selected = maximum allowed" $
                 property $ F.fold coinsAvailable >= minimumSelectionAmount
 
-    eitherErrorResult = selectCollateralLargest params
+    eitherErrorResult = selectCollateralLargest constraints params
 
-    params = SelectCollateralParams
-        { coinsAvailable
-        , maximumSelectionSize
-        , minimumSelectionAmount
+    constraints = SelectionConstraints
+        { maximumSelectionSize
         , searchSpaceLimit = UnsafeNoSearchSpaceLimit
+        }
+    params = SelectionParams
+        { coinsAvailable
+        , minimumSelectionAmount
         }
 
     maximumSelectionSize :: Int
@@ -584,19 +612,23 @@ prop_selectCollateralLargest_optimal
 unitTests_selectCollateralLargest_optimal :: Spec
 unitTests_selectCollateralLargest_optimal = unitTests
     "unitTests_selectCollateralLargest_optimal"
-    selectCollateralLargest
+    (uncurry selectCollateralLargest)
     (mkTest <$> tests)
   where
     coinsAvailable =
         [A ▶ 1, B ▶ 2, C ▶ 4, D ▶ 8, E ▶ 16, F ▶ 32, G ▶ 64, H ▶ 128]
     mkTest (minimumSelectionAmount, coinsSelected) = UnitTestData
-        { params = SelectCollateralParams
-            { coinsAvailable = Coin <$> coinsAvailable
-            , maximumSelectionSize = 3
-            , minimumSelectionAmount = Coin minimumSelectionAmount
-            , searchSpaceLimit = UnsafeNoSearchSpaceLimit
-            }
-        , result = Right $ SelectCollateralResult $ Coin <$> coinsSelected
+        { params =
+            ( SelectionConstraints
+                { maximumSelectionSize = 3
+                , searchSpaceLimit = UnsafeNoSearchSpaceLimit
+                }
+            , SelectionParams
+                { coinsAvailable = Coin <$> coinsAvailable
+                , minimumSelectionAmount = Coin minimumSelectionAmount
+                }
+            )
+        , result = Right $ SelectionResult $ Coin <$> coinsSelected
         }
     tests =
         [ (224, [F ▶ 32, G ▶ 64, H ▶ 128])
@@ -616,21 +648,24 @@ unitTests_selectCollateralLargest_optimal = unitTests
 unitTests_selectCollateralLargest_insufficient :: Spec
 unitTests_selectCollateralLargest_insufficient = unitTests
     "unitTests_selectCollateralLargest_insufficient"
-    selectCollateralLargest
+    (uncurry selectCollateralLargest)
     (mkTest <$> tests)
   where
     coinsAvailable =
         [A ▶ 1, B ▶ 2, C ▶ 4, D ▶ 8, E ▶ 16, F ▶ 32, G ▶ 64, H ▶ 128]
-    mkTest (minimumSelectionAmount, largestCombinationAvailable) =
-        UnitTestData
-        { params = SelectCollateralParams
-            { coinsAvailable = Coin <$> coinsAvailable
-            , maximumSelectionSize = 3
-            , minimumSelectionAmount = Coin minimumSelectionAmount
-            , searchSpaceLimit = UnsafeNoSearchSpaceLimit
-            }
+    mkTest (minimumSelectionAmount, largestCombinationAvailable) = UnitTestData
+        { params =
+            ( SelectionConstraints
+                { maximumSelectionSize = 3
+                , searchSpaceLimit = UnsafeNoSearchSpaceLimit
+                }
+            , SelectionParams
+                { coinsAvailable = Coin <$> coinsAvailable
+                , minimumSelectionAmount = Coin minimumSelectionAmount
+                }
+            )
         , result = Left $
-            SelectCollateralError $ Coin <$> largestCombinationAvailable
+            SelectionError $ Coin <$> largestCombinationAvailable
         }
     tests =
         [ ( 225, [F ▶ 32, G ▶ 64, H ▶ 128])
