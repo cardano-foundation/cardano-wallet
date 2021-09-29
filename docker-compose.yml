@@ -8,7 +8,6 @@ services:
     volumes:
       - node-${NETWORK}-db:/data
       - node-ipc:/ipc
-      - node-config:/nix/store
     restart: on-failure
     logging:
       driver: "json-file"
