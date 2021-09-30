@@ -2203,13 +2203,29 @@ balanceTransaction
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler (ApiConstructTransaction n)
-balanceTransaction ctx (ApiT _wid) body = do
+balanceTransaction ctx (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
-    let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
-    let _txCtx = defaultTransactionCtx
-            { txPlutusScriptExecutionCost = executionFee
+
+    _sel <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
+        let txCtx = defaultTransactionCtx
+                { txPlutusScriptExecutionCost = executionFee
+                }
+        let _txData = toApiConstructTransactionData txIncoming
+
+        (utxoAvailable, wallet, pendingTxs) <-
+            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            { outputs = []
+            , pendingTxs
+            , txContext = txCtx
+            , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+            , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
+            , wallet
             }
-    let _txData = toApiConstructTransactionData txIncoming
+            (const Prelude.id)
 
     -- TODO
     -- here goes coin selection with external inputs
