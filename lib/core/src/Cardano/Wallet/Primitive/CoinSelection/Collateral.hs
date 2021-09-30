@@ -2,6 +2,7 @@
 
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -22,11 +23,16 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
 
       performSelection
     , PerformSelection
+    , PerformSelectionOf
     , SelectionConstraints (..)
-    , SelectionParams (..)
-    , SelectionResult (..)
-    , SelectionError (..)
+    , SelectionParams
+    , SelectionParamsOf (..)
+    , SelectionResult
+    , SelectionResultOf (..)
+    , SelectionError
+    , SelectionErrorOf (..)
     , SearchSpaceLimit (..)
+    , searchSpaceLimitDefault
 
     -- * Internal API
 
@@ -55,8 +61,12 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn )
 import Data.Function
     ( (&) )
+import Data.IntCast
+    ( intCast, intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Map.Strict
@@ -85,10 +95,16 @@ import qualified Numeric.SpecFunctions as MathFast
 -- Public API
 --------------------------------------------------------------------------------
 
-type PerformSelection inputId =
+-- | The type of all functions that perform selections.
+--
+type PerformSelectionOf inputId =
     SelectionConstraints ->
-    SelectionParams inputId ->
-    Either (SelectionError inputId) (SelectionResult inputId)
+    SelectionParamsOf inputId ->
+    Either (SelectionErrorOf inputId) (SelectionResultOf inputId)
+
+-- | The default type for 'PerformSelectionOf'.
+--
+type PerformSelection = PerformSelectionOf TxIn
 
 -- | Specifies all constraints required for collateral selection.
 --
@@ -114,7 +130,7 @@ data SelectionConstraints = SelectionConstraints
 
 -- | Specifies all parameters that are specific to a given selection.
 --
-data SelectionParams inputId = SelectionParams
+data SelectionParamsOf inputId = SelectionParams
     { coinsAvailable
         :: Map inputId Coin
         -- ^ The set of all coins available for selection as collateral.
@@ -123,6 +139,10 @@ data SelectionParams inputId = SelectionParams
         -- ^ A lower bound on the sum of coins to be selected as collateral.
     }
     deriving (Eq, Generic, Show)
+
+-- | The default type for 'SelectionParamsOf'.
+--
+type SelectionParams = SelectionParamsOf TxIn
 
 -- | Specifies an upper bound on the search space size.
 --
@@ -135,21 +155,38 @@ data SearchSpaceLimit
     -- used for testing purposes.
     deriving (Eq, Show)
 
+-- | The default search space limit.
+--
+-- This constant is used by the test suite, so we can be reasonably confident
+-- that performing selections with this limit will not use inordinate amounts
+-- of time and space.
+--
+searchSpaceLimitDefault :: SearchSpaceLimit
+searchSpaceLimitDefault = SearchSpaceLimit 1_000_000
+
 -- | Represents a successful selection of collateral.
 --
-newtype SelectionResult inputId = SelectionResult
+newtype SelectionResultOf inputId = SelectionResult
     { coinsSelected :: Map inputId Coin
         -- ^ The coins that were selected for collateral.
     }
     deriving (Eq, Generic, Show)
 
+-- | The default type for 'SelectionResultOf'.
+--
+type SelectionResult = SelectionResultOf TxIn
+
 -- | Represents an unsuccessful attempt to select collateral.
 --
-newtype SelectionError inputId = SelectionError
+newtype SelectionErrorOf inputId = SelectionError
     { largestCombinationAvailable :: Map inputId Coin
         -- ^ The largest combination of coins available.
     }
     deriving (Eq, Generic, Show)
+
+-- | The default type for `SelectionErrorOf`.
+--
+type SelectionError = SelectionErrorOf TxIn
 
 -- | Selects coins for collateral.
 --
@@ -184,7 +221,7 @@ newtype SelectionError inputId = SelectionError
 --    >>> size largestCombinationAvailable ≤ maximumSelectionSize
 --    >>>      largestCombinationAvailable ⊆ coinsAvailable
 --
-performSelection :: forall inputId. Ord inputId => PerformSelection inputId
+performSelection :: forall inputId. Ord inputId => PerformSelectionOf inputId
 performSelection constraints =
     firstRight $ fmap ($ constraints)
         [ selectCollateralSmallest
@@ -208,7 +245,7 @@ performSelection constraints =
 -- function will return without computing a result.
 --
 selectCollateralSmallest
-    :: forall inputId. Ord inputId => PerformSelection inputId
+    :: forall inputId. Ord inputId => PerformSelectionOf inputId
 selectCollateralSmallest constraints params =
     case smallestValidCombination of
         Just coinsSelected ->
@@ -274,7 +311,7 @@ selectCollateralSmallest constraints params =
 -- This result can be computed very quickly, without using much search space.
 --
 selectCollateralLargest
-    :: forall inputId. Ord inputId => PerformSelection inputId
+    :: forall inputId. Ord inputId => PerformSelectionOf inputId
 selectCollateralLargest constraints params =
     case smallestValidSubmapOfLargestCombinationAvailable of
         Just coinsSelected ->
@@ -382,12 +419,12 @@ numberOfSubsequencesOfSize n k
     | k == 0 || k ==  n      = Just 1
     | k == 1 || k == (n - 1) = Just n
     | resultOutOfBounds      = Nothing
-    | otherwise              = Just (fromIntegral resultExact)
+    | otherwise              = intCastMaybe resultExact
   where
     resultExact :: Integer
     resultExact = MathExact.choose
-        (fromIntegral @Int @Integer n)
-        (fromIntegral @Int @Integer k)
+        (intCast @Int @Integer n)
+        (intCast @Int @Integer k)
 
     resultFast :: Integer
     resultFast = floor (MathFast.choose n k)
@@ -395,9 +432,9 @@ numberOfSubsequencesOfSize n k
     resultOutOfBounds :: Bool
     resultOutOfBounds = False
         || resultFast  < 0
-        || resultFast  > fromIntegral @Int @Integer (maxBound @Int)
+        || resultFast  > intCast @Int @Integer (maxBound @Int)
         || resultExact < 0
-        || resultExact > fromIntegral @Int @Integer (maxBound @Int)
+        || resultExact > intCast @Int @Integer (maxBound @Int)
 
 -- | Generates all subsequences of size 'k' from a particular sequence.
 --

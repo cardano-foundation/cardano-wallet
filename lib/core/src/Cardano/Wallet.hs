@@ -463,6 +463,8 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
+import Data.IntCast
+    ( intCast )
 import Data.Kind
     ( Type )
 import Data.List
@@ -488,7 +490,7 @@ import Data.Type.Equality
 import Data.Void
     ( Void )
 import Data.Word
-    ( Word64 )
+    ( Word16, Word64 )
 import Fmt
     ( Buildable
     , blockListF
@@ -1461,7 +1463,7 @@ selectAssets ctx params transform = do
             , depositAmount =
                 view #stakeKeyDeposit pp
             , maximumCollateralInputCount =
-                view #maximumCollateralInputCount pp
+                intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , utxoSuitableForCollateral =
                 asCollateral . snd
             }

@@ -24,17 +24,18 @@ import Prelude hiding
     ( sequence )
 
 import Cardano.Wallet.Primitive.CoinSelection.Collateral
-    ( PerformSelection
+    ( PerformSelectionOf
     , SearchSpaceLimit (..)
     , SearchSpaceRequirement (..)
     , SelectionConstraints (..)
-    , SelectionError (..)
-    , SelectionParams (..)
-    , SelectionResult (..)
+    , SelectionErrorOf (..)
+    , SelectionParamsOf (..)
+    , SelectionResultOf (..)
     , firstRight
     , guardSearchSpaceSize
     , numberOfSubsequencesOfSize
     , performSelection
+    , searchSpaceLimitDefault
     , selectCollateralLargest
     , selectCollateralSmallest
     , submaps
@@ -196,7 +197,7 @@ spec = do
 --  - maximum selection sizes
 --
 prop_performSelection_general_withFunction
-    :: PerformSelection LongInputId -> Property
+    :: PerformSelectionOf LongInputId -> Property
 prop_performSelection_general_withFunction performSelectionFn =
     checkCoverage $
     forAll (arbitrary @(Map LongInputId Coin))
@@ -207,7 +208,7 @@ prop_performSelection_general_withFunction performSelectionFn =
         $ \maximumSelectionSize ->
     let constraints = SelectionConstraints
             { maximumSelectionSize
-            , searchSpaceLimit = SearchSpaceLimit 1_000_000
+            , searchSpaceLimit = searchSpaceLimitDefault
             } in
     let params = SelectionParams
             { coinsAvailable
@@ -219,8 +220,8 @@ prop_performSelection_general_withFunction performSelectionFn =
 prop_performSelection_general_withResult
     :: (Ord inputId, Show inputId)
     => SelectionConstraints
-    -> SelectionParams inputId
-    -> Either (SelectionError inputId) (SelectionResult inputId)
+    -> SelectionParamsOf inputId
+    -> Either (SelectionErrorOf inputId) (SelectionResultOf inputId)
     -> Property
 prop_performSelection_general_withResult constraints params eitherErrorResult =
     cover 20.0 (isLeft  eitherErrorResult) "Failure" $
@@ -234,8 +235,8 @@ prop_performSelection_general_withResult constraints params eitherErrorResult =
 prop_performSelection_onFailure
     :: (Ord inputId, Show inputId)
     => SelectionConstraints
-    -> SelectionParams inputId
-    -> SelectionError inputId
+    -> SelectionParamsOf inputId
+    -> SelectionErrorOf inputId
     -> Property
 prop_performSelection_onFailure constraints params err =
     counterexample ("Error: " <> show (Pretty err)) $
@@ -251,8 +252,8 @@ prop_performSelection_onFailure constraints params err =
 prop_performSelection_onSuccess
     :: (Ord inputId, Show inputId)
     => SelectionConstraints
-    -> SelectionParams inputId
-    -> SelectionResult inputId
+    -> SelectionParamsOf inputId
+    -> SelectionResultOf inputId
     -> Property
 prop_performSelection_onSuccess constraints params result =
     counterexample ("Result: " <> show (Pretty result)) $
