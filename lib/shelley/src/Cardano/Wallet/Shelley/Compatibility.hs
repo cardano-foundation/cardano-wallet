@@ -722,6 +722,11 @@ txParametersFromPParams maxBundleSize pp = W.TxParameters
     naturalToDouble :: Natural -> Double
     naturalToDouble = fromIntegral
 
+--------------------------------------------------------------------------------
+-- Copied from cardano-api
+-- To be removed when once again exposed.
+--------------------------------------------------------------------------------
+
 fromLedgerPParams
   :: ShelleyBasedEra era
   -> Ledger.PParams (Cardano.ShelleyLedgerEra era)
@@ -875,6 +880,7 @@ fromLedgerAlonzoPParams
           . map (bimap fromAlonzoScriptLanguage fromAlonzoCostModel)
           . Map.toList
 
+--------------------------------------------------------------------------------
 
 desiredNumberOfStakePoolsFromPParams
     :: HasField "_nOpt" pparams Natural
