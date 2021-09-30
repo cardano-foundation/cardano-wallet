@@ -1040,6 +1040,10 @@ data ProtocolParameters = ProtocolParameters
         :: Word16
         -- ^ Limit on the maximum number of collateral inputs present in a
         -- transaction.
+    , minimumCollateralPercentage
+        :: Natural
+        -- ^ Specifies the minimum required amount of collateral as a
+        -- percentage of the total transaction fee.
     , executionUnitPrices
         :: Maybe ExecutionUnitPrices
         -- ^ The prices for 'ExecutionUnits' as a fraction of a 'Lovelace' and

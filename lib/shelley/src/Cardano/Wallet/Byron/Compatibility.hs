@@ -141,7 +141,9 @@ mainnetNetworkParameters = W.NetworkParameters
         , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
         , stakeKeyDeposit = W.Coin 0
         , eras = W.emptyEraInfo
+        -- Collateral inputs were not supported or required in Byron:
         , maximumCollateralInputCount = 0
+        , minimumCollateralPercentage = 0
         , executionUnitPrices = Nothing
         }
     }
@@ -353,7 +355,9 @@ protocolParametersFromPP eraInfo pp = W.ProtocolParameters
     , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
     , stakeKeyDeposit = W.Coin 0
     , eras = fromBound <$> eraInfo
+    -- Collateral inputs were not supported or required in Byron:
     , maximumCollateralInputCount = 0
+    , minimumCollateralPercentage = 0
     , executionUnitPrices = Nothing
     }
   where

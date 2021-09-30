@@ -1185,6 +1185,8 @@ dummyProtocolParameters = ProtocolParameters
         error "dummyProtocolParameters: eras"
     , maximumCollateralInputCount =
         error "dummyProtocolParameters: maximumCollateralInputCount"
+    , minimumCollateralPercentage =
+        error "dummyProtocolParameters: minimumCollateralPercentage"
     , executionUnitPrices =
         error "dummyProtocolParameters: executionUnitPrices"
     }

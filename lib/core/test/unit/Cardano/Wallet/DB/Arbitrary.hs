@@ -165,13 +165,15 @@ import Data.Ratio
 import Data.Text.Class
     ( toText )
 import Data.Word
-    ( Word32 )
+    ( Word16, Word32 )
 import Data.Word.Odd
     ( Word31 )
 import Fmt
     ( Buildable (..), Builder, blockListF', prefixF, suffixF, tupleF )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -183,6 +185,7 @@ import Test.QuickCheck
     , NonEmptyList (..)
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
+    , arbitrarySizedNatural
     , choose
     , elements
     , frequency
@@ -646,8 +649,19 @@ instance Arbitrary ProtocolParameters where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> genMaximumCollateralInputCount
+        <*> genMinimumCollateralPercentage
         <*> arbitrary
-        <*> arbitrary
+      where
+        genMaximumCollateralInputCount :: Gen Word16
+        genMaximumCollateralInputCount = arbitrarySizedNatural
+
+        genMinimumCollateralPercentage :: Gen Natural
+        genMinimumCollateralPercentage = arbitrarySizedNatural
+
+instance Arbitrary Natural where
+    arbitrary = arbitrarySizedNatural
+    shrink = shrinkIntegral
 
 instance Arbitrary ExecutionUnitPrices where
     shrink = genericShrink

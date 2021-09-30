@@ -608,7 +608,9 @@ fromShelleyPParams eraInfo pp = W.ProtocolParameters
         MinimumUTxOValue . toWalletCoin $ SLAPI._minUTxOValue pp
     , stakeKeyDeposit = stakeKeyDepositFromPParams pp
     , eras = fromBound <$> eraInfo
-    , maximumCollateralInputCount = minBound
+    -- Collateral inputs were not supported or required in Shelley:
+    , maximumCollateralInputCount = 0
+    , minimumCollateralPercentage = 0
     , executionUnitPrices = Nothing
     }
   where
@@ -634,6 +636,8 @@ fromAlonzoPParams eraInfo pp = W.ProtocolParameters
     , eras = fromBound <$> eraInfo
     , maximumCollateralInputCount = unsafeIntToWord $
         Alonzo._maxCollateralInputs pp
+    , minimumCollateralPercentage =
+        Alonzo._collateralPercentage pp
     , executionUnitPrices =
         Just $ executionUnitPricesFromPParams pp
     }
