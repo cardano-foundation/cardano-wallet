@@ -244,6 +244,10 @@ data SelectionConstraints = SelectionConstraints
         :: Int
         -- ^ Specifies an inclusive upper bound on the number of unique inputs
         -- that can be selected as collateral.
+    , minimumCollateralPercentage
+        :: Natural
+        -- ^ Specifies the minimum required amount of collateral as a
+        -- percentage of the total transaction fee.
     , utxoSuitableForCollateral
         :: (TxIn, TxOut) -> Maybe Coin
         -- ^ Indicates whether an individual UTxO entry is suitable for use as

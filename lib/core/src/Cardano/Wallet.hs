@@ -1464,6 +1464,8 @@ selectAssets ctx params transform = do
                 view #stakeKeyDeposit pp
             , maximumCollateralInputCount =
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
+            , minimumCollateralPercentage =
+                view #minimumCollateralPercentage pp
             , utxoSuitableForCollateral =
                 asCollateral . snd
             }
