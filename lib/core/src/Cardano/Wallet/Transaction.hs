@@ -151,9 +151,14 @@ data TransactionLayer k tx = TransactionLayer
             -- Current protocol parameters
         -> tx
             -- The sealed transaction
-        -> Coin
+        -> Maybe Coin
         -- ^ Evaluate a minimal fee amount necessary to pay for a given tx
         -- using ledger's functionality
+        --
+        -- Will estimate how many witnesses there /should be/, so it works even
+        -- for unsigned transactions.
+        --
+        -- Returns `Nothing` for ByronEra transactions.
 
     , computeSelectionLimit
         :: ProtocolParameters

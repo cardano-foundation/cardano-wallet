@@ -626,31 +626,40 @@ dummySkeleton inputCount outputs = SelectionSkeleton
         TokenMap.empty
     }
 
+-- ^ Evaluate a minimal fee amount necessary to pay for a given tx
+-- using ledger's functionality
+--
+-- Will estimate how many witnesses there /should be/, so it works even
+-- for unsigned transactions.
+--
+-- Returns `Nothing` for ByronEra transactions.
 _evaluateMinimumFee
     :: Cardano.ProtocolParameters
     -> SealedTx
-    -> Coin
+    -> Maybe Coin
 _evaluateMinimumFee pp tx =
-    fromCardanoLovelace minFee
+    fromCardanoLovelace <$> minFee
   where
+    -- NOTE: Assuming one witness per certificate is wrong. KeyReg certs don't
+    -- require witnesses, and several certs may share the same key.
     minFee = case getSealedTxBody tx of
         InAnyCardanoEra ShelleyEra txbody ->
             let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
                 certNum = length $ Shelley._certs ledgertxbody
-            in Cardano.evaluateTransactionFee @Cardano.ShelleyEra pp txbody (witsNum txbody certNum) 0
+            in Just $ Cardano.evaluateTransactionFee @Cardano.ShelleyEra pp txbody (witsNum txbody certNum) 0
         InAnyCardanoEra AllegraEra txbody ->
             let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
                 certNum = length $ ShelleyMA.certs' ledgertxbody
-            in Cardano.evaluateTransactionFee @Cardano.AllegraEra pp txbody (witsNum txbody certNum) 0
+            in Just $ Cardano.evaluateTransactionFee @Cardano.AllegraEra pp txbody (witsNum txbody certNum) 0
         InAnyCardanoEra MaryEra txbody ->
             let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
                 certNum = length $ ShelleyMA.certs' ledgertxbody
-            in Cardano.evaluateTransactionFee @Cardano.MaryEra pp txbody (witsNum txbody certNum) 0
+            in Just $ Cardano.evaluateTransactionFee @Cardano.MaryEra pp txbody (witsNum txbody certNum) 0
         InAnyCardanoEra AlonzoEra txbody ->
             let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
                 certNum = length $ Alonzo.txcerts ledgertxbody
-            in Cardano.evaluateTransactionFee @Cardano.AlonzoEra pp txbody (witsNum txbody certNum) 0
-        InAnyCardanoEra ByronEra _ -> error "minium fee evaluation not supported for byron era"
+            in Just $ Cardano.evaluateTransactionFee @Cardano.AlonzoEra pp txbody (witsNum txbody certNum) 0
+        InAnyCardanoEra ByronEra _ -> Nothing
 
     witsNum txbody certNum =
         let (Cardano.TxBody txbodycontent) = txbody
