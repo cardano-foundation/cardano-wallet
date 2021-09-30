@@ -156,11 +156,11 @@ toBalanceConstraintsParams (constraints, params) =
             view #rewardWithdrawal params <>
             mtimesDefault
                 (view #certificateDepositsReturned params)
-                (view #depositAmount constraints)
+                (view #certificateDepositAmount constraints)
         , extraCoinSink =
             mtimesDefault
                 (view #certificateDepositsTaken params)
-                (view #depositAmount constraints)
+                (view #certificateDepositAmount constraints)
         , outputsToCover =
             view #outputsToCover params
         , utxoAvailable =
@@ -226,6 +226,10 @@ data SelectionConstraints = SelectionConstraints
         -- what can be included in a transaction output. See documentation for
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
         -- properties of this field.
+    , certificateDepositAmount
+        :: Coin
+        -- ^ Amount that should be taken from/returned back to the wallet for
+        -- each stake key registration/de-registration in the transaction.
     , computeMinimumAdaQuantity
         :: TokenMap -> Coin
         -- ^ Computes the minimum ada quantity required for a given output.
@@ -236,10 +240,6 @@ data SelectionConstraints = SelectionConstraints
         :: [TxOut] -> SelectionLimit
         -- ^ Computes an upper bound for the number of ordinary inputs to
         -- select, given a current set of outputs.
-    , depositAmount
-        :: Coin
-        -- ^ Amount that should be taken from/returned back to the wallet for
-        -- each stake key registration/de-registration in the transaction.
     , maximumCollateralInputCount
         :: Int
         -- ^ Specifies an inclusive upper bound on the number of unique inputs

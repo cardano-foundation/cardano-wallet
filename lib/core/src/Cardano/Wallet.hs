@@ -1454,14 +1454,14 @@ selectAssets ctx params transform = do
             { assessTokenBundleSize =
                 tokenBundleSizeAssessor tl $
                     pp ^. (#txParameters . #getTokenBundleMaxSize)
+            , certificateDepositAmount =
+                view #stakeKeyDeposit pp
             , computeMinimumAdaQuantity =
                 view #txOutputMinimumAdaQuantity $ constraints tl pp
             , computeMinimumCost =
                 calcMinimumCost tl pp $ params ^. #txContext
             , computeSelectionLimit =
                 view #computeSelectionLimit tl pp $ params ^. #txContext
-            , depositAmount =
-                view #stakeKeyDeposit pp
             , maximumCollateralInputCount =
                 intCast @Word16 @Int $ view #maximumCollateralInputCount pp
             , minimumCollateralPercentage =
