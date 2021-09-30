@@ -74,10 +74,12 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoStakeCredential
     , toCardanoValue
     , fromCardanoValue
+    , fromCardanoLovelace
     , rewardAccountFromAddress
     , fromShelleyPParams
     , fromAlonzoPParams
     , fromLedgerExUnits
+    , fromLedgerPParams
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -289,6 +291,7 @@ import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
+import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
@@ -296,6 +299,8 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Coin as Ledger
+import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
@@ -331,6 +336,7 @@ import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.API as SL
 import qualified Shelley.Spec.Ledger.API as SLAPI
 import qualified Shelley.Spec.Ledger.BlockChain as SL
+import qualified Shelley.Spec.Ledger.PParams as Shelley
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
 --------------------------------------------------------------------------------
@@ -715,6 +721,166 @@ txParametersFromPParams maxBundleSize pp = W.TxParameters
   where
     naturalToDouble :: Natural -> Double
     naturalToDouble = fromIntegral
+
+--------------------------------------------------------------------------------
+-- Copied from cardano-api
+-- To be removed when once again exposed.
+--------------------------------------------------------------------------------
+
+fromLedgerPParams
+  :: ShelleyBasedEra era
+  -> Ledger.PParams (Cardano.ShelleyLedgerEra era)
+  -> Cardano.ProtocolParameters
+fromLedgerPParams Cardano.ShelleyBasedEraShelley = fromLedgerShelleyPParams
+fromLedgerPParams Cardano.ShelleyBasedEraAllegra = fromLedgerShelleyPParams
+fromLedgerPParams Cardano.ShelleyBasedEraMary    = fromLedgerShelleyPParams
+fromLedgerPParams Cardano.ShelleyBasedEraAlonzo  = fromLedgerAlonzoPParams
+
+fromShelleyLovelace :: Ledger.Coin -> Cardano.Lovelace
+fromShelleyLovelace (Ledger.Coin c) = Cardano.Lovelace c
+
+fromLedgerNonce :: Ledger.Nonce -> Maybe Cardano.PraosNonce
+fromLedgerNonce Ledger.NeutralNonce = Nothing
+fromLedgerNonce (Ledger.Nonce h) =
+    Just (Cardano.makePraosNonce $ Crypto.hashToBytes h)
+
+fromLedgerShelleyPParams
+    :: Shelley.PParams ledgerera
+    -> Cardano.ProtocolParameters
+fromLedgerShelleyPParams
+    Shelley.PParams {
+      Shelley._minfeeA
+    , Shelley._minfeeB
+    , Shelley._maxBBSize
+    , Shelley._maxTxSize
+    , Shelley._maxBHSize
+    , Shelley._keyDeposit
+    , Shelley._poolDeposit
+    , Shelley._eMax
+    , Shelley._nOpt
+    , Shelley._a0
+    , Shelley._rho
+    , Shelley._tau
+    , Shelley._d
+    , Shelley._extraEntropy
+    , Shelley._protocolVersion
+    , Shelley._minUTxOValue
+    , Shelley._minPoolCost
+    } = Cardano.ProtocolParameters {
+      protocolParamProtocolVersion     = (\(Shelley.ProtVer a b) -> (a,b))
+                                           _protocolVersion
+    , protocolParamDecentralization    = SL.unboundRational _d
+    , protocolParamExtraPraosEntropy   = fromLedgerNonce _extraEntropy
+    , protocolParamMaxBlockHeaderSize  = _maxBHSize
+    , protocolParamMaxBlockBodySize    = _maxBBSize
+    , protocolParamMaxTxSize           = _maxTxSize
+    , protocolParamTxFeeFixed          = _minfeeB
+    , protocolParamTxFeePerByte        = _minfeeA
+    , protocolParamMinUTxOValue        = Just (fromShelleyLovelace _minUTxOValue)
+    , protocolParamStakeAddressDeposit = fromShelleyLovelace _keyDeposit
+    , protocolParamStakePoolDeposit    = fromShelleyLovelace _poolDeposit
+    , protocolParamMinPoolCost         = fromShelleyLovelace _minPoolCost
+    , protocolParamPoolRetireMaxEpoch  = _eMax
+    , protocolParamStakePoolTargetNum  = _nOpt
+    , protocolParamPoolPledgeInfluence = SL.unboundRational _a0
+    , protocolParamMonetaryExpansion   = SL.unboundRational _rho
+    , protocolParamTreasuryCut         = SL.unboundRational _tau
+    , protocolParamUTxOCostPerWord     = Nothing
+    , protocolParamCostModels          = Map.empty
+    , protocolParamPrices              = Nothing
+    , protocolParamMaxTxExUnits        = Nothing
+    , protocolParamMaxBlockExUnits     = Nothing
+    , protocolParamMaxValueSize        = Nothing
+    , protocolParamCollateralPercent   = Nothing
+    , protocolParamMaxCollateralInputs = Nothing
+    }
+
+fromLedgerAlonzoPParams
+    :: Alonzo.PParams ledgerera
+    -> Cardano.ProtocolParameters
+fromLedgerAlonzoPParams
+    Alonzo.PParams {
+      Alonzo._minfeeA
+    , Alonzo._minfeeB
+    , Alonzo._maxBBSize
+    , Alonzo._maxTxSize
+    , Alonzo._maxBHSize
+    , Alonzo._keyDeposit
+    , Alonzo._poolDeposit
+    , Alonzo._eMax
+    , Alonzo._nOpt
+    , Alonzo._a0
+    , Alonzo._rho
+    , Alonzo._tau
+    , Alonzo._d
+    , Alonzo._extraEntropy
+    , Alonzo._protocolVersion
+    , Alonzo._minPoolCost
+    , Alonzo._coinsPerUTxOWord
+    , Alonzo._costmdls
+    , Alonzo._prices
+    , Alonzo._maxTxExUnits
+    , Alonzo._maxBlockExUnits
+    , Alonzo._maxValSize
+    , Alonzo._collateralPercentage
+    , Alonzo._maxCollateralInputs
+    } = Cardano.ProtocolParameters {
+      protocolParamProtocolVersion     = (\(Shelley.ProtVer a b) -> (a,b))
+                                           _protocolVersion
+    , protocolParamDecentralization    = SL.unboundRational _d
+    , protocolParamExtraPraosEntropy   = fromLedgerNonce _extraEntropy
+    , protocolParamMaxBlockHeaderSize  = _maxBHSize
+    , protocolParamMaxBlockBodySize    = _maxBBSize
+    , protocolParamMaxTxSize           = _maxTxSize
+    , protocolParamTxFeeFixed          = _minfeeB
+    , protocolParamTxFeePerByte        = _minfeeA
+    , protocolParamMinUTxOValue        = Nothing
+    , protocolParamStakeAddressDeposit = fromShelleyLovelace _keyDeposit
+    , protocolParamStakePoolDeposit    = fromShelleyLovelace _poolDeposit
+    , protocolParamMinPoolCost         = fromShelleyLovelace _minPoolCost
+    , protocolParamPoolRetireMaxEpoch  = _eMax
+    , protocolParamStakePoolTargetNum  = _nOpt
+    , protocolParamPoolPledgeInfluence = SL.unboundRational _a0
+    , protocolParamMonetaryExpansion   = SL.unboundRational _rho
+    , protocolParamTreasuryCut         = SL.unboundRational _tau
+    , protocolParamUTxOCostPerWord     = Just (fromShelleyLovelace _coinsPerUTxOWord)
+    , protocolParamCostModels          = fromAlonzoCostModels _costmdls
+    , protocolParamPrices              = Just (fromAlonzoPrices _prices)
+    , protocolParamMaxTxExUnits        = Just (fromAlonzoExUnits _maxTxExUnits)
+    , protocolParamMaxBlockExUnits     = Just (fromAlonzoExUnits _maxBlockExUnits)
+    , protocolParamMaxValueSize        = Just _maxValSize
+    , protocolParamCollateralPercent   = Just _collateralPercentage
+    , protocolParamMaxCollateralInputs = Just _maxCollateralInputs
+    }
+  where
+      fromAlonzoPrices :: Alonzo.Prices -> Cardano.ExecutionUnitPrices
+      fromAlonzoPrices Alonzo.Prices{Alonzo.prSteps, Alonzo.prMem} = Cardano.ExecutionUnitPrices
+          { priceExecutionSteps  = Ledger.unboundRational prSteps
+          , priceExecutionMemory = Ledger.unboundRational prMem
+          }
+
+      fromAlonzoExUnits :: Alonzo.ExUnits -> Cardano.ExecutionUnits
+      fromAlonzoExUnits Alonzo.ExUnits{Alonzo.exUnitsSteps, Alonzo.exUnitsMem} = Cardano.ExecutionUnits
+          { executionSteps  = exUnitsSteps
+          , executionMemory = exUnitsMem
+          }
+
+      fromAlonzoScriptLanguage :: Alonzo.Language -> Cardano.AnyPlutusScriptVersion
+      fromAlonzoScriptLanguage Alonzo.PlutusV1 =
+          Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1
+
+      fromAlonzoCostModel :: Alonzo.CostModel -> Cardano.CostModel
+      fromAlonzoCostModel (Alonzo.CostModel m) = Cardano.CostModel m
+
+      fromAlonzoCostModels
+          :: Map Alonzo.Language Alonzo.CostModel
+          -> Map Cardano.AnyPlutusScriptVersion Cardano.CostModel
+      fromAlonzoCostModels =
+          Map.fromList
+          . map (bimap fromAlonzoScriptLanguage fromAlonzoCostModel)
+          . Map.toList
+
+--------------------------------------------------------------------------------
 
 desiredNumberOfStakePoolsFromPParams
     :: HasField "_nOpt" pparams Natural
@@ -1106,17 +1272,20 @@ fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
             then Just W.TxScriptValid
             else Just W.TxScriptInvalid
 
+-- Lovelace to coin. Quantities from ledger should always fit in Word64.
+fromCardanoLovelace :: Cardano.Lovelace -> W.Coin
+fromCardanoLovelace =
+    W.Coin . unsafeIntToWord . unQuantity . Cardano.lovelaceToQuantity
+  where
+    unQuantity (Cardano.Quantity q) = q
+
 fromCardanoValue :: HasCallStack => Cardano.Value -> TokenBundle.TokenBundle
 fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
   where
     extract value =
-        ( mkCoin $ Cardano.selectLovelace value
+        ( fromCardanoLovelace $ Cardano.selectLovelace value
         , mkBundle $ Cardano.valueToList value
         )
-
-    -- Lovelace to coin. Quantities from ledger should always fit in Word64.
-    mkCoin :: Cardano.Lovelace -> W.Coin
-    mkCoin = W.Coin . unsafeIntToWord . unQuantity . Cardano.lovelaceToQuantity
 
     -- Do Integer to Natural conversion. Quantities from ledger TxOuts can
     -- never be negative (but unminted values could be negative).
@@ -1134,8 +1303,6 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
 
     mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
     mkTokenName = W.UnsafeTokenName . Cardano.serialiseToRawBytes
-
-    unQuantity (Cardano.Quantity q) = q
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $

@@ -1275,6 +1275,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: calcMinimumCost not implemented"
     , calcScriptExecutionCost =
         error "dummyTransactionLayer: calcScriptExecutionCost not implemented"
+    , evaluateMinimumFee =
+        error "dummyTransactionLayer: evaluateMinimumFee not implemented"
     , computeSelectionLimit =
         error "dummyTransactionLayer: computeSelectionLimit not implemented"
     , tokenBundleSizeAssessor =

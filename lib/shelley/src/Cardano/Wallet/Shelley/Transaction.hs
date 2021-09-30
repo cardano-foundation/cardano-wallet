@@ -124,7 +124,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txSizeDistance
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoTx
+    ( fromCardanoLovelace
+    , fromCardanoTx
     , fromLedgerExUnits
     , toCardanoLovelace
     , toCardanoStakeCredential
@@ -181,7 +182,6 @@ import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as SL
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Core as SL
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.ShelleyMA.TxBody as ShelleyMA
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -193,6 +193,7 @@ import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
@@ -232,7 +233,7 @@ data WalletStyle
 
 type EraConstraints era =
     ( IsShelleyBasedEra era
-    , ToCBOR (SL.TxBody (Cardano.ShelleyLedgerEra era))
+    , ToCBOR (Ledger.TxBody (Cardano.ShelleyLedgerEra era))
     , Era (Cardano.ShelleyLedgerEra era)
     , DSIGN (Crypto (Cardano.ShelleyLedgerEra era)) ~ DSIGN.Ed25519DSIGN
     , (era == ByronEra) ~ 'False
@@ -390,6 +391,9 @@ newTransactionLayer networkId = TransactionLayer
 
     , calcScriptExecutionCost =
        _calcScriptExecutionCost
+
+    , evaluateMinimumFee =
+      _evaluateMinimumFee
 
     , computeSelectionLimit = \pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
@@ -621,6 +625,71 @@ dummySkeleton inputCount outputs = SelectionSkeleton
     , skeletonAssetsToBurn =
         TokenMap.empty
     }
+
+-- ^ Evaluate a minimal fee amount necessary to pay for a given tx
+-- using ledger's functionality
+--
+-- Will estimate how many witnesses there /should be/, so it works even
+-- for unsigned transactions.
+--
+-- Returns `Nothing` for ByronEra transactions.
+_evaluateMinimumFee
+    :: Cardano.ProtocolParameters
+    -> SealedTx
+    -> Maybe Coin
+_evaluateMinimumFee pp tx =
+    fromCardanoLovelace <$> minFee
+  where
+    -- NOTE: Assuming one witness per certificate is wrong. KeyReg certs don't
+    -- require witnesses, and several certs may share the same key.
+    minFee = case getSealedTxBody tx of
+        InAnyCardanoEra ShelleyEra txbody ->
+            let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
+                certNum = length $ Shelley._certs ledgertxbody
+            in Just $ Cardano.evaluateTransactionFee @Cardano.ShelleyEra pp txbody (witsNum txbody certNum) 0
+        InAnyCardanoEra AllegraEra txbody ->
+            let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
+                certNum = length $ ShelleyMA.certs' ledgertxbody
+            in Just $ Cardano.evaluateTransactionFee @Cardano.AllegraEra pp txbody (witsNum txbody certNum) 0
+        InAnyCardanoEra MaryEra txbody ->
+            let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
+                certNum = length $ ShelleyMA.certs' ledgertxbody
+            in Just $ Cardano.evaluateTransactionFee @Cardano.MaryEra pp txbody (witsNum txbody certNum) 0
+        InAnyCardanoEra AlonzoEra txbody ->
+            let (Cardano.ShelleyTxBody _ ledgertxbody _ _ _ _) = txbody
+                certNum = length $ Alonzo.txcerts ledgertxbody
+            in Just $ Cardano.evaluateTransactionFee @Cardano.AlonzoEra pp txbody (witsNum txbody certNum) 0
+        InAnyCardanoEra ByronEra _ -> Nothing
+
+    witsNum txbody certNum =
+        let (Cardano.TxBody txbodycontent) = txbody
+            txIns = Cardano.txIns txbodycontent
+            txIns' = [ txin | (txin, Cardano.ViewTx) <- txIns ]
+            txInsCollateral = Cardano.txInsCollateral txbodycontent
+            txIns'' = case txInsCollateral of
+                Cardano.TxInsCollateral _ collaterals -> collaterals
+                _ -> []
+            txInsUnique =  L.nub $ txIns' ++ txIns''
+            txExtraKeyWits = Cardano.txExtraKeyWits txbodycontent
+            txExtraKeyWits' = case txExtraKeyWits of
+                Cardano.TxExtraKeyWitnesses _ khs -> khs
+                _ -> []
+            txWithdrawals = Cardano.txWithdrawals txbodycontent
+            txWithdrawals' = case txWithdrawals of
+                Cardano.TxWithdrawals _ wdls ->
+                    [ () | (_, _, Cardano.ViewTx) <- wdls ]
+                _ -> []
+            txUpdateProposal = Cardano.txUpdateProposal txbodycontent
+            txUpdateProposal' = case txUpdateProposal of
+                Cardano.TxUpdateProposal _ (Cardano.UpdateProposal updatePerGenesisKey _) ->
+                    Map.size updatePerGenesisKey
+                _ -> 0
+        in fromIntegral $
+           length txInsUnique +
+           length txExtraKeyWits' +
+           length txWithdrawals' +
+           txUpdateProposal' +
+           certNum
 
 _calcScriptExecutionCost
     :: ProtocolParameters
