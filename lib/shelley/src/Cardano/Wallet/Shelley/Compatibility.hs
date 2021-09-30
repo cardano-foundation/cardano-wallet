@@ -298,6 +298,7 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.BaseTypes as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
@@ -334,6 +335,7 @@ import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.API as SL
 import qualified Shelley.Spec.Ledger.API as SLAPI
 import qualified Shelley.Spec.Ledger.BlockChain as SL
+import qualified Shelley.Spec.Ledger.PParams as Shelley
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
 --------------------------------------------------------------------------------
@@ -723,7 +725,70 @@ fromLedgerPParams
   :: ShelleyBasedEra era
   -> Ledger.PParams (Cardano.ShelleyLedgerEra era)
   -> Cardano.ProtocolParameters
-fromLedgerPParams _ _ = undefined
+fromLedgerPParams Cardano.ShelleyBasedEraShelley = fromLedgerShelleyPParams
+fromLedgerPParams Cardano.ShelleyBasedEraAllegra = fromLedgerShelleyPParams
+fromLedgerPParams Cardano.ShelleyBasedEraMary    = fromLedgerShelleyPParams
+fromLedgerPParams Cardano.ShelleyBasedEraAlonzo  = undefined
+
+fromShelleyLovelace :: Ledger.Coin -> Cardano.Lovelace
+fromShelleyLovelace (Ledger.Coin c) = Cardano.Lovelace c
+
+fromLedgerNonce :: Ledger.Nonce -> Maybe Cardano.PraosNonce
+fromLedgerNonce Ledger.NeutralNonce = Nothing
+fromLedgerNonce (Ledger.Nonce h) =
+    Just (Cardano.makePraosNonce $ Crypto.hashToBytes h)
+
+fromLedgerShelleyPParams
+    :: Shelley.PParams ledgerera
+    -> Cardano.ProtocolParameters
+fromLedgerShelleyPParams
+    Shelley.PParams {
+      Shelley._minfeeA
+    , Shelley._minfeeB
+    , Shelley._maxBBSize
+    , Shelley._maxTxSize
+    , Shelley._maxBHSize
+    , Shelley._keyDeposit
+    , Shelley._poolDeposit
+    , Shelley._eMax
+    , Shelley._nOpt
+    , Shelley._a0
+    , Shelley._rho
+    , Shelley._tau
+    , Shelley._d
+    , Shelley._extraEntropy
+    , Shelley._protocolVersion
+    , Shelley._minUTxOValue
+    , Shelley._minPoolCost
+    } =
+    Cardano.ProtocolParameters {
+      protocolParamProtocolVersion     = (\(Shelley.ProtVer a b) -> (a,b))
+                                           _protocolVersion
+    , protocolParamDecentralization    = SL.unboundRational _d
+    , protocolParamExtraPraosEntropy   = fromLedgerNonce _extraEntropy
+    , protocolParamMaxBlockHeaderSize  = _maxBHSize
+    , protocolParamMaxBlockBodySize    = _maxBBSize
+    , protocolParamMaxTxSize           = _maxTxSize
+    , protocolParamTxFeeFixed          = _minfeeB
+    , protocolParamTxFeePerByte        = _minfeeA
+    , protocolParamMinUTxOValue        = Just (fromShelleyLovelace _minUTxOValue)
+    , protocolParamStakeAddressDeposit = fromShelleyLovelace _keyDeposit
+    , protocolParamStakePoolDeposit    = fromShelleyLovelace _poolDeposit
+    , protocolParamMinPoolCost         = fromShelleyLovelace _minPoolCost
+    , protocolParamPoolRetireMaxEpoch  = _eMax
+    , protocolParamStakePoolTargetNum  = _nOpt
+    , protocolParamPoolPledgeInfluence = SL.unboundRational _a0
+    , protocolParamMonetaryExpansion   = SL.unboundRational _rho
+    , protocolParamTreasuryCut         = SL.unboundRational _tau
+    , protocolParamUTxOCostPerWord     = Nothing
+    , protocolParamCostModels          = Map.empty
+    , protocolParamPrices              = Nothing
+    , protocolParamMaxTxExUnits        = Nothing
+    , protocolParamMaxBlockExUnits     = Nothing
+    , protocolParamMaxValueSize        = Nothing
+    , protocolParamCollateralPercent   = Nothing
+    , protocolParamMaxCollateralInputs = Nothing
+    }
 
 desiredNumberOfStakePoolsFromPParams
     :: HasField "_nOpt" pparams Natural
