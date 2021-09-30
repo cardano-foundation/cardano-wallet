@@ -291,6 +291,7 @@ import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
+import qualified Cardano.Ledger.Alonzo.Language as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
@@ -728,7 +729,7 @@ fromLedgerPParams
 fromLedgerPParams Cardano.ShelleyBasedEraShelley = fromLedgerShelleyPParams
 fromLedgerPParams Cardano.ShelleyBasedEraAllegra = fromLedgerShelleyPParams
 fromLedgerPParams Cardano.ShelleyBasedEraMary    = fromLedgerShelleyPParams
-fromLedgerPParams Cardano.ShelleyBasedEraAlonzo  = undefined
+fromLedgerPParams Cardano.ShelleyBasedEraAlonzo  = fromLedgerAlonzoPParams
 
 fromShelleyLovelace :: Ledger.Coin -> Cardano.Lovelace
 fromShelleyLovelace (Ledger.Coin c) = Cardano.Lovelace c
@@ -760,8 +761,7 @@ fromLedgerShelleyPParams
     , Shelley._protocolVersion
     , Shelley._minUTxOValue
     , Shelley._minPoolCost
-    } =
-    Cardano.ProtocolParameters {
+    } = Cardano.ProtocolParameters {
       protocolParamProtocolVersion     = (\(Shelley.ProtVer a b) -> (a,b))
                                            _protocolVersion
     , protocolParamDecentralization    = SL.unboundRational _d
@@ -789,6 +789,92 @@ fromLedgerShelleyPParams
     , protocolParamCollateralPercent   = Nothing
     , protocolParamMaxCollateralInputs = Nothing
     }
+
+fromLedgerAlonzoPParams
+    :: Alonzo.PParams ledgerera
+    -> Cardano.ProtocolParameters
+fromLedgerAlonzoPParams
+    Alonzo.PParams {
+      Alonzo._minfeeA
+    , Alonzo._minfeeB
+    , Alonzo._maxBBSize
+    , Alonzo._maxTxSize
+    , Alonzo._maxBHSize
+    , Alonzo._keyDeposit
+    , Alonzo._poolDeposit
+    , Alonzo._eMax
+    , Alonzo._nOpt
+    , Alonzo._a0
+    , Alonzo._rho
+    , Alonzo._tau
+    , Alonzo._d
+    , Alonzo._extraEntropy
+    , Alonzo._protocolVersion
+    , Alonzo._minPoolCost
+    , Alonzo._coinsPerUTxOWord
+    , Alonzo._costmdls
+    , Alonzo._prices
+    , Alonzo._maxTxExUnits
+    , Alonzo._maxBlockExUnits
+    , Alonzo._maxValSize
+    , Alonzo._collateralPercentage
+    , Alonzo._maxCollateralInputs
+    } = Cardano.ProtocolParameters {
+      protocolParamProtocolVersion     = (\(Shelley.ProtVer a b) -> (a,b))
+                                           _protocolVersion
+    , protocolParamDecentralization    = SL.unboundRational _d
+    , protocolParamExtraPraosEntropy   = fromLedgerNonce _extraEntropy
+    , protocolParamMaxBlockHeaderSize  = _maxBHSize
+    , protocolParamMaxBlockBodySize    = _maxBBSize
+    , protocolParamMaxTxSize           = _maxTxSize
+    , protocolParamTxFeeFixed          = _minfeeB
+    , protocolParamTxFeePerByte        = _minfeeA
+    , protocolParamMinUTxOValue        = Nothing
+    , protocolParamStakeAddressDeposit = fromShelleyLovelace _keyDeposit
+    , protocolParamStakePoolDeposit    = fromShelleyLovelace _poolDeposit
+    , protocolParamMinPoolCost         = fromShelleyLovelace _minPoolCost
+    , protocolParamPoolRetireMaxEpoch  = _eMax
+    , protocolParamStakePoolTargetNum  = _nOpt
+    , protocolParamPoolPledgeInfluence = SL.unboundRational _a0
+    , protocolParamMonetaryExpansion   = SL.unboundRational _rho
+    , protocolParamTreasuryCut         = SL.unboundRational _tau
+    , protocolParamUTxOCostPerWord     = Just (fromShelleyLovelace _coinsPerUTxOWord)
+    , protocolParamCostModels          = fromAlonzoCostModels _costmdls
+    , protocolParamPrices              = Just (fromAlonzoPrices _prices)
+    , protocolParamMaxTxExUnits        = Just (fromAlonzoExUnits _maxTxExUnits)
+    , protocolParamMaxBlockExUnits     = Just (fromAlonzoExUnits _maxBlockExUnits)
+    , protocolParamMaxValueSize        = Just _maxValSize
+    , protocolParamCollateralPercent   = Just _collateralPercentage
+    , protocolParamMaxCollateralInputs = Just _maxCollateralInputs
+    }
+  where
+      fromAlonzoPrices :: Alonzo.Prices -> Cardano.ExecutionUnitPrices
+      fromAlonzoPrices Alonzo.Prices{Alonzo.prSteps, Alonzo.prMem} = Cardano.ExecutionUnitPrices
+          { priceExecutionSteps  = Ledger.unboundRational prSteps
+          , priceExecutionMemory = Ledger.unboundRational prMem
+          }
+
+      fromAlonzoExUnits :: Alonzo.ExUnits -> Cardano.ExecutionUnits
+      fromAlonzoExUnits Alonzo.ExUnits{Alonzo.exUnitsSteps, Alonzo.exUnitsMem} = Cardano.ExecutionUnits
+          { executionSteps  = exUnitsSteps
+          , executionMemory = exUnitsMem
+          }
+
+      fromAlonzoScriptLanguage :: Alonzo.Language -> Cardano.AnyPlutusScriptVersion
+      fromAlonzoScriptLanguage Alonzo.PlutusV1 =
+          Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1
+
+      fromAlonzoCostModel :: Alonzo.CostModel -> Cardano.CostModel
+      fromAlonzoCostModel (Alonzo.CostModel m) = Cardano.CostModel m
+
+      fromAlonzoCostModels
+          :: Map Alonzo.Language Alonzo.CostModel
+          -> Map Cardano.AnyPlutusScriptVersion Cardano.CostModel
+      fromAlonzoCostModels =
+          Map.fromList
+          . map (bimap fromAlonzoScriptLanguage fromAlonzoCostModel)
+          . Map.toList
+
 
 desiredNumberOfStakePoolsFromPParams
     :: HasField "_nOpt" pparams Natural
