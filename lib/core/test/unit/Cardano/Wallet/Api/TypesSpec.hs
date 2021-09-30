@@ -1234,6 +1234,8 @@ spec = parallel $ do
                         eras (x :: ApiNetworkParameters)
                     , maximumCollateralInputCount =
                         maximumCollateralInputCount (x :: ApiNetworkParameters)
+                    , minimumCollateralPercentage =
+                        minimumCollateralPercentage (x :: ApiNetworkParameters)
                     , executionUnitPrices =
                         executionUnitPrices (x :: ApiNetworkParameters)
                     }

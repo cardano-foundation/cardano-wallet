@@ -1050,6 +1050,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , maximumTokenBundleSize :: !(Quantity "byte" Natural)
     , eras :: !ApiEraInfo
     , maximumCollateralInputCount :: !Word16
+    , minimumCollateralPercentage :: !Natural
     , executionUnitPrices :: !(Maybe ExecutionUnitPrices)
     } deriving (Eq, Generic, Show)
 
@@ -1097,7 +1098,9 @@ toApiNetworkParameters (NetworkParameters gp sp pp) txConstraints toEpochInfo = 
                 txOutputMinimumAdaQuantity txConstraints TokenMap.empty
         , eras = apiEras
         , maximumCollateralInputCount =
-              view #maximumCollateralInputCount pp
+            view #maximumCollateralInputCount pp
+        , minimumCollateralPercentage =
+            view #minimumCollateralPercentage pp
         , maximumTokenBundleSize = Quantity $ pp ^.
             (#txParameters . #getTokenBundleMaxSize . #unTokenBundleMaxSize .
             #unTxSize)
