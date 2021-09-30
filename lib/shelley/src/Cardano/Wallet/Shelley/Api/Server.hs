@@ -314,7 +314,7 @@ server byron icarus shelley multisig spl ntp =
         :<|> deleteTransaction shelley
         :<|> postTransactionOld shelley (delegationAddress @n)
         :<|> postTransactionFeeOld shelley
-        :<|> balanceTransaction shelley
+        :<|> balanceTransaction shelley (delegationAddress @n)
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =

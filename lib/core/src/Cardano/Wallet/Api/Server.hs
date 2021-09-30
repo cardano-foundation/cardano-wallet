@@ -1551,7 +1551,7 @@ selectCoins ctx genChange (ApiT wid) body = do
                 { txWithdrawal = wdrl
                 , txMetadata = getApiT <$> body ^. #metadata
                 }
-        let transform = \s sel ->
+        let transform s sel =
                 W.assignChangeAddresses genChange sel s
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
@@ -1602,7 +1602,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 { txDelegationAction = Just action
                 }
 
-        let transform = \s sel ->
+        let transform s sel =
                 W.assignChangeAddresses (delegationAddress @n) sel s
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
@@ -1647,7 +1647,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
                 { txDelegationAction = Just action
                 }
 
-        let transform = \s sel ->
+        let transform s sel =
                 W.assignChangeAddresses (delegationAddress @n) sel s
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
@@ -2087,7 +2087,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
             --, txDelegationAction --TODO: this will be tackled when delegations are supported
             }
 
-    let transform = \s sel ->
+    let transform s sel =
             W.assignChangeAddresses genChange sel s
             & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
 
@@ -2203,19 +2203,22 @@ balanceTransaction
         , Typeable s
         , Typeable n
         , HardDerivation k
+        , IsOurs s Address
+        , GenChange s
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
+    -> ArgGenChange s
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
     -> Handler (ApiConstructTransaction n)
-balanceTransaction ctx (ApiT wid) body = do
+balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
 
     --TODO  deal with coll and validity and delegations
-    let (Tx _id _fee _coll _inps _outs wdrlMap mdM _validity) = txIncoming
+    let (Tx _id _fee _coll _inps outs wdrlMap mdM _validity) = txIncoming
 
-    (_sel, (FeeEstimation feeMin _)) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    ((FeeEstimation feeMin _), unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
         (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
         (wdrl, _) <-
@@ -2224,31 +2227,19 @@ balanceTransaction ctx (ApiT wid) body = do
             else
                 mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
         let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
+        ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
                 { txPlutusScriptExecutionCost = executionFee
                 , txMetadata = mdM
                 , txWithdrawal = wdrl
+                , txTimeToLive = ttl
                 }
-
-        let _txData = toApiConstructTransactionData txIncoming
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
-        sel <- liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
-            { outputs = []
-            , pendingTxs
-            , txContext = txCtx
-            , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
-            , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO utxoAvailable
-            , wallet
-            }
-            (const Prelude.id)
-
         let runSelection = W.selectAssets @_ @s @k wrk W.SelectAssetsParams
-                { outputs = []
+                { outputs = outs
                 , pendingTxs
                 , txContext = txCtx
                 , utxoAvailableForInputs =
@@ -2258,18 +2249,35 @@ balanceTransaction ctx (ApiT wid) body = do
                 , wallet
                 } getFee
               where getFee = const (selectionDelta TokenBundle.getCoin)
-        fee <- liftHandler $ W.estimateFee runSelection
-        return (sel, fee)
 
-    -- TODO
-    -- here goes coin selection with external inputs
-    -- we call it with :
-    --    txCtx
-    --    _appliedExternalInps
-    --   txData :: ApiConstructTransactionData
-    let cs = undefined :: (ApiCoinSelection n)-- "coin selection accepting external inputs/txCtx will come here "
+        let transform s sel' =
+                W.assignChangeAddresses genChange sel' s
+                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+        unsignedtx <- liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            { outputs = outs
+            , pendingTxs
+            , txContext = txCtx
+            , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+            , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
+            , wallet
+            }
+            transform
+
+        fee <- liftHandler $ W.estimateFee runSelection
+        return (fee, unsignedtx)
+
+    --TODO  deal with coll
+    let UnsignedTx _coll inps _outs change _wdrl = unsignedtx
+    let extraBody = ExtraTxBodyContent
+            { extraInputs = (\(txin, _, _) -> txin) <$> F.toList inps
+            , extraOutputs = toTxOut <$> change
+            , newFee = const (Coin feeMin)
+            }
+    let cs = mkApiCoinSelection [] Nothing mdM unsignedtx
     sealedTxOutcoming <-
-        case updateTx tl sealedTxIncoming (getInpsChange cs) of
+        case updateTx tl sealedTxIncoming extraBody of
             Right result -> pure result
             Left err ->
                 liftHandler $ throwE $ ErrBalanceTxUpdateError err
@@ -2281,41 +2289,16 @@ balanceTransaction ctx (ApiT wid) body = do
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
-    toTxIn (ApiCoinSelectionInput (ApiT txid) ix _ _ _ _) =
-        TxIn txid ix
-    toTxOut (ApiCoinSelectionChange (ApiT addr,_) (Quantity amt) (ApiT assets) _) =
-        TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
-    getInpsChange cs = ExtraTxBodyContent
-        { extraInputs = map toTxIn $ NE.toList $ cs ^. #inputs
-        , extraOutputs = map toTxOut $ cs ^. #change
-        , newFee = const (Coin 0)
-        }
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter nl
+
     apiExternalInps = body ^. #inputs
     getAmtFromExternalInps (ApiExternalInput _ (ApiTxOut _ _ (Quantity amt) _)) = amt
     _appliedExternalInps = sum $ getAmtFromExternalInps <$> apiExternalInps
     sealedTxIncoming = body ^. #transaction . #getApiT
     txIncoming = decodeTx tl sealedTxIncoming
-
-    -- TODO - maybe we can fill in more below
-    toApiConstructTransactionData (Tx _id _fee _coll _inps outs wdrlM mdM _validity) = ApiConstructTransactionData
-        { payments = toApiPaymentDesination outs
-        , withdrawal = toApiWdrl wdrlM
-        , metadata = ApiT <$> mdM
-        , mint = Nothing
-        , delegations = Nothing
-        , validityInterval = Nothing
-        }
-    toApiWdrl :: Map RewardAccount Coin -> Maybe ApiWithdrawalPostData
-    toApiWdrl _ = Nothing --TODO in ADP-656 - I need to lookup the wallet rewardAcct against this map?
-    toApiPaymentDesination = \case
-        [] -> Nothing
-        txouts -> Just $ ApiPaymentAddresses $ NE.fromList $ toAddressAmount <$> txouts
-    toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
-    toAddressAmount (TxOut addr (TokenBundle coin tokenMap)) = AddressAmount
-        { address = (ApiT addr, Proxy)
-        , amount = Quantity $ fromIntegral (unCoin coin)
-        , assets = ApiT tokenMap
-        }
+    toTxOut (TxChange addr amt assets _) =
+        TxOut addr (TokenBundle amt assets)
 
 joinStakePool
     :: forall ctx s n k.
@@ -2701,8 +2684,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
             & view #selections
             & F.foldMap (view #rewardWithdrawal)
 
-    mkApiCoinSelectionForMigration unsignedTx =
-        mkApiCoinSelection [] Nothing Nothing unsignedTx
+    mkApiCoinSelectionForMigration = mkApiCoinSelection [] Nothing Nothing
 
     mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
     mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
