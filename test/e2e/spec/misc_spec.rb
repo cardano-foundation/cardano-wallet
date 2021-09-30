@@ -13,8 +13,24 @@ RSpec.describe CardanoWallet::Misc do
     end
 
     it "Can check network parameters" do
+      network_params = ["slot_length",
+                        "decentralization_level",
+                        "maximum_token_bundle_size",
+                        "genesis_block_hash",
+                        "blockchain_start_time",
+                        "desired_pool_number",
+                        "execution_unit_prices",
+                        "eras",
+                        "minimum_collateral_percentage",
+                        "active_slot_coefficient",
+                        "security_parameter",
+                        "minimum_utxo_value",
+                        "maximum_collateral_input_count"]
       res = NETWORK.parameters
       expect(res).to be_correct_and_respond 200
+      network_params.each do |p|
+        expect(res.to_s).to include p
+      end
     end
   end
 
