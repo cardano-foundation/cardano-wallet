@@ -443,6 +443,7 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrSignTx (..)
+    , ExtraTxBodyContent (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -2206,7 +2207,7 @@ balanceTransaction
 balanceTransaction ctx (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
 
-    _sel <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (_sel, (FeeEstimation feeMin _)) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
         let txCtx = defaultTransactionCtx
                 { txPlutusScriptExecutionCost = executionFee
@@ -2215,7 +2216,8 @@ balanceTransaction ctx (ApiT wid) body = do
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+
+        sel <- liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
             { outputs = []
             , pendingTxs
             , txContext = txCtx
@@ -2227,6 +2229,20 @@ balanceTransaction ctx (ApiT wid) body = do
             }
             (const Prelude.id)
 
+        let runSelection = W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+                { outputs = []
+                , pendingTxs
+                , txContext = txCtx
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
+                , wallet
+                } getFee
+              where getFee = const (selectionDelta TokenBundle.getCoin)
+        fee <- liftHandler $ W.estimateFee runSelection
+        return (sel, fee)
+
     -- TODO
     -- here goes coin selection with external inputs
     -- we call it with :
@@ -2234,7 +2250,7 @@ balanceTransaction ctx (ApiT wid) body = do
     --    _appliedExternalInps
     --   txData :: ApiConstructTransactionData
     let cs = undefined :: (ApiCoinSelection n)-- "coin selection accepting external inputs/txCtx will come here "
-    (sealedTxOutcoming, newfee) <-
+    sealedTxOutcoming <-
         case updateTx tl sealedTxIncoming (getInpsChange cs) of
             Right result -> pure result
             Left err ->
@@ -2242,7 +2258,7 @@ balanceTransaction ctx (ApiT wid) body = do
     pure $ ApiConstructTransaction
         { transaction = ApiT sealedTxOutcoming
         , coinSelection = cs
-        , fee = Quantity $ fromIntegral newfee
+        , fee = Quantity $ fromIntegral feeMin
         }
   where
     nl = ctx ^. networkLayer
@@ -2251,9 +2267,11 @@ balanceTransaction ctx (ApiT wid) body = do
         TxIn txid ix
     toTxOut (ApiCoinSelectionChange (ApiT addr,_) (Quantity amt) (ApiT assets) _) =
         TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
-    getInpsChange cs =
-        ( map toTxIn $ NE.toList $ cs ^. #inputs
-        , map toTxOut $ cs ^. #change)
+    getInpsChange cs = ExtraTxBodyContent
+        { extraInputs = map toTxIn $ NE.toList $ cs ^. #inputs
+        , extraOutputs = map toTxOut $ cs ^. #change
+        , newFee = const (Coin 0)
+        }
     apiExternalInps = body ^. #inputs
     getAmtFromExternalInps (ApiExternalInput _ (ApiTxOut _ _ (Quantity amt) _)) = amt
     _appliedExternalInps = sum $ getAmtFromExternalInps <$> apiExternalInps

@@ -25,6 +25,7 @@ module Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
+    , ExtraTxBodyContent (..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -75,8 +76,6 @@ import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Text
     ( Text )
-import Data.Word
-    ( Word64 )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -183,11 +182,27 @@ data TransactionLayer k tx = TransactionLayer
 
     , updateTx
         :: tx
-        -> ( [TxIn], [TxOut] )
-        -> Either ErrUpdateSealedTx (tx, Word64)
-        -- ^ Update tx by adding additional inputs and outputs and give recalculated fee
+        -> ExtraTxBodyContent
+        -> Either ErrUpdateSealedTx tx
+        -- ^ Update tx by adding additional inputs and outputs
     }
     deriving Generic
+
+-- | Describes modifications that can be made to a `TxBody` using
+-- `updateTx`.
+data ExtraTxBodyContent = ExtraTxBodyContent
+    { extraInputs :: [TxIn]
+    , extraCollateral :: [TxIn]
+       -- ^ Only used in the Alonzo era and later. Will be silently ignored in
+       -- previous eras.
+    , extraOutputs :: [TxOut]
+    , newFee :: Coin -> Coin
+        -- ^ Set the new fee, given the old one.
+        --
+        -- Note that you most likely won't care about the old fee at all. But it
+        -- is useful to allow defining a no-op `ExtraTxBodyContent` for the sake
+        -- of testing.
+    }
 
 -- | Some additional context about a transaction. This typically contains
 -- details that are known upfront about the transaction and are used to
