@@ -23,10 +23,14 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
 
       performSelection
     , PerformSelection
+    , PerformSelectionOf
     , SelectionConstraints (..)
-    , SelectionParams (..)
-    , SelectionResult (..)
-    , SelectionError (..)
+    , SelectionParams
+    , SelectionParamsOf (..)
+    , SelectionResult
+    , SelectionResultOf (..)
+    , SelectionError
+    , SelectionErrorOf (..)
     , SearchSpaceLimit (..)
     , searchSpaceLimitDefault
 
@@ -57,6 +61,8 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn )
 import Data.Function
     ( (&) )
 import Data.List.NonEmpty
@@ -87,10 +93,16 @@ import qualified Numeric.SpecFunctions as MathFast
 -- Public API
 --------------------------------------------------------------------------------
 
-type PerformSelection inputId =
+-- | The type of all functions that perform selections.
+--
+type PerformSelectionOf inputId =
     SelectionConstraints ->
-    SelectionParams inputId ->
-    Either (SelectionError inputId) (SelectionResult inputId)
+    SelectionParamsOf inputId ->
+    Either (SelectionErrorOf inputId) (SelectionResultOf inputId)
+
+-- | The default type for 'PerformSelectionOf'.
+--
+type PerformSelection = PerformSelectionOf TxIn
 
 -- | Specifies all constraints required for collateral selection.
 --
@@ -116,7 +128,7 @@ data SelectionConstraints = SelectionConstraints
 
 -- | Specifies all parameters that are specific to a given selection.
 --
-data SelectionParams inputId = SelectionParams
+data SelectionParamsOf inputId = SelectionParams
     { coinsAvailable
         :: Map inputId Coin
         -- ^ The set of all coins available for selection as collateral.
@@ -125,6 +137,10 @@ data SelectionParams inputId = SelectionParams
         -- ^ A lower bound on the sum of coins to be selected as collateral.
     }
     deriving (Eq, Generic, Show)
+
+-- | The default type for 'SelectionParamsOf'.
+--
+type SelectionParams = SelectionParamsOf TxIn
 
 -- | Specifies an upper bound on the search space size.
 --
@@ -148,19 +164,27 @@ searchSpaceLimitDefault = SearchSpaceLimit 1_000_000
 
 -- | Represents a successful selection of collateral.
 --
-newtype SelectionResult inputId = SelectionResult
+newtype SelectionResultOf inputId = SelectionResult
     { coinsSelected :: Map inputId Coin
         -- ^ The coins that were selected for collateral.
     }
     deriving (Eq, Generic, Show)
 
+-- | The default type for 'SelectionResultOf'.
+--
+type SelectionResult = SelectionResultOf TxIn
+
 -- | Represents an unsuccessful attempt to select collateral.
 --
-newtype SelectionError inputId = SelectionError
+newtype SelectionErrorOf inputId = SelectionError
     { largestCombinationAvailable :: Map inputId Coin
         -- ^ The largest combination of coins available.
     }
     deriving (Eq, Generic, Show)
+
+-- | The default type for `SelectionErrorOf`.
+--
+type SelectionError = SelectionErrorOf TxIn
 
 -- | Selects coins for collateral.
 --
@@ -195,7 +219,7 @@ newtype SelectionError inputId = SelectionError
 --    >>> size largestCombinationAvailable ≤ maximumSelectionSize
 --    >>>      largestCombinationAvailable ⊆ coinsAvailable
 --
-performSelection :: forall inputId. Ord inputId => PerformSelection inputId
+performSelection :: forall inputId. Ord inputId => PerformSelectionOf inputId
 performSelection constraints =
     firstRight $ fmap ($ constraints)
         [ selectCollateralSmallest
@@ -219,7 +243,7 @@ performSelection constraints =
 -- function will return without computing a result.
 --
 selectCollateralSmallest
-    :: forall inputId. Ord inputId => PerformSelection inputId
+    :: forall inputId. Ord inputId => PerformSelectionOf inputId
 selectCollateralSmallest constraints params =
     case smallestValidCombination of
         Just coinsSelected ->
@@ -285,7 +309,7 @@ selectCollateralSmallest constraints params =
 -- This result can be computed very quickly, without using much search space.
 --
 selectCollateralLargest
-    :: forall inputId. Ord inputId => PerformSelection inputId
+    :: forall inputId. Ord inputId => PerformSelectionOf inputId
 selectCollateralLargest constraints params =
     case smallestValidSubmapOfLargestCombinationAvailable of
         Just coinsSelected ->
