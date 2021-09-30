@@ -145,6 +145,8 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( IsUTxOSelection, UTxOSelection, UTxOSelectionNonEmpty )
+import Control.Monad.Extra
+    ( andM )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Bifunctor
@@ -169,6 +171,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Ord
     ( comparing )
+import Data.Semigroup
+    ( mtimesDefault )
 import Data.Set
     ( Set )
 import Fmt
@@ -560,9 +564,11 @@ selectionHasValidSurplus constraints selection =
         SelectionDeficit _ -> False
   where
     surplusIsValid :: TokenBundle -> Bool
-    surplusIsValid = (&&)
-        <$> surplusHasNoNonAdaAssets
-        <*> surplusNotBelowMinimumCost
+    surplusIsValid = andM
+        [ surplusHasNoNonAdaAssets
+        , surplusNotBelowMinimumCost
+        , surplusNotAboveMaximumCost
+        ]
 
     -- None of the non-ada assets can have a surplus.
     surplusHasNoNonAdaAssets :: TokenBundle -> Bool
@@ -573,6 +579,11 @@ selectionHasValidSurplus constraints selection =
     surplusNotBelowMinimumCost :: TokenBundle -> Bool
     surplusNotBelowMinimumCost surplus =
         view #coin surplus >= selectionMinimumCost constraints selection
+
+    -- The surplus must not be greater than the maximum cost.
+    surplusNotAboveMaximumCost :: TokenBundle -> Bool
+    surplusNotAboveMaximumCost surplus =
+        view #coin surplus <= selectionMaximumCost constraints selection
 
 -- | Calculates the ada selection surplus, assuming there is a surplus.
 --
@@ -608,6 +619,27 @@ selectionMinimumCost
     -> SelectionResultOf (f TxOut)
     -> Coin
 selectionMinimumCost c = view #computeMinimumCost c . selectionSkeleton
+
+-- | Computes the maximum acceptable cost of a selection.
+--
+-- This function acts as a safety limit to ensure that fees of selections
+-- produced by 'performSelection' are not excessively high.
+--
+-- Ideally, we'd always be able to generate selections with fees that are
+-- precisely equal to 'selectionMinimumCost'. However, in some situations
+-- it may be necessary to exceed this cost very slightly.
+--
+-- This function provides a conservative upper bound to a selection cost
+-- that we can reference from within property tests.
+--
+-- See 'selectionHasValidSurplus'.
+--
+selectionMaximumCost
+    :: Foldable f
+    => SelectionConstraints
+    -> SelectionResultOf (f TxOut)
+    -> Coin
+selectionMaximumCost c = mtimesDefault (2 :: Int) . selectionMinimumCost c
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
