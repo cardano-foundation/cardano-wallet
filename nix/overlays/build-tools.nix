@@ -28,12 +28,12 @@
 ######################################################################
 
 let
-  index-state = "2021-06-30T00:00:00Z";
+  index-state = "2021-09-29T00:00:00Z";
   tools = {
     cabal-cache.version             = "1.0.2.1";
     cabal-install.exe               = "cabal";
     cabal-install.version           = "3.4.0.0";
-    haskell-language-server.version = "1.2.0.0";
+    haskell-language-server.version = "1.4.0.0";
     hoogle.version                  = "5.0.18.1";
     hlint.version                   = "3.3.1";
     lentil.version                  = "1.5.2.0";
@@ -41,7 +41,7 @@ let
     weeder.version                  = "2.1.3";
   };
 
-  compiler-nix-name = "ghc8105";  # TODO: get it from the project
+  compiler-nix-name = "ghc8107";  # TODO: get it from the project
 in
 
 pkgs: super: let

@@ -208,6 +208,13 @@ let
         '';
       })
 
+      # Make git available for TH code that uses it to get the git revision
+      ({ pkgs, ...}: {
+        packages.cardano-config.components.library.build-tools = [
+          pkgs.buildPackages.buildPackages.gitReallyMinimal
+        ];
+      })
+
       # Provide the swagger file in an environment variable for
       # tests because it is located outside of the Cabal package
       # source tree.
