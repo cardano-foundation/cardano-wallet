@@ -126,6 +126,7 @@ dummyProtocolParameters = ProtocolParameters
     , stakeKeyDeposit = Coin 0
     , eras = emptyEraInfo
     , maximumCollateralInputCount = 3
+    , minimumCollateralPercentage = 100
     , executionUnitPrices = Nothing
     }
 
