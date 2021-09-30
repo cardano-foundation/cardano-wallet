@@ -2199,6 +2199,11 @@ balanceTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k
         , HasNetworkLayer IO ctx
+        , WalletKey k
+        , Typeable s
+        , Typeable n
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> ApiT WalletId
@@ -2207,11 +2212,24 @@ balanceTransaction
 balanceTransaction ctx (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
 
+    --TODO  deal with coll and validity and delegations
+    let (Tx _id _fee _coll _inps _outs wdrlMap mdM _validity) = txIncoming
+
     (_sel, (FeeEstimation feeMin _)) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+
+        (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        (wdrl, _) <-
+            if Map.member acct wdrlMap then
+                mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
+            else
+                mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
         let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
         let txCtx = defaultTransactionCtx
                 { txPlutusScriptExecutionCost = executionFee
+                , txMetadata = mdM
+                , txWithdrawal = wdrl
                 }
+
         let _txData = toApiConstructTransactionData txIncoming
 
         (utxoAvailable, wallet, pendingTxs) <-
