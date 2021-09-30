@@ -60,6 +60,7 @@ module Test.Integration.Framework.DSL
     , epochLengthValue
     , defaultTxTTL
     , maximumCollateralInputCountByEra
+    , minimumCollateralPercentageByEra
 
     -- * Create wallets
     , restoreWalletFromPubKey
@@ -680,6 +681,15 @@ maximumCollateralInputCountByEra = \case
     ApiMary    -> 0
     -- value from alonzo-genesis.yaml:
     ApiAlonzo  -> 3
+
+minimumCollateralPercentageByEra :: ApiEra -> Natural
+minimumCollateralPercentageByEra = \case
+    ApiByron   -> 0
+    ApiShelley -> 0
+    ApiAllegra -> 0
+    ApiMary    -> 0
+    -- value from alonzo-genesis.yaml:
+    ApiAlonzo  -> 150
 
 --
 -- Helpers
