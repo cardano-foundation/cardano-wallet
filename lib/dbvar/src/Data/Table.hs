@@ -86,7 +86,7 @@ selectWhere p = Pile . filter p . Map.elems . rows
 
 -- | Insert rows into the table.
 insertMany :: [row] -> Table row -> Table row
-insertMany rs table = ($ table) . foldr (.) id $ map insertRow rs
+insertMany rs table = foldr insertRow table rs
   where
     insertRow row Table{rows,uids} =
         Table{ rows = Map.insert uid row rows, uids = uids2 }

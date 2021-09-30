@@ -1,6 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeFamilies #-}
-{- HLINT ignore "Fuse foldr/map" -}
 module Data.Chain (
     -- * Synopsis
     -- | 'Chain'@ node edge@ is a linear chain of nodes with directed
@@ -102,6 +101,7 @@ fromEdge Edge{from,to,via} = Chain
     , tip  = to
     }
 
+{- HLINT ignore fromEdges "Fuse foldr/map" -}
 -- | Construct a chain from a collection of edges.
 -- Fails if the edges do not fit together.
 --
@@ -207,7 +207,7 @@ rollbackTo new chain@Chain{next,prev,tip}
         }
     | otherwise = chain
   where
-    deleteAll = foldr (.) id . map Map.delete
+    deleteAll dels m = foldr Map.delete m dels
     deletions = unfoldr backwards tip
     backwards now = do
         guard $ new /= now

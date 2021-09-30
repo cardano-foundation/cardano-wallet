@@ -1,8 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeFamilies #-}
 {- HLINT ignore "Use newtype instead of data" -}
 module Data.Delta (
     -- * Synopsis
@@ -81,6 +81,11 @@ instance Delta (Replace a) where
 instance Semigroup (Replace a) where
     r <> _ = r
 
+-- | A delta can be optionally applied.
+instance Delta delta => Delta (Maybe delta) where
+    type Base (Maybe delta) = Base delta
+    apply = maybe id apply
+
 -- | A list of deltas can be applied like a single delta.
 -- This overloading of 'apply' is very convenient.
 --
@@ -91,7 +96,7 @@ instance Semigroup (Replace a) where
 -- > apply (d1 <> d2) = apply d1 . apply d2
 instance Delta delta => Delta [delta] where
     type Base [delta] = Base delta
-    apply = foldr (.) id . map apply
+    apply ds a = foldr apply a ds
 
 -- | A pair of deltas represents a delta for a pair.
 instance (Delta d1, Delta d2) => Delta (d1,d2) where

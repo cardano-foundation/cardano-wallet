@@ -17,7 +17,7 @@ module Data.DBVar (
 
     -- * DBVar
       DBVar
-    , readDBVar, updateDBVar, modifyDBVar
+    , readDBVar, updateDBVar, modifyDBVar, modifyDBMaybe
     , initDBVar, loadDBVar
 
     -- * Store
@@ -85,6 +85,18 @@ modifyDBVar var f = do
     a <- readDBVar var
     let (delta, b) = f a
     updateDBVar var delta
+    pure b
+
+-- | Maybe modify the value in a 'DBVar'
+modifyDBMaybe
+    :: (Delta da, Monad m, a ~ Base da)
+    => DBVar m da -> (a -> (Maybe da, b)) -> m b
+modifyDBMaybe var f = do
+    a <- readDBVar var
+    let (mdelta, b) = f a
+    case mdelta of
+        Just da -> updateDBVar var da
+        Nothing -> pure ()
     pure b
 
 -- | Initialize a new 'DBVar' for a given 'Store'.
