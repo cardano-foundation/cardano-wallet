@@ -3952,49 +3952,52 @@ instance IsServerError ErrSelectAssets where
                 , "transaction, then cancel the previous one first."
                 ]
         ErrSelectAssetsSelectionError (SelectionBalanceError selectionError) ->
-            case selectionError of
-                Balance.BalanceInsufficient e ->
-                    apiError err403 NotEnoughMoney $ mconcat
-                        [ "I can't process this payment as there are not "
-                        , "enough funds available in the wallet. I am "
-                        , "missing: ", pretty . Flat $ balanceMissing e
-                        ]
-                Balance.SelectionLimitReached e ->
-                    apiError err403 TransactionIsTooBig $ mconcat
-                        [ "I am not able to finalize the transaction "
-                        , "because I need to select additional inputs and "
-                        , "doing so will make the transaction too big. Try "
-                        , "sending a smaller amount. I had already selected "
-                        , showT (length $ view #inputsSelected e), " inputs."
-                        ]
-                Balance.InsufficientMinCoinValues xs ->
-                    apiError err403 UtxoTooSmall $ mconcat
-                        [ "Some outputs have ada values that are too small. "
-                        , "There's a minimum ada value specified by the "
-                        , "protocol that each output must satisfy. I'll handle "
-                        , "that minimum value myself when you do not explicitly "
-                        , "specify an ada value for an output. Otherwise, you "
-                        , "must specify enough ada. Here are the problematic "
-                        , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
-                        ]
-                Balance.UnableToConstructChange e ->
-                    apiError err403 CannotCoverFee $ T.unwords
-                        [ "I am unable to finalize the transaction, as there"
-                        , "is not enough ada available to pay for the fee and"
-                        , "also pay for the minimum ada quantities of all"
-                        , "change outputs. I need approximately"
-                        , pretty (shortfall e)
-                        , "ada to proceed. Try increasing your wallet balance"
-                        , "or sending a smaller amount."
-                        ]
-                Balance.EmptyUTxO ->
-                    apiError err403 NotEnoughMoney $ T.unwords
-                        [ "Cannot create a transaction because the wallet"
-                        , "has no UTxO entries. At least one UTxO entry is"
-                        , "required in order to create a transaction."
-                        ]
+            toServerError selectionError
         ErrSelectAssetsSelectionError (SelectionOutputsError selectionError) ->
             toServerError selectionError
+
+instance IsServerError (Balance.SelectionError) where
+    toServerError = \case
+        Balance.BalanceInsufficient e ->
+            apiError err403 NotEnoughMoney $ mconcat
+                [ "I can't process this payment as there are not "
+                , "enough funds available in the wallet. I am "
+                , "missing: ", pretty . Flat $ balanceMissing e
+                ]
+        Balance.SelectionLimitReached e ->
+            apiError err403 TransactionIsTooBig $ mconcat
+                [ "I am not able to finalize the transaction "
+                , "because I need to select additional inputs and "
+                , "doing so will make the transaction too big. Try "
+                , "sending a smaller amount. I had already selected "
+                , showT (length $ view #inputsSelected e), " inputs."
+                ]
+        Balance.InsufficientMinCoinValues xs ->
+            apiError err403 UtxoTooSmall $ mconcat
+                [ "Some outputs have ada values that are too small. "
+                , "There's a minimum ada value specified by the "
+                , "protocol that each output must satisfy. I'll handle "
+                , "that minimum value myself when you do not explicitly "
+                , "specify an ada value for an output. Otherwise, you "
+                , "must specify enough ada. Here are the problematic "
+                , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
+                ]
+        Balance.UnableToConstructChange e ->
+            apiError err403 CannotCoverFee $ T.unwords
+                [ "I am unable to finalize the transaction, as there"
+                , "is not enough ada available to pay for the fee and"
+                , "also pay for the minimum ada quantities of all"
+                , "change outputs. I need approximately"
+                , pretty (shortfall e)
+                , "ada to proceed. Try increasing your wallet balance"
+                , "or sending a smaller amount."
+                ]
+        Balance.EmptyUTxO ->
+            apiError err403 NotEnoughMoney $ T.unwords
+                [ "Cannot create a transaction because the wallet"
+                , "has no UTxO entries. At least one UTxO entry is"
+                , "required in order to create a transaction."
+                ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
     toServerError = \case
