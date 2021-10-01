@@ -126,6 +126,7 @@ import Cardano.Wallet.Shelley.Compatibility
     ( fromCardanoLovelace
     , fromCardanoTx
     , fromCardanoTxIn
+    , fromCardanoWdrls
     , fromLedgerExUnits
     , toCardanoLovelace
     , toCardanoStakeCredential
@@ -150,9 +151,11 @@ import Cardano.Wallet.Transaction
 import Control.Arrow
     ( left, second )
 import Control.Monad
-    ( unless )
+    ( guard, unless )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -311,12 +314,8 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
             wdrl
 
     unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
-    let wdrlsWits
-            | null wdrls = []
-            | otherwise =
-              [mkShelleyWitness unsigned (rewardAcnt, pwdAcnt)]
-    let signed = signTransaction networkId resolveInput
-            (unsigned, wdrlsWits <> mkExtraWits unsigned)
+    let signed = signTransaction networkId resolveInput resolveAccount
+            (unsigned, mkExtraWits unsigned)
 
     let withResolvedInputs tx = tx
             { resolvedInputs = second txOutCoin <$> F.toList (view #inputs cs)
@@ -333,6 +332,12 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
             (k, pwd) <- keyFrom addr
             pure (addr, k, pwd)
 
+    resolveAccount :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
+    resolveAccount acct = do
+        let acct' = toRewardAccountRaw $ toXPub rewardAcnt
+        guard (acct == acct') $> (rewardAcnt, pwdAcnt)
+
+
 -- Adds VK witnesses to an already constructed transactions. The function
 -- preserves any existing witnesses on the transaction, and resolve inputs
 -- dynamically using the provided lookup function.
@@ -347,35 +352,55 @@ signTransaction
     => Cardano.NetworkId
     -- ^ Network identifer (e.g. mainnet, testnet)
     -> (TxIn -> Maybe (Address, k 'AddressK XPrv, Passphrase "encryption"))
-    -- ^ Key store / input resolution
+    -- ^ Payment key store / input resolution
+    -> (RewardAccount -> Maybe (XPrv, Passphrase "encryption"))
+    -- ^ Stake key store / reward account resolution
     -> (Cardano.TxBody era, [Cardano.KeyWitness era])
     -- ^ The transaction to sign, possibly with already some existing witnesses
     -> Cardano.Tx era
-signTransaction networkId resolveInput (body@(Cardano.TxBody bodyContent), wits) =
+signTransaction networkId resolveInput resolveRewardAcct (body, wits) =
     Cardano.makeSignedTransaction wits' body
  where
-    -- FIXME: inputs are not the only source of vk-witnesses! In Alonzo, there
-    -- are at least two other sources:
-    --
-    -- (a) Extra required signatures
-    -- (b) collaterals
-    --
-    -- Withdrawals are currently "out of scope", or more exactly, handled
-    -- outside of this function and provided as pre-existing witnesses. This is
-    -- because withdrawals aren't signed by payment keys but stake keys.
-    wits' = wits <> mapMaybe mkVkWitness inputs
+    -- FIXME: This should also account for 'txExtraKeyWits' which may refer to
+    -- keys of the wallet.
+    wits' = mconcat
+        [ wits
+        , mapMaybe mkTxInWitness inputs
+        , mapMaybe mkTxInWitness collaterals
+        , mapMaybe mkWdrlWitness wdrls
+        ]
       where
-        inputs =
-            [ fromCardanoTxIn i | (i, _) <- Cardano.txIns bodyContent ]
+        Cardano.TxBody bodyContent = body
 
-    mkVkWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
-    mkVkWitness i = do
+        inputs =
+            [ fromCardanoTxIn i
+            | (i, _) <- Cardano.txIns bodyContent
+            ]
+
+        collaterals =
+            case Cardano.txInsCollateral bodyContent of
+                Cardano.TxInsCollateralNone ->
+                    []
+                Cardano.TxInsCollateral _ is ->
+                    fromCardanoTxIn <$> is
+
+        wdrls =
+            [ addr
+            | (addr, _) <- fromCardanoWdrls $ Cardano.txWithdrawals bodyContent
+            ]
+
+    mkTxInWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
+    mkTxInWitness i = do
         (addr, k, pwd) <- resolveInput i
         pure $ case (txWitnessTagFor @k) of
             TxWitnessShelleyUTxO ->
                 mkShelleyWitness body (getRawKey k, pwd)
             TxWitnessByronUTxO{} ->
                 mkByronWitness body networkId addr (getRawKey k, pwd)
+
+    mkWdrlWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
+    mkWdrlWitness a = do
+        mkShelleyWitness body <$> resolveRewardAcct a
 
 newTransactionLayer
     :: forall k.

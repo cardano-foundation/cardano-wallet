@@ -62,6 +62,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxId
     , toCardanoTxIn
     , fromCardanoTxIn
+    , fromCardanoWdrls
     , toCardanoTxOut
     , toCardanoLovelace
     , toStakeKeyRegCert
@@ -1049,6 +1050,17 @@ fromCardanoTxIn
     -> W.TxIn
 fromCardanoTxIn (Cardano.TxIn txid (Cardano.TxIx ix)) =
     W.TxIn (fromShelleyTxId $ Cardano.toShelleyTxId txid) (fromIntegral ix)
+
+fromCardanoWdrls
+    :: Cardano.TxWithdrawals build era
+    -> [(W.RewardAccount, W.Coin)]
+fromCardanoWdrls = \case
+    Cardano.TxWithdrawalsNone -> []
+    Cardano.TxWithdrawals _era xs ->
+        flip fmap xs $ \((Cardano.StakeAddress _ creds), coin, _) ->
+            ( fromStakeCredential creds
+            , fromCardanoLovelace coin
+            )
 
 fromShelleyTxOut
     :: ( SL.ShelleyBased era
