@@ -3649,6 +3649,20 @@ x-errNotEnoughMoney: &errNotEnoughMoney
       type: string
       enum: ['not_enough_money']
 
+x-errInsufficientCollateral: &errInsufficientCollateral
+  <<: *responsesErr
+  title: insufficient_collateral
+  properties:
+    message:
+      type: string
+      description: |
+        May occur when the total balance of pure ada UTxOs in the wallet is
+        insufficient to cover the minimum collateral amount required for a
+        transaction requiring collateral.
+    code:
+      type: string
+      enum: ['insufficient_collateral']
+
 x-errTransactionIsTooBig: &errTransactionIsTooBig
   <<: *responsesErr
   title: transaction_is_too_big
@@ -4514,6 +4528,7 @@ x-responsesSelectCoins: &responsesSelectCoins
             - <<: *errAlreadyWithdrawing
             - <<: *errUtxoTooSmall
             - <<: *errNotEnoughMoney
+            - <<: *errInsufficientCollateral
             - <<: *errCannotCoverFee
             - <<: *errInputsDepleted
             - <<: *errInvalidCoinSelection
@@ -4600,6 +4615,7 @@ x-responsesPostTransaction: &responsesPostTransaction
             - <<: *errUtxoTooSmall
             - <<: *errCannotCoverFee
             - <<: *errNotEnoughMoney
+            - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
@@ -4631,6 +4647,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errUtxoTooSmall
             - <<: *errCannotCoverFee
             - <<: *errNotEnoughMoney
+            - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
@@ -4710,6 +4727,7 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
             - <<: *errUtxoTooSmall
             - <<: *errCannotCoverFee
             - <<: *errNotEnoughMoney
+            - <<: *errInsufficientCollateral
             - <<: *errInputsDepleted
             - <<: *errInvalidCoinSelection
             - <<: *errOutputTokenQuantityExceedsLimit
@@ -5002,6 +5020,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errUtxoTooSmall
             - <<: *errCannotCoverFee
             - <<: *errNotEnoughMoney
+            - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
             - <<: *errTransactionAlreadyBalanced
   <<: *responsesErr404WalletNotFound
