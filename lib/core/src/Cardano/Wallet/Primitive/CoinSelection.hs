@@ -173,18 +173,44 @@ toBalanceConstraintsParams (constraints, params) =
         adjustComputeMinimumCost =
             whenCollateralRequired params (. adjustSelectionSkeleton)
           where
+            -- When collateral is required, we reserve space for collateral
+            -- inputs ahead of time by adding the maximum allowed number of
+            -- collateral inputs (defined by 'maximumCollateralInputCount')
+            -- to the skeleton input count.
+            --
+            -- This ensures that the collateral inputs are already paid for
+            -- when 'Balance.performSelection' is generating change outputs.
+            --
+            -- In many cases, the maximum allowed number of collateral inputs
+            -- will be greater than the number eventually required, which will
+            -- lead to a fee that is slightly higher than necessary.
+            --
+            -- However, since the maximum number of collateral inputs is very
+            -- small, and since the marginal cost of a single extra input is
+            -- relatively small, this fee increase is likely to be very small.
+            --
             adjustSelectionSkeleton :: SelectionSkeleton -> SelectionSkeleton
             adjustSelectionSkeleton = over #skeletonInputCount
                 (+ view #maximumCollateralInputCount constraints)
+
         adjustComputeSelectionLimit
             :: ([TxOut] -> SelectionLimit)
             -> ([TxOut] -> SelectionLimit)
         adjustComputeSelectionLimit =
             whenCollateralRequired params (fmap adjustSelectionLimit)
           where
+            -- When collateral is required, we reserve space for collateral
+            -- inputs ahead of time by subtracting the maximum allowed number
+            -- of collateral inputs (defined by 'maximumCollateralInputCount')
+            -- from the selection limit.
+            --
+            -- This ensures that when we come to perform collateral selection,
+            -- there is still space available.
+            --
             adjustSelectionLimit :: SelectionLimit -> SelectionLimit
             adjustSelectionLimit = fmap
                 (`subtract` (view #maximumCollateralInputCount constraints))
+
     balanceParams = Balance.SelectionParams
         { assetsToBurn =
             view #assetsToBurn params
@@ -218,6 +244,11 @@ toCollateralConstraintsParams balanceSelection (constraints, params) =
         { maximumSelectionSize =
             view #maximumCollateralInputCount constraints
         , searchSpaceLimit =
+            -- We use the default search space limit here, as this value is
+            -- used in the test suite for 'Collateral.performSelection'. We
+            -- can therefore be reasonably confident that the process of
+            -- selecting collateral will not use inordinate amounts of time
+            -- and space:
             Collateral.searchSpaceLimitDefault
         }
     collateralParams = Collateral.SelectionParams
