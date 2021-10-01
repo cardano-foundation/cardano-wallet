@@ -24,23 +24,26 @@
 -- Use the 'performSelection' function to perform a coin selection.
 --
 module Cardano.Wallet.Primitive.CoinSelection
-    ( performSelection
+    (
+      -- * Performing selections
+      performSelection
+    , Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
-    , SelectionParams (..)
     , SelectionError (..)
-    , Selection
     , SelectionOf (..)
+    , SelectionParams (..)
 
+      -- * Preparation of outputs
     , prepareOutputs
-    , ErrPrepareOutputs (..)
-    , ErrOutputTokenBundleSizeExceedsLimit (..)
-    , ErrOutputTokenQuantityExceedsLimit (..)
+    , SelectionOutputInvalidError (..)
+    , SelectionOutputSizeExceedsLimitError (..)
+    , SelectionOutputTokenQuantityExceedsLimitError (..)
 
-    -- * Queries
+    -- * Querying selections
     , selectionDelta
 
-    -- * Reporting
+    -- * Creating reports about selections
     , SelectionReport (..)
     , SelectionReportSummarized (..)
     , SelectionReportDetailed (..)
@@ -123,7 +126,7 @@ performSelection
     -> SelectionParams
     -> ExceptT SelectionError m Selection
 performSelection constraints params = do
-    preparedOutputs <- withExceptT SelectionOutputsError $ except
+    preparedOutputs <- withExceptT SelectionOutputError $ except
         $ prepareOutputs constraints (view #outputsToCover params)
     balanceResult <- withExceptT SelectionBalanceError $ ExceptT $
         uncurry Balance.performSelection $
@@ -144,6 +147,8 @@ performSelection constraints params = do
     emptyCollateralResult = Collateral.SelectionResult
         { coinsSelected = Map.empty }
 
+-- | Creates constraints and parameters for 'Balance.performSelection'.
+--
 toBalanceConstraintsParams
     :: (        SelectionConstraints,         SelectionParams)
     -> (Balance.SelectionConstraints, Balance.SelectionParams)
@@ -201,6 +206,8 @@ toBalanceConstraintsParams (constraints, params) =
             view #utxoAvailableForInputs params
         }
 
+-- | Creates constraints and parameters for 'Collateral.performSelection'.
+--
 toCollateralConstraintsParams
     :: Balance.SelectionResult
     -> (           SelectionConstraints,            SelectionParams)
@@ -226,7 +233,7 @@ toCollateralConstraintsParams balanceSelection (constraints, params) =
                 (Balance.selectionSurplusCoin balanceSelection)
         }
 
--- | Makes a selection from an ordinary selection and a collateral selection.
+-- | Creates a 'Selection' from selections of inputs and collateral.
 --
 mkSelection
     :: SelectionParams
@@ -246,6 +253,8 @@ mkSelection params balanceResult collateralResult = Selection
     , extraCoinSource = view #extraCoinSource balanceResult
     , extraCoinSink = view #extraCoinSink balanceResult
     }
+
+-- | Converts a 'Selection' to a selection of inputs.
 
 toBalanceSelection :: Selection -> Balance.SelectionResult
 toBalanceSelection selection = Balance.SelectionResult
@@ -392,8 +401,8 @@ data SelectionError
         Balance.SelectionError
     | SelectionCollateralError
         Collateral.SelectionError
-    | SelectionOutputsError
-        ErrPrepareOutputs
+    | SelectionOutputError
+        SelectionOutputInvalidError
     deriving (Eq, Show)
 
 -- | Represents a balanced selection.
@@ -437,25 +446,26 @@ type Selection = SelectionOf TokenBundle
 prepareOutputs
     :: SelectionConstraints
     -> [TxOut]
-    -> Either ErrPrepareOutputs [TxOut]
+    -> Either SelectionOutputInvalidError [TxOut]
 prepareOutputs constraints outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
-            -- We encountered one or more excessively large token bundles.
-            -- Just report the first such bundle:
-            ErrPrepareOutputsTokenBundleSizeExceedsLimit $
-            ErrOutputTokenBundleSizeExceedsLimit {address, assetCount}
+        -- We encountered one or more excessively large token bundles.
+        -- Just report the first such bundle:
+        SelectionOutputSizeExceedsLimit $
+        SelectionOutputSizeExceedsLimitError
+            {address, assetCount}
     | (address, asset, quantity) : _ <- excessiveTokenQuantities =
         Left $
-            -- We encountered one or more excessive token quantities.
-            -- Just report the first such quantity:
-            ErrPrepareOutputsTokenQuantityExceedsLimit $
-            ErrOutputTokenQuantityExceedsLimit
-                { address
-                , asset
-                , quantity
-                , quantityMaxBound = txOutMaxTokenQuantity
-                }
+        -- We encountered one or more excessive token quantities.
+        -- Just report the first such quantity:
+        SelectionOutputTokenQuantityExceedsLimit $
+        SelectionOutputTokenQuantityExceedsLimitError
+            { address
+            , asset
+            , quantity
+            , quantityMaxBound = txOutMaxTokenQuantity
+            }
     | otherwise =
         pure outputsToCover
   where
@@ -500,14 +510,15 @@ prepareOutputs constraints outputsUnprepared
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
-data ErrPrepareOutputs
-    = ErrPrepareOutputsTokenBundleSizeExceedsLimit
-        ErrOutputTokenBundleSizeExceedsLimit
-    | ErrPrepareOutputsTokenQuantityExceedsLimit
-        ErrOutputTokenQuantityExceedsLimit
+data SelectionOutputInvalidError
+    = SelectionOutputSizeExceedsLimit
+        SelectionOutputSizeExceedsLimitError
+    | SelectionOutputTokenQuantityExceedsLimit
+        SelectionOutputTokenQuantityExceedsLimitError
     deriving (Eq, Generic, Show)
 
-data ErrOutputTokenBundleSizeExceedsLimit = ErrOutputTokenBundleSizeExceedsLimit
+data SelectionOutputSizeExceedsLimitError =
+    SelectionOutputSizeExceedsLimitError
     { address :: !Address
       -- ^ The address to which this token bundle was to be sent.
     , assetCount :: !Int
@@ -518,7 +529,8 @@ data ErrOutputTokenBundleSizeExceedsLimit = ErrOutputTokenBundleSizeExceedsLimit
 -- | Indicates that a token quantity exceeds the maximum quantity that can
 --   appear in a transaction output's token bundle.
 --
-data ErrOutputTokenQuantityExceedsLimit = ErrOutputTokenQuantityExceedsLimit
+data SelectionOutputTokenQuantityExceedsLimitError =
+    SelectionOutputTokenQuantityExceedsLimitError
     { address :: !Address
       -- ^ The address to which this token quantity was to be sent.
     , asset :: !AssetId
