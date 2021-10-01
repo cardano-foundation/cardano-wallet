@@ -426,11 +426,14 @@ data UnsignedTx input output change withdrawal = UnsignedTx
         -- Inputs used for collateral.
 
     , unsignedInputs
-        :: NonEmpty input
-        -- Inputs are *necessarily* non-empty because Cardano requires at least
+        :: [input]
+        -- ^ Inputs are *necessarily* non-empty because Cardano requires at least
         -- one UTxO input per transaction to prevent replayable transactions.
         -- (each UTxO being unique, including at least one UTxO in the
         -- transaction body makes it seemingly unique).
+        --
+        -- *However* when used to respresent the inputs known by the wallet, in
+        -- contrast to all inputs, it can be empty.
 
     , unsignedOutputs
         :: [output]
