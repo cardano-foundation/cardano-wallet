@@ -818,7 +818,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "Coin selection not integrated with balanceTransaction - to be fixed in ADP-656"
         -- constructing source wallet
         let initialAmt = 110_000_000_000
         let inpAmt = minUTxOValue (_mainEra ctx)
@@ -851,8 +850,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_BALANCE_01e - plutus with missing covering inputs wallet enough funds" $ \ctx -> runResourceT $ do
-
-        --liftIO $ pendingWith "Needs all prerequisites integrated with balanceTransaction - to be fixed in ADP-656"
 
         -- constructing source wallet
         let initialAmt = 110_000_000_000
