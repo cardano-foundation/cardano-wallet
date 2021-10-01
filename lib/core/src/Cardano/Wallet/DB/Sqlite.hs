@@ -18,6 +18,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {- HLINT ignore "Redundant flip" -}
+{- HLINT ignore "Redundant ^." -}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -170,7 +171,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+    ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Control.Tracer
@@ -179,12 +180,16 @@ import Data.Bifunctor
     ( second )
 import Data.Coerce
     ( coerce )
+import Data.DBVar
+    ( Store (..), loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
+import Data.Delta
+    ( Delta (..) )
 import Data.Either
     ( isRight )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( over, view, (^.) )
 import Data.List
     ( nub, sortOn, unzip4 )
 import Data.List.Split
@@ -192,7 +197,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromJust, isJust, mapMaybe )
+    ( catMaybes, fromJust, fromMaybe, isJust, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -254,7 +259,7 @@ import System.FilePath
 import UnliftIO.Exception
     ( Exception, bracket, throwIO )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
+    ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -271,6 +276,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
@@ -1274,6 +1280,7 @@ newDBLayer
     -> IO (DBLayer IO s k)
 newDBLayer = newDBLayerWith @s @k CacheLatestCheckpoint
 
+{- HLINT ignore newDBLayerWith "Redundant <$>" -}
 -- | Like 'newDBLayer', but allows to explicitly specify the caching behavior.
 newDBLayerWith
     :: forall s k.
@@ -1289,87 +1296,63 @@ newDBLayerWith
     -> SqliteContext
        -- ^ A (thread-)safe wrapper for query execution.
     -> IO (DBLayer IO s k)
-newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
-    -- NOTE1
-    -- We cache the latest checkpoint for read operation such that we prevent
-    -- needless marshalling and unmarshalling with the database. Many handlers
-    -- dealing with the database are actually in the form of:
-    --
-    --   - read latest CP
-    --   - write latest CP
-    --
-    -- When chaining them, we end up paying the cost of unmarshalling data from
-    -- the database one extra time. That doesn't matter much for small wallets
-    -- because the time needed to unmarshall data is relatively negligible. For
-    -- large wallets however, this has a massive performance impact.
-    --
-    -- Instead, the cache now retains the Haskell data-types in-memory to
-    -- short-circuit the most frequent database lookups.
-    --
-    -- NOTE2
-    -- When 'cacheBehavior' is set to 'NoCache', we simply never write anything
-    -- to the cache, which forces 'selectLatestCheckpointCached' to always perform a
-    -- database lookup.
+newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
+    -- FIXME LATER during ADP-1043:
+    --   Remove the 'NoCache' behavior, we cannot get it back.
+    --   This will affect read benchmarks, they will need to benchmark
+    --   'loadDBVar' instead.
 
-    cacheVar <- newMVar Map.empty :: IO (MVar (Map W.WalletId (W.Wallet s)))
+    -- FIXME LATER during ADP-1043:
+    --   Handle the case where loading the database fails.
+    checkpointsVar <- runQuery $ loadDBVar mkStoreWalletsCheckpoints
 
-    --
-    -- NOTE3
-    -- This cache will not work properly unless 'atomically' is protected by a
+    -- NOTE
+    -- The cache will not work properly unless 'atomically' is protected by a
     -- mutex (queryLock), which means no concurrent queries.
-    --
     queryLock <- newMVar () -- fixme: ADP-586
 
-    -- Gets cached checkpoint for a given wallet.
-    -- If caching is disabled it unconditionally returns Nothing
-    let getCache :: W.WalletId -> SqlPersistT IO (Maybe (W.Wallet s))
-        getCache wid = Map.lookup wid <$> readMVar cacheVar
-
-        -- Adjust a wallet entry in the cache.
-        modifyCache :: W.WalletId -> (Maybe (W.Wallet s) -> SqlPersistT IO (Maybe (W.Wallet s))) -> SqlPersistT IO ()
-        modifyCache wid action = modifyMVar_ cacheVar $ \cache -> do
-            let old = Map.lookup wid cache
-            action old >>= \case
-                Nothing -> pure $ Map.delete wid cache
-                Just cp -> pure $ case cacheBehavior of
-                    NoCache -> cache -- stick to initial value
-                    CacheLatestCheckpoint -> Map.insert wid cp cache
-
-        -- This condition is required to make property tests pass, where
-        -- checkpoints may be generated in any order.
-        alterCache :: W.Wallet s -> Maybe (W.Wallet s) -> Maybe (W.Wallet s)
-        alterCache cp = \case
-            Just old | getHeight cp < getHeight old -> Just old
-            _ -> Just cp
-
-        getHeight = view (#currentTip . #blockHeight)
-
-    -- Inserts a checkpoint into the database and checkpoint cache
-    let insertCheckpointCached wid cp = modifyCache wid $ \old -> do
+    -- Insert a checkpoint into the DBVar
+    let insertCheckpointCached wid cp = do
             liftIO $ traceWith tr $ MsgCheckpointCache wid MsgPutCheckpoint
-            insertCheckpoint wid cp
-            pure (alterCache cp old)
+            modifyDBMaybe checkpointsVar $ \ws ->
+                let slotNo = cp ^. #currentTip ^. #slotNo
+                in  case Map.lookup wid ws of
+                    Nothing  -> (Just $ Insert wid $ singleton slotNo cp, ())
+                    Just _   -> (Just $ Adjust wid $ PutCheckpoint slotNo cp, ())
 
-    -- Checks for cached a checkpoint before running selectLatestCheckpoint
+    -- Retrieve the latest checkpoint from the DBVar
     let selectLatestCheckpointCached
             :: W.WalletId
             -> SqlPersistT IO (Maybe (W.Wallet s))
         selectLatestCheckpointCached wid = do
-            cp <- getCache wid
+            let get = fmap (snd . getLatest) . Map.lookup wid
+            cp <- get <$> readDBVar checkpointsVar
             liftIO $ traceWith tr $ MsgCheckpointCache wid $ MsgGetCheckpoint $ isJust cp
-            maybe (selectLatestCheckpoint @s wid) (pure . Just) cp
+            pure cp
 
-    -- Re-run the selectLatestCheckpoint query
-    let refreshCache :: W.WalletId -> SqlPersistT IO ()
-        refreshCache wid = modifyCache wid $ const $ do
-            liftIO $ traceWith tr $ MsgCheckpointCache wid MsgRefresh
-            selectLatestCheckpoint @s wid
+    let pruneCheckpoints
+            :: W.WalletId
+            -> Quantity "block" Word32 -> W.BlockHeader
+            -> SqlPersistT IO ()
+        pruneCheckpoints wid epochStability tip = do
+            let heights = Set.fromList $ sparseCheckpoints
+                    (defaultSparseCheckpointsConfig epochStability)
+                    (tip ^. #blockHeight)
+            modifyDBMaybe checkpointsVar $ \ws ->
+                case Map.lookup wid ws of
+                    Nothing  -> (Nothing, ())
+                    Just cps ->
+                        let willKeep cp =
+                                (cp ^. #currentTip ^. #blockHeight ^. #getQuantity)
+                                `Set.member` heights
+                            slots = Map.filter willKeep (cps ^. #checkpoints)
+                        in  (Just $ Adjust wid $ RestrictTo $ Map.keys slots, ())
 
-    -- Delete the cache for a wallet
-    let dropCache :: W.WalletId -> SqlPersistT IO ()
-        dropCache wid = modifyCache wid $ const $ do
+    -- Delete the a wallet from the checkpoint DBVar
+    let deleteCheckpoints :: W.WalletId -> SqlPersistT IO ()
+        deleteCheckpoints wid = do
             liftIO $ traceWith tr $ MsgCheckpointCache wid MsgDrop
-            pure Nothing
+            updateDBVar checkpointsVar $ Delete wid
 
     return DBLayer
 
@@ -1393,7 +1376,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                 Just _  -> Right <$> do
                     deleteWhere [WalId ==. wid]
                     deleteLooseTransactions
-                    dropCache wid
+                    deleteCheckpoints wid
 
         , listWallets = map unWalletKey <$> selectKeysList [] [Asc WalId]
 
@@ -1417,16 +1400,17 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                 [ Asc CheckpointSlot ]
 
         , rollbackTo = \wid requestedPoint -> ExceptT $ do
-            findNearestPoint wid requestedPoint >>= \case
-                Nothing -> selectWallet wid >>= \case
-                    Nothing ->
-                        pure $ Left $ ErrNoSuchWallet wid
-                    Just _  ->
-                        lift $ throwIO (ErrNoOlderCheckpoint wid requestedPoint)
-                Just nearestPoint -> do
-                    deleteCheckpoints wid
-                        [ CheckpointSlot >. nearestPoint
-                        ]
+            (Map.lookup wid <$> readDBVar checkpointsVar) >>= \case
+                Nothing  ->
+                    pure $ Left $ ErrNoSuchWallet wid
+                Just cps -> do
+                    let mPoint = findNearestPoint cps requestedPoint
+                    nearestPoint <- case mPoint of
+                        Nothing -> lift $ throwIO $
+                            ErrNoOlderCheckpoint wid requestedPoint
+                        Just x -> pure x
+                    updateDBVar checkpointsVar $
+                        Adjust wid $ RollbackTo nearestPoint
                     deleteDelegationCertificates wid
                         [ CertSlot >. nearestPoint
                         ]
@@ -1444,7 +1428,11 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     deleteStakeKeyCerts wid
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
-                    refreshCache wid
+                    -- FIXME:
+                    -- As we need to return the BlockHeader and not just
+                    -- the SlotNo, we read the (now updated) DBVar again.
+                    -- However, there is probably a race condition here
+                    -- if  rollbackTo  is not wrapped in  atomic .
                     selectLatestCheckpointCached wid >>= \case
                         Nothing -> error "Sqlite.rollbackTo: impossible code path"
                         Just cp -> pure $ Right $ cp ^. #currentTip
@@ -1670,6 +1658,12 @@ readDelegationCertificate
     -> SqlPersistT IO (Maybe DelegationCertificate)
 readDelegationCertificate wid filters = fmap entityVal
     <$> selectFirst ((CertWalletId ==. wid) : filters) [Desc CertSlot]
+
+{-------------------------------------------------------------------------------
+    Conversion between types
+        from the `persistent` database (Cardano.Wallet.DB.Sqlite.TH)
+        and from the wallet core ( Cardano.Wallet.Primitive.Types.*)
+-------------------------------------------------------------------------------}
 
 toWalletDelegationStatus
     :: DelegationCertificate
@@ -2050,27 +2044,137 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
         }
 
 {-------------------------------------------------------------------------------
-                                   DB Queries
+    Store for Wallet Checkpoints
+-------------------------------------------------------------------------------}
+-- | Delta type for 'Map'.
+data DeltaMap key da
+    = Insert key (Base da)
+    | Delete key
+    | Adjust key da
+instance (Ord key, Delta da) => Delta (DeltaMap key da) where
+    type Base (DeltaMap key da) = Map key (Base da)
+    apply (Insert key a) = Map.insert key a
+    apply (Delete key) = Map.delete key
+    apply (Adjust key da) = Map.adjust (apply da) key
+
+{- HLINT ignore Checkpoints "Use newtype instead of data" -}
+-- | Collection of checkpoints indexed by 'SlotNo'.
+data Checkpoints a = Checkpoints
+    { checkpoints :: Map W.SlotNo a
+    } deriving (Eq,Show,Generic)
+-- FIXME LATER during ADP-1043:
+--  Use a more sophisticated 'Checkpoints' type that stores deltas.
+
+-- FIXME NOW in this pull request:
+-- Unfortunately, both genesis and the block after genesis
+-- have the same slot number 0. See note [PointSlotNo].
+-- Hence, we cannot just use a map from 'SlotNo' to a,
+-- we have to use a map from 'ChainPoint' to a.
+
+singleton :: W.SlotNo -> a -> Checkpoints a
+singleton key a = Checkpoints $ Map.singleton key a
+
+-- | Get the checkpoint with the largest 'SlotNo'.
+getLatest :: Checkpoints a -> (W.SlotNo, a)
+getLatest = from . Map.lookupMax . view #checkpoints 
+  where
+    from = fromMaybe (error "getLatest: Genesis checkpoint is missing!")
+    -- FIXME LATER during ADP-1043:
+    --   Make sure that 'Checkpoints' always has a genesis checkpoint
+
+-- | Find the nearest 'Checkpoint' that is either at the given point or before.
+findNearestPoint :: Checkpoints a -> W.SlotNo -> Maybe W.SlotNo
+findNearestPoint m key = fst <$> Map.lookupLE key (view #checkpoints m)
+
+data DeltaCheckpoints a
+    = PutCheckpoint W.SlotNo a
+    | RollbackTo W.SlotNo
+        -- Rolls back to the latest checkpoint at or before this slot.
+    | RestrictTo [W.SlotNo]
+        -- ^ Restrict to the intersection of this list with
+        -- the checkpoints that are already present.
+
+instance Delta (DeltaCheckpoints a) where
+    type Base (DeltaCheckpoints a) = Checkpoints a
+    apply (PutCheckpoint slotNo a) = over #checkpoints $ Map.insert slotNo a
+    apply (RollbackTo slotNo) = over #checkpoints $
+        Map.filterWithKey (\k _ -> k <= slotNo)
+    apply (RestrictTo slots) = over #checkpoints $ \m ->
+        Map.restrictKeys m $ Set.fromList slots
+
+type StoreCheckpoints s
+    = Store (SqlPersistT IO) (DeltaCheckpoints (W.Wallet s))
+
+mkStoreCheckpoints
+    :: forall s. PersistState s
+    => W.WalletId -> StoreCheckpoints s
+mkStoreCheckpoints wid = Store{loadS=load,writeS=write,updateS = \_ -> update}
+  where
+    write Checkpoints{checkpoints} =
+        forM_ (Map.toList checkpoints) $ \(slotNo,cp) ->
+            update (PutCheckpoint slotNo cp)
+    update (PutCheckpoint _ state) =
+        insertCheckpoint wid state
+    update (RollbackTo target) =
+        deleteWhere [ CheckpointWalletId ==. wid, CheckpointSlot >. target ]
+    update (RestrictTo slots) =
+        deleteWhere [ CheckpointWalletId ==. wid, CheckpointSlot /<-. slots ]
+    load = do
+        cps <- selectAllCheckpoints wid
+        pure $ Right $ Checkpoints{checkpoints=Map.fromList cps}
+
+mkStoreWalletsCheckpoints
+    :: forall s key. (PersistState s, key ~ W.WalletId)
+    => Store (SqlPersistT IO)
+        (DeltaMap key (DeltaCheckpoints (W.Wallet s)))
+mkStoreWalletsCheckpoints = Store{loadS=load,writeS=write,updateS=update}
+  where
+    write = error "mkStoreWalletsCheckpoints: not implemented"
+    update _ (Insert wid a) =
+        writeS (mkStoreCheckpoints wid) a 
+    update _ (Delete wid) = do
+        -- FIXME LATER during ADP-1043:
+        --  Deleting an entry in the Checkpoint table
+        --  will trigger a delete cascade. We want this cascade
+        --  to be explicit in our code.
+        deleteWhere [CheckpointWalletId ==. wid]
+    update _ (Adjust wid da) =
+        updateS (mkStoreCheckpoints wid) undefined da
+        -- FIXME LATER during ADP-1043:
+        --   Remove 'undefined'.
+        --   Probably needs a change to 'Data.DBVar.updateS'
+        --   to take a 'Maybe a' as parameter instead of an 'a'.
+    load = do
+        wids <- fmap (view #walId . entityVal) <$> selectAll
+        runExceptT $ do
+            xs <- forM wids $ ExceptT . loadS . mkStoreCheckpoints
+            pure $ Map.fromList (zip wids xs)
+      where
+        selectAll :: SqlPersistT IO [Entity Wallet]
+        selectAll = selectList [] []
+
+{-------------------------------------------------------------------------------
+    SQLite database operations
 -------------------------------------------------------------------------------}
 
 selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
 
-selectLatestCheckpoint
+selectAllCheckpoints
     :: forall s. PersistState s
     => W.WalletId
-    -> SqlPersistT IO (Maybe (W.Wallet s))
-selectLatestCheckpoint wid = do
-    mcp <- fmap entityVal <$> selectFirst
+    -> SqlPersistT IO [(W.SlotNo, W.Wallet s)]
+selectAllCheckpoints wid = do
+    cps <- fmap entityVal <$> selectList
         [ CheckpointWalletId ==. wid ]
-        [ LimitTo 1, Desc CheckpointSlot ]
-    case mcp of
-        Nothing -> pure Nothing
-        Just cp -> do
-            utxo <- selectUTxO cp
-            s <- selectState (checkpointId cp)
-            pure (checkpointFromEntity @s cp utxo <$> s)
+        [ Desc CheckpointSlot ]
+    fmap catMaybes $ forM cps $ \cp -> do
+        utxo <- selectUTxO cp
+        st <- selectState (checkpointId cp)
+        pure $
+            (\s -> (checkpointSlot cp, checkpointFromEntity @s cp utxo s))
+            <$> st
 
 insertCheckpoint
     :: forall s. (PersistState s)
@@ -2080,30 +2184,11 @@ insertCheckpoint
 insertCheckpoint wid wallet = do
     let (cp, utxo, utxoTokens) = mkCheckpointEntity wid wallet
     let sl = (W.currentTip wallet) ^. #slotNo
-    deleteCheckpoints wid [CheckpointSlot ==. sl]
+    deleteWhere [CheckpointWalletId ==. wid, CheckpointSlot ==. sl]
     insert_ cp
     dbChunked insertMany_ utxo
     dbChunked insertMany_ utxoTokens
     insertState (wid, sl) (W.getState wallet)
-
--- | Delete one or all checkpoints associated with a wallet.
-deleteCheckpoints
-    :: W.WalletId
-    -> [Filter Checkpoint]
-    -> SqlPersistT IO ()
-deleteCheckpoints wid filters = do
-    deleteWhere ((CheckpointWalletId ==. wid) : filters)
-
--- | Prune checkpoints in the database to keep it tidy
-pruneCheckpoints
-    :: W.WalletId
-    -> Quantity "block" Word32
-    -> W.BlockHeader
-    -> SqlPersistT IO ()
-pruneCheckpoints wid epochStability tip = do
-    let cfg = defaultSparseCheckpointsConfig epochStability
-    let cps = sparseCheckpoints cfg (tip ^. #blockHeight)
-    deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
@@ -2463,16 +2548,6 @@ selectGenesisParameters
 selectGenesisParameters wid = do
     gp <- selectFirst [WalId ==. wid] []
     pure $ (genesisParametersFromEntity . entityVal) <$> gp
-
--- | Find the nearest 'Checkpoint' that is either at the given point or before.
-findNearestPoint
-    :: W.WalletId
-    -> W.SlotNo
-    -> SqlPersistT IO (Maybe W.SlotNo)
-findNearestPoint wid sl =
-    fmap (checkpointSlot . entityVal) <$> selectFirst
-        [CheckpointWalletId ==. wid, CheckpointSlot <=. sl]
-        [Desc CheckpointSlot]
 
 -- | A fatal exception thrown when trying to rollback but, there's no checkpoint
 -- to rollback to. The database maintain the invariant that there's always at
