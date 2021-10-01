@@ -1515,6 +1515,7 @@ data ApiErrorCode
     | MalformedTxPayload
     | KeyNotFoundForAddress
     | NotEnoughMoney
+    | InsufficientCollateral
     | TransactionIsTooBig
     | InputsDepleted
     | CannotCoverFee

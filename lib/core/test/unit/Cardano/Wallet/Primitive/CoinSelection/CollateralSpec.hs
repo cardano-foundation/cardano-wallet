@@ -5,6 +5,7 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -242,7 +243,7 @@ prop_performSelection_onFailure constraints params err =
     counterexample ("Error: " <> show (Pretty err)) $
     conjoin
         [ F.fold (largestCombinationAvailable err)
-            < minimumSelectionAmount params
+            < view #minimumSelectionAmount params
         , F.length (largestCombinationAvailable err)
             <= maximumSelectionSize constraints
         , largestCombinationAvailable err
@@ -259,9 +260,9 @@ prop_performSelection_onSuccess constraints params result =
     counterexample ("Result: " <> show (Pretty result)) $
     conjoin
         [ F.fold (coinsAvailable params)
-            >= minimumSelectionAmount params
+            >= view #minimumSelectionAmount params
         , F.fold (coinsSelected result)
-            >= minimumSelectionAmount params
+            >= view #minimumSelectionAmount params
         , F.length (coinsSelected result)
             <= maximumSelectionSize constraints
         , coinsSelected result
@@ -665,8 +666,12 @@ unitTests_selectCollateralLargest_insufficient = unitTests
                 , minimumSelectionAmount = Coin minimumSelectionAmount
                 }
             )
-        , result = Left $
-            SelectionError $ Coin <$> largestCombinationAvailable
+        , result = Left SelectionError
+            { largestCombinationAvailable =
+                Coin <$> largestCombinationAvailable
+            , minimumSelectionAmount =
+                Coin minimumSelectionAmount
+            }
         }
     tests =
         [ ( 225, [F ▶ 32, G ▶ 64, H ▶ 128])
