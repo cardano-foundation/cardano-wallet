@@ -1224,7 +1224,7 @@ fromAlonzoTxBodyAndAux bod mad =
   where
     Alonzo.TxBody
         ins
-        _collateral
+        collateral
         outs
         certs
         wdrls

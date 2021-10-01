@@ -435,6 +435,9 @@ mkDelegationCertificates da accXPub =
 -- `updateSealedTx`.  See `updateSealedTx` for more details.
 data ExtraTxBodyContent = ExtraTxBodyContent
     { extraInputs :: [TxIn]
+    , extraCollateral :: [TxIn]
+       -- ^ Only used in the Alonzo era and later. Will be silently ignored in
+       -- previous eras.
     , extraOutputs :: [TxOut]
     , newFee :: Coin -> Coin
         -- ^ Set the new fee, given the old one.
@@ -451,7 +454,7 @@ data ExtraTxBodyContent = ExtraTxBodyContent
 --      == Right tx or Left
 -- @
 noExtraTxBodyContent :: ExtraTxBodyContent
-noExtraTxBodyContent = ExtraTxBodyContent [] [] id
+noExtraTxBodyContent = ExtraTxBodyContent [] [] [] id
 
 -- Used to add inputs and outputs when balancing a transaction.
 --
@@ -497,12 +500,14 @@ updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
             -> ShelleyBasedEra era
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-        adjust (ExtraTxBodyContent extraInputs extraOutputs modifyFee) era body = case era of
+        adjust (ExtraTxBodyContent extraInputs extraCollateral extraOutputs modifyFee) era body = case era of
             ShelleyBasedEraAlonzo -> body
                     { Alonzo.outputs = Alonzo.outputs body
                         <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
                     , Alonzo.inputs = Alonzo.inputs body
                         <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
+                    , Alonzo.collateral = Alonzo.collateral body
+                        <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
                     , Alonzo.txfee = modifyFee' $ Alonzo.txfee body
                     }
             ShelleyBasedEraMary ->
@@ -554,6 +559,7 @@ updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
                         mdHash
           where
             extraInputs' = toCardanoTxIn <$> extraInputs
+            extraCollateral' = toCardanoTxIn <$> extraCollateral
             extraOutputs' = toCardanoTxOut era <$> extraOutputs
             modifyFee' old = toLedgerCoin $ modifyFee $ fromLedgerCoin old
               where

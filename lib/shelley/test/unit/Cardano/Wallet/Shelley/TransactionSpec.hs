@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ViewPatterns #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -1733,9 +1734,9 @@ instance Arbitrary PartialTx where
             matrixNormalTxExamples
         ]
 
-prop_updateSealedTx :: PartialTx -> [TxIn] -> [TxOut] -> Coin -> Property
-prop_updateSealedTx (PartialTx tx) extraIns extraOuts newFee = do
-    let extra = ExtraTxBodyContent extraIns extraOuts (const newFee)
+prop_updateSealedTx :: PartialTx -> [TxIn] -> [TxIn] -> [TxOut] -> Coin -> Property
+prop_updateSealedTx (PartialTx tx) extraIns extraCol extraOuts newFee = do
+    let extra = ExtraTxBodyContent extraIns extraCol extraOuts (const newFee)
     let tx' = either (error . show) id
             $ updateSealedTx extra tx
 
@@ -1743,11 +1744,19 @@ prop_updateSealedTx (PartialTx tx) extraIns extraOuts newFee = do
         [ ins tx' === ins tx <> Set.fromList extraIns
         , outs tx' === outs tx <> Set.fromList extraOuts
         , fee tx' === Just newFee
+        , collateral tx' ===
+            if isAlonzo tx
+            then collateral tx <> Set.fromList extraCol
+            else mempty
         ]
   where
     ins = Set.fromList . map fst . view #resolvedInputs . _decodeSealedTx
+    collateral = Set.fromList . map fst . view #resolvedCollateral . _decodeSealedTx
     outs = Set.fromList . view #outputs . _decodeSealedTx
     fee = view #fee . _decodeSealedTx
+
+    isAlonzo (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra _) = True
+    isAlonzo (cardanoTx -> InAnyCardanoEra _ _) = False
 
 
 txWithInputsOutputsAndWits :: ByteString
