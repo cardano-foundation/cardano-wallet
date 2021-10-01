@@ -853,7 +853,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_BALANCE_01e - plutus with missing covering inputs wallet enough funds" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "Needs all prerequisites integrated with balanceTransaction - to be fixed in ADP-656"
+        --liftIO $ pendingWith "Needs all prerequisites integrated with balanceTransaction - to be fixed in ADP-656"
 
         -- constructing source wallet
         let initialAmt = 110_000_000_000
