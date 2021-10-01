@@ -30,6 +30,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Collateral
     , SelectionParamsOf (..)
     , SelectionResult
     , SelectionResultOf (..)
+    , selectionResultEmpty
     , SelectionError
     , SelectionErrorOf (..)
     , SearchSpaceLimit (..)
@@ -176,6 +177,13 @@ newtype SelectionResultOf inputId = SelectionResult
 -- | The default type for 'SelectionResultOf'.
 --
 type SelectionResult = SelectionResultOf TxIn
+
+-- | A completely empty result, with no inputs selected.
+--
+selectionResultEmpty :: SelectionResultOf inputId
+selectionResultEmpty = SelectionResult
+    { coinsSelected = Map.empty
+    }
 
 -- | Represents an unsuccessful attempt to select collateral.
 --

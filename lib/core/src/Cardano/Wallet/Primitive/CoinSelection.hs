@@ -139,12 +139,8 @@ performSelection constraints params = do
             uncurry Collateral.performSelection $
             toCollateralConstraintsParams balanceResult (constraints, params)
         else
-            pure emptyCollateralResult
+            pure Collateral.selectionResultEmpty
     pure $ mkSelection params balanceResult collateralResult
-  where
-    emptyCollateralResult :: Collateral.SelectionResult
-    emptyCollateralResult = Collateral.SelectionResult
-        { coinsSelected = Map.empty }
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --
