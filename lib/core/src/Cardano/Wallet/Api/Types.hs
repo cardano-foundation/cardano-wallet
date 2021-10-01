@@ -976,7 +976,6 @@ data ApiValidityBound
 data ApiSignTransactionPostData = ApiSignTransactionPostData
     { transaction :: !(ApiT SealedTx)
     , passphrase :: !(ApiT (Passphrase "lenient"))
-    , withdrawal :: !(Maybe ApiWithdrawalPostData)
     } deriving (Eq, Generic, Show)
 
 -- | Legacy transaction API.

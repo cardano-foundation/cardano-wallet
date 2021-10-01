@@ -2922,10 +2922,6 @@ components:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
         transaction: *serialisedTransactionEncoded
-        withdrawal:
-          oneOf:
-            - <<: *transactionWithdrawalRequestSelf
-            - <<: *transactionRedemptionRequest
 
     # ADP-908 Deprecated
     ApiPostTransactionDataByron: &ApiPostTransactionDataByron
@@ -5431,10 +5427,6 @@ paths:
         This endpoint will add new witnesses using the keys available
         to this wallet. Any existing witnesses will remain in the
         witness set.
-
-        If the source transaction includes a reward account withdrawal
-        from another wallet, then the `withdrawal` field must be set
-        accordingly in this request.
       parameters:
         - *parametersWalletId
       requestBody:
