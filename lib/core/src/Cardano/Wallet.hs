@@ -309,7 +309,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , performSelection
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( UnableToConstructChangeError (..), emptySkeleton )
+    ( emptySkeleton )
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
 import Cardano.Wallet.Primitive.Migration
@@ -2173,7 +2173,7 @@ estimateFee
         e@(ErrSelectAssetsSelectionError se) -> case se of
             SelectionBalanceError (Balance.UnableToConstructChange ce) ->
                 case ce of
-                    UnableToConstructChangeError {requiredCost} ->
+                    Balance.UnableToConstructChangeError {requiredCost} ->
                         pure requiredCost
             _ ->
                 throwE  e
