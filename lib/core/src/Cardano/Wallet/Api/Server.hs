@@ -2273,10 +2273,10 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         fee <- liftHandler $ W.estimateFee runSelection
         return (fee, unsignedtx)
 
-    --TODO  deal with coll
-    let UnsignedTx _coll inps _outs change _wdrl = unsignedtx
+    let UnsignedTx colls inps _outs change _wdrl = unsignedtx
     let extraBody = ExtraTxBodyContent
             { extraInputs = (\(txin, _, _) -> txin) <$> F.toList inps
+            , extraCollateral = (\(txin, _, _) -> txin) <$> F.toList colls
             , extraOutputs = toTxOut <$> change
             , newFee = const (Coin feeMin)
             }
