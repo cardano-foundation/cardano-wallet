@@ -95,6 +95,7 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
+import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
@@ -309,8 +310,12 @@ data SelectionCollateralRequirement
 -- | Indicates that an error occurred while performing a coin selection.
 --
 data SelectionError
-    = SelectionBalanceError Balance.SelectionError
-    | SelectionOutputsError ErrPrepareOutputs
+    = SelectionBalanceError
+        Balance.SelectionError
+    | SelectionCollateralError
+        Collateral.SelectionError
+    | SelectionOutputsError
+        ErrPrepareOutputs
     deriving (Eq, Show)
 
 -- | Represents a balanced selection.

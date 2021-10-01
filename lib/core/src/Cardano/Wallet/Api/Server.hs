@@ -576,6 +576,7 @@ import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
+import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -3951,10 +3952,12 @@ instance IsServerError ErrSelectAssets where
                 , "transaction; if, for some reason, you really want a new "
                 , "transaction, then cancel the previous one first."
                 ]
-        ErrSelectAssetsSelectionError (SelectionBalanceError selectionError) ->
-            toServerError selectionError
-        ErrSelectAssetsSelectionError (SelectionOutputsError selectionError) ->
-            toServerError selectionError
+        ErrSelectAssetsSelectionError (SelectionBalanceError e) ->
+            toServerError e
+        ErrSelectAssetsSelectionError (SelectionCollateralError e) ->
+            toServerError e
+        ErrSelectAssetsSelectionError (SelectionOutputsError e) ->
+            toServerError e
 
 instance IsServerError (Balance.SelectionError) where
     toServerError = \case
@@ -3998,6 +4001,20 @@ instance IsServerError (Balance.SelectionError) where
                 , "has no UTxO entries. At least one UTxO entry is"
                 , "required in order to create a transaction."
                 ]
+
+instance IsServerError (Collateral.SelectionError) where
+    toServerError e =
+        apiError err403 InsufficientCollateral $ T.unwords
+            [ "I'm unable to create this transaction because the balance"
+            , "of pure ada UTxOs in your wallet is insufficient to cover"
+            , "the minimum amount of collateral required."
+            , "I need an ada amount of at least:"
+            , pretty (view #minimumSelectionAmount e)
+            , "The largest combination of pure ada UTxOs I could find is:"
+            , pretty (F.toList $ view #largestCombinationAvailable e)
+            , "To fix this, you'll need to add one or more pure ada UTxOs"
+            , "to your wallet that can cover the minimum amount required."
+            ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
     toServerError = \case
