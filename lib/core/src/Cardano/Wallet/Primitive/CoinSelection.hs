@@ -23,23 +23,26 @@
 -- Use the 'performSelection' function to perform a coin selection.
 --
 module Cardano.Wallet.Primitive.CoinSelection
-    ( performSelection
+    (
+      -- * Performing selections
+      performSelection
+    , Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
-    , SelectionParams (..)
     , SelectionError (..)
-    , Selection
     , SelectionOf (..)
+    , SelectionParams (..)
 
+      -- * Preparation of outputs
     , prepareOutputs
-    , ErrPrepareOutputs (..)
-    , ErrOutputTokenBundleSizeExceedsLimit (..)
-    , ErrOutputTokenQuantityExceedsLimit (..)
+    , SelectionOutputInvalidError (..)
+    , SelectionOutputSizeExceedsLimitError (..)
+    , SelectionOutputTokenQuantityExceedsLimitError (..)
 
-    -- * Queries
+    -- * Querying selections
     , selectionDelta
 
-    -- * Reporting
+    -- * Creating reports about selections
     , SelectionReport (..)
     , SelectionReportSummarized (..)
     , SelectionReportDetailed (..)
@@ -70,19 +73,23 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO )
+    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad.Random.Class
     ( MonadRandom )
 import Control.Monad.Trans.Except
     ( ExceptT (..), except, withExceptT )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Ratio
+    ( (%) )
 import Data.Semigroup
     ( mtimesDefault )
 import Fmt
@@ -98,7 +105,9 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 -- | Performs a coin selection.
@@ -116,22 +125,25 @@ performSelection
     -> SelectionParams
     -> ExceptT SelectionError m Selection
 performSelection constraints params = do
-    -- TODO:
-    --
-    -- https://input-output.atlassian.net/browse/ADP-1037
-    -- Adjust coin selection and fee estimation to handle collateral inputs
-    --
-    preparedOutputs <- withExceptT SelectionOutputsError $ except
+    preparedOutputs <- withExceptT SelectionOutputError $ except
         $ prepareOutputs constraints (view #outputsToCover params)
-    withExceptT SelectionBalanceError
-        $ fmap mkSelection
-        $ ExceptT
-        $ uncurry Balance.performSelection
-        $ toBalanceConstraintsParams
+    balanceResult <- withExceptT SelectionBalanceError $ ExceptT $
+        uncurry Balance.performSelection $
+        toBalanceConstraintsParams
             ( constraints
             , params {outputsToCover = preparedOutputs}
             )
+    collateralResult <- withExceptT SelectionCollateralError $ except $
+        if collateralRequired params
+        then
+            uncurry Collateral.performSelection $
+            toCollateralConstraintsParams balanceResult (constraints, params)
+        else
+            pure Collateral.selectionResultEmpty
+    pure $ mkSelection params balanceResult collateralResult
 
+-- | Creates constraints and parameters for 'Balance.performSelection'.
+--
 toBalanceConstraintsParams
     :: (        SelectionConstraints,         SelectionParams)
     -> (Balance.SelectionConstraints, Balance.SelectionParams)
@@ -143,11 +155,58 @@ toBalanceConstraintsParams (constraints, params) =
             view #computeMinimumAdaQuantity constraints
         , computeMinimumCost =
             view #computeMinimumCost constraints
+                & adjustComputeMinimumCost
         , computeSelectionLimit =
             view #computeSelectionLimit constraints
+                & adjustComputeSelectionLimit
         , assessTokenBundleSize =
             view (#assessTokenBundleSize . #assessTokenBundleSize) constraints
         }
+      where
+        adjustComputeMinimumCost
+            :: (SelectionSkeleton -> Coin)
+            -> (SelectionSkeleton -> Coin)
+        adjustComputeMinimumCost =
+            whenCollateralRequired params (. adjustSelectionSkeleton)
+          where
+            -- When collateral is required, we reserve space for collateral
+            -- inputs ahead of time by adding the maximum allowed number of
+            -- collateral inputs (defined by 'maximumCollateralInputCount')
+            -- to the skeleton input count.
+            --
+            -- This ensures that the collateral inputs are already paid for
+            -- when 'Balance.performSelection' is generating change outputs.
+            --
+            -- In many cases, the maximum allowed number of collateral inputs
+            -- will be greater than the number eventually required, which will
+            -- lead to a fee that is slightly higher than necessary.
+            --
+            -- However, since the maximum number of collateral inputs is very
+            -- small, and since the marginal cost of a single extra input is
+            -- relatively small, this fee increase is likely to be very small.
+            --
+            adjustSelectionSkeleton :: SelectionSkeleton -> SelectionSkeleton
+            adjustSelectionSkeleton = over #skeletonInputCount
+                (+ view #maximumCollateralInputCount constraints)
+
+        adjustComputeSelectionLimit
+            :: ([TxOut] -> SelectionLimit)
+            -> ([TxOut] -> SelectionLimit)
+        adjustComputeSelectionLimit =
+            whenCollateralRequired params (fmap adjustSelectionLimit)
+          where
+            -- When collateral is required, we reserve space for collateral
+            -- inputs ahead of time by subtracting the maximum allowed number
+            -- of collateral inputs (defined by 'maximumCollateralInputCount')
+            -- from the selection limit.
+            --
+            -- This ensures that when we come to perform collateral selection,
+            -- there is still space available.
+            --
+            adjustSelectionLimit :: SelectionLimit -> SelectionLimit
+            adjustSelectionLimit = fmap
+                (`subtract` (view #maximumCollateralInputCount constraints))
+
     balanceParams = Balance.SelectionParams
         { assetsToBurn =
             view #assetsToBurn params
@@ -168,16 +227,51 @@ toBalanceConstraintsParams (constraints, params) =
             view #utxoAvailableForInputs params
         }
 
--- | Makes a selection from an ordinary selection and a collateral selection.
+-- | Creates constraints and parameters for 'Collateral.performSelection'.
 --
--- TODO: [ADP-1037]
--- Adjust this function to accept the result of a collateral selection as a
--- parameter.
+toCollateralConstraintsParams
+    :: Balance.SelectionResult
+    -> (           SelectionConstraints,            SelectionParams)
+    -> (Collateral.SelectionConstraints, Collateral.SelectionParams)
+toCollateralConstraintsParams balanceSelection (constraints, params) =
+    (collateralConstraints, collateralParams)
+  where
+    collateralConstraints = Collateral.SelectionConstraints
+        { maximumSelectionSize =
+            view #maximumCollateralInputCount constraints
+        , searchSpaceLimit =
+            -- We use the default search space limit here, as this value is
+            -- used in the test suite for 'Collateral.performSelection'. We
+            -- can therefore be reasonably confident that the process of
+            -- selecting collateral will not use inordinate amounts of time
+            -- and space:
+            Collateral.searchSpaceLimitDefault
+        }
+    collateralParams = Collateral.SelectionParams
+        { coinsAvailable =
+            Map.mapMaybeWithKey
+                (curry (view #utxoSuitableForCollateral constraints))
+                (unUTxO (view #utxoAvailableForCollateral params))
+        , minimumSelectionAmount =
+            Coin . ceiling . (% 100) . unCoin $
+            mtimesDefault
+                (view #minimumCollateralPercentage constraints)
+                (Balance.selectionSurplusCoin balanceSelection)
+        }
+
+-- | Creates a 'Selection' from selections of inputs and collateral.
 --
-mkSelection :: Balance.SelectionResult -> Selection
-mkSelection balanceResult = Selection
+mkSelection
+    :: SelectionParams
+    -> Balance.SelectionResult
+    -> Collateral.SelectionResult
+    -> Selection
+mkSelection params balanceResult collateralResult = Selection
     { inputs = view #inputsSelected balanceResult
-    , collateral = [] --TODO: [ADP-1037]
+    , collateral = UTxO.toList $
+        view #utxoAvailableForCollateral params
+        `UTxO.restrictedBy`
+        Map.keysSet (view #coinsSelected collateralResult)
     , outputs = view #outputsCovered balanceResult
     , change = view #changeGenerated balanceResult
     , assetsToMint = view #assetsToMint balanceResult
@@ -185,6 +279,8 @@ mkSelection balanceResult = Selection
     , extraCoinSource = view #extraCoinSource balanceResult
     , extraCoinSink = view #extraCoinSink balanceResult
     }
+
+-- | Converts a 'Selection' to a selection of inputs.
 
 toBalanceSelection :: Selection -> Balance.SelectionResult
 toBalanceSelection selection = Balance.SelectionResult
@@ -307,6 +403,23 @@ data SelectionCollateralRequirement
     -- ^ Indicates that collateral is not required.
     deriving (Eq, Show)
 
+-- | Indicates 'True' if and only if collateral is required.
+--
+collateralRequired :: SelectionParams -> Bool
+collateralRequired params = case view #collateralRequirement params of
+    SelectionCollateralRequired    -> True
+    SelectionCollateralNotRequired -> False
+
+-- | Applies the given transformation function only when collateral is required.
+--
+whenCollateralRequired
+    :: SelectionParams
+    -> (a -> a)
+    -> (a -> a)
+whenCollateralRequired params f
+    | collateralRequired params = f
+    | otherwise = id
+
 -- | Indicates that an error occurred while performing a coin selection.
 --
 data SelectionError
@@ -314,8 +427,8 @@ data SelectionError
         Balance.SelectionError
     | SelectionCollateralError
         Collateral.SelectionError
-    | SelectionOutputsError
-        ErrPrepareOutputs
+    | SelectionOutputError
+        SelectionOutputInvalidError
     deriving (Eq, Show)
 
 -- | Represents a balanced selection.
@@ -359,25 +472,26 @@ type Selection = SelectionOf TokenBundle
 prepareOutputs
     :: SelectionConstraints
     -> [TxOut]
-    -> Either ErrPrepareOutputs [TxOut]
+    -> Either SelectionOutputInvalidError [TxOut]
 prepareOutputs constraints outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
-            -- We encountered one or more excessively large token bundles.
-            -- Just report the first such bundle:
-            ErrPrepareOutputsTokenBundleSizeExceedsLimit $
-            ErrOutputTokenBundleSizeExceedsLimit {address, assetCount}
+        -- We encountered one or more excessively large token bundles.
+        -- Just report the first such bundle:
+        SelectionOutputSizeExceedsLimit $
+        SelectionOutputSizeExceedsLimitError
+            {address, assetCount}
     | (address, asset, quantity) : _ <- excessiveTokenQuantities =
         Left $
-            -- We encountered one or more excessive token quantities.
-            -- Just report the first such quantity:
-            ErrPrepareOutputsTokenQuantityExceedsLimit $
-            ErrOutputTokenQuantityExceedsLimit
-                { address
-                , asset
-                , quantity
-                , quantityMaxBound = txOutMaxTokenQuantity
-                }
+        -- We encountered one or more excessive token quantities.
+        -- Just report the first such quantity:
+        SelectionOutputTokenQuantityExceedsLimit $
+        SelectionOutputTokenQuantityExceedsLimitError
+            { address
+            , asset
+            , quantity
+            , quantityMaxBound = txOutMaxTokenQuantity
+            }
     | otherwise =
         pure outputsToCover
   where
@@ -422,14 +536,15 @@ prepareOutputs constraints outputsUnprepared
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
-data ErrPrepareOutputs
-    = ErrPrepareOutputsTokenBundleSizeExceedsLimit
-        ErrOutputTokenBundleSizeExceedsLimit
-    | ErrPrepareOutputsTokenQuantityExceedsLimit
-        ErrOutputTokenQuantityExceedsLimit
+data SelectionOutputInvalidError
+    = SelectionOutputSizeExceedsLimit
+        SelectionOutputSizeExceedsLimitError
+    | SelectionOutputTokenQuantityExceedsLimit
+        SelectionOutputTokenQuantityExceedsLimitError
     deriving (Eq, Generic, Show)
 
-data ErrOutputTokenBundleSizeExceedsLimit = ErrOutputTokenBundleSizeExceedsLimit
+data SelectionOutputSizeExceedsLimitError =
+    SelectionOutputSizeExceedsLimitError
     { address :: !Address
       -- ^ The address to which this token bundle was to be sent.
     , assetCount :: !Int
@@ -440,7 +555,8 @@ data ErrOutputTokenBundleSizeExceedsLimit = ErrOutputTokenBundleSizeExceedsLimit
 -- | Indicates that a token quantity exceeds the maximum quantity that can
 --   appear in a transaction output's token bundle.
 --
-data ErrOutputTokenQuantityExceedsLimit = ErrOutputTokenQuantityExceedsLimit
+data SelectionOutputTokenQuantityExceedsLimitError =
+    SelectionOutputTokenQuantityExceedsLimitError
     { address :: !Address
       -- ^ The address to which this token quantity was to be sent.
     , asset :: !AssetId

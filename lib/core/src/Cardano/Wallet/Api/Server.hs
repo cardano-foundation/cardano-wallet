@@ -354,11 +354,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , validateScriptTemplates
     )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( ErrOutputTokenBundleSizeExceedsLimit (..)
-    , ErrOutputTokenQuantityExceedsLimit (..)
-    , ErrPrepareOutputs (..)
-    , SelectionError (..)
+    ( SelectionError (..)
     , SelectionOf (..)
+    , SelectionOutputInvalidError (..)
+    , SelectionOutputSizeExceedsLimitError (..)
+    , SelectionOutputTokenQuantityExceedsLimitError (..)
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
@@ -3890,15 +3890,16 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
-instance IsServerError ErrPrepareOutputs where
+instance IsServerError SelectionOutputInvalidError where
     toServerError = \case
-        ErrPrepareOutputsTokenBundleSizeExceedsLimit e ->
+        SelectionOutputSizeExceedsLimit e ->
             toServerError e
-        ErrPrepareOutputsTokenQuantityExceedsLimit e ->
+        SelectionOutputTokenQuantityExceedsLimit e ->
             toServerError e
 
-instance IsServerError ErrOutputTokenBundleSizeExceedsLimit where
-    toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
+instance IsServerError SelectionOutputSizeExceedsLimitError where
+    toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $
+        mconcat
         [ "One of the outputs you've specified contains too many assets. "
         , "Try splitting these assets across two or more outputs. "
         , "Destination address: "
@@ -3908,7 +3909,7 @@ instance IsServerError ErrOutputTokenBundleSizeExceedsLimit where
         , "."
         ]
 
-instance IsServerError ErrOutputTokenQuantityExceedsLimit where
+instance IsServerError SelectionOutputTokenQuantityExceedsLimitError where
     toServerError e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
         [ "One of the token quantities you've specified is greater than the "
         , "maximum quantity allowed in a single transaction output. Try "
@@ -3956,7 +3957,7 @@ instance IsServerError ErrSelectAssets where
             toServerError e
         ErrSelectAssetsSelectionError (SelectionCollateralError e) ->
             toServerError e
-        ErrSelectAssetsSelectionError (SelectionOutputsError e) ->
+        ErrSelectAssetsSelectionError (SelectionOutputError e) ->
             toServerError e
 
 instance IsServerError (Balance.SelectionError) where

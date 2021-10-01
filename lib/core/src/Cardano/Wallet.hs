@@ -295,12 +295,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , isShared
     )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( ErrPrepareOutputs (..)
-    , Selection
+    ( Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (..)
+    , SelectionOutputInvalidError (..)
     , SelectionParams (..)
     , SelectionReportDetailed
     , SelectionReportSummarized
@@ -2625,7 +2625,7 @@ data ErrCreateMigrationPlan
     deriving (Generic, Eq, Show)
 
 data ErrSelectAssets
-    = ErrSelectAssetsPrepareOutputsError ErrPrepareOutputs
+    = ErrSelectAssetsPrepareOutputsError SelectionOutputInvalidError
     | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
     | ErrSelectAssetsSelectionError SelectionError
