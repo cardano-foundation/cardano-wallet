@@ -36,6 +36,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , maximumCollateralInputCountByEra
     , minUTxOValue
+    , minimumCollateralPercentageByEra
     , request
     , securityParameterValue
     , slotLengthValue
@@ -91,6 +92,8 @@ spec = describe "SHELLEY_NETWORK" $ do
             , expectField #activeSlotCoefficient (`shouldBe` Quantity 50.0)
             , expectField #maximumCollateralInputCount
                   (`shouldBe` maximumCollateralInputCountByEra (_mainEra ctx))
+            , expectField #minimumCollateralPercentage
+                  (`shouldBe` minimumCollateralPercentageByEra (_mainEra ctx))
             , expectField #maximumTokenBundleSize (`shouldBe` Quantity 5000)
             , checkExecutionUnitPricesPresence (_mainEra ctx)
             ]
