@@ -267,14 +267,11 @@ data ErrMkTransaction
     | ErrMkTransactionJoinStakePool ErrCannotJoin
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException
-    | ErrKeyNotFoundForAddress Address
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error
 data ErrSignTx
     = ErrSignTxAddressUnknown TxIn
-    -- ^ We tried to sign a transaction with inputs that are unknown to us?
-    | ErrSignTxKeyNotFound Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
     | ErrSignTxUnimplemented
     -- ^ TODO: [ADP-919] Remove ErrSignTxUnimplemented

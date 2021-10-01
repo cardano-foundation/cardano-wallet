@@ -61,6 +61,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toPoint
     , toCardanoTxId
     , toCardanoTxIn
+    , fromCardanoTxIn
     , toCardanoTxOut
     , toCardanoLovelace
     , toStakeKeyRegCert
@@ -1042,6 +1043,12 @@ fromShelleyTxIn (SL.TxIn txid ix) =
   where
     unsafeCast :: Natural -> Word32
     unsafeCast = fromIntegral
+
+fromCardanoTxIn
+    :: Cardano.TxIn
+    -> W.TxIn
+fromCardanoTxIn (Cardano.TxIn txid (Cardano.TxIx ix)) =
+    W.TxIn (fromShelleyTxId $ Cardano.toShelleyTxId txid) (fromIntegral ix)
 
 fromShelleyTxOut
     :: ( SL.ShelleyBased era

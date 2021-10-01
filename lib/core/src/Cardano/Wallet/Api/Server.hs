@@ -3672,12 +3672,6 @@ instance IsServerError ErrSignTx where
                 , "could not resolve the address of a transaction input "
                 , "that I should be tracking: ", showT txin, "."
                 ]
-        ErrSignTxKeyNotFound addr ->
-            apiError err500 KeyNotFoundForAddress $ mconcat
-                [ "I couldn't sign the given transaction because I cannot "
-                , "find the private key corresponding to the known "
-                , "input address: ", showT addr, "."
-                ]
         ErrSignTxUnimplemented ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
@@ -3697,7 +3691,6 @@ instance IsServerError ErrMkTransaction where
         ErrMkTransactionQuitStakePool e -> toServerError e
         ErrMkTransactionNoSuchWallet wid -> toServerError (ErrNoSuchWallet wid)
         ErrMkTransactionIncorrectTTL e -> toServerError e
-        ErrKeyNotFoundForAddress a -> toServerError (ErrSignTxKeyNotFound a)
 
 instance IsServerError ErrConstructTx where
     toServerError = \case
