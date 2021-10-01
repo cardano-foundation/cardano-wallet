@@ -244,6 +244,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxCollateral (..)
     , ApiTxId (..)
+    , ApiTxIn (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiTxOut (..)
@@ -2235,17 +2236,22 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 , txTimeToLive = ttl
                 }
 
-        (utxoAvailable, wallet, pendingTxs) <-
+        (internalUtxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+
+        let externalSelectedUtxo =
+                UTxOIndex.fromSequence externalInputs
+
+        let utxoAvailable = UTxOSelection.fromIndexPair
+                (internalUtxoAvailable, externalSelectedUtxo)
 
         let runSelection = W.selectAssets @_ @s @k wrk W.SelectAssetsParams
                 { outputs = outs
                 , pendingTxs
                 , txContext = txCtx
-                , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForInputs = utxoAvailable
                 , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO utxoAvailable
+                    UTxOIndex.toUTxO internalUtxoAvailable
                 , wallet
                 } getFee
               where getFee = const (selectionDelta TokenBundle.getCoin)
@@ -2257,10 +2263,9 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             { outputs = outs
             , pendingTxs
             , txContext = txCtx
-            , utxoAvailableForInputs =
-                    UTxOSelection.fromIndex utxoAvailable
+            , utxoAvailableForInputs = utxoAvailable
             , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO utxoAvailable
+                    UTxOIndex.toUTxO internalUtxoAvailable
             , wallet
             }
             transform
@@ -2293,8 +2298,11 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     ti = timeInterpreter nl
 
     apiExternalInps = body ^. #inputs
-    getAmtFromExternalInps (ApiExternalInput _ (ApiTxOut _ _ (Quantity amt) _)) = amt
-    _appliedExternalInps = sum $ getAmtFromExternalInps <$> apiExternalInps
+    toTxInTxOut
+        (ApiExternalInput (ApiTxIn (ApiT hashTx) ix)
+        (ApiTxOut (ApiT addr, _) _ (Quantity amt) (ApiT assets))) =
+        (TxIn hashTx ix, TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets))
+    externalInputs = toTxInTxOut <$> apiExternalInps
     sealedTxIncoming = body ^. #transaction . #getApiT
     txIncoming = decodeTx tl sealedTxIncoming
     toTxOut (TxChange addr amt assets _) =
