@@ -366,16 +366,22 @@ data SelectionCollateralRequirement
     -- ^ Indicates that collateral is not required.
     deriving (Eq, Show)
 
+-- | Indicates 'True' if and only if collateral is required.
+--
+collateralRequired :: SelectionParams -> Bool
+collateralRequired params = case view #collateralRequirement params of
+    SelectionCollateralRequired    -> True
+    SelectionCollateralNotRequired -> False
+
 -- | Applies the given transformation function only when collateral is required.
 --
 whenCollateralRequired
     :: SelectionParams
     -> (a -> a)
     -> (a -> a)
-whenCollateralRequired params f =
-    case view #collateralRequirement params of
-        SelectionCollateralRequired    -> f
-        SelectionCollateralNotRequired -> id
+whenCollateralRequired params f
+    | collateralRequired params = f
+    | otherwise = id
 
 -- | Indicates that an error occurred while performing a coin selection.
 --
