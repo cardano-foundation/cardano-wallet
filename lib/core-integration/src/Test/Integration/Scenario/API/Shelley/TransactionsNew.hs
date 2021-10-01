@@ -24,8 +24,10 @@ import Cardano.Wallet.Api.Types
     ( ApiCoinSelectionInput (..)
     , ApiConstructTransaction
     , ApiFee (..)
+    , ApiSignedTransaction
     , ApiStakePool
     , ApiT (..)
+    , ApiTxId
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -72,6 +74,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , expectSuccess
     , fixtureMultiAssetWallet
+    , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
@@ -95,6 +98,7 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -873,6 +877,45 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             ]
+
+    it "TRANS_NEW_SIGN_01 - Sign single-output transaction" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+        let amt = minUTxOValue (_mainEra ctx)
+
+        -- Construct tx
+        payload <- mkTxPayload ctx w amt
+        let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
+        sealedTx <- getFromResponse #transaction <$>
+            request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
+
+        -- Sign tx
+        let toSign = Json [json|
+                { "transaction": #{sealedTx}
+                , "passphrase": #{fixturePassphrase}
+                }|]
+        let signEndpoint = Link.signTransaction @'Shelley w
+        signedTx <- getFromResponse (#transaction . #getApiT . #serialisedTx) <$>
+            request @ApiSignedTransaction ctx signEndpoint Default toSign
+
+        -- Submit tx
+        let submitEndpoint = Link.postExternalTransaction
+        let headers = Headers
+                [ ("Content-Type", "application/octet-stream")
+                , ("Accept", "application/json")
+                ]
+        r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict signedTx)
+        verify r
+            [ expectResponseCode HTTP.status202
+            ]
+
+    -- TODO: Moar tests scenarios to cover in the context of sign-transactions
+    --
+    -- - Signing with withdrawals
+    -- - Signing with non-own / scripts inputs
+    -- - Signing with pre-existing witnesses
+    -- - Signing with collaterals
+    -- - Signing with extra required signatures
+    -- - ideas?
   where
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload

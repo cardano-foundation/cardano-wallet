@@ -1847,12 +1847,14 @@ signTransaction ctx (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let sealedTx = body ^. #transaction . #getApiT
 
-    _tx <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
+    sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
         liftHandler $ W.signTransaction wrk wid pwd sealedTx
 
-    -- TODO: [ADP-919] Implement Api.Server.signTransaction
+    -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
+    -- the use-case for having them provided separately? In the end, the client
+    -- should be able to decouple them if they need to.
     pure $ Api.ApiSignedTransaction
-        { transaction = ApiT sealedTx
+        { transaction = ApiT sealedTx'
         , body = mempty
         , witnesses = []
         }
