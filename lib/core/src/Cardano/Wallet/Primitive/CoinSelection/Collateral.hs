@@ -1,6 +1,7 @@
 {- HLINT ignore "Evaluate" -}
 
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLists #-}
@@ -178,9 +179,11 @@ type SelectionResult = SelectionResultOf TxIn
 
 -- | Represents an unsuccessful attempt to select collateral.
 --
-newtype SelectionErrorOf inputId = SelectionError
+data SelectionErrorOf inputId = SelectionError
     { largestCombinationAvailable :: Map inputId Coin
         -- ^ The largest combination of coins available.
+    , minimumSelectionAmount :: Coin
+        -- ^ A lower bound on the sum of coins to be selected as collateral.
     }
     deriving (Eq, Generic, Show)
 
@@ -251,7 +254,10 @@ selectCollateralSmallest constraints params =
         Just coinsSelected ->
             Right SelectionResult {coinsSelected}
         Nothing ->
-            Left (SelectionError mempty)
+            Left SelectionError
+                { largestCombinationAvailable = mempty
+                , minimumSelectionAmount
+                }
   where
     coinsToConsider :: [(inputId, Coin)]
     coinsToConsider = coinsAvailable
@@ -317,7 +323,10 @@ selectCollateralLargest constraints params =
         Just coinsSelected ->
             Right SelectionResult {coinsSelected}
         Nothing ->
-            Left SelectionError {largestCombinationAvailable}
+            Left SelectionError
+                { largestCombinationAvailable
+                , minimumSelectionAmount
+                }
   where
     largestCombinationAvailable :: Map inputId Coin
     largestCombinationAvailable =
