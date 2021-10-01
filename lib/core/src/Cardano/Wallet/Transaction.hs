@@ -108,6 +108,21 @@ data TransactionLayer k tx = TransactionLayer
         -- This expects as a first argument a mean to compute or lookup private
         -- key corresponding to a particular address.
 
+    , addVkWitnesses
+        :: AnyCardanoEra
+            -- Era for which the transaction should be created.
+        -> (XPrv, Passphrase "encryption")
+            -- Reward account
+        -> (TxIn -> Maybe (Address, k 'AddressK XPrv, Passphrase "encryption"))
+            -- ^ Key store / input resolution
+        -> tx
+            -- ^ The transaction to sign
+        -> tx
+        -- ^ Add Vk witnesses to a transaction for known inputs.
+        --
+        -- If inputs can't be resolved, they are simply skipped, hence why this
+        -- function cannot fail.
+
     , mkUnsignedTransaction
         :: AnyCardanoEra
             -- Era for which the transaction should be created.

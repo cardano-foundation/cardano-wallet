@@ -39,6 +39,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , restrictedBy
     , restrictedTo
     , size
+    , lookup
     , filter
     , filterByAddressM
     , filterByAddress
@@ -47,7 +48,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     ) where
 
 import Prelude hiding
-    ( filter, null )
+    ( filter, lookup, null )
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
@@ -169,6 +170,12 @@ size (UTxO u) = Map.size u
 --
 filter :: (TxIn -> Bool) -> UTxO -> UTxO
 filter f (UTxO u) = UTxO $ Map.filterWithKey (const . f) u
+
+-- | Lookup an input in the UTXO
+--
+--
+lookup :: TxIn -> UTxO -> Maybe TxOut
+lookup i (UTxO u) = Map.lookup i u
 
 -- | Filters a 'UTxO' set with an indicator function on 'Address' values.
 --

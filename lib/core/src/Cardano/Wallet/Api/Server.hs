@@ -472,8 +472,6 @@ import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Aeson
     ( (.=) )
-import Data.Bifunctor
-    ( first )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -1836,7 +1834,10 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
 signTransaction
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , WalletKey k
+        , IsOwned s k
+        , HardDerivation k
         )
     => ctx
     -> ApiT WalletId
@@ -1846,10 +1847,8 @@ signTransaction ctx (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let sealedTx = body ^. #transaction . #getApiT
 
-    let stubRwdAcct = first (getRawKey @k)
-
     _tx <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
-        liftHandler $ W.signTransaction wrk wid stubRwdAcct pwd sealedTx
+        liftHandler $ W.signTransaction wrk wid pwd sealedTx
 
     -- TODO: [ADP-919] Implement Api.Server.signTransaction
     pure $ Api.ApiSignedTransaction
