@@ -123,11 +123,6 @@ performSelection
     -> SelectionParams
     -> ExceptT SelectionError m Selection
 performSelection constraints params = do
-    -- TODO:
-    --
-    -- https://input-output.atlassian.net/browse/ADP-1037
-    -- Adjust coin selection and fee estimation to handle collateral inputs
-    --
     preparedOutputs <- withExceptT SelectionOutputsError $ except
         $ prepareOutputs constraints (view #outputsToCover params)
     balanceResult <- withExceptT SelectionBalanceError $ ExceptT $
@@ -136,7 +131,14 @@ performSelection constraints params = do
             ( constraints
             , params {outputsToCover = preparedOutputs}
             )
-    pure $ mkSelection params balanceResult emptyCollateralResult
+    collateralResult <- withExceptT SelectionCollateralError $ except $
+        if collateralRequired params
+        then
+            uncurry Collateral.performSelection $
+            toCollateralConstraintsParams balanceResult (constraints, params)
+        else
+            pure emptyCollateralResult
+    pure $ mkSelection params balanceResult collateralResult
   where
     emptyCollateralResult :: Collateral.SelectionResult
     emptyCollateralResult = Collateral.SelectionResult
