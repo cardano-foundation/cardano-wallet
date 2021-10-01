@@ -1206,8 +1206,7 @@ fromAlonzoTxBodyAndAux bod mad =
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedCollateral =
-            -- TODO: (ADP-957)
-            []
+            map ((,W.Coin 0) . fromShelleyTxIn) (toList collateral)
         , resolvedInputs =
             map ((,W.Coin 0) . fromShelleyTxIn) (toList ins)
         , outputs =
