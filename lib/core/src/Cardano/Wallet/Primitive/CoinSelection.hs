@@ -34,7 +34,7 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionParams (..)
 
       -- * Preparation of outputs
-    , prepareOutputs
+    , prepareOutputsInternal
     , SelectionOutputInvalidError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -76,14 +76,16 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
+import Control.Monad
+    ( (<=<) )
 import Control.Monad.Random.Class
     ( MonadRandom )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, withExceptT )
+    ( ExceptT (..), withExceptT )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over, set, view )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
@@ -110,6 +112,13 @@ import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+-- | Provides a context for functions related to 'performSelection'.
+
+type PerformSelection m a =
+    SelectionConstraints ->
+    SelectionParams ->
+    ExceptT SelectionError m a
+
 -- | Performs a coin selection.
 --
 -- This function has the following responsibilities:
@@ -120,27 +129,42 @@ import qualified Data.Set as Set
 --  - balancing a selection to pay for the transaction fee.
 --
 performSelection
+    :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
+performSelection cs = performSelectionInner cs <=< prepareOutputs cs
+
+performSelectionInner
+    :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
+performSelectionInner cs ps = do
+    balanceResult <- performSelectionBalance cs ps
+    collateralResult <- performSelectionCollateral balanceResult cs ps
+    pure $ mkSelection ps balanceResult collateralResult
+
+prepareOutputs
+    :: Applicative m
+    => PerformSelection m SelectionParams
+prepareOutputs cs ps =
+    withExceptT SelectionOutputError $ ExceptT $ pure $
+    flip (set #outputsToCover) ps <$>
+    prepareOutputsInternal cs (view #outputsToCover ps)
+
+performSelectionBalance
     :: (HasCallStack, MonadRandom m)
-    => SelectionConstraints
-    -> SelectionParams
-    -> ExceptT SelectionError m Selection
-performSelection constraints params = do
-    preparedOutputs <- withExceptT SelectionOutputError $ except
-        $ prepareOutputs constraints (view #outputsToCover params)
-    balanceResult <- withExceptT SelectionBalanceError $ ExceptT $
-        uncurry Balance.performSelection $
-        toBalanceConstraintsParams
-            ( constraints
-            , params {outputsToCover = preparedOutputs}
-            )
-    collateralResult <- withExceptT SelectionCollateralError $ except $
-        if collateralRequired params
-        then
-            uncurry Collateral.performSelection $
-            toCollateralConstraintsParams balanceResult (constraints, params)
-        else
-            pure Collateral.selectionResultEmpty
-    pure $ mkSelection params balanceResult collateralResult
+    => PerformSelection m Balance.SelectionResult
+performSelectionBalance cs ps =
+    withExceptT SelectionBalanceError $ ExceptT $
+    uncurry Balance.performSelection $ toBalanceConstraintsParams (cs, ps)
+
+performSelectionCollateral
+    :: Applicative m
+    => Balance.SelectionResult
+    -> PerformSelection m Collateral.SelectionResult
+performSelectionCollateral balanceResult cs ps
+    | collateralRequired ps =
+        withExceptT SelectionCollateralError $ ExceptT $ pure $
+        uncurry Collateral.performSelection $
+        toCollateralConstraintsParams balanceResult (cs, ps)
+    | otherwise =
+        ExceptT $ pure $ Right Collateral.selectionResultEmpty
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --
@@ -469,11 +493,11 @@ type Selection = SelectionOf TokenBundle
 
 -- | Prepares the given user-specified outputs, ensuring that they are valid.
 --
-prepareOutputs
+prepareOutputsInternal
     :: SelectionConstraints
     -> [TxOut]
     -> Either SelectionOutputInvalidError [TxOut]
-prepareOutputs constraints outputsUnprepared
+prepareOutputsInternal constraints outputsUnprepared
     | (address, assetCount) : _ <- excessivelyLargeBundles =
         Left $
         -- We encountered one or more excessively large token bundles.
