@@ -34,7 +34,7 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionParams (..)
 
       -- * Preparation of outputs
-    , prepareOutputsInternal
+    , prepareOutputsWith
     , SelectionOutputInvalidError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
@@ -491,6 +491,10 @@ data SelectionOf change = Selection
 --
 type Selection = SelectionOf TokenBundle
 
+--------------------------------------------------------------------------------
+-- Preparing outputs
+--------------------------------------------------------------------------------
+
 -- | Prepares the given user-specified outputs, ensuring that they are valid.
 --
 prepareOutputsInternal
@@ -556,7 +560,31 @@ prepareOutputsInternal constraints outputsUnprepared
         ]
 
     outputsToCover =
-        Balance.prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
+        prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
+
+-- | Transforms a set of outputs (provided by users) into valid Cardano outputs.
+--
+-- Every output in Cardano needs to have a minimum quantity of ada, in order to
+-- prevent attacks that flood the network with worthless UTxOs.
+--
+-- However, we do not require users to specify the minimum ada quantity
+-- themselves. Most users would prefer to send '10 Apple' rather than
+-- '10 Apple & 1.2 Ada'.
+--
+-- Therefore, unless a coin quantity is explicitly specified, we assign a coin
+-- quantity manually for each non-ada output. That quantity is the minimum
+-- quantity required to make a particular output valid.
+--
+prepareOutputsWith :: Functor f => (TokenMap -> Coin) -> f TxOut -> f TxOut
+prepareOutputsWith minCoinValueFor =
+    fmap $ over #tokens augmentBundle
+  where
+    augmentBundle :: TokenBundle -> TokenBundle
+    augmentBundle bundle
+        | TokenBundle.getCoin bundle == Coin 0 =
+            bundle & set #coin (minCoinValueFor (view #tokens bundle))
+        | otherwise =
+            bundle
 
 -- | Indicates a problem when preparing outputs for a coin selection.
 --
