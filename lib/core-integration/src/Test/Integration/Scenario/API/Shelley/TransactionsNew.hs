@@ -18,8 +18,14 @@ module Test.Integration.Scenario.API.Shelley.TransactionsNew
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPub, xpubPublicKey )
+import Cardano.Api
+    ( CardanoEra (..), InAnyCardanoEra (..) )
+import Cardano.Crypto.DSIGN.Class
+    ( rawDeserialiseVerKeyDSIGN )
 import Cardano.Mnemonic
-    ( mnemonicToText )
+    ( SomeMnemonic (..), mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( ApiCoinSelection (withdrawals)
     , ApiCoinSelectionInput (..)
@@ -36,13 +42,17 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
+    ( HardDerivation (..), PaymentAddress (..), Role (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx, serialisedTx )
+    ( SealedTx (..), getSealedTxBody, sealedTxFromCardanoBody, serialisedTx )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkMnemonic )
+import Control.Arrow
+    ( second )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -50,9 +60,9 @@ import Control.Monad.Trans.Resource
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
-    ( isJust )
+    ( fromJust, isJust )
 import Data.Proxy
-    ( Proxy )
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -80,6 +90,7 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
+    , fixtureWalletWithMnemonics
     , getFromResponse
     , json
     , listAddresses
@@ -100,8 +111,14 @@ import Test.Integration.Framework.TestData
     , errMsg404NoSuchPool
     )
 
+import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
+import qualified Cardano.Ledger.Crypto as Ledger
+import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -883,10 +900,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_SIGN_01 - Sign single-output transaction" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
-        let amt = minUTxOValue (_mainEra ctx)
 
         -- Construct tx
-        payload <- mkTxPayload ctx w amt
+        payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
         sealedTx <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -905,10 +921,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_SIGN_02 - Rejects unsigned transaction" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
-        let amt = minUTxOValue (_mainEra ctx)
 
         -- Construct tx
-        payload <- mkTxPayload ctx w amt
+        payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
         sealedTx <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
@@ -936,6 +951,38 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             <$> request @ApiSignedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
+        submitTx ctx signedTx HTTP.status202
+
+    it "TRANS_NEW_SIGN_04 - Sign extra required signatures" $ \ctx -> runResourceT $ do
+        (w, mw) <- second (unsafeMkMnemonic @15) <$> fixtureWalletWithMnemonics (Proxy @"shelley") ctx
+
+        -- Construct tx
+        payload <- mkTxPayload ctx w $ minUTxOValue (_mainEra ctx)
+        let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
+        apiTx <- getFromResponse (#transaction . #getApiT) <$>
+            request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
+
+        -- NOTE: Picking a key that is
+        --
+        -- (a) known of the wallet (so within the address pool gap)
+        -- (b) not to small, so that it's not already present from the selected
+        -- inputs witnesses!
+        let rootSk = Shelley.generateKeyFromSeed (SomeMnemonic mw, Nothing) mempty
+            acctSk = deriveAccountPrivateKey mempty rootSk minBound
+            addrSk = deriveAddressPrivateKey mempty acctSk UtxoExternal (toEnum 14)
+            addrVk = getRawKey $ publicKey addrSk
+        let apiTx' = ApiT (apiTx `addRequiredSigners` [addrVk])
+
+        -- Sign Tx
+        let toSign = Json [json|
+                { "transaction": #{apiTx'}
+                , "passphrase": #{fixturePassphrase}
+                }|]
+        let signEndpoint = Link.signTransaction @'Shelley w
+        signedTx <- getFromResponse #transaction <$>
+            request @ApiSignedTransaction ctx signEndpoint Default toSign
+
+        -- Submit Tx
         submitTx ctx signedTx HTTP.status202
   where
     submitTx
@@ -1255,3 +1302,28 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         \0801000a451c35dedd2982a03cf39e7dce03c839994ffdec2ec6b04f1c\
         \f2d40e61a300010481d879800581840000d8798082191a221a019d6038\
         \f5f6"
+
+    -- TODO: This function should really not exist, but instead, it should be
+    -- possible to construct a transaction from the API with additional required
+    -- signers!
+    addRequiredSigners :: SealedTx -> [XPub] -> SealedTx
+    addRequiredSigners tx vks =
+        case getSealedTxBody tx of
+            InAnyCardanoEra AlonzoEra (Cardano.ShelleyTxBody a body b c d e) ->
+                let body' = body
+                        { Alonzo.reqSignerHashes = Set.fromList $ hashKey <$> vks
+                        }
+                 in sealedTxFromCardanoBody (Cardano.ShelleyTxBody a body' b c d e)
+            _ ->
+                tx
+      where
+        hashKey
+            :: forall kd crypto. (Ledger.Crypto crypto)
+            => XPub
+            -> Ledger.KeyHash kd crypto
+        hashKey =
+            Ledger.hashKey
+            . Ledger.VKey
+            . fromJust
+            . rawDeserialiseVerKeyDSIGN
+            . xpubPublicKey
