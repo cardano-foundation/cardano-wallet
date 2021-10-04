@@ -22,7 +22,7 @@ import Cardano.Mnemonic
     ( mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( ApiCoinSelectionInput (..)
-    , ApiConstructTransaction
+    , ApiConstructTransaction (..)
     , ApiFee (..)
     , ApiSignedTransaction
     , ApiStakePool
@@ -927,6 +927,37 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict sealedTx)
         verify r
             [ expectResponseCode HTTP.status403
+            ]
+
+    it "TRANS_NEW_SIGN_03 - Accepts signature for withdrawals" $ \ctx -> runResourceT $ do
+        w <- rewardWallet ctx
+
+        -- Construct tx
+        let payload = Json [json|{"withdrawals": "self"}|]
+        let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
+        apiTx <- getResponseFrom Prelude.id <$> request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
+
+        length (withdrawals $ coinSelection apiTx) `shouldBe` 1
+
+        -- Sign tx
+        let sealedTx = serialisedTx . getApiT . transaction $ apiTx
+            toSign = Json [json|
+                { "transaction": #{sealedTx}
+                , "passphrase": #{fixturePassphrase}
+                }|]
+        let signEndpoint = Link.signTransaction @'Shelley w
+        signedTx <- getFromResponse (#transaction . #getApiT . #serialisedTx) <$>
+            request @ApiSignedTransaction ctx signEndpoint Default toSign
+
+        -- Submit tx
+        let submitEndpoint = Link.postExternalTransaction
+        let headers = Headers
+                [ ("Content-Type", "application/octet-stream")
+                , ("Accept", "application/json")
+                ]
+        r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict signedTx)
+        verify r
+            [ expectResponseCode HTTP.status202
             ]
 
     -- TODO: Moar tests scenarios to cover in the context of sign-transactions
