@@ -2222,11 +2222,10 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     ((FeeEstimation feeMin _), unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
         (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-        (wdrl, _) <-
-            if Map.member acct wdrlMap then
-                mkRewardAccountBuilder @_ @s @_ @n ctx wid (Just SelfWithdrawal)
-            else
-                mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+        (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid $
+            if Map.member acct wdrlMap
+            then Just SelfWithdrawal
+            else Nothing
         let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx

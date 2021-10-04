@@ -432,7 +432,7 @@ data UnsignedTx input output change withdrawal = UnsignedTx
         -- (each UTxO being unique, including at least one UTxO in the
         -- transaction body makes it seemingly unique).
         --
-        -- *However* when used to respresent the inputs known by the wallet, in
+        -- *However* when used to represent the inputs known by the wallet, in
         -- contrast to all inputs, it can be empty.
 
     , unsignedOutputs
