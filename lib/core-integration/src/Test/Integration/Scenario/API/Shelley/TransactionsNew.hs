@@ -21,7 +21,8 @@ import Prelude
 import Cardano.Mnemonic
     ( mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiCoinSelectionInput (..)
+    ( ApiCoinSelection (withdrawals)
+    , ApiCoinSelectionInput (..)
     , ApiConstructTransaction (..)
     , ApiFee (..)
     , ApiSignedTransaction
@@ -40,6 +41,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( serialisedTx )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -915,7 +918,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- Construct tx
         payload <- mkTxPayload ctx w amt
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
-        sealedTx <- getFromResponse #transaction <$>
+        sealedTx <- getFromResponse (#transaction . #getApiT . #serialisedTx) <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- Submit tx
@@ -926,17 +929,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
         r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict sealedTx)
         verify r
-            [ expectResponseCode HTTP.status403
+            [ expectResponseCode HTTP.status500
             ]
 
     it "TRANS_NEW_SIGN_03 - Accepts signature for withdrawals" $ \ctx -> runResourceT $ do
-        w <- rewardWallet ctx
+        (w, _) <- rewardWallet ctx
 
         -- Construct tx
-        let payload = Json [json|{"withdrawals": "self"}|]
+        let payload = Json [json|{"withdrawal": "self"}|]
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
-        apiTx <- getResponseFrom Prelude.id <$> request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
-
+        (_, apiTx) <- unsafeRequest @(ApiConstructTransaction n) ctx constructEndpoint payload
         length (withdrawals $ coinSelection apiTx) `shouldBe` 1
 
         -- Sign tx
@@ -946,8 +948,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
-        signedTx <- getFromResponse (#transaction . #getApiT . #serialisedTx) <$>
-            request @ApiSignedTransaction ctx signEndpoint Default toSign
+        rSignedTx <- request @ApiSignedTransaction ctx signEndpoint Default toSign
+        verify rSignedTx
+            [ expectResponseCode HTTP.status202
+            ]
+        let signedTx = getFromResponse (#transaction . #getApiT . #serialisedTx) rSignedTx
 
         -- Submit tx
         let submitEndpoint = Link.postExternalTransaction
@@ -962,7 +967,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     -- TODO: Moar tests scenarios to cover in the context of sign-transactions
     --
-    -- - Signing with withdrawals
     -- - Signing with non-own / scripts inputs
     -- - Signing with pre-existing witnesses
     -- - Signing with collaterals
