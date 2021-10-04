@@ -908,6 +908,27 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
+    it "TRANS_NEW_SIGN_02 - Rejects unsigned transaction" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+        let amt = minUTxOValue (_mainEra ctx)
+
+        -- Construct tx
+        payload <- mkTxPayload ctx w amt
+        let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
+        sealedTx <- getFromResponse #transaction <$>
+            request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
+
+        -- Submit tx
+        let submitEndpoint = Link.postExternalTransaction
+        let headers = Headers
+                [ ("Content-Type", "application/octet-stream")
+                , ("Accept", "application/json")
+                ]
+        r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict sealedTx)
+        verify r
+            [ expectResponseCode HTTP.status403
+            ]
+
     -- TODO: Moar tests scenarios to cover in the context of sign-transactions
     --
     -- - Signing with withdrawals
