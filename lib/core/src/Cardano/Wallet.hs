@@ -1551,19 +1551,20 @@ signTransaction ctx wid pwd tx = db & \DBLayer{..} -> do
             $ readCheckpoint wid
         let pwdP = preparePassphrase scheme pwd
         let rewardAcnt = (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
-        let resolver = inputResolver cp (rootK, pwdP)
-        pure $ addVkWitnesses tl era rewardAcnt resolver tx
+        let addressResolver = mkAddressResolver cp (rootK, pwdP)
+        let inputResolver = mkInputResolver cp
+        pure $ addVkWitnesses tl era rewardAcnt addressResolver inputResolver tx
   where
     db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
 
-    inputResolver cp (rootK, pwdP) i = do
+    mkInputResolver cp i = do
         TxOut addr _ <- UTxO.lookup i (totalUTxO mempty cp)
-        (vk, pwdP') <- addressResolver addr
-        pure (addr, vk, pwdP')
-      where
-        addressResolver = isOwned (getState cp) (rootK, pwdP)
+        pure addr
+
+    mkAddressResolver cp (rootK, pwdP) =
+        isOwned (getState cp) (rootK, pwdP)
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --

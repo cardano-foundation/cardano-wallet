@@ -82,6 +82,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromAlonzoPParams
     , fromLedgerExUnits
     , fromLedgerPParams
+    , fromCardanoAddress
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -1408,6 +1409,9 @@ fromPoolKeyHash (SL.KeyHash h) =
 fromOwnerKeyHash :: SL.KeyHash 'SL.Staking crypto -> W.PoolOwner
 fromOwnerKeyHash (SL.KeyHash h) =
     W.PoolOwner (hashToBytes h)
+
+fromCardanoAddress :: Cardano.Address Cardano.ShelleyAddr -> W.Address
+fromCardanoAddress = W.Address . Cardano.serialiseToRawBytes
 
 fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
 fromUnitInterval x =
