@@ -1010,6 +1010,9 @@ prop_performSelection mockConstraints (Blind params) coverage =
         assertOnSelectionLimitReached
             "utxoBalanceRequired == errorBalanceRequired"
             (utxoBalanceRequired == errorBalanceRequired)
+        assertOnSelectionLimitReached
+          "view #utxoAvailable params /= UTxOSelection.empty"
+          (view #utxoAvailable params /= UTxOSelection.empty)
       where
         assertOnSelectionLimitReached =
             assertWith . (<>) "onSelectionLimitReached: "
