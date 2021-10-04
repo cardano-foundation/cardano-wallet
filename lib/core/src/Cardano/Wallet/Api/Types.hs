@@ -997,11 +997,10 @@ data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOl
 
 type ApiBase64 = ApiBytesT 'Base64 ByteString
 
-data ApiSignedTransaction = ApiSignedTransaction
+newtype ApiSignedTransaction = ApiSignedTransaction
     { transaction :: ApiT SealedTx
-    , body :: ApiBase64
-    , witnesses :: [ApiBase64]
-    } deriving (Eq, Generic, Show, NFData)
+    } deriving stock (Eq, Generic, Show)
+      deriving anyclass (NFData)
 
 data ApiTxIn = ApiTxIn
     { id :: !(ApiT (Hash "Tx"))

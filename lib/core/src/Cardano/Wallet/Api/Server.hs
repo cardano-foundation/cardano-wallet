@@ -1855,8 +1855,6 @@ signTransaction ctx (ApiT wid) body = do
     -- should be able to decouple them if they need to.
     pure $ Api.ApiSignedTransaction
         { transaction = ApiT sealedTx'
-        , body = mempty
-        , witnesses = []
         }
 
 postTransactionOld

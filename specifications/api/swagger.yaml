@@ -2287,17 +2287,12 @@ components:
 
     ApiSignedTransaction: &ApiSignedTransaction
       description: |
-        The result of signing a transaction. Both the encoded
-        transaction, and individually encoded body and witness set are
-        included in the response.
+        The result of signing a transaction (serialized and encoded).
       type: object
       required:
         - transaction
-        - body
       properties:
         transaction: *serialisedTransactionBase64
-        body: *txBody
-        witnesses: *txWitnesses
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
