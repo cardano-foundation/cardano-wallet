@@ -2671,7 +2671,9 @@ instance (HasBase base, ByteArrayAccess bs) => ToJSON (ApiBytesT base bs) where
     toJSON = String . toText @(ApiBytesT base bs)
 
 instance FromJSON (ApiT SealedTx) where
-    parseJSON = fmap ApiT . parseSealedTxBytes @'Base64
+    parseJSON v = do
+        tx <- parseSealedTxBytes @'Base16 v <|> parseSealedTxBytes @'Base64 v
+        pure $ ApiT tx
 
 instance ToJSON (ApiT SealedTx) where
     toJSON = sealedTxBytesValue @'Base64 . getApiT
@@ -3362,6 +3364,7 @@ instance FromJSON ApiAddressInspect where
 
 instance (HasBase b, ByteArray bs) => FromText (ApiBytesT b bs) where
     fromText = fmap ApiBytesT . fromTextBytes (baseFor @b)
+
 instance (HasBase b, ByteArrayAccess bs) => ToText (ApiBytesT b bs) where
     toText = toTextBytes (baseFor @b) . getApiBytesT
 
