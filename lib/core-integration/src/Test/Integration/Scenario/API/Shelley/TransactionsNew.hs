@@ -42,7 +42,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( serialisedTx )
+    ( SealedTx, serialisedTx )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -897,19 +897,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
-        signedTx <- getFromResponse (#transaction . #getApiT . #serialisedTx) <$>
+        signedTx <- getFromResponse #transaction <$>
             request @ApiSignedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
-        let submitEndpoint = Link.postExternalTransaction
-        let headers = Headers
-                [ ("Content-Type", "application/octet-stream")
-                , ("Accept", "application/json")
-                ]
-        r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict signedTx)
-        verify r
-            [ expectResponseCode HTTP.status202
-            ]
+        submitTx ctx signedTx HTTP.status202
 
     it "TRANS_NEW_SIGN_02 - Rejects unsigned transaction" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
@@ -918,21 +910,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- Construct tx
         payload <- mkTxPayload ctx w amt
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
-        sealedTx <- getFromResponse (#transaction . #getApiT . #serialisedTx) <$>
+        sealedTx <- getFromResponse #transaction <$>
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- Submit tx
-        let submitEndpoint = Link.postExternalTransaction
-        let headers = Headers
-                [ ("Content-Type", "application/octet-stream")
-                , ("Accept", "application/json")
-                ]
-        r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict sealedTx)
-        verify r
-            [ expectResponseCode HTTP.status500
-            ]
+        submitTx ctx sealedTx HTTP.status500
 
-    it "TRANS_NEW_SIGN_03 - Accepts signature for withdrawals" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
         (w, _) <- rewardWallet ctx
 
         -- Construct tx
@@ -948,31 +932,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
-        rSignedTx <- request @ApiSignedTransaction ctx signEndpoint Default toSign
-        verify rSignedTx
-            [ expectResponseCode HTTP.status202
-            ]
-        let signedTx = getFromResponse (#transaction . #getApiT . #serialisedTx) rSignedTx
+        signedTx <- getFromResponse #transaction
+            <$> request @ApiSignedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
+        submitTx ctx signedTx HTTP.status202
+  where
+    submitTx
+        :: MonadUnliftIO m
+        => Context
+        -> ApiT SealedTx
+        -> HTTP.Status
+        -> m ()
+    submitTx ctx tx responseCode = do
+        let bytes = serialisedTx $ getApiT tx
         let submitEndpoint = Link.postExternalTransaction
         let headers = Headers
                 [ ("Content-Type", "application/octet-stream")
                 , ("Accept", "application/json")
                 ]
-        r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict signedTx)
+        r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
         verify r
-            [ expectResponseCode HTTP.status202
+            [ expectResponseCode responseCode
             ]
 
-    -- TODO: Moar tests scenarios to cover in the context of sign-transactions
-    --
-    -- - Signing with non-own / scripts inputs
-    -- - Signing with pre-existing witnesses
-    -- - Signing with collaterals
-    -- - Signing with extra required signatures
-    -- - ideas?
-  where
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
         :: MonadUnliftIO m
