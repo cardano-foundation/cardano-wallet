@@ -30,7 +30,6 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
       PerformSelection
     , performSelection
     , performSelectionEmpty
-    , prepareOutputsWith
     , emptySkeleton
     , SelectionConstraints (..)
     , SelectionParams
@@ -188,7 +187,6 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
-import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
@@ -407,10 +405,6 @@ data SelectionSkeleton = SelectionSkeleton
         :: ![TxOut]
     , skeletonChange
         :: ![Set AssetId]
-    , skeletonAssetsToMint
-        :: !TokenMap
-    , skeletonAssetsToBurn
-        :: !TokenMap
     }
     deriving (Eq, Generic, Show)
 
@@ -421,8 +415,6 @@ emptySkeleton = SelectionSkeleton
     { skeletonInputCount = 0
     , skeletonOutputs = mempty
     , skeletonChange = mempty
-    , skeletonAssetsToMint = TokenMap.empty
-    , skeletonAssetsToBurn = TokenMap.empty
     }
 
 -- | Specifies a limit to adhere to when performing a selection.
@@ -607,8 +599,6 @@ selectionSkeleton s = SelectionSkeleton
     { skeletonInputCount = F.length (view #inputsSelected s)
     , skeletonOutputs = F.toList (view #outputsCovered s)
     , skeletonChange = TokenBundle.getAssets <$> view #changeGenerated s
-    , skeletonAssetsToMint = view #assetsToMint s
-    , skeletonAssetsToBurn = view #assetsToBurn s
     }
 
 -- | Computes the minimum required cost of a selection.
@@ -718,31 +708,6 @@ data UnableToConstructChangeError = UnableToConstructChangeError
         -- ^ The additional coin quantity that would be required to cover the
         -- selection cost and minimum coin quantity of each change output.
     } deriving (Generic, Eq, Show)
-
--- | Transforms a set of outputs (provided by users) into valid Cardano outputs.
---
--- Every output in Cardano needs to have a minimum quantity of ada, in order to
--- prevent attacks that flood the network with worthless UTxOs.
---
--- However, we do not require users to specify the minimum ada quantity
--- themselves. Most users would prefer to send '10 Apple' rather than
--- '10 Apple & 1.2 Ada'.
---
--- Therefore, unless a coin quantity is explicitly specified, we assign a coin
--- quantity manually for each non-ada output. That quantity is the minimum
--- quantity required to make a particular output valid.
---
-prepareOutputsWith
-    :: (TokenMap -> Coin)
-    -> [TxOut]
-    -> [TxOut]
-prepareOutputsWith minCoinValueFor = fmap $ \out ->
-    out { Tx.tokens = augmentBundle (Tx.tokens out) }
-  where
-    augmentBundle bundle =
-        if TokenBundle.getCoin bundle == Coin 0
-        then bundle { coin = minCoinValueFor (view #tokens bundle) }
-        else bundle
 
 type PerformSelection m outputs =
     SelectionConstraints ->
@@ -1064,8 +1029,6 @@ performSelectionNonEmpty constraints params
             { skeletonInputCount = UTxOSelection.selectedSize s
             , skeletonOutputs = NE.toList outputsToCover
             , skeletonChange
-            , skeletonAssetsToMint = assetsToMint
-            , skeletonAssetsToBurn = assetsToBurn
             }
 
         skeletonChange = predictChange s

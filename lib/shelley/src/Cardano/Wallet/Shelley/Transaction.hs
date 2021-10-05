@@ -626,10 +626,6 @@ dummySkeleton inputCount outputs = SelectionSkeleton
         outputs
     , skeletonChange =
         TokenBundle.getAssets . view #tokens <$> outputs
-    , skeletonAssetsToMint =
-        TokenMap.empty
-    , skeletonAssetsToBurn =
-        TokenMap.empty
     }
 
 -- ^ Evaluate a minimal fee amount necessary to pay for a given tx
@@ -832,11 +828,8 @@ data TxSkeleton = TxSkeleton
     , txOutputs :: ![TxOut]
     , txChange :: ![Set AssetId]
     , txScripts :: [Script KeyHash]
-    , txMintBurnAssets :: [AssetId]
-    -- ^ Assets that have been both minted and burned, or minted or burned
-    -- multiple times, will appear multiple times in this list, once for each
-    -- mint or burn. For example if the caller "mints 3" of asset id "A", and
-    -- "burns 3" of asset id "A", "A" will appear twice in the list.
+    , txAssetsToMintOrBurn :: Set AssetId
+    -- ^ The set of assets to mint or burn.
     , txScriptExecutionCost :: !Coin
     }
     deriving (Eq, Show, Generic)
@@ -855,7 +848,7 @@ emptyTxSkeleton txWitnessTag = TxSkeleton
     , txOutputs = []
     , txChange = []
     , txScripts = []
-    , txMintBurnAssets = []
+    , txAssetsToMintOrBurn = Set.empty
     , txScriptExecutionCost = Coin 0
     }
 
@@ -879,7 +872,9 @@ mkTxSkeleton witness context skeleton = TxSkeleton
     , txChange = view #skeletonChange skeleton
     -- Until we actually support minting and burning, leave these as empty.
     , txScripts = []
-    , txMintBurnAssets = []
+    , txAssetsToMintOrBurn = (<>)
+        (TokenMap.getAssets (view #txAssetsToMint context))
+        (TokenMap.getAssets (view #txAssetsToBurn context))
     , txScriptExecutionCost = view #txPlutusScriptExecutionCost context
     }
 
@@ -919,7 +914,7 @@ estimateTxSize skeleton =
         , txOutputs
         , txChange
         , txScripts
-        , txMintBurnAssets
+        , txAssetsToMintOrBurn
         } = skeleton
 
     numberOf_Inputs
@@ -1000,7 +995,7 @@ estimateTxSize skeleton =
         + sizeOf_Update
         + sizeOf_MetadataHash
         + sizeOf_ValidityIntervalStart
-        + sumVia sizeOf_Mint txMintBurnAssets
+        + sumVia sizeOf_Mint (F.toList txAssetsToMintOrBurn)
       where
         -- 0 => set<transaction_input>
         sizeOf_Inputs

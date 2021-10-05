@@ -61,6 +61,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessor
     , Tx (..)
@@ -81,7 +83,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Api.Shelley as Node
-
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 
 data TransactionLayer k tx = TransactionLayer
     { mkTransaction
@@ -202,6 +204,10 @@ data TransactionCtx = TransactionCtx
     , txPlutusScriptExecutionCost :: Coin
     -- ^ Total execution cost of plutus scripts, determined by their execution units
     -- and prices obtained from network.
+    , txAssetsToMint :: TokenMap
+    -- ^ The assets to mint.
+    , txAssetsToBurn :: TokenMap
+    -- ^ The assets to burn.
     } deriving (Show, Generic, Eq)
 
 data Withdrawal
@@ -225,6 +231,8 @@ defaultTransactionCtx = TransactionCtx
     , txTimeToLive = maxBound
     , txDelegationAction = Nothing
     , txPlutusScriptExecutionCost = Coin 0
+    , txAssetsToMint = TokenMap.empty
+    , txAssetsToBurn = TokenMap.empty
     }
 
 -- | Whether the user is attempting any particular delegation action.

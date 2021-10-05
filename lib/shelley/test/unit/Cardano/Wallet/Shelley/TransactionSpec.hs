@@ -368,7 +368,8 @@ feeCalculationSpec = describe "fee calculations" $ do
     it "minting incurs fees" $ property $ \assets ->
         let
             costWith =
-                minFeeSkeleton $ emptyTxSkeleton { txMintBurnAssets = assets }
+                minFeeSkeleton $ emptyTxSkeleton
+                    { txAssetsToMintOrBurn = Set.fromList assets }
             costWithout =
                 minFeeSkeleton emptyTxSkeleton
 
@@ -412,7 +413,8 @@ feeCalculationSpec = describe "fee calculations" $ do
                 F.foldMap (Sum . assetNameLength) mints
 
             sizeWith =
-                estimateTxSize' $ emptyTxSkeleton { txMintBurnAssets = mints }
+                estimateTxSize' $ emptyTxSkeleton
+                    { txAssetsToMintOrBurn = Set.fromList mints }
             sizeWithout =
                 estimateTxSize' emptyTxSkeleton
 
@@ -539,7 +541,8 @@ feeCalculationSpec = describe "fee calculations" $ do
         it "minting incurs fees" $ property $ \assets ->
             let
                 costWith =
-                    minFeeSkeleton $ emptyTxSkeleton { txMintBurnAssets = assets }
+                    minFeeSkeleton $ emptyTxSkeleton
+                        { txAssetsToMintOrBurn = Set.fromList assets }
                 costWithout =
                     minFeeSkeleton emptyTxSkeleton
 
@@ -583,7 +586,8 @@ feeCalculationSpec = describe "fee calculations" $ do
                     F.foldMap (Sum . assetNameLength) mints
 
                 sizeWith =
-                    estimateTxSize' $ emptyTxSkeleton { txMintBurnAssets = mints }
+                    estimateTxSize' $ emptyTxSkeleton
+                        { txAssetsToMintOrBurn = Set.fromList mints }
                 sizeWithout =
                     estimateTxSize' emptyTxSkeleton
 

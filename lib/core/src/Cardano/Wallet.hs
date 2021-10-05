@@ -1470,9 +1470,10 @@ selectAssets ctx params transform = do
                 asCollateral . snd
             }
         SelectionParams
-            { -- Until we properly support minting and burning, set to empty:
-              assetsToBurn = TokenMap.empty
-            , assetsToMint = TokenMap.empty
+            { assetsToMint =
+                params ^. (#txContext . #txAssetsToMint)
+            , assetsToBurn =
+                params ^. (#txContext . #txAssetsToBurn)
             , outputsToCover = params ^. #outputs
             , rewardWithdrawal =
                 withdrawalToCoin $ params ^. (#txContext . #txWithdrawal)
