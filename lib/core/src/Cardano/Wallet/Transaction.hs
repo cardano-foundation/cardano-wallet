@@ -114,11 +114,11 @@ data TransactionLayer k tx = TransactionLayer
         -> (XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-            -- ^ Key store / address resolution
+            -- Key store / address resolution
         -> (TxIn -> Maybe Address)
-            -- ^ Input resolution
+            -- Input resolution
         -> tx
-            -- ^ The transaction to sign
+            -- The transaction to sign
         -> tx
         -- ^ Add Vk witnesses to a transaction for known inputs.
         --
