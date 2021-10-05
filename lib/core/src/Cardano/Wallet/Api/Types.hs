@@ -674,7 +674,7 @@ data ApiDelegationAction = Join (ApiT PoolId) | Quit
     deriving anyclass NFData
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
-    { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
+    { inputs :: ![ApiCoinSelectionInput n]
     , outputs :: ![ApiCoinSelectionOutput n]
     , change :: ![ApiCoinSelectionChange n]
     , collateral :: ![ApiCoinSelectionCollateral n]

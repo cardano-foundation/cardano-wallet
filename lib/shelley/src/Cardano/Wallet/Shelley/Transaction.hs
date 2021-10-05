@@ -112,7 +112,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
     , TxConstraints (..)
-    , TxIn (..)
     , TxMetadata (..)
     , TxOut (..)
     , TxOut (..)
@@ -142,6 +141,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrMkTransaction (..)
     , ErrUpdateSealedTx (..)
+    , ExtraTxBodyContent (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , withdrawalToCoin
@@ -407,8 +407,7 @@ newTransactionLayer networkId = TransactionLayer
 
     , decodeTx = _decodeSealedTx
 
-    , updateTx = \_sealedTx _inpsOuts ->
-            error "updateTx not implemented"
+    , updateTx = flip updateSealedTx
     }
 
 _decodeSealedTx :: SealedTx -> Tx
@@ -429,23 +428,6 @@ mkDelegationCertificates da accXPub =
                , toStakePoolDlgCert accXPub poolId
                ]
        Quit -> [toStakeKeyDeregCert accXPub]
-
-
--- | Describes modifications that can be made to a `TxBody` using
--- `updateSealedTx`.  See `updateSealedTx` for more details.
-data ExtraTxBodyContent = ExtraTxBodyContent
-    { extraInputs :: [TxIn]
-    , extraCollateral :: [TxIn]
-       -- ^ Only used in the Alonzo era and later. Will be silently ignored in
-       -- previous eras.
-    , extraOutputs :: [TxOut]
-    , newFee :: Coin -> Coin
-        -- ^ Set the new fee, given the old one.
-        --
-        -- Note that you most likely won't care about the old fee at all. But it
-        -- is useful to allow defining a no-op `ExtraTxBodyContent` for the sake
-        -- of testing.
-    }
 
 
 -- | For testing that

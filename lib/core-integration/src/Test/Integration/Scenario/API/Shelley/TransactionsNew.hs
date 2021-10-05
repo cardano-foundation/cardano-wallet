@@ -95,7 +95,6 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -227,7 +226,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let filterInitialAmt =
                 filter (\(ApiCoinSelectionInput _ _ _ _ amt' _) -> amt' == Quantity initialAmt)
-        let coinSelInputs = filterInitialAmt $ NE.toList $
+        let coinSelInputs = filterInitialAmt $
                 getFromResponse (#coinSelection . #inputs) rTx
         length coinSelInputs `shouldBe` 1
 
@@ -819,7 +818,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "Coin selection not integrated with balanceTransaction - to be fixed in ADP-656"
         -- constructing source wallet
         let initialAmt = 110_000_000_000
         let inpAmt = minUTxOValue (_mainEra ctx)
@@ -852,8 +850,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_BALANCE_01e - plutus with missing covering inputs wallet enough funds" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "Needs all prerequisites integrated with balanceTransaction - to be fixed in ADP-656"
 
         -- constructing source wallet
         let initialAmt = 110_000_000_000

@@ -1286,7 +1286,7 @@ dummyTransactionLayer = TransactionLayer
     , decodeTx = \_sealed ->
         Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing
     , updateTx = \sealed _insAndOuts ->
-            pure (sealed, 10000)
+            pure sealed
     }
   where
     withEither :: e -> Maybe a -> Either e a

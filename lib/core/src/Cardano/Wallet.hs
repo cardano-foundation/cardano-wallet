@@ -1335,7 +1335,7 @@ selectionToUnsignedTx
 selectionToUnsignedTx wdrl sel s =
     UnsignedTx
         { unsignedInputs =
-            fullyQualifiedInputs $ view #inputs sel
+            fullyQualifiedInputs $ NE.toList $ view #inputs sel
         , unsignedOutputs =
             view #outputs sel
         , unsignedChange =
@@ -1346,28 +1346,24 @@ selectionToUnsignedTx wdrl sel s =
             fullyQualifiedWithdrawal wdrl
         }
   where
+    -- NOTE: External addresses, not known to the wallet, will be filtered out.
     qualifyAddresses
-        :: forall a t. (Traversable t)
-        => (a -> Address)
-        -> t a
-        -> t (a, NonEmpty DerivationIndex)
+        :: (a -> Address)
+        -> [a]
+        -> [(a, NonEmpty DerivationIndex)]
     qualifyAddresses getAddress hasAddresses =
-        fromMaybe
-        (error
-         "selectionToUnsignedTx: unable to find derivation path of a known \
-         \input or change address. This is impossible.")
-        (traverse withDerivationPath hasAddresses)
+        mapMaybe withDerivationPath hasAddresses
       where
         withDerivationPath hasAddress =
             (hasAddress,) <$> fst (isOurs (getAddress hasAddress) s)
 
-    fullyQualifiedInputs :: Traversable t => t (TxIn, TxOut) -> t input
+    fullyQualifiedInputs :: [(TxIn, TxOut)] -> [input]
     fullyQualifiedInputs =
         fmap mkInput . qualifyAddresses (view #address . snd)
       where
         mkInput ((txin, txout), path) = (txin, txout, path)
 
-    fullyQualifiedChange :: Traversable t => t TxOut -> t change
+    fullyQualifiedChange :: [TxOut] -> [change]
     fullyQualifiedChange =
         fmap mkChange . qualifyAddresses (view #address)
       where
