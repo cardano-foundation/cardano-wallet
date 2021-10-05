@@ -1382,6 +1382,14 @@ x-serialisedTransactionHex: &serialisedTransactionHex
   type: string
   format: hex
 
+x-serialisedTransactionEncoded: &serialisedTransactionEncoded
+  description: |
+    The CBOR-encoded transaction, represented in either hex or base64 encoding.
+    This always includes the transaction body and the witness set, even if the
+    latter is empty.
+  type: string
+  format: "base64|base16"
+
 x-signedTransactionBlob: &signedTransactionBlob
   description: Signed transaction message binary blob.
   type: string
@@ -2915,7 +2923,7 @@ components:
         passphrase:
           <<: *lenientPassphrase
           description: The wallet's master passphrase.
-        transaction: *serialisedTransactionBase64
+        transaction: *serialisedTransactionEncoded
         withdrawal:
           oneOf:
             - <<: *transactionWithdrawalRequestSelf
