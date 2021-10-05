@@ -158,7 +158,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshotEntry (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
-    , Base (Base64)
+    , Base (Base16, Base64)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
@@ -273,7 +273,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
-    , SealedTx
+    , SealedTx (..)
     , SerialisedTx (..)
     , SerialisedTxParts (..)
     , TxIn (..)
@@ -393,6 +393,7 @@ import Test.QuickCheck
     , chooseInt
     , counterexample
     , elements
+    , forAll
     , frequency
     , liftArbitrary
     , listOf
@@ -544,6 +545,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
             jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
             jsonRoundtripAndGolden $ Proxy @ApiTxMetadata
+
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceAction
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceActionPostData
             jsonRoundtripAndGolden $ Proxy @ApiAsset
@@ -558,6 +560,23 @@ spec = parallel $ do
             textRoundtrip $ Proxy @SortOrder
             textRoundtrip $ Proxy @Coin
             textRoundtrip $ Proxy @TokenFingerprint
+
+    describe "SealedTx JSON decoding" $ do
+        -- NOTE(AB): I tried to factor more of the properties as their structure only
+        -- differs by the encoding but this required exporting 'HasBase' from Types to
+        let parseJSONSealedTx jsonTx = (serialisedTx . getApiT  <$> Aeson.eitherDecode @(ApiT SealedTx) jsonTx)
+
+        it "can decode from base-16 encoded string" $
+            forAll selectFromPreparedBinaries $ \ bs ->
+                 let result = parseJSONSealedTx $ Aeson.encode $ ApiBytesT @'Base16 bs
+                  in result == Right bs &
+                     counterexample ("Parse result: " <> show result)
+
+        it "can decode from base-64 encoded string" $
+            forAll selectFromPreparedBinaries $ \ bs ->
+                 let result = parseJSONSealedTx $ Aeson.encode $ ApiBytesT @'Base64 bs
+                  in result == Right bs &
+                     counterexample ("Parse result: " <> show result)
 
     describe "AddressAmount" $ do
         it "fromText \"22323\"" $
