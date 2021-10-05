@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimit, SelectionLimitOf (..), SelectionSkeleton (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetId, genTokenMap, shrinkAssetId, shrinkTokenMap )
+    ( genAssetId, shrinkAssetId )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOut, shrinkTxOut )
 import Test.QuickCheck
@@ -28,7 +28,7 @@ import Test.QuickCheck
     , shrinkMapBy
     )
 import Test.QuickCheck.Extra
-    ( liftShrink5 )
+    ( liftShrink3 )
 
 import qualified Data.Set as Set
 
@@ -58,8 +58,6 @@ genSelectionSkeleton = SelectionSkeleton
     <$> genSkeletonInputCount
     <*> genSkeletonOutputs
     <*> genSkeletonChange
-    <*> genSkeletonAssetsToMint
-    <*> genSkeletonAssetsToBurn
   where
     genSkeletonInputCount =
         getNonNegative <$> arbitrary @(NonNegative Int)
@@ -67,19 +65,13 @@ genSelectionSkeleton = SelectionSkeleton
         listOf genTxOut
     genSkeletonChange =
         listOf (Set.fromList <$> listOf genAssetId)
-    genSkeletonAssetsToMint =
-        genTokenMap
-    genSkeletonAssetsToBurn =
-        genTokenMap
 
 shrinkSelectionSkeleton :: SelectionSkeleton -> [SelectionSkeleton]
 shrinkSelectionSkeleton =
-    shrinkMapBy tupleToSkeleton skeletonToTuple $ liftShrink5
+    shrinkMapBy tupleToSkeleton skeletonToTuple $ liftShrink3
         shrinkSkeletonInputCount
         shrinkSkeletonOutputs
         shrinkSkeletonChange
-        shrinkSkeletonAssetsToMint
-        shrinkSkeletonAssetsToBurn
   where
     shrinkSkeletonInputCount =
         shrink @Int
@@ -88,10 +80,6 @@ shrinkSelectionSkeleton =
     shrinkSkeletonChange =
         shrinkList $
         shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
-    shrinkSkeletonAssetsToMint =
-        shrinkTokenMap
-    shrinkSkeletonAssetsToBurn =
-        shrinkTokenMap
 
-    skeletonToTuple (SelectionSkeleton a b c d e) = (a, b, c, d, e)
-    tupleToSkeleton (a, b, c, d, e) = (SelectionSkeleton a b c d e)
+    skeletonToTuple (SelectionSkeleton a b c) = (a, b, c)
+    tupleToSkeleton (a, b, c) = (SelectionSkeleton a b c)

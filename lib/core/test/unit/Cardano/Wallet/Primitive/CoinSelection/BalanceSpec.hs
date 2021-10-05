@@ -2112,8 +2112,6 @@ computeMinimumCostLinear s
     $ skeletonInputCount s
     + F.length (TokenMap.size . view (#tokens . #tokens) <$> skeletonOutputs s)
     + F.sum (Set.size <$> skeletonChange s)
-    + TokenMap.size (skeletonAssetsToMint s)
-    + TokenMap.size (skeletonAssetsToBurn s)
 
 --------------------------------------------------------------------------------
 -- Computing selection limits

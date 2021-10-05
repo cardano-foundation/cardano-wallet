@@ -405,10 +405,6 @@ data SelectionSkeleton = SelectionSkeleton
         :: ![TxOut]
     , skeletonChange
         :: ![Set AssetId]
-    , skeletonAssetsToMint
-        :: !TokenMap
-    , skeletonAssetsToBurn
-        :: !TokenMap
     }
     deriving (Eq, Generic, Show)
 
@@ -419,8 +415,6 @@ emptySkeleton = SelectionSkeleton
     { skeletonInputCount = 0
     , skeletonOutputs = mempty
     , skeletonChange = mempty
-    , skeletonAssetsToMint = TokenMap.empty
-    , skeletonAssetsToBurn = TokenMap.empty
     }
 
 -- | Specifies a limit to adhere to when performing a selection.
@@ -605,8 +599,6 @@ selectionSkeleton s = SelectionSkeleton
     { skeletonInputCount = F.length (view #inputsSelected s)
     , skeletonOutputs = F.toList (view #outputsCovered s)
     , skeletonChange = TokenBundle.getAssets <$> view #changeGenerated s
-    , skeletonAssetsToMint = view #assetsToMint s
-    , skeletonAssetsToBurn = view #assetsToBurn s
     }
 
 -- | Computes the minimum required cost of a selection.
@@ -1037,8 +1029,6 @@ performSelectionNonEmpty constraints params
             { skeletonInputCount = UTxOSelection.selectedSize s
             , skeletonOutputs = NE.toList outputsToCover
             , skeletonChange
-            , skeletonAssetsToMint = assetsToMint
-            , skeletonAssetsToBurn = assetsToBurn
             }
 
         skeletonChange = predictChange s
