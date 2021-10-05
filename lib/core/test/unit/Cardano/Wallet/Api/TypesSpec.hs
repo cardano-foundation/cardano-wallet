@@ -1083,7 +1083,6 @@ spec = parallel $ do
             let
                 x' = ApiBalanceTransactionPostData
                     { transaction = transaction (x :: ApiBalanceTransactionPostData ('Testnet 0))
-                    , signatories = signatories (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     , inputs = inputs (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     }
             in
@@ -2076,7 +2075,6 @@ instance Arbitrary (ApiExternalInput n) where
 instance Arbitrary (ApiBalanceTransactionPostData n) where
     arbitrary = ApiBalanceTransactionPostData
         <$> arbitrary
-        <*> arbitrary
         <*> arbitrary
 
 instance Arbitrary (PostMintBurnAssetData n) where

@@ -497,7 +497,7 @@ feeCalculationSpec = describe "fee calculations" $ do
                 let testFile = testPlutusDir </> json
                 it json $ property $ \(_thereWillBeWalletsHere :: Int) -> monadicIO $ do
                     bs <- run $ BL.readFile testFile
-                    let (Right content@(ApiBalanceTransactionPostData (ApiT sealedTx) _ _)) =
+                    let (Right content@(ApiBalanceTransactionPostData (ApiT sealedTx) _)) =
                             eitherDecode @(ApiBalanceTransactionPostData 'Mainnet) bs
                     monitor $ counterexample ("json = " <> json <> " " <> show content)
                     assert (_calcScriptExecutionCost ppWithPrices sealedTx == price)
@@ -1704,7 +1704,7 @@ updateSealedTxSpec = do
                         let decodeResult = eitherDecode @(ApiBalanceTransactionPostData 'Mainnet) bs
                         case decodeResult of
                             Left e -> expectationFailure $ show e
-                            Right (ApiBalanceTransactionPostData (ApiT tx) _ _ ) -> do
+                            Right (ApiBalanceTransactionPostData (ApiT tx) _ ) -> do
                                 updateSealedTx noExtraTxBodyContent tx
                                     `shouldBe` Right tx
 
