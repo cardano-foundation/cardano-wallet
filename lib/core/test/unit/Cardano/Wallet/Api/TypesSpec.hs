@@ -158,7 +158,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshotEntry (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
-    , Base (Base64, Base16)
+    , Base (Base16, Base64)
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
