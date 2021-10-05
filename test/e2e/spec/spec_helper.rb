@@ -1,5 +1,6 @@
 require "bundler/setup"
 require "cardano_wallet"
+require "base64"
 require_relative "../env"
 require_relative "../helpers/utils"
 require_relative "../helpers/matchers"
@@ -34,6 +35,7 @@ SHARED = CW.shared
 SETTINGS = CW.misc.settings
 UTILS = CW.misc.utils
 NETWORK = CW.misc.network
+PROXY = CW.misc.proxy
 
 ##
 # default passphrase for wallets
@@ -284,4 +286,10 @@ def teardown
   wsh.list.each do |w|
     wsh.delete w['id']
   end
+end
+
+##
+# return asset total or available balance for comparison
+def assets_balance(assets, received = 0)
+  assets.map { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + received } }
 end

@@ -42,7 +42,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
     # @wid_rnd = "94c0af1034914f4455b7eb795ebea74392deafe9"
     # @wid_ic = "a468e96ab85ad2043e48cf2e5f3437b4356769f4"
-    # @wid = "b1fb863243a9ae451bc4e2e662f60ff217b126e2"
+    # @wid = "1f82e83772b7579fc0854bd13db6a9cce21ccd95"
+    # @target_id = "2269611a3c10b219b0d38d74b004c298b76d16a9"
   end
 
   after(:all) do
@@ -54,6 +55,186 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
     @nightly_shared_wallets.each do |wid|
       SHARED.wallets.delete wid
+    end
+  end
+
+  describe "E2E Construct -> Sign -> Submit" do
+    it "Single output transaction" do
+      amt = 1000000
+
+      address = SHELLEY.addresses.list(@target_id)[0]['id']
+      available_before = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
+      total_before = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
+
+      payment = [{ :address => address,
+                 :amount => { :quantity => amt,
+                           :unit => 'lovelace' }
+               }]
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment)
+      expect(tx_constructed).to be_correct_and_respond 202
+
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      expect(tx_signed).to be_correct_and_respond 202
+
+      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      expect(tx_submitted).to be_correct_and_respond 202
+
+      eventually "Funds are on target wallet: #{@target_id}" do
+        available = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
+        total = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
+        (available == amt + available_before) && (total == amt + total_before)
+      end
+    end
+
+    it "Multi output transaction" do
+      amt = 1000000
+
+      address = SHELLEY.addresses.list(@target_id)[0]['id']
+      available_before = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
+      total_before = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
+
+      payment = [{ :address => address,
+                 :amount => { :quantity => amt,
+                           :unit => 'lovelace' }
+                },
+                { :address => address,
+                 :amount => { :quantity => amt,
+                             :unit => 'lovelace' }
+                }
+                ]
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment)
+      expect(tx_constructed).to be_correct_and_respond 202
+
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      expect(tx_signed).to be_correct_and_respond 202
+
+      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      expect(tx_submitted).to be_correct_and_respond 202
+
+      eventually "Funds are on target wallet: #{@target_id}" do
+        available = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
+        total = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
+        (available == 2 * amt + available_before) && (total == 2 * amt + total_before)
+      end
+    end
+
+    it "Multi-assets transaction" do
+      amt = 1
+      address = SHELLEY.addresses.list(@target_id)[1]['id']
+      assets_available_before = SHELLEY.wallets.get(@target_id)['assets']['available']
+      assets_total_before = SHELLEY.wallets.get(@target_id)['assets']['total']
+
+      payment = [{ "address" => address,
+                  "amount" => { "quantity" => 0, "unit" => "lovelace" },
+                  "assets" => [ { "policy_id" => ASSETS[0]["policy_id"],
+                                  "asset_name" => ASSETS[0]["asset_name"],
+                                  "quantity" => amt
+                                },
+                                { "policy_id" => ASSETS[1]["policy_id"],
+                                  "asset_name" => ASSETS[1]["asset_name"],
+                                  "quantity" => amt
+                                }
+                              ]
+                  }
+                 ]
+
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment)
+      expect(tx_constructed).to be_correct_and_respond 202
+
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      expect(tx_signed).to be_correct_and_respond 202
+
+      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      expect(tx_submitted).to be_correct_and_respond 202
+
+      eventually "Assets are on target wallet: #{@target_id}" do
+         assets_total = SHELLEY.wallets.get(@target_id)['assets']['total']
+         assets_available = SHELLEY.wallets.get(@target_id)['assets']['available']
+         (assets_balance(assets_total) === assets_balance(assets_total_before, amt) &&
+          assets_balance(assets_available) === assets_balance(assets_available_before, amt))
+       end
+    end
+
+    it "Only withdrawal" do
+      balance = SHELLEY.wallets.get(@wid)['balance']['total']['quantity']
+      tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                      payments = nil,
+                                                      withdrawal = 'self')
+      expect(tx_constructed).to be_correct_and_respond 202
+      withdrawal = tx_constructed['coin_selection']['withdrawals'].map { |x| x['amount']['quantity'] }.first
+      expect(withdrawal).to eq 0
+
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      expect(tx_signed).to be_correct_and_respond 202
+
+      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      expect(tx_submitted).to be_correct_and_respond 202
+      tx_id = tx_submitted['id']
+
+      eventually "Tx is in ledger" do
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        tx.code == 200 && tx['status'] == 'in_ledger'
+      end
+      new_balance = SHELLEY.wallets.get(@wid)['balance']['total']['quantity']
+      expect(new_balance).to eq (balance - tx_constructed['fee']['quantity'])
+    end
+
+    it "Only metadata" do
+      metadata = METADATA
+      balance = SHELLEY.wallets.get(@wid)['balance']['total']['quantity']
+      tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                      payments = nil,
+                                                      withdrawal = nil,
+                                                      metadata)
+      expect(tx_constructed).to be_correct_and_respond 202
+
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      expect(tx_signed).to be_correct_and_respond 202
+
+      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      expect(tx_submitted).to be_correct_and_respond 202
+      tx_id = tx_submitted['id']
+
+      eventually "Tx is in ledger and has metadata" do
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        tx.code == 200 && tx['status'] == 'in_ledger' && tx['metadata'] == metadata
+      end
+      new_balance = SHELLEY.wallets.get(@wid)['balance']['total']['quantity']
+      expect(new_balance).to eq (balance - tx_constructed['fee']['quantity'])
+    end
+
+    it "Delegation" do
+      pending "ADP-909 - Deposit is empty, delegation not working"
+      balance = SHELLEY.wallets.get(@wid)['balance']['total']['quantity']
+      pool_id = SHELLEY.stake_pools.list({ stake: 1000 })[0]['id']
+      delegation = [{
+                      "join" => {
+                                  "pool" => pool_id,
+                                  "stake_key_index" => "1852H"
+                                }
+                    }]
+      tx_constructed = SHELLEY.transactions.construct(@wid,
+                                                      payments = nil,
+                                                      withdrawal = nil,
+                                                      metadata = nil,
+                                                      delegation)
+      expect(tx_constructed).to be_correct_and_respond 202
+      deposit = tx_constructed['coin_selection']['deposits']
+      expect(deposit).not_to eq []
+
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      expect(tx_signed).to be_correct_and_respond 202
+
+      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      expect(tx_submitted).to be_correct_and_respond 202
+      tx_id = tx_submitted['id']
+
+      eventually "Tx is in ledger" do
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        tx.code == 200 && tx['status'] == 'in_ledger'
+      end
+      new_balance = SHELLEY.wallets.get(@wid)['balance']['total']['quantity']
+      expect(new_balance).to eq (balance - tx_constructed['fee']['quantity'])
     end
   end
 
@@ -208,6 +389,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         amt = 1000000
 
         address = SHELLEY.addresses.list(@target_id)[0]['id']
+        available_before = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
+        total_before = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
+
         tx_sent = SHELLEY.transactions.create(@wid, PASS, [{ address => amt }])
 
         expect(tx_sent).to be_correct_and_respond 202
@@ -216,7 +400,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         eventually "Funds are on target wallet: #{@target_id}" do
           available = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
           total = SHELLEY.wallets.get(@target_id)['balance']['total']['quantity']
-          (available == amt) && (total == amt)
+          (available == amt + available_before) && (total == amt + total_before)
         end
       end
 
