@@ -1243,7 +1243,7 @@ instance Malformed (BodyParam ApiSignTransactionPostData) where
               ( [aesonQQ|
                 { "transaction": "!!!"
                 }|]
-              , "Error in $.transaction: Parse error. Expecting Base64-encoded format."
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, key 'passphrase' not found"
               )
             , ( [aesonQQ|
                 { "transaction": #{validSealedTxBase64}
