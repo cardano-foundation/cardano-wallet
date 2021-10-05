@@ -1026,7 +1026,6 @@ data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
 
 data ApiBalanceTransactionPostData (n :: NetworkDiscriminant) = ApiBalanceTransactionPostData
     { transaction :: !(ApiT SealedTx)
-    , signatories :: ![ApiAccountPublicKey]
     , inputs :: ![ApiExternalInput n]
     } deriving (Eq, Generic, Show)
 
@@ -2808,24 +2807,21 @@ instance EncodeAddress n => ToJSON (ApiExternalInput n) where
 instance DecodeAddress n => FromJSON (ApiBalanceTransactionPostData n) where
     parseJSON = withObject "ApiBalanceTransactionPostData" $ \o -> do
         cbor <- o .: "transaction" >>= (.: "cborHex")
-        cosigners <- o .: "signatories"
         bs <- getApiBytesT <$> parseJSON @(ApiBytesT 'Base16 ByteString) cbor
         case sealedTxFromBytes bs of
             Left err -> fail $ "cborHex seems to be not deserializing correctly due to "<> show err
             Right sealedTx -> do
                 inpsObj <- o .: "inputs"
                 ApiBalanceTransactionPostData (ApiT sealedTx)
-                    <$> parseJSON @[ApiAccountPublicKey] cosigners
-                    <*> parseJSON inpsObj
+                    <$> parseJSON inpsObj
 
 instance EncodeAddress n => ToJSON (ApiBalanceTransactionPostData n) where
-    toJSON (ApiBalanceTransactionPostData sealedTx cosigners inps) = object
+    toJSON (ApiBalanceTransactionPostData sealedTx inps) = object
         [ "transaction" .= object
                 [ "cborHex" .= sealedTxBytesValue @'Base16 (getApiT sealedTx)
                 , "description" .= String ""
                 , "type" .= String "Tx AlonzoEra"
                 ]
-        , "signatories" .= toJSON cosigners
         , "inputs" .= toJSON inps
         ]
 

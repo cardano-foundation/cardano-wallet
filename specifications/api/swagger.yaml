@@ -3290,22 +3290,14 @@ components:
       type: array
       items: *ApiExternalInput
 
-    ApiTransactionSignatories: &ApiTransactionSignatories
-      description: A flat list of account public keys of parties engaged in transaction.
-      type: array
-      items: *walletAccountXPubkey
-
     ApiBalanceTransactionPostData: &ApiBalanceTransactionPostData
       type: object
       required:
         - transaction
-        - signatories
         - inputs
       properties:
         transaction: *ApiTransactionExtended
-        signatories: *ApiTransactionSignatories
         inputs: *ApiExternalInputs
-
 
 #############################################################################
 #                                                                           #
