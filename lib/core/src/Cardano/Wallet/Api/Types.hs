@@ -2813,7 +2813,7 @@ instance DecodeAddress n => FromJSON (ApiBalanceTransactionPostData n) where
             Right sealedTx -> do
                 inpsObj <- o .: "inputs"
                 ApiBalanceTransactionPostData (ApiT sealedTx)
-                    <*> parseJSON inpsObj
+                    <$> parseJSON inpsObj
 
 instance EncodeAddress n => ToJSON (ApiBalanceTransactionPostData n) where
     toJSON (ApiBalanceTransactionPostData sealedTx inps) = object

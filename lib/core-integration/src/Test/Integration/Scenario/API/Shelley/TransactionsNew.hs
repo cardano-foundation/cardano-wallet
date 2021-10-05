@@ -774,7 +774,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \198ceb0e80a0f5f6" :: Text
         let balancePayload = Json [json|{
               "transaction": { "cborHex" : #{serializedTxHex}, "description": "", "type": "Tx AlonzoEra" },
-              "signatories": [],
               "inputs": [
                   { "txIn" : "0eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648#0"
                   , "txOut" :
@@ -797,7 +796,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let serializedTx = "84a600818gfrddd" :: Text
         let balancePayload = Json [json|{
               "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
-              "signatories": [],
               "inputs": []
           }|]
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -812,7 +810,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let serializedTx = "84a6008180000000000000" :: Text
         let balancePayload = Json [json|{
               "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
-              "signatories": [],
               "inputs": []
           }|]
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -838,7 +835,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \8d280e80a0f5f6" :: Text
         let balancePayload = Json [json|{
               "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
-              "signatories": [],
               "inputs": [
                   { "txIn" : "0eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648#13"
                   , "txOut" :
@@ -865,7 +861,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let balancePayload = Json [json|{
               "transaction": { "cborHex" : #{serializedPlutusTx}, "description": "", "type": "Tx AlonzoEra" },
-              "signatories": [],
               "inputs": [
                   { "txIn" : "888963613d2bb4c5c55cee335f724624cbc54b185ecaa2fb1eb07545ed5db421#1"
                   , "txOut" :
