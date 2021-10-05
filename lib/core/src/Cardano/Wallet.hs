@@ -254,6 +254,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , ToRewardAccount (..)
     , WalletKey (..)
     , checkPassphrase
+    , deriveRewardAccount
     , encryptPassphrase
     , liftIndex
     , preparePassphrase
@@ -321,6 +322,7 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , initWallet
+    , totalUTxO
     , updateState
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -1526,16 +1528,43 @@ selectAssets ctx params transform = do
         txWithdrawal = params ^. (#txContext . #txWithdrawal)
 
 signTransaction
-    :: ctx
+    :: forall ctx s k.
+        ( HasTransactionLayer k ctx
+        , HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
+        , HardDerivation k
+        , WalletKey k
+        , IsOwned s k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        )
+    => ctx
     -> WalletId
-    -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
-       -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
     -> SealedTx
     -> ExceptT ErrWitnessTx IO SealedTx
-signTransaction _ctx _wid _mkRwdAcct _pwd _tx =
-    -- TODO: [ADP-919] implement Wallet.signTransaction
-    throwE (ErrWitnessTxSignTx ErrSignTxUnimplemented)
+signTransaction ctx wid pwd tx = db & \DBLayer{..} -> do
+    era <- liftIO $ currentNodeEra nl
+    withRootKey @_ @s ctx wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
+        cp <- mapExceptT atomically
+            $ withExceptT ErrWitnessTxNoSuchWallet
+            $ withNoSuchWallet wid
+            $ readCheckpoint wid
+        let pwdP = preparePassphrase scheme pwd
+        let rewardAcnt = (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
+        let addressResolver = mkAddressResolver cp (rootK, pwdP)
+        let inputResolver = mkInputResolver cp
+        pure $ addVkWitnesses tl era rewardAcnt addressResolver inputResolver tx
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    tl = ctx ^. transactionLayer @k
+    nl = ctx ^. networkLayer
+
+    mkInputResolver cp i = do
+        TxOut addr _ <- UTxO.lookup i (totalUTxO mempty cp)
+        pure addr
+
+    mkAddressResolver cp (rootK, pwdP) =
+        isOwned (getState cp) (rootK, pwdP)
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --

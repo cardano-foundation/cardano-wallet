@@ -112,8 +112,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , Tx (..)
     , TxConstraints (..)
+    , TxIn
     , TxMetadata (..)
-    , TxOut (..)
     , TxOut (..)
     , TxSize (..)
     , getSealedTxBody
@@ -123,8 +123,11 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txSizeDistance
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromCardanoLovelace
+    ( fromCardanoAddress
+    , fromCardanoLovelace
     , fromCardanoTx
+    , fromCardanoTxIn
+    , fromCardanoWdrls
     , fromLedgerExUnits
     , toCardanoLovelace
     , toCardanoStakeCredential
@@ -149,15 +152,19 @@ import Cardano.Wallet.Transaction
 import Control.Arrow
     ( left, second )
 import Control.Monad
-    ( forM, unless )
+    ( guard, unless )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
 import Data.Kind
     ( Type )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -300,7 +307,7 @@ mkTx
     -- ^ Explicit fee amount
     -> ShelleyBasedEra era
     -> Either ErrMkTransaction (Tx, SealedTx)
-mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
+mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era = do
     let TxPayload md certs mkExtraWits = payload
     let wdrls = mkWithdrawals
             networkId
@@ -308,33 +315,108 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
             wdrl
 
     unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
+    let signed = signTransaction networkId acctResolver addrResolver inputResolver
+            (unsigned, mkExtraWits unsigned)
 
-    wits <- case (txWitnessTagFor @k) of
-        TxWitnessShelleyUTxO -> do
-            addrWits <- forM (view #inputs cs) $ \(_, TxOut addr _) -> do
-                (k, pwd) <- lookupPrivateKey keyFrom addr
-                pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
-
-            let wdrlsWits
-                    | null wdrls = []
-                    | otherwise =
-                      [mkShelleyWitness unsigned (rewardAcnt, pwdAcnt)]
-
-            pure $ mkExtraWits unsigned <> F.toList addrWits <> wdrlsWits
-
-        TxWitnessByronUTxO{} -> do
-            bootstrapWits <- forM (view #inputs cs) $ \(_, TxOut addr _) -> do
-                (k, pwd) <- lookupPrivateKey keyFrom addr
-                pure $ mkByronWitness unsigned networkId addr (getRawKey k, pwd)
-            pure $ F.toList bootstrapWits <> mkExtraWits unsigned
-
-    let signed = Cardano.makeSignedTransaction wits unsigned
     let withResolvedInputs tx = tx
             { resolvedInputs = second txOutCoin <$> F.toList (view #inputs cs)
             }
     Right ( withResolvedInputs (fromCardanoTx signed)
           , sealedTxFromCardano' signed
           )
+  where
+    inputResolver :: TxIn -> Maybe Address
+    inputResolver i =
+        let index = Map.fromList (F.toList $ view #inputs cs)
+         in do
+            TxOut addr _ <- Map.lookup i index
+            pure addr
+
+    acctResolver :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
+    acctResolver acct = do
+        let acct' = toRewardAccountRaw $ toXPub rewardAcnt
+        guard (acct == acct') $> (rewardAcnt, pwdAcnt)
+
+
+-- Adds VK witnesses to an already constructed transactions. The function
+-- preserves any existing witnesses on the transaction, and resolve inputs
+-- dynamically using the provided lookup function.
+--
+-- If a key for a given input isn't found, the input is skipped.
+signTransaction
+    :: forall k era.
+        ( EraConstraints era
+        , TxWitnessTagFor k
+        , WalletKey k
+        )
+    => Cardano.NetworkId
+    -- ^ Network identifer (e.g. mainnet, testnet)
+    -> (RewardAccount -> Maybe (XPrv, Passphrase "encryption"))
+    -- ^ Stake key store / reward account resolution
+    -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+    -- ^ Payment key store
+    -> (TxIn -> Maybe Address)
+    -- ^ Input resolver
+    -> (Cardano.TxBody era, [Cardano.KeyWitness era])
+    -- ^ The transaction to sign, possibly with already some existing witnesses
+    -> Cardano.Tx era
+signTransaction networkId resolveRewardAcct resolveAddress resolveInput (body, wits) =
+    Cardano.makeSignedTransaction wits' body
+ where
+    wits' = mconcat
+        [ wits
+        , mapMaybe mkTxInWitness  inputs
+        , mapMaybe mkTxInWitness  collaterals
+        , mapMaybe mkWdrlWitness  wdrls
+        , mapMaybe mkExtraWitness extraKeys
+        ]
+      where
+        Cardano.TxBody bodyContent = body
+
+        inputs =
+            [ fromCardanoTxIn i
+            | (i, _) <- Cardano.txIns bodyContent
+            ]
+
+        collaterals =
+            case Cardano.txInsCollateral bodyContent of
+                Cardano.TxInsCollateralNone ->
+                    []
+                Cardano.TxInsCollateral _ is ->
+                    fromCardanoTxIn <$> is
+
+        extraKeys =
+            case Cardano.txExtraKeyWits bodyContent of
+                Cardano.TxExtraKeyWitnessesNone ->
+                    []
+                Cardano.TxExtraKeyWitnesses _ xs ->
+                    xs
+        wdrls =
+            [ addr
+            | (addr, _) <- fromCardanoWdrls $ Cardano.txWithdrawals bodyContent
+            ]
+
+    mkTxInWitness :: TxIn -> Maybe (Cardano.KeyWitness era)
+    mkTxInWitness i = do
+        addr <- resolveInput i
+        (k, pwd) <- resolveAddress addr
+        pure $ case (txWitnessTagFor @k) of
+            TxWitnessShelleyUTxO ->
+                mkShelleyWitness body (getRawKey k, pwd)
+            TxWitnessByronUTxO{} ->
+                mkByronWitness body networkId addr (getRawKey k, pwd)
+
+    mkWdrlWitness :: RewardAccount -> Maybe (Cardano.KeyWitness era)
+    mkWdrlWitness a = do
+        mkShelleyWitness body <$> resolveRewardAcct a
+
+    mkExtraWitness :: Cardano.Hash Cardano.PaymentKey -> Maybe (Cardano.KeyWitness era)
+    mkExtraWitness vkh = do
+        let addr = Cardano.makeShelleyAddress networkId
+                (Cardano.PaymentCredentialByKey vkh)
+                Cardano.NoStakeAddress
+        (k, pwd) <- resolveAddress (fromCardanoAddress addr)
+        pure $ mkShelleyWitness body (getRawKey k, pwd)
 
 newTransactionLayer
     :: forall k.
@@ -365,6 +447,28 @@ newTransactionLayer networkId = TransactionLayer
                     let payload = TxPayload (view #txMetadata ctx) certs mkWits
                     mkTx networkId payload ttl stakeCreds keystore wdrl
                         selection delta
+
+    , addVkWitnesses = \_era stakeCreds addressResolver inputResolver sealedTx -> do
+        let acctResolver :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
+            acctResolver acct = do
+                let acct' = toRewardAccountRaw $ toXPub $ fst stakeCreds
+                guard (acct == acct') $> stakeCreds
+
+        case cardanoTx sealedTx of
+            InAnyCardanoEra ByronEra _ ->
+                sealedTx
+            InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
+                signTransaction networkId acctResolver addressResolver inputResolver (body, wits)
+                & sealedTxFromCardano'
+            InAnyCardanoEra AllegraEra (Cardano.Tx body wits) ->
+                signTransaction networkId acctResolver addressResolver inputResolver (body, wits)
+                & sealedTxFromCardano'
+            InAnyCardanoEra MaryEra (Cardano.Tx body wits) ->
+                signTransaction networkId acctResolver addressResolver inputResolver (body, wits)
+                & sealedTxFromCardano'
+            InAnyCardanoEra AlonzoEra (Cardano.Tx body wits) ->
+                signTransaction networkId acctResolver addressResolver inputResolver (body, wits)
+                & sealedTxFromCardano'
 
     , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
         let ttl   = txTimeToLive ctx
@@ -1306,13 +1410,6 @@ estimateTxSize skeleton =
 -- of the values, after the given function has been applied to each value.
 sumVia :: (Foldable t, Num m) => (a -> m) -> t a -> m
 sumVia f = F.foldl' (\t -> (t +) . f) 0
-
-lookupPrivateKey
-    :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-    -> Address
-    -> Either ErrMkTransaction (k 'AddressK XPrv, Passphrase "encryption")
-lookupPrivateKey keyFrom addr =
-    maybe (Left $ ErrKeyNotFoundForAddress addr) Right (keyFrom addr)
 
 withShelleyBasedEra
     :: forall a. ()

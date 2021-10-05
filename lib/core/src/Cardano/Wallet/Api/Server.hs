@@ -472,8 +472,6 @@ import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Aeson
     ( (.=) )
-import Data.Bifunctor
-    ( first )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -1836,7 +1834,10 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
 signTransaction
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , WalletKey k
+        , IsOwned s k
+        , HardDerivation k
         )
     => ctx
     -> ApiT WalletId
@@ -1846,16 +1847,14 @@ signTransaction ctx (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let sealedTx = body ^. #transaction . #getApiT
 
-    let stubRwdAcct = first (getRawKey @k)
+    sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
+        liftHandler $ W.signTransaction wrk wid pwd sealedTx
 
-    _tx <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
-        liftHandler $ W.signTransaction wrk wid stubRwdAcct pwd sealedTx
-
-    -- TODO: [ADP-919] Implement Api.Server.signTransaction
+    -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
+    -- the use-case for having them provided separately? In the end, the client
+    -- should be able to decouple them if they need to.
     pure $ Api.ApiSignedTransaction
-        { transaction = ApiT sealedTx
-        , body = mempty
-        , witnesses = []
+        { transaction = ApiT sealedTx'
         }
 
 postTransactionOld
@@ -3672,12 +3671,6 @@ instance IsServerError ErrSignTx where
                 , "could not resolve the address of a transaction input "
                 , "that I should be tracking: ", showT txin, "."
                 ]
-        ErrSignTxKeyNotFound addr ->
-            apiError err500 KeyNotFoundForAddress $ mconcat
-                [ "I couldn't sign the given transaction because I cannot "
-                , "find the private key corresponding to the known "
-                , "input address: ", showT addr, "."
-                ]
         ErrSignTxUnimplemented ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
@@ -3697,7 +3690,6 @@ instance IsServerError ErrMkTransaction where
         ErrMkTransactionQuitStakePool e -> toServerError e
         ErrMkTransactionNoSuchWallet wid -> toServerError (ErrNoSuchWallet wid)
         ErrMkTransactionIncorrectTTL e -> toServerError e
-        ErrKeyNotFoundForAddress a -> toServerError (ErrSignTxKeyNotFound a)
 
 instance IsServerError ErrConstructTx where
     toServerError = \case

@@ -37,7 +37,11 @@ library
     , bech32
     , bytestring
     , cardano-addresses
+    , cardano-api
     , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-launcher

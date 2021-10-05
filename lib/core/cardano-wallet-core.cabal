@@ -423,7 +423,6 @@ test-suite unit
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.TokenMetadataSpec
       Cardano.Wallet.RegistrySpec
-      Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec
       Control.Concurrent.ConciergeSpec
       Data.Function.UtilsSpec

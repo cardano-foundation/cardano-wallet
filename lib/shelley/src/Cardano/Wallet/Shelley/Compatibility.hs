@@ -61,6 +61,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , toPoint
     , toCardanoTxId
     , toCardanoTxIn
+    , fromCardanoTxIn
+    , fromCardanoWdrls
     , toCardanoTxOut
     , toCardanoLovelace
     , toStakeKeyRegCert
@@ -80,6 +82,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromAlonzoPParams
     , fromLedgerExUnits
     , fromLedgerPParams
+    , fromCardanoAddress
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -1043,6 +1046,23 @@ fromShelleyTxIn (SL.TxIn txid ix) =
     unsafeCast :: Natural -> Word32
     unsafeCast = fromIntegral
 
+fromCardanoTxIn
+    :: Cardano.TxIn
+    -> W.TxIn
+fromCardanoTxIn (Cardano.TxIn txid (Cardano.TxIx ix)) =
+    W.TxIn (fromShelleyTxId $ Cardano.toShelleyTxId txid) (fromIntegral ix)
+
+fromCardanoWdrls
+    :: Cardano.TxWithdrawals build era
+    -> [(W.RewardAccount, W.Coin)]
+fromCardanoWdrls = \case
+    Cardano.TxWithdrawalsNone -> []
+    Cardano.TxWithdrawals _era xs ->
+        flip fmap xs $ \((Cardano.StakeAddress _ creds), coin, _) ->
+            ( fromStakeCredential creds
+            , fromCardanoLovelace coin
+            )
+
 fromShelleyTxOut
     :: ( SL.ShelleyBased era
        , SL.Core.Value era ~ SL.Coin
@@ -1389,6 +1409,9 @@ fromPoolKeyHash (SL.KeyHash h) =
 fromOwnerKeyHash :: SL.KeyHash 'SL.Staking crypto -> W.PoolOwner
 fromOwnerKeyHash (SL.KeyHash h) =
     W.PoolOwner (hashToBytes h)
+
+fromCardanoAddress :: Cardano.Address Cardano.ShelleyAddr -> W.Address
+fromCardanoAddress = W.Address . Cardano.serialiseToRawBytes
 
 fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
 fromUnitInterval x =

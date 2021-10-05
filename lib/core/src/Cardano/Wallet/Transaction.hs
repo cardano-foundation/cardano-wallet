@@ -108,6 +108,23 @@ data TransactionLayer k tx = TransactionLayer
         -- This expects as a first argument a mean to compute or lookup private
         -- key corresponding to a particular address.
 
+    , addVkWitnesses
+        :: AnyCardanoEra
+            -- Era for which the transaction should be created.
+        -> (XPrv, Passphrase "encryption")
+            -- Reward account
+        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Key store / address resolution
+        -> (TxIn -> Maybe Address)
+            -- Input resolution
+        -> tx
+            -- The transaction to sign
+        -> tx
+        -- ^ Add Vk witnesses to a transaction for known inputs.
+        --
+        -- If inputs can't be resolved, they are simply skipped, hence why this
+        -- function cannot fail.
+
     , mkUnsignedTransaction
         :: AnyCardanoEra
             -- Era for which the transaction should be created.
@@ -267,14 +284,11 @@ data ErrMkTransaction
     | ErrMkTransactionJoinStakePool ErrCannotJoin
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException
-    | ErrKeyNotFoundForAddress Address
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error
 data ErrSignTx
     = ErrSignTxAddressUnknown TxIn
-    -- ^ We tried to sign a transaction with inputs that are unknown to us?
-    | ErrSignTxKeyNotFound Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
     | ErrSignTxUnimplemented
     -- ^ TODO: [ADP-919] Remove ErrSignTxUnimplemented

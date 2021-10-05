@@ -163,6 +163,8 @@ import Data.Aeson
     ( eitherDecode )
 import Data.ByteString
     ( ByteString )
+import Data.Either
+    ( isRight )
 import Data.Function
     ( on, (&) )
 import Data.Generics.Internal.VL.Lens
@@ -196,6 +198,7 @@ import Test.Hspec
     , it
     , pendingWith
     , shouldBe
+    , shouldSatisfy
     , xdescribe
     )
 import Test.Hspec.QuickCheck
@@ -306,6 +309,11 @@ instance Arbitrary AnyShelleyBasedEra where
 
 decodeSealedTxSpec :: Spec
 decodeSealedTxSpec = describe "SealedTx serialisation/deserialisation" $ do
+    it "tx with withdrawal" $ do
+        let bytes = unsafeFromHex "84a70081825820410a9cd4af08b3abe25c2d3b87af4c23d0bb2fb7577b639d5cfbdfe13a4a696c0c0d80018182583901059f0c7b9899793d2c9afaeff4fd09bedd9df3b8cb1b9c301ab8e0f7fb3c13a29d3798f1b77b47f2ddb31c19326b87ed6f71fb9a27133ad51b000001001d19d714021a000220ec03198d0f05a1581de1fb3c13a29d3798f1b77b47f2ddb31c19326b87ed6f71fb9a27133ad51b000000e8d4a510000e80a0f5f6"
+        let sealedTx = sealedTxFromBytes bytes
+        sealedTx `shouldSatisfy` isRight
+
     prop "roundtrip for Shelley witnesses" prop_sealedTxShelleyRoundtrip
     xdescribe "Not implemented yet" $ do -- TODO: [ADP-919]
         prop "roundtrip for Byron witnesses" prop_sealedTxByronRoundtrip

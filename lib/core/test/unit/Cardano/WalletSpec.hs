@@ -133,7 +133,7 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction
-    ( ErrMkTransaction (..), TransactionLayer (..), Withdrawal (..) )
+    ( TransactionLayer (..), Withdrawal (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
@@ -141,7 +141,7 @@ import Cardano.Wallet.Util
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( forM, forM_, replicateM, void )
+    ( forM_, replicateM, void )
 import Control.Monad.Class.MonadTime
     ( DiffTime
     , MonadMonotonicTime (..)
@@ -1258,17 +1258,18 @@ dummyTransactionLayer = TransactionLayer
                  , metadata = Nothing
                  , scriptValidity = Nothing
                  }
-        wit <- forM (view #inputs cs) $ \(_, TxOut addr _) -> do
-            (xprv, Passphrase pwd) <- withEither
-                (ErrKeyNotFoundForAddress addr) $ keystore addr
-            let sigData = tx ^. #txId . #getHash
-            let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
-            return $ xpubToBytes (getKey $ publicKey xprv) <> sig
+        let wit = forMaybe (NE.toList $ view #inputs cs) $ \(_, TxOut addr _) -> do
+                (xprv, Passphrase pwd) <- keystore addr
+                let sigData = tx ^. #txId . #getHash
+                let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
+                return $ xpubToBytes (getKey $ publicKey xprv) <> sig
 
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
-        let fakeBinary = fakeSealedTx (tx, NE.toList wit)
+        let fakeBinary = fakeSealedTx (tx, wit)
         return (tx, fakeBinary)
 
+    , addVkWitnesses =
+        error "dummyTransactionLayer: addVkWitnesses not implemented"
     , mkUnsignedTransaction =
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
     , calcMinimumCost =
@@ -1289,8 +1290,8 @@ dummyTransactionLayer = TransactionLayer
             pure sealed
     }
   where
-    withEither :: e -> Maybe a -> Either e a
-    withEither e = maybe (Left e) Right
+    forMaybe :: [a] -> (a -> Maybe b) -> [b]
+    forMaybe = flip mapMaybe
 
 fakeSealedTx :: HasCallStack => (Tx, [ByteString]) -> SealedTx
 fakeSealedTx (tx, wit) = mockSealedTx $ B8.pack repr
