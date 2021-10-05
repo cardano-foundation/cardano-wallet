@@ -1310,7 +1310,6 @@ x-transactionChange: &transactionChange
 x-transactionResolvedInputs: &transactionResolvedInputs
   description: A list of transaction inputs
   type: array
-  minItems: 1
   items:
     type: object
     required:
@@ -1332,7 +1331,6 @@ x-transactionResolvedInputs: &transactionResolvedInputs
 x-transactionResolvedCollateral: &transactionResolvedCollateral
   description: A list of transaction inputs used for collateral
   type: array
-  minItems: 0
   items:
     type: object
     required:
