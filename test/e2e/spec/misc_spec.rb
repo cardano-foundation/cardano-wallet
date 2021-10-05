@@ -270,7 +270,7 @@ RSpec.describe CardanoWallet::Misc do
     it "Malformed payload when tx is not binary" do
       pending "ADP-1145 - DecoderErrorDeserialiseFailure error message from the API /proxy/transactions"
       no_binary_blob = "test"
-      res = CardanoWallet.new.misc.proxy.submit_external_transaction(no_binary_blob)
+      res = PROXY.submit_external_transaction(no_binary_blob)
       expect(res).to be_correct_and_respond 400
       expect(res.to_s).to include "malformed_tx_payload"
     end
