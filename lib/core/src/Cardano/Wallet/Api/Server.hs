@@ -2213,23 +2213,37 @@ balanceTransaction
     -> ApiBalanceTransactionPostData n
     -> Handler (ApiConstructTransaction n)
 balanceTransaction ctx genChange (ApiT wid) body = do
+    -- TODO: Most of the body of this function should really belong to
+    -- Cardano.Wallet to keep the Api.Server moduel free of business logic!
     pp <- liftIO $ NW.currentProtocolParameters nl
 
     --TODO  deal with coll and validity and delegations
-    let (Tx _id _fee _coll _inps outs wdrlMap mdM _validity) = txIncoming
+    let (Tx _id _fee _coll _inps outs wdrlMap txMetadata _validity) = txIncoming
 
-    ((FeeEstimation feeMin _), unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-
+    (delta, unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+
+        -- FIXME: This is wrong as it leads the underlying selection to
+        -- "believe" there's only one withdrawal and will be completely off
+        -- regarding the actual fee. See ADP-1182
         (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid $
             if Map.member acct wdrlMap
             then Just SelfWithdrawal
             else Nothing
-        let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
+
+        -- NOTE: It is not possible to know the script execution cost in
+        -- advance because it actually depends on the final transaction. Inputs
+        -- selected as part of the fee balancing might have an influence on the
+        -- execution cost.
+        -- However, they are bounded so it is possible to balance the
+        -- transaction considering only the maximum cost, and only after, try to
+        -- adjust the change and ExUnits of each redeemer to something more
+        -- sensible than the max execution cost.
+        let maxCost = maxScriptExecutionCost tl pp sealedTxIncoming
         ttl <- liftIO $ W.getTxExpiry ti Nothing
         let txCtx = defaultTransactionCtx
-                { txPlutusScriptExecutionCost = executionFee
-                , txMetadata = mdM
+                { txPlutusScriptExecutionCost = maxCost
+                , txMetadata
                 , txWithdrawal = wdrl
                 , txTimeToLive = ttl
                 }
@@ -2243,21 +2257,19 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         let utxoAvailable = UTxOSelection.fromIndexPair
                 (internalUtxoAvailable, externalSelectedUtxo)
 
-        let runSelection = W.selectAssets @_ @s @k wrk W.SelectAssetsParams
-                { outputs = outs
-                , pendingTxs
-                , txContext = txCtx
-                , utxoAvailableForInputs = utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO internalUtxoAvailable
-                , wallet
-                } getFee
-              where getFee = const (selectionDelta TokenBundle.getCoin)
+        -- NOTE: Similarly to the above, 'selectionDelta' here is actually the
+        -- wrong way to calculate fees, because it only account for inputs and
+        -- outputs that are known of the wallet. For example, the transaction
+        -- may contain an arbitrary number of withdrawals, all counting towards
+        -- the input side of the balance but being totally overlooked by this
+        -- function.
+        let transform s sel =
+                let (sel', s') = W.assignChangeAddresses genChange sel s
+                 in ( selectionDelta txOutCoin sel'
+                    , W.selectionToUnsignedTx wdrl sel' s'
+                    )
 
-        let transform s sel' =
-                W.assignChangeAddresses genChange sel' s
-                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-        unsignedtx <- liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+        liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
             { outputs = outs
             , pendingTxs
             , txContext = txCtx
@@ -2268,17 +2280,22 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             }
             transform
 
-        fee <- liftHandler $ W.estimateFee runSelection
-        return (fee, unsignedtx)
-
     let UnsignedTx colls inps _outs change _wdrl = unsignedtx
-    let extraBody = ExtraTxBodyContent
+    -- TODO: At this stage, we set all execution units for all redeemers to the
+    -- max cost, which is guarantee to succeed (given the coin selection above
+    -- was done with the same assumption) but also terribly inneffective when it
+    -- comes to reducing the cost. This is however sufficient to start
+    -- preliminary integration work.
+    let extraBody = TxUpdate
             { extraInputs = (\(txin, _, _) -> txin) <$> F.toList inps
             , extraCollateral = (\(txin, _, _) -> txin) <$> F.toList colls
             , extraOutputs = toTxOut <$> change
-            , newFee = const (Coin feeMin)
+            , newFee = const delta
+            , newExUnits = const (const maxExecutionUnits)
             }
-    let cs = mkApiCoinSelection [] Nothing mdM unsignedtx
+          where
+            maxExecutionUnits = pp ^. #txParameters . #getMaxExecutionUnits
+    let cs = mkApiCoinSelection [] Nothing txMetadata unsignedtx
     sealedTxOutcoming <-
         case updateTx tl sealedTxIncoming extraBody of
             Right result -> pure result
@@ -2287,7 +2304,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     pure $ ApiConstructTransaction
         { transaction = ApiT sealedTxOutcoming
         , coinSelection = cs
-        , fee = Quantity $ fromIntegral feeMin
+        , fee = coinToQuantity delta
         }
   where
     nl = ctx ^. networkLayer
