@@ -41,7 +41,7 @@ module Cardano.Wallet.Shelley.Transaction
     , TxWitnessTagFor (..)
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
-    , _calcScriptExecutionCost
+    , _maxScriptExecutionCost
     , estimateTxCost
     , estimateTxSize
     , mkByronWitness
@@ -128,7 +128,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTx
     , fromCardanoTxIn
     , fromCardanoWdrls
-    , fromLedgerExUnits
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
@@ -186,8 +185,9 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxWitness as SL
+import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.ShelleyMA.TxBody as ShelleyMA
@@ -493,8 +493,8 @@ newTransactionLayer networkId = TransactionLayer
         estimateTxCost pp $
         mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
 
-    , calcScriptExecutionCost =
-       _calcScriptExecutionCost
+    , maxScriptExecutionCost =
+       _maxScriptExecutionCost
 
     , evaluateMinimumFee =
       _evaluateMinimumFee
@@ -779,33 +779,34 @@ _evaluateMinimumFee pp tx =
            txUpdateProposal' +
            certNum
 
-_calcScriptExecutionCost
+_maxScriptExecutionCost
     :: ProtocolParameters
     -> SealedTx
     -> Coin
-_calcScriptExecutionCost pp tx = case view #executionUnitPrices pp of
-    Just prices -> totalCost $ map (executionCost prices) executionUnits
+_maxScriptExecutionCost pp tx = case view #executionUnitPrices pp of
+    Just prices -> totalCost $ executionCost prices maxExecutionUnits
     Nothing     -> Coin 0
   where
-    totalCost :: [Rational] -> Coin
-    totalCost = Coin.unsafeNaturalToCoin . ceiling . sum
+    maxExecutionUnits :: ExecutionUnits
+    maxExecutionUnits = view (#txParameters . #getMaxExecutionUnits) pp
+
+    totalCost :: Rational -> Coin
+    totalCost = Coin.unsafeNaturalToCoin . ceiling . (* (fromIntegral numberOfScripts) )
 
     executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Rational
     executionCost (ExecutionUnitPrices perStep perMem) (W.ExecutionUnits steps mem) =
         perStep * (toRational steps) + perMem * (toRational mem)
 
-    -- | Return `ExecutionUnits` for each redeemer script in the tx.
-    executionUnits :: [ExecutionUnits]
-    executionUnits = case getSealedTxBody tx of
+    numberOfScripts :: Int
+    numberOfScripts = case getSealedTxBody tx of
         InAnyCardanoEra _ (Cardano.ShelleyTxBody _ _ _ scriptData _ _) ->
             case scriptData of
-                Cardano.TxBodyScriptData _ _ (SL.Redeemers' rs) ->
-                    [ fromLedgerExUnits exUnits
-                    | (_data, exUnits) <- Map.elems rs ]
+                Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers' rs) ->
+                    Map.size rs
                 Cardano.TxBodyNoScriptData ->
-                    []
+                    0
         InAnyCardanoEra _ Byron.ByronTxBody{} ->
-            []
+            0
 
 txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints protocolParams witnessTag = TxConstraints

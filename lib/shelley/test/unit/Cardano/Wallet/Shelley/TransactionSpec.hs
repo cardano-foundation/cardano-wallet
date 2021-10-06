@@ -143,9 +143,9 @@ import Cardano.Wallet.Shelley.Transaction
     , noExtraTxBodyContent
     , txConstraints
     , updateSealedTx
-    , _calcScriptExecutionCost
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
+    , _maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
     ( TransactionCtx (..)
@@ -495,9 +495,11 @@ feeCalculationSpec = describe "fee calculations" $ do
         describe "with prices txs without plutus scripts" $ do
             forM_ matrixNormalTxExamples $ \(title, cborHex) ->
                 it title $
-                    _calcScriptExecutionCost ppWithPrices (unsafeFromCBORhex cborHex)
+                    _maxScriptExecutionCost ppWithPrices (unsafeFromCBORhex cborHex)
                     `shouldBe` Coin 0
 
+        -- NOTE: This test is now a little bit pointless... Doing it for one
+        -- script would be sufficient.
         describe "with prices txs with plutus scripts" $ do
             let testPlutusDir = $(getTestData) </> "plutus"
 
@@ -511,7 +513,7 @@ feeCalculationSpec = describe "fee calculations" $ do
                     let (Right content@(ApiBalanceTransactionPostData (ApiT sealedTx) _)) =
                             eitherDecode @(ApiBalanceTransactionPostData 'Mainnet) bs
                     monitor $ counterexample ("json = " <> json <> " " <> show content)
-                    assert (_calcScriptExecutionCost ppWithPrices sealedTx == price)
+                    assert (_maxScriptExecutionCost ppWithPrices sealedTx > price)
 
     describe "fee calculations" $ do
         it "withdrawals incur fees" $ property $ \wdrl ->

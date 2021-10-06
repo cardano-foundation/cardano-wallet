@@ -157,13 +157,13 @@ data TransactionLayer k tx = TransactionLayer
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
         -- This also includes necessary deposits.
 
-    , calcScriptExecutionCost
+    , maxScriptExecutionCost
         :: ProtocolParameters
             -- Current protocol parameters
         -> tx
             -- The constructed transaction that could contain plutus scripts
         -> Coin
-        -- ^ Compute an execution costs of scripts in a given transaction.
+        -- ^ Compute the maximum execution costs of scripts in a given transaction.
 
     , evaluateMinimumFee
         :: Node.ProtocolParameters

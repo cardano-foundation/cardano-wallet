@@ -81,6 +81,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromShelleyPParams
     , fromAlonzoPParams
     , fromLedgerExUnits
+    , toLedgerExUnits
     , fromLedgerPParams
     , fromCardanoAddress
 
@@ -706,6 +707,15 @@ fromLedgerExUnits (Alonzo.ExUnits mem steps) =
     W.ExecutionUnits
     { executionSteps = steps
     , executionMemory = mem
+    }
+
+toLedgerExUnits
+    :: W.ExecutionUnits
+    -> Alonzo.ExUnits
+toLedgerExUnits W.ExecutionUnits{executionSteps,executionMemory}
+    Alonzo.ExUnits
+    { Alonzo.exUnitsMem = executionMemory
+    , Alonzo.exUnitsStep = executionSteps
     }
 
 txParametersFromPParams
