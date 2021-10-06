@@ -27,6 +27,10 @@ module Test.QuickCheck.Extra
     , shrinkInterleaved
     , shrinkMapWith
 
+      -- * Generating and shrinking natural numbers
+    , chooseNatural
+    , shrinkNatural
+
       -- * Counterexamples
     , report
     , verify
@@ -41,15 +45,22 @@ module Test.QuickCheck.Extra
 
 import Prelude
 
+import Data.IntCast
+    ( intCast, intCastMaybe )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( mapMaybe )
 import Fmt
     ( indentF, (+|), (|+) )
+import Numeric.Natural
+    ( Natural )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Property
     , Testable
+    , choose
     , counterexample
     , liftArbitrary2
     , liftShrink2
@@ -59,6 +70,7 @@ import Test.QuickCheck
     , shrinkList
     , shrinkMapBy
     , suchThat
+    , suchThatMap
     , (.&&.)
     )
 import Test.QuickCheck.Gen.Unsafe
@@ -301,6 +313,22 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
     interleave (x : xs) (y : ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
+
+--------------------------------------------------------------------------------
+-- Generating and shrinking natural numbers
+--------------------------------------------------------------------------------
+
+chooseNatural :: (Natural, Natural) -> Gen Natural
+chooseNatural (lo, hi) =
+    choose (intCast lo, intCast hi)
+    `suchThatMap`
+    intCastMaybe @Integer @Natural
+
+shrinkNatural :: Natural -> [Natural]
+shrinkNatural n
+    = mapMaybe (intCastMaybe @Integer @Natural)
+    $ shrink
+    $ intCast n
 
 --------------------------------------------------------------------------------
 -- Generating functions
