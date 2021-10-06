@@ -235,7 +235,7 @@ library
         -- The following modules define QC generators and shrinkers that can
         -- be used by both `cardano-wallet-core` and `cardano-wallet`:
         --
-      Cardano.Wallet.Primitive.CoinSelection.Gen
+      Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
       Cardano.Wallet.Primitive.Types.Address.Gen
       Cardano.Wallet.Primitive.Types.Coin.Gen
       Cardano.Wallet.Primitive.Types.RewardAccount.Gen
