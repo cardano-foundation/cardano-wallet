@@ -2220,12 +2220,13 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     --redeemers will be updated when evaluated, so for already balanced tx they are
     --going to be nonzero.
     let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
+    let (Tx _id _fee collaterals _inps outs wdrlMap mdM _validity) = txIncoming
 
     if areOutputsCovered txIncoming executionFee then
         liftHandler $ throwE ErrBalanceTxTxAlreadyBalanced
+    else if not (null collaterals) then
+        liftHandler $ throwE ErrBalanceTxCollateralsPresent
     else do
-        let (Tx _id _fee _coll _inps outs wdrlMap mdM _validity) = txIncoming
-
         ((FeeEstimation feeMin _), unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
             (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -3740,6 +3741,11 @@ instance IsServerError ErrBalanceTx where
                 , "existing key-witnesses which would be invalid after "
                 , "the transaction body is modified. "
                 , "Please sign the transaction after it is balanced instead."
+                ]
+        ErrBalanceTxCollateralsPresent ->
+            apiError err403 TransactionWithCollaterals $ mconcat
+                [ "The transaction sent for balancing contains already collaterals."
+                , "Please send a transaction for balancing that requires collaterals to be picked."
                 ]
 
 instance IsServerError ErrMintBurnAssets where

@@ -1560,6 +1560,7 @@ data ApiErrorCode
     | SharedWalletScriptTemplateInvalid
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
+    | TransactionWithCollaterals
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

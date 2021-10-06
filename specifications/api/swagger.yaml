@@ -4162,6 +4162,18 @@ x-errTransactionAlreadyBalanced: &errTransactionAlreadyBalanced
       type: string
       enum: ['transaction_already_balanced']
 
+x-errTransactionWithCollaterals: &errTransactionWithCollaterals
+  <<: *responsesErr
+  title: transaction_with_collaterals
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when a transaction sent to be balanced has collaterals.
+    code:
+      type: string
+      enum: ['transaction_with_collaterals']
+
 x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
@@ -5012,6 +5024,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
             - <<: *errTransactionAlreadyBalanced
+            - <<: *errTransactionWithCollaterals
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
