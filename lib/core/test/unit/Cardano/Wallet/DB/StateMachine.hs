@@ -122,6 +122,7 @@ import Cardano.Wallet.Primitive.Types
     , DecentralizationLevel
     , DelegationCertificate
     , EpochNo (..)
+    , ExecutionUnits (..)
     , FeePolicy
     , GenesisParameters (..)
     , PoolId (..)
@@ -1011,6 +1012,9 @@ instance ToExpr TokenBundleMaxSize where
     toExpr = genericToExpr
 
 instance ToExpr TxParameters where
+    toExpr = genericToExpr
+
+instance ToExpr ExecutionUnits where
     toExpr = genericToExpr
 
 instance ToExpr FeePolicy where

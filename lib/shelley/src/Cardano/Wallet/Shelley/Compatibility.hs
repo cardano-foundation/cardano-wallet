@@ -610,7 +610,7 @@ fromShelleyPParams eraInfo pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
     , txParameters =
-        txParametersFromPParams maryTokenBundleMaxSize pp
+        txParametersFromPParams maryTokenBundleMaxSize (W.ExecutionUnits 0 0) pp
     , desiredNumberOfStakePools =
         desiredNumberOfStakePoolsFromPParams pp
     , minimumUTxOvalue =
@@ -636,6 +636,7 @@ fromAlonzoPParams eraInfo pp = W.ProtocolParameters
         decentralizationLevelFromPParams pp
     , txParameters = txParametersFromPParams
         (W.TokenBundleMaxSize $ W.TxSize $ Alonzo._maxValSize pp)
+        (fromLedgerExUnits (getField @"_maxTxExUnits" pp))
         pp
     , desiredNumberOfStakePools =
         desiredNumberOfStakePoolsFromPParams pp
@@ -712,14 +713,16 @@ txParametersFromPParams
     => HasField "_minfeeB" pparams Natural
     => HasField "_maxTxSize" pparams Natural
     => W.TokenBundleMaxSize
+    -> W.ExecutionUnits
     -> pparams
     -> W.TxParameters
-txParametersFromPParams maxBundleSize pp = W.TxParameters
+txParametersFromPParams maxBundleSize getMaxExecutionUnits pp = W.TxParameters
     { getFeePolicy = W.LinearFee
         (Quantity (naturalToDouble (getField @"_minfeeB" pp)))
         (Quantity (naturalToDouble (getField @"_minfeeA" pp)))
     , getTxMaxSize = fromMaxSize $ getField @"_maxTxSize" pp
     , getTokenBundleMaxSize = maxBundleSize
+    , getMaxExecutionUnits
     }
   where
     naturalToDouble :: Natural -> Double

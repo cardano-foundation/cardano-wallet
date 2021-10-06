@@ -50,7 +50,8 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId
+    ( ExecutionUnits
+    , PoolId
     , ProtocolParameters
     , SlotNo (..)
     , TokenBundleMaxSize (..)

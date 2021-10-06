@@ -485,6 +485,9 @@ feeCalculationSpec = describe "fee calculations" $ do
         let ppWithPrices :: ProtocolParameters
             ppWithPrices = dummyProtocolParameters
                 { executionUnitPrices = Just (ExecutionUnitPrices 1 1)
+                , txParameters = dummyTxParameters
+                    { getMaxExecutionUnits = ExecutionUnits 10000000 10000000000
+                    }
                 }
 
         let unsafeFromCBORhex = unsafeSealedTxFromBytes . unsafeFromHex
@@ -1180,6 +1183,8 @@ dummyTxParameters = TxParameters
         error "dummyTxParameters: getTxMaxSize"
     , getTokenBundleMaxSize =
         error "dummyTxParameters: getMaxTokenBundleSize"
+    , getMaxExecutionUnits =
+        error "dummyTxParameters: getMaxExecutionUnits"
     }
 
 dummyProtocolParameters :: ProtocolParameters
@@ -1228,6 +1233,7 @@ mockProtocolParameters = dummyProtocolParameters
         { getFeePolicy = mockFeePolicy
         , getTxMaxSize = Quantity 16384
         , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
+        , getMaxExecutionUnits = ExecutionUnits 10000000 10000000000
         }
     }
 
