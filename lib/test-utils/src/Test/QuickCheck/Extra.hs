@@ -22,6 +22,8 @@ module Test.QuickCheck.Extra
     , liftShrink5
     , liftShrink6
     , liftShrink7
+    , liftShrink8
+    , liftShrink9
     , shrinkInterleaved
     , shrinkMapWith
 
@@ -219,6 +221,58 @@ liftShrink7 s1 s2 s3 s4 s5 s6 s7 (a1, a2, a3, a4, a5, a6, a7) =
     , [ (a1 , a2 , a3 , a4 , a5', a6 , a7 ) | a5' <- s5 a5 ]
     , [ (a1 , a2 , a3 , a4 , a5 , a6', a7 ) | a6' <- s6 a6 ]
     , [ (a1 , a2 , a3 , a4 , a5 , a6 , a7') | a7' <- s7 a7 ]
+    ]
+
+-- | Similar to 'liftShrink2', but applicable to 8-tuples.
+--
+liftShrink8
+    :: (a1 -> [a1])
+    -> (a2 -> [a2])
+    -> (a3 -> [a3])
+    -> (a4 -> [a4])
+    -> (a5 -> [a5])
+    -> (a6 -> [a6])
+    -> (a7 -> [a7])
+    -> (a8 -> [a8])
+    -> (a1, a2, a3, a4, a5, a6, a7, a8)
+    -> [(a1, a2, a3, a4, a5, a6, a7, a8)]
+liftShrink8 s1 s2 s3 s4 s5 s6 s7 s8 (a1, a2, a3, a4, a5, a6, a7, a8) =
+    interleaveRoundRobin
+    [ [ (a1', a2 , a3 , a4 , a5 , a6 , a7 , a8 ) | a1' <- s1 a1 ]
+    , [ (a1 , a2', a3 , a4 , a5 , a6 , a7 , a8 ) | a2' <- s2 a2 ]
+    , [ (a1 , a2 , a3', a4 , a5 , a6 , a7 , a8 ) | a3' <- s3 a3 ]
+    , [ (a1 , a2 , a3 , a4', a5 , a6 , a7 , a8 ) | a4' <- s4 a4 ]
+    , [ (a1 , a2 , a3 , a4 , a5', a6 , a7 , a8 ) | a5' <- s5 a5 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6', a7 , a8 ) | a6' <- s6 a6 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6 , a7', a8 ) | a7' <- s7 a7 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6 , a7 , a8') | a8' <- s8 a8 ]
+    ]
+
+-- | Similar to 'liftShrink2', but applicable to 9-tuples.
+--
+liftShrink9
+    :: (a1 -> [a1])
+    -> (a2 -> [a2])
+    -> (a3 -> [a3])
+    -> (a4 -> [a4])
+    -> (a5 -> [a5])
+    -> (a6 -> [a6])
+    -> (a7 -> [a7])
+    -> (a8 -> [a8])
+    -> (a9 -> [a9])
+    -> (a1, a2, a3, a4, a5, a6, a7, a8, a9)
+    -> [(a1, a2, a3, a4, a5, a6, a7, a8, a9)]
+liftShrink9 s1 s2 s3 s4 s5 s6 s7 s8 s9 (a1, a2, a3, a4, a5, a6, a7, a8, a9) =
+    interleaveRoundRobin
+    [ [ (a1', a2 , a3 , a4 , a5 , a6 , a7 , a8 , a9 ) | a1' <- s1 a1 ]
+    , [ (a1 , a2', a3 , a4 , a5 , a6 , a7 , a8 , a9 ) | a2' <- s2 a2 ]
+    , [ (a1 , a2 , a3', a4 , a5 , a6 , a7 , a8 , a9 ) | a3' <- s3 a3 ]
+    , [ (a1 , a2 , a3 , a4', a5 , a6 , a7 , a8 , a9 ) | a4' <- s4 a4 ]
+    , [ (a1 , a2 , a3 , a4 , a5', a6 , a7 , a8 , a9 ) | a5' <- s5 a5 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6', a7 , a8 , a9 ) | a6' <- s6 a6 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6 , a7', a8 , a9 ) | a7' <- s7 a7 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6 , a7 , a8', a9 ) | a8' <- s8 a8 ]
+    , [ (a1 , a2 , a3 , a4 , a5 , a6 , a7 , a8 , a9') | a9' <- s9 a9 ]
     ]
 
 -- Interleaves the given lists together in round-robin order.
