@@ -420,7 +420,7 @@ data SelectionCollateralRequirement
     -- ^ Indicates that collateral is required.
     | SelectionCollateralNotRequired
     -- ^ Indicates that collateral is not required.
-    deriving (Eq, Show)
+    deriving (Bounded, Enum, Eq, Generic, Show)
 
 -- | Indicates 'True' if and only if collateral is required.
 --

@@ -9,7 +9,11 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionConstraints (..), prepareOutputsWith )
+    ( SelectionCollateralRequirement (..)
+    , SelectionConstraints (..)
+    , SelectionParams (..)
+    , prepareOutputsWith
+    )
 import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
     ( MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
@@ -31,9 +35,23 @@ import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinPositive, shrinkCoinPositive )
+    ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genTokenMap, shrinkTokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..), txOutCoin )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxOut, shrinkTxOut )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO )
+import Cardano.Wallet.Primitive.Types.UTxO.Gen
+    ( genUTxO, shrinkUTxO )
+import Cardano.Wallet.Primitive.Types.UTxOSelection
+    ( UTxOSelection )
+import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
+    ( genUTxOSelection, shrinkUTxOSelection )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import GHC.Generics
@@ -50,13 +68,15 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , choose
     , genericShrink
+    , listOf
     , property
     , shrink
+    , shrinkList
     , shrinkMapBy
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( chooseNatural, liftShrink8, shrinkNatural )
+    ( chooseNatural, liftShrink8, liftShrink9, shrinkNatural )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
@@ -253,3 +273,114 @@ unMockUTxOSuitableForCollateral = \case
         const Nothing
     MockUTxOSuitableForCollateralPureAda ->
         \(_i, o) -> TokenBundle.toCoin $ view #tokens o
+
+--------------------------------------------------------------------------------
+-- Selection parameters
+--------------------------------------------------------------------------------
+
+genSelectionParams :: Gen SelectionParams
+genSelectionParams = SelectionParams
+    <$> genAssetsToBurn
+    <*> genAssetsToMint
+    <*> genOutputsToCover
+    <*> genRewardWithdrawal
+    <*> genCertificateDepositsTaken
+    <*> genCertificateDepositsReturned
+    <*> genCollateralRequirement
+    <*> genUTxOAvailableForCollateral
+    <*> genUTxOAvailableForInputs
+
+shrinkSelectionParams :: SelectionParams -> [SelectionParams]
+shrinkSelectionParams =
+    shrinkMapBy ofTuple toTuple $ liftShrink9
+        shrinkAssetsToBurn
+        shrinkAssetsToMint
+        shrinkOutputsToCover
+        shrinkRewardWithdrawal
+        shrinkCerticateDepositsTaken
+        shrinkCerticateDepositsReturned
+        shrinkCollateralRequirement
+        shrinkUTxOAvailableForCollateral
+        shrinkUTxOAvailableForInputs
+  where
+    toTuple (SelectionParams a b c d e f g h i) = (a, b, c, d, e, f, g, h, i)
+    ofTuple (a, b, c, d, e, f, g, h, i) = (SelectionParams a b c d e f g h i)
+
+--------------------------------------------------------------------------------
+-- Assets to mint and burn
+--------------------------------------------------------------------------------
+
+genAssetsToMint :: Gen TokenMap
+genAssetsToMint = genTokenMap
+
+genAssetsToBurn :: Gen TokenMap
+genAssetsToBurn = genTokenMap
+
+shrinkAssetsToMint :: TokenMap -> [TokenMap]
+shrinkAssetsToMint = shrinkTokenMap
+
+shrinkAssetsToBurn :: TokenMap -> [TokenMap]
+shrinkAssetsToBurn = shrinkTokenMap
+
+--------------------------------------------------------------------------------
+-- Outputs to cover
+--------------------------------------------------------------------------------
+
+genOutputsToCover :: Gen [TxOut]
+genOutputsToCover = listOf genTxOut
+
+shrinkOutputsToCover :: [TxOut] -> [[TxOut]]
+shrinkOutputsToCover = shrinkList shrinkTxOut
+
+--------------------------------------------------------------------------------
+-- Reward withdrawals
+--------------------------------------------------------------------------------
+
+genRewardWithdrawal :: Gen Coin
+genRewardWithdrawal = genCoin
+
+shrinkRewardWithdrawal :: Coin -> [Coin]
+shrinkRewardWithdrawal = shrinkCoin
+
+--------------------------------------------------------------------------------
+-- Certificate deposits taken and returned
+--------------------------------------------------------------------------------
+
+genCertificateDepositsTaken :: Gen Natural
+genCertificateDepositsTaken = chooseNatural (0, 3)
+
+genCertificateDepositsReturned :: Gen Natural
+genCertificateDepositsReturned = chooseNatural (0, 3)
+
+shrinkCerticateDepositsTaken :: Natural -> [Natural]
+shrinkCerticateDepositsTaken = shrinkNatural
+
+shrinkCerticateDepositsReturned :: Natural -> [Natural]
+shrinkCerticateDepositsReturned = shrinkNatural
+
+--------------------------------------------------------------------------------
+-- Collateral requirements
+--------------------------------------------------------------------------------
+
+genCollateralRequirement :: Gen SelectionCollateralRequirement
+genCollateralRequirement = arbitraryBoundedEnum
+
+shrinkCollateralRequirement
+    :: SelectionCollateralRequirement -> [SelectionCollateralRequirement]
+shrinkCollateralRequirement = genericShrink
+
+--------------------------------------------------------------------------------
+-- UTxO available for inputs and collateral
+--------------------------------------------------------------------------------
+
+genUTxOAvailableForCollateral :: Gen UTxO
+genUTxOAvailableForCollateral = genUTxO
+
+genUTxOAvailableForInputs :: Gen UTxOSelection
+genUTxOAvailableForInputs = genUTxOSelection
+
+shrinkUTxOAvailableForCollateral :: UTxO -> [UTxO]
+shrinkUTxOAvailableForCollateral = shrinkUTxO
+
+shrinkUTxOAvailableForInputs :: UTxOSelection -> [UTxOSelection]
+shrinkUTxOAvailableForInputs = shrinkUTxOSelection
