@@ -35,6 +35,9 @@ module Test.QuickCheck.Extra
     , report
     , verify
 
+      -- * Pretty-printing
+    , Pretty (..)
+
       -- * Combinators
     , NotNull (..)
 
@@ -77,9 +80,12 @@ import Test.QuickCheck.Gen.Unsafe
     ( promote )
 import Test.Utils.Pretty
     ( pShowBuilder )
+import Text.Pretty.Simple
+    ( pShow )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Text.Lazy as TL
 
 -- | Resize a generator to grow with the size parameter, but remains reasonably
 -- sized. That is handy when testing on data-structures that can be arbitrarily
@@ -385,6 +391,22 @@ verify condition conditionTitle =
     (.&&.) (counterexample counterexampleText $ property condition)
   where
     counterexampleText = "Condition violated: " <> conditionTitle
+
+--------------------------------------------------------------------------------
+-- Pretty-printing
+--------------------------------------------------------------------------------
+
+-- | A combinator that causes the output of `show` to be pretty-printed.
+--
+newtype Pretty a = Pretty { unPretty :: a }
+    deriving Eq
+
+instance Show a => Show (Pretty a) where
+    show (Pretty a) = TL.unpack ("\n" <> pShow a <> "\n")
+
+instance Arbitrary a => Arbitrary (Pretty a) where
+    arbitrary = Pretty <$> arbitrary
+    shrink (Pretty a) = Pretty <$> shrink a
 
 --------------------------------------------------------------------------------
 -- Non-null values
