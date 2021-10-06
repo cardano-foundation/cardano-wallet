@@ -767,8 +767,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_BALANCE_01a - multiple-output transaction with all covering inputs present" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "No errMsg403transactionAlreadyBalanced is returned - to be fixed in ADP-656"
-
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]

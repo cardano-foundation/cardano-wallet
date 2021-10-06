@@ -413,7 +413,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinQuantity )
+    ( Coin (..), coinQuantity, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -591,6 +591,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -2214,81 +2215,83 @@ balanceTransaction
     -> Handler (ApiConstructTransaction n)
 balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
+    let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
 
-    --TODO  deal with coll and validity and delegations
-    let (Tx _id _fee _coll _inps outs wdrlMap mdM _validity) = txIncoming
+    if areOutputsCovered txIncoming executionFee then
+        liftHandler $ throwE ErrBalanceTxTxAlreadyBalanced
+    else do
+        let (Tx _id _fee _coll _inps outs wdrlMap mdM _validity) = txIncoming
 
-    ((FeeEstimation feeMin _), unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        ((FeeEstimation feeMin _), unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
-        (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-        (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid $
-            if Map.member acct wdrlMap
-            then Just SelfWithdrawal
-            else Nothing
-        let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
-        ttl <- liftIO $ W.getTxExpiry ti Nothing
-        let txCtx = defaultTransactionCtx
-                { txPlutusScriptExecutionCost = executionFee
-                , txMetadata = mdM
-                , txWithdrawal = wdrl
-                , txTimeToLive = ttl
-                }
+            (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+            (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid $
+                if Map.member acct wdrlMap
+                then Just SelfWithdrawal
+                else Nothing
+            ttl <- liftIO $ W.getTxExpiry ti Nothing
+            let txCtx = defaultTransactionCtx
+                    { txPlutusScriptExecutionCost = executionFee
+                    , txMetadata = mdM
+                    , txWithdrawal = wdrl
+                    , txTimeToLive = ttl
+                    }
 
-        (internalUtxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+            (internalUtxoAvailable, wallet, pendingTxs) <-
+                liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
-        let externalSelectedUtxo =
-                UTxOIndex.fromSequence externalInputs
+            let externalSelectedUtxo =
+                    UTxOIndex.fromSequence externalInputs
 
-        let utxoAvailable = UTxOSelection.fromIndexPair
-                (internalUtxoAvailable, externalSelectedUtxo)
+            let utxoAvailable = UTxOSelection.fromIndexPair
+                    (internalUtxoAvailable, externalSelectedUtxo)
 
-        let runSelection = W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            let runSelection = W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+                    { outputs = outs
+                    , pendingTxs
+                    , txContext = txCtx
+                    , utxoAvailableForInputs = utxoAvailable
+                    , utxoAvailableForCollateral =
+                        UTxOIndex.toUTxO internalUtxoAvailable
+                    , wallet
+                    } getFee
+                  where getFee = const (selectionDelta TokenBundle.getCoin)
+
+            let transform s sel' =
+                    W.assignChangeAddresses genChange sel' s
+                    & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+            unsignedtx <- liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
                 { outputs = outs
                 , pendingTxs
                 , txContext = txCtx
                 , utxoAvailableForInputs = utxoAvailable
                 , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO internalUtxoAvailable
+                        UTxOIndex.toUTxO internalUtxoAvailable
                 , wallet
-                } getFee
-              where getFee = const (selectionDelta TokenBundle.getCoin)
+                }
+                transform
 
-        let transform s sel' =
-                W.assignChangeAddresses genChange sel' s
-                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-        unsignedtx <- liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
-            { outputs = outs
-            , pendingTxs
-            , txContext = txCtx
-            , utxoAvailableForInputs = utxoAvailable
-            , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO internalUtxoAvailable
-            , wallet
+            fee <- liftHandler $ W.estimateFee runSelection
+            return (fee, unsignedtx)
+
+        let UnsignedTx colls inps _outs change _wdrl = unsignedtx
+        let extraBody = ExtraTxBodyContent
+                { extraInputs = (\(txin, _, _) -> txin) <$> F.toList inps
+                , extraCollateral = (\(txin, _, _) -> txin) <$> F.toList colls
+                , extraOutputs = toTxOut <$> change
+                , newFee = const (Coin feeMin)
+                }
+        let cs = mkApiCoinSelection [] Nothing mdM unsignedtx
+        sealedTxOutcoming <-
+            case updateTx tl sealedTxIncoming extraBody of
+                Right result -> pure result
+                Left err ->
+                    liftHandler $ throwE $ ErrBalanceTxUpdateError err
+        pure $ ApiConstructTransaction
+            { transaction = ApiT sealedTxOutcoming
+            , coinSelection = cs
+            , fee = Quantity $ fromIntegral feeMin
             }
-            transform
-
-        fee <- liftHandler $ W.estimateFee runSelection
-        return (fee, unsignedtx)
-
-    let UnsignedTx colls inps _outs change _wdrl = unsignedtx
-    let extraBody = ExtraTxBodyContent
-            { extraInputs = (\(txin, _, _) -> txin) <$> F.toList inps
-            , extraCollateral = (\(txin, _, _) -> txin) <$> F.toList colls
-            , extraOutputs = toTxOut <$> change
-            , newFee = const (Coin feeMin)
-            }
-    let cs = mkApiCoinSelection [] Nothing mdM unsignedtx
-    sealedTxOutcoming <-
-        case updateTx tl sealedTxIncoming extraBody of
-            Right result -> pure result
-            Left err ->
-                liftHandler $ throwE $ ErrBalanceTxUpdateError err
-    pure $ ApiConstructTransaction
-        { transaction = ApiT sealedTxOutcoming
-        , coinSelection = cs
-        , fee = Quantity $ fromIntegral feeMin
-        }
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
@@ -2305,6 +2308,12 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     txIncoming = decodeTx tl sealedTxIncoming
     toTxOut (TxChange addr amt assets _) =
         TxOut addr (TokenBundle amt assets)
+    getExternalInps (ApiExternalInput (ApiTxIn (ApiT hashTx) ix) (ApiTxOut _ _ (Quantity amt) _)) =
+        (TxIn hashTx ix, Coin $ fromIntegral amt)
+    externalIns = getExternalInps <$> apiExternalInps
+    areOutputsCovered (Tx _ feeM _ _ outs _ _ _) execUnitsCost =
+        sumCoins (map snd $ L.nubBy (\x y -> fst x == fst y) externalIns) ==
+        sumCoins [fromMaybe (Coin 0) feeM, sumCoins $ txOutCoin <$> outs, execUnitsCost]
 
 joinStakePool
     :: forall ctx s n k.
