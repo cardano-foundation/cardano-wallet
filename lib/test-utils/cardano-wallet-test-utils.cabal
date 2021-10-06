@@ -46,6 +46,7 @@ library
     , http-api-data
     , HUnit
     , iohk-monitoring
+    , int-cast
     , lattices
     , optparse-applicative
     , pretty-simple

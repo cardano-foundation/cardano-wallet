@@ -46,6 +46,7 @@
           (hsPkgs."http-api-data" or (errorHandler.buildDepError "http-api-data"))
           (hsPkgs."HUnit" or (errorHandler.buildDepError "HUnit"))
           (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
+          (hsPkgs."int-cast" or (errorHandler.buildDepError "int-cast"))
           (hsPkgs."lattices" or (errorHandler.buildDepError "lattices"))
           (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
           (hsPkgs."pretty-simple" or (errorHandler.buildDepError "pretty-simple"))
