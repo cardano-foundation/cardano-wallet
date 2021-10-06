@@ -2215,6 +2215,10 @@ balanceTransaction
     -> Handler (ApiConstructTransaction n)
 balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
+    --maybe it is better to use forthcoming evaluate execution units there
+    --and calculate price. But I assume here that execution units for all
+    --redeemers will be updated when evaluated, so for already balanced tx they are
+    --going to be nonzero.
     let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
 
     if areOutputsCovered txIncoming executionFee then
@@ -3737,9 +3741,6 @@ instance IsServerError ErrBalanceTx where
                 , "the transaction body is modified. "
                 , "Please sign the transaction after it is balanced instead."
                 ]
-        ErrBalanceTxNotImplemented ->
-            apiError err501 NotImplemented
-                "This feature is not yet implemented."
 
 instance IsServerError ErrMintBurnAssets where
     toServerError = \case

@@ -2577,7 +2577,6 @@ data ErrSignPayment
 data ErrBalanceTx
     = ErrBalanceTxTxAlreadyBalanced
     | ErrBalanceTxUpdateError ErrUpdateSealedTx
-    | ErrBalanceTxNotImplemented
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.
