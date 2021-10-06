@@ -1450,8 +1450,9 @@ selectAssets ctx params transform = do
     mSel <- runExceptT $ performSelection
         SelectionConstraints
             { assessTokenBundleSize =
+                view #assessTokenBundleSize $
                 tokenBundleSizeAssessor tl $
-                    pp ^. (#txParameters . #getTokenBundleMaxSize)
+                pp ^. (#txParameters . #getTokenBundleMaxSize)
             , certificateDepositAmount =
                 view #stakeKeyDeposit pp
             , computeMinimumAdaQuantity =

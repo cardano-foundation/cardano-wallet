@@ -66,12 +66,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..)
-    , TokenBundleSizeAssessor (..)
-    , TxIn
-    , TxOut
-    , txOutMaxTokenQuantity
-    )
+    ( TokenBundleSizeAssessment (..), TxIn, TxOut, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -184,7 +179,7 @@ toBalanceConstraintsParams (constraints, params) =
             view #computeSelectionLimit constraints
                 & adjustComputeSelectionLimit
         , assessTokenBundleSize =
-            view (#assessTokenBundleSize . #assessTokenBundleSize) constraints
+            view #assessTokenBundleSize constraints
         }
       where
         adjustComputeMinimumCost
@@ -342,7 +337,7 @@ selectionDelta getChangeCoin
 --
 data SelectionConstraints = SelectionConstraints
     { assessTokenBundleSize
-        :: TokenBundleSizeAssessor
+        :: TokenBundle -> TokenBundleSizeAssessment
         -- ^ Assesses the size of a token bundle relative to the upper limit of
         -- what can be included in a transaction output. See documentation for
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
@@ -541,11 +536,9 @@ prepareOutputsInternal constraints outputsUnprepared
         ]
 
       where
-        bundleIsExcessivelyLarge b = case assessSize b of
+        bundleIsExcessivelyLarge b = case assessTokenBundleSize b of
             TokenBundleSizeWithinLimit -> False
             OutputTokenBundleSizeExceedsLimit -> True
-          where
-            assessSize = view #assessTokenBundleSize assessTokenBundleSize
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
