@@ -30,8 +30,8 @@ module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
 
     -- * Updating SealedTx
-    , ExtraTxBodyContent (..)
-    , noExtraTxBodyContent
+    , TxUpdate (..)
+    , noTxUpdate
     , updateSealedTx
 
     -- * Internals
@@ -128,11 +128,13 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTx
     , fromCardanoTxIn
     , fromCardanoWdrls
+    , fromLedgerExUnits
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
     , toHDPayloadAddress
+    , toLedgerExUnits
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
@@ -143,9 +145,9 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrMkTransaction (..)
     , ErrUpdateSealedTx (..)
-    , ExtraTxBodyContent (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxUpdate (..)
     , withdrawalToCoin
     )
 import Control.Arrow
@@ -185,7 +187,6 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
-import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Coin as Ledger
@@ -536,16 +537,16 @@ mkDelegationCertificates da accXPub =
 
 -- | For testing that
 -- @
---   forall tx. updateSealedTx noExtraTxBodyContent tx
+--   forall tx. updateSealedTx noTxUpdate tx
 --      == Right tx or Left
 -- @
-noExtraTxBodyContent :: ExtraTxBodyContent
-noExtraTxBodyContent = ExtraTxBodyContent [] [] [] id
+noTxUpdate :: TxUpdate
+noTxUpdate = TxUpdate [] [] [] (const id) id
 
 -- Used to add inputs and outputs when balancing a transaction.
 --
 -- If the transaction contains existing key witnesses, it will return `Left`,
--- *even if `noExtraTxBodyContent` is used*. This last detail could be changed.
+-- *even if `noTxUpdate` is used*. This last detail could be changed.
 --
 -- == Notes on implementation choices
 --
@@ -555,7 +556,7 @@ noExtraTxBodyContent = ExtraTxBodyContent [] [] [] id
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
 updateSealedTx
-    :: ExtraTxBodyContent
+    :: TxUpdate
     -> SealedTx
     -> Either ErrUpdateSealedTx SealedTx
 updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
@@ -563,7 +564,7 @@ updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
     -- NOTE: The script witnesses are carried along with the cardano-api
     -- `anyEraBody`.
     let (Cardano.Tx anyEraBody existingKeyWits) = tx
-    body' <- modifyLedgerTxBody extraContent anyEraBody
+    body' <- modifyLedgerTx extraContent anyEraBody
 
     unless (null existingKeyWits) $
        Left $ ErrExistingKeyWitnesses $ length existingKeyWits
@@ -571,22 +572,42 @@ updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
     return $ sealedTxFromCardanoBody body'
 
   where
-    modifyLedgerTxBody
-        :: ExtraTxBodyContent
+    modifyLedgerTx
+        :: forall era. ()
+        => TxUpdate
         -> Cardano.TxBody era
         -> Either ErrUpdateSealedTx (Cardano.TxBody era)
-    modifyLedgerTxBody ebc (Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val) =
-            Right $ Cardano.ShelleyTxBody shelleyEra (adjust ebc shelleyEra bod) scripts scriptData aux val
+    modifyLedgerTx ebc (Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val) =
+            Right $ Cardano.ShelleyTxBody shelleyEra
+                (adjustBody ebc shelleyEra bod)
+                scripts
+                (modifyRedeemers scriptData)
+                aux
+                val
       where
+        modifyRedeemers :: Cardano.TxBodyScriptData era -> Cardano.TxBodyScriptData era
+        modifyRedeemers = \case
+            Cardano.TxBodyNoScriptData ->
+                Cardano.TxBodyNoScriptData
+            Cardano.TxBodyScriptData Cardano.ScriptDataInAlonzoEra dats (Alonzo.Redeemers redeemers) ->
+                Cardano.TxBodyScriptData Cardano.ScriptDataInAlonzoEra dats
+                    $ Alonzo.Redeemers
+                    $ Map.mapWithKey (\ptr (a, exUnits) ->
+                        let ptr' = Cardano.fromAlonzoRdmrPtr ptr
+                            exUnits' = fromLedgerExUnits exUnits
+                         in
+                            (a, toLedgerExUnits $ newExUnits extraContent ptr' exUnits')
+                      ) redeemers
+
         -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
         -- cases could perhaps be joined. It is not however. And we still need
         -- to treat Alonzo and Shelley differently.
-        adjust
-            :: ExtraTxBodyContent
+        adjustBody
+            :: TxUpdate
             -> ShelleyBasedEra era
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-        adjust (ExtraTxBodyContent extraInputs extraCollateral extraOutputs modifyFee) era body = case era of
+        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs _ modifyFee) era body = case era of
             ShelleyBasedEraAlonzo -> body
                     { Alonzo.outputs = Alonzo.outputs body
                         <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
@@ -656,7 +677,7 @@ updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
                     -- fromIntegral will throw "Exception: arithmetic underflow"
                     -- if (c :: Integral) for some reason were to be negative.
 
-    modifyLedgerTxBody _ (Byron.ByronTxBody _)
+    modifyLedgerTx _ (Byron.ByronTxBody _)
         = Left ErrByronTxNotSupported
 
 -- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to

@@ -130,8 +130,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoLovelace
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( ExtraTxBodyContent (..)
-    , TxSkeleton (..)
+    ( TxSkeleton (..)
+    , TxUpdate (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor
     , estimateTxCost
@@ -140,7 +140,7 @@ import Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , newTransactionLayer
-    , noExtraTxBodyContent
+    , noTxUpdate
     , txConstraints
     , updateSealedTx
     , _decodeSealedTx
@@ -1659,7 +1659,7 @@ updateSealedTxSpec = do
             -- But we will also need to pattern match on the fee modifier,
             -- currently a `Coin -> Coin`, so we might need to replace it with
             -- either `Maybe Coin` or even just `Coin`.
-            describe "updateSealedTx tx noExtraTxBodyContent == Right tx" $ do
+            describe "updateSealedTx tx noTxUpdate == Right tx" $ do
                 let testPlutusDir = $(getTestData) </> "plutus"
                 let matrix =
                         [ "auction_1-2.json"
@@ -1721,7 +1721,7 @@ updateSealedTxSpec = do
                         case decodeResult of
                             Left e -> expectationFailure $ show e
                             Right (ApiBalanceTransactionPostData (ApiT tx) _ ) -> do
-                                updateSealedTx noExtraTxBodyContent tx
+                                updateSealedTx noTxUpdate tx
                                     `shouldBe` Right tx
 
                 forM_ matrixNormalTxExamples $ \(title, hexBytes) -> do
@@ -1729,17 +1729,17 @@ updateSealedTxSpec = do
                         case sealedTxFromBytes $ unsafeFromHex hexBytes of
                             Left e -> expectationFailure $ show e
                             Right tx -> do
-                                updateSealedTx noExtraTxBodyContent tx
+                                updateSealedTx noTxUpdate tx
                                     `shouldBe` Right tx
 
         describe "existing key witnesses" $ do
-            it "returns `Left err` with noExtraTxBodyContent" $ do
+            it "returns `Left err` with noTxUpdate" $ do
                 -- Could be argued that it should instead return `Right tx`.
                 case sealedTxFromBytes $ unsafeFromHex txWithInputsOutputsAndWits of
                     Left e -> expectationFailure $ show e
                     Right tx -> do
-                        print $ updateSealedTx noExtraTxBodyContent tx
-                        updateSealedTx noExtraTxBodyContent tx
+                        print $ updateSealedTx noTxUpdate tx
+                        updateSealedTx noTxUpdate tx
                             `shouldBe` Left (ErrExistingKeyWitnesses 2)
 
             it "returns `Left err` when extra body content is non-empty" $ do
@@ -1756,7 +1756,7 @@ instance Arbitrary PartialTx where
 
 prop_updateSealedTx :: PartialTx -> [TxIn] -> [TxIn] -> [TxOut] -> Coin -> Property
 prop_updateSealedTx (PartialTx tx) extraIns extraCol extraOuts newFee = do
-    let extra = ExtraTxBodyContent extraIns extraCol extraOuts (const newFee)
+    let extra = TxUpdate extraIns extraCol extraOuts (const id) (const newFee)
     let tx' = either (error . show) id
             $ updateSealedTx extra tx
 

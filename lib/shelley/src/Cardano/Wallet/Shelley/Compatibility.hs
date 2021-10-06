@@ -712,10 +712,10 @@ fromLedgerExUnits (Alonzo.ExUnits mem steps) =
 toLedgerExUnits
     :: W.ExecutionUnits
     -> Alonzo.ExUnits
-toLedgerExUnits W.ExecutionUnits{executionSteps,executionMemory}
+toLedgerExUnits W.ExecutionUnits{executionSteps,executionMemory} =
     Alonzo.ExUnits
     { Alonzo.exUnitsMem = executionMemory
-    , Alonzo.exUnitsStep = executionSteps
+    , Alonzo.exUnitsSteps = executionSteps
     }
 
 txParametersFromPParams

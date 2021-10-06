@@ -25,7 +25,7 @@ module Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
-    , ExtraTxBodyContent (..)
+    , TxUpdate (..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -66,7 +66,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessor
+    ( ScriptWitnessIndex
+    , TokenBundleSizeAssessor
     , Tx (..)
     , TxConstraints
     , TxIn
@@ -200,25 +201,26 @@ data TransactionLayer k tx = TransactionLayer
 
     , updateTx
         :: tx
-        -> ExtraTxBodyContent
+        -> TxUpdate
         -> Either ErrUpdateSealedTx tx
         -- ^ Update tx by adding additional inputs and outputs
     }
     deriving Generic
 
--- | Describes modifications that can be made to a `TxBody` using
--- `updateTx`.
-data ExtraTxBodyContent = ExtraTxBodyContent
+-- | Describes modifications that can be made to a `Tx` using `updateTx`.
+data TxUpdate = TxUpdate
     { extraInputs :: [TxIn]
     , extraCollateral :: [TxIn]
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [TxOut]
+    , newExUnits :: ScriptWitnessIndex -> ExecutionUnits -> ExecutionUnits
+       -- ^ Adjust execution units on existing redeemers.
     , newFee :: Coin -> Coin
         -- ^ Set the new fee, given the old one.
         --
         -- Note that you most likely won't care about the old fee at all. But it
-        -- is useful to allow defining a no-op `ExtraTxBodyContent` for the sake
+        -- is useful to allow defining a no-op `TxUpdate` for the sake
         -- of testing.
     }
 

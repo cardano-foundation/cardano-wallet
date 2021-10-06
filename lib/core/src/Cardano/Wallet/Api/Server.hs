@@ -444,9 +444,9 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrSignTx (..)
-    , ExtraTxBodyContent (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxUpdate (..)
     , Withdrawal (..)
     , defaultTransactionCtx
     )
