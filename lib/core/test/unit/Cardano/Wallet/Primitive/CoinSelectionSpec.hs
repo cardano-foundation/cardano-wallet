@@ -1,27 +1,62 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 
 module Cardano.Wallet.Primitive.CoinSelectionSpec
-    ( spec
-    ) where
+    where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( prepareOutputsWith )
+    ( SelectionConstraints (..), prepareOutputsWith )
 import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
-    ( MockComputeMinimumAdaQuantity, unMockComputeMinimumAdaQuantity )
+    ( MockAssessTokenBundleSize
+    , MockComputeMinimumAdaQuantity
+    , MockComputeMinimumCost
+    , MockComputeSelectionLimit
+    , genMockAssessTokenBundleSize
+    , genMockComputeMinimumAdaQuantity
+    , genMockComputeMinimumCost
+    , genMockComputeSelectionLimit
+    , shrinkMockAssessTokenBundleSize
+    , shrinkMockComputeMinimumAdaQuantity
+    , shrinkMockComputeMinimumCost
+    , shrinkMockComputeSelectionLimit
+    , unMockAssessTokenBundleSize
+    , unMockComputeMinimumAdaQuantity
+    , unMockComputeMinimumCost
+    , unMockComputeSelectionLimit
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut (..), txOutCoin )
+    ( TxIn, TxOut (..), txOutCoin )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import GHC.Generics
+    ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Property, property, (===) )
+    ( Gen
+    , Property
+    , arbitraryBoundedEnum
+    , choose
+    , genericShrink
+    , property
+    , shrink
+    , shrinkMapBy
+    , (===)
+    )
+import Test.QuickCheck.Extra
+    ( chooseNatural, liftShrink8, shrinkNatural )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
@@ -91,3 +126,130 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
             txOutCoin after == txOutCoin before
         | otherwise =
             txOutCoin after == minCoinValueFor (view (#tokens . #tokens) before)
+
+--------------------------------------------------------------------------------
+-- Selection constraints
+--------------------------------------------------------------------------------
+
+data MockSelectionConstraints = MockSelectionConstraints
+    { assessTokenBundleSize
+        :: MockAssessTokenBundleSize
+    , certificateDepositAmount
+        :: Coin
+    , computeMinimumAdaQuantity
+        :: MockComputeMinimumAdaQuantity
+    , computeMinimumCost
+        :: MockComputeMinimumCost
+    , computeSelectionLimit
+        :: MockComputeSelectionLimit
+    , maximumCollateralInputCount
+        :: Int
+    , minimumCollateralPercentage
+        :: Natural
+    , utxoSuitableForCollateral
+        :: MockUTxOSuitableForCollateral
+    }
+    deriving (Eq, Generic, Show)
+
+genMockSelectionConstraints :: Gen MockSelectionConstraints
+genMockSelectionConstraints = MockSelectionConstraints
+    <$> genMockAssessTokenBundleSize
+    <*> genCertificateDepositAmount
+    <*> genMockComputeMinimumAdaQuantity
+    <*> genMockComputeMinimumCost
+    <*> genMockComputeSelectionLimit
+    <*> genMaximumCollateralInputCount
+    <*> genMinimumCollateralPercentage
+    <*> genMockUTxOSuitableForCollateral
+
+shrinkMockSelectionConstraints
+    :: MockSelectionConstraints -> [MockSelectionConstraints]
+shrinkMockSelectionConstraints =
+    shrinkMapBy toMock unMock $ liftShrink8
+        shrinkMockAssessTokenBundleSize
+        shrinkCertificateDepositAmount
+        shrinkMockComputeMinimumAdaQuantity
+        shrinkMockComputeMinimumCost
+        shrinkMockComputeSelectionLimit
+        shrinkMaximumCollateralInputCount
+        shrinkMinimumCollateralPercentage
+        shrinkMockUTxOSuitableForCollateral
+  where
+    unMock (MockSelectionConstraints a b c d e f g h) = (a, b, c, d, e, f, g, h)
+    toMock (a, b, c, d, e, f, g, h) = (MockSelectionConstraints a b c d e f g h)
+
+unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
+unMockSelectionConstraints m = SelectionConstraints
+    { assessTokenBundleSize =
+        unMockAssessTokenBundleSize $ view #assessTokenBundleSize m
+    , certificateDepositAmount =
+        view #certificateDepositAmount m
+    , computeMinimumAdaQuantity =
+        unMockComputeMinimumAdaQuantity $ view #computeMinimumAdaQuantity m
+    , computeMinimumCost =
+        unMockComputeMinimumCost $ view #computeMinimumCost m
+    , computeSelectionLimit =
+        unMockComputeSelectionLimit $ view #computeSelectionLimit m
+    , maximumCollateralInputCount =
+        view #maximumCollateralInputCount m
+    , minimumCollateralPercentage =
+        view #minimumCollateralPercentage m
+    , utxoSuitableForCollateral =
+        unMockUTxOSuitableForCollateral $ view #utxoSuitableForCollateral m
+    }
+
+--------------------------------------------------------------------------------
+-- Certificate deposit amounts
+--------------------------------------------------------------------------------
+
+genCertificateDepositAmount :: Gen Coin
+genCertificateDepositAmount = genCoinPositive
+
+shrinkCertificateDepositAmount :: Coin -> [Coin]
+shrinkCertificateDepositAmount = shrinkCoinPositive
+
+--------------------------------------------------------------------------------
+-- Maximum collateral input counts
+--------------------------------------------------------------------------------
+
+genMaximumCollateralInputCount :: Gen Int
+genMaximumCollateralInputCount = choose (1, 5)
+
+shrinkMaximumCollateralInputCount :: Int -> [Int]
+shrinkMaximumCollateralInputCount = shrink
+
+--------------------------------------------------------------------------------
+-- Minimum collateral percentages
+--------------------------------------------------------------------------------
+
+genMinimumCollateralPercentage :: Gen Natural
+genMinimumCollateralPercentage = chooseNatural (0, 1000)
+
+shrinkMinimumCollateralPercentage :: Natural -> [Natural]
+shrinkMinimumCollateralPercentage = shrinkNatural
+
+--------------------------------------------------------------------------------
+-- Determining suitability of UTxOs for use as collateral
+--------------------------------------------------------------------------------
+
+data MockUTxOSuitableForCollateral
+    = MockUTxOSuitableForCollateralNothing
+      -- ^ Indicates that no UTxOs are suitable for use as collateral
+    | MockUTxOSuitableForCollateralPureAda
+      -- ^ Indicates that all pure ada UTxOs are suitable for use as collateral
+    deriving (Bounded, Enum, Eq, Generic, Show)
+
+genMockUTxOSuitableForCollateral :: Gen MockUTxOSuitableForCollateral
+genMockUTxOSuitableForCollateral = arbitraryBoundedEnum
+
+shrinkMockUTxOSuitableForCollateral
+    :: MockUTxOSuitableForCollateral -> [MockUTxOSuitableForCollateral]
+shrinkMockUTxOSuitableForCollateral = genericShrink
+
+unMockUTxOSuitableForCollateral
+    :: MockUTxOSuitableForCollateral -> ((TxIn, TxOut) -> Maybe Coin)
+unMockUTxOSuitableForCollateral = \case
+    MockUTxOSuitableForCollateralNothing ->
+        const Nothing
+    MockUTxOSuitableForCollateralPureAda ->
+        \(_i, o) -> TokenBundle.toCoin $ view #tokens o
