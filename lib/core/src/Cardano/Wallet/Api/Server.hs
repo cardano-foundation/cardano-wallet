@@ -159,6 +159,7 @@ import Cardano.Wallet
     , ErrSignPayment (..)
     , ErrStakePoolDelegation (..)
     , ErrStartTimeLaterThanEndTime (..)
+    , ErrSubmitPayment (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrUpdateSealedTx (..)
@@ -2421,20 +2422,31 @@ submitTransaction
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
         , HasNetworkLayer IO ctx
+        , IsOwned s k
         )
     => ctx
     -> ApiT WalletId
     -> ApiT W.SealedTx
     -> Handler ApiTxId
 submitTransaction ctx (ApiT wid) (ApiT sealedTx) = do
-    let txMeta = undefined
+    ttl <- liftIO $ W.getTxExpiry ti Nothing
+    let txCtx = defaultTransactionCtx
+            { txTimeToLive = ttl
+            --, txWithdrawal = wdrl TODO
+            }
+    let sel = undefined
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (txMeta,_) <- liftHandler
+            $ W.constructTxMeta @_ @s @k wrk wid txCtx sel
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
     return $ ApiTxId (ApiT (tx ^. #txId))
   where
     tx = decodeTx tl sealedTx
     tl = ctx ^. W.transactionLayer @k
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    nl = ctx ^. networkLayer
+    ti = timeInterpreter nl
 
 joinStakePool
     :: forall ctx s n k.
@@ -3793,6 +3805,13 @@ instance IsServerError ErrGetAsset where
 instance IsServerError ErrListUTxOStatistics where
     toServerError = \case
         ErrListUTxOStatisticsNoSuchWallet e -> toServerError e
+
+instance IsServerError ErrSubmitPayment where
+    toServerError = \case
+        ErrSubmitPaymentNoSuchWallet e -> (toServerError e)
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
+            }
 
 instance IsServerError ErrSignPayment where
     toServerError = \case

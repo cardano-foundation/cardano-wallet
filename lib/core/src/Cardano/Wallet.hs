@@ -117,8 +117,10 @@ module Cardano.Wallet
     , buildAndSignTransaction
     , signTransaction
     , constructTransaction
+    , constructTxMeta
     , ErrSelectAssets(..)
     , ErrSignPayment (..)
+    , ErrSubmitPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotWorth (..)
     , ErrConstructTx (..)
@@ -1657,6 +1659,30 @@ getTxExpiry ti maybeTTL = do
     defaultTTL :: NominalDiffTime
     defaultTTL = 7200  -- that's 2 hours
 
+constructTxMeta
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
+        , IsOwned s k
+        )
+    => ctx
+    -> WalletId
+    -> TransactionCtx
+    -> SelectionOf TxOut
+    -> ExceptT ErrSubmitPayment IO (TxMeta, UTCTime)
+constructTxMeta ctx wid txCtx sel = db & \DBLayer{..} -> do
+    mapExceptT atomically $ do
+        cp <- withExceptT ErrSubmitPaymentNoSuchWallet
+              $ withNoSuchWallet wid
+              $ readCheckpoint wid
+        (time, meta) <- liftIO $
+            mkTxMeta ti (currentTip cp) (getState cp) txCtx sel
+        return (meta, time)
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    nl = ctx ^. networkLayer
+    ti = timeInterpreter nl
+
 -- | Construct transaction metadata for a pending transaction from the block
 -- header of the current tip and a list of input and output.
 --
@@ -2569,6 +2595,11 @@ data ErrSignPayment
     | ErrSignPaymentNoSuchWallet ErrNoSuchWallet
     | ErrSignPaymentWithRootKey ErrWithRootKey
     | ErrSignPaymentIncorrectTTL PastHorizonException
+    deriving (Show, Eq)
+
+-- | Errors that can occur when submitting a transaction.
+newtype ErrSubmitPayment
+    = ErrSubmitPaymentNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 -- | Errors that can occur when balancing transaction.
