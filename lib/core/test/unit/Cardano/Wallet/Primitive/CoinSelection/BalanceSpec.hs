@@ -569,7 +569,6 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
         , extraCoinSink
         , assetsToMint
         , assetsToBurn
-        , selectionOfCollateralRequired
         }
   where
     genAssetsToMintAndBurn :: UTxOIndex -> Gen (TokenMap, TokenMap)
@@ -1634,8 +1633,6 @@ encodeBoundaryTestCriteria c = SelectionParams
         TokenMap.empty
     , assetsToBurn =
         TokenMap.empty
-    , selectionOfCollateralRequired =
-        SelectionCollateralNotRequired
     }
   where
     dummyAddresses :: [Address]

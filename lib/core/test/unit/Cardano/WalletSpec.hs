@@ -713,7 +713,7 @@ instance Arbitrary GenTxHistory where
         genTx' = mkTx <$> genTid
         hasPending = any ((== Pending) . view #status . snd)
         genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
-        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing Nothing
+        mkTx tid = Tx tid Nothing [] [] [] mempty Nothing Nothing False
         genTxMeta = do
             sl <- genSmallSlot
             let bh = Quantity $ fromIntegral $ unSlotNo sl
@@ -1257,6 +1257,7 @@ dummyTransactionLayer = TransactionLayer
                  , withdrawals = mempty
                  , metadata = Nothing
                  , scriptValidity = Nothing
+                 , hasScriptsRequiringCollateral = False
                  }
         let wit = forMaybe (NE.toList $ view #inputs cs) $ \(_, TxOut addr _) -> do
                 (xprv, Passphrase pwd) <- keystore addr
@@ -1285,7 +1286,7 @@ dummyTransactionLayer = TransactionLayer
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
-        Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing
+        Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing False
     , updateTx = \sealed _insAndOuts ->
             pure sealed
     }

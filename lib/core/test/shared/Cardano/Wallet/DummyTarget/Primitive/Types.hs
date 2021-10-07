@@ -141,8 +141,7 @@ mkTx
     -> Maybe TxScriptValidity
     -> Bool
     -> Tx
-mkTx fees ins cins outs wdrls md validity =
-mkTx fees ins cins outs wdrls md hasScripts =
+mkTx fees ins cins outs wdrls md validity hasScripts =
     Tx
       { txId = (mkTxId ins outs wdrls md)
       , fee = fees

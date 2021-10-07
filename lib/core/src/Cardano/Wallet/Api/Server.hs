@@ -363,6 +363,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
     , SelectionCollateralRequirement (..)
+    , toCollateralRequirement
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
@@ -473,8 +474,6 @@ import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Aeson
     ( (.=) )
-import Data.Bool
-    ( bool )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -2115,6 +2114,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         , utxoAvailableForCollateral =
                             UTxOIndex.toUTxO utxoAvailable
                         , wallet
+                        , collateralRequirement = SelectionCollateralNotRequired
                         }
                         (const Prelude.id)
                 (FeeEstimation estMin _) <- liftHandler $
@@ -2128,6 +2128,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                             , utxoAvailableForCollateral =
                                 UTxOIndex.toUTxO utxoAvailable
                             , wallet
+                            , collateralRequirement = SelectionCollateralNotRequired
                             }
                             getFee
                 sel <- liftHandler $
@@ -2142,6 +2143,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         , utxoAvailableForCollateral =
                             UTxOIndex.toUTxO utxoAvailable
                         , wallet
+                        , collateralRequirement = SelectionCollateralNotRequired
                         }
                         transform
                 pure (sel, sel', estMin)
@@ -2158,6 +2160,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         , utxoAvailableForCollateral =
                             UTxOIndex.toUTxO utxoAvailable
                         , wallet
+                        , collateralRequirement = SelectionCollateralNotRequired
                         }
                         (const Prelude.id)
                 (FeeEstimation estMin _) <- liftHandler
@@ -2171,6 +2174,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         , utxoAvailableForCollateral =
                             UTxOIndex.toUTxO utxoAvailable
                         , wallet
+                        , collateralRequirement = SelectionCollateralNotRequired
                         }
                         getFee
                 sel <- liftHandler $
@@ -2185,6 +2189,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         , utxoAvailableForCollateral =
                             UTxOIndex.toUTxO utxoAvailable
                         , wallet
+                        , collateralRequirement = SelectionCollateralNotRequired
                         }
                         transform
                 pure (sel, sel', estMin)
@@ -2260,7 +2265,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO internalUtxoAvailable
                 , wallet
-                , collateralRequirement = requiresCollateral
+                , collateralRequirement = toCollateralRequirement requiresCollateral
                 } getFee
               where getFee = const (selectionDelta TokenBundle.getCoin)
 
@@ -2275,7 +2280,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO internalUtxoAvailable
             , wallet
-            , collateralRequirement = requiresCollateral
+            , collateralRequirement = toCollateralRequirement requiresCollateral
             }
             transform
 

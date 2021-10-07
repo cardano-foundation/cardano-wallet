@@ -32,6 +32,8 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionError (..)
     , SelectionOf (..)
     , SelectionParams (..)
+    , toCollateralRequirement
+    , isCollateralRequired
 
       -- * Preparation of outputs
     , prepareOutputsWith
@@ -429,6 +431,14 @@ data SelectionCollateralRequirement
     | SelectionCollateralNotRequired
     -- ^ Indicates that collateral is not required.
     deriving (Eq, Show)
+
+isCollateralRequired :: SelectionCollateralRequirement -> Bool
+isCollateralRequired SelectionCollateralRequired = True
+isCollateralRequired SelectionCollateralNotRequired = False
+
+toCollateralRequirement :: Bool -> SelectionCollateralRequirement
+toCollateralRequirement True = SelectionCollateralRequired
+toCollateralRequirement False = SelectionCollateralNotRequired
 
 -- | Indicates 'True' if and only if collateral is required.
 --

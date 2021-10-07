@@ -852,6 +852,7 @@ instance Arbitrary (WithPending WalletState) where
                         , withdrawals = mempty
                         , metadata = Nothing
                         , scriptValidity = Nothing
+                        , hasScriptsRequiringCollateral = False
                         }
 
                 elements [Set.singleton pending, Set.empty]
@@ -928,6 +929,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -963,6 +965,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             , Tx
                 { txId = Hash "b17ca3d2b8a991ea4680d1ebd9940a03449b1b6261fbe625d5cae6599726ea41"
@@ -987,6 +990,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1022,6 +1026,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             , Tx
                 { txId = Hash "6ed51b05821f0dc130a9411f0d63a241a624fbc8a9c8a2a13da8194ce3c463f4"
@@ -1046,6 +1051,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1081,6 +1087,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1126,6 +1133,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1160,6 +1168,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1195,6 +1204,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1244,6 +1254,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1319,6 +1330,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             , Tx
                 { txId = Hash "611ce641f0f9282a35b1678fcd996016833c0de9e83a04bfa1178c8f045196ea"
@@ -1343,6 +1355,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1378,6 +1391,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             , Tx
                 { txId = Hash "b8e9699ffff40c993d6778f586110b78cd30826feaa5314adf3a2e9894b9313a"
@@ -1402,6 +1416,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1497,6 +1512,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
               , Tx
                   { txId = Hash "7726526b5cc003f71d9629c611397285004b5438eac9a118c2b20e2810e0783e"
@@ -1521,6 +1537,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
@@ -1556,6 +1573,7 @@ blockchain =
                 , withdrawals = mempty
                 , metadata = Nothing
                 , scriptValidity = Nothing
+                , hasScriptsRequiringCollateral = False
                 }
             ]
         , delegations = []
