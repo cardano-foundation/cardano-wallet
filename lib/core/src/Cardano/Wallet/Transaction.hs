@@ -44,7 +44,7 @@ import Cardano.Api
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex, Passphrase )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionOf (..) )
+    ( SelectionCollateralRequirement (..), SelectionOf (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Slotting
@@ -240,6 +240,8 @@ data TransactionCtx = TransactionCtx
     -- ^ The assets to mint.
     , txAssetsToBurn :: TokenMap
     -- ^ The assets to burn.
+    , txCollateralRequirement :: SelectionCollateralRequirement
+    -- ^ The collateral requirement.
     } deriving (Show, Generic, Eq)
 
 data Withdrawal
@@ -265,6 +267,7 @@ defaultTransactionCtx = TransactionCtx
     , txPlutusScriptExecutionCost = Coin 0
     , txAssetsToMint = TokenMap.empty
     , txAssetsToBurn = TokenMap.empty
+    , txCollateralRequirement = SelectionCollateralNotRequired
     }
 
 -- | Whether the user is attempting any particular delegation action.
