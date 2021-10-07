@@ -2214,7 +2214,7 @@ balanceTransaction
     -> Handler (ApiConstructTransaction n)
 balanceTransaction ctx genChange (ApiT wid) body = do
     -- TODO: Most of the body of this function should really belong to
-    -- Cardano.Wallet to keep the Api.Server moduel free of business logic!
+    -- Cardano.Wallet to keep the Api.Server module free of business logic!
     pp <- liftIO $ NW.currentProtocolParameters nl
 
     --TODO  deal with coll and validity and delegations
@@ -2282,8 +2282,8 @@ balanceTransaction ctx genChange (ApiT wid) body = do
 
     let UnsignedTx colls inps _outs change _wdrl = unsignedtx
     -- TODO: At this stage, we set all execution units for all redeemers to the
-    -- max cost, which is guarantee to succeed (given the coin selection above
-    -- was done with the same assumption) but also terribly inneffective when it
+    -- max cost, which is guaranteed to succeed (given the coin selection above
+    -- was done with the same assumption) but also terribly ineffective when it
     -- comes to reducing the cost. This is however sufficient to start
     -- preliminary integration work.
     let extraBody = TxUpdate

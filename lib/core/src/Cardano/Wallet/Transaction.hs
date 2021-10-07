@@ -164,7 +164,7 @@ data TransactionLayer k tx = TransactionLayer
         -> tx
             -- The constructed transaction that could contain plutus scripts
         -> Coin
-        -- ^ Compute the maximum execution costs of scripts in a given transaction.
+        -- ^ Compute the maximum execution cost of scripts in a given transaction.
 
     , evaluateMinimumFee
         :: Node.ProtocolParameters
