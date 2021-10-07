@@ -92,6 +92,7 @@ module Cardano.Wallet.Api.Server
     , mkSharedWallet
     , mintBurnAssets
     , balanceTransaction
+    , submitTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -2415,6 +2416,25 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 betterEstimate `subtractCoin` worseEstimate
         in
             txCtx { txFeePadding }
+
+submitTransaction
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        , HasNetworkLayer IO ctx
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiT W.SealedTx
+    -> Handler ApiTxId
+submitTransaction ctx (ApiT wid) (ApiT sealedTx) = do
+    let txMeta = undefined
+    _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        liftHandler
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+    return $ ApiTxId (ApiT (tx ^. #txId))
+  where
+    tx = decodeTx tl sealedTx
+    tl = ctx ^. W.transactionLayer @k
 
 joinStakePool
     :: forall ctx s n k.

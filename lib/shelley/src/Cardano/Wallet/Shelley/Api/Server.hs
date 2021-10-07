@@ -118,6 +118,7 @@ import Cardano.Wallet.Api.Server
     , selectCoinsForQuit
     , signMetadata
     , signTransaction
+    , submitTransaction
     , withLegacyLayer
     , withLegacyLayer'
     )
@@ -315,6 +316,7 @@ server byron icarus shelley multisig spl ntp =
         :<|> postTransactionOld shelley (delegationAddress @n)
         :<|> postTransactionFeeOld shelley
         :<|> balanceTransaction shelley (delegationAddress @n)
+        :<|> submitTransaction shelley
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
