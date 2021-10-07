@@ -5824,6 +5824,23 @@ paths:
             schema: *ApiBalanceTransactionPostData
       responses: *responsesBalanceTransaction
 
+  /wallets/{walletId}/transactions-submit:
+    post:
+      operationId: submitTransaction
+      tags: ["Transactions New"]
+      summary: Submit
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+        Submit a transaction that was already created and signed.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: *signedTransactionBlob
+      responses: *responsesPostExternalTransaction
+
   /byron-wallets:
     post:
       operationId: postByronWallet
