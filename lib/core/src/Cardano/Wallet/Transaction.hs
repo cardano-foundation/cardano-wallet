@@ -246,6 +246,10 @@ data TransactionCtx = TransactionCtx
     -- ^ The assets to burn.
     , txCollateralRequirement :: SelectionCollateralRequirement
     -- ^ The collateral requirement.
+    , txFeePadding :: !Coin
+    -- ^ Extra fees. Some parts of a transction are not representable using
+    -- cardano-wallet types, which makes it useful to account for them like
+    -- this. For instance: datums.
     } deriving (Show, Generic, Eq)
 
 data Withdrawal
@@ -272,6 +276,7 @@ defaultTransactionCtx = TransactionCtx
     , txAssetsToMint = TokenMap.empty
     , txAssetsToBurn = TokenMap.empty
     , txCollateralRequirement = SelectionCollateralNotRequired
+    , txFeePadding = Coin 0
     }
 
 -- | Whether the user is attempting any particular delegation action.

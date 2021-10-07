@@ -496,8 +496,8 @@ newTransactionLayer networkId = TransactionLayer
                         selection delta
 
     , calcMinimumCost = \pp ctx skeleton ->
-        estimateTxCost pp $
-        mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
+        estimateTxCost pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
+        <> feePadding ctx
 
     , maxScriptExecutionCost =
        _maxScriptExecutionCost
@@ -1031,8 +1031,10 @@ mkTxSkeleton witness context skeleton = TxSkeleton
 --
 estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
 estimateTxCost pp skeleton =
-    Coin.sumCoins [ computeFee $ estimateTxSize skeleton
-             , scriptExecutionCosts ]
+    Coin.sumCoins
+        [ computeFee (estimateTxSize skeleton)
+        , scriptExecutionCosts
+        ]
   where
     LinearFee (Quantity a) (Quantity b) = getFeePolicy $ txParameters pp
 
