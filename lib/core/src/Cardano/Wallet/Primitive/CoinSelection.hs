@@ -39,8 +39,13 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
-    -- * Querying selections
+    -- * Querying selection deltas
+    , SelectionDelta (..)
     , selectionDelta
+    , selectionDeltaAllAssets
+    , selectionDeltaCoin
+    , selectionHasValidSurplus
+    , selectionMinimumCost
 
     -- * Creating reports about selections
     , SelectionReport (..)
@@ -49,12 +54,13 @@ module Cardano.Wallet.Primitive.CoinSelection
     , makeSelectionReport
     , makeSelectionReportSummarized
     , makeSelectionReportDetailed
+
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimit, SelectionSkeleton )
+    ( SelectionDelta (..), SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -299,10 +305,10 @@ mkSelection params balanceResult collateralResult = Selection
     , extraCoinSink = view #extraCoinSink balanceResult
     }
 
--- | Converts a 'Selection' to a selection of inputs.
-
-toBalanceSelection :: Selection -> Balance.SelectionResult
-toBalanceSelection selection = Balance.SelectionResult
+-- | Converts a 'Selection' to a balance result.
+--
+toBalanceResult :: Selection -> Balance.SelectionResult
+toBalanceResult selection = Balance.SelectionResult
     { inputsSelected = view #inputs selection
     , outputsCovered = view #outputs selection
     , changeGenerated = view #change selection
@@ -312,17 +318,78 @@ toBalanceSelection selection = Balance.SelectionResult
     , extraCoinSink = view #extraCoinSink selection
     }
 
--- | Computes the delta of the given selection, assuming there is a surplus.
+--------------------------------------------------------------------------------
+-- Querying selection deltas
+--------------------------------------------------------------------------------
+
+-- | Computes the ada surplus of a selection, assuming there is a surplus.
+--
+-- This function is a convenient synonym for 'selectionSurplusCoin' that is
+-- polymorphic over the type of change.
 --
 selectionDelta
     :: (change -> Coin)
     -- ^ A function to extract the coin value from a change value.
     -> SelectionOf change
     -> Coin
-selectionDelta getChangeCoin
-    = Balance.selectionSurplusCoin
-    . toBalanceSelection
-    . over #change (fmap (TokenBundle.fromCoin . getChangeCoin))
+selectionDelta getChangeCoin selection
+    = selectionSurplusCoin
+    $ selection & over #change (fmap $ TokenBundle.fromCoin . getChangeCoin)
+
+-- | Calculates the selection delta for all assets.
+--
+-- See 'SelectionDelta'.
+--
+selectionDeltaAllAssets :: Selection -> SelectionDelta TokenBundle
+selectionDeltaAllAssets = Balance.selectionDeltaAllAssets . toBalanceResult
+
+-- | Calculates the ada selection delta.
+--
+-- See 'SelectionDelta'.
+--
+selectionDeltaCoin :: Selection -> SelectionDelta Coin
+selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
+
+-- | Indicates whether or not a selection has a valid surplus.
+--
+-- This function returns 'True' if and only if the selection has a delta that
+-- is a *surplus*, and that surplus is greater than or equal to the result of
+-- 'selectionMinimumCost'.
+--
+-- See 'SelectionDelta'.
+--
+selectionHasValidSurplus
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Bool
+selectionHasValidSurplus constraints params selection =
+    Balance.selectionHasValidSurplus
+        (fst $ toBalanceConstraintsParams (constraints, params))
+        (toBalanceResult selection)
+
+-- | Computes the minimum required cost of a selection.
+--
+selectionMinimumCost
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Coin
+selectionMinimumCost constraints params selection =
+    Balance.selectionMinimumCost
+        (fst $ toBalanceConstraintsParams (constraints, params))
+        (toBalanceResult selection)
+
+-- | Calculates the ada selection surplus, assuming there is a surplus.
+--
+-- If there is a surplus, then this function returns that surplus.
+-- If there is a deficit, then this function returns zero.
+--
+-- Use 'selectionDeltaCoin' if you wish to handle the case where there is
+-- a deficit.
+--
+selectionSurplusCoin :: Selection -> Coin
+selectionSurplusCoin = Balance.selectionSurplusCoin . toBalanceResult
 
 -- | Specifies all constraints required for coin selection.
 --
