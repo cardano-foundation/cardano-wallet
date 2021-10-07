@@ -73,6 +73,8 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Wallet
     ( XPub )
+import Cardano.Ledger.Alonzo.Language
+    ( Language (..) )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
@@ -129,6 +131,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTxIn
     , fromCardanoWdrls
     , fromLedgerExUnits
+    , toAlonzoPParams
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
@@ -178,6 +181,8 @@ import GHC.Generics
     ( Generic )
 import Ouroboros.Network.Block
     ( SlotNo )
+import Shelley.Spec.Ledger.API
+    ( StrictMaybe (..) )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
@@ -512,7 +517,7 @@ newTransactionLayer networkId = TransactionLayer
 
     , decodeTx = _decodeSealedTx
 
-    , updateTx = flip updateSealedTx
+    , updateTx = updateSealedTx
     }
 
 _decodeSealedTx :: SealedTx -> Tx
@@ -556,10 +561,11 @@ noTxUpdate = TxUpdate [] [] [] (const id) id
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
 updateSealedTx
-    :: TxUpdate
+    :: Cardano.ProtocolParameters
     -> SealedTx
+    -> TxUpdate
     -> Either ErrUpdateSealedTx SealedTx
-updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
+updateSealedTx pparams (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
 
     -- NOTE: The script witnesses are carried along with the cardano-api
     -- `anyEraBody`.
@@ -573,18 +579,48 @@ updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
 
   where
     modifyLedgerTx
-        :: forall era. ()
+        :: forall era crypto. (crypto ~ Crypto (Cardano.ShelleyLedgerEra era))
         => TxUpdate
         -> Cardano.TxBody era
         -> Either ErrUpdateSealedTx (Cardano.TxBody era)
     modifyLedgerTx ebc (Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val) =
-            Right $ Cardano.ShelleyTxBody shelleyEra
-                (adjustBody ebc shelleyEra bod)
-                scripts
-                (modifyRedeemers scriptData)
-                aux
-                val
+            let scriptData' = modifyRedeemers scriptData
+                integrityHash = calcScriptIntegrityHash shelleyEra scriptData' scripts
+             in
+                Right $ Cardano.ShelleyTxBody shelleyEra
+                    (adjustBody ebc integrityHash shelleyEra bod)
+                    scripts
+                    scriptData'
+                    aux
+                    val
       where
+        calcScriptIntegrityHash
+            :: ShelleyBasedEra era
+            -> Cardano.TxBodyScriptData era
+            -> [Ledger.Script (Cardano.ShelleyLedgerEra era)]
+            -> StrictMaybe (Alonzo.ScriptIntegrityHash crypto)
+        calcScriptIntegrityHash Cardano.ShelleyBasedEraShelley _ _ =
+            SNothing
+        calcScriptIntegrityHash Cardano.ShelleyBasedEraAllegra _ _ =
+            SNothing
+        calcScriptIntegrityHash Cardano.ShelleyBasedEraMary _ _ =
+            SNothing
+        calcScriptIntegrityHash Cardano.ShelleyBasedEraAlonzo datsAndRdmrs s =
+            let
+                ledgerLangs = Set.fromList [ PlutusV1 | not (null s) ]
+                ledgerPParams = toAlonzoPParams pparams
+                (ledgerDats, ledgerRedeemers) = case datsAndRdmrs of
+                    Cardano.TxBodyNoScriptData ->
+                        (mempty, Alonzo.Redeemers mempty)
+                    Cardano.TxBodyScriptData Cardano.ScriptDataInAlonzoEra dats rdmrs ->
+                        (dats, rdmrs)
+             in
+                Alonzo.hashScriptIntegrity
+                    ledgerPParams
+                    ledgerLangs
+                    ledgerRedeemers
+                    ledgerDats
+
         modifyRedeemers :: Cardano.TxBodyScriptData era -> Cardano.TxBodyScriptData era
         modifyRedeemers = \case
             Cardano.TxBodyNoScriptData ->
@@ -604,18 +640,23 @@ updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
         -- to treat Alonzo and Shelley differently.
         adjustBody
             :: TxUpdate
+            -> StrictMaybe (Alonzo.ScriptIntegrityHash crypto)
             -> ShelleyBasedEra era
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs _ modifyFee) era body = case era of
+        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs _ modifyFee) integrityHash era body = case era of
             ShelleyBasedEraAlonzo -> body
-                    { Alonzo.outputs = Alonzo.outputs body
-                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
+                    { Alonzo.outputs =
+                        StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
+                        <> Alonzo.outputs body
                     , Alonzo.inputs = Alonzo.inputs body
                         <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
                     , Alonzo.collateral = Alonzo.collateral body
                         <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
-                    , Alonzo.txfee = modifyFee' $ Alonzo.txfee body
+                    , Alonzo.txfee =
+                        modifyFee' $ Alonzo.txfee body
+                    , Alonzo.scriptIntegrityHash =
+                        integrityHash
                     }
             ShelleyBasedEraMary ->
                 let

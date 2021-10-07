@@ -200,7 +200,8 @@ data TransactionLayer k tx = TransactionLayer
     -- ^ Decode an externally-created transaction.
 
     , updateTx
-        :: tx
+        :: Node.ProtocolParameters
+        -> tx
         -> TxUpdate
         -> Either ErrUpdateSealedTx tx
         -- ^ Update tx by adding additional inputs and outputs

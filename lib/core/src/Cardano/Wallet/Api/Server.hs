@@ -495,7 +495,14 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
+    ( catMaybes
+    , fromJust
+    , fromMaybe
+    , isJust
+    , isNothing
+    , mapMaybe
+    , maybeToList
+    )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -2216,6 +2223,9 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     -- TODO: Most of the body of this function should really belong to
     -- Cardano.Wallet to keep the Api.Server module free of business logic!
     pp <- liftIO $ NW.currentProtocolParameters nl
+    -- TODO: This throws when trying to balance a transaction while in the
+    -- Byron era.
+    nodePParams <- fromJust <$> liftIO (NW.currentNodeProtocolParameters nl)
 
     --TODO  deal with coll and validity and delegations
     let (Tx _id _fee _coll _inps outs wdrlMap txMetadata _validity) = txIncoming
@@ -2297,7 +2307,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             maxExecutionUnits = pp ^. #txParameters . #getMaxExecutionUnits
     let cs = mkApiCoinSelection [] Nothing txMetadata unsignedtx
     sealedTxOutcoming <-
-        case updateTx tl sealedTxIncoming extraBody of
+        case updateTx tl nodePParams sealedTxIncoming extraBody of
             Right result -> pure result
             Left err ->
                 liftHandler $ throwE $ ErrBalanceTxUpdateError err
