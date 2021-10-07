@@ -134,6 +134,13 @@ type PerformSelection m a =
 --  - producing change outputs to return excess value to the wallet;
 --  - balancing a selection to pay for the transaction fee.
 --
+-- This function guarantees that if it successfully creates a 'Selection' @s@,
+-- given a set of 'SelectionConstraints' @cs@ and 'SelectionParameters' @ps@,
+-- then the following properties will hold:
+--
+--    >>> selectionHasValidSurplus         cs ps s
+--    >>> selectionHasSufficientCollateral cs ps s
+--
 performSelection
     :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
 performSelection cs = performSelectionInner cs <=< prepareOutputs cs
