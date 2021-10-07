@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -64,6 +65,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     ( genUTxOSelection, shrinkUTxOSelection )
+import Control.Monad
+    ( forM_ )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.Either
@@ -533,6 +536,35 @@ shrinkUTxOAvailableForCollateral = shrinkUTxO
 
 shrinkUTxOAvailableForInputs :: UTxOSelection -> [UTxOSelection]
 shrinkUTxOAvailableForInputs = shrinkUTxOSelection
+
+--------------------------------------------------------------------------------
+-- Unit test support
+--------------------------------------------------------------------------------
+
+data UnitTestData params result = UnitTestData
+    { params :: params
+    , result :: result
+    }
+    deriving (Eq, Generic, Show)
+
+unitTests
+    :: (Eq result, Show result)
+    => String
+    -> (params -> result)
+    -> [UnitTestData params result]
+    -> Spec
+unitTests title f unitTestData =
+    describe title $
+    forM_ (zip testNumbers unitTestData) $
+        \(testNumber :: Int, test) -> do
+            let subtitle = "Unit test #" <> show testNumber
+            it subtitle $
+                let resultExpected = view #result test in
+                let resultActual = f (view #params test) in
+                property $ Pretty resultExpected === Pretty resultActual
+  where
+    testNumbers :: [Int]
+    testNumbers = [1 ..]
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances
