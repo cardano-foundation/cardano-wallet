@@ -2257,7 +2257,7 @@ submitTx
     => Context
     -> ApiT SealedTx
     -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
-    -> m (HTTP.Status, Either RequestException ApiTxId)
+    -> m ApiTxId
 submitTx ctx tx expectations = do
     let bytes = serialisedTx $ getApiT tx
     let submitEndpoint = Link.postExternalTransaction
@@ -2267,7 +2267,7 @@ submitTx ctx tx expectations = do
             ]
     r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
     verify r expectations
-    pure r
+    pure $ getFromResponse Prelude.id  r
 
 getWallet
     :: forall w m.

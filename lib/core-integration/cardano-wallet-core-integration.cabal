@@ -68,6 +68,7 @@ library
     , iohk-monitoring
     , lens-aeson
     , memory
+    , microstache
     , network-uri
     , optparse-applicative
     , process

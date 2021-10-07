@@ -8,6 +8,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -28,7 +29,8 @@ import Cardano.Crypto.DSIGN.Class
 import Cardano.Mnemonic
     ( SomeMnemonic (..), mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiCoinSelection (withdrawals)
+    ( ApiBalanceTransactionPostData (..)
+    , ApiCoinSelection (withdrawals)
     , ApiCoinSelectionInput (..)
     , ApiConstructTransaction (..)
     , ApiFee (..)
@@ -36,11 +38,11 @@ import Cardano.Wallet.Api.Types
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
-    , ApiTxId
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
+    , EncodeStakeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -64,6 +66,8 @@ import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Aeson
+    ( FromJSON, toJSON, (.=) )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -82,6 +86,8 @@ import Data.Text
     ( Text )
 import Numeric.Natural
     ( Natural )
+import System.FilePath
+    ( (</>) )
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
@@ -118,6 +124,7 @@ import Test.Integration.Framework.DSL
     , submitTx
     , unsafeRequest
     , verify
+    , waitForTxImmutability
     )
 import Test.Integration.Framework.TestData
     ( errMsg403Fee
@@ -128,6 +135,10 @@ import Test.Integration.Framework.TestData
     , errMsg403transactionAlreadyBalanced
     , errMsg404NoSuchPool
     )
+import Test.Utils.Paths
+    ( getTestData )
+import Text.Microstache
+    ( compileMustacheFile, renderMustache )
 import UnliftIO.Exception
     ( throwIO )
 
@@ -137,14 +148,18 @@ import qualified Cardano.Ledger.Crypto as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.Encoding as TL
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Text.Microstache as Mustache
 
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
+    , EncodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n IcarusKey
     ) => SpecWith Context
@@ -918,7 +933,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (_, Left e) -> throwIO e
             (_, Right tx) -> pure tx
 
-        let sealedTx = transaction apiTx
+        let sealedTx = apiTx ^. #transaction
 
         -- Sign tx
         let toSign = Json [json|
@@ -930,11 +945,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @ApiSignedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
-        eTxId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
-
-        txId <- case (eTxId :: (HTTP.Status, Either RequestException ApiTxId)) of
-          (_, Left e) -> throwIO e
-          (_, Right txId) -> pure txId
+        txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
         eventually "Metadata is on-chain" $ do
             rWa <- request @(ApiTransaction n) ctx
@@ -1161,7 +1172,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         length (withdrawals $ coinSelection apiTx) `shouldBe` 1
 
         -- Sign tx
-        let sealedTx = transaction apiTx
+        let sealedTx = apiTx ^. #transaction
             toSign = Json [json|
                 { "transaction": #{sealedTx}
                 , "passphrase": #{fixturePassphrase}
@@ -1211,11 +1222,77 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- should be able to construct transactions with extra signers from the
         -- API!
         void $ submitTx ctx signedTx
-             [ expectResponseCode HTTP.status500
-             , expectErrorMessage "FeeTooSmallUTxO"
-             ]
-  where
+            [ expectResponseCode HTTP.status500
+            , expectErrorMessage "FeeTooSmallUTxO"
+            ]
 
+    describe "Plutus scenarios" $ do
+        let dir = $(getTestData) </> "plutus"
+
+        -- NOTE: This test scenario is currently unreliable because of the way
+        -- the redeemer pointers work. Redeemers are identified by pointers into
+        -- the input set, but that set is an ordered set where the order is
+        -- determined lexicographically based on the txin's transaction id and
+        -- index. Thus, adding new inputs during the coin selection may
+        -- arbitrarily change the order of inputs in the inputs set and thus,
+        -- render redeemer pointers invalid.
+        --
+        -- A solution to this would be to assign pointers only after the
+        -- transaction has been balanced; to be done properly, this requires an
+        -- API change so that clients (e.g. the PAB) can give us a little bit
+        -- more information about the nature of each redeemers in order to
+        -- connect the dots at the end.
+        it "ping-pong" $ \ctx -> runResourceT $ do
+            w <- fixtureWallet ctx
+            let balanceEndpoint = Link.balanceTransaction @'Shelley w
+            let signEndpoint = Link.signTransaction @'Shelley w
+
+            --
+            -- Part 1 :: Contract Setup
+            --
+
+            -- Decode prepared transaction
+            partialTx <- decodeFileThrow @(ApiBalanceTransactionPostData n) (dir </> "ping-pong_1-1.json")
+            let toBalance = Json (toJSON partialTx)
+
+            -- Balance
+            (_, sealedTx) <- second (view #transaction) <$>
+                unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance
+
+            -- Sign
+            let toSign = Json [json|
+                    { "transaction": #{sealedTx}
+                    , "passphrase": #{fixturePassphrase}
+                    }|]
+            (_, signedTx) <- second (view #transaction) <$>
+                unsafeRequest @ApiSignedTransaction ctx signEndpoint toSign
+
+            -- Submit
+            txid <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+            waitForTxImmutability ctx
+
+            --
+            -- Part 2 :: Contract Utilization
+            --
+
+            template <- liftIO $ compileMustacheFile (dir </> "ping-pong_1-2.json")
+            partialTx' <- renderMustacheThrow template $ Aeson.object
+                [ "transactionId" .= view #id txid ]
+            let toBalance' = Json (toJSON partialTx')
+
+            (_, sealedTx') <- second (view #transaction) <$>
+                unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance'
+
+            let toSign' = Json [json|
+                    { "transaction": #{sealedTx'}
+                    , "passphrase": #{fixturePassphrase}
+                    }|]
+            (_, signedTx') <- second (view #transaction) <$>
+                unsafeRequest @ApiSignedTransaction ctx signEndpoint toSign'
+
+            -- Submit
+            void $ submitTx ctx signedTx' [ expectResponseCode HTTP.status202 ]
+  where
     unsafeGetTx
         :: MonadIO m
         => (HTTP.Status, Either RequestException (ApiConstructTransaction n))
@@ -1226,6 +1303,25 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     -- | Just one million Ada, in Lovelace.
     oneMillionAda :: Integer
     oneMillionAda = 1_000_000_000_000
+
+    decodeFileThrow
+        :: forall a m. (FromJSON a, MonadUnliftIO m, MonadFail m)
+        => String
+        -> m a
+    decodeFileThrow filepath = do
+        liftIO (Aeson.eitherDecodeFileStrict' filepath) >>= \case
+            Left e  -> fail $ "Failed to decode: " <> filepath <> " => " <> show e
+            Right a -> pure a
+
+    renderMustacheThrow
+        :: forall m. (MonadUnliftIO m, MonadFail m)
+        => Mustache.Template
+        -> Aeson.Value
+        -> m Aeson.Value
+    renderMustacheThrow template args =
+        case Aeson.eitherDecode' (TL.encodeUtf8 $ renderMustache template args) of
+            Left e  -> fail $ "Failed to render template: " <> show e
+            Right a -> pure a
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
