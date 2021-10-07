@@ -47,6 +47,11 @@ module Cardano.Wallet.Primitive.CoinSelection
     , selectionHasValidSurplus
     , selectionMinimumCost
 
+    -- * Querying selection collateral
+    , selectionCollateral
+    , selectionHasSufficientCollateral
+    , selectionMinimumCollateral
+
     -- * Creating reports about selections
     , SelectionReport (..)
     , SelectionReportSummarized (..)
@@ -390,6 +395,46 @@ selectionMinimumCost constraints params selection =
 --
 selectionSurplusCoin :: Selection -> Coin
 selectionSurplusCoin = Balance.selectionSurplusCoin . toBalanceResult
+
+--------------------------------------------------------------------------------
+-- Querying selection collateral
+--------------------------------------------------------------------------------
+
+-- | Computes the total amount of collateral within a selection.
+--
+selectionCollateral :: Selection -> Coin
+selectionCollateral selection =
+    F.foldMap
+        (view (#tokens . #coin) . snd)
+        (view #collateral selection)
+
+-- | Indicates whether or not a selection has sufficient collateral.
+--
+selectionHasSufficientCollateral
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Bool
+selectionHasSufficientCollateral constraints params selection =
+    actual >= required
+  where
+    actual = selectionCollateral selection
+    required = selectionMinimumCollateral constraints params selection
+
+-- | Computes the minimum required amount of collateral for a selection.
+--
+selectionMinimumCollateral
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Coin
+selectionMinimumCollateral constraints params selection
+    | collateralRequired params =
+        view #minimumSelectionAmount $ snd $
+        toCollateralConstraintsParams
+            (toBalanceResult selection)
+            (constraints, params)
+    | otherwise = Coin 0
 
 -- | Specifies all constraints required for coin selection.
 --
