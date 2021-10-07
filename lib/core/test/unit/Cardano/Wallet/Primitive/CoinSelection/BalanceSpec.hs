@@ -15,8 +15,22 @@
 
 module Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
     ( spec
+    , MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
+    , MockComputeMinimumCost
+    , MockComputeSelectionLimit
+    , genMockAssessTokenBundleSize
+    , genMockComputeMinimumAdaQuantity
+    , genMockComputeMinimumCost
+    , genMockComputeSelectionLimit
+    , shrinkMockAssessTokenBundleSize
+    , shrinkMockComputeMinimumAdaQuantity
+    , shrinkMockComputeMinimumCost
+    , shrinkMockComputeSelectionLimit
+    , unMockAssessTokenBundleSize
     , unMockComputeMinimumAdaQuantity
+    , unMockComputeMinimumCost
+    , unMockComputeSelectionLimit
     ) where
 
 import Prelude
@@ -80,7 +94,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
     , splitBundlesWithExcessiveTokenQuantities
     , ungroupByKey
     )
-import Cardano.Wallet.Primitive.CoinSelection.Gen
+import Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
     ( genSelectionLimit, shrinkSelectionLimit )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )

@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Primitive.CoinSelection.Gen
+module Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
     ( genSelectionLimit
     , genSelectionSkeleton
     , shrinkSelectionLimit

@@ -129,6 +129,7 @@ data SelectionConstraints = SelectionConstraints
         -- ^ An upper bound on the search space size, to protect the wallet
         -- against computations that use excessive amounts of time or space.
     }
+    deriving (Eq, Generic, Show)
 
 -- | Specifies all parameters that are specific to a given selection.
 --

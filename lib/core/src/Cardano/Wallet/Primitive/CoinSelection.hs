@@ -24,37 +24,49 @@
 --
 module Cardano.Wallet.Primitive.CoinSelection
     (
-      -- * Performing selections
+    -- * Performing selections
       performSelection
     , Selection
-    , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (..)
     , SelectionParams (..)
 
-      -- * Preparation of outputs
+    -- * Output preparation
     , prepareOutputsWith
     , SelectionOutputInvalidError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
-    -- * Querying selections
+    -- * Selection deltas
+    , SelectionDelta (..)
     , selectionDelta
+    , selectionDeltaAllAssets
+    , selectionDeltaCoin
+    , selectionHasValidSurplus
+    , selectionMinimumCost
 
-    -- * Creating reports about selections
+    -- * Selection collateral
+    , SelectionCollateralRequirement (..)
+    , selectionCollateral
+    , selectionCollateralRequired
+    , selectionHasSufficientCollateral
+    , selectionMinimumCollateral
+
+    -- * Selection reports
     , SelectionReport (..)
     , SelectionReportSummarized (..)
     , SelectionReportDetailed (..)
     , makeSelectionReport
     , makeSelectionReportSummarized
     , makeSelectionReportDetailed
+
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimit, SelectionSkeleton )
+    ( SelectionDelta (..), SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -66,12 +78,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..)
-    , TokenBundleSizeAssessor (..)
-    , TxIn
-    , TxOut
-    , txOutMaxTokenQuantity
-    )
+    ( TokenBundleSizeAssessment (..), TxIn, TxOut, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -128,6 +135,13 @@ type PerformSelection m a =
 --  - producing change outputs to return excess value to the wallet;
 --  - balancing a selection to pay for the transaction fee.
 --
+-- This function guarantees that if it successfully creates a 'Selection' @s@,
+-- given a set of 'SelectionConstraints' @cs@ and 'SelectionParameters' @ps@,
+-- then the following properties will hold:
+--
+--    >>> selectionHasValidSurplus         cs ps s
+--    >>> selectionHasSufficientCollateral cs ps s
+--
 performSelection
     :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
 performSelection cs = performSelectionInner cs <=< prepareOutputs cs
@@ -159,7 +173,7 @@ performSelectionCollateral
     => Balance.SelectionResult
     -> PerformSelection m Collateral.SelectionResult
 performSelectionCollateral balanceResult cs ps
-    | collateralRequired ps =
+    | selectionCollateralRequired ps =
         withExceptT SelectionCollateralError $ ExceptT $ pure $
         uncurry Collateral.performSelection $
         toCollateralConstraintsParams balanceResult (cs, ps)
@@ -184,7 +198,7 @@ toBalanceConstraintsParams (constraints, params) =
             view #computeSelectionLimit constraints
                 & adjustComputeSelectionLimit
         , assessTokenBundleSize =
-            view (#assessTokenBundleSize . #assessTokenBundleSize) constraints
+            view #assessTokenBundleSize constraints
         }
       where
         adjustComputeMinimumCost
@@ -304,10 +318,10 @@ mkSelection params balanceResult collateralResult = Selection
     , extraCoinSink = view #extraCoinSink balanceResult
     }
 
--- | Converts a 'Selection' to a selection of inputs.
-
-toBalanceSelection :: Selection -> Balance.SelectionResult
-toBalanceSelection selection = Balance.SelectionResult
+-- | Converts a 'Selection' to a balance result.
+--
+toBalanceResult :: Selection -> Balance.SelectionResult
+toBalanceResult selection = Balance.SelectionResult
     { inputsSelected = view #inputs selection
     , outputsCovered = view #outputs selection
     , changeGenerated = view #change selection
@@ -317,17 +331,144 @@ toBalanceSelection selection = Balance.SelectionResult
     , extraCoinSink = view #extraCoinSink selection
     }
 
--- | Computes the delta of the given selection, assuming there is a surplus.
+--------------------------------------------------------------------------------
+-- Selection deltas
+--------------------------------------------------------------------------------
+
+-- | Computes the ada surplus of a selection, assuming there is a surplus.
+--
+-- This function is a convenient synonym for 'selectionSurplusCoin' that is
+-- polymorphic over the type of change.
 --
 selectionDelta
     :: (change -> Coin)
     -- ^ A function to extract the coin value from a change value.
     -> SelectionOf change
     -> Coin
-selectionDelta getChangeCoin
-    = Balance.selectionSurplusCoin
-    . toBalanceSelection
-    . over #change (fmap (TokenBundle.fromCoin . getChangeCoin))
+selectionDelta getChangeCoin selection
+    = selectionSurplusCoin
+    $ selection & over #change (fmap $ TokenBundle.fromCoin . getChangeCoin)
+
+-- | Calculates the selection delta for all assets.
+--
+-- See 'SelectionDelta'.
+--
+selectionDeltaAllAssets :: Selection -> SelectionDelta TokenBundle
+selectionDeltaAllAssets = Balance.selectionDeltaAllAssets . toBalanceResult
+
+-- | Calculates the ada selection delta.
+--
+-- See 'SelectionDelta'.
+--
+selectionDeltaCoin :: Selection -> SelectionDelta Coin
+selectionDeltaCoin = fmap TokenBundle.getCoin . selectionDeltaAllAssets
+
+-- | Indicates whether or not a selection has a valid surplus.
+--
+-- This function returns 'True' if and only if the selection has a delta that
+-- is a *surplus*, and that surplus is greater than or equal to the result of
+-- 'selectionMinimumCost'.
+--
+-- See 'SelectionDelta'.
+--
+selectionHasValidSurplus
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Bool
+selectionHasValidSurplus constraints params selection =
+    Balance.selectionHasValidSurplus
+        (fst $ toBalanceConstraintsParams (constraints, params))
+        (toBalanceResult selection)
+
+-- | Computes the minimum required cost of a selection.
+--
+selectionMinimumCost
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Coin
+selectionMinimumCost constraints params selection =
+    Balance.selectionMinimumCost
+        (fst $ toBalanceConstraintsParams (constraints, params))
+        (toBalanceResult selection)
+
+-- | Calculates the ada selection surplus, assuming there is a surplus.
+--
+-- If there is a surplus, then this function returns that surplus.
+-- If there is a deficit, then this function returns zero.
+--
+-- Use 'selectionDeltaCoin' if you wish to handle the case where there is
+-- a deficit.
+--
+selectionSurplusCoin :: Selection -> Coin
+selectionSurplusCoin = Balance.selectionSurplusCoin . toBalanceResult
+
+--------------------------------------------------------------------------------
+-- Selection collateral
+--------------------------------------------------------------------------------
+
+-- | Indicates the collateral requirement for a selection.
+--
+data SelectionCollateralRequirement
+    = SelectionCollateralRequired
+    -- ^ Indicates that collateral is required.
+    | SelectionCollateralNotRequired
+    -- ^ Indicates that collateral is not required.
+    deriving (Bounded, Enum, Eq, Generic, Show)
+
+-- | Indicates 'True' if and only if collateral is required.
+--
+selectionCollateralRequired :: SelectionParams -> Bool
+selectionCollateralRequired params = case view #collateralRequirement params of
+    SelectionCollateralRequired    -> True
+    SelectionCollateralNotRequired -> False
+
+-- | Applies the given transformation function only when collateral is required.
+--
+whenCollateralRequired
+    :: SelectionParams
+    -> (a -> a)
+    -> (a -> a)
+whenCollateralRequired params f
+    | selectionCollateralRequired params = f
+    | otherwise = id
+
+-- | Computes the total amount of collateral within a selection.
+--
+selectionCollateral :: Selection -> Coin
+selectionCollateral selection =
+    F.foldMap
+        (view (#tokens . #coin) . snd)
+        (view #collateral selection)
+
+-- | Indicates whether or not a selection has sufficient collateral.
+--
+selectionHasSufficientCollateral
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Bool
+selectionHasSufficientCollateral constraints params selection =
+    actual >= required
+  where
+    actual = selectionCollateral selection
+    required = selectionMinimumCollateral constraints params selection
+
+-- | Computes the minimum required amount of collateral for a selection.
+--
+selectionMinimumCollateral
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Coin
+selectionMinimumCollateral constraints params selection
+    | selectionCollateralRequired params =
+        view #minimumSelectionAmount $ snd $
+        toCollateralConstraintsParams
+            (toBalanceResult selection)
+            (constraints, params)
+    | otherwise = Coin 0
 
 -- | Specifies all constraints required for coin selection.
 --
@@ -342,7 +483,7 @@ selectionDelta getChangeCoin
 --
 data SelectionConstraints = SelectionConstraints
     { assessTokenBundleSize
-        :: TokenBundleSizeAssessor
+        :: TokenBundle -> TokenBundleSizeAssessment
         -- ^ Assesses the size of a token bundle relative to the upper limit of
         -- what can be included in a transaction output. See documentation for
         -- the 'TokenBundleSizeAssessor' type to learn about the expected
@@ -417,32 +558,6 @@ data SelectionParams = SelectionParams
         -- Further entries from this set will be selected to cover any deficit.
     }
     deriving (Eq, Generic, Show)
-
--- | Indicates the collateral requirement for a selection.
---
-data SelectionCollateralRequirement
-    = SelectionCollateralRequired
-    -- ^ Indicates that collateral is required.
-    | SelectionCollateralNotRequired
-    -- ^ Indicates that collateral is not required.
-    deriving (Eq, Show)
-
--- | Indicates 'True' if and only if collateral is required.
---
-collateralRequired :: SelectionParams -> Bool
-collateralRequired params = case view #collateralRequirement params of
-    SelectionCollateralRequired    -> True
-    SelectionCollateralNotRequired -> False
-
--- | Applies the given transformation function only when collateral is required.
---
-whenCollateralRequired
-    :: SelectionParams
-    -> (a -> a)
-    -> (a -> a)
-whenCollateralRequired params f
-    | collateralRequired params = f
-    | otherwise = id
 
 -- | Indicates that an error occurred while performing a coin selection.
 --
@@ -541,11 +656,9 @@ prepareOutputsInternal constraints outputsUnprepared
         ]
 
       where
-        bundleIsExcessivelyLarge b = case assessSize b of
+        bundleIsExcessivelyLarge b = case assessTokenBundleSize b of
             TokenBundleSizeWithinLimit -> False
             OutputTokenBundleSizeExceedsLimit -> True
-          where
-            assessSize = view #assessTokenBundleSize assessTokenBundleSize
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
