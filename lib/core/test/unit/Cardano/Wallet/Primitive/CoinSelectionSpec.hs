@@ -11,11 +11,11 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionCollateralRequirement (..)
+    ( Selection
+    , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionParams (..)
-    , Selection
     , performSelection
     , prepareOutputsWith
     , selectionCollateral
@@ -98,8 +98,6 @@ import Test.QuickCheck
     , shrinkMapBy
     , (===)
     )
-import Test.QuickCheck.Monadic
-    ( monadicIO, run )
 import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
@@ -108,6 +106,8 @@ import Test.QuickCheck.Extra
     , report
     , shrinkNatural
     )
+import Test.QuickCheck.Monadic
+    ( monadicIO, run )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
