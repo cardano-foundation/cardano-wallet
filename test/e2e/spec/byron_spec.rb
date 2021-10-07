@@ -150,15 +150,18 @@ RSpec.describe CardanoWallet::Byron do
     end
 
     it "I can import address - random" do
-      id = create_fixture_byron_wallet
-      addr = '37btjrVyb4KEciULDrqJDBh6SjgPqi9JJ5qQqWGgvtsB7GcsuqorKceMTBRudFK8zDu3btoC5FtN7K1PEHmko4neQPfV9TDVfivc9JTZVNPKtRd4w2'
+      mnemonics = mnemonic_sentence(15)
+      derivation_path = '14H/42H'
+      id = create_byron_wallet_with(mnemonics)
+      addr = cardano_address_get_byron_addr(mnemonics, derivation_path)
+      
       addr_import = BYRON.addresses.import(id, addr)
       expect(addr_import).to be_correct_and_respond 204
 
       addresses = BYRON.addresses.list id
       expect(addresses).to be_correct_and_respond 200
       expect(addresses.size).to eq 1
-      expect(addresses.first['derivation_path']).to eq ['0H', '2147483647H']
+      expect(addresses.first['derivation_path']).to eq derivation_path.split('/')
     end
 
     it "I cannot import address - icarus" do
