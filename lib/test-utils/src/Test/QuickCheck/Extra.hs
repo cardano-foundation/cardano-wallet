@@ -63,13 +63,14 @@ import Test.QuickCheck
     , Gen
     , Property
     , Testable
-    , choose
+    , chooseInteger
     , counterexample
     , liftArbitrary2
     , liftShrink2
     , listOf
     , property
     , scale
+    , shrinkIntegral
     , shrinkList
     , shrinkMapBy
     , suchThat
@@ -326,14 +327,14 @@ shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
 
 chooseNatural :: (Natural, Natural) -> Gen Natural
 chooseNatural (lo, hi) =
-    choose (intCast lo, intCast hi)
+    chooseInteger (intCast lo, intCast hi)
     `suchThatMap`
     intCastMaybe @Integer @Natural
 
 shrinkNatural :: Natural -> [Natural]
 shrinkNatural n
     = mapMaybe (intCastMaybe @Integer @Natural)
-    $ shrink
+    $ shrinkIntegral
     $ intCast n
 
 --------------------------------------------------------------------------------
