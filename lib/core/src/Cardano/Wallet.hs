@@ -297,7 +297,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( Selection
-    , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (..)
@@ -1484,10 +1483,8 @@ selectAssets ctx params transform = do
                 case params ^. (#txContext . #txDelegationAction) of
                     Just (RegisterKeyAndJoin _) -> 1
                     _ -> 0
-              -- TODO: [ADP-957]
-              -- Until support for collateral is fully integrated, specify
-              -- that collateral is not required:
-            , collateralRequirement = SelectionCollateralNotRequired
+            , collateralRequirement =
+                params ^. (#txContext . #txCollateralRequirement)
             , utxoAvailableForCollateral =
                 params ^. #utxoAvailableForCollateral
             , utxoAvailableForInputs =
