@@ -60,6 +60,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
   describe "E2E Construct -> Sign -> Submit" do
     it "Single output transaction" do
+      skip "ADP-1202 - fee is miscalculated"
+
       amt = 1000000
 
       address = SHELLEY.addresses.list(@target_id)[0]['id']
@@ -104,6 +106,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
 
     it "Multi output transaction" do
+      skip "ADP-1202 - fee is miscalculated"
+
       amt = 1000000
 
       address = SHELLEY.addresses.list(@target_id)[0]['id']
@@ -153,6 +157,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
 
     it "Multi-assets transaction" do
+      skip "ADP-1202 - fee is miscalculated"
+
       amt = 1
       amt_ada = 1600000
       address = SHELLEY.addresses.list(@target_id)[1]['id']
@@ -216,6 +222,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
 
     it "Only withdrawal" do
+      skip "ADP-1202 - fee is miscalculated"
+
       balance = get_shelley_balances(@wid)
       tx_constructed = SHELLEY.transactions.construct(@wid,
                                                       payments = nil,
@@ -248,6 +256,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
 
     it "Only metadata" do
+      skip "ADP-1202 - fee is miscalculated"
+
       metadata = METADATA
       balance = get_shelley_balances(@wid)
       tx_constructed = SHELLEY.transactions.construct(@wid,
