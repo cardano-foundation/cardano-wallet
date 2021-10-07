@@ -2435,7 +2435,7 @@ submitTransaction
     -> Handler ApiTxId
 submitTransaction ctx (ApiT wid) (ApiT sealedTx) = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
-    let (Tx txId _ colls inps outs wdrlMap _ _) = tx
+    let (Tx txId _ _ inps outs wdrlMap _ _) = tx
 
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -2447,7 +2447,7 @@ submitTransaction ctx (ApiT wid) (ApiT sealedTx) = do
                 { txTimeToLive = ttl
                 , txWithdrawal = wdrl
                 }
-        txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx colls inps outs
+        txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx inps outs
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
     return $ ApiTxId (ApiT txId)

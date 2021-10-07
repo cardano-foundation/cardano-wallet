@@ -1668,16 +1668,15 @@ constructTxMeta
     -> WalletId
     -> TransactionCtx
     -> [(TxIn, Coin)]
-    -> [(TxIn, Coin)]
     -> [TxOut]
     -> ExceptT ErrSubmitPayment IO TxMeta
-constructTxMeta ctx wid txCtx colls inps outs = db & \DBLayer{..} -> do
+constructTxMeta ctx wid txCtx inps outs = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         cp <- withExceptT ErrSubmitPaymentNoSuchWallet
               $ withNoSuchWallet wid
               $ readCheckpoint wid
         liftIO $
-            mkTxMetaWithoutSel (currentTip cp) (getState cp) txCtx colls inps outs
+            mkTxMetaWithoutSel (currentTip cp) (getState cp) txCtx inps outs
   where
     db = ctx ^. dbLayer @IO @s @k
 
@@ -1687,22 +1686,21 @@ mkTxMetaWithoutSel
     -> s
     -> TransactionCtx
     -> [(TxIn, Coin)]
-    -> [(TxIn, Coin)]
     -> [TxOut]
     -> IO TxMeta
-mkTxMetaWithoutSel blockHeader wState txCtx colls inps outs =
+mkTxMetaWithoutSel blockHeader wState txCtx inps outs =
     let
-        amtOuts = sumCoins $ mapMaybe (flip ourCoin wState) outs
+        amtOuts = sumCoins $ mapMaybe (`ourCoin` wState) outs
 
         amtInps
-            = sumCoins (map snd colls ++ map snd inps ) -- here we need to remove overlapping txins between collateral and normal inputs
+            = sumCoins (map snd inps)
             & case txWithdrawal txCtx of
                 w@WithdrawalSelf{} -> addCoin (withdrawalToCoin w)
                 WithdrawalExternal{} -> Prelude.id
                 NoWithdrawal -> Prelude.id
     in return TxMeta
        { status = Pending
-       , direction = if amtInps > amtOuts then Outgoing else Incoming
+       , direction = Outgoing
        , slotNo = blockHeader ^. #slotNo
        , blockHeight = blockHeader ^. #blockHeight
        , amount = Coin.distance amtInps amtOuts
@@ -1737,7 +1735,7 @@ mkTxMeta ti' blockHeader wState txCtx sel =
         amtOuts = sumCoins $
             (txOutCoin <$> view #change sel)
             ++
-            mapMaybe (flip ourCoin wState) (view #outputs sel)
+            mapMaybe (`ourCoin` wState) (view #outputs sel)
 
         amtInps
             = sumCoins (txOutCoin . snd <$> view #inputs sel)
