@@ -61,6 +61,7 @@ module Cardano.Wallet.Api
         , CreateTransactionOld
         , PostTransactionFeeOld
         , BalanceTransaction
+        , SubmitTransaction
 
     , StakePools
         , ListStakePools
@@ -528,6 +529,7 @@ type ShelleyTransactions n =
     :<|> CreateTransactionOld n
     :<|> PostTransactionFeeOld n
     :<|> BalanceTransaction n
+    :<|> SubmitTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/constructTransaction
 type ConstructTransaction n = "wallets"
@@ -587,6 +589,13 @@ type BalanceTransaction n = "wallets"
     :> "transactions-balance"
     :> ReqBody '[JSON] (ApiBalanceTransactionPostDataT n)
     :> PostAccepted '[JSON] ApiSerialisedTransaction
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/submitTransaction
+type SubmitTransaction = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions-submit"
+    :> ReqBody '[OctetStream] (ApiT SealedTx)
+    :> PostAccepted '[JSON] ApiTxId
 
 {-------------------------------------------------------------------------------
                                  Shelley Migrations
