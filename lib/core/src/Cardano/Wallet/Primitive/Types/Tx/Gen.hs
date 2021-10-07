@@ -79,6 +79,7 @@ import Test.QuickCheck.Extra
     , genMapWith
     , genSized2With
     , liftShrink6
+    , liftShrink8
     , liftShrink7
     , shrinkInterleaved
     , shrinkMapWith
@@ -123,7 +124,7 @@ genTxWithoutId = TxWithoutId
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
 shrinkTxWithoutId =
-    shrinkMapBy tupleToTxWithoutId txWithoutIdToTuple $ liftShrink7
+    shrinkMapBy tupleToTxWithoutId txWithoutIdToTuple $ liftShrink8
         (liftShrink shrinkCoinPositive)
         (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
         (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
@@ -140,12 +141,12 @@ txToTxWithoutId :: Tx -> TxWithoutId
 txToTxWithoutId Tx {..} = TxWithoutId {..}
 
 txWithoutIdToTuple :: TxWithoutId -> _
-txWithoutIdToTuple (TxWithoutId a1 a2 a3 a4 a5 a6 a7) =
-    (a1, a2, a3, a4, a5, a6, a7)
+txWithoutIdToTuple (TxWithoutId a1 a2 a3 a4 a5 a6 a7 a8) =
+    (a1, a2, a3, a4, a5, a6, a7, a8)
 
 tupleToTxWithoutId :: _ -> TxWithoutId
-tupleToTxWithoutId (a1, a2, a3, a4, a5, a6, a7) =
-    (TxWithoutId a1 a2 a3 a4 a5 a6 a7)
+tupleToTxWithoutId (a1, a2, a3, a4, a5, a6, a7, a8) =
+    (TxWithoutId a1 a2 a3 a4 a5 a6 a7 a8)
 
 genTxScriptValidity :: Gen TxScriptValidity
 genTxScriptValidity = genericArbitrary

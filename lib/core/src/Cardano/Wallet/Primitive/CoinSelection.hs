@@ -401,6 +401,9 @@ data SelectionParams = SelectionParams
     , collateralRequirement
         :: !SelectionCollateralRequirement
         -- ^ Specifies the collateral requirement for this selection.
+        -- Typically, a transaction making use of a phase-2 monetary policy
+        -- script (e.g. Plutus scripts) would require the coin selection
+        -- algorithm to find inputs to be used as collateral.
     , utxoAvailableForCollateral
         :: !UTxO
         -- ^ Specifies a set of UTxOs that are available for selection as

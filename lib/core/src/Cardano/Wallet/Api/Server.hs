@@ -1568,6 +1568,7 @@ selectCoins ctx genChange (ApiT wid) body = do
                 , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
+                , collateralRequirement = SelectionCollateralNotRequired
                 }
                 transform
 
@@ -1619,6 +1620,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
+                , collateralRequirement = SelectionCollateralNotRequired
                 }
                 transform
         (_, _, path) <- liftHandler
@@ -1664,6 +1666,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
                 , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
+                , collateralRequirement = SelectionCollateralNotRequired
                 }
                 transform
         (_, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -1907,6 +1910,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
                 , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
+                , collateralRequirement = SelectionCollateralNotRequired
                 }
                 (const Prelude.id)
         sel' <- liftHandler
@@ -2045,6 +2049,7 @@ postTransactionFeeOld ctx (ApiT wid) body = do
                 , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
+                , collateralRequirement = SelectionCollateralNotRequired
                 } getFee
               where getFee = const (selectionDelta TokenBundle.getCoin)
         minCoins <- liftIO (W.calcMinimumCoinValues @_ @k wrk (F.toList outs))
@@ -2219,7 +2224,8 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
 
     --TODO  deal with coll and validity and delegations
-    let (Tx _id _fee _coll _inps outs wdrlMap mdM _validity) = txIncoming
+    let (Tx _id _fee _coll _inps outs wdrlMap mdM _validity requiresCollateral)
+            = txIncoming
 
     ((FeeEstimation feeMin _), unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
 
@@ -2254,6 +2260,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO internalUtxoAvailable
                 , wallet
+                , collateralRequirement = requiresCollateral
                 } getFee
               where getFee = const (selectionDelta TokenBundle.getCoin)
 
@@ -2268,6 +2275,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO internalUtxoAvailable
             , wallet
+            , collateralRequirement = requiresCollateral
             }
             transform
 
@@ -2365,6 +2373,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
+                , collateralRequirement = SelectionCollateralNotRequired
                 }
                 (const Prelude.id)
         sel' <- liftHandler
@@ -2426,6 +2435,7 @@ delegationFee ctx (ApiT wid) = do
             , utxoAvailableForCollateral =
                 UTxOIndex.toUTxO utxoAvailable
             , wallet
+            , collateralRequirement = SelectionCollateralNotRequired
             } calcFee
       where
         calcFee _ = selectionDelta TokenBundle.getCoin
@@ -2475,6 +2485,7 @@ quitStakePool ctx (ApiT wid) body = do
                 , utxoAvailableForCollateral =
                     UTxOIndex.toUTxO utxoAvailable
                 , wallet
+                , collateralRequirement = SelectionCollateralNotRequired
                 }
                 (const Prelude.id)
         sel' <- liftHandler

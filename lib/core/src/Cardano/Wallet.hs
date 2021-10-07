@@ -1424,6 +1424,12 @@ data SelectAssetsParams s result = SelectAssetsParams
     , utxoAvailableForCollateral :: UTxO
     , utxoAvailableForInputs :: UTxOSelection
     , wallet :: Wallet s
+    , collateralRequirement
+        :: !SelectionCollateralRequirement
+        -- ^ Specifies the collateral requirement for this selection.
+        -- Typically, a transaction making use of a phase-2 monetary policy
+        -- script (e.g. Plutus scripts) would require the coin selection
+        -- algorithm to find inputs to be used as collateral.
     }
     deriving Generic
 
@@ -1483,10 +1489,8 @@ selectAssets ctx params transform = do
                 case params ^. (#txContext . #txDelegationAction) of
                     Just (RegisterKeyAndJoin _) -> 1
                     _ -> 0
-              -- TODO: [ADP-957]
-              -- Until support for collateral is fully integrated, specify
-              -- that collateral is not required:
-            , collateralRequirement = SelectionCollateralNotRequired
+            , collateralRequirement =
+                params ^. #collateralRequirement
             , utxoAvailableForCollateral =
                 params ^. #utxoAvailableForCollateral
             , utxoAvailableForInputs =

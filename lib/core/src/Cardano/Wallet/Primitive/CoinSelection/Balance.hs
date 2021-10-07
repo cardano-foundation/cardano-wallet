@@ -268,14 +268,6 @@ data SelectionParamsOf outputs = SelectionParams
         -- By burning tokens, we generally increase the burden of the selection
         -- algorithm, requiring it to select more UTxO entries in order to
         -- cover the burn.
-    , selectionOfCollateralRequired
-        :: !SelectionCollateralRequirement
-        -- ^ Whether or not the selection of collaterateral inputs is required
-        -- of coin selection.
-        --
-        -- Typically, a transaction making use of a phase-2 monetary policy
-        -- script (Plutus script) would require the coin selection algorithm to
-        -- find inputs to be used as collateral.
     }
     deriving (Eq, Generic, Show)
 
