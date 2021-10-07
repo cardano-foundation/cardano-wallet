@@ -1662,26 +1662,62 @@ getTxExpiry ti maybeTTL = do
 constructTxMeta
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
         , IsOwned s k
         )
     => ctx
     -> WalletId
     -> TransactionCtx
-    -> SelectionOf TxOut
-    -> ExceptT ErrSubmitPayment IO (TxMeta, UTCTime)
-constructTxMeta ctx wid txCtx sel = db & \DBLayer{..} -> do
+    -> [(TxIn, Coin)]
+    -> [(TxIn, Coin)]
+    -> [TxOut]
+    -> ExceptT ErrSubmitPayment IO TxMeta
+constructTxMeta ctx wid txCtx colls inps outs = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         cp <- withExceptT ErrSubmitPaymentNoSuchWallet
               $ withNoSuchWallet wid
               $ readCheckpoint wid
-        (time, meta) <- liftIO $
-            mkTxMeta ti (currentTip cp) (getState cp) txCtx sel
-        return (meta, time)
+        liftIO $
+            mkTxMetaWithoutSel (currentTip cp) (getState cp) txCtx colls inps outs
   where
     db = ctx ^. dbLayer @IO @s @k
-    nl = ctx ^. networkLayer
-    ti = timeInterpreter nl
+
+mkTxMetaWithoutSel
+    :: IsOurs s Address
+    => BlockHeader
+    -> s
+    -> TransactionCtx
+    -> [(TxIn, Coin)]
+    -> [(TxIn, Coin)]
+    -> [TxOut]
+    -> IO TxMeta
+mkTxMetaWithoutSel blockHeader wState txCtx colls inps outs =
+    let
+        amtOuts = sumCoins $ mapMaybe (flip ourCoin wState) outs
+
+        amtInps
+            = sumCoins (map snd colls ++ map snd inps ) -- here we need to remove overlapping txins between collateral and normal inputs
+            & case txWithdrawal txCtx of
+                w@WithdrawalSelf{} -> addCoin (withdrawalToCoin w)
+                WithdrawalExternal{} -> Prelude.id
+                NoWithdrawal -> Prelude.id
+    in return TxMeta
+       { status = Pending
+       , direction = if amtInps > amtOuts then Outgoing else Incoming
+       , slotNo = blockHeader ^. #slotNo
+       , blockHeight = blockHeader ^. #blockHeight
+       , amount = Coin.distance amtInps amtOuts
+       , expiry = Just (txTimeToLive txCtx)
+       }
+
+ourCoin
+    :: IsOurs s Address
+    => TxOut
+    -> s
+    -> Maybe Coin
+ourCoin (TxOut addr tokens) wState =
+    case fst (isOurs addr wState) of
+        Just{}  -> Just (TokenBundle.getCoin tokens)
+        Nothing -> Nothing
 
 -- | Construct transaction metadata for a pending transaction from the block
 -- header of the current tip and a list of input and output.
@@ -1701,7 +1737,7 @@ mkTxMeta ti' blockHeader wState txCtx sel =
         amtOuts = sumCoins $
             (txOutCoin <$> view #change sel)
             ++
-            mapMaybe ourCoin (view #outputs sel)
+            mapMaybe (flip ourCoin wState) (view #outputs sel)
 
         amtInps
             = sumCoins (txOutCoin . snd <$> view #inputs sel)
@@ -1732,12 +1768,6 @@ mkTxMeta ti' blockHeader wState txCtx sel =
     slotStartTime' = interpretQuery ti . slotToUTCTime
       where
         ti = neverFails "mkTxMeta slots should never be ahead of the node tip" ti'
-
-    ourCoin :: TxOut -> Maybe Coin
-    ourCoin (TxOut addr tokens) =
-        case fst (isOurs addr wState) of
-            Just{}  -> Just (TokenBundle.getCoin tokens)
-            Nothing -> Nothing
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
