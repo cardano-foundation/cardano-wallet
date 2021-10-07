@@ -24,22 +24,21 @@
 --
 module Cardano.Wallet.Primitive.CoinSelection
     (
-      -- * Performing selections
+    -- * Performing selections
       performSelection
     , Selection
-    , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (..)
     , SelectionParams (..)
 
-      -- * Preparation of outputs
+    -- * Output preparation
     , prepareOutputsWith
     , SelectionOutputInvalidError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
-    -- * Querying selection deltas
+    -- * Selection deltas
     , SelectionDelta (..)
     , selectionDelta
     , selectionDeltaAllAssets
@@ -47,12 +46,14 @@ module Cardano.Wallet.Primitive.CoinSelection
     , selectionHasValidSurplus
     , selectionMinimumCost
 
-    -- * Querying selection collateral
+    -- * Selection collateral
+    , SelectionCollateralRequirement (..)
     , selectionCollateral
+    , selectionCollateralRequired
     , selectionHasSufficientCollateral
     , selectionMinimumCollateral
 
-    -- * Creating reports about selections
+    -- * Selection reports
     , SelectionReport (..)
     , SelectionReportSummarized (..)
     , SelectionReportDetailed (..)
@@ -172,7 +173,7 @@ performSelectionCollateral
     => Balance.SelectionResult
     -> PerformSelection m Collateral.SelectionResult
 performSelectionCollateral balanceResult cs ps
-    | collateralRequired ps =
+    | selectionCollateralRequired ps =
         withExceptT SelectionCollateralError $ ExceptT $ pure $
         uncurry Collateral.performSelection $
         toCollateralConstraintsParams balanceResult (cs, ps)
@@ -331,7 +332,7 @@ toBalanceResult selection = Balance.SelectionResult
     }
 
 --------------------------------------------------------------------------------
--- Querying selection deltas
+-- Selection deltas
 --------------------------------------------------------------------------------
 
 -- | Computes the ada surplus of a selection, assuming there is a surplus.
@@ -404,8 +405,34 @@ selectionSurplusCoin :: Selection -> Coin
 selectionSurplusCoin = Balance.selectionSurplusCoin . toBalanceResult
 
 --------------------------------------------------------------------------------
--- Querying selection collateral
+-- Selection collateral
 --------------------------------------------------------------------------------
+
+-- | Indicates the collateral requirement for a selection.
+--
+data SelectionCollateralRequirement
+    = SelectionCollateralRequired
+    -- ^ Indicates that collateral is required.
+    | SelectionCollateralNotRequired
+    -- ^ Indicates that collateral is not required.
+    deriving (Bounded, Enum, Eq, Generic, Show)
+
+-- | Indicates 'True' if and only if collateral is required.
+--
+selectionCollateralRequired :: SelectionParams -> Bool
+selectionCollateralRequired params = case view #collateralRequirement params of
+    SelectionCollateralRequired    -> True
+    SelectionCollateralNotRequired -> False
+
+-- | Applies the given transformation function only when collateral is required.
+--
+whenCollateralRequired
+    :: SelectionParams
+    -> (a -> a)
+    -> (a -> a)
+whenCollateralRequired params f
+    | selectionCollateralRequired params = f
+    | otherwise = id
 
 -- | Computes the total amount of collateral within a selection.
 --
@@ -436,7 +463,7 @@ selectionMinimumCollateral
     -> Selection
     -> Coin
 selectionMinimumCollateral constraints params selection
-    | collateralRequired params =
+    | selectionCollateralRequired params =
         view #minimumSelectionAmount $ snd $
         toCollateralConstraintsParams
             (toBalanceResult selection)
@@ -531,32 +558,6 @@ data SelectionParams = SelectionParams
         -- Further entries from this set will be selected to cover any deficit.
     }
     deriving (Eq, Generic, Show)
-
--- | Indicates the collateral requirement for a selection.
---
-data SelectionCollateralRequirement
-    = SelectionCollateralRequired
-    -- ^ Indicates that collateral is required.
-    | SelectionCollateralNotRequired
-    -- ^ Indicates that collateral is not required.
-    deriving (Bounded, Enum, Eq, Generic, Show)
-
--- | Indicates 'True' if and only if collateral is required.
---
-collateralRequired :: SelectionParams -> Bool
-collateralRequired params = case view #collateralRequirement params of
-    SelectionCollateralRequired    -> True
-    SelectionCollateralNotRequired -> False
-
--- | Applies the given transformation function only when collateral is required.
---
-whenCollateralRequired
-    :: SelectionParams
-    -> (a -> a)
-    -> (a -> a)
-whenCollateralRequired params f
-    | collateralRequired params = f
-    | otherwise = id
 
 -- | Indicates that an error occurred while performing a coin selection.
 --
