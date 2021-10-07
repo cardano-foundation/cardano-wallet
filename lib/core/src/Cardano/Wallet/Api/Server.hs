@@ -2419,10 +2419,15 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             txCtx { txFeePadding }
 
 submitTransaction
-    :: forall ctx s k.
+    :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k
         , HasNetworkLayer IO ctx
         , IsOwned s k
+        , WalletKey k
+        , HardDerivation k
+        , Typeable s
+        , Typeable n
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> ApiT WalletId
@@ -2430,17 +2435,24 @@ submitTransaction
     -> Handler ApiTxId
 submitTransaction ctx (ApiT wid) (ApiT sealedTx) = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
-    let txCtx = defaultTransactionCtx
-            { txTimeToLive = ttl
-            --, txWithdrawal = wdrl TODO
-            }
+    let (Tx txId _ _ _inps _outs wdrlMap _ _) = tx
+
     let sel = undefined
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid $
+            if Map.member acct wdrlMap
+            then Just SelfWithdrawal
+            else Nothing
+        let txCtx = defaultTransactionCtx
+                { txTimeToLive = ttl
+                , txWithdrawal = wdrl
+                }
         (txMeta,_) <- liftHandler
             $ W.constructTxMeta @_ @s @k wrk wid txCtx sel
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-    return $ ApiTxId (ApiT (tx ^. #txId))
+    return $ ApiTxId (ApiT txId)
   where
     tx = decodeTx tl sealedTx
     tl = ctx ^. W.transactionLayer @k
