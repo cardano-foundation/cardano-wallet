@@ -83,6 +83,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromLedgerExUnits
     , toLedgerExUnits
     , fromLedgerPParams
+    , fromLedgerAlonzoPParams
     , toAlonzoPParams
     , fromCardanoAddress
 
