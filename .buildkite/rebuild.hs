@@ -159,9 +159,9 @@ buildStep' dryRun qa pkgs = foldl1 (.&&.)
         build Standard ["--only-dependencies"]
     , titled "Build" $
         projectBuild ["--test", "--no-run-tests"]
-    , titled "Tests (except integration)" $
-        timeout 60 $ do
-            test (skip "integration") []
+    -- , titled "Tests (except integration)" $
+    --     timeout 60 $ do
+    --         test (skip "integration") []
     , titled "Checking golden test files" $
         checkUnclean dryRun "lib/core/test/data"
     , when' runIntegration $ titled "Integration tests on latest era" $
