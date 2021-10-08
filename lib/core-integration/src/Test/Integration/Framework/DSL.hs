@@ -2260,7 +2260,7 @@ signTx
     => Context
     -> ApiWallet
     -> ApiConstructTransaction n
-    -> m (ApiT SealedTx)
+    -> m ApiSignedTransaction
 signTx ctx w apiTx = do
     let sealedTx = transaction apiTx
     let toSign = Json [aesonQQ|
@@ -2274,11 +2274,11 @@ signTx ctx w apiTx = do
 submitTx
     :: MonadUnliftIO m
     => Context
-    -> ApiT SealedTx
+    -> ApiSignedTransaction
     -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
     -> m ApiTxId
 submitTx ctx tx expectations = do
-    let bytes = serialisedTx $ getApiT tx
+    let bytes = serialisedTx $ getApiT (tx ^. #transaction)
     let submitEndpoint = Link.postExternalTransaction
     let headers = Headers
             [ ("Content-Type", "application/octet-stream")
@@ -2292,16 +2292,16 @@ submitTxWithWid
     :: MonadUnliftIO m
     => Context
     -> ApiWallet
-    -> ApiT SealedTx
+    -> ApiSignedTransaction
     -> m (HTTP.Status, Either RequestException ApiTxId)
 submitTxWithWid ctx w tx = do
-    let bytes = serialisedTx $ getApiT tx
     let submitEndpoint = Link.submitTransaction @'Shelley w
+    let payload = Json $ Aeson.toJSON tx
     let headers = Headers
-            [ ("Content-Type", "application/octet-stream")
+            [ ("Content-Type", "application/json")
             , ("Accept", "application/json")
             ]
-    request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
+    request @ApiTxId ctx submitEndpoint headers payload
 
 getWallet
     :: forall w m.

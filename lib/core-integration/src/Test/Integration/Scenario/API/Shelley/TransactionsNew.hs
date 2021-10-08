@@ -33,6 +33,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiFee (..)
     , ApiSerialisedTransaction
+    , ApiSignedTransaction (..)
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -235,7 +236,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                            Just m
                           )
 
-        case getMetadata (cardanoTx $ getApiT signedTx) of
+        case getMetadata (cardanoTx $ getApiT (signedTx ^. #transaction)) of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
                 Nothing -> error "Tx doesn't include metadata"
@@ -491,8 +492,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         eventually "transaction is eventually in ledger after submitting" $ do
-            let queryTx = Link.getTransaction @'Shelley wa (ApiTxId txid)
-            rSrc <- request @(ApiTransaction n) ctx queryTx Default Empty
+            let queryTx' = Link.getTransaction @'Shelley wa (ApiTxId txid)
+            rSrc <- request @(ApiTransaction n) ctx queryTx' Default Empty
             verify rSrc
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
@@ -1215,8 +1216,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
+<<<<<<< HEAD
         signedTx <- getFromResponse #transaction <$>
             request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+=======
+        signedTx <- getFromResponse Prelude.id <$>
+            request @ApiSignedTransaction ctx signEndpoint Default toSign
+>>>>>>> 9318f3b2f (Use json ApiSignedTransaction in submit tx)
 
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -1231,7 +1237,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- Submit tx
-        void $ submitTx ctx sealedTx [ expectResponseCode HTTP.status500 ]
+        void $ submitTx ctx (ApiSignedTransaction sealedTx) [ expectResponseCode HTTP.status500 ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
         (w, _) <- rewardWallet ctx

@@ -594,7 +594,7 @@ type BalanceTransaction n = "wallets"
 type SubmitTransaction = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions-submit"
-    :> ReqBody '[OctetStream] (ApiT SealedTx)
+    :> ReqBody '[JSON] ApiSignedTransaction
     :> PostAccepted '[JSON] ApiTxId
 
 {-------------------------------------------------------------------------------

@@ -5837,8 +5837,8 @@ paths:
       requestBody:
         required: true
         content:
-          application/octet-stream:
-            schema: *signedTransactionBlob
+          application/json:
+            schema: *ApiSignedTransaction
       responses: *responsesPostExternalTransaction
 
   /byron-wallets:
