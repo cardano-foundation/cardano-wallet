@@ -839,7 +839,7 @@ prop_performSelection mockConstraints params coverage =
             ]
         result <- run $ performSelection constraints params
         monitor (coverage result)
-        either onFailure onSuccess result
+        either (stop . onFailure) onSuccess result
   where
     constraints :: SelectionConstraints
     constraints = unMockSelectionConstraints mockConstraints
@@ -912,18 +912,18 @@ prop_performSelection mockConstraints params coverage =
                 (view #inputsSelected result <&> fst)
                 (view #utxoAvailable params)
 
-    onFailure :: SelectionError -> PropertyM IO ()
+    onFailure :: SelectionError -> Property
     onFailure = \case
         BalanceInsufficient e ->
-            stop $ onBalanceInsufficient e
+            onBalanceInsufficient e
         SelectionLimitReached e ->
-            stop $ onSelectionLimitReached e
+            onSelectionLimitReached e
         InsufficientMinCoinValues es ->
-            stop $ onInsufficientMinCoinValues es
+            onInsufficientMinCoinValues es
         UnableToConstructChange e ->
-            stop $ onUnableToConstructChange e
+            onUnableToConstructChange e
         EmptyUTxO ->
-            stop onEmptyUTxO
+            onEmptyUTxO
 
     onBalanceInsufficient :: BalanceInsufficientError -> Property
     onBalanceInsufficient e =
