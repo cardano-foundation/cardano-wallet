@@ -36,6 +36,7 @@ library
     , base58-bytestring
     , bech32
     , bytestring
+    , cardano-api
     , cardano-addresses
     , cardano-api
     , cardano-crypto
