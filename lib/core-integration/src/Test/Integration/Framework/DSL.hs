@@ -113,6 +113,7 @@ module Test.Integration.Framework.DSL
     , listAddresses
     , signTx
     , submitTx
+    , submitTxWithWid
     , getWallet
     , listTransactions
     , listAllTransactions
@@ -2286,6 +2287,24 @@ submitTx ctx tx expectations = do
     r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
     verify r expectations
     pure $ getFromResponse Prelude.id  r
+
+submitTxWithWid
+    :: MonadUnliftIO m
+    => Context
+    -> ApiWallet
+    -> ApiT SealedTx
+    -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
+    -> m (HTTP.Status, Either RequestException ApiTxId)
+submitTxWithWid ctx w tx expectations = do
+    let bytes = serialisedTx $ getApiT tx
+    let submitEndpoint = Link.submitTransaction @'Shelley w
+    let headers = Headers
+            [ ("Content-Type", "application/octet-stream")
+            , ("Accept", "application/json")
+            ]
+    r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
+    verify r expectations
+    pure r
 
 getWallet
     :: forall w m.
