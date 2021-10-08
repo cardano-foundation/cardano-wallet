@@ -61,6 +61,10 @@ module Cardano.Wallet.Primitive.CoinSelection
     , makeSelectionReportSummarized
     , makeSelectionReportDetailed
 
+    -- * Internal types and functions
+    , ComputeMinimumCollateralParams (..)
+    , computeMinimumCollateral
+
     ) where
 
 import Prelude
@@ -271,7 +275,7 @@ toCollateralConstraintsParams
     :: Balance.SelectionResult
     -> (           SelectionConstraints,            SelectionParams)
     -> (Collateral.SelectionConstraints, Collateral.SelectionParams)
-toCollateralConstraintsParams balanceSelection (constraints, params) =
+toCollateralConstraintsParams balanceResult (constraints, params) =
     (collateralConstraints, collateralParams)
   where
     collateralConstraints = Collateral.SelectionConstraints
@@ -291,10 +295,12 @@ toCollateralConstraintsParams balanceSelection (constraints, params) =
                 (curry (view #utxoSuitableForCollateral constraints))
                 (unUTxO (view #utxoAvailableForCollateral params))
         , minimumSelectionAmount =
-            Coin . ceiling . (% 100) . unCoin $
-            mtimesDefault
-                (view #minimumCollateralPercentage constraints)
-                (Balance.selectionSurplusCoin balanceSelection)
+            computeMinimumCollateral ComputeMinimumCollateralParams
+                { minimumCollateralPercentage =
+                    view #minimumCollateralPercentage constraints
+                , transactionFee =
+                    Balance.selectionSurplusCoin balanceResult
+                }
         }
 
 -- | Creates a 'Selection' from selections of inputs and collateral.
@@ -469,6 +475,26 @@ selectionMinimumCollateral constraints params selection
             (toBalanceResult selection)
             (constraints, params)
     | otherwise = Coin 0
+
+-- | Parameters for 'computeMinimumCollateral'.
+
+data ComputeMinimumCollateralParams = ComputeMinimumCollateralParams
+    { minimumCollateralPercentage :: Natural
+    , transactionFee :: Coin
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Computes the minimum required amount of collateral given a fee and a
+--   minimum collateral percentage.
+--
+computeMinimumCollateral
+    :: ComputeMinimumCollateralParams
+    -> Coin
+computeMinimumCollateral params =
+    Coin . ceiling . (% 100) . unCoin $
+    mtimesDefault
+        (view #minimumCollateralPercentage params)
+        (view #transactionFee params)
 
 -- | Specifies all constraints required for coin selection.
 --

@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{- HLINT ignore "Use camelCase" -}
 
 module Cardano.Wallet.Primitive.CoinSelectionSpec
     where
@@ -11,11 +13,13 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.CoinSelection
-    ( Selection
+    ( ComputeMinimumCollateralParams (..)
+    , Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionParams (..)
+    , computeMinimumCollateral
     , performSelection
     , prepareOutputsWith
     , selectionCollateral
@@ -64,6 +68,8 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
     ( genUTxOSelection, shrinkUTxOSelection )
+import Control.Monad
+    ( forM_ )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.Either
@@ -137,6 +143,10 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
             property prop_prepareOutputsWith_assetsUnchanged
         it "prop_prepareOutputsWith_preparedOrExistedBefore" $
             property prop_prepareOutputsWith_preparedOrExistedBefore
+
+    parallel $ describe "Computing minimum collateral amounts" $ do
+
+        unitTests_computeMinimumCollateral
 
 --------------------------------------------------------------------------------
 -- Performing selections
@@ -295,6 +305,46 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
             txOutCoin after == txOutCoin before
         | otherwise =
             txOutCoin after == minCoinValueFor (view (#tokens . #tokens) before)
+
+--------------------------------------------------------------------------------
+-- Computing minimum collateral amounts
+--------------------------------------------------------------------------------
+
+unitTests_computeMinimumCollateral :: Spec
+unitTests_computeMinimumCollateral = unitTests
+    "unitTests_computeMinimumCollateral"
+    (computeMinimumCollateral)
+    (mkTest <$> tests)
+  where
+    mkTest (minimumCollateralPercentage, transactionFee, minimumCollateral) =
+        UnitTestData
+            { params = ComputeMinimumCollateralParams
+                { minimumCollateralPercentage
+                , transactionFee
+                }
+            , result = minimumCollateral
+            }
+    -- We compute the minimum collateral amount by multiplying the minimum
+    -- collateral percentage (a protocol parameter) with the estimated
+    -- transaction fee (derived from the ada surplus of the selection).
+    --
+    -- However, the result of this multiplication may be non-integral.
+    -- In the event that the result is non-integral, we always round up.
+    tests =
+        --( Min, Tx     , Min     )
+        --(   %, Fee    , Required)
+        --(----, -------, --------)
+        [ (   0, Coin  0, Coin   0)
+        , (   0, Coin 10, Coin   0)
+        , (  90, Coin 10, Coin   9)
+        , (  91, Coin 10, Coin  10) -- result is non-integral so we round up
+        , (  99, Coin 10, Coin  10) -- result is non-integral so we round up
+        , ( 100, Coin 10, Coin  10)
+        , ( 990, Coin 10, Coin  99)
+        , ( 991, Coin 10, Coin 100) -- result is non-integral so we round up
+        , ( 999, Coin 10, Coin 100) -- result is non-integral so we round up
+        , (1000, Coin 10, Coin 100)
+        ]
 
 --------------------------------------------------------------------------------
 -- Selection constraints
@@ -533,6 +583,35 @@ shrinkUTxOAvailableForCollateral = shrinkUTxO
 
 shrinkUTxOAvailableForInputs :: UTxOSelection -> [UTxOSelection]
 shrinkUTxOAvailableForInputs = shrinkUTxOSelection
+
+--------------------------------------------------------------------------------
+-- Unit test support
+--------------------------------------------------------------------------------
+
+data UnitTestData params result = UnitTestData
+    { params :: params
+    , result :: result
+    }
+    deriving (Eq, Generic, Show)
+
+unitTests
+    :: (Eq result, Show result)
+    => String
+    -> (params -> result)
+    -> [UnitTestData params result]
+    -> Spec
+unitTests title f unitTestData =
+    describe title $
+    forM_ (zip testNumbers unitTestData) $
+        \(testNumber :: Int, test) -> do
+            let subtitle = "Unit test #" <> show testNumber
+            it subtitle $
+                let resultExpected = view #result test in
+                let resultActual = f (view #params test) in
+                property $ Pretty resultExpected === Pretty resultActual
+  where
+    testNumbers :: [Int]
+    testNumbers = [1 ..]
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances
