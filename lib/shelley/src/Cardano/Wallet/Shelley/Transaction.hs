@@ -31,7 +31,6 @@ module Cardano.Wallet.Shelley.Transaction
 
     -- * Updating SealedTx
     , TxUpdate (..)
-    , noTxUpdate
     , updateSealedTx
 
     -- * Internals
@@ -540,14 +539,6 @@ mkDelegationCertificates da accXPub =
                ]
        Quit -> [toStakeKeyDeregCert accXPub]
 
-
--- | For testing that
--- @
---   forall tx. updateSealedTx noTxUpdate tx
---      == Right tx or Left
--- @
-noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate [] [] [] (const id) id
 
 -- Used to add inputs and outputs when balancing a transaction.
 --

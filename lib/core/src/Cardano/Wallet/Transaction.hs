@@ -26,6 +26,7 @@ module Cardano.Wallet.Transaction
     , Withdrawal (..)
     , withdrawalToCoin
     , TxUpdate (..)
+    , noTxUpdate
 
     -- * Errors
     , ErrSignTx (..)
@@ -224,6 +225,9 @@ data TxUpdate = TxUpdate
         -- is useful to allow defining a no-op `TxUpdate` for the sake
         -- of testing.
     }
+
+noTxUpdate :: TxUpdate
+noTxUpdate = TxUpdate [] [] [] (const id) id
 
 -- | Some additional context about a transaction. This typically contains
 -- details that are known upfront about the transaction and are used to

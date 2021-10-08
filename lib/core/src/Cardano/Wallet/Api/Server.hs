@@ -401,7 +401,6 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( Block
     , BlockHeader (..)
-    , FeePolicy (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
@@ -452,6 +451,7 @@ import Cardano.Wallet.Transaction
     , TxUpdate (..)
     , Withdrawal (..)
     , defaultTransactionCtx
+    , noTxUpdate
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -2250,7 +2250,11 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -- adjust the change and ExUnits of each redeemer to something more
         -- sensible than the max execution cost.
         let txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp partialTx
-        let txContext = defaultTransactionCtx
+
+        -- NOTE: The `ErrUpdateSealedTx` thrown from here will hide the ones
+        -- thrown from the final `updateTx`. This doesn't matter.
+        txContext <- liftUpdateTxErr $ padFeeEstimation partialTx pp nodePParams $
+            defaultTransactionCtx
                 { txPlutusScriptExecutionCost
                 , txMetadata
                 , txWithdrawal
@@ -2259,7 +2263,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                         SelectionCollateralRequired
                     else
                         SelectionCollateralNotRequired
-                } & padFeeEstimation partialTx pp nodePParams
+                }
 
         -- FIXME: The coin selection and reported fees will likely be wrong in
         -- the presence of certificates (and deposits / refunds). An immediate
@@ -2308,16 +2312,19 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             -- preliminary integration work.
             newExUnits = const (const (pp ^. #txParameters . #getMaxExecutionUnits))
 
-    case ApiT <$> updateTx tl nodePParams partialTx txUpdate of
-        Left err -> liftHandler $ throwE $ ErrBalanceTxUpdateError err
-        Right transaction -> pure $ ApiConstructTransaction
-            { coinSelection
-            , transaction
-            , fee = coinToQuantity (newFee oldFee)
-            }
+    updatedTx <- liftUpdateTxErr (updateTx tl nodePParams partialTx txUpdate)
+    return $ ApiConstructTransaction
+        { coinSelection
+        , transaction = ApiT updatedTx
+        , fee = coinToQuantity (newFee oldFee)
+        }
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
+
+    liftUpdateTxErr = \case
+        Left err -> liftHandler $ throwE $ ErrBalanceTxUpdateError err
+        Right res -> return res
 
     toTxInTxOut (ApiExternalInput (ApiT tid) ix (ApiT addr, _) (Quantity amt) (ApiT assets)) =
       ( TxIn tid ix
@@ -2352,25 +2359,29 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -> W.ProtocolParameters
         -> Cardano.ProtocolParameters
         -> TransactionCtx
-        -> TransactionCtx
-    padFeeEstimation sealedTx pp pp' txCtx =
-        let
-            walletTx = decodeTx tl sealedTx
-            worseEstimate = calcMinimumCost tl pp txCtx skeleton
-            skeleton = SelectionSkeleton
+        -> Either ErrUpdateSealedTx TransactionCtx
+    padFeeEstimation sealedTx' pp pp' txCtx = do
+        -- Ensure `evaluateMinimumFee` always will overestimate even though the
+        -- execution units are not known yet. Calling `updateTx` like this will:
+        -- 1. make the CBOR encoding of the execution units as large as possible
+        -- 2. add the script integrity hash
+        let maxUnits = pp ^. (#txParameters . #getMaxExecutionUnits)
+        sealedTx <- updateTx tl pp' sealedTx' $ noTxUpdate
+            { newExUnits = const (const maxUnits)
+            }
+
+        let walletTx = decodeTx tl sealedTx
+        let skeleton = SelectionSkeleton
                 { skeletonInputCount = length (view #resolvedInputs walletTx)
                 , skeletonOutputs = view #outputs walletTx
                 , skeletonChange = mempty
                 }
-            LinearFee _ (Quantity b) = pp ^. #txParameters . #getFeePolicy
-            -- NOTE: Coping with the later additions of script integrity hash and
-            -- redeemers ex units increased from 0 to their actual values.
-            extraMargin = Coin $ ceiling (100 * b)
-            txFeePadding = (<> extraMargin) $ fromMaybe (Coin 0) $ do
+        let worseEstimate = calcMinimumCost tl pp txCtx skeleton
+
+        let txFeePadding = fromMaybe (Coin 0) $ do
                 betterEstimate <- evaluateMinimumFee tl pp' sealedTx
                 betterEstimate `subtractCoin` worseEstimate
-        in
-            txCtx { txFeePadding }
+        return $ txCtx { txFeePadding }
 
 joinStakePool
     :: forall ctx s n k.
