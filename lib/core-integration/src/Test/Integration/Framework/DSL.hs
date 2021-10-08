@@ -2293,18 +2293,15 @@ submitTxWithWid
     => Context
     -> ApiWallet
     -> ApiT SealedTx
-    -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
     -> m (HTTP.Status, Either RequestException ApiTxId)
-submitTxWithWid ctx w tx expectations = do
+submitTxWithWid ctx w tx = do
     let bytes = serialisedTx $ getApiT tx
     let submitEndpoint = Link.submitTransaction @'Shelley w
     let headers = Headers
             [ ("Content-Type", "application/octet-stream")
             , ("Accept", "application/json")
             ]
-    r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
-    verify r expectations
-    pure r
+    request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
 
 getWallet
     :: forall w m.

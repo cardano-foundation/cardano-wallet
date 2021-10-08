@@ -36,6 +36,7 @@ import Cardano.Wallet.Api.Types
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId (..)
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -52,7 +53,8 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx
+    ( Direction (..)
+    , SealedTx
     , TxStatus (..)
     , cardanoTx
     , getSealedTxBody
@@ -123,6 +125,7 @@ import Test.Integration.Framework.DSL
     , rewardWallet
     , signTx
     , submitTx
+    , submitTxWithWid
     , unsafeRequest
     , verify
     , waitForNextEpoch
@@ -382,8 +385,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_04a - Single Output Transaction" $ \ctx -> runResourceT $ do
 
-        --liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
-
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
@@ -425,6 +426,76 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField
                         (#balance . #available . #getQuantity)
                         (`shouldBe` initialAmt - (amt + fromIntegral expectedFee))
+                ]
+
+        eventually "Target wallet balance is amt" $ do
+            rWr <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWr
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` amt)
+                ]
+
+    it "TRANS_NEW_CREATE_04a - Single Output Transaction with submitWithWid" $ \ctx -> runResourceT $ do
+
+        let initialAmt = 3 * minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+        wb <- emptyWallet ctx
+        let amt = (minUTxOValue (_mainEra ctx) :: Natural)
+
+        payload <- liftIO $ mkTxPayload ctx wb amt
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
+            , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+            ]
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+
+        apiTx <- unsafeGetTx rTx
+
+        signedTx <- signTx ctx wa apiTx
+
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let txid = getFromResponse (#id) submittedTx
+
+        let queryTx = Link.getTransaction @'Shelley wa (ApiTxId txid)
+        rGetTx <- request @(ApiTransaction n) ctx queryTx Default Empty
+        verify rGetTx
+            [ expectResponseCode HTTP.status200
+            , expectField
+                (#amount . #getQuantity)
+                (`shouldBe` initialAmt - (amt + fromIntegral expectedFee))
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        eventually "Source wallet balance is decreased by amt + fee" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` initialAmt - (amt + fromIntegral expectedFee))
+                ]
+
+        eventually "transaction is eventually in ledger after submitting" $ do
+            let queryTx = Link.getTransaction @'Shelley wa (ApiTxId txid)
+            rSrc <- request @(ApiTransaction n) ctx queryTx Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
         eventually "Target wallet balance is amt" $ do
