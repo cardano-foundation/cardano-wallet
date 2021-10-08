@@ -66,7 +66,8 @@ $ base64 -d > tx.bin <<< hKYAgYJYIAQh6enKOwhicVBXDNo6ukKgvJJnMVFIbrvczELZao8sAQ2
 
 Now we can submit it to the network:
 ```
-$ curl --header "Content-Type: application/octet-stream" -X POST --data-binary "@tx.bin" http://localhost:8090/v2/proxy/transactions
+$ curl -X POST --data-binary "@tx.bin" http://localhost:8090/v2/proxy/transactions \
+-H "Content-Type: application/octet-stream"
 
 {"id":"148cb83bb2943e54d878a86fdc4309d952ca5fd62b3463fbb72a94180ebe8e82"}
 ```
