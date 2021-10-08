@@ -291,5 +291,22 @@ end
 ##
 # return asset total or available balance for comparison
 def assets_balance(assets, received = 0)
-  assets.map { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + received } }
+  assets.map { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + received } }.to_set
+end
+
+##
+# return ada and asset accounts balance for shelley wallet
+def get_shelley_balances(wid)
+  w = SHELLEY.wallets.get(wid)
+  total = w['balance']['total']['quantity']
+  available = w['balance']['available']['quantity']
+  reward = w['balance']['reward']['quantity']
+  assets_total = w['assets']['total']
+  assets_available = w['assets']['available']
+  { 'total' => total,
+   'available' => available,
+   'rewards' => reward,
+   'assets_available' => assets_available,
+   'assets_total' => assets_total
+  }
 end

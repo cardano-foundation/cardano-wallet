@@ -11,6 +11,27 @@ module Helpers
       res
     end
 
+    ##
+    # Generate Byron address from mnemonic sentence and derivation path
+    # $ cat mnemonics \
+    #   | cardano-address key from-recovery-phrase Byron > root.prv
+    #
+    # $ cat root.prv \
+    #   | cardano-address key child 14H/42H | tee addr.prv \
+    #   | cardano-address key public --with-chain-code \
+    #   | cardano-address address bootstrap --root $(cat root.prv | cardano-address key public --with-chain-code) \
+    #       --network-tag testnet 14H/42H
+    def cardano_address_get_byron_addr(mnemonics, derivation_path)
+      cmd(%(echo #{mnemonics.join(' ')} \
+         | cardano-address key from-recovery-phrase Byron \
+         | cardano-address key child #{derivation_path} \
+         | cardano-address key public --with-chain-code \
+         | cardano-address address bootstrap \
+         --root $(echo #{mnemonics.join(' ')} | cardano-address key from-recovery-phrase Byron | cardano-address key public --with-chain-code) \
+         --network-tag testnet #{derivation_path}
+         )).gsub("\n", '')
+    end
+
     def cardano_address_get_acc_xpub(mnemonics, derivation_path, hex = true, wallet_type = "Shared", chain_code = "--with-chain-code")
       cmd(%(echo #{mnemonics.join(' ')} \
          | cardano-address key from-recovery-phrase #{wallet_type} \
