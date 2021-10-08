@@ -382,7 +382,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_04a - Single Output Transaction" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
+        --liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
 
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
@@ -403,6 +403,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             , expectField (#fee . #getQuantity) (`shouldBe` feeMin)
             ]
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
         let filterInitialAmt =
                 filter (\(ApiCoinSelectionInput _ _ _ _ amt' _) -> amt' == Quantity initialAmt)
@@ -410,9 +411,31 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getFromResponse (#coinSelection . #inputs) rTx
         length coinSelInputs `shouldBe` 1
 
-        -- TODO: now we should sign it and send it in two steps
-        --       make sure it is delivered
-        --       make sure balance is updated accordingly on src and dst wallets
+        apiTx <- unsafeGetTx rTx
+
+        signedTx <- signTx ctx wa apiTx
+
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        eventually "Source wallet balance is decreased by amt + fee" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` initialAmt - (amt + fromIntegral expectedFee))
+                ]
+
+        eventually "Target wallet balance is amt" $ do
+            rWr <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWr
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` amt)
+                ]
 
     it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
