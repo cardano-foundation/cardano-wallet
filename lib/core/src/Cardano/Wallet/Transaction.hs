@@ -249,8 +249,8 @@ data TransactionCtx = TransactionCtx
     } deriving (Show, Generic, Eq)
 
 data Withdrawal
-    = WithdrawalSelf !RewardAccount !(NonEmpty DerivationIndex) !Coin
-    | WithdrawalExternal !RewardAccount !(NonEmpty DerivationIndex) !Coin
+    = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin
+    | WithdrawalExternal RewardAccount (NonEmpty DerivationIndex) Coin
     | NoWithdrawal
     deriving (Show, Eq)
 

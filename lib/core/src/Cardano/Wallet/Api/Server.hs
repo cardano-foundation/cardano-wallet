@@ -413,7 +413,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinQuantity )
+    ( Coin (..), coinQuantity, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -2202,17 +2202,14 @@ constructTransaction ctx genChange (ApiT wid) body = do
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
+-- TODO: Most of the body of this function should really belong to
+-- Cardano.Wallet to keep the Api.Server module free of business logic!
 balanceTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k
         , HasNetworkLayer IO ctx
-        , WalletKey k
-        , Typeable s
-        , Typeable n
-        , HardDerivation k
         , IsOurs s Address
         , GenChange s
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> ArgGenChange s
@@ -2220,26 +2217,25 @@ balanceTransaction
     -> ApiBalanceTransactionPostData n
     -> Handler (ApiConstructTransaction n)
 balanceTransaction ctx genChange (ApiT wid) body = do
-    -- TODO: Most of the body of this function should really belong to
-    -- Cardano.Wallet to keep the Api.Server module free of business logic!
     pp <- liftIO $ NW.currentProtocolParameters nl
-    -- TODO: This throws when trying to balance a transaction while in the
-    -- Byron era.
+    -- TODO: This throws when still in the Byron era.
     nodePParams <- fromJust <$> liftIO (NW.currentNodeProtocolParameters nl)
 
-    --TODO  deal with coll and validity and delegations
-    let (Tx _id _fee _coll _inps outs wdrlMap txMetadata _validity) = txIncoming
+    let partialTx = body ^. #transaction . #getApiT
+    let (outputs, txWithdrawal, txMetadata, oldFee) = extractFromTx partialTx
 
-    (delta, unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+    (newFee, balancedTx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (internalUtxoAvailable, wallet, pendingTxs) <-
+            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
-        -- FIXME: This is wrong as it leads the underlying selection to
-        -- "believe" there's only one withdrawal and will be completely off
-        -- regarding the actual fee. See ADP-1182
-        (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid $
-            if Map.member acct wdrlMap
-            then Just SelfWithdrawal
-            else Nothing
+        let externalSelectedUtxo =
+                UTxOIndex.fromSequence (toTxInTxOut <$> (body ^. #inputs))
+
+        let utxoAvailableForInputs = UTxOSelection.fromIndexPair
+                (internalUtxoAvailable, externalSelectedUtxo)
+
+        let utxoAvailableForCollateral =
+                UTxOIndex.toUTxO internalUtxoAvailable
 
         -- NOTE: It is not possible to know the script execution cost in
         -- advance because it actually depends on the final transaction. Inputs
@@ -2249,89 +2245,94 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -- transaction considering only the maximum cost, and only after, try to
         -- adjust the change and ExUnits of each redeemer to something more
         -- sensible than the max execution cost.
-        let maxCost = maxScriptExecutionCost tl pp sealedTxIncoming
-        ttl <- liftIO $ W.getTxExpiry ti Nothing
-        let txCtx = defaultTransactionCtx
-                { txPlutusScriptExecutionCost = maxCost
+        let txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp partialTx
+        let txContext = defaultTransactionCtx
+                { txPlutusScriptExecutionCost
                 , txMetadata
-                , txWithdrawal = wdrl
-                , txTimeToLive = ttl
+                , txWithdrawal
                 }
 
-        (internalUtxoAvailable, wallet, pendingTxs) <-
-            liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-
-        let externalSelectedUtxo =
-                UTxOIndex.fromSequence externalInputs
-
-        let utxoAvailable = UTxOSelection.fromIndexPair
-                (internalUtxoAvailable, externalSelectedUtxo)
-
-        -- NOTE: Similarly to the above, 'selectionDelta' here is actually the
-        -- wrong way to calculate fees, because it only account for inputs and
-        -- outputs that are known of the wallet. For example, the transaction
-        -- may contain an arbitrary number of withdrawals, all counting towards
-        -- the input side of the balance but being totally overlooked by this
-        -- function.
+        -- FIXME: The coin selection and reported fees will likely be wrong in
+        -- the presence of certificates (and deposits / refunds). An immediate
+        -- "fix" is to return a proper error from the handler when any key or
+        -- pool registration (resp. deregistration) certificate is found in the
+        -- transaction. A long-term fix is to handle this case properly during
+        -- balancing.
         let transform s sel =
                 let (sel', s') = W.assignChangeAddresses genChange sel s
-                 in ( selectionDelta txOutCoin sel'
-                    , W.selectionToUnsignedTx wdrl sel' s'
+                 in ( const (selectionDelta txOutCoin sel')
+                    , W.selectionToUnsignedTx NoWithdrawal sel' s'
                     )
-
         liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
-            { outputs = outs
+            { outputs
             , pendingTxs
-            , txContext = txCtx
-            , utxoAvailableForInputs = utxoAvailable
-            , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO internalUtxoAvailable
+            , txContext
+            , utxoAvailableForInputs
+            , utxoAvailableForCollateral
             , wallet
             }
             transform
 
-    let UnsignedTx colls inps _outs change _wdrl = unsignedtx
-    -- TODO: At this stage, we set all execution units for all redeemers to the
-    -- max cost, which is guaranteed to succeed (given the coin selection above
-    -- was done with the same assumption) but also terribly ineffective when it
-    -- comes to reducing the cost. This is however sufficient to start
-    -- preliminary integration work.
-    let extraBody = TxUpdate
+    -- FIXME:
+    -- The resulting coin-selection view is currently missing many pieces:
+    --
+    -- * deposits
+    -- * delegation actions
+    -- * withdrawals
+    --
+    -- Fees are also likely wrong. All in all, this 'coin_selection' should not
+    -- exists.
+    let coinSelection = mkApiCoinSelection [] Nothing txMetadata balancedTx
+    let UnsignedTx colls inps _outs change _wdrl = balancedTx
+    let txUpdate = TxUpdate
             { extraInputs = (\(txin, _, _) -> txin) <$> F.toList inps
             , extraCollateral = (\(txin, _, _) -> txin) <$> F.toList colls
             , extraOutputs = toTxOut <$> change
-            , newFee = const delta
-            , newExUnits = const (const maxExecutionUnits)
+            , newFee
+            , newExUnits
             }
           where
-            maxExecutionUnits = pp ^. #txParameters . #getMaxExecutionUnits
-    let cs = mkApiCoinSelection [] Nothing txMetadata unsignedtx
-    sealedTxOutcoming <-
-        case updateTx tl nodePParams sealedTxIncoming extraBody of
-            Right result -> pure result
-            Left err ->
-                liftHandler $ throwE $ ErrBalanceTxUpdateError err
-    pure $ ApiConstructTransaction
-        { transaction = ApiT sealedTxOutcoming
-        , coinSelection = cs
-        , fee = coinToQuantity delta
-        }
+            -- TODO: At this stage, we set all execution units for all redeemers to the
+            -- max cost, which is guaranteed to succeed (given the coin selection above
+            -- was done with the same assumption) but also terribly ineffective when it
+            -- comes to reducing the cost. This is however sufficient to start
+            -- preliminary integration work.
+            newExUnits = const (const (pp ^. #txParameters . #getMaxExecutionUnits))
+
+    case ApiT <$> updateTx tl nodePParams partialTx txUpdate of
+        Left err -> liftHandler $ throwE $ ErrBalanceTxUpdateError err
+        Right transaction -> pure $ ApiConstructTransaction
+            { coinSelection
+            , transaction
+            , fee = coinToQuantity (newFee oldFee)
+            }
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter nl
 
-    apiExternalInps = body ^. #inputs
     toTxInTxOut
-        (ApiExternalInput (ApiTxIn (ApiT hashTx) ix)
-        (ApiTxOut (ApiT addr, _) _ (Quantity amt) (ApiT assets))) =
-        (TxIn hashTx ix, TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets))
-    externalInputs = toTxInTxOut <$> apiExternalInps
-    sealedTxIncoming = body ^. #transaction . #getApiT
-    txIncoming = decodeTx tl sealedTxIncoming
+      (ApiExternalInput (ApiTxIn (ApiT hashTx) ix)
+      (ApiTxOut (ApiT addr, _) _ (Quantity amt) (ApiT assets)))
+      =
+      ( TxIn hashTx ix
+      , TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
+      )
+
     toTxOut (TxChange addr amt assets _) =
         TxOut addr (TokenBundle amt assets)
+
+    extractFromTx tx =
+        let (Tx _id fee _coll _inps outs wdrlMap meta _vldt) = decodeTx tl tx
+            -- TODO: Find a better abstraction that can cover this case.
+            wdrl = WithdrawalSelf
+                (error $ "WithdrawalSelf: reward-account should never been use "
+                      <> "when balancing transactions but it was!"
+                )
+                (error $ "WithdrawalSelf: derivation path should never been use "
+                      <> "when balancing transactions but it was!"
+                )
+                (sumCoins wdrlMap)
+         in (outs, wdrl, meta, fromMaybe (Coin 0) fee)
 
 joinStakePool
     :: forall ctx s n k.
