@@ -65,6 +65,7 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWalletPatchData
     , ApiSharedWalletPostData
     , ApiSignTransactionPostData
+    , ApiSignedTransaction
     , ApiSlotReference
     , ApiT (..)
     , ApiTxId
@@ -1273,6 +1274,34 @@ instance Malformed (BodyParam ApiSignTransactionPostData) where
                   "extra": "hello"
                }|]
                , "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, unknown fields: ['extra']"
+              )
+            ]
+
+instance Malformed (BodyParam ApiSignedTransaction) where
+    malformed = jsonValid ++ jsonInvalid
+     where
+         jsonInvalid = first BodyParam <$>
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignedTransaction(ApiSignedTransaction) failed, expected Object, but encountered Number")
+            , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignedTransaction(ApiSignedTransaction) failed, expected Object, but encountered String")
+            , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
+            , ("{\"transaction\": 1020344}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
+            ]
+         jsonValid = first (BodyParam . Aeson.encode) <$>
+            [
+              ( [aesonQQ|
+                { "transaction": "!!!"
+                }|]
+              , "Error in $.transaction: Parse error. Expecting Base64-encoded format."
+              )
+            , ( [aesonQQ|
+               { "transaction": { "witnesses": [] }
+               }|]
+               , "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object"
+              )
+            , ( [aesonQQ|
+               { "transaction": "cafecafe"
+               }|]
+               , "Error in $.transaction: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'"
               )
             ]
 
