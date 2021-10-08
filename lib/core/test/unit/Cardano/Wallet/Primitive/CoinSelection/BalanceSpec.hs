@@ -917,7 +917,7 @@ prop_performSelection mockConstraints params coverage =
         BalanceInsufficient e ->
             onBalanceInsufficient e
         SelectionLimitReached e ->
-            onSelectionLimitReached e
+            stop $ onSelectionLimitReached e
         InsufficientMinCoinValues es ->
             stop $ onInsufficientMinCoinValues es
         UnableToConstructChange e ->
@@ -952,26 +952,24 @@ prop_performSelection mockConstraints params coverage =
             assertWith . (<>) "onBalanceInsufficient: "
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
-    onSelectionLimitReached :: SelectionLimitReachedError -> PropertyM IO ()
-    onSelectionLimitReached e = do
-        monitor $ counterexample $ unlines
-            [ "required balance:"
-            , pretty (Flat errorBalanceRequired)
-            , "selected balance:"
-            , pretty (Flat errorBalanceSelected)
-            ]
-        assertOnSelectionLimitReached
-            "selectionLimit <= MaximumInputLimit (length errorInputsSelected)"
+    onSelectionLimitReached :: SelectionLimitReachedError -> Property
+    onSelectionLimitReached e =
+        counterexample "onSelectionLimitReached" $
+        report errorBalanceRequired
+            "required balance" $
+        report errorBalanceSelected
+            "selected balance" $
+        verify
             (selectionLimit <= MaximumInputLimit (length errorInputsSelected))
-        assertOnSelectionLimitReached
-            "utxoBalanceRequired == errorBalanceRequired"
+            "selectionLimit <= MaximumInputLimit (length errorInputsSelected)" $
+        verify
             (utxoBalanceRequired == errorBalanceRequired)
-        assertOnSelectionLimitReached
-          "view #utxoAvailable params /= UTxOSelection.empty"
-          (view #utxoAvailable params /= UTxOSelection.empty)
+            "utxoBalanceRequired == errorBalanceRequired" $
+        verify
+            (view #utxoAvailable params /= UTxOSelection.empty)
+            "view #utxoAvailable params /= UTxOSelection.empty" $
+        property True
       where
-        assertOnSelectionLimitReached =
-            assertWith . (<>) "onSelectionLimitReached: "
         SelectionLimitReachedError
             errorBalanceRequired errorInputsSelected = e
         errorBalanceSelected =
