@@ -366,7 +366,10 @@ import Cardano.Wallet.Primitive.CoinSelection
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( UnableToConstructChangeError (..), balanceMissing )
+    ( SelectionSkeleton (..)
+    , UnableToConstructChangeError (..)
+    , balanceMissing
+    )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )
 import Cardano.Wallet.Primitive.Migration
@@ -400,6 +403,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( Block
     , BlockHeader (..)
+    , FeePolicy (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
@@ -414,7 +418,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinQuantity, sumCoins )
+    ( Coin (..), coinQuantity, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -580,6 +584,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
 
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
@@ -2256,7 +2261,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                         SelectionCollateralRequired
                     else
                         SelectionCollateralNotRequired
-                }
+                } & padFeeEstimation partialTx pp nodePParams
 
         -- FIXME: The coin selection and reported fees will likely be wrong in
         -- the presence of certificates (and deposits / refunds). An immediate
@@ -2339,6 +2344,38 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 )
                 (sumCoins wdrlMap)
          in (outs, wdrl, meta, fromMaybe (Coin 0) fee)
+
+    -- | Wallet coin selection is unaware of many kinds of transaction content
+    -- (e.g. datums, redeemers), which could be included in the input to
+    -- `balanceTransaction`. As a workaround we add some padding using
+    -- `evaluateMinimumFee`.
+    --
+    -- TODO: This logic needs to be consistent with how we call `selectAssets`,
+    -- so it would be good to join them into some single helper.
+    padFeeEstimation
+        :: W.SealedTx
+        -> W.ProtocolParameters
+        -> Cardano.ProtocolParameters
+        -> TransactionCtx
+        -> TransactionCtx
+    padFeeEstimation sealedTx pp pp' txCtx =
+        let
+            walletTx = decodeTx tl sealedTx
+            worseEstimate = calcMinimumCost tl pp txCtx skeleton
+            skeleton = SelectionSkeleton
+                { skeletonInputCount = length (view #resolvedInputs walletTx)
+                , skeletonOutputs = view #outputs walletTx
+                , skeletonChange = mempty
+                }
+            LinearFee _ (Quantity b) = pp ^. #txParameters . #getFeePolicy
+            -- NOTE: Coping with the later additions of script integrity hash and
+            -- redeemers ex units increased from 0 to their actual values.
+            extraMargin = Coin $ ceiling (100 * b)
+            txFeePadding = (<> extraMargin) $ fromMaybe (Coin 0) $ do
+                betterEstimate <- evaluateMinimumFee tl pp' sealedTx
+                betterEstimate `subtractCoin` worseEstimate
+        in
+            txCtx { txFeePadding }
 
 joinStakePool
     :: forall ctx s n k.

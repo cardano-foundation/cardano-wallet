@@ -497,7 +497,8 @@ newTransactionLayer networkId = TransactionLayer
 
     , calcMinimumCost = \pp ctx skeleton ->
         estimateTxCost pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
-        <> feePadding ctx
+        <>
+        txFeePadding ctx
 
     , maxScriptExecutionCost =
        _maxScriptExecutionCost
