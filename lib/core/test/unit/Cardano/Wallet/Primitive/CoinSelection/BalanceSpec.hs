@@ -223,7 +223,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( liftShrink4, liftShrink6 )
+    ( liftShrink4, liftShrink6, report, verify )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -699,7 +699,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
     cover 2 (not allMintedAssetsEitherBurnedOrSpent)
         "Some minted assets were neither spent nor burned" $
 
-    prop_performSelection mockConstraints (Blind params) $ \result ->
+    prop_performSelection mockConstraints params $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
         . cover 2 (selectionLimited && selectionSufficient result)
@@ -796,7 +796,7 @@ prop_performSelection_large mockConstraints (Blind (Large params)) =
     checkCoverage $
     cover 50 (isUTxOBalanceSufficient params)
         "UTxO balance sufficient" $
-    prop_performSelection mockConstraints (Blind params) (const id)
+    prop_performSelection mockConstraints params (const id)
 
 prop_performSelection_huge :: Property
 prop_performSelection_huge = ioProperty $
@@ -813,33 +813,31 @@ prop_performSelection_huge_inner
     -> Property
 prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
     withMaxSuccess 5 $
-    prop_performSelection mockConstraints (Blind params') (const id)
+    prop_performSelection mockConstraints params' (const id)
   where
     params' = params & set #utxoAvailable
         (UTxOSelection.fromIndex utxoAvailable)
 
 prop_performSelection
     :: MockSelectionConstraints
-    -> Blind SelectionParams
+    -> SelectionParams
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
-prop_performSelection mockConstraints (Blind params) coverage =
+prop_performSelection mockConstraints params coverage =
+    report extraCoinSource
+        "extraCoinSource" $
+    report extraCoinSink
+        "extraCoinSink" $
+    report selectionLimit
+        "selectionLimit" $
+    report assetsToMint
+        "assetsToMint" $
+    report assetsToBurn
+        "assetsToBurn" $
     monadicIO $ do
-        monitor $ counterexample $ unlines
-            [ "extraCoinSource:"
-            , show extraCoinSource
-            , "extraCoinSink:"
-            , show extraCoinSink
-            , "selectionLimit:"
-            , show selectionLimit
-            , "assetsToMint:"
-            , pretty (Flat assetsToMint)
-            , "assetsToBurn:"
-            , pretty (Flat assetsToBurn)
-            ]
         result <- run $ performSelection constraints params
         monitor (coverage result)
-        either onFailure onSuccess result
+        pure $ either onFailure onSuccess result
   where
     constraints :: SelectionConstraints
     constraints = unMockSelectionConstraints mockConstraints
@@ -852,57 +850,63 @@ prop_performSelection mockConstraints (Blind params) coverage =
         , assetsToBurn
         } = params
 
-    onSuccess result = do
-        monitor $ counterexample $ unlines
-            [ "available UTXO balance:"
-            , pretty (Flat utxoBalanceAvailable)
-            , "required UTXO balance:"
-            , pretty (Flat utxoBalanceRequired)
-            , "change balance:"
-            , pretty (Flat $ F.fold $ view #changeGenerated result)
-            , "actual delta:"
-            , pretty (Flat <$> selectionDeltaAllAssets result)
-            , "minimum cost:"
-            , pretty (selectionMinimumCost constraints result)
-            , "number of outputs:"
-            , pretty (length $ view #outputsCovered result)
-            , "number of change outputs:"
-            , pretty (length $ view #changeGenerated result)
-            ]
-        assertOnSuccess
-            "isUTxOBalanceSufficient params"
+    onSuccess :: SelectionResultOf [TxOut] -> Property
+    onSuccess result =
+        counterexample "onSuccess" $
+        report
+            (utxoBalanceAvailable)
+            "available UTXO balance" $
+        report
+            (utxoBalanceRequired)
+            "required UTXO balance" $
+        report
+            (F.fold $ view #changeGenerated result)
+            "change balance" $
+        report
+            (selectionDeltaAllAssets result)
+            "actual delta" $
+        report
+            (selectionMinimumCost constraints result)
+            "minimum cost" $
+        report
+            (length $ view #outputsCovered result)
+            "number of outputs" $
+        report
+            (length $ view #changeGenerated result)
+            "number of change outputs" $
+        verify
             (isUTxOBalanceSufficient params)
-        assertOnSuccess
-            "selectionHasValidSurplus constraints result"
+            "isUTxOBalanceSufficient params" $
+        verify
             (selectionHasValidSurplus constraints result)
-        assertOnSuccess
-            "initialSelectionIsSubsetOfFinalSelection"
+            "selectionHasValidSurplus constraints result" $
+        verify
             (initialSelectionIsSubsetOfFinalSelection)
-        assertOnSuccess
-            "view #outputsCovered result == view #outputsToCover params"
+            "initialSelectionIsSubsetOfFinalSelection" $
+        verify
             (view #outputsCovered result == view #outputsToCover params)
-        assertOnSuccess
-            "view #assetsToMint result == view #assetsToMint params"
+            "view #outputsCovered result == view #outputsToCover params" $
+        verify
             (view #assetsToMint result == view #assetsToMint params)
-        assertOnSuccess
-            "view #assetsToBurn result == view #assetsToBurn params"
+            "view #assetsToMint result == view #assetsToMint params" $
+        verify
             (view #assetsToBurn result == view #assetsToBurn params)
-        assertOnSuccess
-            "view #extraCoinSource result == view #extraCoinSource params"
+            "view #assetsToBurn result == view #assetsToBurn params" $
+        verify
             (view #extraCoinSource result == view #extraCoinSource params)
-        assertOnSuccess
-            "view #extraCoinSink result == view #extraCoinSink params"
+            "view #extraCoinSource result == view #extraCoinSource params" $
+        verify
             (view #extraCoinSink result == view #extraCoinSink params)
+            "view #extraCoinSink result == view #extraCoinSink params" $
         case selectionLimit of
             MaximumInputLimit limit ->
-                assertOnSuccess
-                    "NE.length (view #inputsSelected result) <= limit"
+                verify
                     (NE.length (view #inputsSelected result) <= limit)
+                    "NE.length (view #inputsSelected result) <= limit" $
+                    property True
             NoLimit ->
-                assert True
+                property True
       where
-        assertOnSuccess = assertWith . (<>) "onSuccess: "
-
         initialSelectionIsSubsetOfFinalSelection :: Bool
         initialSelectionIsSubsetOfFinalSelection =
             view #utxoAvailable params
@@ -911,6 +915,7 @@ prop_performSelection mockConstraints (Blind params) coverage =
                 (view #inputsSelected result <&> fst)
                 (view #utxoAvailable params)
 
+    onFailure :: SelectionError -> Property
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
@@ -923,78 +928,78 @@ prop_performSelection mockConstraints (Blind params) coverage =
         EmptyUTxO ->
             onEmptyUTxO
 
-    onBalanceInsufficient e = do
-        monitor $ counterexample $ unlines
-            [ "available balance:"
-            , pretty (Flat utxoBalanceAvailable)
-            , "required balance:"
-            , pretty (Flat utxoBalanceRequired)
-            , "missing balance:"
-            , pretty (Flat $ balanceMissing e)
-            ]
-        assertOnBalanceInsufficient
-            "not $ isUTxOBalanceSufficient params"
+    onBalanceInsufficient :: BalanceInsufficientError -> Property
+    onBalanceInsufficient e =
+        counterexample "onBalanceInsufficient" $
+        report utxoBalanceAvailable
+            "available balance" $
+        report utxoBalanceRequired
+            "required balance" $
+        report (balanceMissing e)
+            "missing balance" $
+        verify
             (not $ isUTxOBalanceSufficient params)
-        assertOnBalanceInsufficient
-            "utxoBalanceAvailable == errorBalanceAvailable"
+            "not $ isUTxOBalanceSufficient params" $
+        verify
             (utxoBalanceAvailable == errorBalanceAvailable)
-        assertOnBalanceInsufficient
-            "utxoBalanceRequired == errorBalanceRequired"
+            "utxoBalanceAvailable == errorBalanceAvailable" $
+        verify
             (utxoBalanceRequired == errorBalanceRequired)
-        assertOnBalanceInsufficient
-            "balanceMissing e == view #difference utxoBalanceSufficiencyInfo"
+            "utxoBalanceRequired == errorBalanceRequired" $
+        verify
             (balanceMissing e == view #difference utxoBalanceSufficiencyInfo)
+            "balanceMissing e == view #difference utxoBalanceSufficiencyInfo" $
+        property True
       where
-        assertOnBalanceInsufficient =
-            assertWith . (<>) "onBalanceInsufficient: "
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
-    onSelectionLimitReached e = do
-        monitor $ counterexample $ unlines
-            [ "required balance:"
-            , pretty (Flat errorBalanceRequired)
-            , "selected balance:"
-            , pretty (Flat errorBalanceSelected)
-            ]
-        assertOnSelectionLimitReached
-            "selectionLimit <= MaximumInputLimit (length errorInputsSelected)"
+    onSelectionLimitReached :: SelectionLimitReachedError -> Property
+    onSelectionLimitReached e =
+        counterexample "onSelectionLimitReached" $
+        report errorBalanceRequired
+            "required balance" $
+        report errorBalanceSelected
+            "selected balance" $
+        verify
             (selectionLimit <= MaximumInputLimit (length errorInputsSelected))
-        assertOnSelectionLimitReached
-            "utxoBalanceRequired == errorBalanceRequired"
+            "selectionLimit <= MaximumInputLimit (length errorInputsSelected)" $
+        verify
             (utxoBalanceRequired == errorBalanceRequired)
-        assertOnSelectionLimitReached
-          "view #utxoAvailable params /= UTxOSelection.empty"
-          (view #utxoAvailable params /= UTxOSelection.empty)
+            "utxoBalanceRequired == errorBalanceRequired" $
+        verify
+            (view #utxoAvailable params /= UTxOSelection.empty)
+            "view #utxoAvailable params /= UTxOSelection.empty" $
+        property True
       where
-        assertOnSelectionLimitReached =
-            assertWith . (<>) "onSelectionLimitReached: "
         SelectionLimitReachedError
             errorBalanceRequired errorInputsSelected = e
         errorBalanceSelected =
             F.foldMap (view #tokens . snd) errorInputsSelected
 
-    onInsufficientMinCoinValues es = do
-        monitor $ counterexample $ unlines
-            [ show es
-            , "expected / actual:"
-            , show $ NE.zip
-                (expectedMinCoinValue <$> es)
-                (actualMinCoinValue <$> es)
-            ]
-        assertOnInsufficientMinCoinValues
-            "all (λe -> expectedMinCoinValue e > actualMinCoinValue e) es"
+    onInsufficientMinCoinValues
+        :: NonEmpty InsufficientMinCoinValueError -> Property
+    onInsufficientMinCoinValues es =
+        counterexample "onInsufficientMinCoinValues" $
+        report es
+            "error values" $
+        report
+            (NE.zip (expectedMinCoinValue <$> es) (actualMinCoinValue <$> es))
+            "(expected, actual) pairs" $
+        verify
             (all (\e -> expectedMinCoinValue e > actualMinCoinValue e) es)
+            "all (λe -> expectedMinCoinValue e > actualMinCoinValue e) es" $
+        property True
       where
-        assertOnInsufficientMinCoinValues =
-            assertWith . (<>) "onInsufficientMinCoinValues: "
         actualMinCoinValue
             = txOutCoin . outputWithInsufficientAda
 
-    onUnableToConstructChange e = do
-        monitor $ counterexample $ show e
-        assertOnUnableToConstructChange
-            "shortfall e > Coin 0"
+    onUnableToConstructChange :: UnableToConstructChangeError -> Property
+    onUnableToConstructChange e =
+        counterexample "onUnableToConstructChange" $
+        counterexample (show e) $
+        verify
             (shortfall e > Coin 0)
+            "shortfall e > Coin 0" $
         let constraints' = SelectionConstraints
                 { assessTokenBundleSize = unMockAssessTokenBundleSize
                     MockAssessTokenBundleSizeUnlimited
@@ -1002,8 +1007,9 @@ prop_performSelection mockConstraints (Blind params) coverage =
                 , computeMinimumCost = computeMinimumCostZero
                 , computeSelectionLimit = const NoLimit
                 }
-        let performSelection' = performSelection constraints' params
-        run performSelection' >>= \case
+            performSelection' = performSelection constraints' params
+        in
+        monadicIO $ run performSelection' >>= \case
             Left e' -> do
                 monitor $ counterexample $ unlines
                     [ "Failed to re-run selection with no cost!"
@@ -1012,13 +1018,14 @@ prop_performSelection mockConstraints (Blind params) coverage =
                 assert False
             Right{} -> do
                 assert True
-      where
-        assertOnUnableToConstructChange =
-            assertWith . (<>) "onUnableToConstructChange: "
 
-    onEmptyUTxO = assertWith
-        "view #utxoAvailable params == UTxOSelection.empty"
-        (view #utxoAvailable params == UTxOSelection.empty)
+    onEmptyUTxO :: Property
+    onEmptyUTxO =
+        counterexample "onEmptyUTxO" $
+        verify
+            (view #utxoAvailable params == UTxOSelection.empty)
+            "view #utxoAvailable params == UTxOSelection.empty" $
+        property True
 
     selectionLimit = view #computeSelectionLimit constraints $
         F.toList outputsToCover
@@ -1097,18 +1104,19 @@ prop_performSelectionEmpty mockConstraints (Small params) =
     constraints = unMockSelectionConstraints mockConstraints
 
     paramsTransformed :: SelectionParamsOf (NonEmpty TxOut)
-    paramsTransformed = view #paramsTransformed report
+    paramsTransformed = view #paramsTransformed transformationReport
 
     result :: SelectionResultOf (NonEmpty TxOut)
-    result = expectRight $ view #result report
+    result = expectRight $ view #result transformationReport
 
     resultTransformed :: SelectionResultOf [TxOut]
-    resultTransformed = expectRight $ view #resultTransformed report
+    resultTransformed =
+        expectRight $ view #resultTransformed transformationReport
 
     -- Provides a report of how 'performSelectionEmpty' has transformed
     -- both the parameters and result of 'mockPerformSelectionNonEmpty'.
     --
-    report = performSelectionEmpty f constraints params
+    transformationReport = performSelectionEmpty f constraints params
       where
         f constraints' params' = withTransformationReport params'
             $ runIdentity
