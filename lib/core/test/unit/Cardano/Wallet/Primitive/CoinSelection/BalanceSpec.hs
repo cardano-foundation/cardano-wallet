@@ -1104,18 +1104,19 @@ prop_performSelectionEmpty mockConstraints (Small params) =
     constraints = unMockSelectionConstraints mockConstraints
 
     paramsTransformed :: SelectionParamsOf (NonEmpty TxOut)
-    paramsTransformed = view #paramsTransformed report
+    paramsTransformed = view #paramsTransformed transformationReport
 
     result :: SelectionResultOf (NonEmpty TxOut)
-    result = expectRight $ view #result report
+    result = expectRight $ view #result transformationReport
 
     resultTransformed :: SelectionResultOf [TxOut]
-    resultTransformed = expectRight $ view #resultTransformed report
+    resultTransformed =
+        expectRight $ view #resultTransformed transformationReport
 
     -- Provides a report of how 'performSelectionEmpty' has transformed
     -- both the parameters and result of 'mockPerformSelectionNonEmpty'.
     --
-    report = performSelectionEmpty f constraints params
+    transformationReport = performSelectionEmpty f constraints params
       where
         f constraints' params' = withTransformationReport params'
             $ runIdentity
