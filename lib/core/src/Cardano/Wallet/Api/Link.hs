@@ -83,6 +83,7 @@ module Cardano.Wallet.Api.Link
     , createUnsignedTransaction
     , signTransaction
     , balanceTransaction
+    , submitTransaction
 
       -- * StakePools
     , listStakePools
@@ -676,6 +677,21 @@ balanceTransaction
     -> (Method, Text)
 balanceTransaction w = discriminate @style
     (endpoint @(Api.BalanceTransaction Net) (wid &))
+    (notSupported "Byron")
+    (notSupported "Shared")
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+submitTransaction
+    :: forall style w.
+        ( HasCallStack
+        , HasType (ApiT WalletId) w
+        , Discriminate style
+        )
+    => w
+    -> (Method, Text)
+submitTransaction w = discriminate @style
+    (endpoint @Api.SubmitTransaction (wid &))
     (notSupported "Byron")
     (notSupported "Shared")
   where
