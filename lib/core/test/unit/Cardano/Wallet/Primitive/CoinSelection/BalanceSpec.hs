@@ -921,7 +921,7 @@ prop_performSelection mockConstraints params coverage =
         InsufficientMinCoinValues es ->
             onInsufficientMinCoinValues es
         UnableToConstructChange e ->
-            onUnableToConstructChange e
+            stop $ onUnableToConstructChange e
         EmptyUTxO ->
             stop onEmptyUTxO
 
@@ -996,12 +996,13 @@ prop_performSelection mockConstraints params coverage =
         actualMinCoinValue
             = txOutCoin . outputWithInsufficientAda
 
-    onUnableToConstructChange :: UnableToConstructChangeError -> PropertyM IO ()
-    onUnableToConstructChange e = do
-        monitor $ counterexample $ show e
-        assertOnUnableToConstructChange
-            "shortfall e > Coin 0"
+    onUnableToConstructChange :: UnableToConstructChangeError -> Property
+    onUnableToConstructChange e =
+        counterexample "onUnableToConstructChange" $
+        counterexample (show e) $
+        verify
             (shortfall e > Coin 0)
+            "shortfall e > Coin 0" $
         let constraints' = SelectionConstraints
                 { assessTokenBundleSize = unMockAssessTokenBundleSize
                     MockAssessTokenBundleSizeUnlimited
@@ -1009,8 +1010,9 @@ prop_performSelection mockConstraints params coverage =
                 , computeMinimumCost = computeMinimumCostZero
                 , computeSelectionLimit = const NoLimit
                 }
-        let performSelection' = performSelection constraints' params
-        run performSelection' >>= \case
+            performSelection' = performSelection constraints' params
+        in
+        monadicIO $ run performSelection' >>= \case
             Left e' -> do
                 monitor $ counterexample $ unlines
                     [ "Failed to re-run selection with no cost!"
@@ -1019,9 +1021,6 @@ prop_performSelection mockConstraints params coverage =
                 assert False
             Right{} -> do
                 assert True
-      where
-        assertOnUnableToConstructChange =
-            assertWith . (<>) "onUnableToConstructChange: "
 
     onEmptyUTxO :: Property
     onEmptyUTxO =
