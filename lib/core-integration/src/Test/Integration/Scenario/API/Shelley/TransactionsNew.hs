@@ -1087,15 +1087,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \f02bfa270a3c560c4e55cf8312331b00000017484721ca021a0001ffb80319\
                 \8d280e80a0f5f6" :: Text
         let balancePayload = Json [json|{
-              "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
+              "transaction": #{serializedTx},
+              "redeemers": [],
               "inputs": [
-                  { "txIn" : "0eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648#13"
-                  , "txOut" :
-                      { "value" : { "lovelace": #{inpAmt} }
-                      , "address": "addr1vxtlefx3dd5ga5d3cqcfycxsc5tv20txpx7qlmlt2kwnfds2mywcr"
+                  { "id" : "0eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648"
+                  , "index": 13
+                  , "address": "addr1vxtlefx3dd5ga5d3cqcfycxsc5tv20txpx7qlmlt2kwnfds2mywcr"
+                  , "amount":
+                      { "quantity": #{inpAmt}
+                      , "unit": "lovelace"
                       }
-                  }]
-          }|]
+                  , "assets": []
+                  }
+              ]
+            }|]
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
         verify rTx
@@ -1111,15 +1116,19 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWalletWith @n ctx [initialAmt]
 
         let balancePayload = Json [json|{
-              "transaction": { "cborHex" : #{serializedPlutusTx}, "description": "", "type": "Tx AlonzoEra" },
+              "transaction": #{serializedPlutusTx},
+              "redeemers": [],
               "inputs": [
-                  { "txIn" : "888963613d2bb4c5c55cee335f724624cbc54b185ecaa2fb1eb07545ed5db421#1"
-                  , "txOut" :
-                      { "value" : { "lovelace": 10 }
-                      , "data": "2cdb268baecefad822e5712f9e690e1787f186f5c84c343ffdc060b21f0241e0"
-                      , "address": "addr1wygn2yjfcgmahn3d62f7wqylstqzlde34s6p0w4esnfzsyqwr2xhg"
+                  { "id" : "888963613d2bb4c5c55cee335f724624cbc54b185ecaa2fb1eb07545ed5db421"
+                  , "index": 1
+                  , "address": "addr1wygn2yjfcgmahn3d62f7wqylstqzlde34s6p0w4esnfzsyqwr2xhg"
+                  , "amount":
+                      { "quantity": 10
+                      , "unit": "lovelace"
                       }
-                  }]
+                  , "assets": []
+                  }
+              ]
           }|]
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.balanceTransaction @'Shelley wa) Default balancePayload

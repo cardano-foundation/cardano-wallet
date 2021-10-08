@@ -3262,17 +3262,6 @@ components:
         metadata: *transactionMetadata
         time_to_live: *transactionTTL
 
-    ApiTransactionExtended: &ApiTransactionExtended
-      type: object
-      required:
-        - cborHex
-        - description
-        - type
-      properties:
-        cborHex: *serialisedTransactionHex
-        description: *txDescription
-        type: *txType
-
     ApiExternalInput: &ApiExternalInput
       type: object
       required:
@@ -3287,14 +3276,135 @@ components:
       type: array
       items: *ApiExternalInput
 
+    ApiRedeemerSpending: &ApiRedeemerSpending
+      type: object
+      required:
+        - purpose
+        - data
+        - input
+      properties:
+        purpose:
+          type: string
+          enum: ["spending"]
+        data:
+          type: string
+          format: base16
+        input:
+          type: object
+          required:
+            - id
+            - index
+          properties:
+            id: *transactionId
+            index:
+              type: integer
+              minimum: 0
+
+    ApiRedeemerMinting: &ApiRedeemerMinting
+      type: object
+      required:
+        - purpose
+        - data
+        - policy_id
+      properties:
+        purpose:
+          type: string
+          enum: ["minting"]
+        data:
+          type: string
+          format: base16
+        policy_id:
+          type: string
+          format: hex
+          maxLength: 56
+
+    ApiRedeemerRewarding: &ApiRedeemerRewarding
+      type: object
+      required:
+        - purpose
+        - data
+        - stake_address
+      properties:
+        purpose:
+          type: string
+          enum: ["rewarding"]
+        data:
+          type: string
+          format: base16
+        stake_address: *stakeAddress
+
+    ApiRedeemerCertifying: &ApiRedeemerCertifying
+      type: object
+      required:
+        - purpose
+        - data
+        - certificate
+      properties:
+        purpose:
+          type: string
+          enum: ["certifying"]
+        data:
+          type: string
+          format: base16
+        certificate:
+          type: object
+          required:
+            - delegator
+            - delegate
+            - epoch_number
+            - signature
+          properties:
+            delegator: *credentialPubKey
+            delegate: *credentialPubKey
+            epoch_number: *epochNumber
+            signature:
+              description: A signature of the epoch_number and delegator key.
+              type: string
+              format: base16
+
+    ApiRedeemer: &ApiRedeemer
+      oneOf:
+        - title: spending
+          <<: *ApiRedeemerSpending
+
+        - title: minting
+          <<: *ApiRedeemerMinting
+
+        - title: rewarding
+          <<: *ApiRedeemerRewarding
+
+        - title: certifying
+          <<: *ApiRedeemerCertifying
+
     ApiBalanceTransactionPostData: &ApiBalanceTransactionPostData
       type: object
       required:
         - transaction
-        - inputs
       properties:
-        transaction: *ApiTransactionExtended
-        inputs: *ApiExternalInputs
+        transaction: *serialisedTransactionEncoded
+        inputs:
+            description: A list of additional transaction inputs foreign to the wallet.
+            type: array
+            items:
+              type: object
+              required:
+                - id
+                - index
+                - address
+                - amount
+              properties:
+                id: *transactionId
+                index:
+                  type: integer
+                  minimum: 0
+                address: *addressId
+                amount: *amount
+                assets: *walletAssets
+        redeemers:
+            description: A list of redeemers data with their purpose.
+            type: array
+            items: *ApiRedeemer
+
 
 #############################################################################
 #                                                                           #

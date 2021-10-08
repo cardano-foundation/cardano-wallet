@@ -318,6 +318,7 @@ serveWallet
             , DecodeAddress n
             , EncodeAddress n
             , EncodeStakeAddress n
+            , DecodeStakeAddress n
             , Typeable n
             , HasNetworkId n
             )

@@ -244,10 +244,8 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxCollateral (..)
     , ApiTxId (..)
-    , ApiTxIn (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
-    , ApiTxOut (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
@@ -2287,9 +2285,9 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     -- FIXME:
     -- The resulting coin-selection view is currently missing many pieces:
     --
-    -- * deposits
-    -- * delegation actions
-    -- * withdrawals
+    -- - deposits
+    -- - delegation actions
+    -- - withdrawals
     --
     -- Fees are also likely wrong. All in all, this 'coin_selection' should not
     -- exists.
@@ -2321,11 +2319,8 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
 
-    toTxInTxOut
-      (ApiExternalInput (ApiTxIn (ApiT hashTx) ix)
-      (ApiTxOut (ApiT addr, _) _ (Quantity amt) (ApiT assets)))
-      =
-      ( TxIn hashTx ix
+    toTxInTxOut (ApiExternalInput (ApiT tid) ix (ApiT addr, _) (Quantity amt) (ApiT assets)) =
+      ( TxIn tid ix
       , TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
       )
 
