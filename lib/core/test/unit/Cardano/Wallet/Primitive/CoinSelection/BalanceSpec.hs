@@ -915,7 +915,7 @@ prop_performSelection mockConstraints params coverage =
     onFailure :: SelectionError -> PropertyM IO ()
     onFailure = \case
         BalanceInsufficient e ->
-            onBalanceInsufficient e
+            stop $ onBalanceInsufficient e
         SelectionLimitReached e ->
             stop $ onSelectionLimitReached e
         InsufficientMinCoinValues es ->
@@ -925,31 +925,29 @@ prop_performSelection mockConstraints params coverage =
         EmptyUTxO ->
             stop onEmptyUTxO
 
-    onBalanceInsufficient :: BalanceInsufficientError -> PropertyM IO ()
-    onBalanceInsufficient e = do
-        monitor $ counterexample $ unlines
-            [ "available balance:"
-            , pretty (Flat utxoBalanceAvailable)
-            , "required balance:"
-            , pretty (Flat utxoBalanceRequired)
-            , "missing balance:"
-            , pretty (Flat $ balanceMissing e)
-            ]
-        assertOnBalanceInsufficient
-            "not $ isUTxOBalanceSufficient params"
+    onBalanceInsufficient :: BalanceInsufficientError -> Property
+    onBalanceInsufficient e =
+        counterexample "onBalanceInsufficient" $
+        report utxoBalanceAvailable
+            "available balance" $
+        report utxoBalanceRequired
+            "required balance" $
+        report (balanceMissing e)
+            "missing balance" $
+        verify
             (not $ isUTxOBalanceSufficient params)
-        assertOnBalanceInsufficient
-            "utxoBalanceAvailable == errorBalanceAvailable"
+            "not $ isUTxOBalanceSufficient params" $
+        verify
             (utxoBalanceAvailable == errorBalanceAvailable)
-        assertOnBalanceInsufficient
-            "utxoBalanceRequired == errorBalanceRequired"
+            "utxoBalanceAvailable == errorBalanceAvailable" $
+        verify
             (utxoBalanceRequired == errorBalanceRequired)
-        assertOnBalanceInsufficient
-            "balanceMissing e == view #difference utxoBalanceSufficiencyInfo"
+            "utxoBalanceRequired == errorBalanceRequired" $
+        verify
             (balanceMissing e == view #difference utxoBalanceSufficiencyInfo)
+            "balanceMissing e == view #difference utxoBalanceSufficiencyInfo" $
+        property True
       where
-        assertOnBalanceInsufficient =
-            assertWith . (<>) "onBalanceInsufficient: "
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
     onSelectionLimitReached :: SelectionLimitReachedError -> Property
