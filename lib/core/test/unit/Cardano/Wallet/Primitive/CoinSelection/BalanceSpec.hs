@@ -223,9 +223,9 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( liftShrink4, liftShrink6 )
+    ( liftShrink4, liftShrink6, verify )
 import Test.QuickCheck.Monadic
-    ( PropertyM (..), assert, monadicIO, monitor, run )
+    ( PropertyM (..), assert, monadicIO, monitor, run, stop )
 import Test.Utils.Laws
     ( testLawsMany )
 
@@ -923,7 +923,7 @@ prop_performSelection mockConstraints params coverage =
         UnableToConstructChange e ->
             onUnableToConstructChange e
         EmptyUTxO ->
-            onEmptyUTxO
+            stop onEmptyUTxO
 
     onBalanceInsufficient :: BalanceInsufficientError -> PropertyM IO ()
     onBalanceInsufficient e = do
@@ -1023,10 +1023,13 @@ prop_performSelection mockConstraints params coverage =
         assertOnUnableToConstructChange =
             assertWith . (<>) "onUnableToConstructChange: "
 
-    onEmptyUTxO :: PropertyM IO ()
-    onEmptyUTxO = assertWith
-        "view #utxoAvailable params == UTxOSelection.empty"
-        (view #utxoAvailable params == UTxOSelection.empty)
+    onEmptyUTxO :: Property
+    onEmptyUTxO =
+        counterexample "onEmptyUTxO" $
+        verify
+            (view #utxoAvailable params == UTxOSelection.empty)
+            "view #utxoAvailable params == UTxOSelection.empty" $
+        property True
 
     selectionLimit = view #computeSelectionLimit constraints $
         F.toList outputsToCover
