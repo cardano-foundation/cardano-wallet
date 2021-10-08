@@ -320,6 +320,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
     it "TRANS_NEW_CREATE_03b - Withdrawal from external wallet" $ \ctx -> runResourceT $ do
+
+        liftIO $ pendingWith "ADP-1189: Issues with withdrawals from external wallets"
+
         (wr, mw) <- rewardWallet ctx
         wa <- fixtureWallet ctx
         let withdrawal = Json [json|{ "withdrawal": #{mnemonicToText mw} }|]
@@ -847,6 +850,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_CREATE_MULTI_TX - Tx including payments, delegation, metadata, withdrawals, validity_interval" $ \ctx -> runResourceT $ do
+
+        liftIO $ pendingWith "ADP-1189: Delegation certificates are not inserted"
 
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
