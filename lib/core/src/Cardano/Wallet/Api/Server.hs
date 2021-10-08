@@ -357,7 +357,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , validateScriptTemplates
     )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionError (..)
+    ( SelectionCollateralRequirement (..)
+    , SelectionError (..)
     , SelectionOf (..)
     , SelectionOutputInvalidError (..)
     , SelectionOutputSizeExceedsLimitError (..)
@@ -2250,6 +2251,11 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 { txPlutusScriptExecutionCost
                 , txMetadata
                 , txWithdrawal
+                , txCollateralRequirement =
+                    if txPlutusScriptExecutionCost > Coin 0 then
+                        SelectionCollateralRequired
+                    else
+                        SelectionCollateralNotRequired
                 }
 
         -- FIXME: The coin selection and reported fees will likely be wrong in
