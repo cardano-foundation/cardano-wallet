@@ -110,6 +110,8 @@ module Test.Integration.Framework.DSL
     , selectCoins
     , selectCoinsWith
     , listAddresses
+    , signTx
+    , submitTx
     , getWallet
     , listTransactions
     , listAllTransactions
@@ -232,6 +234,7 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet
     , ApiCoinSelection
+    , ApiConstructTransaction (transaction)
     , ApiEpochInfo
     , ApiEra (..)
     , ApiFee
@@ -239,6 +242,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiSharedWallet (..)
+    , ApiSignedTransaction
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -309,7 +313,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..), TxStatus (..) )
+    ( SealedTx (..), TxIn (..), TxOut (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( HistogramBar (..)
     , UTxO (..)
@@ -2231,6 +2235,39 @@ listAddresses ctx w = do
     r <- request @[ApiAddress n] ctx link Default Empty
     expectResponseCode HTTP.status200 r
     return (getFromResponse id r)
+
+signTx
+    :: MonadUnliftIO m
+    => Context
+    -> ApiWallet
+    -> ApiConstructTransaction n
+    -> m (ApiT SealedTx)
+signTx ctx w apiTx = do
+    let sealedTx = transaction apiTx
+    let toSign = Json [aesonQQ|
+                           { "transaction": #{sealedTx}
+                           , "passphrase": #{fixturePassphrase}
+                           }|]
+    let signEndpoint = Link.signTransaction @'Shelley w
+    getFromResponse (#transaction) <$>
+        request @ApiSignedTransaction ctx signEndpoint Default toSign
+
+submitTx
+    :: MonadUnliftIO m
+    => Context
+    -> ApiT SealedTx
+    -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
+    -> m (HTTP.Status, Either RequestException ApiTxId)
+submitTx ctx tx expectations = do
+    let bytes = serialisedTx $ getApiT tx
+    let submitEndpoint = Link.postExternalTransaction
+    let headers = Headers
+            [ ("Content-Type", "application/octet-stream")
+            , ("Accept", "application/json")
+            ]
+    r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
+    verify r expectations
+    pure r
 
 getWallet
     :: forall w m.

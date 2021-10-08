@@ -996,21 +996,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage "FeeTooSmallUTxO"
             ]
   where
-    submitTx
-        :: MonadUnliftIO m
-        => Context
-        -> ApiT SealedTx
-        -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
-        -> m ()
-    submitTx ctx tx expectations = do
-        let bytes = serialisedTx $ getApiT tx
-        let submitEndpoint = Link.postExternalTransaction
-        let headers = Headers
-                [ ("Content-Type", "application/octet-stream")
-                , ("Accept", "application/json")
-                ]
-        r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
-        verify r expectations
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
