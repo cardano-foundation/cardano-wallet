@@ -824,19 +824,17 @@ prop_performSelection
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
 prop_performSelection mockConstraints params coverage =
+    report extraCoinSource
+        "extraCoinSource" $
+    report extraCoinSink
+        "extraCoinSink" $
+    report selectionLimit
+        "selectionLimit" $
+    report assetsToMint
+        "assetsToMint" $
+    report assetsToBurn
+        "assetsToBurn" $
     monadicIO $ do
-        monitor $ counterexample $ unlines
-            [ "extraCoinSource:"
-            , show extraCoinSource
-            , "extraCoinSink:"
-            , show extraCoinSink
-            , "selectionLimit:"
-            , show selectionLimit
-            , "assetsToMint:"
-            , pretty (Flat assetsToMint)
-            , "assetsToBurn:"
-            , pretty (Flat assetsToBurn)
-            ]
         result <- run $ performSelection constraints params
         monitor (coverage result)
         pure $ either onFailure onSuccess result
