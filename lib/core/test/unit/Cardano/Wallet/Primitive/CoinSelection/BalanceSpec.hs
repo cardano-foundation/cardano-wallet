@@ -225,7 +225,7 @@ import Test.QuickCheck.Classes
 import Test.QuickCheck.Extra
     ( liftShrink4, liftShrink6, report, verify )
 import Test.QuickCheck.Monadic
-    ( PropertyM (..), assert, monadicIO, monitor, run, stop )
+    ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
     ( testLawsMany )
 
@@ -839,7 +839,7 @@ prop_performSelection mockConstraints params coverage =
             ]
         result <- run $ performSelection constraints params
         monitor (coverage result)
-        either (stop . onFailure) onSuccess result
+        pure $ either onFailure onSuccess result
   where
     constraints :: SelectionConstraints
     constraints = unMockSelectionConstraints mockConstraints
@@ -852,58 +852,63 @@ prop_performSelection mockConstraints params coverage =
         , assetsToBurn
         } = params
 
-    onSuccess :: SelectionResultOf [TxOut] -> PropertyM IO ()
-    onSuccess result = do
-        monitor $ counterexample $ unlines
-            [ "available UTXO balance:"
-            , pretty (Flat utxoBalanceAvailable)
-            , "required UTXO balance:"
-            , pretty (Flat utxoBalanceRequired)
-            , "change balance:"
-            , pretty (Flat $ F.fold $ view #changeGenerated result)
-            , "actual delta:"
-            , pretty (Flat <$> selectionDeltaAllAssets result)
-            , "minimum cost:"
-            , pretty (selectionMinimumCost constraints result)
-            , "number of outputs:"
-            , pretty (length $ view #outputsCovered result)
-            , "number of change outputs:"
-            , pretty (length $ view #changeGenerated result)
-            ]
-        assertOnSuccess
-            "isUTxOBalanceSufficient params"
+    onSuccess :: SelectionResultOf [TxOut] -> Property
+    onSuccess result =
+        counterexample "onSuccess" $
+        report
+            (utxoBalanceAvailable)
+            "available UTXO balance" $
+        report
+            (utxoBalanceRequired)
+            "required UTXO balance" $
+        report
+            (F.fold $ view #changeGenerated result)
+            "change balance" $
+        report
+            (selectionDeltaAllAssets result)
+            "actual delta" $
+        report
+            (selectionMinimumCost constraints result)
+            "minimum cost" $
+        report
+            (length $ view #outputsCovered result)
+            "number of outputs" $
+        report
+            (length $ view #changeGenerated result)
+            "number of change outputs" $
+        verify
             (isUTxOBalanceSufficient params)
-        assertOnSuccess
-            "selectionHasValidSurplus constraints result"
+            "isUTxOBalanceSufficient params" $
+        verify
             (selectionHasValidSurplus constraints result)
-        assertOnSuccess
-            "initialSelectionIsSubsetOfFinalSelection"
+            "selectionHasValidSurplus constraints result" $
+        verify
             (initialSelectionIsSubsetOfFinalSelection)
-        assertOnSuccess
-            "view #outputsCovered result == view #outputsToCover params"
+            "initialSelectionIsSubsetOfFinalSelection" $
+        verify
             (view #outputsCovered result == view #outputsToCover params)
-        assertOnSuccess
-            "view #assetsToMint result == view #assetsToMint params"
+            "view #outputsCovered result == view #outputsToCover params" $
+        verify
             (view #assetsToMint result == view #assetsToMint params)
-        assertOnSuccess
-            "view #assetsToBurn result == view #assetsToBurn params"
+            "view #assetsToMint result == view #assetsToMint params" $
+        verify
             (view #assetsToBurn result == view #assetsToBurn params)
-        assertOnSuccess
-            "view #extraCoinSource result == view #extraCoinSource params"
+            "view #assetsToBurn result == view #assetsToBurn params" $
+        verify
             (view #extraCoinSource result == view #extraCoinSource params)
-        assertOnSuccess
-            "view #extraCoinSink result == view #extraCoinSink params"
+            "view #extraCoinSource result == view #extraCoinSource params" $
+        verify
             (view #extraCoinSink result == view #extraCoinSink params)
+            "view #extraCoinSink result == view #extraCoinSink params" $
         case selectionLimit of
             MaximumInputLimit limit ->
-                assertOnSuccess
-                    "NE.length (view #inputsSelected result) <= limit"
+                verify
                     (NE.length (view #inputsSelected result) <= limit)
+                    "NE.length (view #inputsSelected result) <= limit" $
+                    property True
             NoLimit ->
-                assert True
+                property True
       where
-        assertOnSuccess = assertWith . (<>) "onSuccess: "
-
         initialSelectionIsSubsetOfFinalSelection :: Bool
         initialSelectionIsSubsetOfFinalSelection =
             view #utxoAvailable params
