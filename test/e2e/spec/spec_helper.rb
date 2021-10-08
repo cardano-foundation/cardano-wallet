@@ -1,6 +1,7 @@
 require "bundler/setup"
 require "cardano_wallet"
 require "base64"
+require "mustache"
 require_relative "../env"
 require_relative "../helpers/utils"
 require_relative "../helpers/matchers"
@@ -24,7 +25,7 @@ end
 
 ##
 # timeout in seconds for custom verifications
-TIMEOUT = 180
+TIMEOUT = 600
 
 ##
 # Intit cardano-wallet wrapper with timeout for getting the response back
@@ -309,4 +310,32 @@ def get_shelley_balances(wid)
    'assets_available' => assets_available,
    'assets_total' => assets_total
   }
+end
+
+##
+# Balance -> Sign -> Submit
+def balance_sign_submit(wid, payload)
+  tx_balanced = SHELLEY.transactions.balance(wid, payload)
+  expect(tx_balanced).to be_correct_and_respond 202
+
+  tx_signed = SHELLEY.transactions.sign(wid, PASS, tx_balanced['transaction'])
+  expect(tx_signed).to be_correct_and_respond 202
+
+  tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+  expect(tx_submitted).to be_correct_and_respond 202
+
+  [tx_balanced, tx_signed, tx_submitted]
+end
+
+def get_plutus_tx(file)
+  fixtures = "fixtures/plutus/"
+  File.join(fixtures, file)
+end
+
+def get_json(file)
+  JSON.parse(File.read(file))
+end
+
+def get_templated_json(file, tx_id)
+  JSON.parse(Mustache.render(File.read(file), transactionId: tx_id))
 end

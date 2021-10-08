@@ -3,7 +3,7 @@
 /state/
 
 # secrets
-/fixtures/*.json
+/fixtures/fixture_wallets.json
 
 # local environment variables
 /.envrc-local
