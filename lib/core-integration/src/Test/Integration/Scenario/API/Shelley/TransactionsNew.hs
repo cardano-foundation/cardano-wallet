@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -34,6 +35,7 @@ import Cardano.Wallet.Api.Types
     , ApiSignedTransaction
     , ApiStakePool
     , ApiT (..)
+    , ApiTransaction
     , ApiTxId
     , ApiWallet
     , DecodeAddress
@@ -48,7 +50,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), getSealedTxBody, sealedTxFromCardanoBody, serialisedTx )
+    ( SealedTx
+    , TxStatus (..)
+    , cardanoTx
+    , getSealedTxBody
+    , sealedTxFromCardanoBody
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic )
 import Control.Arrow
@@ -57,8 +64,14 @@ import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Function
+    ( (&) )
+import Data.Functor
+    ( void )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Generics.Sum
+    ( _Ctor )
 import Data.Maybe
     ( fromJust, isJust )
 import Data.Proxy
@@ -79,10 +92,12 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , RequestException
+    , RequestException (..)
     , arbitraryStake
     , arbitraryStake
+    , delegating
     , emptyWallet
+    , eventually
     , expectErrorMessage
     , expectField
     , expectResponseCode
@@ -99,6 +114,8 @@ import Test.Integration.Framework.DSL
     , pickAnAsset
     , request
     , rewardWallet
+    , signTx
+    , submitTx
     , unsafeRequest
     , verify
     )
@@ -111,6 +128,8 @@ import Test.Integration.Framework.TestData
     , errMsg403transactionAlreadyBalanced
     , errMsg404NoSuchPool
     )
+import UnliftIO.Exception
+    ( throwIO )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
@@ -118,7 +137,7 @@ import qualified Cardano.Ledger.Crypto as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
-import qualified Data.ByteString.Lazy as BL
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -184,15 +203,84 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
             , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
             ]
-        -- TODO: sign and submit tx,
-        --       check metadata presence on submitted tx,
-        --       make sure only fee is deducted from fixtureWallet
+
+        apiTx <- unsafeGetTx rTx
+
+        signedTx <- signTx ctx wa apiTx
+
+        -- Check for the presence of metadata on signed transaction
+        let
+            getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx
+                        & (\(Cardano.TxBody bodyContent) ->
+                               Cardano.txMetadata bodyContent
+                               & \case Cardano.TxMetadataNone ->
+                                           Nothing
+                                       Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                                           Just m
+                          )
+
+        case getMetadata (cardanoTx $ getApiT signedTx) of
+            Nothing -> error "Tx doesn't include metadata"
+            Just m  -> case Map.lookup 1 m of
+                Nothing -> error "Tx doesn't include metadata"
+                Just (Cardano.TxMetaText "hello") -> pure ()
+                Just _ -> error "Tx metadata incorrect"
+
+        -- Submit tx
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        -- Make sure only fee is deducted from fixtureWallet
+        eventually "Wallet balance is as expected" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
+                ]
+
+    it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        let initialBalance = wa ^. #balance . #available . #getQuantity
+        let withdrawal = Json [json|{ "withdrawal": "self" }|]
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default withdrawal
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
+            , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
+            ]
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+
+        apiTx <- unsafeGetTx rTx
+
+        signedTx <- signTx ctx wa apiTx
+
+        -- Submit tx
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        -- Make sure wallet balance is decreased by fee, since rewards = 0
+        eventually "Wallet balance is decreased by fee" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` initialBalance - fromIntegral expectedFee)
+                , expectField
+                        (#balance . #reward . #getQuantity)
+                        (`shouldBe` 0)
+                ]
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self" $ \ctx -> runResourceT $ do
         (wa, _) <- rewardWallet ctx
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
         let expectedFee = 139500
-        -- let withdrawalAmt = 1000000000000
+        let withdrawalAmt = 1_000_000_000_000
+        let rewardInitialBalance = 100_000_000_000
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default withdrawal
@@ -202,16 +290,45 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
-        -- TODO: sign and submit tx,
-        --       check that reward account is 0,
-        --       make sure wallet balance is increased by withdrawalAmt - fee
+
+        apiTx <- unsafeGetTx rTx
+
+        signedTx <- signTx ctx wa apiTx
+
+        -- Submit tx
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        -- Make sure wallet balance is increased by withdrawalAmt - fee
+        eventually "Wallet balance is increased by withdrawalAmt - fee" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` rewardInitialBalance + (withdrawalAmt - fromIntegral expectedFee))
+                ]
+
+        eventually "Reward balance is 0" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #reward . #getQuantity)
+                        (`shouldBe` 0)
+                ]
 
     it "TRANS_NEW_CREATE_03b - Withdrawal from external wallet" $ \ctx -> runResourceT $ do
-        (_, mw) <- rewardWallet ctx
+
+        liftIO $ pendingWith "ADP-1189: Issues with withdrawals from external wallets"
+
+        (wr, mw) <- rewardWallet ctx
         wa <- fixtureWallet ctx
         let withdrawal = Json [json|{ "withdrawal": #{mnemonicToText mw} }|]
         let expectedFee = 139500
-        -- let withdrawalAmt = 1000000000000
+        let withdrawalAmt = 1000000000000
+        let rewardInitialBalance = 100_000_000_000
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default withdrawal
@@ -221,9 +338,34 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
-        -- TODO: sign and submit tx,
-        --       check that reward account is 0 on external rewardWallet,
-        --       make sure wa wallet balance is increased by withdrawalAmt - fee
+
+        apiTx <- unsafeGetTx rTx
+
+        signedTx <- signTx ctx wa apiTx
+
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        -- Make sure wallet balance is increased by withdrawalAmt - fee
+        eventually "Wallet balance is increased by withdrawalAmt - fee" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` rewardInitialBalance + (withdrawalAmt - fromIntegral expectedFee))
+                ]
+
+        -- Check that reward account is 0 on external rewardWallet,
+        eventually "Reward wallet balance is zero" $ do
+            rWr <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wr) Default Empty
+            verify rWr
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` rewardInitialBalance)
+                ]
 
     it "TRANS_NEW_CREATE_04a - Single Output Transaction" $ \ctx -> runResourceT $ do
 
@@ -595,7 +737,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             ]
-        -- TODO: sign/submit tx
+
+        apiTx <- unsafeGetTx rTx
+
+        signedTx <- signTx ctx wa apiTx
+
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_01b - Validity interval with slot" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -619,7 +766,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             ]
-        -- TODO: sign/submit tx
+
+        apiTx <- unsafeGetTx rTx
+
+        signedTx <- signTx ctx wa apiTx
+
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval second should be >= 0" $ \ctx -> runResourceT $ do
 
@@ -699,6 +851,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_MULTI_TX - Tx including payments, delegation, metadata, withdrawals, validity_interval" $ \ctx -> runResourceT $ do
 
+        liftIO $ pendingWith "ADP-1189: Delegation certificates are not inserted"
+
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
@@ -709,6 +863,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         pool:_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
+        let expectedFee = 148800
 
         let payload = Json [json|{
                 "payments": [{
@@ -754,12 +909,76 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             -- , expectField (#coinSelection . #deposit) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
             ]
-        -- TODO: now we should sign it and send it in two steps,
-        --       make sure it is delivered
-        --       make sure balance is updated accordingly on src and dst wallets
-        --       make sure delegation cerificates are inserted
+
+        -- TODO: make sure delegation cerificates are inserted
         --       make sure metadata is on chain
+        apiTx <- case (rTx :: (HTTP.Status, Either RequestException (ApiConstructTransaction n))) of
+            (_, Left e) -> throwIO e
+            (_, Right tx) -> pure tx
+
+        let sealedTx = transaction apiTx
+
+        -- Sign tx
+        let toSign = Json [json|
+                               { "transaction": #{sealedTx}
+                               , "passphrase": #{fixturePassphrase}
+                               }|]
+        let signEndpoint = Link.signTransaction @'Shelley wa
+        signedTx <- getFromResponse #transaction <$>
+            request @ApiSignedTransaction ctx signEndpoint Default toSign
+
+        -- Submit tx
+        eTxId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        txId <- case (eTxId :: (HTTP.Status, Either RequestException ApiTxId)) of
+          (_, Left e) -> throwIO e
+          (_, Right txId) -> pure txId
+
+        eventually "Metadata is on-chain" $ do
+            rWa <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley wa txId) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#status . #getApiT)
+                        (`shouldBe` InLedger)
+                , expectField
+                        (#metadata . #getApiTxMetadata . _Ctor @"Just" . #getApiT)
+                        (`shouldBe` Cardano.TxMetadata (Map.fromList [(1, Cardano.TxMetaText "hello")]))
+                ]
+
+        eventually "Delegation certificates are inserted" $ do
+            rWa <- request @(ApiWallet) ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        #delegation
+                        (`shouldBe` delegating pool [])
+                ]
+
+        eventually "Destination wallet balance is as expected" $ do
+            rWb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWb
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` amt * 2)
+                ]
+
+        eventually "Source wallet balance is as expected" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` fromIntegral oneMillionAda - amt * 2 - expectedFee)
+                ]
+
   -- TODO:
   -- minting
   -- update with sign / submit tx where applicable
@@ -918,7 +1137,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @ApiSignedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
-        submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
     it "TRANS_NEW_SIGN_02 - Rejects unsigned transaction" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
@@ -930,7 +1149,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- Submit tx
-        submitTx ctx sealedTx [ expectResponseCode HTTP.status500 ]
+        void $ submitTx ctx sealedTx [ expectResponseCode HTTP.status500 ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
         (w, _) <- rewardWallet ctx
@@ -952,7 +1171,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             <$> request @ApiSignedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
-        submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
     it "TRANS_NEW_SIGN_04 - Sign extra required signatures" $ \ctx -> runResourceT $ do
         (w, mw) <- second (unsafeMkMnemonic @15) <$> fixtureWalletWithMnemonics (Proxy @"shelley") ctx
@@ -991,26 +1210,22 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- too small, which is good enough for this test... Yet really, we
         -- should be able to construct transactions with extra signers from the
         -- API!
-        submitTx ctx signedTx
-            [ expectResponseCode HTTP.status500
-            , expectErrorMessage "FeeTooSmallUTxO"
-            ]
+        void $ submitTx ctx signedTx
+             [ expectResponseCode HTTP.status500
+             , expectErrorMessage "FeeTooSmallUTxO"
+             ]
   where
-    submitTx
-        :: MonadUnliftIO m
-        => Context
-        -> ApiT SealedTx
-        -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
-        -> m ()
-    submitTx ctx tx expectations = do
-        let bytes = serialisedTx $ getApiT tx
-        let submitEndpoint = Link.postExternalTransaction
-        let headers = Headers
-                [ ("Content-Type", "application/octet-stream")
-                , ("Accept", "application/json")
-                ]
-        r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
-        verify r expectations
+
+    unsafeGetTx
+        :: MonadIO m
+        => (HTTP.Status, Either RequestException (ApiConstructTransaction n))
+        -> m (ApiConstructTransaction n)
+    unsafeGetTx (_, Left e)   = throwIO e
+    unsafeGetTx (_, Right tx) = pure tx
+
+    -- | Just one million Ada, in Lovelace.
+    oneMillionAda :: Integer
+    oneMillionAda = 1_000_000_000_000
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
