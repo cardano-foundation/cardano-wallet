@@ -852,6 +852,7 @@ prop_performSelection mockConstraints params coverage =
         , assetsToBurn
         } = params
 
+    onSuccess :: SelectionResultOf [TxOut] -> PropertyM IO ()
     onSuccess result = do
         monitor $ counterexample $ unlines
             [ "available UTXO balance:"
@@ -911,6 +912,7 @@ prop_performSelection mockConstraints params coverage =
                 (view #inputsSelected result <&> fst)
                 (view #utxoAvailable params)
 
+    onFailure :: SelectionError -> PropertyM IO ()
     onFailure = \case
         BalanceInsufficient e ->
             onBalanceInsufficient e
@@ -923,6 +925,7 @@ prop_performSelection mockConstraints params coverage =
         EmptyUTxO ->
             onEmptyUTxO
 
+    onBalanceInsufficient :: BalanceInsufficientError -> PropertyM IO ()
     onBalanceInsufficient e = do
         monitor $ counterexample $ unlines
             [ "available balance:"
@@ -949,6 +952,7 @@ prop_performSelection mockConstraints params coverage =
             assertWith . (<>) "onBalanceInsufficient: "
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
+    onSelectionLimitReached :: SelectionLimitReachedError -> PropertyM IO ()
     onSelectionLimitReached e = do
         monitor $ counterexample $ unlines
             [ "required balance:"
@@ -973,6 +977,8 @@ prop_performSelection mockConstraints params coverage =
         errorBalanceSelected =
             F.foldMap (view #tokens . snd) errorInputsSelected
 
+    onInsufficientMinCoinValues
+        :: NonEmpty InsufficientMinCoinValueError -> PropertyM IO ()
     onInsufficientMinCoinValues es = do
         monitor $ counterexample $ unlines
             [ show es
@@ -990,6 +996,7 @@ prop_performSelection mockConstraints params coverage =
         actualMinCoinValue
             = txOutCoin . outputWithInsufficientAda
 
+    onUnableToConstructChange :: UnableToConstructChangeError -> PropertyM IO ()
     onUnableToConstructChange e = do
         monitor $ counterexample $ show e
         assertOnUnableToConstructChange
@@ -1016,6 +1023,7 @@ prop_performSelection mockConstraints params coverage =
         assertOnUnableToConstructChange =
             assertWith . (<>) "onUnableToConstructChange: "
 
+    onEmptyUTxO :: PropertyM IO ()
     onEmptyUTxO = assertWith
         "view #utxoAvailable params == UTxOSelection.empty"
         (view #utxoAvailable params == UTxOSelection.empty)
