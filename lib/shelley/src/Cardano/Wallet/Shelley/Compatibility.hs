@@ -99,9 +99,7 @@ module Cardano.Wallet.Shelley.Compatibility
       -- ** Stake pools
     , fromPoolId
     , mkStakePoolsSummary
-    , RewardConstants
     , StakePoolsData (..)
-    , rewardConstantsfromPParams
     , getProducer
 
     , HasNetworkId (..)
@@ -338,7 +336,6 @@ import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley as SL hiding
     ( Value )
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.RewardProvenance as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
 import qualified Cardano.Ledger.Shelley.PParams as Shelley
@@ -346,7 +343,6 @@ import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Ledger.TxIn as TxIn
-import qualified Cardano.Protocol.TPraos as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -408,7 +404,7 @@ emptyGenesis gp = W.Block
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersions :: [NodeToClientVersion]
-nodeToClientVersions = [NodeToClientV_8, NodeToClientV_9]
+nodeToClientVersions = [NodeToClientV_8, NodeToClientV_9, NodeToClientV_11]
 
 --------------------------------------------------------------------------------
 --
@@ -1204,79 +1200,53 @@ fromGenesisData g initialFunds =
 fromPoolId :: forall crypto. SL.KeyHash 'SL.StakePool crypto -> W.PoolId
 fromPoolId (SL.KeyHash x) = W.PoolId $ hashToBytes x
 
-toRewardInfoPool
-    :: forall crypto. ()
-    => W.Coin
-    -> SL.PoolParams crypto
-    -> SL.IndividualPoolStake crypto
-    -> SL.RewardProvenancePool crypto
-    -> W.RewardInfoPool
-toRewardInfoPool totalStake SL.PoolParams{..} ips
-    SL.RewardProvenancePool{ownerStakeP,appPerfP}
-  = W.RewardInfoPool
-    { stakeRelative = clipToPercentage (SLAPI.individualPoolStake ips)
-    , ownerStake = toWalletCoin ownerStakeP
-    , ownerStakeRelative = clipToPercentage
-        $ fromIntegral (SL.unCoin ownerStakeP)
-          `proportionTo` fromIntegral (W.unCoin totalStake)
-    , ownerPledge = toWalletCoin _poolPledge
-    , cost = toWalletCoin _poolCost
-    , margin = fromUnitInterval _poolMargin
-    , performanceEstimate = appPerfP
-    }
-  where
-    clipToPercentage = unsafeMkPercentage . min 1 . max 0
-    proportionTo _ 0 = 0
-    proportionTo x y = x / y
-
--- | Protocol constants required for reward calculation
-data RewardConstants = RewardConstants
-    { _nOpt :: Natural
-    , _a0   :: SL.NonNegativeInterval
-    } deriving (Eq, Show)
--- | Stake distribution and pool that we retrieve using a local state query
+-- | Stake distribution that we retrieve using a local state query
 data StakePoolsData = StakePoolsData
-    { _rewardConstants
-        :: RewardConstants
-    , _stakePoolParams
+    { _rewardParams
+        :: SLAPI.RewardParams
+    , _rewardInfoPools
         :: Map
             (SL.KeyHash 'SL.StakePool StandardCrypto)
-            (SL.PoolParams StandardCrypto)
-    , _stakeDistribution
-        :: SLAPI.PoolDistr StandardCrypto
-    , _rewardProvenance
-        :: SL.RewardProvenance StandardCrypto
+            SLAPI.RewardInfoPool
     } deriving (Eq, Show)
-
-rewardConstantsfromPParams
-    :: ( HasField "_nOpt" pparams Natural
-    ,    HasField "_a0" pparams SL.NonNegativeInterval
-    ) => pparams
-    -> RewardConstants
-rewardConstantsfromPParams pp =
-    RewardConstants (getField @"_nOpt" pp) (getField @"_a0" pp)
 
 mkStakePoolsSummary :: StakePoolsData -> W.StakePoolsSummary
 mkStakePoolsSummary StakePoolsData{..} = W.StakePoolsSummary
     { rewardParams = rewardParams
     , pools
         = Map.mapKeys fromPoolId
-        $ combine3 (toRewardInfoPool $ toWalletCoin totalStake)
-            _stakePoolParams stakeDistr pools
+        $ Map.map (toRewardInfoPool $ toWalletCoin totalStake) _rewardInfoPools
     }
   where
-    RewardConstants{_a0,_nOpt} = _rewardConstants
-    SL.RewardProvenance{totalStake,pools,r} = _rewardProvenance
-
-    SLAPI.PoolDistr stakeDistr = _stakeDistribution
-    combine3 f3 a b c = Map.intersectionWith ($) (Map.intersectionWith f3 a b) c
-
+    SLAPI.RewardParams{a0,nOpt,rPot,totalStake} = _rewardParams
     rewardParams = W.RewardParams 
-        { nOpt = fromIntegral _nOpt
-        , a0   = fromNonNegativeInterval _a0
-        , r    = toWalletCoin r
+        { nOpt = fromIntegral nOpt
+        , a0   = fromNonNegativeInterval a0
+        , r    = toWalletCoin rPot
         , totalStake = toWalletCoin totalStake
         }
+
+toRewardInfoPool
+    :: W.Coin
+    -> SLAPI.RewardInfoPool
+    -> W.RewardInfoPool
+toRewardInfoPool totalStake SLAPI.RewardInfoPool{..} = W.RewardInfoPool
+    { stakeRelative = clipToPercentage
+        $ fromIntegral (SL.unCoin stake)
+          `proportionTo` fromIntegral (W.unCoin totalStake)
+    , ownerStake = toWalletCoin ownerStake
+    , ownerStakeRelative = clipToPercentage
+        $ fromIntegral (SL.unCoin ownerStake)
+          `proportionTo` fromIntegral (W.unCoin totalStake)
+    , ownerPledge = toWalletCoin ownerPledge
+    , cost = toWalletCoin cost
+    , margin = fromUnitInterval margin
+    , performanceEstimate = performanceEstimate
+    }
+  where
+    clipToPercentage = unsafeMkPercentage . min 1 . max 0
+    proportionTo _ 0 = 0
+    proportionTo x y = x / y
 
 --
 -- Txs
@@ -1339,11 +1309,6 @@ fromShelleyAddress = W.Address
 
 fromShelleyCoin :: SL.Coin -> W.Coin
 fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
-
-{-
-toShelleyCoin :: W.Coin -> SL.Coin
-toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
--}
 
 fromCardanoTx :: Cardano.Tx era -> (W.Tx, TokenMap, TokenMap, [Certificate])
 fromCardanoTx = \case

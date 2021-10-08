@@ -328,9 +328,9 @@ sortRandomOn seed f
 -------------------------------------------------------------------------------}
 
 percentOf :: Percentage -> Coin -> Coin
-percentOf = fractionOf . getPercentage
+percentOf r (Coin x) = Coin . round $ getPercentage r * fromIntegral x
 
-fractionOf :: Rational -> Coin -> Coin
+fractionOf :: Double -> Coin -> Coin
 fractionOf r (Coin x) = Coin . round $ r * fromIntegral x
 
 oneMinus :: Percentage -> Percentage

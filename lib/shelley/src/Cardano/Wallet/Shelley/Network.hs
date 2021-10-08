@@ -84,16 +84,11 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( RewardConstants
-    , StakePoolsData (..)
+    ( StakePoolsData (..)
     , StandardCrypto
     , fromAlonzoPParams
     , fromLedgerPParams
-    , fromNonMyopicMemberRewards
     , fromPoint
-    , fromPoolDistr
-    , fromCardanoHash
-    , fromChainHash
     , fromShelleyCoin
     , fromShelleyPParams
     , fromStakeCredential
@@ -102,7 +97,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , localNodeConnectInfo
     , mkStakePoolsSummary
     , nodeToClientVersions
-    , rewardConstantsfromPParams
     , slottingParametersFromGenesis
     , toCardanoBlockHeader
     , toCardanoEra
@@ -237,7 +231,6 @@ import Ouroboros.Network.NodeToClient
     , NodeToClientProtocols (..)
     , NodeToClientVersionData (..)
     , connectTo
-    , localSnocket
     , nodeToClientProtocols
     , withIOManager
     )
@@ -253,6 +246,8 @@ import Ouroboros.Network.Protocol.LocalStateQuery.Type
     ( LocalStateQuery )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( LocalTxSubmission, SubmitResult (..) )
+import Ouroboros.Network.Snocket
+    ( localSnocket )
 import System.IO.Error
     ( isDoesNotExistError )
 import UnliftIO.Async
@@ -267,7 +262,6 @@ import UnliftIO.Exception
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
@@ -473,22 +467,8 @@ withNetworkLayerBase tr net np conn versionData tol action = do
       where
         qryStakePoolsData
             :: LSQ (CardanoBlock StandardCrypto) IO (Maybe StakePoolsData)
-        qryStakePoolsData = do
-            ma <- qryRewardConstants
-            mb <- shelleyBased $ do
-                pools <- LSQry Shelley.GetStakePools
-                LSQry $ Shelley.GetStakePoolParams pools
-            mc <- shelleyBased $ LSQry Shelley.GetStakeDistribution
-            md <- shelleyBased $ LSQry Shelley.GetRewardProvenance
-            pure $ StakePoolsData <$> ma <*> mb <*> mc <*> md
-
-        qryRewardConstants :: LSQ (CardanoBlock StandardCrypto) IO (Maybe RewardConstants)
-        qryRewardConstants = onAnyEra
-            (pure Nothing)
-            (Just . rewardConstantsfromPParams <$> LSQry Shelley.GetCurrentPParams)
-            (Just . rewardConstantsfromPParams <$> LSQry Shelley.GetCurrentPParams)
-            (Just . rewardConstantsfromPParams <$> LSQry Shelley.GetCurrentPParams)
-            (Just . rewardConstantsfromPParams <$> LSQry Shelley.GetCurrentPParams)
+        qryStakePoolsData = shelleyBased $ do
+            uncurry StakePoolsData <$> LSQry Shelley.GetRewardInfoPools
 
     _watchNodeTip readTip cb = do
         observeForever readTip $ \tip -> do
