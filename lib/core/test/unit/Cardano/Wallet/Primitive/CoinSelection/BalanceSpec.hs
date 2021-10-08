@@ -223,7 +223,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( liftShrink4, liftShrink6, verify )
+    ( liftShrink4, liftShrink6, report, verify )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run, stop )
 import Test.Utils.Laws
@@ -919,7 +919,7 @@ prop_performSelection mockConstraints params coverage =
         SelectionLimitReached e ->
             onSelectionLimitReached e
         InsufficientMinCoinValues es ->
-            onInsufficientMinCoinValues es
+            stop $ onInsufficientMinCoinValues es
         UnableToConstructChange e ->
             stop $ onUnableToConstructChange e
         EmptyUTxO ->
@@ -978,21 +978,19 @@ prop_performSelection mockConstraints params coverage =
             F.foldMap (view #tokens . snd) errorInputsSelected
 
     onInsufficientMinCoinValues
-        :: NonEmpty InsufficientMinCoinValueError -> PropertyM IO ()
-    onInsufficientMinCoinValues es = do
-        monitor $ counterexample $ unlines
-            [ show es
-            , "expected / actual:"
-            , show $ NE.zip
-                (expectedMinCoinValue <$> es)
-                (actualMinCoinValue <$> es)
-            ]
-        assertOnInsufficientMinCoinValues
-            "all (λe -> expectedMinCoinValue e > actualMinCoinValue e) es"
+        :: NonEmpty InsufficientMinCoinValueError -> Property
+    onInsufficientMinCoinValues es =
+        counterexample "onInsufficientMinCoinValues" $
+        report es
+            "error values" $
+        report
+            (NE.zip (expectedMinCoinValue <$> es) (actualMinCoinValue <$> es))
+            "(expected, actual) pairs" $
+        verify
             (all (\e -> expectedMinCoinValue e > actualMinCoinValue e) es)
+            "all (λe -> expectedMinCoinValue e > actualMinCoinValue e) es" $
+        property True
       where
-        assertOnInsufficientMinCoinValues =
-            assertWith . (<>) "onInsufficientMinCoinValues: "
         actualMinCoinValue
             = txOutCoin . outputWithInsufficientAda
 
