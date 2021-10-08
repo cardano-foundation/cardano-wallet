@@ -699,7 +699,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
     cover 2 (not allMintedAssetsEitherBurnedOrSpent)
         "Some minted assets were neither spent nor burned" $
 
-    prop_performSelection mockConstraints (Blind params) $ \result ->
+    prop_performSelection mockConstraints params $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
         . cover 2 (selectionLimited && selectionSufficient result)
@@ -796,7 +796,7 @@ prop_performSelection_large mockConstraints (Blind (Large params)) =
     checkCoverage $
     cover 50 (isUTxOBalanceSufficient params)
         "UTxO balance sufficient" $
-    prop_performSelection mockConstraints (Blind params) (const id)
+    prop_performSelection mockConstraints params (const id)
 
 prop_performSelection_huge :: Property
 prop_performSelection_huge = ioProperty $
@@ -813,17 +813,17 @@ prop_performSelection_huge_inner
     -> Property
 prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
     withMaxSuccess 5 $
-    prop_performSelection mockConstraints (Blind params') (const id)
+    prop_performSelection mockConstraints params' (const id)
   where
     params' = params & set #utxoAvailable
         (UTxOSelection.fromIndex utxoAvailable)
 
 prop_performSelection
     :: MockSelectionConstraints
-    -> Blind SelectionParams
+    -> SelectionParams
     -> (PerformSelectionResult -> Property -> Property)
     -> Property
-prop_performSelection mockConstraints (Blind params) coverage =
+prop_performSelection mockConstraints params coverage =
     monadicIO $ do
         monitor $ counterexample $ unlines
             [ "extraCoinSource:"
