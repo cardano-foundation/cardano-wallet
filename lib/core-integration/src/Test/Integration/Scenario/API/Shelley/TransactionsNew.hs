@@ -1043,34 +1043,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403transactionAlreadyBalanced
             ]
 
-    it "TRANS_NEW_BALANCE_01b - incorrect cbor - not hex-encoded" $ \ctx -> runResourceT $ do
-        let initialAmt = minUTxOValue (_mainEra ctx)
-        wa <- fixtureWalletWith @n ctx [initialAmt]
-
-        let serializedTx = "84a600818gfrddd" :: Text
-        let balancePayload = Json [json|{
-              "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
-              "inputs": []
-          }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.balanceTransaction @'Shelley wa) Default balancePayload
-        verify rTx
-            [ expectErrorMessage "Error in $: Parse error. Expecting Base16-encoded format." ]
-
-    it "TRANS_NEW_BALANCE_01c - incorrect cbor - hex-encoded but cannot deserialize into sealedTx" $ \ctx -> runResourceT $ do
-        let initialAmt = minUTxOValue (_mainEra ctx)
-        wa <- fixtureWalletWith @n ctx [initialAmt]
-
-        let serializedTx = "84a6008180000000000000" :: Text
-        let balancePayload = Json [json|{
-              "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
-              "inputs": []
-          }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.balanceTransaction @'Shelley wa) Default balancePayload
-        verify rTx
-            [ expectErrorMessage "Error in $: cborHex seems to be not deserializing correctly due to DecoderErrorDeserialiseFailure 'Shelley Tx' (DeserialiseFailure 5 'expected bytes'" ]
-
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
