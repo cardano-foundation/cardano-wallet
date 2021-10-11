@@ -8,7 +8,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -29,8 +28,7 @@ import Cardano.Crypto.DSIGN.Class
 import Cardano.Mnemonic
     ( SomeMnemonic (..), mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiBalanceTransactionPostData (..)
-    , ApiCoinSelection (withdrawals)
+    ( ApiCoinSelection (withdrawals)
     , ApiCoinSelectionInput (..)
     , ApiConstructTransaction (..)
     , ApiFee (..)
@@ -67,7 +65,7 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Aeson
-    ( FromJSON, toJSON, (.=) )
+    ( toJSON, (.=) )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -86,8 +84,6 @@ import Data.Text
     ( Text )
 import Numeric.Natural
     ( Natural )
-import System.FilePath
-    ( (</>) )
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
@@ -135,10 +131,6 @@ import Test.Integration.Framework.TestData
     , errMsg403transactionAlreadyBalanced
     , errMsg404NoSuchPool
     )
-import Test.Utils.Paths
-    ( getTestData )
-import Text.Microstache
-    ( compileMustacheFile, renderMustache )
 import UnliftIO.Exception
     ( throwIO )
 
@@ -152,9 +144,8 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.Encoding as TL
 import qualified Network.HTTP.Types.Status as HTTP
-import qualified Text.Microstache as Mustache
+import qualified Test.Integration.Plutus as PlutusScenario
 
 spec :: forall n.
     ( DecodeAddress n
@@ -1208,11 +1199,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     describe "Plutus scenarios" $ do
-        -- TODO: Somehow, nix-based runners for integrtion tests can't locate
-        -- test data under core-integration/. There's probably a right voodoo
-        -- incantation to make it work but I have no time for this Nix wizardry.
-        let dir = $(getTestData) </> ".." </> ".." </> ".." </> "shelley" </> "test" </> "data" </> "plutus-integration"
-
         -- NOTE: This test scenario is currently unreliable because of the way
         -- the redeemer pointers work. Redeemers are identified by pointers into
         -- the input set, but that set is an ordered set where the order is
@@ -1227,6 +1213,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- more information about the nature of each redeemers in order to
         -- connect the dots at the end.
         it "ping-pong" $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith "Need to dynamically assign redeemer pointers in API."
+
             w <- fixtureWallet ctx
             let balanceEndpoint = Link.balanceTransaction @'Shelley w
             let signEndpoint = Link.signTransaction @'Shelley w
@@ -1235,11 +1223,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- Part 1 :: Contract Setup
             --
 
-            -- Decode prepared transaction
-            partialTx <- decodeFileThrow @(ApiBalanceTransactionPostData n) (dir </> "ping-pong_1-1.json")
-            let toBalance = Json (toJSON partialTx)
-
             -- Balance
+            let toBalance = Json PlutusScenario.pingPong_1
             (_, sealedTx) <- second (view #transaction) <$>
                 unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance
 
@@ -1259,11 +1244,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- Part 2 :: Contract Utilization
             --
 
-            template <- liftIO $ compileMustacheFile (dir </> "ping-pong_1-2.json")
-            partialTx' <- renderMustacheThrow template $ Aeson.object
+            -- Balance
+            partialTx' <- PlutusScenario.pingPong_2 $ Aeson.object
                 [ "transactionId" .= view #id txid ]
             let toBalance' = Json (toJSON partialTx')
 
+            -- Sign
             (_, sealedTx') <- second (view #transaction) <$>
                 unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance'
 
@@ -1287,25 +1273,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     -- | Just one million Ada, in Lovelace.
     oneMillionAda :: Integer
     oneMillionAda = 1_000_000_000_000
-
-    decodeFileThrow
-        :: forall a m. (FromJSON a, MonadUnliftIO m, MonadFail m)
-        => String
-        -> m a
-    decodeFileThrow filepath = do
-        liftIO (Aeson.eitherDecodeFileStrict' filepath) >>= \case
-            Left e  -> fail $ "Failed to decode: " <> filepath <> " => " <> show e
-            Right a -> pure a
-
-    renderMustacheThrow
-        :: forall m. (MonadUnliftIO m, MonadFail m)
-        => Mustache.Template
-        -> Aeson.Value
-        -> m Aeson.Value
-    renderMustacheThrow template args =
-        case Aeson.eitherDecode' (TL.encodeUtf8 $ renderMustache template args) of
-            Left e  -> fail $ "Failed to render template: " <> show e
-            Right a -> pure a
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
