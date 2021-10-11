@@ -47,6 +47,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , SelectionLimitOf (..)
     , selectionLimitExceeded
     , SelectionLimitReachedError (..)
+    , reduceSelectionLimitBy
 
     -- * Querying selections
     , SelectionDelta (..)
@@ -441,6 +442,21 @@ selectionLimitExceeded :: IsUTxOSelection s => s -> SelectionLimit -> Bool
 selectionLimitExceeded s = \case
     NoLimit -> False
     MaximumInputLimit n -> UTxOSelection.selectedSize s > n
+
+-- | Reduces a selection limit by a given reduction amount.
+--
+-- If the given reduction amount is positive, then this function will reduce
+-- the selection limit by that amount.
+--
+-- If the given reduction amount is zero or negative, then this function will
+-- return the original limit unchanged.
+--
+reduceSelectionLimitBy :: SelectionLimit -> Int -> SelectionLimit
+reduceSelectionLimitBy limit reduction
+    | reduction <= 0 =
+        limit
+    | otherwise =
+        subtract reduction <$> limit
 
 type SelectionResult = SelectionResultOf [TxOut]
 
