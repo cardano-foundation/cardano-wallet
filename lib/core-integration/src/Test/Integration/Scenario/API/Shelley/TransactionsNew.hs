@@ -1208,7 +1208,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     describe "Plutus scenarios" $ do
-        let dir = $(getTestData) </> "plutus"
+        -- TODO: Somehow, nix-based runners for integrtion tests can't locate
+        -- test data under core-integration/. There's probably a right voodoo
+        -- incantation to make it work but I have no time for this Nix wizardry.
+        let dir = $(getTestData) </> ".." </> ".." </> ".." </> "shelley" </> "test" </> "data" </> "plutus-integration"
 
         -- NOTE: This test scenario is currently unreliable because of the way
         -- the redeemer pointers work. Redeemers are identified by pointers into
