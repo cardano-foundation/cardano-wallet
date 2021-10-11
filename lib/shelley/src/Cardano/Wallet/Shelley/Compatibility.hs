@@ -86,6 +86,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromLedgerAlonzoPParams
     , toAlonzoPParams
     , fromCardanoAddress
+    , toSystemStart
+    , toScriptPurpose
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -175,6 +177,8 @@ import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
     ( ToCBORGroup )
+import Cardano.Slotting.Time
+    ( SystemStart (..) )
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
 import Cardano.Wallet.Api.Types
@@ -295,6 +299,7 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
+import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
@@ -322,6 +327,7 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
+import qualified Cardano.Wallet.Primitive.Types.Redeemer as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
@@ -1581,12 +1587,40 @@ fromUnitInterval x =
     bomb = internalError $
         "fromUnitInterval: encountered invalid parameter value: "+||x||+""
 
+toSystemStart :: W.StartTime -> SystemStart
+toSystemStart (W.StartTime t) = SystemStart t
+
+toScriptPurpose :: SL.Crypto crypto => NetworkId -> W.Redeemer -> Alonzo.ScriptPurpose crypto
+toScriptPurpose ntwrk = \case
+    W.RedeemerSpending _ txin ->
+        Alonzo.Spending (toTxIn txin)
+    W.RedeemerMinting _ pid ->
+        Alonzo.Minting (toPolicyID pid)
+    W.RedeemerRewarding _ acct ->
+        Alonzo.Rewarding (toRewardAcnt ntwrk acct)
+
 toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
 toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash $ toShort h
 
 toCardanoTxIn :: W.TxIn -> Cardano.TxIn
 toCardanoTxIn (W.TxIn tid ix) =
     Cardano.TxIn (toCardanoTxId tid) (Cardano.TxIx (fromIntegral ix))
+
+toTxIn :: SL.Crypto crypto => W.TxIn -> SL.TxIn crypto
+toTxIn (W.TxIn tid ix) =
+    SL.TxIn (toTxId tid) (fromIntegral ix)
+
+toTxId :: W.Hash "Tx" -> SL.TxId crypto
+toTxId (W.Hash h) =
+    (SL.TxId (SafeHash.unsafeMakeSafeHash $ UnsafeHash $ toShort h))
+
+toRewardAcnt :: SL.Crypto crypto => NetworkId -> W.RewardAccount -> SL.RewardAcnt crypto
+toRewardAcnt ntwrk acct =
+    SL.RewardAcnt (toNetwork ntwrk) (toStakeCredential acct)
+
+toPolicyID :: SL.Crypto crypto => W.TokenPolicyId -> SL.PolicyID crypto
+toPolicyID (W.UnsafeTokenPolicyId (W.Hash bytes)) =
+    SL.PolicyID (SL.ScriptHash (unsafeHashFromBytes bytes))
 
 toCardanoStakeCredential :: W.RewardAccount -> Cardano.StakeCredential
 toCardanoStakeCredential = Cardano.StakeCredentialByKey
@@ -1867,6 +1901,11 @@ toNetworkId = \case
     SL.Testnet -> 0
     SL.Mainnet -> 1
 
+toNetwork :: NetworkId -> SL.Network
+toNetwork = \case
+    Cardano.Testnet{} -> SL.Testnet
+    Cardano.Mainnet{} -> SL.Mainnet
+
 _encodeStakeAddress
     :: SL.Network
     -> W.RewardAccount
@@ -1981,14 +2020,14 @@ _decodeAddress serverNetwork =
                 pure (W.Address bytes)
 
             Just (SL.AddrBootstrap (SL.BootstrapAddress addr)) -> do
-                guardNetwork (toNetwork (Byron.addrNetworkMagic addr)) serverNetwork
+                guardNetwork (fromByronNetworkMagic (Byron.addrNetworkMagic addr)) serverNetwork
                 pure (W.Address bytes)
 
             Nothing -> Left errMalformedAddress
 
       where
-        toNetwork :: Byron.NetworkMagic -> SL.Network
-        toNetwork = \case
+        fromByronNetworkMagic :: Byron.NetworkMagic -> SL.Network
+        fromByronNetworkMagic = \case
             Byron.NetworkMainOrStage -> SL.Mainnet
             Byron.NetworkTestnet{}   -> SL.Testnet
 
