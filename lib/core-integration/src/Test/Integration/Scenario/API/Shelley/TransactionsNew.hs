@@ -32,7 +32,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiConstructTransaction (..)
     , ApiFee (..)
-    , ApiSignedTransaction
+    , ApiSerialisedTransaction
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -933,7 +933,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                }|]
         let signEndpoint = Link.signTransaction @'Shelley wa
         signedTx <- getFromResponse #transaction <$>
-            request @ApiSignedTransaction ctx signEndpoint Default toSign
+            request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
         txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -1064,12 +1064,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   }
               ]
             }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
+        rTx <- request @ApiSerialisedTransaction ctx
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
         verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             ]
 
     it "TRANS_NEW_BALANCE_01e - plutus with missing covering inputs wallet enough funds" $ \ctx -> runResourceT $ do
@@ -1093,12 +1092,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   }
               ]
           }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
+        rTx <- request @ApiSerialisedTransaction ctx
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
         verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             ]
 
     it "TRANS_NEW_SIGN_01 - Sign single-output transaction" $ \ctx -> runResourceT $ do
@@ -1117,7 +1115,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
         signedTx <- getFromResponse #transaction <$>
-            request @ApiSignedTransaction ctx signEndpoint Default toSign
+            request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -1151,7 +1149,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
         signedTx <- getFromResponse #transaction
-            <$> request @ApiSignedTransaction ctx signEndpoint Default toSign
+            <$> request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -1183,7 +1181,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
         signedTx <- getFromResponse #transaction <$>
-            request @ApiSignedTransaction ctx signEndpoint Default toSign
+            request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit Tx
         -- TODO:
@@ -1234,7 +1232,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , "passphrase": #{fixturePassphrase}
                     }|]
             (_, signedTx) <- second (view #transaction) <$>
-                unsafeRequest @ApiSignedTransaction ctx signEndpoint toSign
+                unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign
 
             -- Submit
             txid <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -1258,7 +1256,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , "passphrase": #{fixturePassphrase}
                     }|]
             (_, signedTx') <- second (view #transaction) <$>
-                unsafeRequest @ApiSignedTransaction ctx signEndpoint toSign'
+                unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign'
 
             -- Submit
             void $ submitTx ctx signedTx' [ expectResponseCode HTTP.status202 ]

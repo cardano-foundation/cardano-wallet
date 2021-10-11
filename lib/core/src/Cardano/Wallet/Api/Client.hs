@@ -75,8 +75,8 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
+    , ApiSerialisedTransaction (..)
     , ApiSignTransactionPostData
-    , ApiSignedTransaction (..)
     , ApiStakeKeysT
     , ApiT (..)
     , ApiTransactionT
@@ -166,7 +166,7 @@ data TransactionClient = TransactionClient
     , signTransaction
         :: ApiT WalletId
         -> ApiSignTransactionPostData
-        -> ClientM ApiSignedTransaction
+        -> ClientM ApiSerialisedTransaction
     , postTransaction
         :: ApiT WalletId
         -> PostTransactionOldDataT Aeson.Value
@@ -193,7 +193,7 @@ data TransactionClient = TransactionClient
     , balanceTransaction
         :: ApiT WalletId
         -> ApiBalanceTransactionPostDataT Aeson.Value
-        -> ClientM (ApiConstructTransactionT Aeson.Value)
+        -> ClientM ApiSerialisedTransaction
     }
 
 data AddressClient = AddressClient

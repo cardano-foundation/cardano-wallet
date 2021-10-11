@@ -241,8 +241,8 @@ import Cardano.Wallet.Api.Types
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
+    , ApiSerialisedTransaction
     , ApiSharedWallet (..)
-    , ApiSignedTransaction
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -2250,7 +2250,7 @@ signTx ctx w apiTx = do
                            }|]
     let signEndpoint = Link.signTransaction @'Shelley w
     getFromResponse (#transaction) <$>
-        request @ApiSignedTransaction ctx signEndpoint Default toSign
+        request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
 submitTx
     :: MonadUnliftIO m

@@ -2286,13 +2286,9 @@ components:
       title: Serialized transaction witnesses
 
     ApiSignedTransaction: &ApiSignedTransaction
+      <<: *ApiSerialisedTransaction
       description: |
         The result of signing a transaction (serialized and encoded).
-      type: object
-      required:
-        - transaction
-      properties:
-        transaction: *serialisedTransactionBase64
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
@@ -5129,7 +5125,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
     description: Accepted
     content:
       application/json:
-        schema: *ApiConstructTransaction
+        schema: *ApiSerialisedTransaction
 
 #############################################################################
 #                                                                           #

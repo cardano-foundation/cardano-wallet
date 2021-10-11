@@ -191,11 +191,11 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
+    , ApiSerialisedTransaction
     , ApiSharedWallet
     , ApiSharedWalletPatchData
     , ApiSharedWalletPostData
     , ApiSignTransactionPostData
-    , ApiSignedTransaction
     , ApiStakeKeysT
     , ApiT
     , ApiTransactionT
@@ -541,7 +541,7 @@ type SignTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions-sign"
     :> ReqBody '[JSON] ApiSignTransactionPostData
-    :> PostAccepted '[JSON] ApiSignedTransaction
+    :> PostAccepted '[JSON] ApiSerialisedTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransactionOld n = "wallets"
@@ -586,7 +586,7 @@ type BalanceTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions-balance"
     :> ReqBody '[JSON] (ApiBalanceTransactionPostDataT n)
-    :> PostAccepted '[JSON] (ApiConstructTransactionT n)
+    :> PostAccepted '[JSON] ApiSerialisedTransaction
 
 {-------------------------------------------------------------------------------
                                  Shelley Migrations
@@ -863,7 +863,7 @@ type SignByronTransaction n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions-sign"
     :> ReqBody '[JSON] ApiSignTransactionPostData
-    :> PostAccepted '[JSON] ApiSignedTransaction
+    :> PostAccepted '[JSON] ApiSerialisedTransaction
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronTransaction
 type CreateByronTransactionOld n = "byron-wallets"
