@@ -64,6 +64,7 @@ module Cardano.Wallet.Primitive.CoinSelection
     -- * Internal types and functions
     , ComputeMinimumCollateralParams (..)
     , computeMinimumCollateral
+    , toBalanceConstraintsParams
 
     ) where
 
@@ -246,8 +247,8 @@ toBalanceConstraintsParams (constraints, params) =
             -- there is still space available.
             --
             adjustSelectionLimit :: SelectionLimit -> SelectionLimit
-            adjustSelectionLimit = fmap
-                (subtract (view #maximumCollateralInputCount constraints))
+            adjustSelectionLimit = flip Balance.reduceSelectionLimitBy
+                (view #maximumCollateralInputCount constraints)
 
     balanceParams = Balance.SelectionParams
         { assetsToBurn =
