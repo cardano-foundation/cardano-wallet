@@ -64,6 +64,7 @@ module Cardano.Wallet.Primitive.CoinSelection
     -- * Internal types and functions
     , ComputeMinimumCollateralParams (..)
     , computeMinimumCollateral
+    , toBalanceConstraintsParams
 
     ) where
 
