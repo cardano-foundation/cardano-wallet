@@ -88,6 +88,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromCardanoAddress
     , toSystemStart
     , toScriptPurpose
+    , fromShelleyTxIn
+    , toCostModelsAsArray
 
       -- ** Assessing sizes of token bundles
     , tokenBundleSizeAssessor
@@ -177,10 +179,10 @@ import Cardano.Ledger.Era
     ( Era (..) )
 import Cardano.Ledger.Serialization
     ( ToCBORGroup )
-import Cardano.Slotting.Time
-    ( SystemStart (..) )
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
+import Cardano.Slotting.Time
+    ( SystemStart (..) )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)
@@ -213,6 +215,8 @@ import Control.Monad
     ( when, (>=>) )
 import Crypto.Hash.Utils
     ( blake2b224 )
+import Data.Array
+    ( Array )
 import Data.Bifunctor
     ( bimap )
 import Data.Binary.Get
@@ -299,7 +303,6 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
-import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Language as Alonzo
@@ -316,6 +319,7 @@ import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
+import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley.Constraints as SL
@@ -326,8 +330,8 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Redeemer as W
+import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
@@ -336,6 +340,7 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Data.Aeson as Aeson
+import qualified Data.Array as Array
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
@@ -1049,6 +1054,12 @@ toAlonzoPParams Cardano.ProtocolParameters { protocolParamCollateralPercent = No
     error "toAlonzoPParams: must specify protocolParamCollateralPercent"
 toAlonzoPParams Cardano.ProtocolParameters { protocolParamMaxCollateralInputs = Nothing } =
     error "toAlonzoPParams: must specify protocolParamMaxCollateralInputs"
+
+toCostModelsAsArray
+    :: Map Alonzo.Language Alonzo.CostModel
+    -> Array Alonzo.Language Alonzo.CostModel
+toCostModelsAsArray costModels =
+    Array.array (minBound, maxBound) [ (k, v) | (k, v) <- Map.toList costModels ]
 
 --------------------------------------------------------------------------------
 

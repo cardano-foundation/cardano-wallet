@@ -73,12 +73,12 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Wallet
     ( XPub )
-import Cardano.Ledger.Alonzo.Language
-    ( Language (..) )
+import Cardano.Ledger.Alonzo.Tools
+    ( evaluateTransactionExecutionUnits )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
-    ( Crypto, Era )
+    ( Crypto, Era, ValidateScript (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..), RewardAccount (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -91,6 +91,8 @@ import Cardano.Wallet.Primitive.CoinSelection
     ( SelectionOf (..), selectionDelta )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimitOf (..), SelectionSkeleton (..) )
+import Cardano.Wallet.Primitive.Slotting
+    ( TimeInterpreter (..) )
 import Cardano.Wallet.Primitive.Types
     ( ExecutionUnitPrices (..)
     , ExecutionUnits (..)
@@ -102,6 +104,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Redeemer
+    ( Redeemer, redeemerData )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -130,22 +134,25 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTx
     , fromCardanoTxIn
     , fromCardanoWdrls
-    , fromLedgerExUnits
+    , fromShelleyTxIn
     , toAlonzoPParams
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
+    , toCostModelsAsArray
     , toHDPayloadAddress
-    , toLedgerExUnits
+    , toScriptPurpose
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
+    , toSystemStart
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( computeMinimumAdaQuantity )
+    ( computeMinimumAdaQuantity, toAlonzoTxOut )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , ErrAssignRedeemers (..)
     , ErrMkTransaction (..)
     , ErrUpdateSealedTx (..)
     , TransactionCtx (..)
@@ -153,20 +160,34 @@ import Cardano.Wallet.Transaction
     , TxUpdate (..)
     , withdrawalToCoin
     )
+import Cardano.Wallet.Util
+    ( modifyM )
+import Codec.Serialise
+    ( deserialiseOrFail )
 import Control.Arrow
     ( left, second )
 import Control.Monad
-    ( guard, unless )
+    ( forM, guard, unless )
+import Control.Monad.Trans.Class
+    ( lift )
+import Control.Monad.Trans.Except
+    ( ExceptT, except, mapExceptT, runExceptT, throwE, withExceptT )
+import Control.Monad.Trans.State.Strict
+    ( execStateT, get, modify' )
 import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>) )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
 import Data.Kind
     ( Type )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
@@ -179,6 +200,8 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import GHC.Generics
     ( Generic )
+import Ouroboros.Consensus.HardFork.History.EpochInfo
+    ( interpreterToEpochInfo )
 import Ouroboros.Network.Block
     ( SlotNo )
 import Shelley.Spec.Ledger.API
@@ -192,6 +215,10 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
+import qualified Cardano.Ledger.Alonzo.Data as Alonzo
+import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
+import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Coin as Ledger
@@ -205,14 +232,17 @@ import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
+import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 import qualified Shelley.Spec.Ledger.Tx as Shelley
+import qualified Shelley.Spec.Ledger.UTxO as Ledger
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -501,10 +531,13 @@ newTransactionLayer networkId = TransactionLayer
         txFeePadding ctx
 
     , maxScriptExecutionCost =
-       _maxScriptExecutionCost
+        _maxScriptExecutionCost
+
+    , assignScriptRedeemers =
+        _assignScriptRedeemers networkId
 
     , evaluateMinimumFee =
-      _evaluateMinimumFee
+        _evaluateMinimumFee
 
     , computeSelectionLimit = \pp ctx outputsToCover ->
         let txMaxSize = getTxMaxSize $ txParameters pp in
@@ -870,6 +903,165 @@ _maxScriptExecutionCost pp tx = case view #executionUnitPrices pp of
                     0
         InAnyCardanoEra _ Byron.ByronTxBody{} ->
             0
+
+type AlonzoTx =
+    Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
+
+_assignScriptRedeemers
+    :: forall m.  ( Monad m )
+    => NetworkId
+    -> Cardano.ProtocolParameters
+    -> TimeInterpreter m
+    -> (TxIn -> Maybe TxOut)
+    -> [Redeemer]
+    -> SealedTx
+    -> m (Either ErrAssignRedeemers SealedTx)
+_assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeemers tx =
+    runExceptT $ case cardanoTx tx of
+        InAnyCardanoEra era@ByronEra _ ->
+            throwE $ ErrAssignRedeemersWrongEraTransaction (show era)
+        InAnyCardanoEra era@ShelleyEra _ ->
+            throwE $ ErrAssignRedeemersWrongEraTransaction (show era)
+        InAnyCardanoEra era@AllegraEra _ ->
+            throwE $ ErrAssignRedeemersWrongEraTransaction (show era)
+        InAnyCardanoEra era@MaryEra _ ->
+            throwE $ ErrAssignRedeemersWrongEraTransaction (show era)
+        InAnyCardanoEra AlonzoEra (Cardano.ShelleyTx shelleyEra alonzoTx) -> do
+            alonzoTx' <- flip execStateT alonzoTx $ do
+                modifyM assignNullRedeemers
+                executionUnits <- get >>= lift . evaluateExecutionUnits
+                modifyM (assignExecutionUnits executionUnits)
+                modify' addScriptIntegrityHash
+            pure $ sealedTxFromCardano' (Cardano.ShelleyTx shelleyEra alonzoTx')
+  where
+    -- | Assign redeemers with null execution units to the input transaction.
+    --
+    -- Redeemers are determined from the context given to the caller via the
+    -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
+    assignNullRedeemers
+        :: AlonzoTx
+        -> ExceptT ErrAssignRedeemers m AlonzoTx
+    assignNullRedeemers alonzoTx = do
+        nullRedeemers <- forM redeemers $ \rd -> do
+            let purpose = toScriptPurpose ntwrk rd
+
+            ptr <- case Alonzo.rdptr (Alonzo.body alonzoTx) purpose of
+                SNothing ->
+                    throwE $ ErrAssignRedeemersTargetNotFound rd
+                SJust ptr ->
+                    pure ptr
+
+            rData <- case deserialiseOrFail (BL.fromStrict $ redeemerData rd) of
+                Left e ->
+                    throwE $ ErrAssignRedeemersInvalidData rd (show e)
+                Right d ->
+                    pure (Alonzo.Data d)
+
+            pure (ptr, (rData, mempty))
+
+        pure $ alonzoTx
+            { Alonzo.wits = (Alonzo.wits alonzoTx)
+                { Alonzo.txrdmrs = Alonzo.Redeemers (Map.fromList nullRedeemers)
+                }
+            }
+
+    utxoFromAlonzoTx
+        :: AlonzoTx
+        -> Ledger.UTxO (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
+    utxoFromAlonzoTx alonzoTx =
+        let
+            inputs = Alonzo.inputs (Alonzo.body alonzoTx)
+            utxo = flip mapMaybe (F.toList inputs) $ \i -> do
+                o <- resolveInput (fromShelleyTxIn i)
+                -- NOTE: 'toAlonzoTxOut' only partially represent the information
+                -- because the wallet internal types aren't capturing datum at
+                -- the moment. It is _okay_ in this context because the
+                -- resulting UTxO is only used by 'evaluateTransactionExecutionUnits'
+                -- to lookup addresses corresponding to inputs.
+                pure (i, toAlonzoTxOut o)
+         in
+            Ledger.UTxO (Map.fromList utxo)
+
+    -- | Evaluate execution units of each script/redeemer in the transaction.
+    -- This may fail for each script.
+    evaluateExecutionUnits
+        :: AlonzoTx
+        -> ExceptT ErrAssignRedeemers m (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
+    evaluateExecutionUnits alonzoTx = withExceptT ErrAssignRedeemersPastHorizon $ do
+        let utxo = utxoFromAlonzoTx alonzoTx
+        let costs = toCostModelsAsArray (Alonzo._costmdls pparams)
+
+        (systemStart, epochInfo) <- case ti of
+            TimeInterpreter{interpreter,blockchainStartTime} -> do
+                let systemStart = toSystemStart blockchainStartTime
+                epochInfo <- lift (interpreterToEpochInfo <$> interpreter)
+                pure (systemStart, epochInfo)
+
+        mapExceptT (pure . liftScriptFailure . runIdentity) $
+            evaluateTransactionExecutionUnits
+                pparams
+                alonzoTx
+                utxo
+                epochInfo
+                systemStart
+                costs
+      where
+        liftScriptFailure =
+            fmap (fmap (left (ErrAssignRedeemersScriptFailure . show)))
+
+    -- | Change execution units for each redeemers in the transaction to what
+    -- they ought to be.
+    assignExecutionUnits
+        :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
+        -> AlonzoTx
+        -> ExceptT ErrAssignRedeemers m AlonzoTx
+    assignExecutionUnits exUnits alonzoTx = do
+        let wits = Alonzo.wits alonzoTx
+        let Alonzo.Redeemers rdmrs = Alonzo.txrdmrs wits
+        rdmrs' <- except $ Map.mergeA
+            Map.preserveMissing
+            Map.dropMissing
+            (Map.zipWithAMatched (const assignUnits))
+            rdmrs
+            exUnits
+        pure $ alonzoTx
+            { Alonzo.wits = wits
+                { Alonzo.txrdmrs = Alonzo.Redeemers rdmrs'
+                }
+            }
+      where
+        assignUnits
+            :: (dat, units)
+            -> Either err units
+            -> Either err (dat, units)
+        assignUnits (dats, _zero) units =
+            (dats,) <$> units
+
+    -- | Finally, calculate and add the script integrity hash with the new
+    -- final redeemers, if any.
+    addScriptIntegrityHash
+        :: forall era. (era ~ Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
+        => AlonzoTx
+        -> AlonzoTx
+    addScriptIntegrityHash alonzoTx =
+        let
+            wits  = Alonzo.wits alonzoTx
+            langs =
+                [ l
+                | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
+                , (not . isNativeScript @era) script
+                , Just l <- [Alonzo.language script]
+                ]
+         in
+            alonzoTx
+                { Alonzo.body = (Alonzo.body alonzoTx)
+                    { Alonzo.scriptIntegrityHash = Alonzo.hashScriptIntegrity
+                        pparams
+                        (Set.fromList langs)
+                        (Alonzo.txrdmrs wits)
+                        (Alonzo.txdats wits)
+                    }
+                }
 
 txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints protocolParams witnessTag = TxConstraints
