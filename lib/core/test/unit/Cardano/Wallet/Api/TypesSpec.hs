@@ -35,6 +35,8 @@ import Cardano.Address.Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
     )
+import Cardano.Api
+    ( PaymentKey, VerificationKey, deserialiseFromRawBytes, proxyToAsType )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -111,6 +113,8 @@ import Cardano.Wallet.Api.Types
     , ApiPostAccountKeyDataWithPurpose
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
+    , ApiRedeemer (..)
+    , ApiRedeemerCertificate (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
@@ -133,10 +137,8 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxCollateral (..)
     , ApiTxId (..)
-    , ApiTxIn (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
-    , ApiTxOut (..)
     , ApiUtxoStatistics (..)
     , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
@@ -514,9 +516,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiSignTransactionPostData
             jsonRoundtripAndGolden $ Proxy @ApiSignedTransaction
             jsonRoundtripAndGolden $ Proxy @(ApiBalanceTransactionPostData ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiTxOut ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiExternalInput ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiTxIn
             jsonRoundtripAndGolden $ Proxy @(PostTransactionOldData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeOldData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @WalletPostData
@@ -1102,6 +1102,7 @@ spec = parallel $ do
                 x' = ApiBalanceTransactionPostData
                     { transaction = transaction (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     , inputs = inputs (x :: ApiBalanceTransactionPostData ('Testnet 0))
+                    , redeemers = redeemers (x :: ApiBalanceTransactionPostData ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2069,30 +2070,39 @@ instance Arbitrary (ApiConstructTransactionData n) where
         <*> arbitrary
         <*> pure Nothing
 
-instance Arbitrary (Hash "Datum") where
-    arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
-
-instance Arbitrary (ApiTxOut n) where
-    arbitrary = ApiTxOut
-        <$> ((, Proxy @n) <$> arbitrary)
-        <*> arbitrary
-        <*> arbitrary
-        <*> (ApiT <$> genTokenMapSmallRange)
-
-instance Arbitrary ApiTxIn where
-    arbitrary = ApiTxIn
-        <$> arbitrary
-        <*> choose (0, 255)
-
 instance Arbitrary (ApiExternalInput n) where
     arbitrary = ApiExternalInput
         <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
         <*> arbitrary
 
 instance Arbitrary (ApiBalanceTransactionPostData n) where
     arbitrary = ApiBalanceTransactionPostData
         <$> arbitrary
         <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary (ApiRedeemer n) where
+    arbitrary = oneof
+        [ ApiRedeemerSpending <$> arbitrary <*> arbitrary
+        , ApiRedeemerMinting <$> arbitrary <*> arbitrary
+        , ApiRedeemerRewarding <$> arbitrary <*> arbitrary
+        , ApiRedeemerCertifying <$> arbitrary <*> arbitrary
+        ]
+
+instance Arbitrary ApiRedeemerCertificate where
+    arbitrary = ApiRedeemerCertificate
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary (VerificationKey PaymentKey) where
+    arbitrary = do
+        bytes <- BS.pack <$> vector 32
+        pure $ fromJust $ deserialiseFromRawBytes (proxyToAsType Proxy) bytes
 
 instance Arbitrary (PostMintBurnAssetData n) where
     arbitrary = applyArbitrary4 PostMintBurnAssetData

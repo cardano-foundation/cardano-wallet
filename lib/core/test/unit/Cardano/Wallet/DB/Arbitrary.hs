@@ -87,6 +87,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , EraInfo (..)
     , ExecutionUnitPrices (..)
+    , ExecutionUnits (..)
     , FeePolicy (..)
     , MinimumUTxOValue (..)
     , PassphraseScheme (..)
@@ -680,6 +681,13 @@ instance Arbitrary TxParameters where
     arbitrary = TxParameters
         <$> arbitrary
         <*> fmap Quantity (choose (0, 1000))
+        <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary ExecutionUnits where
+    shrink = genericShrink
+    arbitrary = ExecutionUnits
+        <$> arbitrary
         <*> arbitrary
 
 instance Arbitrary FeePolicy where

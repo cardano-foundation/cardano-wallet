@@ -244,10 +244,8 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxCollateral (..)
     , ApiTxId (..)
-    , ApiTxIn (..)
     , ApiTxInput (..)
     , ApiTxMetadata (..)
-    , ApiTxOut (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
@@ -357,7 +355,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , validateScriptTemplates
     )
 import Cardano.Wallet.Primitive.CoinSelection
-    ( SelectionError (..)
+    ( SelectionCollateralRequirement (..)
+    , SelectionError (..)
     , SelectionOf (..)
     , SelectionOutputInvalidError (..)
     , SelectionOutputSizeExceedsLimitError (..)
@@ -365,7 +364,10 @@ import Cardano.Wallet.Primitive.CoinSelection
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( UnableToConstructChangeError (..), balanceMissing )
+    ( SelectionSkeleton (..)
+    , UnableToConstructChangeError (..)
+    , balanceMissing
+    )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr )
 import Cardano.Wallet.Primitive.Migration
@@ -399,6 +401,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( Block
     , BlockHeader (..)
+    , FeePolicy (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
@@ -413,7 +416,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinQuantity )
+    ( Coin (..), coinQuantity, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -444,9 +447,9 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrSignTx (..)
-    , ExtraTxBodyContent (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxUpdate (..)
     , Withdrawal (..)
     , defaultTransactionCtx
     )
@@ -495,7 +498,14 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe, maybeToList )
+    ( catMaybes
+    , fromJust
+    , fromMaybe
+    , isJust
+    , isNothing
+    , mapMaybe
+    , maybeToList
+    )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -572,6 +582,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
 
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
@@ -2195,17 +2206,14 @@ constructTransaction ctx genChange (ApiT wid) body = do
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
+-- TODO: Most of the body of this function should really belong to
+-- Cardano.Wallet to keep the Api.Server module free of business logic!
 balanceTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k
         , HasNetworkLayer IO ctx
-        , WalletKey k
-        , Typeable s
-        , Typeable n
-        , HardDerivation k
         , IsOurs s Address
         , GenChange s
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> ArgGenChange s
@@ -2214,97 +2222,155 @@ balanceTransaction
     -> Handler (ApiConstructTransaction n)
 balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
+    -- TODO: This throws when still in the Byron era.
+    nodePParams <- fromJust <$> liftIO (NW.currentNodeProtocolParameters nl)
 
-    --TODO  deal with coll and validity and delegations
-    let (Tx _id _fee _coll _inps outs wdrlMap mdM _validity) = txIncoming
+    let partialTx = body ^. #transaction . #getApiT
+    let (outputs, txWithdrawal, txMetadata, oldFee) = extractFromTx partialTx
 
-    ((FeeEstimation feeMin _), unsignedtx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-
-        (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-        (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid $
-            if Map.member acct wdrlMap
-            then Just SelfWithdrawal
-            else Nothing
-        let executionFee = calcScriptExecutionCost tl pp sealedTxIncoming
-        ttl <- liftIO $ W.getTxExpiry ti Nothing
-        let txCtx = defaultTransactionCtx
-                { txPlutusScriptExecutionCost = executionFee
-                , txMetadata = mdM
-                , txWithdrawal = wdrl
-                , txTimeToLive = ttl
-                }
-
+    (newFee, balancedTx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (internalUtxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
         let externalSelectedUtxo =
-                UTxOIndex.fromSequence externalInputs
+                UTxOIndex.fromSequence (toTxInTxOut <$> (body ^. #inputs))
 
-        let utxoAvailable = UTxOSelection.fromIndexPair
+        let utxoAvailableForInputs = UTxOSelection.fromIndexPair
                 (internalUtxoAvailable, externalSelectedUtxo)
 
-        let runSelection = W.selectAssets @_ @s @k wrk W.SelectAssetsParams
-                { outputs = outs
-                , pendingTxs
-                , txContext = txCtx
-                , utxoAvailableForInputs = utxoAvailable
-                , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO internalUtxoAvailable
-                , wallet
-                } getFee
-              where getFee = const (selectionDelta TokenBundle.getCoin)
+        let utxoAvailableForCollateral =
+                UTxOIndex.toUTxO internalUtxoAvailable
 
-        let transform s sel' =
-                W.assignChangeAddresses genChange sel' s
-                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-        unsignedtx <- liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
-            { outputs = outs
+        -- NOTE: It is not possible to know the script execution cost in
+        -- advance because it actually depends on the final transaction. Inputs
+        -- selected as part of the fee balancing might have an influence on the
+        -- execution cost.
+        -- However, they are bounded so it is possible to balance the
+        -- transaction considering only the maximum cost, and only after, try to
+        -- adjust the change and ExUnits of each redeemer to something more
+        -- sensible than the max execution cost.
+        let txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp partialTx
+        let txContext = defaultTransactionCtx
+                { txPlutusScriptExecutionCost
+                , txMetadata
+                , txWithdrawal
+                , txCollateralRequirement =
+                    if txPlutusScriptExecutionCost > Coin 0 then
+                        SelectionCollateralRequired
+                    else
+                        SelectionCollateralNotRequired
+                } & padFeeEstimation partialTx pp nodePParams
+
+        -- FIXME: The coin selection and reported fees will likely be wrong in
+        -- the presence of certificates (and deposits / refunds). An immediate
+        -- "fix" is to return a proper error from the handler when any key or
+        -- pool registration (resp. deregistration) certificate is found in the
+        -- transaction. A long-term fix is to handle this case properly during
+        -- balancing.
+        let transform s sel =
+                let (sel', s') = W.assignChangeAddresses genChange sel s
+                 in ( const (selectionDelta txOutCoin sel')
+                    , W.selectionToUnsignedTx NoWithdrawal sel' s'
+                    )
+        liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            { outputs
             , pendingTxs
-            , txContext = txCtx
-            , utxoAvailableForInputs = utxoAvailable
-            , utxoAvailableForCollateral =
-                    UTxOIndex.toUTxO internalUtxoAvailable
+            , txContext
+            , utxoAvailableForInputs
+            , utxoAvailableForCollateral
             , wallet
             }
             transform
 
-        fee <- liftHandler $ W.estimateFee runSelection
-        return (fee, unsignedtx)
-
-    let UnsignedTx colls inps _outs change _wdrl = unsignedtx
-    let extraBody = ExtraTxBodyContent
+    -- FIXME:
+    -- The resulting coin-selection view is currently missing many pieces:
+    --
+    -- - deposits
+    -- - delegation actions
+    -- - withdrawals
+    --
+    -- Fees are also likely wrong. All in all, this 'coin_selection' should not
+    -- exists.
+    let coinSelection = mkApiCoinSelection [] Nothing txMetadata balancedTx
+    let UnsignedTx colls inps _outs change _wdrl = balancedTx
+    let txUpdate = TxUpdate
             { extraInputs = (\(txin, _, _) -> txin) <$> F.toList inps
             , extraCollateral = (\(txin, _, _) -> txin) <$> F.toList colls
             , extraOutputs = toTxOut <$> change
-            , newFee = const (Coin feeMin)
+            , newFee
+            , newExUnits
             }
-    let cs = mkApiCoinSelection [] Nothing mdM unsignedtx
-    sealedTxOutcoming <-
-        case updateTx tl sealedTxIncoming extraBody of
-            Right result -> pure result
-            Left err ->
-                liftHandler $ throwE $ ErrBalanceTxUpdateError err
-    pure $ ApiConstructTransaction
-        { transaction = ApiT sealedTxOutcoming
-        , coinSelection = cs
-        , fee = Quantity $ fromIntegral feeMin
-        }
+          where
+            -- TODO: At this stage, we set all execution units for all redeemers to the
+            -- max cost, which is guaranteed to succeed (given the coin selection above
+            -- was done with the same assumption) but also terribly ineffective when it
+            -- comes to reducing the cost. This is however sufficient to start
+            -- preliminary integration work.
+            newExUnits = const (const (pp ^. #txParameters . #getMaxExecutionUnits))
+
+    case ApiT <$> updateTx tl nodePParams partialTx txUpdate of
+        Left err -> liftHandler $ throwE $ ErrBalanceTxUpdateError err
+        Right transaction -> pure $ ApiConstructTransaction
+            { coinSelection
+            , transaction
+            , fee = coinToQuantity (newFee oldFee)
+            }
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter nl
 
-    apiExternalInps = body ^. #inputs
-    toTxInTxOut
-        (ApiExternalInput (ApiTxIn (ApiT hashTx) ix)
-        (ApiTxOut (ApiT addr, _) _ (Quantity amt) (ApiT assets))) =
-        (TxIn hashTx ix, TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets))
-    externalInputs = toTxInTxOut <$> apiExternalInps
-    sealedTxIncoming = body ^. #transaction . #getApiT
-    txIncoming = decodeTx tl sealedTxIncoming
+    toTxInTxOut (ApiExternalInput (ApiT tid) ix (ApiT addr, _) (Quantity amt) (ApiT assets)) =
+      ( TxIn tid ix
+      , TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
+      )
+
     toTxOut (TxChange addr amt assets _) =
         TxOut addr (TokenBundle amt assets)
+
+    extractFromTx tx =
+        let (Tx _id fee _coll _inps outs wdrlMap meta _vldt) = decodeTx tl tx
+            -- TODO: Find a better abstraction that can cover this case.
+            wdrl = WithdrawalSelf
+                (error $ "WithdrawalSelf: reward-account should never been use "
+                      <> "when balancing transactions but it was!"
+                )
+                (error $ "WithdrawalSelf: derivation path should never been use "
+                      <> "when balancing transactions but it was!"
+                )
+                (sumCoins wdrlMap)
+         in (outs, wdrl, meta, fromMaybe (Coin 0) fee)
+
+    -- | Wallet coin selection is unaware of many kinds of transaction content
+    -- (e.g. datums, redeemers), which could be included in the input to
+    -- `balanceTransaction`. As a workaround we add some padding using
+    -- `evaluateMinimumFee`.
+    --
+    -- TODO: This logic needs to be consistent with how we call `selectAssets`,
+    -- so it would be good to join them into some single helper.
+    padFeeEstimation
+        :: W.SealedTx
+        -> W.ProtocolParameters
+        -> Cardano.ProtocolParameters
+        -> TransactionCtx
+        -> TransactionCtx
+    padFeeEstimation sealedTx pp pp' txCtx =
+        let
+            walletTx = decodeTx tl sealedTx
+            worseEstimate = calcMinimumCost tl pp txCtx skeleton
+            skeleton = SelectionSkeleton
+                { skeletonInputCount = length (view #resolvedInputs walletTx)
+                , skeletonOutputs = view #outputs walletTx
+                , skeletonChange = mempty
+                }
+            LinearFee _ (Quantity b) = pp ^. #txParameters . #getFeePolicy
+            -- NOTE: Coping with the later additions of script integrity hash and
+            -- redeemers ex units increased from 0 to their actual values.
+            extraMargin = Coin $ ceiling (100 * b)
+            txFeePadding = (<> extraMargin) $ fromMaybe (Coin 0) $ do
+                betterEstimate <- evaluateMinimumFee tl pp' sealedTx
+                betterEstimate `subtractCoin` worseEstimate
+        in
+            txCtx { txFeePadding }
 
 joinStakePool
     :: forall ctx s n k.

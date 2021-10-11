@@ -5,11 +5,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -48,15 +50,12 @@ import Cardano.Wallet
     , FeeEstimation (..)
     , estimateFee
     )
-import Cardano.Wallet.Api.Types
-    ( ApiBalanceTransactionPostData (..), ApiT (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( maryTokenBundleMaxSize )
 import Cardano.Wallet.Gen
     ( genScript )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..)
-    , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
@@ -85,7 +84,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinToInteger, sumCoins )
+    ( Coin (..), coinToInteger )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -118,20 +117,20 @@ import Cardano.Wallet.Primitive.Types.Tx
     , serialisedTx
     , txMetadataIsNull
     , txOutCoin
-    , unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyShelleyBasedEra (..)
     , computeTokenBundleSerializedLengthBytes
+    , fromLedgerAlonzoPParams
     , getShelleyBasedEra
     , shelleyToCardanoEra
     , toCardanoLovelace
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( ExtraTxBodyContent (..)
-    , TxSkeleton (..)
+    ( TxSkeleton (..)
+    , TxUpdate (..)
     , TxWitnessTag (..)
     , TxWitnessTagFor
     , estimateTxCost
@@ -140,12 +139,12 @@ import Cardano.Wallet.Shelley.Transaction
     , mkTxSkeleton
     , mkUnsignedTx
     , newTransactionLayer
-    , noExtraTxBodyContent
+    , noTxUpdate
     , txConstraints
     , updateSealedTx
-    , _calcScriptExecutionCost
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
+    , _maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
     ( TransactionCtx (..)
@@ -159,8 +158,6 @@ import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.Trans.Except
     ( except, runExceptT )
-import Data.Aeson
-    ( eitherDecode )
 import Data.ByteString
     ( ByteString )
 import Data.Either
@@ -179,6 +176,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Semigroup
     ( Sum (Sum), getSum, mtimesDefault )
+import Data.Set
+    ( Set )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
@@ -187,8 +186,11 @@ import Fmt
     ( (+||), (||+) )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
+import System.Directory
+    ( listDirectory )
 import System.FilePath
     ( (</>) )
+
 import Test.Hspec
     ( Spec
     , SpecWith
@@ -197,10 +199,13 @@ import Test.Hspec
     , expectationFailure
     , it
     , pendingWith
+    , runIO
     , shouldBe
     , shouldSatisfy
     , xdescribe
     )
+import Test.Hspec.Core.Spec
+    ( SpecM )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -232,8 +237,6 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Gen
     ( Gen (..), listOf1 )
-import Test.QuickCheck.Monadic
-    ( assert, monadicIO, monitor, run )
 import Test.QuickCheck.Random
     ( mkQCGen )
 import Test.Utils.Paths
@@ -242,13 +245,14 @@ import Test.Utils.Pretty
     ( Pretty (..), (====) )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -485,30 +489,20 @@ feeCalculationSpec = describe "fee calculations" $ do
         let ppWithPrices :: ProtocolParameters
             ppWithPrices = dummyProtocolParameters
                 { executionUnitPrices = Just (ExecutionUnitPrices 1 1)
+                , txParameters = dummyTxParameters
+                    { getMaxExecutionUnits = ExecutionUnits 10000000 10000000000
+                    }
                 }
-
-        let unsafeFromCBORhex = unsafeSealedTxFromBytes . unsafeFromHex
-
-        describe "with prices txs without plutus scripts" $ do
-            forM_ matrixNormalTxExamples $ \(title, cborHex) ->
-                it title $
-                    _calcScriptExecutionCost ppWithPrices (unsafeFromCBORhex cborHex)
-                    `shouldBe` Coin 0
-
-        describe "with prices txs with plutus scripts" $ do
-            let testPlutusDir = $(getTestData) </> "plutus"
-
-            forM_ matrixPlutusExamples $ \(json, executionUnits) -> do
-                let calcPrice (ExecutionUnits {executionSteps, executionMemory}) =
-                        Coin $ executionMemory + executionSteps
-                let price = sumCoins $ map calcPrice executionUnits
-                let testFile = testPlutusDir </> json
-                it json $ property $ \(_thereWillBeWalletsHere :: Int) -> monadicIO $ do
-                    bs <- run $ BL.readFile testFile
-                    let (Right content@(ApiBalanceTransactionPostData (ApiT sealedTx) _)) =
-                            eitherDecode @(ApiBalanceTransactionPostData 'Mainnet) bs
-                    monitor $ counterexample ("json = " <> json <> " " <> show content)
-                    assert (_calcScriptExecutionCost ppWithPrices sealedTx == price)
+        txs <- readTestTransactions
+        forM_ txs $ \(filepath, tx) -> do
+            if (hasPlutusScripts tx) then do
+                it ("with redeemers: " <> filepath) $
+                    _maxScriptExecutionCost ppWithPrices tx
+                        `shouldSatisfy` (> (Coin 0))
+            else do
+                it ("without redeemers: " <> filepath) $
+                    _maxScriptExecutionCost ppWithPrices tx
+                        `shouldBe` (Coin 0)
 
     describe "fee calculations" $ do
         it "withdrawals incur fees" $ property $ \wdrl ->
@@ -1180,6 +1174,8 @@ dummyTxParameters = TxParameters
         error "dummyTxParameters: getTxMaxSize"
     , getTokenBundleMaxSize =
         error "dummyTxParameters: getMaxTokenBundleSize"
+    , getMaxExecutionUnits =
+        error "dummyTxParameters: getMaxExecutionUnits"
     }
 
 dummyProtocolParameters :: ProtocolParameters
@@ -1228,6 +1224,7 @@ mockProtocolParameters = dummyProtocolParameters
         { getFeePolicy = mockFeePolicy
         , getTxMaxSize = Quantity 16384
         , getTokenBundleMaxSize = TokenBundleMaxSize $ TxSize 4000
+        , getMaxExecutionUnits = ExecutionUnits 10000000 10000000000
         }
     }
 
@@ -1439,336 +1436,77 @@ instance Arbitrary KeyHash where
         cred <- oneof [pure Payment, pure Delegation]
         KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
 
-matrixPlutusExamples :: [(String, [ExecutionUnits])]
-matrixPlutusExamples =
-    [ ( "auction_1-2.json"
-      , [ExecutionUnits { executionMemory = 6070, executionSteps = 24673000 }]
-      )
-    , ( "crowdfunding-success-4.json"
-      , [ ExecutionUnits { executionMemory = 7740, executionSteps = 31186000 }
-        , ExecutionUnits { executionMemory = 7740, executionSteps = 31186000 }
-        , ExecutionUnits { executionMemory = 7740, executionSteps = 31186000 } ]
-      )
-    , ( "currency-2.json"
-      , [ExecutionUnits { executionMemory = 7130, executionSteps = 28807000 }]
-      )
-    , ( "escrow-redeem_1-3.json"
-      , [ ExecutionUnits { executionMemory = 10460, executionSteps = 41794000 }
-        , ExecutionUnits { executionMemory = 10460, executionSteps = 41794000 } ]
-      )
-    , ( "escrow-redeem_2-4.json"
-      , [ ExecutionUnits { executionMemory = 10460, executionSteps = 41794000 }
-        , ExecutionUnits { executionMemory = 10460, executionSteps = 41794000 }
-        , ExecutionUnits { executionMemory = 10460, executionSteps = 41794000 } ]
-      )
-    , ( "escrow-refund-2.json"
-      , [ ExecutionUnits { executionMemory = 10460, executionSteps = 41794000 } ]
-      )
-    , ( "future-increase-margin-2.json"
-      , [ExecutionUnits { executionMemory = 7130, executionSteps = 28807000 }]
-      )
-    , ( "future-increase-margin-5.json"
-      , [ ExecutionUnits { executionMemory = 11050, executionSteps = 44095000 }
-        , ExecutionUnits { executionMemory = 11050, executionSteps = 44095000 }]
-      )
-    , ( "future-increase-margin-6.json"
-      , [ExecutionUnits { executionMemory = 16920, executionSteps = 66988000 }]
-      )
-    , ( "future-increase-margin-7.json"
-      , [ExecutionUnits { executionMemory = 16920, executionSteps = 66988000 }]
-      )
-    , ( "future-pay-out-2.json"
-      , [ExecutionUnits { executionMemory = 7130, executionSteps = 28807000 }]
-      )
-    , ( "future-pay-out-5.json"
-      , [ ExecutionUnits { executionMemory = 11050, executionSteps = 44095000 }
-        , ExecutionUnits { executionMemory = 11050, executionSteps = 44095000 }]
-      )
-    , ( "future-pay-out-6.json"
-      , [ExecutionUnits { executionMemory = 16920, executionSteps = 66988000 }]
-      )
-    , ( "future-settle-early-2.json"
-      , [ExecutionUnits { executionMemory = 7130, executionSteps = 28807000 }]
-      )
-    , ( "future-settle-early-5.json"
-      , [ ExecutionUnits { executionMemory = 11050, executionSteps = 44095000 }
-        , ExecutionUnits { executionMemory = 11050, executionSteps = 44095000 }]
-      )
-    , ( "future-settle-early-6.json"
-      , [ExecutionUnits { executionMemory = 16920, executionSteps = 66988000 }]
-      )
-    , ( "game-sm-success-2.json"
-      , [ ExecutionUnits { executionMemory = 11860, executionSteps = 47254000 }
-        , ExecutionUnits { executionMemory = 4880, executionSteps = 20032000 }]
-      )
-    , ( "game-sm-success-4.json"
-      , [ExecutionUnits { executionMemory = 11860, executionSteps = 47254000 }]
-      )
-    , ( "game-sm-success_2-2.json"
-      , [ ExecutionUnits { executionMemory = 11860, executionSteps = 47254000 }
-        , ExecutionUnits { executionMemory = 4880, executionSteps = 20032000 }]
-      )
-    , ( "game-sm-success_2-4.json"
-      , [ExecutionUnits { executionMemory = 11860, executionSteps = 47254000 }]
-      )
-    , ( "game-sm-success_2-6.json"
-      , [ExecutionUnits { executionMemory = 11860, executionSteps = 47254000 }]
-      )
-    , ( "multisig-failure-2.json"
-      , [ExecutionUnits { executionMemory = 7800, executionSteps = 31420000 }]
-      )
-    , ( "multisig-sm-10.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-sm-11.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-sm-2.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-sm-3.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-sm-4.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-sm-5.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-sm-6.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-sm-7.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-sm-8.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-sm-9.json"
-      , [ExecutionUnits { executionMemory = 14140, executionSteps = 56146000 }]
-      )
-    , ( "multisig-success-2.json"
-      , [ExecutionUnits { executionMemory = 7800, executionSteps = 31420000 }]
-      )
-    , ( "ping-pong-2.json"
-      , [ExecutionUnits { executionMemory = 11620, executionSteps = 46318000 }]
-      )
-    , ( "ping-pong-3.json"
-      , [ExecutionUnits { executionMemory = 11620, executionSteps = 46318000 }]
-      )
-    , ( "ping-pong_2-2.json"
-      , [ExecutionUnits { executionMemory = 11620, executionSteps = 46318000 }]
-      )
-    --, ( "prism-3.json"
-    --  , [ ExecutionUnits { executionMemory = 12710, executionSteps = 50569000 }
-    --    , ExecutionUnits { executionMemory = 6870, executionSteps = 27793000 }]
-    --  ) -- Error in $[0]: there should be one 'lovelace' in 'value'
-    , ( "pubkey-2.json"
-     , [ExecutionUnits { executionMemory = 6690, executionSteps = 27091000 }]
-     )
-    --, ( "stablecoin_1-2.json"
-    --  , [ ExecutionUnits { executionMemory = 17940, executionSteps = 70966000 }
-    --    , ExecutionUnits { executionMemory = 4880, executionSteps = 20032000}]
-    --  ) -- Error in $[0]: Value should not be empty
-    , ( "stablecoin_1-3.json"
-      , [ ExecutionUnits { executionMemory = 17940, executionSteps = 70966000 }
-        , ExecutionUnits { executionMemory = 4880, executionSteps = 20032000}]
-      )
-    , ( "stablecoin_1-4.json"
-      , [ ExecutionUnits { executionMemory = 17940, executionSteps = 70966000 }
-        , ExecutionUnits { executionMemory = 4880, executionSteps = 20032000}]
-      )
-    --, ( "stablecoin_2-2.json"
-    --  , [ ExecutionUnits { executionMemory = 17940, executionSteps = 70966000 }
-    --    , ExecutionUnits { executionMemory = 4880, executionSteps = 20032000}]
-    --  ) --Error in $[0]: Value should not be empty
-    , ( "stablecoin_2-3.json"
-      , [ ExecutionUnits { executionMemory = 17940, executionSteps = 70966000 }
-        , ExecutionUnits { executionMemory = 4880, executionSteps = 20032000}]
-      )
-    , ( "token-account-2.json"
-      , [ExecutionUnits { executionMemory = 6950, executionSteps = 28105000 }]
-      )
-    , ( "token-account-5.json"
-      , [ExecutionUnits { executionMemory = 7900, executionSteps = 31810000 }]
-      )
-    , ( "uniswap-10.json"
-      , [ ExecutionUnits { executionMemory = 13310, executionSteps = 52909000 }
-        , ExecutionUnits { executionMemory = 4710, executionSteps = 19369000 }]
-      )
-    , ( "uniswap-2.json"
-      , [ ExecutionUnits { executionMemory = 7490, executionSteps = 30211000 } ]
-      )
-    , ( "uniswap-7.json"
-      , [ExecutionUnits { executionMemory = 6950, executionSteps = 28105000 }]
-      )
-    --, ( "uniswap-9.json"
-    --  , [ ExecutionUnits { executionMemory = 13310, executionSteps = 52909000 }
-    --    , ExecutionUnits { executionMemory = 4710, executionSteps = 19369000 }]
-    --  ) -- Error in $[0]: there should be one 'lovelace' in 'value'
-    , ( "vesting-2.json"
-      , [ExecutionUnits { executionMemory = 10250, executionSteps = 40975000 }]
-      )
-    ]
-
-matrixNormalTxExamples :: [(String, ByteString)]
-matrixNormalTxExamples =
-    [ ( "multiple outputs tx"
-      , "84a600818258200eaa33be8780935ca5a7c1e628a2d54402446f96236c\
-        \a8f1770e07fa22ba8648000d80018482583901a65f0e7aea387adbc109\
-        \123a571cfd8d0d139739d359caaf966aa5b9a062de6ec013404d4f9909\
-        \877d452fc57dfe4f8b67f94e0ea1e8a0ba1a000f422a82583901ac9a56\
-        \280ec283eb7e12146726bfe68dcd69c7a85123ce2f7a10e7afa062de6e\
-        \c013404d4f9909877d452fc57dfe4f8b67f94e0ea1e8a0ba1a000f422a\
-        \825839011a2f2f103b895dbe7388acc9cc10f90dc4ada53f46c841d2ac\
-        \44630789fc61d21ddfcbd4d43652bf05c40c346fa794871423b65052d7\
-        \614c1b0000000ba42b176a82583901c59701fee28ad31559870ecd6ea9\
-        \2b143b1ce1b68ccb62f8e8437b3089fc61d21ddfcbd4d43652bf05c40c\
-        \346fa794871423b65052d7614c1b0000000ba42b176a021a000234d803\
-        \198ceb0e80a0f5f6"
-      )
-    , ( "single output tx"
-      , "84a600818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1\
-        \770e07fa22ba86480d0d800182825839010acce4f85ade867308f048fe4516\
-        \c0383b38cc04602ea6f7a6a1e75f29450899547b0e4bb194132452d45fea30\
-        \212aebeafc69bca8744ea61a002dc67e8258390110a9b4666ba80e4878491d\
-        \1ac20465c9893a8df5581dc705770626203d4d23fe6a7acdda5a1b41f56100\
-        \f02bfa270a3c560c4e55cf8312331b00000017484721ca021a0001ffb80319\
-        \8d280e80a0f5f6"
-      )
-    ]
-
 updateSealedTxSpec :: Spec
 updateSealedTxSpec = do
     describe "updateSealedTx" $ do
         describe "no existing key witnesses" $ do
-            it "combines ins, outs and sets new fee"
-                $ property prop_updateSealedTx
+            txs <- readTestTransactions
+            forM_ txs $ \(filepath, tx) -> do
+                it ("without TxUpdate: " <> filepath) $ do
+                    case updateSealedTx dummyNodeProtocolParameters tx noTxUpdate of
+                        Left e ->
+                            expectationFailure $ "expected update to succeed but failed: " <> show e
+                        Right tx' -> do
+                            sealedInputs tx `shouldBe` sealedInputs tx'
+                            sealedOutputs tx `shouldBe` sealedOutputs tx'
+                            sealedFee tx `shouldBe` sealedFee tx'
+                            sealedCollateral tx `shouldBe` sealedCollateral tx'
 
-            -- TODO [ADP-1140]: These should be mergable with the property
-            -- above, if we include the PAB examples in the arbitrary instance.
-            --
-            -- But we will also need to pattern match on the fee modifier,
-            -- currently a `Coin -> Coin`, so we might need to replace it with
-            -- either `Maybe Coin` or even just `Coin`.
-            describe "updateSealedTx tx noExtraTxBodyContent == Right tx" $ do
-                let testPlutusDir = $(getTestData) </> "plutus"
-                let matrix =
-                        [ "auction_1-2.json"
-                        , "crowdfunding-success-4.json"
-                        , "currency-2.json"
-                        , "escrow-redeem_1-3.json"
-                        , "escrow-redeem_2-4.json"
-                        , "escrow-refund-2.json"
-                        , "future-increase-margin-2.json"
-                        , "future-increase-margin-5.json"
-                        , "future-increase-margin-6.json"
-                        , "future-increase-margin-7.json"
-                        , "future-pay-out-2.json"
-                        , "future-pay-out-5.json"
-                        , "future-pay-out-6.json"
-                        , "future-settle-early-2.json"
-                        , "future-settle-early-5.json"
-                        , "future-settle-early-6.json"
-                        , "game-sm-success-2.json"
-                        , "game-sm-success-4.json"
-                        , "game-sm-success_2-2.json"
-                        , "game-sm-success_2-4.json"
-                        , "game-sm-success_2-6.json"
-                        , "multisig-failure-2.json"
-                        , "multisig-sm-10.json"
-                        , "multisig-sm-11.json"
-                        , "multisig-sm-2.json"
-                        , "multisig-sm-3.json"
-                        , "multisig-sm-4.json"
-                        , "multisig-sm-5.json"
-                        , "multisig-sm-6.json"
-                        , "multisig-sm-7.json"
-                        , "multisig-sm-8.json"
-                        , "multisig-sm-9.json"
-                        , "multisig-success-2.json"
-                        , "ping-pong-2.json"
-                        , "ping-pong-3.json"
-                        , "ping-pong_2-2.json"
-                        --, "prism-3.json" -- Error in $[0]: there should be one 'lovelace' in 'value'
-                        , "pubkey-2.json"
-                        --, "stablecoin_1-2.json" -- Error in $[0]: Value should not be empty
-                        , "stablecoin_1-3.json"
-                        , "stablecoin_1-4.json"
-                        --, "stablecoin_2-2.json" --Error in $[0]: Value should not be empty
-                        , "stablecoin_2-3.json"
-                        , "token-account-2.json"
-                        , "token-account-5.json"
-                        , "uniswap-10.json"
-                        , "uniswap-2.json"
-                        , "uniswap-7.json"
-                        --, "uniswap-9.json" -- Error in $[0]: there should be one 'lovelace' in 'value'
-                        , "vesting-2.json"
-                        ]
-                forM_ matrix $ \json -> do
-                    let testFile = testPlutusDir </> json
-                    it json $ do
-                        bs <- BL.readFile testFile
-                        let decodeResult = eitherDecode @(ApiBalanceTransactionPostData 'Mainnet) bs
-                        case decodeResult of
-                            Left e -> expectationFailure $ show e
-                            Right (ApiBalanceTransactionPostData (ApiT tx) _ ) -> do
-                                updateSealedTx noExtraTxBodyContent tx
-                                    `shouldBe` Right tx
-
-                forM_ matrixNormalTxExamples $ \(title, hexBytes) -> do
-                    it title $ do
-                        case sealedTxFromBytes $ unsafeFromHex hexBytes of
-                            Left e -> expectationFailure $ show e
-                            Right tx -> do
-                                updateSealedTx noExtraTxBodyContent tx
-                                    `shouldBe` Right tx
+                prop ("with TxUpdate: " <> filepath) $
+                    prop_updateSealedTx tx
 
         describe "existing key witnesses" $ do
-            it "returns `Left err` with noExtraTxBodyContent" $ do
+            it "returns `Left err` with noTxUpdate" $ do
                 -- Could be argued that it should instead return `Right tx`.
                 case sealedTxFromBytes $ unsafeFromHex txWithInputsOutputsAndWits of
                     Left e -> expectationFailure $ show e
                     Right tx -> do
-                        print $ updateSealedTx noExtraTxBodyContent tx
-                        updateSealedTx noExtraTxBodyContent tx
+                        updateSealedTx dummyNodeProtocolParameters tx noTxUpdate
                             `shouldBe` Left (ErrExistingKeyWitnesses 2)
 
             it "returns `Left err` when extra body content is non-empty" $ do
                 pendingWith "todo: add test data"
 
-newtype PartialTx = PartialTx SealedTx
-    deriving (Show, Eq)
+unsafeSealedTxFromHex :: ByteString -> IO SealedTx
+unsafeSealedTxFromHex =
+    either (fail . show) pure . sealedTxFromBytes . unsafeFromHex . BS.dropWhileEnd isNewlineChar
+  where
+    isNewlineChar c = c `elem` [10,13]
 
-instance Arbitrary PartialTx where
-    arbitrary = fmap PartialTx $ elements $ mconcat
-        [ map (either (error . show) id . sealedTxFromBytes . unsafeFromHex . snd)
-            matrixNormalTxExamples
-        ]
-
-prop_updateSealedTx :: PartialTx -> [TxIn] -> [TxIn] -> [TxOut] -> Coin -> Property
-prop_updateSealedTx (PartialTx tx) extraIns extraCol extraOuts newFee = do
-    let extra = ExtraTxBodyContent extraIns extraCol extraOuts (const newFee)
+prop_updateSealedTx :: SealedTx -> [TxIn] -> [TxIn] -> [TxOut] -> Coin -> Property
+prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
+    let extra = TxUpdate extraIns extraCol extraOuts (const id) (const newFee)
     let tx' = either (error . show) id
-            $ updateSealedTx extra tx
-
+            $ updateSealedTx dummyNodeProtocolParameters tx extra
     conjoin
-        [ ins tx' === ins tx <> Set.fromList extraIns
-        , outs tx' === outs tx <> Set.fromList extraOuts
-        , fee tx' === Just newFee
-        , collateral tx' ===
+        [ sealedInputs tx' === sealedInputs tx <> Set.fromList extraIns
+        , sealedOutputs tx' === sealedOutputs tx <> Set.fromList extraOuts
+        , sealedFee tx' === Just newFee
+        , sealedCollateral tx' ===
             if isAlonzo tx
-            then collateral tx <> Set.fromList extraCol
+            then sealedCollateral tx <> Set.fromList extraCol
             else mempty
         ]
   where
-    ins = Set.fromList . map fst . view #resolvedInputs . _decodeSealedTx
-    collateral = Set.fromList . map fst . view #resolvedCollateral . _decodeSealedTx
-    outs = Set.fromList . view #outputs . _decodeSealedTx
-    fee = view #fee . _decodeSealedTx
-
     isAlonzo (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra _) = True
     isAlonzo (cardanoTx -> InAnyCardanoEra _ _) = False
+
+sealedInputs :: SealedTx -> Set TxIn
+sealedInputs =
+    Set.fromList . map fst . view #resolvedInputs . _decodeSealedTx
+
+sealedCollateral :: SealedTx -> Set TxIn
+sealedCollateral =
+    Set.fromList . map fst . view #resolvedCollateral . _decodeSealedTx
+
+sealedOutputs :: SealedTx -> Set TxOut
+sealedOutputs =
+    Set.fromList . view #outputs . _decodeSealedTx
+
+sealedFee :: SealedTx -> Maybe Coin
+sealedFee =
+    view #fee . _decodeSealedTx
+
 
 
 txWithInputsOutputsAndWits :: ByteString
@@ -1788,3 +1526,23 @@ txWithInputsOutputsAndWits =
     \00000000000000000000000000000000000000000000000000005840e8e769ecd0\
     \f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a\
     \5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80ef6"
+
+readTestTransactions :: SpecM a [(FilePath, SealedTx)]
+readTestTransactions = runIO $ do
+    let dir = $(getTestData) </> "plutus"
+    listDirectory dir
+        >>= traverse (\f -> (f,) <$> BS.readFile (dir </> f))
+        >>= traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs)
+
+dummyNodeProtocolParameters :: Cardano.ProtocolParameters
+dummyNodeProtocolParameters = fromLedgerAlonzoPParams Alonzo.emptyPParams
+
+hasPlutusScripts :: SealedTx -> Bool
+hasPlutusScripts sealedTx =
+    case cardanoTx sealedTx of
+        InAnyCardanoEra ByronEra _   -> False
+        InAnyCardanoEra ShelleyEra _ -> False
+        InAnyCardanoEra AllegraEra _ -> False
+        InAnyCardanoEra MaryEra _    -> False
+        InAnyCardanoEra AlonzoEra (Cardano.Tx body _) -> case body of
+            Cardano.ShelleyTxBody _ _ scripts _ _ _ -> not (null scripts)

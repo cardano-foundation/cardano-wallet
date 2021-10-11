@@ -36,11 +36,11 @@ import Cardano.Wallet.Api.Types
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
-    , ApiTxId
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
+    , EncodeStakeAddress
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -64,6 +64,8 @@ import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Aeson
+    ( toJSON, (.=) )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -118,6 +120,7 @@ import Test.Integration.Framework.DSL
     , submitTx
     , unsafeRequest
     , verify
+    , waitForTxImmutability
     )
 import Test.Integration.Framework.TestData
     ( errMsg403Fee
@@ -137,14 +140,17 @@ import qualified Cardano.Ledger.Crypto as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Integration.Plutus as PlutusScenario
 
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
+    , EncodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n IcarusKey
     ) => SpecWith Context
@@ -918,7 +924,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (_, Left e) -> throwIO e
             (_, Right tx) -> pure tx
 
-        let sealedTx = transaction apiTx
+        let sealedTx = apiTx ^. #transaction
 
         -- Sign tx
         let toSign = Json [json|
@@ -930,11 +936,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @ApiSignedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
-        eTxId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
-
-        txId <- case (eTxId :: (HTTP.Status, Either RequestException ApiTxId)) of
-          (_, Left e) -> throwIO e
-          (_, Right txId) -> pure txId
+        txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
         eventually "Metadata is on-chain" $ do
             rWa <- request @(ApiTransaction n) ctx
@@ -1032,34 +1034,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403transactionAlreadyBalanced
             ]
 
-    it "TRANS_NEW_BALANCE_01b - incorrect cbor - not hex-encoded" $ \ctx -> runResourceT $ do
-        let initialAmt = minUTxOValue (_mainEra ctx)
-        wa <- fixtureWalletWith @n ctx [initialAmt]
-
-        let serializedTx = "84a600818gfrddd" :: Text
-        let balancePayload = Json [json|{
-              "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
-              "inputs": []
-          }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.balanceTransaction @'Shelley wa) Default balancePayload
-        verify rTx
-            [ expectErrorMessage "Error in $: Parse error. Expecting Base16-encoded format." ]
-
-    it "TRANS_NEW_BALANCE_01c - incorrect cbor - hex-encoded but cannot deserialize into sealedTx" $ \ctx -> runResourceT $ do
-        let initialAmt = minUTxOValue (_mainEra ctx)
-        wa <- fixtureWalletWith @n ctx [initialAmt]
-
-        let serializedTx = "84a6008180000000000000" :: Text
-        let balancePayload = Json [json|{
-              "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
-              "inputs": []
-          }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.balanceTransaction @'Shelley wa) Default balancePayload
-        verify rTx
-            [ expectErrorMessage "Error in $: cborHex seems to be not deserializing correctly due to DecoderErrorDeserialiseFailure 'Shelley Tx' (DeserialiseFailure 5 'expected bytes'" ]
-
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
@@ -1076,15 +1050,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \f02bfa270a3c560c4e55cf8312331b00000017484721ca021a0001ffb80319\
                 \8d280e80a0f5f6" :: Text
         let balancePayload = Json [json|{
-              "transaction": { "cborHex" : #{serializedTx}, "description": "", "type": "Tx AlonzoEra" },
+              "transaction": #{serializedTx},
+              "redeemers": [],
               "inputs": [
-                  { "txIn" : "0eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648#13"
-                  , "txOut" :
-                      { "value" : { "lovelace": #{inpAmt} }
-                      , "address": "addr1vxtlefx3dd5ga5d3cqcfycxsc5tv20txpx7qlmlt2kwnfds2mywcr"
+                  { "id" : "0eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648"
+                  , "index": 13
+                  , "address": "addr1vxtlefx3dd5ga5d3cqcfycxsc5tv20txpx7qlmlt2kwnfds2mywcr"
+                  , "amount":
+                      { "quantity": #{inpAmt}
+                      , "unit": "lovelace"
                       }
-                  }]
-          }|]
+                  , "assets": []
+                  }
+              ]
+            }|]
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
         verify rTx
@@ -1100,15 +1079,19 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWalletWith @n ctx [initialAmt]
 
         let balancePayload = Json [json|{
-              "transaction": { "cborHex" : #{serializedPlutusTx}, "description": "", "type": "Tx AlonzoEra" },
+              "transaction": #{serializedPlutusTx},
+              "redeemers": [],
               "inputs": [
-                  { "txIn" : "888963613d2bb4c5c55cee335f724624cbc54b185ecaa2fb1eb07545ed5db421#1"
-                  , "txOut" :
-                      { "value" : { "lovelace": 10 }
-                      , "data": "2cdb268baecefad822e5712f9e690e1787f186f5c84c343ffdc060b21f0241e0"
-                      , "address": "addr1wygn2yjfcgmahn3d62f7wqylstqzlde34s6p0w4esnfzsyqwr2xhg"
+                  { "id" : "888963613d2bb4c5c55cee335f724624cbc54b185ecaa2fb1eb07545ed5db421"
+                  , "index": 1
+                  , "address": "addr1wygn2yjfcgmahn3d62f7wqylstqzlde34s6p0w4esnfzsyqwr2xhg"
+                  , "amount":
+                      { "quantity": 10
+                      , "unit": "lovelace"
                       }
-                  }]
+                  , "assets": []
+                  }
+              ]
           }|]
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
@@ -1161,7 +1144,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         length (withdrawals $ coinSelection apiTx) `shouldBe` 1
 
         -- Sign tx
-        let sealedTx = transaction apiTx
+        let sealedTx = apiTx ^. #transaction
             toSign = Json [json|
                 { "transaction": #{sealedTx}
                 , "passphrase": #{fixturePassphrase}
@@ -1211,11 +1194,75 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- should be able to construct transactions with extra signers from the
         -- API!
         void $ submitTx ctx signedTx
-             [ expectResponseCode HTTP.status500
-             , expectErrorMessage "FeeTooSmallUTxO"
-             ]
-  where
+            [ expectResponseCode HTTP.status500
+            , expectErrorMessage "FeeTooSmallUTxO"
+            ]
 
+    describe "Plutus scenarios" $ do
+        -- NOTE: This test scenario is currently unreliable because of the way
+        -- the redeemer pointers work. Redeemers are identified by pointers into
+        -- the input set, but that set is an ordered set where the order is
+        -- determined lexicographically based on the txin's transaction id and
+        -- index. Thus, adding new inputs during the coin selection may
+        -- arbitrarily change the order of inputs in the inputs set and thus,
+        -- render redeemer pointers invalid.
+        --
+        -- A solution to this would be to assign pointers only after the
+        -- transaction has been balanced; to be done properly, this requires an
+        -- API change so that clients (e.g. the PAB) can give us a little bit
+        -- more information about the nature of each redeemers in order to
+        -- connect the dots at the end.
+        it "ping-pong" $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith "Need to dynamically assign redeemer pointers in API."
+
+            w <- fixtureWallet ctx
+            let balanceEndpoint = Link.balanceTransaction @'Shelley w
+            let signEndpoint = Link.signTransaction @'Shelley w
+
+            --
+            -- Part 1 :: Contract Setup
+            --
+
+            -- Balance
+            let toBalance = Json PlutusScenario.pingPong_1
+            (_, sealedTx) <- second (view #transaction) <$>
+                unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance
+
+            -- Sign
+            let toSign = Json [json|
+                    { "transaction": #{sealedTx}
+                    , "passphrase": #{fixturePassphrase}
+                    }|]
+            (_, signedTx) <- second (view #transaction) <$>
+                unsafeRequest @ApiSignedTransaction ctx signEndpoint toSign
+
+            -- Submit
+            txid <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+            waitForTxImmutability ctx
+
+            --
+            -- Part 2 :: Contract Utilization
+            --
+
+            -- Balance
+            partialTx' <- PlutusScenario.pingPong_2 $ Aeson.object
+                [ "transactionId" .= view #id txid ]
+            let toBalance' = Json (toJSON partialTx')
+
+            -- Sign
+            (_, sealedTx') <- second (view #transaction) <$>
+                unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance'
+
+            let toSign' = Json [json|
+                    { "transaction": #{sealedTx'}
+                    , "passphrase": #{fixturePassphrase}
+                    }|]
+            (_, signedTx') <- second (view #transaction) <$>
+                unsafeRequest @ApiSignedTransaction ctx signEndpoint toSign'
+
+            -- Submit
+            void $ submitTx ctx signedTx' [ expectResponseCode HTTP.status202 ]
+  where
     unsafeGetTx
         :: MonadIO m
         => (HTTP.Status, Either RequestException (ApiConstructTransaction n))

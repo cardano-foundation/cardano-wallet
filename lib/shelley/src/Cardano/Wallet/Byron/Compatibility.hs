@@ -136,6 +136,7 @@ mainnetNetworkParameters = W.NetworkParameters
             , getTxMaxSize =
                 Quantity 4096
             , getTokenBundleMaxSize = maryTokenBundleMaxSize
+            , getMaxExecutionUnits = W.ExecutionUnits 0 0
             }
         , desiredNumberOfStakePools = 0
         , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0
@@ -350,6 +351,7 @@ protocolParametersFromPP eraInfo pp = W.ProtocolParameters
         { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
         , getTxMaxSize = fromMaxSize $ Update.ppMaxTxSize pp
         , getTokenBundleMaxSize = maryTokenBundleMaxSize
+        , getMaxExecutionUnits = W.ExecutionUnits 0 0
         }
     , desiredNumberOfStakePools = 0
     , minimumUTxOvalue = W.MinimumUTxOValue $ W.Coin 0

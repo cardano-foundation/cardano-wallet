@@ -28,6 +28,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , EpochLength (..)
+    , ExecutionUnits (..)
     , FeePolicy (..)
     , GenesisParameters (..)
     , MinimumUTxOValue (..)
@@ -108,6 +109,7 @@ dummyTxParameters = TxParameters
     { getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
     , getTxMaxSize = Quantity 8192
     , getTokenBundleMaxSize = TokenBundleMaxSize (TxSize 4000)
+    , getMaxExecutionUnits = ExecutionUnits 0 0
     }
 
 dummyNetworkParameters :: NetworkParameters

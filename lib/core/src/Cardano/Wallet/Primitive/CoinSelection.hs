@@ -247,7 +247,7 @@ toBalanceConstraintsParams (constraints, params) =
             --
             adjustSelectionLimit :: SelectionLimit -> SelectionLimit
             adjustSelectionLimit = fmap
-                (`subtract` (view #maximumCollateralInputCount constraints))
+                (subtract (view #maximumCollateralInputCount constraints))
 
     balanceParams = Balance.SelectionParams
         { assetsToBurn =

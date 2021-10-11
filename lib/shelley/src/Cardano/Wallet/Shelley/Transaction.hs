@@ -30,8 +30,8 @@ module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
 
     -- * Updating SealedTx
-    , ExtraTxBodyContent (..)
-    , noExtraTxBodyContent
+    , TxUpdate (..)
+    , noTxUpdate
     , updateSealedTx
 
     -- * Internals
@@ -41,7 +41,7 @@ module Cardano.Wallet.Shelley.Transaction
     , TxWitnessTagFor (..)
     , _decodeSealedTx
     , _estimateMaxNumberOfInputs
-    , _calcScriptExecutionCost
+    , _maxScriptExecutionCost
     , estimateTxCost
     , estimateTxSize
     , mkByronWitness
@@ -73,6 +73,8 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Wallet
     ( XPub )
+import Cardano.Ledger.Alonzo.Language
+    ( Language (..) )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
@@ -129,11 +131,13 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromCardanoTxIn
     , fromCardanoWdrls
     , fromLedgerExUnits
+    , toAlonzoPParams
     , toCardanoLovelace
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toCardanoTxOut
     , toHDPayloadAddress
+    , toLedgerExUnits
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
@@ -144,9 +148,9 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrMkTransaction (..)
     , ErrUpdateSealedTx (..)
-    , ExtraTxBodyContent (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxUpdate (..)
     , withdrawalToCoin
     )
 import Control.Arrow
@@ -177,6 +181,8 @@ import GHC.Generics
     ( Generic )
 import Ouroboros.Network.Block
     ( SlotNo )
+import Shelley.Spec.Ledger.API
+    ( StrictMaybe (..) )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
@@ -187,7 +193,7 @@ import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxWitness as SL
+import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.ShelleyMA.TxBody as ShelleyMA
@@ -490,11 +496,12 @@ newTransactionLayer networkId = TransactionLayer
                         selection delta
 
     , calcMinimumCost = \pp ctx skeleton ->
-        estimateTxCost pp $
-        mkTxSkeleton (txWitnessTagFor @k) ctx skeleton
+        estimateTxCost pp (mkTxSkeleton (txWitnessTagFor @k) ctx skeleton)
+        <>
+        txFeePadding ctx
 
-    , calcScriptExecutionCost =
-       _calcScriptExecutionCost
+    , maxScriptExecutionCost =
+       _maxScriptExecutionCost
 
     , evaluateMinimumFee =
       _evaluateMinimumFee
@@ -511,7 +518,7 @@ newTransactionLayer networkId = TransactionLayer
 
     , decodeTx = _decodeSealedTx
 
-    , updateTx = flip updateSealedTx
+    , updateTx = updateSealedTx
     }
 
 _decodeSealedTx :: SealedTx -> Tx
@@ -536,16 +543,16 @@ mkDelegationCertificates da accXPub =
 
 -- | For testing that
 -- @
---   forall tx. updateSealedTx noExtraTxBodyContent tx
+--   forall tx. updateSealedTx noTxUpdate tx
 --      == Right tx or Left
 -- @
-noExtraTxBodyContent :: ExtraTxBodyContent
-noExtraTxBodyContent = ExtraTxBodyContent [] [] [] id
+noTxUpdate :: TxUpdate
+noTxUpdate = TxUpdate [] [] [] (const id) id
 
 -- Used to add inputs and outputs when balancing a transaction.
 --
 -- If the transaction contains existing key witnesses, it will return `Left`,
--- *even if `noExtraTxBodyContent` is used*. This last detail could be changed.
+-- *even if `noTxUpdate` is used*. This last detail could be changed.
 --
 -- == Notes on implementation choices
 --
@@ -555,15 +562,16 @@ noExtraTxBodyContent = ExtraTxBodyContent [] [] [] id
 -- To avoid the need for `ledger -> wallet` conversions, this function can only
 -- be used to *add* tx body content.
 updateSealedTx
-    :: ExtraTxBodyContent
+    :: Cardano.ProtocolParameters
     -> SealedTx
+    -> TxUpdate
     -> Either ErrUpdateSealedTx SealedTx
-updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
+updateSealedTx pparams (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
 
     -- NOTE: The script witnesses are carried along with the cardano-api
     -- `anyEraBody`.
     let (Cardano.Tx anyEraBody existingKeyWits) = tx
-    body' <- modifyLedgerTxBody extraContent anyEraBody
+    body' <- modifyLedgerTx extraContent anyEraBody
 
     unless (null existingKeyWits) $
        Left $ ErrExistingKeyWitnesses $ length existingKeyWits
@@ -571,30 +579,85 @@ updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
     return $ sealedTxFromCardanoBody body'
 
   where
-    modifyLedgerTxBody
-        :: ExtraTxBodyContent
+    modifyLedgerTx
+        :: forall era crypto. (crypto ~ Crypto (Cardano.ShelleyLedgerEra era))
+        => TxUpdate
         -> Cardano.TxBody era
         -> Either ErrUpdateSealedTx (Cardano.TxBody era)
-    modifyLedgerTxBody ebc (Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val) =
-            Right $ Cardano.ShelleyTxBody shelleyEra (adjust ebc shelleyEra bod) scripts scriptData aux val
+    modifyLedgerTx ebc (Cardano.ShelleyTxBody shelleyEra bod scripts scriptData aux val) =
+            let scriptData' = modifyRedeemers scriptData
+                integrityHash = calcScriptIntegrityHash shelleyEra scriptData' scripts
+             in
+                Right $ Cardano.ShelleyTxBody shelleyEra
+                    (adjustBody ebc integrityHash shelleyEra bod)
+                    scripts
+                    scriptData'
+                    aux
+                    val
       where
+        calcScriptIntegrityHash
+            :: ShelleyBasedEra era
+            -> Cardano.TxBodyScriptData era
+            -> [Ledger.Script (Cardano.ShelleyLedgerEra era)]
+            -> StrictMaybe (Alonzo.ScriptIntegrityHash crypto)
+        calcScriptIntegrityHash Cardano.ShelleyBasedEraShelley _ _ =
+            SNothing
+        calcScriptIntegrityHash Cardano.ShelleyBasedEraAllegra _ _ =
+            SNothing
+        calcScriptIntegrityHash Cardano.ShelleyBasedEraMary _ _ =
+            SNothing
+        calcScriptIntegrityHash Cardano.ShelleyBasedEraAlonzo datsAndRdmrs s =
+            let
+                ledgerLangs = Set.fromList [ PlutusV1 | not (null s) ]
+                ledgerPParams = toAlonzoPParams pparams
+                (ledgerDats, ledgerRedeemers) = case datsAndRdmrs of
+                    Cardano.TxBodyNoScriptData ->
+                        (mempty, Alonzo.Redeemers mempty)
+                    Cardano.TxBodyScriptData Cardano.ScriptDataInAlonzoEra dats rdmrs ->
+                        (dats, rdmrs)
+             in
+                Alonzo.hashScriptIntegrity
+                    ledgerPParams
+                    ledgerLangs
+                    ledgerRedeemers
+                    ledgerDats
+
+        modifyRedeemers :: Cardano.TxBodyScriptData era -> Cardano.TxBodyScriptData era
+        modifyRedeemers = \case
+            Cardano.TxBodyNoScriptData ->
+                Cardano.TxBodyNoScriptData
+            Cardano.TxBodyScriptData Cardano.ScriptDataInAlonzoEra dats (Alonzo.Redeemers redeemers) ->
+                Cardano.TxBodyScriptData Cardano.ScriptDataInAlonzoEra dats
+                    $ Alonzo.Redeemers
+                    $ Map.mapWithKey (\ptr (a, exUnits) ->
+                        let ptr' = Cardano.fromAlonzoRdmrPtr ptr
+                            exUnits' = fromLedgerExUnits exUnits
+                         in
+                            (a, toLedgerExUnits $ newExUnits extraContent ptr' exUnits')
+                      ) redeemers
+
         -- NOTE: If the ShelleyMA MAClass were exposed, the Allegra and Mary
         -- cases could perhaps be joined. It is not however. And we still need
         -- to treat Alonzo and Shelley differently.
-        adjust
-            :: ExtraTxBodyContent
+        adjustBody
+            :: TxUpdate
+            -> StrictMaybe (Alonzo.ScriptIntegrityHash crypto)
             -> ShelleyBasedEra era
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-        adjust (ExtraTxBodyContent extraInputs extraCollateral extraOutputs modifyFee) era body = case era of
+        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs _ modifyFee) integrityHash era body = case era of
             ShelleyBasedEraAlonzo -> body
-                    { Alonzo.outputs = Alonzo.outputs body
-                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
+                    { Alonzo.outputs =
+                        StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
+                        <> Alonzo.outputs body
                     , Alonzo.inputs = Alonzo.inputs body
                         <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
                     , Alonzo.collateral = Alonzo.collateral body
                         <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
-                    , Alonzo.txfee = modifyFee' $ Alonzo.txfee body
+                    , Alonzo.txfee =
+                        modifyFee' $ Alonzo.txfee body
+                    , Alonzo.scriptIntegrityHash =
+                        integrityHash
                     }
             ShelleyBasedEraMary ->
                 let
@@ -656,7 +719,7 @@ updateSealedTx extraContent (cardanoTx -> InAnyCardanoEra _era tx) = do
                     -- fromIntegral will throw "Exception: arithmetic underflow"
                     -- if (c :: Integral) for some reason were to be negative.
 
-    modifyLedgerTxBody _ (Byron.ByronTxBody _)
+    modifyLedgerTx _ (Byron.ByronTxBody _)
         = Left ErrByronTxNotSupported
 
 -- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
@@ -779,33 +842,34 @@ _evaluateMinimumFee pp tx =
            txUpdateProposal' +
            certNum
 
-_calcScriptExecutionCost
+_maxScriptExecutionCost
     :: ProtocolParameters
     -> SealedTx
     -> Coin
-_calcScriptExecutionCost pp tx = case view #executionUnitPrices pp of
-    Just prices -> totalCost $ map (executionCost prices) executionUnits
+_maxScriptExecutionCost pp tx = case view #executionUnitPrices pp of
+    Just prices -> totalCost $ executionCost prices maxExecutionUnits
     Nothing     -> Coin 0
   where
-    totalCost :: [Rational] -> Coin
-    totalCost = Coin.unsafeNaturalToCoin . ceiling . sum
+    maxExecutionUnits :: ExecutionUnits
+    maxExecutionUnits = view (#txParameters . #getMaxExecutionUnits) pp
+
+    totalCost :: Rational -> Coin
+    totalCost = Coin.unsafeNaturalToCoin . ceiling . (* (fromIntegral numberOfScripts) )
 
     executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Rational
     executionCost (ExecutionUnitPrices perStep perMem) (W.ExecutionUnits steps mem) =
         perStep * (toRational steps) + perMem * (toRational mem)
 
-    -- | Return `ExecutionUnits` for each redeemer script in the tx.
-    executionUnits :: [ExecutionUnits]
-    executionUnits = case getSealedTxBody tx of
+    numberOfScripts :: Int
+    numberOfScripts = case getSealedTxBody tx of
         InAnyCardanoEra _ (Cardano.ShelleyTxBody _ _ _ scriptData _ _) ->
             case scriptData of
-                Cardano.TxBodyScriptData _ _ (SL.Redeemers' rs) ->
-                    [ fromLedgerExUnits exUnits
-                    | (_data, exUnits) <- Map.elems rs ]
+                Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers' rs) ->
+                    Map.size rs
                 Cardano.TxBodyNoScriptData ->
-                    []
+                    0
         InAnyCardanoEra _ Byron.ByronTxBody{} ->
-            []
+            0
 
 txConstraints :: ProtocolParameters -> TxWitnessTag -> TxConstraints
 txConstraints protocolParams witnessTag = TxConstraints
@@ -968,8 +1032,10 @@ mkTxSkeleton witness context skeleton = TxSkeleton
 --
 estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
 estimateTxCost pp skeleton =
-    Coin.sumCoins [ computeFee $ estimateTxSize skeleton
-             , scriptExecutionCosts ]
+    Coin.sumCoins
+        [ computeFee (estimateTxSize skeleton)
+        , scriptExecutionCosts
+        ]
   where
     LinearFee (Quantity a) (Quantity b) = getFeePolicy $ txParameters pp
 

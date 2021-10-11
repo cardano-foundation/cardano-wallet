@@ -1274,8 +1274,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: mkUnsignedTransaction not implemented"
     , calcMinimumCost =
         error "dummyTransactionLayer: calcMinimumCost not implemented"
-    , calcScriptExecutionCost =
-        error "dummyTransactionLayer: calcScriptExecutionCost not implemented"
+    , maxScriptExecutionCost =
+        error "dummyTransactionLayer: maxScriptExecutionCost not implemented"
     , evaluateMinimumFee =
         error "dummyTransactionLayer: evaluateMinimumFee not implemented"
     , computeSelectionLimit =
@@ -1286,7 +1286,7 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
         Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing
-    , updateTx = \sealed _insAndOuts ->
+    , updateTx = \_ sealed _update ->
             pure sealed
     }
   where

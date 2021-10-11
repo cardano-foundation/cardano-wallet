@@ -1428,20 +1428,19 @@ instance Malformed (BodyParam (ApiBalanceTransactionPostData ('Testnet pm))) whe
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing ApiBalanceTransactionPostData failed, expected Object, but encountered Number")
-            , ("\"hello\"", "Error in $: parsing ApiBalanceTransactionPostData failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiBalanceTransactionPostData(ApiBalanceTransactionPostData) failed, expected Object, but encountered Number")
+            , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiBalanceTransactionPostData(ApiBalanceTransactionPostData) failed, expected Object, but encountered String")
             , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
-            , ("{\"transaction\": \"lah\"}", "Error in $.transaction: parsing HashMap ~Text failed, expected Object, but encountered String")
-            , ("{\"transaction\": {\"cborHex\": 1020344},\"inputs\":[]}", "Error in $: parsing 'Base16 ByteString failed, expected String, but encountered Number")
-            , ("{\"transaction\": {\"cborHex\": {\"body\": 1020344 }},\"inputs\":[]}", "Error in $: parsing 'Base16 ByteString failed, expected String, but encountered Object")
+            , ("{\"transaction\": \"lah\"}", "Error in $.transaction: Parse error. Expecting Base64-encoded format.")
+            , ("{\"transaction\": 1020344,\"inputs\":[]}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [
               ( [aesonQQ|
-                { "transaction": { "cborHex" :#{validSealedTxBase64} },
+                { "transaction": "1234",
                   "inputs": []
                 }|]
-              , "Error in $: Parse error. Expecting Base16-encoded format."
+              , "Error in $.transaction: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'"
               )
             ]
 

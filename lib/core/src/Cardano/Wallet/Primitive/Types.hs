@@ -1076,6 +1076,12 @@ data ExecutionUnits = ExecutionUnits
         -- execution.
     } deriving (Eq, Generic, Show)
 
+instance NFData ExecutionUnits
+
+instance Buildable ExecutionUnits where
+    build (ExecutionUnits steps mem) =
+        build $ "max steps: " <> show steps <> ", max memory: " <> show mem
+
 data ExecutionUnitPrices = ExecutionUnitPrices
     { priceExecutionSteps  :: Rational
     , priceExecutionMemory :: Rational
@@ -1150,7 +1156,6 @@ instance Arbitrary TokenBundleMaxSize where
                          -- Natural
         $ fromIntegral s
 
-
 -- | Parameters that relate to the construction of __transactions__.
 --
 data TxParameters = TxParameters
@@ -1161,6 +1166,8 @@ data TxParameters = TxParameters
     , getTokenBundleMaxSize :: TokenBundleMaxSize
         -- ^ Maximum size of a serialized `TokenBundle` (_maxValSize in the
         -- Alonzo ledger)
+    , getMaxExecutionUnits :: ExecutionUnits
+        -- ^ Max total script execution resources units allowed per tx
     } deriving (Generic, Show, Eq)
 
 instance NFData TxParameters
@@ -1169,10 +1176,12 @@ instance Buildable TxParameters where
     build txp = listF' id
         [ "Fee policy: " <> feePolicyF (txp ^. #getFeePolicy)
         , "Tx max size: " <> txMaxSizeF (txp ^. #getTxMaxSize)
+        , "max exec units: " <> maxExUnitsF (txp ^. #getMaxExecutionUnits)
         ]
       where
         feePolicyF = build . toText
         txMaxSizeF (Quantity s) = build s
+        maxExUnitsF = build
 
 {-------------------------------------------------------------------------------
                                    Slotting

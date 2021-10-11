@@ -35,6 +35,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TokenBundleSizeAssessor (..)
     , TokenBundleSizeAssessment (..)
     , TxScriptValidity(..)
+    , ScriptWitnessIndex (..)
 
     -- * Serialisation
     , SealedTx (serialisedTx, cardanoTx)
@@ -88,6 +89,7 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     , InAnyCardanoEra (..)
+    , ScriptWitnessIndex (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , anyCardanoEra

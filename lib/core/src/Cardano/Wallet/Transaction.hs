@@ -25,7 +25,7 @@ module Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
-    , ExtraTxBodyContent (..)
+    , TxUpdate (..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -50,7 +50,8 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId
+    ( ExecutionUnits
+    , PoolId
     , ProtocolParameters
     , SlotNo (..)
     , TokenBundleMaxSize (..)
@@ -65,7 +66,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessor
+    ( ScriptWitnessIndex
+    , TokenBundleSizeAssessor
     , Tx (..)
     , TxConstraints
     , TxIn
@@ -156,13 +158,13 @@ data TransactionLayer k tx = TransactionLayer
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
         -- This also includes necessary deposits.
 
-    , calcScriptExecutionCost
+    , maxScriptExecutionCost
         :: ProtocolParameters
             -- Current protocol parameters
         -> tx
             -- The constructed transaction that could contain plutus scripts
         -> Coin
-        -- ^ Compute an execution costs of scripts in a given transaction.
+        -- ^ Compute the maximum execution cost of scripts in a given transaction.
 
     , evaluateMinimumFee
         :: Node.ProtocolParameters
@@ -198,26 +200,28 @@ data TransactionLayer k tx = TransactionLayer
     -- ^ Decode an externally-created transaction.
 
     , updateTx
-        :: tx
-        -> ExtraTxBodyContent
+        :: Node.ProtocolParameters
+        -> tx
+        -> TxUpdate
         -> Either ErrUpdateSealedTx tx
         -- ^ Update tx by adding additional inputs and outputs
     }
     deriving Generic
 
--- | Describes modifications that can be made to a `TxBody` using
--- `updateTx`.
-data ExtraTxBodyContent = ExtraTxBodyContent
+-- | Describes modifications that can be made to a `Tx` using `updateTx`.
+data TxUpdate = TxUpdate
     { extraInputs :: [TxIn]
     , extraCollateral :: [TxIn]
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [TxOut]
+    , newExUnits :: ScriptWitnessIndex -> ExecutionUnits -> ExecutionUnits
+       -- ^ Adjust execution units on existing redeemers.
     , newFee :: Coin -> Coin
         -- ^ Set the new fee, given the old one.
         --
         -- Note that you most likely won't care about the old fee at all. But it
-        -- is useful to allow defining a no-op `ExtraTxBodyContent` for the sake
+        -- is useful to allow defining a no-op `TxUpdate` for the sake
         -- of testing.
     }
 
@@ -242,11 +246,15 @@ data TransactionCtx = TransactionCtx
     -- ^ The assets to burn.
     , txCollateralRequirement :: SelectionCollateralRequirement
     -- ^ The collateral requirement.
+    , txFeePadding :: !Coin
+    -- ^ Extra fees. Some parts of a transction are not representable using
+    -- cardano-wallet types, which makes it useful to account for them like
+    -- this. For instance: datums.
     } deriving (Show, Generic, Eq)
 
 data Withdrawal
-    = WithdrawalSelf !RewardAccount !(NonEmpty DerivationIndex) !Coin
-    | WithdrawalExternal !RewardAccount !(NonEmpty DerivationIndex) !Coin
+    = WithdrawalSelf RewardAccount (NonEmpty DerivationIndex) Coin
+    | WithdrawalExternal RewardAccount (NonEmpty DerivationIndex) Coin
     | NoWithdrawal
     deriving (Show, Eq)
 
@@ -268,6 +276,7 @@ defaultTransactionCtx = TransactionCtx
     , txAssetsToMint = TokenMap.empty
     , txAssetsToBurn = TokenMap.empty
     , txCollateralRequirement = SelectionCollateralNotRequired
+    , txFeePadding = Coin 0
     }
 
 -- | Whether the user is attempting any particular delegation action.
