@@ -51,8 +51,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( ExecutionUnits
-    , PoolId
+    ( PoolId
     , ProtocolParameters
     , SlotNo (..)
     , TokenBundleMaxSize (..)
@@ -69,8 +68,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( ScriptWitnessIndex
-    , TokenBundleSizeAssessor
+    ( TokenBundleSizeAssessor
     , Tx (..)
     , TxConstraints
     , TxIn
@@ -203,8 +201,7 @@ data TransactionLayer k tx = TransactionLayer
     -- ^ Decode an externally-created transaction.
 
     , updateTx
-        :: Node.ProtocolParameters
-        -> tx
+        :: tx
         -> TxUpdate
         -> Either ErrUpdateSealedTx tx
         -- ^ Update tx by adding additional inputs and outputs
@@ -231,8 +228,6 @@ data TxUpdate = TxUpdate
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [TxOut]
-    , newExUnits :: ScriptWitnessIndex -> ExecutionUnits -> ExecutionUnits
-       -- ^ Adjust execution units on existing redeemers.
     , newFee :: Coin -> Coin
         -- ^ Set the new fee, given the old one.
         --

@@ -2284,16 +2284,9 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             transform
 
     let txUpdate =
-            TxUpdate { extraInputs, extraCollateral, extraOutputs, newFee, newExUnits }
-          where
-            -- FIXME: At this stage, we set all execution units for all redeemers to the
-            -- max cost, which is guaranteed to succeed (given the coin selection above
-            -- was done with the same assumption) but also terribly ineffective when it
-            -- comes to reducing the cost. This is however sufficient to start
-            -- preliminary integration work.
-            newExUnits = const (const (pp ^. #txParameters . #getMaxExecutionUnits))
+            TxUpdate { extraInputs, extraCollateral, extraOutputs, newFee }
 
-    case ApiT <$> updateTx tl nodePParams partialTx txUpdate of
+    case ApiT <$> updateTx tl partialTx txUpdate of
         Left err -> liftHandler $ throwE $ ErrBalanceTxUpdateError err
         Right transaction -> pure $ ApiSerialisedTransaction { transaction }
   where

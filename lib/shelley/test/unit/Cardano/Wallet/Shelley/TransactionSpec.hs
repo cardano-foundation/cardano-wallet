@@ -123,7 +123,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyShelleyBasedEra (..)
     , computeTokenBundleSerializedLengthBytes
-    , fromLedgerAlonzoPParams
     , getShelleyBasedEra
     , shelleyToCardanoEra
     , toCardanoLovelace
@@ -246,7 +245,6 @@ import Test.Utils.Pretty
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -1443,7 +1441,7 @@ updateSealedTxSpec = do
             txs <- readTestTransactions
             forM_ txs $ \(filepath, tx) -> do
                 it ("without TxUpdate: " <> filepath) $ do
-                    case updateSealedTx dummyNodeProtocolParameters tx noTxUpdate of
+                    case updateSealedTx tx noTxUpdate of
                         Left e ->
                             expectationFailure $ "expected update to succeed but failed: " <> show e
                         Right tx' -> do
@@ -1461,7 +1459,7 @@ updateSealedTxSpec = do
                 case sealedTxFromBytes $ unsafeFromHex txWithInputsOutputsAndWits of
                     Left e -> expectationFailure $ show e
                     Right tx -> do
-                        updateSealedTx dummyNodeProtocolParameters tx noTxUpdate
+                        updateSealedTx tx noTxUpdate
                             `shouldBe` Left (ErrExistingKeyWitnesses 2)
 
             it "returns `Left err` when extra body content is non-empty" $ do
@@ -1475,9 +1473,9 @@ unsafeSealedTxFromHex =
 
 prop_updateSealedTx :: SealedTx -> [TxIn] -> [TxIn] -> [TxOut] -> Coin -> Property
 prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
-    let extra = TxUpdate extraIns extraCol extraOuts (const id) (const newFee)
+    let extra = TxUpdate extraIns extraCol extraOuts (const newFee)
     let tx' = either (error . show) id
-            $ updateSealedTx dummyNodeProtocolParameters tx extra
+            $ updateSealedTx tx extra
     conjoin
         [ sealedInputs tx' === sealedInputs tx <> Set.fromList extraIns
         , sealedOutputs tx' === sealedOutputs tx <> Set.fromList extraOuts
@@ -1533,9 +1531,6 @@ readTestTransactions = runIO $ do
     listDirectory dir
         >>= traverse (\f -> (f,) <$> BS.readFile (dir </> f))
         >>= traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs)
-
-dummyNodeProtocolParameters :: Cardano.ProtocolParameters
-dummyNodeProtocolParameters = fromLedgerAlonzoPParams Alonzo.emptyPParams
 
 hasPlutusScripts :: SealedTx -> Bool
 hasPlutusScripts sealedTx =

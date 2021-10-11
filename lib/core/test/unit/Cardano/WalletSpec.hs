@@ -1288,8 +1288,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
         Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing
-    , updateTx = \_ sealed _update ->
-            pure sealed
+    , updateTx = \sealed _update ->
+        pure sealed
     }
   where
     forMaybe :: [a] -> (a -> Maybe b) -> [b]
