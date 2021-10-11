@@ -114,7 +114,6 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
-    , ApiRedeemerCertificate (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
@@ -2089,15 +2088,7 @@ instance Arbitrary (ApiRedeemer n) where
         [ ApiRedeemerSpending <$> arbitrary <*> arbitrary
         , ApiRedeemerMinting <$> arbitrary <*> arbitrary
         , ApiRedeemerRewarding <$> arbitrary <*> arbitrary
-        , ApiRedeemerCertifying <$> arbitrary <*> arbitrary
         ]
-
-instance Arbitrary ApiRedeemerCertificate where
-    arbitrary = ApiRedeemerCertificate
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
 
 instance Arbitrary (VerificationKey PaymentKey) where
     arbitrary = do

@@ -2286,6 +2286,12 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     let txUpdate =
             TxUpdate { extraInputs, extraCollateral, extraOutputs, newFee }
 
+    -- TODO:
+    --
+    -- - Use / wire 'assignScriptRedeemers' on the result of 'updateTx' below
+    -- - Adjust the transaction one last time to add surplus to the change output!
+    -- - Enjoy
+    --
     case ApiT <$> updateTx tl partialTx txUpdate of
         Left err -> liftHandler $ throwE $ ErrBalanceTxUpdateError err
         Right transaction -> pure $ ApiSerialisedTransaction { transaction }

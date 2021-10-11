@@ -3329,35 +3329,6 @@ components:
           format: base16
         stake_address: *stakeAddress
 
-    ApiRedeemerCertifying: &ApiRedeemerCertifying
-      type: object
-      required:
-        - purpose
-        - data
-        - certificate
-      properties:
-        purpose:
-          type: string
-          enum: ["certifying"]
-        data:
-          type: string
-          format: base16
-        certificate:
-          type: object
-          required:
-            - delegator
-            - delegate
-            - epoch_number
-            - signature
-          properties:
-            delegator: *credentialPubKey
-            delegate: *credentialPubKey
-            epoch_number: *epochNumber
-            signature:
-              description: A signature of the epoch_number and delegator key.
-              type: string
-              format: base16
-
     ApiRedeemer: &ApiRedeemer
       oneOf:
         - title: spending
@@ -3368,9 +3339,6 @@ components:
 
         - title: rewarding
           <<: *ApiRedeemerRewarding
-
-        - title: certifying
-          <<: *ApiRedeemerCertifying
 
     ApiBalanceTransactionPostData: &ApiBalanceTransactionPostData
       type: object

@@ -162,7 +162,6 @@ module Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostData (..)
     , ApiExternalInput (..)
     , ApiRedeemer (..)
-    , ApiRedeemerCertificate (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1022,15 +1021,7 @@ data ApiRedeemer (n :: NetworkDiscriminant)
     = ApiRedeemerSpending ApiRedeemerData (ApiT TxIn)
     | ApiRedeemerMinting ApiRedeemerData (ApiT W.TokenPolicyId)
     | ApiRedeemerRewarding ApiRedeemerData (ApiT W.RewardAccount, Proxy n)
-    | ApiRedeemerCertifying ApiRedeemerData ApiRedeemerCertificate
     deriving (Eq, Generic, Show)
-
-data ApiRedeemerCertificate = ApiRedeemerCertificate
-    { delegator :: !(ApiT (VerificationKey PaymentKey))
-    , delegate :: !(ApiT (VerificationKey PaymentKey))
-    , epochNumber :: !(ApiT EpochNo)
-    , signature :: !(ApiBytesT 'Base16 ByteString)
-    } deriving (Eq, Generic, Show)
 
 instance ToJSON (ApiT (VerificationKey PaymentKey)) where
     toJSON = toJSON . serialiseToBech32 . getApiT
@@ -2744,8 +2735,6 @@ instance DecodeStakeAddress n => FromJSON (ApiRedeemer n) where
                 ApiRedeemerMinting bytes <$> (o .: "policy_id")
             "rewarding" ->
                 ApiRedeemerRewarding bytes <$> (o .: "stake_address")
-            "certifying" ->
-                ApiRedeemerCertifying bytes <$> (o .: "certificate")
             _ ->
                 fail "unknown purpose for redeemer."
 instance EncodeStakeAddress n => ToJSON (ApiRedeemer n) where
@@ -2765,16 +2754,6 @@ instance EncodeStakeAddress n => ToJSON (ApiRedeemer n) where
             , "data" .= bytes
             , "stake_address" .= addr
             ]
-        ApiRedeemerCertifying bytes cert -> object
-            [ "purpose" .= ("certifying" :: Text)
-            , "data" .= bytes
-            , "certificate" .= cert
-            ]
-
-instance FromJSON ApiRedeemerCertificate where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiRedeemerCertificate where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance (DecodeStakeAddress n, DecodeAddress n)
     => FromJSON (ApiBalanceTransactionPostData n)
