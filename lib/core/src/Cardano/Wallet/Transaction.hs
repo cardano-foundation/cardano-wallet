@@ -33,6 +33,7 @@ module Cardano.Wallet.Transaction
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrUpdateSealedTx (..)
+    , ErrAssignRedeemers(..)
     ) where
 
 import Prelude
@@ -48,7 +49,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException )
+    ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( ExecutionUnits
     , PoolId
@@ -61,6 +62,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Redeemer
+    ( Redeemer )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -205,6 +208,19 @@ data TransactionLayer k tx = TransactionLayer
         -> TxUpdate
         -> Either ErrUpdateSealedTx tx
         -- ^ Update tx by adding additional inputs and outputs
+
+    , assignScriptRedeemers
+        :: Node.ProtocolParameters
+            -- Current protocol parameters
+        -> TimeInterpreter IO
+            -- Time interpreter in the Monad m
+        -> (TxIn -> Maybe TxOut)
+            -- A input resolver for transactions' inputs containing scripts.
+        -> [Redeemer]
+            -- A list of redeemers to set on the transaction.
+        -> tx
+            -- Transaction containing scripts
+        -> IO (Either ErrAssignRedeemers tx)
     }
     deriving Generic
 
@@ -296,6 +312,23 @@ data ErrMkTransaction
     | ErrMkTransactionJoinStakePool ErrCannotJoin
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException
+    deriving (Generic, Eq, Show)
+
+data ErrAssignRedeemers
+    = ErrAssignRedeemersScriptFailure String
+    -- ^ Failed to assign execution units for a particular redeemer. The
+    -- 'String' indicates the reason of the failure.
+    --
+    -- TODO: Refine this type to avoid the 'String' and provides a better
+    -- sum-type of possible errors.
+    | ErrAssignRedeemersTargetNotFound Redeemer
+    -- ^ The given redeemer target couldn't be located in the transaction.
+    | ErrAssignRedeemersInvalidData Redeemer String
+    -- ^ Redeemer's data isn't a valid Plutus' data.
+    | ErrAssignRedeemersPastHorizon PastHorizonException
+    -- ^ Evaluating the Plutus script failed past the visible horizon.
+    | ErrAssignRedeemersWrongEraTransaction String
+    -- ^ Trying to assign a redeemer on a transaction from an incompatible era.
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error

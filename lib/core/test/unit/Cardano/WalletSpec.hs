@@ -1276,6 +1276,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: calcMinimumCost not implemented"
     , maxScriptExecutionCost =
         error "dummyTransactionLayer: maxScriptExecutionCost not implemented"
+    , assignScriptRedeemers =
+        error "dummyTransactionLayer: assignScriptRedeemers not implemented"
     , evaluateMinimumFee =
         error "dummyTransactionLayer: evaluateMinimumFee not implemented"
     , computeSelectionLimit =
