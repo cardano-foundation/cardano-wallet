@@ -32,7 +32,9 @@ import Cardano.Wallet.Primitive.CoinSelection
     , toBalanceConstraintsParams
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimit )
+    ( SelectionLimit, SelectionSkeleton )
+import Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
+    ( genSelectionSkeleton, shrinkSelectionSkeleton )
 import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
     ( MockAssessTokenBundleSize
     , MockComputeMinimumAdaQuantity
@@ -82,7 +84,7 @@ import Data.Function
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( over, view, (^.) )
 import Data.Maybe
     ( isJust )
 import GHC.Generics
@@ -142,6 +144,8 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
 
     parallel $ describe "Constructing balance constraints and parameters" $ do
 
+        it "prop_toBalanceConstraintsParams_computeMinimumCost" $
+            property prop_toBalanceConstraintsParams_computeMinimumCost
         it "prop_toBalanceConstraintsParams_computeSelectionLimit" $
             property prop_toBalanceConstraintsParams_computeSelectionLimit
 
@@ -269,6 +273,63 @@ prop_performSelection_onSuccess_hasSuitableCollateral cs _ps selection =
 --------------------------------------------------------------------------------
 -- Construction of balance constraints and parameters
 --------------------------------------------------------------------------------
+
+-- Tests that function 'toBalanceConstraintsParams' applies the correct
+-- transformation to the 'computeMinimumCost' function.
+--
+prop_toBalanceConstraintsParams_computeMinimumCost
+    :: MockSelectionConstraints
+    -> SelectionParams
+    -> SelectionSkeleton
+    -> Property
+prop_toBalanceConstraintsParams_computeMinimumCost
+    mockConstraints params skeleton =
+        checkCoverage $
+        cover 10 (selectionCollateralRequired params)
+            "collateral required: yes" $
+        cover 10 (not (selectionCollateralRequired params))
+            "collateral required: no" $
+        cover 10 (costOriginal < costAdjusted)
+            "cost (original) < cost (adjusted)" $
+        report costOriginal
+            "cost (original)" $
+        report costAdjusted
+            "cost (adjusted)" $
+        if selectionCollateralRequired params
+        then
+            conjoin
+                [ costOriginal <= costAdjusted
+                -- Here we apply a transformation that is the *inverse* of
+                -- the transformation within 'toBalanceConstraintsParams':
+                , costOriginal ==
+                    ( computeMinimumCostAdjusted
+                    . over #skeletonInputCount
+                        (subtract maximumCollateralInputCount)
+                    $ skeleton
+                    )
+                ]
+        else
+            costOriginal === costAdjusted
+  where
+    constraints :: SelectionConstraints
+    constraints = unMockSelectionConstraints mockConstraints
+
+    maximumCollateralInputCount :: Int
+    maximumCollateralInputCount = constraints ^. #maximumCollateralInputCount
+
+    computeMinimumCostOriginal :: SelectionSkeleton -> Coin
+    computeMinimumCostOriginal = constraints ^. #computeMinimumCost
+
+    computeMinimumCostAdjusted :: SelectionSkeleton -> Coin
+    computeMinimumCostAdjusted =
+        toBalanceConstraintsParams (constraints, params)
+            & fst & view #computeMinimumCost
+
+    costOriginal :: Coin
+    costOriginal = computeMinimumCostOriginal skeleton
+
+    costAdjusted :: Coin
+    costAdjusted = computeMinimumCostAdjusted skeleton
 
 -- Tests that function 'toBalanceConstraintsParams' applies the correct
 -- transformation to the 'computeSelectionLimit' function.
@@ -693,3 +754,7 @@ instance Arbitrary MockSelectionConstraints where
 instance Arbitrary SelectionParams where
     arbitrary = genSelectionParams
     shrink = shrinkSelectionParams
+
+instance Arbitrary SelectionSkeleton where
+    arbitrary = genSelectionSkeleton
+    shrink = shrinkSelectionSkeleton
