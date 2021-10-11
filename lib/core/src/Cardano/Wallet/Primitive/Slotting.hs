@@ -42,7 +42,7 @@ module Cardano.Wallet.Primitive.Slotting
     , getCurrentTimeRelativeFromStart
 
       -- ** Running queries
-    , TimeInterpreter
+    , TimeInterpreter (..)
     , mkSingleEraInterpreter
     , mkTimeInterpreter
     , PastHorizonException (..)
