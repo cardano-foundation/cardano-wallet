@@ -22,12 +22,13 @@ module Helpers
     #   | cardano-address address bootstrap --root $(cat root.prv | cardano-address key public --with-chain-code) \
     #       --network-tag testnet 14H/42H
     def cardano_address_get_byron_addr(mnemonics, derivation_path)
+      root = cmd(%(echo #{mnemonics.join(' ')} | cardano-address key from-recovery-phrase Byron | cardano-address key public --with-chain-code)).gsub("\n", '')
       cmd(%(echo #{mnemonics.join(' ')} \
          | cardano-address key from-recovery-phrase Byron \
          | cardano-address key child #{derivation_path} \
          | cardano-address key public --with-chain-code \
          | cardano-address address bootstrap \
-         --root $(echo #{mnemonics.join(' ')} | cardano-address key from-recovery-phrase Byron | cardano-address key public --with-chain-code) \
+         --root #{root} \
          --network-tag testnet #{derivation_path}
          )).gsub("\n", '')
     end
