@@ -119,13 +119,13 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
+    , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPostDataFromAccountPubX (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSignTransactionPostData (..)
-    , ApiSignedTransaction (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakeKeyIndex (..)
@@ -514,7 +514,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiConstructTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiMultiDelegationAction
             jsonRoundtripAndGolden $ Proxy @ApiSignTransactionPostData
-            jsonRoundtripAndGolden $ Proxy @ApiSignedTransaction
+            jsonRoundtripAndGolden $ Proxy @ApiSerialisedTransaction
             jsonRoundtripAndGolden $ Proxy @(ApiBalanceTransactionPostData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiExternalInput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionOldData ('Testnet 0))
@@ -2242,7 +2242,7 @@ instance Arbitrary (ApiBytesT base ByteString) where
 instance Arbitrary (ApiBytesT base SerialisedTx) where
     arbitrary = ApiBytesT <$> arbitrary
 
-instance Arbitrary ApiSignedTransaction where
+instance Arbitrary ApiSerialisedTransaction where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -2662,9 +2662,9 @@ instance ToSchema ApiTxMetadata where
 instance ToSchema ApiSignTransactionPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSignTransactionPostData"
 
-instance ToSchema ApiSignedTransaction where
+instance ToSchema ApiSerialisedTransaction where
     -- fixme: tests don't seem to like allOf
-    declareNamedSchema _ = declareSchemaForDefinition "ApiSignedTransaction"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTransaction"
 
 instance ToSchema (ApiBytesT 'Base64 SerialisedTx) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSerialisedTx"

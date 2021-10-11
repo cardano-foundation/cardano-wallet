@@ -95,7 +95,7 @@ module Cardano.Wallet.Api.Types
     , ApiSignTransactionPostData (..)
     , PostTransactionOldData (..)
     , PostTransactionFeeOldData (..)
-    , ApiSignedTransaction (..)
+    , ApiSerialisedTransaction (..)
     , ApiTransaction (..)
     , ApiMintedBurnedTransaction (..)
     , ApiMintedBurnedInfo (..)
@@ -996,7 +996,7 @@ data PostTransactionFeeOldData (n :: NetworkDiscriminant) = PostTransactionFeeOl
 
 type ApiBase64 = ApiBytesT 'Base64 ByteString
 
-newtype ApiSignedTransaction = ApiSignedTransaction
+newtype ApiSerialisedTransaction = ApiSerialisedTransaction
     { transaction :: ApiT SealedTx
     } deriving stock (Eq, Generic, Show)
       deriving anyclass (NFData)
@@ -2698,9 +2698,9 @@ parseSealedTxBytes =
 sealedTxBytesValue :: forall (base :: Base). HasBase base => SealedTx -> Value
 sealedTxBytesValue = toJSON . ApiBytesT @base . view #serialisedTx
 
-instance FromJSON ApiSignedTransaction where
+instance FromJSON ApiSerialisedTransaction where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiSignedTransaction where
+instance ToJSON ApiSerialisedTransaction where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiSignTransactionPostData where
@@ -3410,7 +3410,7 @@ instance FromText a => FromHttpApiData (ApiT a) where
 instance ToText a => ToHttpApiData (ApiT a) where
     toUrlPiece = toText . getApiT
 
-instance MimeRender OctetStream ApiSignedTransaction where
+instance MimeRender OctetStream ApiSerialisedTransaction where
    mimeRender ct = mimeRender ct . view #transaction
 
 instance FromHttpApiData ApiTxId where

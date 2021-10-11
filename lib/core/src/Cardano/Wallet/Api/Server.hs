@@ -230,13 +230,13 @@ import Cardano.Wallet.Api.Types
     , ApiPutAddressesData (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsPayments
+    , ApiSerialisedTransaction (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPostDataFromAccountPubX (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSignTransactionPostData (..)
-    , ApiSignedTransaction
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakeKeys (..)
@@ -1853,7 +1853,7 @@ signTransaction
     => ctx
     -> ApiT WalletId
     -> ApiSignTransactionPostData
-    -> Handler ApiSignedTransaction
+    -> Handler ApiSerialisedTransaction
 signTransaction ctx (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let sealedTx = body ^. #transaction . #getApiT
@@ -1864,7 +1864,7 @@ signTransaction ctx (ApiT wid) body = do
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client
     -- should be able to decouple them if they need to.
-    pure $ Api.ApiSignedTransaction
+    pure $ Api.ApiSerialisedTransaction
         { transaction = ApiT sealedTx'
         }
 
@@ -2212,23 +2212,22 @@ balanceTransaction
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k
         , HasNetworkLayer IO ctx
-        , IsOurs s Address
         , GenChange s
         )
     => ctx
     -> ArgGenChange s
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData n
-    -> Handler (ApiConstructTransaction n)
+    -> Handler ApiSerialisedTransaction
 balanceTransaction ctx genChange (ApiT wid) body = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     -- TODO: This throws when still in the Byron era.
     nodePParams <- fromJust <$> liftIO (NW.currentNodeProtocolParameters nl)
 
     let partialTx = body ^. #transaction . #getApiT
-    let (outputs, txWithdrawal, txMetadata, oldFee) = extractFromTx partialTx
+    let (outputs, txWithdrawal, txMetadata) = extractFromTx partialTx
 
-    (newFee, balancedTx) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (newFee, extraInputs, extraCollateral, extraOutputs) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (internalUtxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
@@ -2268,9 +2267,11 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -- transaction. A long-term fix is to handle this case properly during
         -- balancing.
         let transform s sel =
-                let (sel', s') = W.assignChangeAddresses genChange sel s
+                let (sel', _) = W.assignChangeAddresses genChange sel s
                  in ( const (selectionDelta txOutCoin sel')
-                    , W.selectionToUnsignedTx NoWithdrawal sel' s'
+                    , fst <$> F.toList (sel' ^. #inputs)
+                    , fst <$> (sel' ^. #collateral)
+                    , sel' ^. #change
                     )
         liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
             { outputs
@@ -2282,26 +2283,10 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             }
             transform
 
-    -- FIXME:
-    -- The resulting coin-selection view is currently missing many pieces:
-    --
-    -- - deposits
-    -- - delegation actions
-    -- - withdrawals
-    --
-    -- Fees are also likely wrong. All in all, this 'coin_selection' should not
-    -- exists.
-    let coinSelection = mkApiCoinSelection [] Nothing txMetadata balancedTx
-    let UnsignedTx colls inps _outs change _wdrl = balancedTx
-    let txUpdate = TxUpdate
-            { extraInputs = (\(txin, _, _) -> txin) <$> F.toList inps
-            , extraCollateral = (\(txin, _, _) -> txin) <$> F.toList colls
-            , extraOutputs = toTxOut <$> change
-            , newFee
-            , newExUnits
-            }
+    let txUpdate =
+            TxUpdate { extraInputs, extraCollateral, extraOutputs, newFee, newExUnits }
           where
-            -- TODO: At this stage, we set all execution units for all redeemers to the
+            -- FIXME: At this stage, we set all execution units for all redeemers to the
             -- max cost, which is guaranteed to succeed (given the coin selection above
             -- was done with the same assumption) but also terribly ineffective when it
             -- comes to reducing the cost. This is however sufficient to start
@@ -2310,11 +2295,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
 
     case ApiT <$> updateTx tl nodePParams partialTx txUpdate of
         Left err -> liftHandler $ throwE $ ErrBalanceTxUpdateError err
-        Right transaction -> pure $ ApiConstructTransaction
-            { coinSelection
-            , transaction
-            , fee = coinToQuantity (newFee oldFee)
-            }
+        Right transaction -> pure $ ApiSerialisedTransaction { transaction }
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
@@ -2324,11 +2305,8 @@ balanceTransaction ctx genChange (ApiT wid) body = do
       , TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
       )
 
-    toTxOut (TxChange addr amt assets _) =
-        TxOut addr (TokenBundle amt assets)
-
     extractFromTx tx =
-        let (Tx _id fee _coll _inps outs wdrlMap meta _vldt) = decodeTx tl tx
+        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt) = decodeTx tl tx
             -- TODO: Find a better abstraction that can cover this case.
             wdrl = WithdrawalSelf
                 (error $ "WithdrawalSelf: reward-account should never been use "
@@ -2338,7 +2316,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                       <> "when balancing transactions but it was!"
                 )
                 (sumCoins wdrlMap)
-         in (outs, wdrl, meta, fromMaybe (Coin 0) fee)
+         in (outs, wdrl, meta)
 
     -- | Wallet coin selection is unaware of many kinds of transaction content
     -- (e.g. datums, redeemers), which could be included in the input to
