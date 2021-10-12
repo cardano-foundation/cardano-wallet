@@ -92,7 +92,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimitOf (..), SelectionSkeleton (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter (..) )
+    ( PastHorizonException, TimeInterpreter (..) )
 import Cardano.Wallet.Primitive.Types
     ( ExecutionUnitPrices (..)
     , ExecutionUnits (..)
@@ -862,20 +862,20 @@ _assignScriptRedeemers
     :: forall m.  ( Monad m )
     => NetworkId
     -> Cardano.ProtocolParameters
-    -> TimeInterpreter m
+    -> TimeInterpreter (ExceptT PastHorizonException m)
     -> (TxIn -> Maybe TxOut)
     -> [Redeemer]
     -> SealedTx
     -> m (Either ErrAssignRedeemers SealedTx)
 _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeemers tx =
     runExceptT $ case cardanoTx tx of
-        InAnyCardanoEra era@ByronEra _ ->
+        InAnyCardanoEra ByronEra _ ->
             pure tx
-        InAnyCardanoEra era@ShelleyEra _ ->
+        InAnyCardanoEra ShelleyEra _ ->
             pure tx
-        InAnyCardanoEra era@AllegraEra _ ->
+        InAnyCardanoEra AllegraEra _ ->
             pure tx
-        InAnyCardanoEra era@MaryEra _ ->
+        InAnyCardanoEra MaryEra _ ->
             pure tx
         InAnyCardanoEra AlonzoEra (Cardano.ShelleyTx shelleyEra alonzoTx) -> do
             alonzoTx' <- flip execStateT alonzoTx $ do
@@ -945,7 +945,7 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
         (systemStart, epochInfo) <- case ti of
             TimeInterpreter{interpreter,blockchainStartTime} -> do
                 let systemStart = toSystemStart blockchainStartTime
-                epochInfo <- lift (interpreterToEpochInfo <$> interpreter)
+                epochInfo <- interpreterToEpochInfo <$> interpreter
                 pure (systemStart, epochInfo)
 
         mapExceptT (pure . liftScriptFailure . runIdentity) $

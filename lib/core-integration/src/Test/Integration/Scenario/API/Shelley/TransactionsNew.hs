@@ -1211,8 +1211,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- more information about the nature of each redeemers in order to
         -- connect the dots at the end.
         it "ping-pong" $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "Need to dynamically assign redeemer pointers in API."
-
             w <- fixtureWallet ctx
             let balanceEndpoint = Link.balanceTransaction @'Shelley w
             let signEndpoint = Link.signTransaction @'Shelley w
@@ -1224,7 +1222,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- Balance
             let toBalance = Json PlutusScenario.pingPong_1
             (_, sealedTx) <- second (view #transaction) <$>
-                unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance
+                unsafeRequest @ApiSerialisedTransaction ctx balanceEndpoint toBalance
 
             -- Sign
             let toSign = Json [json|
@@ -1249,7 +1247,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             -- Sign
             (_, sealedTx') <- second (view #transaction) <$>
-                unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance'
+                unsafeRequest @ApiSerialisedTransaction ctx balanceEndpoint toBalance'
 
             let toSign' = Json [json|
                     { "transaction": #{sealedTx'}

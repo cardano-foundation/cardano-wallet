@@ -228,6 +228,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
+    , ApiRedeemer (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsPayments
     , ApiSerialisedTransaction (..)
@@ -419,6 +420,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), coinQuantity, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Redeemer
+    ( Redeemer (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -426,13 +429,15 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo
+    ( SealedTx
+    , TransactionInfo
     , Tx (..)
     , TxChange (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , txOutAddCoin
     , txOutCoin
     )
 import Cardano.Wallet.Registry
@@ -456,6 +461,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Cardano.Wallet.Util
+    ( mapFirst )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -592,6 +599,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -603,6 +611,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -2225,10 +2234,10 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     -- TODO: This throws when still in the Byron era.
     nodePParams <- fromJust <$> liftIO (NW.currentNodeProtocolParameters nl)
 
-    let partialTx = body ^. #transaction . #getApiT
     let (outputs, txWithdrawal, txMetadata) = extractFromTx partialTx
 
-    (newFee, extraInputs, extraCollateral, extraOutputs) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (delta, resolveInput, extraInputs, extraCollateral, extraOutputs) <-
+      withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (internalUtxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
@@ -2269,8 +2278,10 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -- balancing.
         let transform s sel =
                 let (sel', _) = W.assignChangeAddresses genChange sel s
-                 in ( const (selectionDelta txOutCoin sel')
-                    , fst <$> F.toList (sel' ^. #inputs)
+                    inputs = F.toList (sel' ^. #inputs)
+                 in ( selectionDelta txOutCoin sel'
+                    , \i -> snd <$> L.find ((== i) . fst) inputs
+                    , fst <$> inputs
                     , fst <$> (sel' ^. #collateral)
                     , sel' ^. #change
                     )
@@ -2284,21 +2295,69 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             }
             transform
 
-    let txUpdate =
-            TxUpdate { extraInputs, extraCollateral, extraOutputs, newFee }
+    -- NOTE:
+    -- Once the coin-selection is done, we need to
+    --
+    -- (a) Add selected inputs, collateral and change outputs to the transaction
+    -- (b) Assign correct execution units to every redeemers
+    -- (c) Correctly reference redeemed entities with redeemer pointers
+    -- (d) Adjust fees and change output(s) to the new fees.
+    --
+    -- There's a strong assumption that modifying the fee value AND increasing
+    -- the coin value of change outputs does not modify transaction fees; or
+    -- more exactly, does not modify the execution units of scripts. This is in
+    -- principle a fair assumption because scripts validators ought to be
+    -- unaware of change outputs. If their execution cost increases when change
+    -- output increases, then it becomes impossible to guarantee that the fee
+    -- balancing will ever converge towards a fixed point. A script validator
+    -- doing such thing is considered bonkers and this is not a behavior we
+    -- ought to support.
 
-    -- TODO:
-    --
-    -- - Use / wire 'assignScriptRedeemers' on the result of 'updateTx' below
-    -- - Adjust the transaction one last time to add surplus to the change output!
-    -- - Enjoy
-    --
-    case ApiT <$> updateTx tl partialTx txUpdate of
-        Left err -> liftHandler $ throwE $ ErrBalanceTxUpdateError err
-        Right transaction -> pure $ ApiSerialisedTransaction { transaction }
+    candidateTx <- assembleTransaction nodePParams resolveInput $ TxUpdate
+        { extraInputs
+        , extraCollateral
+        , extraOutputs
+        , newFee = const delta
+        }
+    let candidateMinFee = fromMaybe (Coin 0) $
+            evaluateMinimumFee tl nodePParams candidateTx
+
+    let surplus = delta `Coin.distance` candidateMinFee
+    finalTx <- assembleTransaction nodePParams resolveInput $ TxUpdate
+        { extraInputs
+        , extraCollateral
+        , extraOutputs = mapFirst (txOutAddCoin surplus) extraOutputs
+        , newFee = const candidateMinFee
+        }
+    let finalMinFee = fromMaybe (Coin 0) $
+            evaluateMinimumFee tl nodePParams finalTx
+
+    -- TODO: remove
+    liftIO $ print (candidateMinFee, finalMinFee)
+
+    pure $ ApiSerialisedTransaction
+        { transaction = ApiT finalTx
+        }
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
+    ti = timeInterpreter (ctx ^. networkLayer)
+
+    partialTx :: SealedTx
+    partialTx = body ^. #transaction . #getApiT
+
+    redeemers :: [Redeemer]
+    redeemers = fromApiRedeemer <$> body ^. #redeemers
+
+    assembleTransaction
+        :: Cardano.ProtocolParameters
+        -> (TxIn -> Maybe TxOut)
+        -> TxUpdate
+        -> Handler SealedTx
+    assembleTransaction nodePParams resolveInput update = do
+        tx' <- asHandler $ updateTx tl partialTx update
+        liftHandler $ ExceptT $ assignScriptRedeemers
+            tl nodePParams ti resolveInput redeemers tx'
 
     toTxInTxOut (ApiExternalInput (ApiT tid) ix (ApiT addr, _) (Quantity amt) (ApiT assets)) =
       ( TxIn tid ix
@@ -3389,6 +3448,15 @@ getWalletTip
     -> m ApiBlockReference
 getWalletTip ti = makeApiBlockReferenceFromHeader ti . currentTip
 
+fromApiRedeemer :: ApiRedeemer n -> Redeemer
+fromApiRedeemer = \case
+    ApiRedeemerSpending (ApiBytesT bytes) (ApiT i) ->
+        RedeemerSpending bytes i
+    ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
+        RedeemerMinting bytes p
+    ApiRedeemerRewarding (ApiBytesT bytes) (ApiT r, _) ->
+        RedeemerRewarding bytes r
+
 {-------------------------------------------------------------------------------
                                 Api Layer
 -------------------------------------------------------------------------------}
@@ -3561,6 +3629,11 @@ liftHandler action = Handler (withExceptT toServerError action)
 
 liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
+
+asHandler :: IsServerError e => Either e a -> Handler a
+asHandler = \case
+    Left e  -> liftE e
+    Right a -> return a
 
 apiError :: ServerError -> ApiErrorCode -> Text -> ServerError
 apiError err code message = err
