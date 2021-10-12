@@ -337,36 +337,6 @@ x-valueNodes: &valueNodes
     - {"lovelace": 1423}
     - {"lovelace": 1423, "7191ae0e1286891fe5c027a5dc041b7401689938e18e14ec83cf74fb": {"asset1": 12, "asset2": 33}}
 
-x-txOutNodeWithoutDatum: &txOutNodeWithoutDatum
-  description: tx out without datum
-  type: object
-  required:
-    - address
-    - value
-  properties:
-    address: *addressId
-    value: *valueNodes
-
-x-txOutNodeWithDatum: &txOutNodeWithDatum
-  description: tx out without datum
-  type: object
-  required:
-    - address
-    - data
-    - value
-  properties:
-    address: *addressId
-    data: *dataHash
-    value: *valueNodes
-
-x-txOutNode: &txOutNode
-  nullable: false
-  oneOf:
-    - <<: *txOutNodeWithDatum
-      title: tx out with datum
-    - <<: *txOutNodeWithoutDatum
-      title: tx out without datum
-
 x-stakePoolId: &stakePoolId
   type: string
   format: hex|bech32
@@ -3265,20 +3235,6 @@ components:
           description: The wallet's master passphrase.
         metadata: *transactionMetadata
         time_to_live: *transactionTTL
-
-    ApiExternalInput: &ApiExternalInput
-      type: object
-      required:
-        - txIn
-        - txOut
-      properties:
-        txIn: *txInNode
-        txOut: *txOutNode
-
-    ApiExternalInputs: &ApiExternalInputs
-      description: A flat list of node compliant inputs.
-      type: array
-      items: *ApiExternalInput
 
     ApiRedeemerSpending: &ApiRedeemerSpending
       type: object

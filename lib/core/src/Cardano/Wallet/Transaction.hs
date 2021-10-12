@@ -166,8 +166,8 @@ data TransactionLayer k tx = TransactionLayer
     , maxScriptExecutionCost
         :: ProtocolParameters
             -- Current protocol parameters
-        -> tx
-            -- The constructed transaction that could contain plutus scripts
+        -> [Redeemer]
+            -- Redeemers for this transaction
         -> Coin
         -- ^ Compute the maximum execution cost of scripts in a given transaction.
 

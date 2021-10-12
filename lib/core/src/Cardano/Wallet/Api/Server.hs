@@ -2258,7 +2258,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -- transaction considering only the maximum cost, and only after, try to
         -- adjust the change and ExUnits of each redeemer to something more
         -- sensible than the max execution cost.
-        let txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp partialTx
+        let txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp redeemers
         let txContext = defaultTransactionCtx
                 { txPlutusScriptExecutionCost
                 , txMetadata
@@ -2328,11 +2328,6 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         , extraOutputs = mapFirst (txOutAddCoin surplus) extraOutputs
         , newFee = const candidateMinFee
         }
-    let finalMinFee = fromMaybe (Coin 0) $
-            evaluateMinimumFee tl nodePParams finalTx
-
-    -- TODO: remove
-    liftIO $ print (candidateMinFee, finalMinFee)
 
     pure $ ApiSerialisedTransaction
         { transaction = ApiT finalTx

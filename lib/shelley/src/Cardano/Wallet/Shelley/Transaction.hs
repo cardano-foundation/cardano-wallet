@@ -194,6 +194,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Ratio
+    ( (%) )
 import Data.Set
     ( Set )
 import Data.Type.Equality
@@ -830,11 +832,12 @@ _evaluateMinimumFee pp tx =
 
 _maxScriptExecutionCost
     :: ProtocolParameters
-    -> SealedTx
+    -> [Redeemer]
     -> Coin
-_maxScriptExecutionCost pp tx = case view #executionUnitPrices pp of
-    Just prices -> totalCost $ executionCost prices maxExecutionUnits
-    Nothing     -> Coin 0
+_maxScriptExecutionCost pp (length -> numberOfScripts)  =
+    case view #executionUnitPrices pp of
+        Just prices -> totalCost $ executionCost prices maxExecutionUnits
+        Nothing     -> Coin 0
   where
     maxExecutionUnits :: ExecutionUnits
     maxExecutionUnits = view (#txParameters . #getMaxExecutionUnits) pp
@@ -845,17 +848,6 @@ _maxScriptExecutionCost pp tx = case view #executionUnitPrices pp of
     executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Rational
     executionCost (ExecutionUnitPrices perStep perMem) (W.ExecutionUnits steps mem) =
         perStep * (toRational steps) + perMem * (toRational mem)
-
-    numberOfScripts :: Int
-    numberOfScripts = case getSealedTxBody tx of
-        InAnyCardanoEra _ (Cardano.ShelleyTxBody _ _ _ scriptData _ _) ->
-            case scriptData of
-                Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers' rs) ->
-                    Map.size rs
-                Cardano.TxBodyNoScriptData ->
-                    0
-        InAnyCardanoEra _ Byron.ByronTxBody{} ->
-            0
 
 type AlonzoTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
@@ -984,11 +976,22 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
             }
       where
         assignUnits
-            :: (dat, units)
-            -> Either err units
-            -> Either err (dat, units)
-        assignUnits (dats, _zero) units =
-            (dats,) <$> units
+            :: (dat, Alonzo.ExUnits)
+            -> Either err Alonzo.ExUnits
+            -> Either err (dat, Alonzo.ExUnits)
+        assignUnits (dats, _zero) = \case
+            Left e -> Left e
+            -- TODO: We currently scale a bit the estimate because somehow, it
+            -- is wrong? Or more exactly, after assigning the execution budget
+            -- to each redeemer, the execution costs change (becomes more
+            -- expensive).
+            -- We should ideally unit test this at a lower level to understand
+            -- what's causing this. As for now, to get us going, get twice the
+            -- estimated value as a safe margin.
+            Right (Alonzo.ExUnits mem step) -> Right
+                ( dats
+                , Alonzo.ExUnits (2*mem) (2*step)
+                )
 
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
