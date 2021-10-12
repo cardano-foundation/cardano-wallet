@@ -47,6 +47,7 @@ pingPong_2 =
                 "id": "{{transactionId}}",
                 "index": 1,
                 "address": "addr1w9xh9n6kngee5x98myczxyuc8atwpktv63daevwk2yku56sce02jy",
+                "datum": "923918e403bf43c34b4ef6b48eb2ee04babed17320d8d1b9ff9ad086e86f44ec",
                 "amount": {
                   "quantity": 2000000,
                   "unit": "lovelace"

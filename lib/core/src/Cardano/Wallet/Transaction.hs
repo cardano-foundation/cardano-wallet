@@ -61,6 +61,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -213,7 +215,7 @@ data TransactionLayer k tx = TransactionLayer
             -- Current protocol parameters
         -> TimeInterpreter (ExceptT PastHorizonException IO)
             -- Time interpreter in the Monad m
-        -> (TxIn -> Maybe TxOut)
+        -> (TxIn -> Maybe (TxOut, Maybe (Hash "Datum")))
             -- A input resolver for transactions' inputs containing scripts.
         -> [Redeemer]
             -- A list of redeemers to set on the transaction.

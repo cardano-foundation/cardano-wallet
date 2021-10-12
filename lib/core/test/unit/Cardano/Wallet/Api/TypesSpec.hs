@@ -2076,6 +2076,7 @@ instance Arbitrary (ApiExternalInput n) where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary (ApiBalanceTransactionPostData n) where
     arbitrary = ApiBalanceTransactionPostData
@@ -2393,6 +2394,9 @@ instance Arbitrary (Quantity "slot" Natural) where
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
 
 instance Arbitrary (Hash "Tx") where
+    arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
+
+instance Arbitrary (Hash "Datum") where
     arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
 
 instance Arbitrary Direction where

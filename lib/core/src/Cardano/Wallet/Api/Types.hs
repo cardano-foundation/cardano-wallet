@@ -1006,6 +1006,7 @@ data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     , address :: !(ApiT Address, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
+    , datum :: !(Maybe (ApiT (Hash "Datum")))
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
@@ -3004,6 +3005,11 @@ instance ToJSON (ApiT TxIn) where
 instance FromJSON (ApiT (Hash "Tx")) where
     parseJSON = fromTextJSON "Tx Hash"
 instance ToJSON (ApiT (Hash "Tx")) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT (Hash "Datum")) where
+    parseJSON = fromTextJSON "Datum Hash"
+instance ToJSON (ApiT (Hash "Datum")) where
     toJSON = toTextJSON
 
 instance FromJSON (ApiT Direction) where

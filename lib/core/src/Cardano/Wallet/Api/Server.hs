@@ -2236,13 +2236,13 @@ balanceTransaction ctx genChange (ApiT wid) body = do
 
     let (outputs, txWithdrawal, txMetadata) = extractFromTx partialTx
 
-    (delta, resolveInput, extraInputs, extraCollateral, extraOutputs) <-
+    (delta, extraInputs, extraCollateral, extraOutputs) <-
       withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (internalUtxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
-        let externalSelectedUtxo =
-                UTxOIndex.fromSequence (toTxInTxOut <$> (body ^. #inputs))
+        let externalSelectedUtxo = UTxOIndex.fromSequence
+                ((\(a,b,_)-> (a,b)) <$> externalInputs)
 
         let utxoAvailableForInputs = UTxOSelection.fromIndexPair
                 (internalUtxoAvailable, externalSelectedUtxo)
@@ -2280,7 +2280,6 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 let (sel', _) = W.assignChangeAddresses genChange sel s
                     inputs = F.toList (sel' ^. #inputs)
                  in ( selectionDelta txOutCoin sel'
-                    , \i -> snd <$> L.find ((== i) . fst) inputs
                     , fst <$> inputs
                     , fst <$> (sel' ^. #collateral)
                     , sel' ^. #change
@@ -2313,7 +2312,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     -- doing such thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
-    candidateTx <- assembleTransaction nodePParams resolveInput $ TxUpdate
+    candidateTx <- assembleTransaction nodePParams $ TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs
@@ -2323,7 +2322,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             evaluateMinimumFee tl nodePParams candidateTx
 
     let surplus = delta `Coin.distance` candidateMinFee
-    finalTx <- assembleTransaction nodePParams resolveInput $ TxUpdate
+    finalTx <- assembleTransaction nodePParams $ TxUpdate
         { extraInputs
         , extraCollateral
         , extraOutputs = mapFirst (txOutAddCoin surplus) extraOutputs
@@ -2349,20 +2348,21 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     redeemers :: [Redeemer]
     redeemers = fromApiRedeemer <$> body ^. #redeemers
 
+    externalInputs :: [(TxIn, TxOut, Maybe (Hash "Datum"))]
+    externalInputs = fromExternalInput <$> body ^. #inputs
+
     assembleTransaction
         :: Cardano.ProtocolParameters
-        -> (TxIn -> Maybe TxOut)
         -> TxUpdate
         -> Handler SealedTx
-    assembleTransaction nodePParams resolveInput update = do
+    assembleTransaction nodePParams update = do
         tx' <- asHandler $ updateTx tl partialTx update
         liftHandler $ ExceptT $ assignScriptRedeemers
             tl nodePParams ti resolveInput redeemers tx'
-
-    toTxInTxOut (ApiExternalInput (ApiT tid) ix (ApiT addr, _) (Quantity amt) (ApiT assets)) =
-      ( TxIn tid ix
-      , TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
-      )
+      where
+        resolveInput :: TxIn -> Maybe (TxOut, Maybe (Hash "Datum"))
+        resolveInput i =
+            (\(_,a,b) -> (a,b)) <$> L.find (\(i',_,_) -> i == i') externalInputs
 
     extractFromTx tx =
         let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt) = decodeTx tl tx
@@ -3453,6 +3453,21 @@ getWalletTip
     -> Wallet s
     -> m ApiBlockReference
 getWalletTip ti = makeApiBlockReferenceFromHeader ti . currentTip
+
+fromExternalInput :: ApiExternalInput n -> (TxIn, TxOut, Maybe (Hash "Datum"))
+fromExternalInput ApiExternalInput
+    { id = ApiT tid
+    , index = ix
+    , address = (ApiT addr, _)
+    , amount = Quantity amt
+    , assets = ApiT assets
+    , datum
+    }
+  =
+    ( TxIn tid ix
+    , TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
+    , getApiT <$> datum
+    )
 
 fromApiRedeemer :: ApiRedeemer n -> Redeemer
 fromApiRedeemer = \case

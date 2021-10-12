@@ -104,6 +104,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import Cardano.Wallet.Primitive.Types.Redeemer
     ( Redeemer, redeemerData )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -863,7 +865,7 @@ _assignScriptRedeemers
     => NetworkId
     -> Cardano.ProtocolParameters
     -> TimeInterpreter (ExceptT PastHorizonException m)
-    -> (TxIn -> Maybe TxOut)
+    -> (TxIn -> Maybe (TxOut, Maybe (Hash "Datum")))
     -> [Redeemer]
     -> SealedTx
     -> m (Either ErrAssignRedeemers SealedTx)
@@ -923,13 +925,13 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
         let
             inputs = Alonzo.inputs (Alonzo.body alonzoTx)
             utxo = flip mapMaybe (F.toList inputs) $ \i -> do
-                o <- resolveInput (fromShelleyTxIn i)
+                (o, dt) <- resolveInput (fromShelleyTxIn i)
                 -- NOTE: 'toAlonzoTxOut' only partially represent the information
                 -- because the wallet internal types aren't capturing datum at
                 -- the moment. It is _okay_ in this context because the
                 -- resulting UTxO is only used by 'evaluateTransactionExecutionUnits'
                 -- to lookup addresses corresponding to inputs.
-                pure (i, toAlonzoTxOut o)
+                pure (i, toAlonzoTxOut o dt)
          in
             Ledger.UTxO (Map.fromList utxo)
 

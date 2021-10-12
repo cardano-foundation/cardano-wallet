@@ -1023,6 +1023,14 @@ x-transactionId: &transactionId
   minLength: 64
   example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
 
+x-datum: &datum
+  description: A datum hash.
+  type: string
+  format: hex
+  maxLength: 64
+  minLength: 64
+  example: 16f30f4e8d665d53eb4ab6028bd0ac971809d514c92d423856bc91c49e928faf
+
 x-transactionInsertedAt: &transactionInsertedAt
   description: |
     <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
@@ -3363,6 +3371,7 @@ components:
                   minimum: 0
                 address: *addressId
                 amount: *amount
+                datum: *datum
                 assets: *walletAssets
         redeemers:
             description: A list of redeemers data with their purpose.
