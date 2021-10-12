@@ -38,6 +38,10 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
+    -- * Selection correctness
+    , SelectionCorrectness (..)
+    , verifySelection
+
     -- * Selection deltas
     , SelectionDelta (..)
     , selectionDelta
@@ -97,11 +101,13 @@ import Control.Monad.Trans.Except
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( over, set, view )
+    ( over, set, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( isNothing )
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
@@ -142,10 +148,9 @@ type PerformSelection m a =
 --
 -- This function guarantees that if it successfully creates a 'Selection' @s@,
 -- given a set of 'SelectionConstraints' @cs@ and 'SelectionParameters' @ps@,
--- then the following properties will hold:
+-- then the following property will hold:
 --
---    >>> selectionHasValidSurplus         cs ps s
---    >>> selectionHasSufficientCollateral cs ps s
+--    >>> verifySelection cs ps s == SelectionCorrect
 --
 performSelection
     :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
@@ -337,6 +342,169 @@ toBalanceResult selection = Balance.SelectionResult
     , extraCoinSource = view #extraCoinSource selection
     , extraCoinSink = view #extraCoinSink selection
     }
+
+--------------------------------------------------------------------------------
+-- Selection correctness
+--------------------------------------------------------------------------------
+
+-- | Indicates whether or not a selection is correct.
+--
+data SelectionCorrectness
+    = SelectionCorrect
+    | SelectionIncorrect SelectionCorrectnessError
+    deriving (Eq, Show)
+
+-- | Indicates that a selection is incorrect.
+--
+data SelectionCorrectnessError
+    = SelectionCollateralInsufficient
+      SelectionCollateralInsufficientError
+    | SelectionCollateralUnsuitable
+      SelectionCollateralUnsuitableError
+    | SelectionDeltaInvalid
+      SelectionDeltaInvalidError
+    | SelectionLimitExceeded
+      SelectionLimitExceededError
+    deriving (Eq, Show)
+
+-- | The type of all selection property verification functions.
+--
+type VerifySelectionProperty error =
+    SelectionConstraints ->
+    SelectionParams ->
+    Selection ->
+    Maybe error
+
+-- | Verifies a selection for correctness.
+--
+-- This function is provided primarily as a convenience for testing. As such,
+-- it's not usually necessary to call this function from ordinary application
+-- code, unless you suspect that a selection is incorrect in some way.
+--
+verifySelection
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> SelectionCorrectness
+verifySelection cs ps selection =
+    either SelectionIncorrect (const SelectionCorrect) verifyAll
+  where
+    verifyAll :: Either SelectionCorrectnessError ()
+    verifyAll = do
+        verifySelectionCollateralSufficiency cs ps selection
+            `failWith` SelectionCollateralInsufficient
+        verifySelectionCollateralSuitability cs ps selection
+            `failWith` SelectionCollateralUnsuitable
+        verifySelectionDelta cs ps selection
+            `failWith` SelectionDeltaInvalid
+        verifySelectionLimit cs ps selection
+            `failWith` SelectionLimitExceeded
+
+    failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
+    onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
+
+--------------------------------------------------------------------------------
+-- Selection correctness: collateral sufficiency
+--------------------------------------------------------------------------------
+
+data SelectionCollateralInsufficientError = SelectionCollateralInsufficientError
+    { collateralSelected :: Coin
+    , collateralRequired :: Coin
+    }
+    deriving (Eq, Show)
+
+verifySelectionCollateralSufficiency
+    :: VerifySelectionProperty SelectionCollateralInsufficientError
+verifySelectionCollateralSufficiency cs ps selection
+    | collateralSelected >= collateralRequired =
+        Nothing
+    | otherwise =
+        Just SelectionCollateralInsufficientError
+            {collateralSelected, collateralRequired}
+  where
+    collateralSelected = selectionCollateral selection
+    collateralRequired = selectionMinimumCollateral cs ps selection
+
+--------------------------------------------------------------------------------
+-- Selection correctness: collateral suitability
+--------------------------------------------------------------------------------
+
+data SelectionCollateralUnsuitableError = SelectionCollateralUnsuitableError
+    { collateralSelected
+        :: [(TxIn, TxOut)]
+    , collateralSelectedButUnsuitable
+        :: [(TxIn, TxOut)]
+    }
+    deriving (Eq, Show)
+
+verifySelectionCollateralSuitability
+    :: VerifySelectionProperty SelectionCollateralUnsuitableError
+verifySelectionCollateralSuitability cs _ps selection
+    | null collateralSelectedButUnsuitable =
+        Nothing
+    | otherwise =
+        Just SelectionCollateralUnsuitableError
+            {collateralSelected, collateralSelectedButUnsuitable}
+  where
+    collateralSelected =
+        selection ^. #collateral
+    collateralSelectedButUnsuitable =
+        filter utxoUnsuitableForCollateral collateralSelected
+
+    utxoUnsuitableForCollateral :: (TxIn, TxOut) -> Bool
+    utxoUnsuitableForCollateral = isNothing . (cs ^. #utxoSuitableForCollateral)
+
+--------------------------------------------------------------------------------
+-- Selection correctness: delta validity
+--------------------------------------------------------------------------------
+
+data SelectionDeltaInvalidError = SelectionDeltaInvalidError
+    { delta
+        :: SelectionDelta TokenBundle
+    , minimumCost
+        :: Coin
+    }
+    deriving (Eq, Show)
+
+verifySelectionDelta
+    :: VerifySelectionProperty SelectionDeltaInvalidError
+verifySelectionDelta cs ps selection
+    | selectionHasValidSurplus cs ps selection =
+        Nothing
+    | otherwise =
+        Just SelectionDeltaInvalidError {..}
+  where
+    delta = selectionDeltaAllAssets selection
+    minimumCost = selectionMinimumCost cs ps selection
+
+--------------------------------------------------------------------------------
+-- Selection correctness: selection limit
+--------------------------------------------------------------------------------
+
+data SelectionLimitExceededError = SelectionLimitExceededError
+    { collateralInputCount
+        :: Int
+    , ordinaryInputCount
+        :: Int
+    , totalInputCount
+        :: Int
+    , selectionLimit
+        :: SelectionLimit
+    }
+    deriving (Eq, Show)
+
+verifySelectionLimit
+    :: VerifySelectionProperty SelectionLimitExceededError
+verifySelectionLimit cs _ps selection
+    | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
+        Nothing
+    | otherwise =
+        Just SelectionLimitExceededError {..}
+  where
+    collateralInputCount = length (selection ^. #collateral)
+    ordinaryInputCount = length (selection ^. #inputs)
+    totalInputCount = collateralInputCount + ordinaryInputCount
+    selectionLimit = (cs ^. #computeSelectionLimit) (selection ^. #outputs)
 
 --------------------------------------------------------------------------------
 -- Selection deltas
