@@ -1148,6 +1148,7 @@ fromGenesisData g initialFunds =
             , withdrawals = mempty
             , metadata = Nothing
             , scriptValidity = Nothing
+            , witnesses = []
             }
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
@@ -1251,14 +1252,17 @@ toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
     safeCast :: Word64 -> Integer
     safeCast = fromIntegral
 
-fromCardanoTx :: Cardano.Tx era -> W.Tx
-fromCardanoTx = \case
+fromCardanoTx :: IsCardanoEra era => Cardano.Tx era -> W.Tx
+fromCardanoTx txnode = case txnode of
     Cardano.ShelleyTx era tx -> case era of
-        Cardano.ShelleyBasedEraShelley -> fst3 $ fromShelleyTx tx
-        Cardano.ShelleyBasedEraAllegra -> fst3 $ fromAllegraTx tx
-        Cardano.ShelleyBasedEraMary    -> fst3 $ fromMaryTx tx
-        Cardano.ShelleyBasedEraAlonzo  -> fst3 $ fromAlonzoTx tx
-    Cardano.ByronTx tx                 -> fromTxAux tx
+        Cardano.ShelleyBasedEraShelley -> addWits $ fst3 $ fromShelleyTx tx
+        Cardano.ShelleyBasedEraAllegra -> addWits $ fst3 $ fromAllegraTx tx
+        Cardano.ShelleyBasedEraMary    -> addWits $ fst3 $ fromMaryTx tx
+        Cardano.ShelleyBasedEraAlonzo  -> addWits $ fst3 $ fromAlonzoTx tx
+    Cardano.ByronTx tx                 -> addWits $ fromTxAux tx
+ where
+    wits = Cardano.serialiseToCBOR <$> Cardano.getTxWitnesses txnode
+    addWits tx' = tx' { W.witnesses = wits }
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
@@ -1285,6 +1289,7 @@ fromShelleyTx tx =
             fromShelleyMD <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
             Nothing
+        , witnesses = []
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -1317,6 +1322,7 @@ fromAllegraTx tx =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd
         , scriptValidity =
             Nothing
+        , witnesses = []
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -1353,6 +1359,7 @@ fromMaryTx tx =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
         , scriptValidity =
             Nothing
+        , witnesses = []
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
@@ -1398,6 +1405,7 @@ fromAlonzoTxBodyAndAux bod mad =
             fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad
         , scriptValidity =
             Nothing
+        , witnesses = []
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
