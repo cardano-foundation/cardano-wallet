@@ -31,7 +31,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , verifySelection
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( SelectionLimit, SelectionLimitOf (..), SelectionSkeleton )
+    ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
     ( genSelectionSkeleton, shrinkSelectionSkeleton )
 import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
@@ -135,9 +135,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
         it "prop_performSelection_onSuccess_hasValidSurplus" $
             prop_performSelection_onSuccess
             prop_performSelection_onSuccess_hasValidSurplus
-        it "prop_performSelection_onSuccess_selectionLimitRespected" $
-            prop_performSelection_onSuccess
-            prop_performSelection_onSuccess_selectionLimitRespected
 
     parallel $ describe "Constructing balance constraints and parameters" $ do
 
@@ -250,22 +247,6 @@ prop_performSelection_onSuccess_hasValidSurplus cs ps selection =
     report (selectionMinimumCost cs ps selection)
         "selectionMinimumCost" $
     selectionHasValidSurplus cs ps selection
-
-prop_performSelection_onSuccess_selectionLimitRespected
-    :: PerformSelectionPropertyOnSuccess
-prop_performSelection_onSuccess_selectionLimitRespected cs _ps selection =
-    report (selection ^. #collateral)
-        "collateral" $
-    report (selection ^. #inputs)
-        "inputs" $
-    property $ MaximumInputLimit totalInputCount <= selectionLimit
-  where
-    totalInputCount = (+)
-        (F.length $ selection ^. #collateral)
-        (F.length $ selection ^. #inputs)
-    selectionLimit =
-        (cs ^. #computeSelectionLimit)
-        (selection ^. #outputs)
 
 --------------------------------------------------------------------------------
 -- Construction of balance constraints and parameters

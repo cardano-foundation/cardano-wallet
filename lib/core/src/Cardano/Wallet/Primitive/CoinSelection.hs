@@ -362,6 +362,8 @@ data SelectionCorrectnessError
       SelectionCollateralInsufficientError
     | SelectionCollateralUnsuitable
       SelectionCollateralUnsuitableError
+    | SelectionLimitExceeded
+      SelectionLimitExceededError
     deriving (Eq, Show)
 
 -- | Verifies a selection for correctness.
@@ -384,6 +386,8 @@ verifySelection cs ps selection =
             `failWith` SelectionCollateralInsufficient
         verifySelectionCollateralSuitability cs ps selection
             `failWith` SelectionCollateralUnsuitable
+        verifySelectionLimit cs ps selection
+            `failWith` SelectionLimitExceeded
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
@@ -444,6 +448,38 @@ verifySelectionCollateralSuitability cs _ps selection
 
     utxoUnsuitableForCollateral :: (TxIn, TxOut) -> Bool
     utxoUnsuitableForCollateral = isNothing . (cs ^. #utxoSuitableForCollateral)
+
+--------------------------------------------------------------------------------
+-- Selection correctness: selection limit
+--------------------------------------------------------------------------------
+
+data SelectionLimitExceededError = SelectionLimitExceededError
+    { collateralInputCount
+        :: Int
+    , ordinaryInputCount
+        :: Int
+    , totalInputCount
+        :: Int
+    , selectionLimit
+        :: SelectionLimit
+    }
+    deriving (Eq, Show)
+
+verifySelectionLimit
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Maybe SelectionLimitExceededError
+verifySelectionLimit cs _ps selection
+    | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
+        Nothing
+    | otherwise =
+        Just SelectionLimitExceededError {..}
+  where
+    collateralInputCount = length (selection ^. #collateral)
+    ordinaryInputCount = length (selection ^. #inputs)
+    totalInputCount = collateralInputCount + ordinaryInputCount
+    selectionLimit = (cs ^. #computeSelectionLimit) (selection ^. #outputs)
 
 --------------------------------------------------------------------------------
 -- Selection deltas
