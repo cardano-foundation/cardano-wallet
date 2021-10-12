@@ -368,6 +368,14 @@ data SelectionCorrectnessError
       SelectionLimitExceededError
     deriving (Eq, Show)
 
+-- | The type of all selection property verification functions.
+--
+type VerifySelectionProperty error =
+    SelectionConstraints ->
+    SelectionParams ->
+    Selection ->
+    Maybe error
+
 -- | Verifies a selection for correctness.
 --
 -- This function is provided primarily as a convenience for testing. As such,
@@ -407,10 +415,7 @@ data SelectionCollateralInsufficientError = SelectionCollateralInsufficientError
     deriving (Eq, Show)
 
 verifySelectionCollateralSufficiency
-    :: SelectionConstraints
-    -> SelectionParams
-    -> Selection
-    -> Maybe SelectionCollateralInsufficientError
+    :: VerifySelectionProperty SelectionCollateralInsufficientError
 verifySelectionCollateralSufficiency cs ps selection
     | collateralSelected >= collateralRequired =
         Nothing
@@ -434,10 +439,7 @@ data SelectionCollateralUnsuitableError = SelectionCollateralUnsuitableError
     deriving (Eq, Show)
 
 verifySelectionCollateralSuitability
-    :: SelectionConstraints
-    -> SelectionParams
-    -> Selection
-    -> Maybe SelectionCollateralUnsuitableError
+    :: VerifySelectionProperty SelectionCollateralUnsuitableError
 verifySelectionCollateralSuitability cs _ps selection
     | null collateralSelectedButUnsuitable =
         Nothing
@@ -466,10 +468,7 @@ data SelectionDeltaInvalidError = SelectionDeltaInvalidError
     deriving (Eq, Show)
 
 verifySelectionDelta
-    :: SelectionConstraints
-    -> SelectionParams
-    -> Selection
-    -> Maybe SelectionDeltaInvalidError
+    :: VerifySelectionProperty SelectionDeltaInvalidError
 verifySelectionDelta cs ps selection
     | selectionHasValidSurplus cs ps selection =
         Nothing
@@ -496,10 +495,7 @@ data SelectionLimitExceededError = SelectionLimitExceededError
     deriving (Eq, Show)
 
 verifySelectionLimit
-    :: SelectionConstraints
-    -> SelectionParams
-    -> Selection
-    -> Maybe SelectionLimitExceededError
+    :: VerifySelectionProperty SelectionLimitExceededError
 verifySelectionLimit cs _ps selection
     | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
         Nothing
