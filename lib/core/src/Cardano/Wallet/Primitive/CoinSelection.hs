@@ -148,10 +148,9 @@ type PerformSelection m a =
 --
 -- This function guarantees that if it successfully creates a 'Selection' @s@,
 -- given a set of 'SelectionConstraints' @cs@ and 'SelectionParameters' @ps@,
--- then the following properties will hold:
+-- then the following property will hold:
 --
---    >>> selectionHasValidSurplus         cs ps s
---    >>> selectionHasSufficientCollateral cs ps s
+--    >>> verifySelection cs ps s == SelectionCorrect
 --
 performSelection
     :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
