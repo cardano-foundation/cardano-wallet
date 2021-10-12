@@ -421,7 +421,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
-    ( Redeemer (..) )
+    ( Redeemer (..), redeemerData )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -2402,7 +2402,13 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             LinearFee _ (Quantity b) = pp ^. #txParameters . #getFeePolicy
             -- NOTE: Coping with the later additions of script integrity hash and
             -- redeemers ex units increased from 0 to their actual values.
-            extraMargin = Coin $ ceiling (100 * b)
+            extraMargin = Coin $ ceiling $ (*) b $ fromIntegral
+                $ sizeOfScriptIntegrityHash
+                + sum ((+sizeOfRedeemerCommon) . BS.length . redeemerData <$> redeemers)
+              where
+                sizeOfScriptIntegrityHash = 35
+                sizeOfRedeemerCommon = 17
+
             txFeePadding = (<> extraMargin) $ fromMaybe (Coin 0) $ do
                 betterEstimate <- evaluateMinimumFee tl pp' sealedTx
                 betterEstimate `subtractCoin` worseEstimate
