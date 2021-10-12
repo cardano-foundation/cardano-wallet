@@ -43,6 +43,7 @@
     components = {
       "library" = {
         depends = [
+          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))

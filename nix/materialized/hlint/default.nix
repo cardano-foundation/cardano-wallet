@@ -34,7 +34,7 @@
         "dlist".revision = (((hackage."dlist")."1.0").revisions).default;
         "dlist".flags.werror = false;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
-        "process".revision = (((hackage."process")."1.6.9.0").revisions).default;
+        "process".revision = (((hackage."process")."1.6.13.2").revisions).default;
         "random".revision = (((hackage."random")."1.2.1").revisions).default;
         "uuid-types".revision = (((hackage."uuid-types")."1.0.5").revisions).default;
         "scientific".revision = (((hackage."scientific")."0.3.7.0").revisions).default;
@@ -58,7 +58,7 @@
         "vector-algorithms".flags.boundschecks = true;
         "vector-algorithms".flags.properties = true;
         "happy".revision = (((hackage."happy")."1.20.0").revisions).default;
-        "base".revision = (((hackage."base")."4.14.2.0").revisions).default;
+        "base".revision = (((hackage."base")."4.14.3.0").revisions).default;
         "cmdargs".revision = (((hackage."cmdargs")."0.10.21").revisions).default;
         "cmdargs".flags.testprog = false;
         "cmdargs".flags.quotation = true;
@@ -77,7 +77,7 @@
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
         "utf8-string".revision = (((hackage."utf8-string")."1.0.2").revisions).default;
-        "containers".revision = (((hackage."containers")."0.6.4.1").revisions).default;
+        "containers".revision = (((hackage."containers")."0.6.5.1").revisions).default;
         "tagged".revision = (((hackage."tagged")."0.8.6.1").revisions).default;
         "tagged".flags.deepseq = true;
         "tagged".flags.transformers = true;
@@ -105,7 +105,7 @@
         "aeson".flags.cffi = false;
         "data-default".revision = (((hackage."data-default")."0.7.1.1").revisions).default;
         "uniplate".revision = (((hackage."uniplate")."1.6.13").revisions).default;
-        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.5").revisions).default;
+        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.7").revisions).default;
         "libyaml".revision = (((hackage."libyaml")."0.1.2").revisions).default;
         "libyaml".flags.system-libyaml = false;
         "libyaml".flags.no-unicode = false;
@@ -141,8 +141,8 @@
         "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
         };
       compiler = {
-        version = "8.10.5";
-        nix-name = "ghc8105";
+        version = "8.10.7";
+        nix-name = "ghc8107";
         packages = {
           "binary" = "0.8.8.0";
           "ghc-prim" = "0.6.1";
@@ -151,18 +151,18 @@
           "integer-gmp" = "1.0.3.0";
           "template-haskell" = "2.16.0.0";
           "pretty" = "1.1.3.6";
-          "process" = "1.6.9.0";
+          "process" = "1.6.13.2";
           "hpc" = "0.6.1.0";
-          "base" = "4.14.2.0";
+          "base" = "4.14.3.0";
           "rts" = "1.0.1";
           "text" = "1.2.4.1";
           "mtl" = "2.2.2";
           "time" = "1.9.3";
           "unix" = "2.7.2.2";
           "bytestring" = "0.10.12.0";
-          "containers" = "0.6.4.1";
+          "containers" = "0.6.5.1";
           "directory" = "1.3.6.0";
-          "ghc-boot-th" = "8.10.5";
+          "ghc-boot-th" = "8.10.7";
           "filepath" = "1.4.2.1";
           "deepseq" = "1.4.4.0";
           "transformers" = "0.5.6.2";
