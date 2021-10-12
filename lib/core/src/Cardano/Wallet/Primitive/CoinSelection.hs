@@ -101,11 +101,13 @@ import Control.Monad.Trans.Except
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( over, set, view )
+    ( over, set, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( isNothing )
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
@@ -358,6 +360,8 @@ data SelectionCorrectness
 data SelectionCorrectnessError
     = SelectionCollateralInsufficient
       SelectionCollateralInsufficientError
+    | SelectionCollateralUnsuitable
+      SelectionCollateralUnsuitableError
     deriving (Eq, Show)
 
 -- | Verifies a selection for correctness.
@@ -378,6 +382,8 @@ verifySelection cs ps selection =
     verifyAll = do
         verifySelectionCollateralSufficiency cs ps selection
             `failWith` SelectionCollateralInsufficient
+        verifySelectionCollateralSuitability cs ps selection
+            `failWith` SelectionCollateralUnsuitable
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
@@ -406,6 +412,38 @@ verifySelectionCollateralSufficiency cs ps selection
   where
     collateralSelected = selectionCollateral selection
     collateralRequired = selectionMinimumCollateral cs ps selection
+
+--------------------------------------------------------------------------------
+-- Selection correctness: collateral suitability
+--------------------------------------------------------------------------------
+
+data SelectionCollateralUnsuitableError = SelectionCollateralUnsuitableError
+    { collateralSelected
+        :: [(TxIn, TxOut)]
+    , collateralSelectedButUnsuitable
+        :: [(TxIn, TxOut)]
+    }
+    deriving (Eq, Show)
+
+verifySelectionCollateralSuitability
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Maybe SelectionCollateralUnsuitableError
+verifySelectionCollateralSuitability cs _ps selection
+    | null collateralSelectedButUnsuitable =
+        Nothing
+    | otherwise =
+        Just SelectionCollateralUnsuitableError
+            {collateralSelected, collateralSelectedButUnsuitable}
+  where
+    collateralSelected =
+        selection ^. #collateral
+    collateralSelectedButUnsuitable =
+        filter utxoUnsuitableForCollateral collateralSelected
+
+    utxoUnsuitableForCollateral :: (TxIn, TxOut) -> Bool
+    utxoUnsuitableForCollateral = isNothing . (cs ^. #utxoSuitableForCollateral)
 
 --------------------------------------------------------------------------------
 -- Selection deltas

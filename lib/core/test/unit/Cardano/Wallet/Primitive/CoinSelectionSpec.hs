@@ -84,8 +84,6 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
-import Data.Maybe
-    ( isJust )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -137,9 +135,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
         it "prop_performSelection_onSuccess_hasValidSurplus" $
             prop_performSelection_onSuccess
             prop_performSelection_onSuccess_hasValidSurplus
-        it "prop_performSelection_onSuccess_hasSuitableCollateral" $
-            prop_performSelection_onSuccess
-            prop_performSelection_onSuccess_hasSuitableCollateral
         it "prop_performSelection_onSuccess_selectionLimitRespected" $
             prop_performSelection_onSuccess
             prop_performSelection_onSuccess_selectionLimitRespected
@@ -255,16 +250,6 @@ prop_performSelection_onSuccess_hasValidSurplus cs ps selection =
     report (selectionMinimumCost cs ps selection)
         "selectionMinimumCost" $
     selectionHasValidSurplus cs ps selection
-
-prop_performSelection_onSuccess_hasSuitableCollateral
-    :: PerformSelectionPropertyOnSuccess
-prop_performSelection_onSuccess_hasSuitableCollateral cs _ps selection =
-    report (view #collateral selection)
-        "selection collateral" $
-    property $ all suitableForCollateral (view #collateral selection)
-  where
-    suitableForCollateral :: (TxIn, TxOut) -> Bool
-    suitableForCollateral = isJust . view #utxoSuitableForCollateral cs
 
 prop_performSelection_onSuccess_selectionLimitRespected
     :: PerformSelectionPropertyOnSuccess
