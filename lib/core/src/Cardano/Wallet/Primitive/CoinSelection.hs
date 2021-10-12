@@ -362,6 +362,8 @@ data SelectionCorrectnessError
       SelectionCollateralInsufficientError
     | SelectionCollateralUnsuitable
       SelectionCollateralUnsuitableError
+    | SelectionDeltaInvalid
+      SelectionDeltaInvalidError
     | SelectionLimitExceeded
       SelectionLimitExceededError
     deriving (Eq, Show)
@@ -386,6 +388,8 @@ verifySelection cs ps selection =
             `failWith` SelectionCollateralInsufficient
         verifySelectionCollateralSuitability cs ps selection
             `failWith` SelectionCollateralUnsuitable
+        verifySelectionDelta cs ps selection
+            `failWith` SelectionDeltaInvalid
         verifySelectionLimit cs ps selection
             `failWith` SelectionLimitExceeded
 
@@ -448,6 +452,32 @@ verifySelectionCollateralSuitability cs _ps selection
 
     utxoUnsuitableForCollateral :: (TxIn, TxOut) -> Bool
     utxoUnsuitableForCollateral = isNothing . (cs ^. #utxoSuitableForCollateral)
+
+--------------------------------------------------------------------------------
+-- Selection correctness: delta validity
+--------------------------------------------------------------------------------
+
+data SelectionDeltaInvalidError = SelectionDeltaInvalidError
+    { delta
+        :: SelectionDelta TokenBundle
+    , minimumCost
+        :: Coin
+    }
+    deriving (Eq, Show)
+
+verifySelectionDelta
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Maybe SelectionDeltaInvalidError
+verifySelectionDelta cs ps selection
+    | selectionHasValidSurplus cs ps selection =
+        Nothing
+    | otherwise =
+        Just SelectionDeltaInvalidError {..}
+  where
+    delta = selectionDeltaAllAssets selection
+    minimumCost = selectionMinimumCost cs ps selection
 
 --------------------------------------------------------------------------------
 -- Selection correctness: selection limit

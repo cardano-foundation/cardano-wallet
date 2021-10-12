@@ -24,9 +24,6 @@ import Cardano.Wallet.Primitive.CoinSelection
     , performSelection
     , prepareOutputsWith
     , selectionCollateralRequired
-    , selectionDeltaAllAssets
-    , selectionHasValidSurplus
-    , selectionMinimumCost
     , toBalanceConstraintsParams
     , verifySelection
     )
@@ -132,9 +129,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
         it "prop_performSelection_onSuccess_isCorrect" $
             prop_performSelection_onSuccess
             prop_performSelection_onSuccess_isCorrect
-        it "prop_performSelection_onSuccess_hasValidSurplus" $
-            prop_performSelection_onSuccess
-            prop_performSelection_onSuccess_hasValidSurplus
 
     parallel $ describe "Constructing balance constraints and parameters" $ do
 
@@ -238,15 +232,6 @@ prop_performSelection_onSuccess_isCorrect
     :: PerformSelectionPropertyOnSuccess
 prop_performSelection_onSuccess_isCorrect cs ps selection =
     Pretty (verifySelection cs ps selection) === Pretty SelectionCorrect
-
-prop_performSelection_onSuccess_hasValidSurplus
-    :: PerformSelectionPropertyOnSuccess
-prop_performSelection_onSuccess_hasValidSurplus cs ps selection =
-    report (selectionDeltaAllAssets selection)
-        "selectionDelta" $
-    report (selectionMinimumCost cs ps selection)
-        "selectionMinimumCost" $
-    selectionHasValidSurplus cs ps selection
 
 --------------------------------------------------------------------------------
 -- Construction of balance constraints and parameters
