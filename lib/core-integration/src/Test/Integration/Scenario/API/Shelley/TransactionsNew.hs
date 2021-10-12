@@ -32,8 +32,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiConstructTransaction (..)
     , ApiFee (..)
-    , ApiSerialisedTransaction
-    , ApiSignedTransaction (..)
+    , ApiSerialisedTransaction (..)
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -1034,8 +1033,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                , "passphrase": #{fixturePassphrase}
                                }|]
         let signEndpoint = Link.signTransaction @'Shelley wa
-        signedTx <- getFromResponse #transaction <$>
-            request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+        (_, Right signedTx) <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
         txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -1216,13 +1214,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
-<<<<<<< HEAD
-        signedTx <- getFromResponse #transaction <$>
-            request @ApiSerialisedTransaction ctx signEndpoint Default toSign
-=======
-        signedTx <- getFromResponse Prelude.id <$>
-            request @ApiSignedTransaction ctx signEndpoint Default toSign
->>>>>>> 9318f3b2f (Use json ApiSignedTransaction in submit tx)
+        (_, Right signedTx) <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -1237,7 +1229,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- Submit tx
-        void $ submitTx ctx (ApiSignedTransaction sealedTx) [ expectResponseCode HTTP.status500 ]
+        void $ submitTx ctx (ApiSerialisedTransaction sealedTx) [ expectResponseCode HTTP.status500 ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
         (w, _) <- rewardWallet ctx
@@ -1255,8 +1247,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
-        signedTx <- getFromResponse #transaction
-            <$> request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+        (_, Right signedTx) <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -1287,7 +1278,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , "passphrase": #{fixturePassphrase}
                 }|]
         let signEndpoint = Link.signTransaction @'Shelley w
-        signedTx <- getFromResponse #transaction <$>
+        (_, Right signedTx) <-
             request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit Tx
@@ -1367,7 +1358,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     { "transaction": #{sealedTx}
                     , "passphrase": #{fixturePassphrase}
                     }|]
-            (_, signedTx) <- second (view #transaction) <$>
+            (_, signedTx) <-
                 unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign
 
             -- Submit
@@ -1390,8 +1381,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (_, signedTx') <- second (view #transaction) <$>
                         unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign'
 
-                    -- Submit
-                    submitTx ctx signedTx' [ expectResponseCode HTTP.status202 ]
+            let toSign' = Json [json|
+                    { "transaction": #{sealedTx'}
+                    , "passphrase": #{fixturePassphrase}
+                    }|]
+            (_, signedTx') <-
+                unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign'
 
             foldM_ runStep txid steps
   where

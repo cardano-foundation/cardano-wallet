@@ -2260,7 +2260,7 @@ signTx
     => Context
     -> ApiWallet
     -> ApiConstructTransaction n
-    -> m ApiSignedTransaction
+    -> m ApiSerialisedTransaction
 signTx ctx w apiTx = do
     let sealedTx = transaction apiTx
     let toSign = Json [aesonQQ|
@@ -2268,13 +2268,13 @@ signTx ctx w apiTx = do
                            , "passphrase": #{fixturePassphrase}
                            }|]
     let signEndpoint = Link.signTransaction @'Shelley w
-    getFromResponse (#transaction) <$>
+    getFromResponse Prelude.id <$>
         request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
 submitTx
     :: MonadUnliftIO m
     => Context
-    -> ApiSignedTransaction
+    -> ApiSerialisedTransaction
     -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
     -> m ApiTxId
 submitTx ctx tx expectations = do
@@ -2292,7 +2292,7 @@ submitTxWithWid
     :: MonadUnliftIO m
     => Context
     -> ApiWallet
-    -> ApiSignedTransaction
+    -> ApiSerialisedTransaction
     -> m (HTTP.Status, Either RequestException ApiTxId)
 submitTxWithWid ctx w tx = do
     let submitEndpoint = Link.submitTransaction @'Shelley w

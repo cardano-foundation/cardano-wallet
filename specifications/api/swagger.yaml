@@ -5830,7 +5830,7 @@ paths:
       tags: ["Transactions New"]
       summary: Submit
       description: |
-        <p align="right">status: <strong>under development</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
         Submit a transaction that was already created and signed.
       parameters:
         - *parametersWalletId

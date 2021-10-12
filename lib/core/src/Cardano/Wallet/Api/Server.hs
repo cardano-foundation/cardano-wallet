@@ -240,10 +240,6 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWalletPostDataFromAccountPubX (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSignTransactionPostData (..)
-<<<<<<< HEAD
-=======
-    , ApiSignedTransaction (..)
->>>>>>> 9318f3b2f (Use json ApiSignedTransaction in submit tx)
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakeKeys (..)
@@ -2435,9 +2431,9 @@ submitTransaction
         )
     => ctx
     -> ApiT WalletId
-    -> ApiSignedTransaction
+    -> ApiSerialisedTransaction
     -> Handler ApiTxId
-submitTransaction ctx (ApiT wid) (ApiSignedTransaction (ApiT sealedTx)) = do
+submitTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealedTx)) = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
     let (Tx txId _ _ inps outs wdrlMap _ _) = tx
 

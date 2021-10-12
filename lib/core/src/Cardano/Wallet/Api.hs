@@ -538,12 +538,26 @@ type ConstructTransaction n = "wallets"
     :> ReqBody '[JSON] (ApiConstructTransactionDataT n)
     :> PostAccepted '[JSON] (ApiConstructTransactionT n)
 
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/balanceTransaction
+type BalanceTransaction n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions-balance"
+    :> ReqBody '[JSON] (ApiBalanceTransactionPostDataT n)
+    :> PostAccepted '[JSON] ApiSerialisedTransaction
+
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signTransaction
 type SignTransaction n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "transactions-sign"
     :> ReqBody '[JSON] ApiSignTransactionPostData
     :> PostAccepted '[JSON] ApiSerialisedTransaction
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/submitTransaction
+type SubmitTransaction = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions-submit"
+    :> ReqBody '[JSON] ApiSerialisedTransaction
+    :> PostAccepted '[JSON] ApiTxId
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransactionOld n = "wallets"
@@ -582,20 +596,6 @@ type DeleteTransaction = "wallets"
     :> "transactions"
     :> Capture "transactionId" ApiTxId
     :> DeleteNoContent
-
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/balanceTransaction
-type BalanceTransaction n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "transactions-balance"
-    :> ReqBody '[JSON] (ApiBalanceTransactionPostDataT n)
-    :> PostAccepted '[JSON] ApiSerialisedTransaction
-
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/submitTransaction
-type SubmitTransaction = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> "transactions-submit"
-    :> ReqBody '[JSON] ApiSignedTransaction
-    :> PostAccepted '[JSON] ApiTxId
 
 {-------------------------------------------------------------------------------
                                  Shelley Migrations

@@ -196,7 +196,7 @@ data TransactionClient = TransactionClient
         -> ClientM ApiSerialisedTransaction
     , submitTransaction
         :: ApiT WalletId
-        -> ApiSignedTransaction
+        -> ApiSerialisedTransaction
         -> ClientM ApiTxId
     }
 
