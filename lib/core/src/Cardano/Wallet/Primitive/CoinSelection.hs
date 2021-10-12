@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -357,6 +356,8 @@ data SelectionCorrectness
 -- | Indicates that a selection is incorrect.
 --
 data SelectionCorrectnessError
+    = SelectionCollateralInsufficient
+      SelectionCollateralInsufficientError
     deriving (Eq, Show)
 
 -- | Verifies a selection for correctness.
@@ -374,10 +375,37 @@ verifySelection cs ps selection =
     either SelectionIncorrect (const SelectionCorrect) verifyAll
   where
     verifyAll :: Either SelectionCorrectnessError ()
-    verifyAll = Right ()
+    verifyAll = do
+        verifySelectionCollateralSufficiency cs ps selection
+            `failWith` SelectionCollateralInsufficient
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
+
+--------------------------------------------------------------------------------
+-- Selection correctness: collateral sufficiency
+--------------------------------------------------------------------------------
+
+data SelectionCollateralInsufficientError = SelectionCollateralInsufficientError
+    { collateralSelected :: Coin
+    , collateralRequired :: Coin
+    }
+    deriving (Eq, Show)
+
+verifySelectionCollateralSufficiency
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Maybe SelectionCollateralInsufficientError
+verifySelectionCollateralSufficiency cs ps selection
+    | collateralSelected >= collateralRequired =
+        Nothing
+    | otherwise =
+        Just SelectionCollateralInsufficientError
+            {collateralSelected, collateralRequired}
+  where
+    collateralSelected = selectionCollateral selection
+    collateralRequired = selectionMinimumCollateral cs ps selection
 
 --------------------------------------------------------------------------------
 -- Selection deltas

@@ -23,12 +23,9 @@ import Cardano.Wallet.Primitive.CoinSelection
     , computeMinimumCollateral
     , performSelection
     , prepareOutputsWith
-    , selectionCollateral
     , selectionCollateralRequired
     , selectionDeltaAllAssets
-    , selectionHasSufficientCollateral
     , selectionHasValidSurplus
-    , selectionMinimumCollateral
     , selectionMinimumCost
     , toBalanceConstraintsParams
     , verifySelection
@@ -140,9 +137,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
         it "prop_performSelection_onSuccess_hasValidSurplus" $
             prop_performSelection_onSuccess
             prop_performSelection_onSuccess_hasValidSurplus
-        it "prop_performSelection_onSuccess_hasSufficientCollateral" $
-            prop_performSelection_onSuccess
-            prop_performSelection_onSuccess_hasSufficientCollateral
         it "prop_performSelection_onSuccess_hasSuitableCollateral" $
             prop_performSelection_onSuccess
             prop_performSelection_onSuccess_hasSuitableCollateral
@@ -261,17 +255,6 @@ prop_performSelection_onSuccess_hasValidSurplus cs ps selection =
     report (selectionMinimumCost cs ps selection)
         "selectionMinimumCost" $
     selectionHasValidSurplus cs ps selection
-
-prop_performSelection_onSuccess_hasSufficientCollateral
-    :: PerformSelectionPropertyOnSuccess
-prop_performSelection_onSuccess_hasSufficientCollateral cs ps selection =
-    report (selectionCollateral selection)
-        "selection collateral" $
-    report (selectionMinimumCollateral cs ps selection)
-        "selection collateral minimum" $
-    report (selectionCollateralRequired ps)
-        "selection collateral required" $
-    selectionHasSufficientCollateral cs ps selection
 
 prop_performSelection_onSuccess_hasSuitableCollateral
     :: PerformSelectionPropertyOnSuccess
