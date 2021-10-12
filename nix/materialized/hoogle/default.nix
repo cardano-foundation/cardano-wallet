@@ -59,7 +59,7 @@
         "wai-logger".revision = (((hackage."wai-logger")."2.3.6").revisions).default;
         "async".revision = (((hackage."async")."2.2.4").revisions).default;
         "async".flags.bench = false;
-        "process".revision = (((hackage."process")."1.6.9.0").revisions).default;
+        "process".revision = (((hackage."process")."1.6.13.2").revisions).default;
         "auto-update".revision = (((hackage."auto-update")."0.1.6").revisions).default;
         "http-conduit".revision = (((hackage."http-conduit")."2.3.8").revisions).default;
         "http-conduit".flags.aeson = true;
@@ -93,7 +93,7 @@
         "vector-algorithms".flags.boundschecks = true;
         "vector-algorithms".flags.properties = true;
         "happy".revision = (((hackage."happy")."1.20.0").revisions).default;
-        "base".revision = (((hackage."base")."4.14.2.0").revisions).default;
+        "base".revision = (((hackage."base")."4.14.3.0").revisions).default;
         "blaze-markup".revision = (((hackage."blaze-markup")."0.8.2.8").revisions).default;
         "network-uri".revision = (((hackage."network-uri")."2.6.4.1").revisions).default;
         "storable-tuple".revision = (((hackage."storable-tuple")."0.0.3.3").revisions).default;
@@ -132,7 +132,7 @@
         "http-client".revision = (((hackage."http-client")."0.7.9").revisions).default;
         "http-client".flags.network-uri = true;
         "x509".revision = (((hackage."x509")."1.7.5").revisions).default;
-        "containers".revision = (((hackage."containers")."0.6.4.1").revisions).default;
+        "containers".revision = (((hackage."containers")."0.6.5.1").revisions).default;
         "byteorder".revision = (((hackage."byteorder")."1.0.4").revisions).default;
         "tagged".revision = (((hackage."tagged")."0.8.6.1").revisions).default;
         "tagged".flags.deepseq = true;
@@ -184,7 +184,7 @@
         "semigroups".flags.text = true;
         "uniplate".revision = (((hackage."uniplate")."1.6.13").revisions).default;
         "parsec".revision = (((hackage."parsec")."3.1.14.0").revisions).default;
-        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.5").revisions).default;
+        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.7").revisions).default;
         "splitmix".revision = (((hackage."splitmix")."0.1.0.3").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "x509-store".revision = (((hackage."x509-store")."1.6.7").revisions).default;
@@ -257,8 +257,8 @@
         "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
         };
       compiler = {
-        version = "8.10.5";
-        nix-name = "ghc8105";
+        version = "8.10.7";
+        nix-name = "ghc8107";
         packages = {
           "binary" = "0.8.8.0";
           "ghc-prim" = "0.6.1";
@@ -267,18 +267,18 @@
           "integer-gmp" = "1.0.3.0";
           "template-haskell" = "2.16.0.0";
           "pretty" = "1.1.3.6";
-          "process" = "1.6.9.0";
-          "base" = "4.14.2.0";
+          "process" = "1.6.13.2";
+          "base" = "4.14.3.0";
           "rts" = "1.0.1";
           "text" = "1.2.4.1";
           "mtl" = "2.2.2";
           "time" = "1.9.3";
           "unix" = "2.7.2.2";
           "bytestring" = "0.10.12.0";
-          "containers" = "0.6.4.1";
+          "containers" = "0.6.5.1";
           "directory" = "1.3.6.0";
           "parsec" = "3.1.14.0";
-          "ghc-boot-th" = "8.10.5";
+          "ghc-boot-th" = "8.10.7";
           "filepath" = "1.4.2.1";
           "deepseq" = "1.4.4.0";
           "transformers" = "0.5.6.2";

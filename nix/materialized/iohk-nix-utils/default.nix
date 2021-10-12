@@ -28,7 +28,7 @@
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
         "async".revision = (((hackage."async")."2.2.4").revisions).default;
         "async".flags.bench = false;
-        "process".revision = (((hackage."process")."1.6.9.0").revisions).default;
+        "process".revision = (((hackage."process")."1.6.13.2").revisions).default;
         "random".revision = (((hackage."random")."1.2.1").revisions).default;
         "unix-compat".revision = (((hackage."unix-compat")."0.5.3").revisions).default;
         "unix-compat".flags.old-time = false;
@@ -42,7 +42,7 @@
         "distributive".revision = (((hackage."distributive")."0.6.2.1").revisions).default;
         "distributive".flags.tagged = true;
         "distributive".flags.semigroups = true;
-        "base".revision = (((hackage."base")."4.14.2.0").revisions).default;
+        "base".revision = (((hackage."base")."4.14.3.0").revisions).default;
         "foldl".revision = (((hackage."foldl")."1.4.12").revisions).default;
         "rts".revision = (((hackage."rts")."1.0.1").revisions).default;
         "text".revision = (((hackage."text")."1.2.4.1").revisions).default;
@@ -65,7 +65,7 @@
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
-        "containers".revision = (((hackage."containers")."0.6.4.1").revisions).default;
+        "containers".revision = (((hackage."containers")."0.6.5.1").revisions).default;
         "semigroupoids".revision = (((hackage."semigroupoids")."5.3.5").revisions).default;
         "semigroupoids".flags.distributive = true;
         "semigroupoids".flags.comonad = true;
@@ -92,7 +92,7 @@
         "th-abstraction".revision = (((hackage."th-abstraction")."0.4.3.0").revisions).default;
         "parsec".revision = (((hackage."parsec")."3.1.14.0").revisions).default;
         "turtle".revision = (((hackage."turtle")."1.5.22").revisions).default;
-        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.5").revisions).default;
+        "ghc-boot-th".revision = (((hackage."ghc-boot-th")."8.10.7").revisions).default;
         "splitmix".revision = (((hackage."splitmix")."0.1.0.3").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "system-filepath".revision = (((hackage."system-filepath")."0.4.14").revisions).default;
@@ -124,8 +124,8 @@
         "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
         };
       compiler = {
-        version = "8.10.5";
-        nix-name = "ghc8105";
+        version = "8.10.7";
+        nix-name = "ghc8107";
         packages = {
           "binary" = "0.8.8.0";
           "ghc-prim" = "0.6.1";
@@ -134,18 +134,18 @@
           "integer-gmp" = "1.0.3.0";
           "template-haskell" = "2.16.0.0";
           "pretty" = "1.1.3.6";
-          "process" = "1.6.9.0";
-          "base" = "4.14.2.0";
+          "process" = "1.6.13.2";
+          "base" = "4.14.3.0";
           "rts" = "1.0.1";
           "text" = "1.2.4.1";
           "mtl" = "2.2.2";
           "time" = "1.9.3";
           "unix" = "2.7.2.2";
           "bytestring" = "0.10.12.0";
-          "containers" = "0.6.4.1";
+          "containers" = "0.6.5.1";
           "directory" = "1.3.6.0";
           "parsec" = "3.1.14.0";
-          "ghc-boot-th" = "8.10.5";
+          "ghc-boot-th" = "8.10.7";
           "filepath" = "1.4.2.1";
           "deepseq" = "1.4.4.0";
           "transformers" = "0.5.6.2";
