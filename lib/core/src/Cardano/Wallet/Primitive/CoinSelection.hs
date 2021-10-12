@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -37,6 +38,10 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionOutputInvalidError (..)
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
+
+    -- * Selection correctness
+    , SelectionCorrectness (..)
+    , verifySelection
 
     -- * Selection deltas
     , SelectionDelta (..)
@@ -337,6 +342,42 @@ toBalanceResult selection = Balance.SelectionResult
     , extraCoinSource = view #extraCoinSource selection
     , extraCoinSink = view #extraCoinSink selection
     }
+
+--------------------------------------------------------------------------------
+-- Selection correctness
+--------------------------------------------------------------------------------
+
+-- | Indicates whether or not a selection is correct.
+--
+data SelectionCorrectness
+    = SelectionCorrect
+    | SelectionIncorrect SelectionCorrectnessError
+    deriving (Eq, Show)
+
+-- | Indicates that a selection is incorrect.
+--
+data SelectionCorrectnessError
+    deriving (Eq, Show)
+
+-- | Verifies a selection for correctness.
+--
+-- This function is provided primarily as a convenience for testing. As such,
+-- it's not usually necessary to call this function from ordinary application
+-- code, unless you suspect that a selection is incorrect in some way.
+--
+verifySelection
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> SelectionCorrectness
+verifySelection cs ps selection =
+    either SelectionIncorrect (const SelectionCorrect) verifyAll
+  where
+    verifyAll :: Either SelectionCorrectnessError ()
+    verifyAll = Right ()
+
+    failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
+    onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
 
 --------------------------------------------------------------------------------
 -- Selection deltas

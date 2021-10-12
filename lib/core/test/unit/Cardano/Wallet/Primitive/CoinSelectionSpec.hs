@@ -17,6 +17,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
+    , SelectionCorrectness (..)
     , SelectionError (..)
     , SelectionParams (..)
     , computeMinimumCollateral
@@ -30,6 +31,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , selectionMinimumCollateral
     , selectionMinimumCost
     , toBalanceConstraintsParams
+    , verifySelection
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimit, SelectionLimitOf (..), SelectionSkeleton )
@@ -132,6 +134,9 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
 
     parallel $ describe "Performing selections" $ do
 
+        it "prop_performSelection_onSuccess_isCorrect" $
+            prop_performSelection_onSuccess
+            prop_performSelection_onSuccess_isCorrect
         it "prop_performSelection_onSuccess_hasValidSurplus" $
             prop_performSelection_onSuccess
             prop_performSelection_onSuccess_hasValidSurplus
@@ -242,6 +247,11 @@ prop_performSelection_onSuccess
 prop_performSelection_onSuccess onSuccess = property $
     prop_performSelection_with $ \constraints params ->
         either (const $ property True) (onSuccess constraints params)
+
+prop_performSelection_onSuccess_isCorrect
+    :: PerformSelectionPropertyOnSuccess
+prop_performSelection_onSuccess_isCorrect cs ps selection =
+    Pretty (verifySelection cs ps selection) === Pretty SelectionCorrect
 
 prop_performSelection_onSuccess_hasValidSurplus
     :: PerformSelectionPropertyOnSuccess
