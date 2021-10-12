@@ -126,9 +126,8 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
 
     parallel $ describe "Performing selections" $ do
 
-        it "prop_performSelection_onSuccess_isCorrect" $
-            prop_performSelection_onSuccess
-            prop_performSelection_onSuccess_isCorrect
+        it "prop_performSelection_onSuccess" $
+            property prop_performSelection_onSuccess
 
     parallel $ describe "Constructing balance constraints and parameters" $ do
 
@@ -165,12 +164,6 @@ type PerformSelectionPropertyInner =
     SelectionConstraints ->
     SelectionParams ->
     Either SelectionError Selection ->
-    Property
-
-type PerformSelectionPropertyOnSuccess =
-    SelectionConstraints ->
-    SelectionParams ->
-    Selection ->
     Property
 
 prop_performSelection_with
@@ -222,16 +215,14 @@ prop_performSelection_coverage _constraints params result =
         SelectionOutputError _ -> True
         _ -> False
 
-prop_performSelection_onSuccess
-    :: PerformSelectionPropertyOnSuccess -> Property
-prop_performSelection_onSuccess onSuccess = property $
+prop_performSelection_onSuccess :: PerformSelectionProperty
+prop_performSelection_onSuccess =
     prop_performSelection_with $ \constraints params ->
         either (const $ property True) (onSuccess constraints params)
-
-prop_performSelection_onSuccess_isCorrect
-    :: PerformSelectionPropertyOnSuccess
-prop_performSelection_onSuccess_isCorrect cs ps selection =
-    Pretty (verifySelection cs ps selection) === Pretty SelectionCorrect
+  where
+    onSuccess constraints params selection =
+        Pretty (verifySelection constraints params selection) ===
+        Pretty SelectionCorrect
 
 --------------------------------------------------------------------------------
 -- Construction of balance constraints and parameters
