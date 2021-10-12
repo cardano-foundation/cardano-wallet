@@ -22,6 +22,8 @@ module Cardano.Wallet.Primitive.Types.Hash
 
 import Prelude
 
+import Cardano.Wallet.Util
+    ( mapFirst )
 import Control.DeepSeq
     ( NFData (..) )
 import Crypto.Hash
@@ -98,10 +100,6 @@ hashFromText len text = case decoded of
             ]
   where
     decoded = convertFromBase Base16 $ T.encodeUtf8 text
-
-    mapFirst :: (a -> a) -> [a] -> [a]
-    mapFirst _     [] = []
-    mapFirst fn (h:q) = fn h:q
 
 -- | Constructs a hash that is good enough for testing.
 --

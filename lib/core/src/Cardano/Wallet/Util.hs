@@ -22,6 +22,7 @@ module Cardano.Wallet.Util
 
     -- * String formatting
     , ShowFmt (..)
+    , mapFirst
 
     -- * StateT
     , modifyM
@@ -137,6 +138,12 @@ instance NFData a => NFData (ShowFmt a)
 
 instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
+
+-- | Map a function to the first element of a list. Does nothing if the list is
+-- empty.
+mapFirst :: (a -> a) -> [a] -> [a]
+mapFirst _     [] = []
+mapFirst fn (h:q) = fn h:q
 
 {-------------------------------------------------------------------------------
                                   HTTP(S) URIs
