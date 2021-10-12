@@ -870,13 +870,13 @@ _assignScriptRedeemers
 _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeemers tx =
     runExceptT $ case cardanoTx tx of
         InAnyCardanoEra era@ByronEra _ ->
-            throwE $ ErrAssignRedeemersWrongEraTransaction (show era)
+            pure tx
         InAnyCardanoEra era@ShelleyEra _ ->
-            throwE $ ErrAssignRedeemersWrongEraTransaction (show era)
+            pure tx
         InAnyCardanoEra era@AllegraEra _ ->
-            throwE $ ErrAssignRedeemersWrongEraTransaction (show era)
+            pure tx
         InAnyCardanoEra era@MaryEra _ ->
-            throwE $ ErrAssignRedeemersWrongEraTransaction (show era)
+            pure tx
         InAnyCardanoEra AlonzoEra (Cardano.ShelleyTx shelleyEra alonzoTx) -> do
             alonzoTx' <- flip execStateT alonzoTx $ do
                 modifyM assignNullRedeemers

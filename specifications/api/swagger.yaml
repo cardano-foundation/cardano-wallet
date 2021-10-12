@@ -4236,6 +4236,54 @@ x-errTransactionAlreadyBalanced: &errTransactionAlreadyBalanced
       type: string
       enum: ['transaction_already_balanced']
 
+x-errRedeemerScriptFailure: &errRedeemerScriptFailure
+  <<: *responsesErr
+  title: redeemer_script_failure
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when balancing transaction with failing scripts.
+    code:
+      type: string
+      enum: ['redeemer_script_failure']
+
+x-errRedeemerTargetNotFound: &errRedeemerTargetNotFound
+  <<: *responsesErr
+  title: redeemer_target_not_found
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when balancing transaction with reedemers that point to unknown entities.
+    code:
+      type: string
+      enum: ['redeemer_target_not_found']
+
+x-errRedeemerInvalidData: &errRedeemerInvalidData
+  <<: *responsesErr
+  title: redeemer_invalid_data
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when data in provided redeemers do not decode to valid Plutus data.
+    code:
+      type: string
+      enum: ['redeemer_invalid_data']
+
+x-errExistingKeyWitnesses: &errExistingKeyWitnesses
+  <<: *responsesErr
+  title: existing_key_witnesses
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when trying to balance a transaction that already has key witnesses.
+    code:
+      type: string
+      enum: ['existing_key_witnesses']
+
 x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
@@ -5072,6 +5120,9 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
         schema:
           oneOf:
             - <<: *errBadRequest
+            - <<: *errRedeemerScriptFailure
+            - <<: *errRedeemerTargetNotFound
+            - <<: *errRedeemerInvalidData
   403:
     description: Forbidden
     content:
@@ -5086,6 +5137,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
             - <<: *errTransactionAlreadyBalanced
+            - <<: *errExistingKeyWitnesses
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

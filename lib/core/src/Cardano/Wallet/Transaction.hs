@@ -322,8 +322,6 @@ data ErrAssignRedeemers
     -- ^ Redeemer's data isn't a valid Plutus' data.
     | ErrAssignRedeemersPastHorizon PastHorizonException
     -- ^ Evaluating the Plutus script failed past the visible horizon.
-    | ErrAssignRedeemersWrongEraTransaction String
-    -- ^ Trying to assign a redeemer on a transaction from an incompatible era.
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error

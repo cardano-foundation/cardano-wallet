@@ -446,6 +446,7 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , ErrAssignRedeemers (..)
     , ErrSignTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
@@ -4167,6 +4168,48 @@ instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
                 , "indexes valid for hardened derivation only. That is, indexes "
                 , "between 0H and ", pretty (Index $ maxIx - minIx), "H."
                 ]
+
+instance IsServerError ErrUpdateSealedTx where
+    toServerError = \case
+        ErrExistingKeyWitnesses{} ->
+            apiError err400 ExistingKeyWitnesses $ T.unwords
+                [ "I cannot proceed with the request because there are key"
+                , "witnesses defined in the input transaction and, adjusting"
+                , "the transaction body will render witnesses invalid!"
+                , "Please make sure to remove all key witnesses from the request."
+                ]
+        ErrByronTxNotSupported{} ->
+            apiError err501 NotImplemented  $ T.unwords
+                [ "You just tried to submit a transaction in the Byron format,"
+                , "but this is not something I support on this particular"
+                , "endpoint. It's time to upgrade!"
+                ]
+
+instance IsServerError ErrAssignRedeemers where
+    toServerError = \case
+        ErrAssignRedeemersScriptFailure failure ->
+            apiError err400 RedeemerScriptFailure $ T.unwords
+                [ "I was unable to assign execution units to one of your redeemers"
+                , "because its execution is failing with the following error:"
+                , T.pack failure
+                , "."
+                ]
+        -- TODO: Embed the redeemer in the error message for better debugging.
+        ErrAssignRedeemersTargetNotFound _ ->
+            apiError err400 RedeemerTargetNotFound $ T.unwords
+                [ "I was unable to resolve one of your redeemers to the location"
+                , "indicated in the request payload. Please double-check both"
+                , "your serialised transaction and the provided redeemers."
+                ]
+        -- TODO: Embed the redeemer in the error message for better debugging.
+        ErrAssignRedeemersInvalidData _ _ ->
+            apiError err400 RedeemerInvalidData $ T.unwords
+                [ "It looks like you have provided an invalid 'data' payload"
+                , "for one of your redeemers since I am unable to decode it"
+                , "into a valid Plutus data."
+                ]
+        ErrAssignRedeemersPastHorizon e ->
+            toServerError e
 
 instance IsServerError (Request, ServerError) where
     toServerError (req, err@(ServerError code _ body _))

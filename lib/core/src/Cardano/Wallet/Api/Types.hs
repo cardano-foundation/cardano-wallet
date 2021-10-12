@@ -1564,6 +1564,10 @@ data ApiErrorCode
     | SharedWalletScriptTemplateInvalid
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
+    | RedeemerScriptFailure
+    | RedeemerTargetNotFound
+    | RedeemerInvalidData
+    | ExistingKeyWitnesses
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
