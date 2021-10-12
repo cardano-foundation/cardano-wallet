@@ -2306,7 +2306,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
       )
 
     extractFromTx tx =
-        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt) = decodeTx tl tx
+        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt _) = decodeTx tl tx
             -- TODO: Find a better abstraction that can cover this case.
             wdrl = WithdrawalSelf
                 (error $ "WithdrawalSelf: reward-account should never been use "

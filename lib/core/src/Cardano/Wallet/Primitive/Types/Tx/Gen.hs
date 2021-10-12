@@ -47,6 +47,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..), TxScriptValidity (..) )
 import Control.Monad
     ( replicateM )
+import Data.ByteString
+    ( ByteString )
 import Data.Either
     ( fromRight )
 import Data.Map.Strict
@@ -77,7 +79,7 @@ import Test.QuickCheck.Extra
     ( genFunction
     , genMapWith
     , genSized2With
-    , liftShrink7
+    , liftShrink8
     , shrinkInterleaved
     , shrinkMapWith
     )
@@ -104,6 +106,7 @@ data TxWithoutId = TxWithoutId
     , metadata :: !(Maybe TxMetadata)
     , withdrawals :: !(Map RewardAccount Coin)
     , scriptValidity :: !(Maybe TxScriptValidity)
+    , witnesses :: ![ByteString]
     }
     deriving (Eq, Ord, Show)
 
@@ -116,10 +119,11 @@ genTxWithoutId = TxWithoutId
     <*> liftArbitrary genNestedTxMetadata
     <*> genMapWith genRewardAccount genCoinPositive
     <*> liftArbitrary genTxScriptValidity
+    <*> pure []
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
 shrinkTxWithoutId =
-    shrinkMapBy tupleToTxWithoutId txWithoutIdToTuple $ liftShrink7
+    shrinkMapBy tupleToTxWithoutId txWithoutIdToTuple $ liftShrink8
         (liftShrink shrinkCoinPositive)
         (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
         (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
@@ -127,6 +131,7 @@ shrinkTxWithoutId =
         (liftShrink shrinkTxMetadata)
         (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
         (liftShrink shrinkTxScriptValidity)
+        (const [])
 
 txWithoutIdToTx :: TxWithoutId -> Tx
 txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}
@@ -135,12 +140,12 @@ txToTxWithoutId :: Tx -> TxWithoutId
 txToTxWithoutId Tx {..} = TxWithoutId {..}
 
 txWithoutIdToTuple :: TxWithoutId -> _
-txWithoutIdToTuple (TxWithoutId a1 a2 a3 a4 a5 a6 a7) =
-    (a1, a2, a3, a4, a5, a6, a7)
+txWithoutIdToTuple (TxWithoutId a1 a2 a3 a4 a5 a6 a7 a8) =
+    (a1, a2, a3, a4, a5, a6, a7, a8)
 
 tupleToTxWithoutId :: _ -> TxWithoutId
-tupleToTxWithoutId (a1, a2, a3, a4, a5, a6, a7) =
-    (TxWithoutId a1 a2 a3 a4 a5 a6 a7)
+tupleToTxWithoutId (a1, a2, a3, a4, a5, a6, a7, a8) =
+    (TxWithoutId a1 a2 a3 a4 a5 a6 a7 a8)
 
 genTxScriptValidity :: Gen TxScriptValidity
 genTxScriptValidity = genericArbitrary

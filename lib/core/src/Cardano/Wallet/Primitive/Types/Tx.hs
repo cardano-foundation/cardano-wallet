@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
@@ -253,6 +254,10 @@ data Tx = Tx
         -- passed validation. This is added by the block creator when
         -- constructing the block. May be 'Nothing' for pre-Alonzo and pending
         -- transactions.
+
+    , witnesses
+        :: ![ByteString]
+        -- ^ Witnesses cbored included in this transaction
     } deriving (Show, Generic, Ord, Eq)
 
 instance NFData Tx
@@ -742,6 +747,7 @@ fromTransactionInfo info = Tx
     , withdrawals = txInfoWithdrawals info
     , metadata = txInfoMetadata info
     , scriptValidity = txInfoScriptValidity info
+    , witnesses = []
     }
   where
     drop3rd :: (a, b, c) -> (a, b)
