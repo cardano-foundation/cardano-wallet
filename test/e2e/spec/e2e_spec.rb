@@ -59,29 +59,42 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
   # end
 
   describe "E2E Balance -> Sign -> Submit" do
-    fixtures = "fixtures/plutus/"
+
+    def run_script(script, payload)
+      tx_balanced, tx_signed, tx_submitted = balance_sign_submit(@wid, payload)
+
+      tx_id = tx_submitted['id']
+      eventually "#{script} is in ledger" do
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        tx.code == 200 && tx['status'] == 'in_ledger'
+      end
+      tx_id
+    end
+
+    def run_contract(contract_setup, scripts)
+      # Contract setup
+      payload = get_plutus_tx(contract_setup)
+      tx_id = run_script(contract_setup, payload)
+
+      # Run Plutus contract
+      scripts.each do |s|
+        payload = get_templated_plutus_tx(s, tx_id)
+        tx_id = run_script(s, payload)
+      end
+    end
 
     it "ping-pong" do
-      script_1 = File.join(fixtures, "ping-pong_1.json")
-      script_2 = File.join(fixtures, "ping-pong_2.json")
+      contract_setup = "ping-pong_1.json"
+      scripts = [ "ping-pong_2.json" ]
 
-      payload_1 = get_json(script_1)
-      tx_balanced, tx_signed, tx_submitted = balance_sign_submit(@wid, payload_1)
+      run_contract(contract_setup, scripts)
+    end
 
-      tx_id = tx_submitted['id']
-      eventually "ping-pong_1-1 is in ledger" do
-        tx = SHELLEY.transactions.get(@wid, tx_id)
-        tx.code == 200 && tx['status'] == 'in_ledger'
-      end
+    it "game" do
+      contract_setup = "game_1.json"
+      scripts = [ "game_2.json", "game_3.json" ]
 
-      payload_2 = get_templated_json(script_2, tx_id)
-      tx_balanced, tx_signed, tx_submitted = balance_sign_submit(@wid, payload_2)
-
-      tx_id = tx_submitted['id']
-      eventually "ping-pong_1-2 is in ledger" do
-        tx = SHELLEY.transactions.get(@wid, tx_id)
-        tx.code == 200 && tx['status'] == 'in_ledger'
-      end
+      run_contract(contract_setup, scripts)
     end
 
   end

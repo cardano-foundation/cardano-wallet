@@ -312,6 +312,9 @@ def get_shelley_balances(wid)
   }
 end
 
+## Plutus helpers
+PLUTUS_DIR = "fixtures/plutus"
+
 ##
 # Balance -> Sign -> Submit
 def balance_sign_submit(wid, payload)
@@ -327,15 +330,11 @@ def balance_sign_submit(wid, payload)
   [tx_balanced, tx_signed, tx_submitted]
 end
 
+
 def get_plutus_tx(file)
-  fixtures = "fixtures/plutus/"
-  File.join(fixtures, file)
+  JSON.parse(File.read(File.join(PLUTUS_DIR, file)))
 end
 
-def get_json(file)
-  JSON.parse(File.read(file))
-end
-
-def get_templated_json(file, tx_id)
-  JSON.parse(Mustache.render(File.read(file), transactionId: tx_id))
+def get_templated_plutus_tx(file, tx_id)
+  JSON.parse(Mustache.render(File.read(File.join(PLUTUS_DIR, file)), transactionId: tx_id))
 end
