@@ -155,11 +155,18 @@ type PerformSelection m a =
 --  - producing change outputs to return excess value to the wallet;
 --  - balancing a selection to pay for the transaction fee.
 --
--- This function guarantees that if it successfully creates a 'Selection' @s@,
--- given a set of 'SelectionConstraints' @cs@ and 'SelectionParameters' @ps@,
--- then the following property will hold:
+-- This function guarantees that given a set of 'SelectionConstraints' @cs@
+-- and 'SelectionParams' @ps@:
 --
---    >>> verifySelection cs ps s == VerifySelectionSuccess
+--  - if creation of a selection succeeds, a value @s@ of type 'Selection'
+--    will be returned for which the following property holds:
+--
+--      >>> verifySelection cs ps s == VerifySelectionSuccess
+--
+--  - if creation of a selection fails, a value @e@ of type 'SelectionError'
+--    will be returned for which the following property holds:
+--
+--      >>> verifySelectionError cs ps e == VerifySelectionErrorSuccess
 --
 performSelection
     :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
