@@ -352,14 +352,14 @@ toBalanceResult selection = Balance.SelectionResult
 -- Selection verification
 --------------------------------------------------------------------------------
 
--- | The result of verifying a selection with 'verifySelection'.
+-- | The result of verifying a 'Selection' with 'verifySelection'.
 --
 data VerifySelectionResult
     = VerifySelectionSuccess
     | VerifySelectionFailure (NonEmpty VerifySelectionError)
     deriving (Eq, Show)
 
--- | Indicates that verification of a selection has failed.
+-- | Indicates that verification of a 'Selection' has failed.
 --
 data VerifySelectionError
     = VerifySelectionCollateralInsufficient
@@ -378,7 +378,7 @@ data VerifySelectionError
       VerifySelectionOutputTokenQuantityExceedsLimitError
     deriving (Eq, Show)
 
--- | The type of all selection property verification functions.
+-- | The type of all 'Selection' verification functions.
 --
 type VerifySelectionProperty error =
     SelectionConstraints ->
@@ -386,11 +386,11 @@ type VerifySelectionProperty error =
     Selection ->
     Maybe error
 
--- | Verifies a selection for correctness.
+-- | Verifies a 'Selection' for correctness.
 --
 -- This function is provided primarily as a convenience for testing. As such,
 -- it's not usually necessary to call this function from ordinary application
--- code, unless you suspect that a selection is incorrect in some way.
+-- code, unless you suspect that a 'Selection' is incorrect in some way.
 --
 verifySelection
     :: SelectionConstraints
