@@ -817,17 +817,11 @@ prepareOutputsInternal constraints outputsUnprepared
         -- We encountered one or more excessively large token bundles.
         -- Just report the first such bundle:
         SelectionOutputSizeExceedsLimit e
-    | (address, asset, quantity) : _ <- excessiveTokenQuantities =
+    | e : _ <- excessiveTokenQuantities =
         Left $
         -- We encountered one or more excessive token quantities.
         -- Just report the first such quantity:
-        SelectionOutputTokenQuantityExceedsLimit $
-        SelectionOutputTokenQuantityExceedsLimitError
-            { address
-            , asset
-            , quantity
-            , quantityMaxBound = txOutMaxTokenQuantity
-            }
+        SelectionOutputTokenQuantityExceedsLimit e
     | otherwise =
         pure outputsToCover
   where
@@ -843,15 +837,8 @@ prepareOutputsInternal constraints outputsUnprepared
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
-    excessiveTokenQuantities :: [(Address, AssetId, TokenQuantity)]
-    excessiveTokenQuantities =
-        [ (address, asset, quantity)
-        | output <- F.toList outputsToCover
-        , let address = view #address output
-        , (asset, quantity) <-
-            TokenMap.toFlatList $ view #tokens $ view #tokens output
-        , quantity > txOutMaxTokenQuantity
-        ]
+    excessiveTokenQuantities :: [SelectionOutputTokenQuantityExceedsLimitError]
+    excessiveTokenQuantities = verifyOutputTokenQuantities =<< outputsToCover
 
     outputsToCover =
         prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
@@ -937,6 +924,21 @@ data SelectionOutputTokenQuantityExceedsLimitError =
       -- ^ The maximum allowable token quantity.
     }
     deriving (Eq, Generic, Show)
+
+-- | Verifies the token quantities of an output.
+--
+-- Returns a list of token quantities that exceed the limit defined by the
+-- protocol.
+--
+verifyOutputTokenQuantities
+    :: TxOut -> [SelectionOutputTokenQuantityExceedsLimitError]
+verifyOutputTokenQuantities out =
+    [ SelectionOutputTokenQuantityExceedsLimitError
+        {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
+    | let address = out ^. #address
+    , (asset, quantity) <- TokenMap.toFlatList $ out ^. #tokens . #tokens
+    , quantity > txOutMaxTokenQuantity
+    ]
 
 --------------------------------------------------------------------------------
 -- Reporting
