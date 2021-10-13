@@ -346,7 +346,7 @@ toBalanceResult selection = Balance.SelectionResult
     }
 
 --------------------------------------------------------------------------------
--- Selection correctness
+-- Selection verification
 --------------------------------------------------------------------------------
 
 -- | The result of verifying a selection with 'verifySelection'.
@@ -418,7 +418,7 @@ verifySelection cs ps selection =
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
 
 --------------------------------------------------------------------------------
--- Selection correctness: collateral sufficiency
+-- Selection verification: collateral sufficiency
 --------------------------------------------------------------------------------
 
 data VerifySelectionCollateralInsufficientError =
@@ -441,7 +441,7 @@ verifySelectionCollateralSufficiency cs ps selection
     collateralRequired = selectionMinimumCollateral cs ps selection
 
 --------------------------------------------------------------------------------
--- Selection correctness: collateral suitability
+-- Selection verification: collateral suitability
 --------------------------------------------------------------------------------
 
 data VerifySelectionCollateralUnsuitableError =
@@ -471,7 +471,7 @@ verifySelectionCollateralSuitability cs _ps selection
     utxoUnsuitableForCollateral = isNothing . (cs ^. #utxoSuitableForCollateral)
 
 --------------------------------------------------------------------------------
--- Selection correctness: delta validity
+-- Selection verification: delta validity
 --------------------------------------------------------------------------------
 
 data VerifySelectionDeltaInvalidError = VerifySelectionDeltaInvalidError
@@ -494,7 +494,7 @@ verifySelectionDelta cs ps selection
     minimumCost = selectionMinimumCost cs ps selection
 
 --------------------------------------------------------------------------------
--- Selection correctness: selection limit
+-- Selection verification: selection limit
 --------------------------------------------------------------------------------
 
 data VerifySelectionLimitExceededError = VerifySelectionLimitExceededError
@@ -523,7 +523,7 @@ verifySelectionLimit cs _ps selection
     selectionLimit = (cs ^. #computeSelectionLimit) (selection ^. #outputs)
 
 --------------------------------------------------------------------------------
--- Selection correctness: minimum ada quantities
+-- Selection verification: minimum ada quantities
 --------------------------------------------------------------------------------
 
 data VerifySelectionOutputCoinBelowMinimumError =
@@ -559,7 +559,7 @@ verifySelectionOutputCoins cs _ps selection
             (output ^. (#tokens . #tokens))
 
 --------------------------------------------------------------------------------
--- Selection correctness: output sizes
+-- Selection verification: output sizes
 --------------------------------------------------------------------------------
 
 newtype VerifySelectionOutputSizeExceedsLimitError =
@@ -580,7 +580,7 @@ verifySelectionOutputSizes cs _ps selection
     errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs selection)
 
 --------------------------------------------------------------------------------
--- Selection correctness: output token quantities
+-- Selection verification: output token quantities
 --------------------------------------------------------------------------------
 
 newtype VerifySelectionOutputTokenQuantityExceedsLimitError =
