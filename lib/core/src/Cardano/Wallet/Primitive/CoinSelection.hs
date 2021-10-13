@@ -77,7 +77,7 @@ import Prelude
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionDelta (..), SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -87,7 +87,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..), TxIn, TxOut, txOutMaxTokenQuantity )
+    ( TokenBundleSizeAssessment (..), TxIn, TxOut (..), txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -100,6 +100,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), withExceptT )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, set, view, (^.) )
 import Data.Generics.Labels
@@ -365,6 +367,8 @@ data SelectionIncorrectError
       SelectionIncorrectDeltaInvalidError
     | SelectionIncorrectLimitExceeded
       SelectionIncorrectLimitExceededError
+    | SelectionIncorrectOutputSizeExceedsLimit
+      SelectionIncorrectOutputSizeExceedsLimitError
     deriving (Eq, Show)
 
 -- | The type of all selection property verification functions.
@@ -399,6 +403,8 @@ verifySelection cs ps selection =
             `failWith` SelectionIncorrectDeltaInvalid
         verifySelectionLimit cs ps selection
             `failWith` SelectionIncorrectLimitExceeded
+        verifySelectionOutputSizes cs ps selection
+            `failWith` SelectionIncorrectOutputSizeExceedsLimit
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
@@ -507,6 +513,39 @@ verifySelectionLimit cs _ps selection
     ordinaryInputCount = length (selection ^. #inputs)
     totalInputCount = collateralInputCount + ordinaryInputCount
     selectionLimit = (cs ^. #computeSelectionLimit) (selection ^. #outputs)
+
+--------------------------------------------------------------------------------
+-- Selection correctness: output sizes
+--------------------------------------------------------------------------------
+
+newtype SelectionIncorrectOutputSizeExceedsLimitError =
+    SelectionIncorrectOutputSizeExceedsLimitError
+    SelectionOutputSizeExceedsLimitError
+    deriving (Eq, Show)
+
+verifySelectionOutputSizes
+    :: VerifySelectionProperty SelectionIncorrectOutputSizeExceedsLimitError
+verifySelectionOutputSizes cs _ps selection
+    | e : _ <- errors =
+        -- Just report the first error we encounter:
+        Just $ SelectionIncorrectOutputSizeExceedsLimitError e
+    | otherwise =
+        Nothing
+  where
+    errors :: [SelectionOutputSizeExceedsLimitError]
+    errors = mapMaybe (verifyOutputSize cs) allOutputs
+
+    -- We verify both ordinary outputs and generated change outputs. Since
+    -- generated change outputs do not have addresses at this stage, we
+    -- simply assign them all a dummy address.
+    --
+    allOutputs :: [TxOut]
+    allOutputs = (<>)
+        (selection ^. #outputs)
+        (selection ^. #change <&> TxOut dummyChangeAddress)
+      where
+        dummyChangeAddress :: Address
+        dummyChangeAddress = Address "<change>"
 
 --------------------------------------------------------------------------------
 -- Selection deltas
