@@ -1573,6 +1573,7 @@ data ApiErrorCode
     | SharedWalletScriptTemplateInvalid
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
+    | MissingWitnesses
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

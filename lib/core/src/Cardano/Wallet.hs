@@ -2607,6 +2607,7 @@ data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
     | ErrSubmitTxImpossible ErrNoSuchTransaction
+    | ErrSubmitTxMissingWitnesses
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.

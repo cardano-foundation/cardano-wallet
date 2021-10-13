@@ -602,6 +602,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -2900,13 +2901,22 @@ getNetworkClock client = liftIO . getNtpStatus client
 postExternalTransaction
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , HasNetworkLayer IO ctx
         )
     => ctx
     -> ApiT W.SealedTx
     -> Handler ApiTxId
 postExternalTransaction ctx (ApiT sealed) = do
+    when areWitsMissing $
+        liftHandler $ throwE ErrSubmitTxMissingWitnesses
     tx <- liftHandler $ W.submitExternalTx @ctx @k ctx sealed
     return $ ApiTxId (ApiT (tx ^. #txId))
+  where
+    tl = ctx ^. W.transactionLayer @k
+    (Tx _ _ colls inps _ _ _ _ wits) = decodeTx tl sealed
+    areWitsMissing =
+        length (L.nub wits) <
+        length (L.nubBy (\x y -> fst x == fst y) $ colls ++ inps)
 
 signMetadata
     :: forall ctx s k n.
@@ -3811,6 +3821,10 @@ instance IsServerError ErrSubmitTx where
             , errReasonPhrase = errReasonPhrase err404
             }
         ErrSubmitTxImpossible e -> toServerError e
+        ErrSubmitTxMissingWitnesses ->
+            apiError err404 MissingWitnesses $ mconcat
+                [ "I couldn't submit a transaction with missing witnesses."
+                ]
 
 instance IsServerError ErrUpdatePassphrase where
     toServerError = \case
