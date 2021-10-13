@@ -107,7 +107,7 @@ import Data.Generics.Labels
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( isNothing )
+    ( isNothing, mapMaybe )
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
@@ -812,13 +812,11 @@ prepareOutputsInternal
     -> [TxOut]
     -> Either SelectionOutputInvalidError [TxOut]
 prepareOutputsInternal constraints outputsUnprepared
-    | (address, assetCount) : _ <- excessivelyLargeBundles =
+    | e : _ <- excessivelyLargeBundles =
         Left $
         -- We encountered one or more excessively large token bundles.
         -- Just report the first such bundle:
-        SelectionOutputSizeExceedsLimit $
-        SelectionOutputSizeExceedsLimitError
-            {address, assetCount}
+        SelectionOutputSizeExceedsLimit e
     | (address, asset, quantity) : _ <- excessiveTokenQuantities =
         Left $
         -- We encountered one or more excessive token quantities.
@@ -834,26 +832,14 @@ prepareOutputsInternal constraints outputsUnprepared
         pure outputsToCover
   where
     SelectionConstraints
-        { assessTokenBundleSize
-        , computeMinimumAdaQuantity
+        { computeMinimumAdaQuantity
         } = constraints
 
     -- The complete list of token bundles whose serialized lengths are greater
     -- than the limit of what is allowed in a transaction output:
-    excessivelyLargeBundles :: [(Address, Int)]
+    excessivelyLargeBundles :: [SelectionOutputSizeExceedsLimitError]
     excessivelyLargeBundles =
-        [ (address, assetCount)
-        | output <- F.toList outputsToCover
-        , let bundle = view #tokens output
-        , bundleIsExcessivelyLarge bundle
-        , let address = view #address output
-        , let assetCount = Set.size $ TokenBundle.getAssets bundle
-        ]
-
-      where
-        bundleIsExcessivelyLarge b = case assessTokenBundleSize b of
-            TokenBundleSizeWithinLimit -> False
-            OutputTokenBundleSizeExceedsLimit -> True
+        mapMaybe (verifyOutputSize constraints) outputsToCover
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
@@ -911,6 +897,30 @@ data SelectionOutputSizeExceedsLimitError =
       -- ^ The number of assets within the token bundle.
     }
     deriving (Eq, Generic, Show)
+
+-- | Verifies the size of an output.
+--
+-- Returns 'SelectionOutputSizeExceedsLimitError' if and only if the size
+-- exceeds the limit defined by the protocol.
+--
+verifyOutputSize
+    :: SelectionConstraints
+    -> TxOut
+    -> Maybe SelectionOutputSizeExceedsLimitError
+verifyOutputSize cs out
+    | withinLimit =
+        Nothing
+    | otherwise =
+        Just SelectionOutputSizeExceedsLimitError
+            { address = out ^. #address
+            , assetCount = TokenMap.size (out ^. (#tokens . #tokens))
+            }
+  where
+    withinLimit :: Bool
+    withinLimit =
+        case (cs ^. #assessTokenBundleSize) (out ^. #tokens) of
+            TokenBundleSizeWithinLimit -> True
+            OutputTokenBundleSizeExceedsLimit -> False
 
 -- | Indicates that a token quantity exceeds the maximum quantity that can
 --   appear in a transaction output's token bundle.
