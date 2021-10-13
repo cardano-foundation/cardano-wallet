@@ -367,6 +367,8 @@ data VerifySelectionError
       VerifySelectionDeltaInvalidError
     | VerifySelectionLimitExceeded
       VerifySelectionLimitExceededError
+    | VerifySelectionOutputCoinBelowMinimum
+      VerifySelectionOutputCoinBelowMinimumError
     | VerifySelectionOutputSizeExceedsLimit
       VerifySelectionOutputSizeExceedsLimitError
     | VerifySelectionOutputTokenQuantityExceedsLimit
@@ -405,6 +407,8 @@ verifySelection cs ps selection =
             `failWith` VerifySelectionDeltaInvalid
         verifySelectionLimit cs ps selection
             `failWith` VerifySelectionLimitExceeded
+        verifySelectionOutputCoins cs ps selection
+            `failWith` VerifySelectionOutputCoinBelowMinimum
         verifySelectionOutputSizes cs ps selection
             `failWith` VerifySelectionOutputSizeExceedsLimit
         verifySelectionOutputTokenQuantities cs ps selection
@@ -517,6 +521,42 @@ verifySelectionLimit cs _ps selection
     ordinaryInputCount = length (selection ^. #inputs)
     totalInputCount = collateralInputCount + ordinaryInputCount
     selectionLimit = (cs ^. #computeSelectionLimit) (selection ^. #outputs)
+
+--------------------------------------------------------------------------------
+-- Selection correctness: minimum ada quantities
+--------------------------------------------------------------------------------
+
+data VerifySelectionOutputCoinBelowMinimumError =
+    VerifySelectionOutputCoinBelowMinimumError
+    { minimumExpectedCoin :: Coin
+    , output :: TxOut
+    }
+    deriving (Eq, Show)
+
+verifySelectionOutputCoins
+    :: VerifySelectionProperty VerifySelectionOutputCoinBelowMinimumError
+verifySelectionOutputCoins cs _ps selection
+    | e : _ <- errors =
+        -- Just report the first error we encounter:
+        Just e
+    | otherwise =
+        Nothing
+  where
+    errors :: [VerifySelectionOutputCoinBelowMinimumError]
+    errors = mapMaybe maybeError (selectionAllOutputs selection)
+
+    maybeError :: TxOut -> Maybe VerifySelectionOutputCoinBelowMinimumError
+    maybeError output
+        | output ^. (#tokens . #coin) < minimumExpectedCoin =
+            Just VerifySelectionOutputCoinBelowMinimumError
+                {minimumExpectedCoin, output}
+        | otherwise =
+            Nothing
+      where
+        minimumExpectedCoin :: Coin
+        minimumExpectedCoin =
+            (cs ^. #computeMinimumAdaQuantity)
+            (output ^. (#tokens . #tokens))
 
 --------------------------------------------------------------------------------
 -- Selection correctness: output sizes
