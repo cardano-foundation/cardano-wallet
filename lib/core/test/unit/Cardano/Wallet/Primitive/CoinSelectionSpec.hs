@@ -221,6 +221,7 @@ prop_performSelection_onSuccess =
         either (const $ property True) (onSuccess constraints params)
   where
     onSuccess constraints params selection =
+        report selection "selection" $
         Pretty (verifySelection constraints params selection) ===
         Pretty VerifySelectionSuccess
 
