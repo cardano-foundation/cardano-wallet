@@ -175,7 +175,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
     ( ExceptT, except, mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.State.Strict
-    ( execStateT, get, modify' )
+    ( StateT (..), execStateT, get, modify' )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -189,13 +189,11 @@ import Data.Generics.Labels
 import Data.Kind
     ( Type )
 import Data.Map.Strict
-    ( Map )
+    ( Map, (!) )
 import Data.Maybe
     ( mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Ratio
-    ( (%) )
 import Data.Set
     ( Set )
 import Data.Type.Equality
@@ -873,8 +871,8 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
             pure tx
         InAnyCardanoEra AlonzoEra (Cardano.ShelleyTx shelleyEra alonzoTx) -> do
             alonzoTx' <- flip execStateT alonzoTx $ do
-                modifyM assignNullRedeemers
-                executionUnits <- get >>= lift . evaluateExecutionUnits
+                indexedRedeemers <- StateT assignNullRedeemers
+                executionUnits <- get >>= lift . evaluateExecutionUnits indexedRedeemers
                 modifyM (assignExecutionUnits executionUnits)
                 modify' addScriptIntegrityHash
             pure $ sealedTxFromCardano' (Cardano.ShelleyTx shelleyEra alonzoTx')
@@ -885,9 +883,9 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
     -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
     assignNullRedeemers
         :: AlonzoTx
-        -> ExceptT ErrAssignRedeemers m AlonzoTx
+        -> ExceptT ErrAssignRedeemers m (Map Alonzo.RdmrPtr Redeemer, AlonzoTx)
     assignNullRedeemers alonzoTx = do
-        nullRedeemers <- forM redeemers $ \rd -> do
+        (indexedRedeemers, nullRedeemers) <- fmap unzip $ forM redeemers $ \rd -> do
             let purpose = toScriptPurpose ntwrk rd
 
             ptr <- case Alonzo.rdptr (Alonzo.body alonzoTx) purpose of
@@ -902,13 +900,16 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
                 Right d ->
                     pure (Alonzo.Data d)
 
-            pure (ptr, (rData, mempty))
+            pure ((ptr, rd), (ptr, (rData, mempty)))
 
-        pure $ alonzoTx
-            { Alonzo.wits = (Alonzo.wits alonzoTx)
-                { Alonzo.txrdmrs = Alonzo.Redeemers (Map.fromList nullRedeemers)
+        pure
+            ( Map.fromList indexedRedeemers
+            , alonzoTx
+                { Alonzo.wits = (Alonzo.wits alonzoTx)
+                    { Alonzo.txrdmrs = Alonzo.Redeemers (Map.fromList nullRedeemers)
+                    }
                 }
-            }
+            )
 
     utxoFromAlonzoTx
         :: AlonzoTx
@@ -930,9 +931,10 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
     evaluateExecutionUnits
-        :: AlonzoTx
+        :: Map Alonzo.RdmrPtr Redeemer
+        -> AlonzoTx
         -> ExceptT ErrAssignRedeemers m (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnits alonzoTx = withExceptT ErrAssignRedeemersPastHorizon $ do
+    evaluateExecutionUnits indexedRedeemers alonzoTx = withExceptT ErrAssignRedeemersPastHorizon $ do
         let utxo = utxoFromAlonzoTx alonzoTx
         let costs = toCostModelsAsArray (Alonzo._costmdls pparams)
 
@@ -942,7 +944,7 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
                 epochInfo <- interpreterToEpochInfo <$> interpreter
                 pure (systemStart, epochInfo)
 
-        mapExceptT (pure . liftScriptFailure . runIdentity) $
+        mapExceptT (pure . hoistScriptFailure . runIdentity) $
             evaluateTransactionExecutionUnits
                 pparams
                 alonzoTx
@@ -951,8 +953,15 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
                 systemStart
                 costs
       where
-        liftScriptFailure =
-            fmap (fmap (left (ErrAssignRedeemersScriptFailure . show)))
+        hoistScriptFailure
+            :: Show scriptFailure
+            => Either PastHorizonException (Map Alonzo.RdmrPtr (Either scriptFailure a))
+            -> Either PastHorizonException (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a))
+        hoistScriptFailure =
+            fmap $ Map.mapWithKey
+                (\ptr -> left $
+                    \e -> ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
+                )
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.

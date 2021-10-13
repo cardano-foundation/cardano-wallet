@@ -4276,26 +4276,25 @@ instance IsServerError ErrUpdateSealedTx where
 
 instance IsServerError ErrAssignRedeemers where
     toServerError = \case
-        ErrAssignRedeemersScriptFailure failure ->
+        ErrAssignRedeemersScriptFailure r failure ->
             apiError err400 RedeemerScriptFailure $ T.unwords
-                [ "I was unable to assign execution units to one of your redeemers"
-                , "because its execution is failing with the following error:"
-                , T.pack failure
-                , "."
+                [ "I was unable to assign execution units to one of your"
+                , "redeemers:", pretty r <> ";"
+                , "Its execution is failing with the following error:"
+                , T.pack failure <> "."
                 ]
-        -- TODO: Embed the redeemer in the error message for better debugging.
-        ErrAssignRedeemersTargetNotFound _ ->
+        ErrAssignRedeemersTargetNotFound r ->
             apiError err400 RedeemerTargetNotFound $ T.unwords
                 [ "I was unable to resolve one of your redeemers to the location"
-                , "indicated in the request payload. Please double-check both"
-                , "your serialised transaction and the provided redeemers."
+                , "indicated in the request payload:", pretty r <> ";"
+                , "Please double-check both your serialised transaction and"
+                , "the provided redeemers."
                 ]
-        -- TODO: Embed the redeemer in the error message for better debugging.
-        ErrAssignRedeemersInvalidData _ _ ->
+        ErrAssignRedeemersInvalidData r _ ->
             apiError err400 RedeemerInvalidData $ T.unwords
                 [ "It looks like you have provided an invalid 'data' payload"
                 , "for one of your redeemers since I am unable to decode it"
-                , "into a valid Plutus data."
+                , "into a valid Plutus data:", pretty r <> "."
                 ]
         ErrAssignRedeemersPastHorizon e ->
             toServerError e

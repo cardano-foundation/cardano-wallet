@@ -23,6 +23,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn )
 import Data.ByteString
     ( ByteString )
+import Fmt
+    ( Buildable (..) )
 import GHC.Generics
     ( Generic )
 
@@ -31,6 +33,15 @@ data Redeemer
     | RedeemerMinting ByteString TokenPolicyId
     | RedeemerRewarding ByteString RewardAccount
     deriving (Eq, Generic, Show)
+
+instance Buildable Redeemer where
+    build = \case
+        RedeemerSpending _ input ->
+            "spending(" <> build input <> ")"
+        RedeemerMinting _ pid ->
+            "minting(" <> build pid <> ")"
+        RedeemerRewarding _ acct ->
+            "rewarding(" <> build acct <> ")"
 
 redeemerData :: Redeemer -> ByteString
 redeemerData = \case

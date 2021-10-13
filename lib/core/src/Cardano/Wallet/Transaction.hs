@@ -314,7 +314,7 @@ data ErrMkTransaction
     deriving (Generic, Eq, Show)
 
 data ErrAssignRedeemers
-    = ErrAssignRedeemersScriptFailure String
+    = ErrAssignRedeemersScriptFailure Redeemer String
     -- ^ Failed to assign execution units for a particular redeemer. The
     -- 'String' indicates the reason of the failure.
     --
