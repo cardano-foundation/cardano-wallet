@@ -486,6 +486,8 @@ data VerifySelectionDeltaInvalidError = VerifySelectionDeltaInvalidError
         :: SelectionDelta TokenBundle
     , minimumCost
         :: Coin
+    , maximumCost
+        :: Coin
     }
     deriving (Eq, Show)
 
@@ -499,6 +501,7 @@ verifySelectionDelta cs ps selection
   where
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
+    maximumCost = selectionMaximumCost cs ps selection
 
 --------------------------------------------------------------------------------
 -- Selection verification: selection limit
@@ -667,6 +670,18 @@ selectionMinimumCost
     -> Coin
 selectionMinimumCost constraints params selection =
     Balance.selectionMinimumCost
+        (fst $ toBalanceConstraintsParams (constraints, params))
+        (toBalanceResult selection)
+
+-- | Computes the maximum acceptable cost of a selection.
+--
+selectionMaximumCost
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Coin
+selectionMaximumCost constraints params selection =
+    Balance.selectionMaximumCost
         (fst $ toBalanceConstraintsParams (constraints, params))
         (toBalanceResult selection)
 
