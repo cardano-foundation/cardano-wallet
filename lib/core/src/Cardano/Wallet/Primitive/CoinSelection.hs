@@ -38,8 +38,8 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
-    -- * Selection correctness
-    , SelectionCorrectness (..)
+    -- * Selection verification
+    , VerifySelectionResult (..)
     , verifySelection
 
     -- * Selection deltas
@@ -152,7 +152,7 @@ type PerformSelection m a =
 -- given a set of 'SelectionConstraints' @cs@ and 'SelectionParameters' @ps@,
 -- then the following property will hold:
 --
---    >>> verifySelection cs ps s == SelectionCorrect
+--    >>> verifySelection cs ps s == VerifySelectionSuccess
 --
 performSelection
     :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
@@ -349,28 +349,28 @@ toBalanceResult selection = Balance.SelectionResult
 -- Selection correctness
 --------------------------------------------------------------------------------
 
--- | Indicates whether or not a selection is correct.
+-- | The result of verifying a selection with 'verifySelection'.
 --
-data SelectionCorrectness
-    = SelectionCorrect
-    | SelectionIncorrect SelectionIncorrectError
+data VerifySelectionResult
+    = VerifySelectionSuccess
+    | VerifySelectionFailure VerifySelectionError
     deriving (Eq, Show)
 
--- | Indicates that a selection is incorrect.
+-- | Indicates that verification of a selection has failed.
 --
-data SelectionIncorrectError
-    = SelectionIncorrectCollateralInsufficient
-      SelectionIncorrectCollateralInsufficientError
-    | SelectionIncorrectCollateralUnsuitable
-      SelectionIncorrectCollateralUnsuitableError
-    | SelectionIncorrectDeltaInvalid
-      SelectionIncorrectDeltaInvalidError
-    | SelectionIncorrectLimitExceeded
-      SelectionIncorrectLimitExceededError
-    | SelectionIncorrectOutputSizeExceedsLimit
-      SelectionIncorrectOutputSizeExceedsLimitError
-    | SelectionIncorrectOutputTokenQuantityExceedsLimit
-      SelectionIncorrectOutputTokenQuantityExceedsLimitError
+data VerifySelectionError
+    = VerifySelectionCollateralInsufficient
+      VerifySelectionCollateralInsufficientError
+    | VerifySelectionCollateralUnsuitable
+      VerifySelectionCollateralUnsuitableError
+    | VerifySelectionDeltaInvalid
+      VerifySelectionDeltaInvalidError
+    | VerifySelectionLimitExceeded
+      VerifySelectionLimitExceededError
+    | VerifySelectionOutputSizeExceedsLimit
+      VerifySelectionOutputSizeExceedsLimitError
+    | VerifySelectionOutputTokenQuantityExceedsLimit
+      VerifySelectionOutputTokenQuantityExceedsLimitError
     deriving (Eq, Show)
 
 -- | The type of all selection property verification functions.
@@ -391,24 +391,24 @@ verifySelection
     :: SelectionConstraints
     -> SelectionParams
     -> Selection
-    -> SelectionCorrectness
+    -> VerifySelectionResult
 verifySelection cs ps selection =
-    either SelectionIncorrect (const SelectionCorrect) verifyAll
+    either VerifySelectionFailure (const VerifySelectionSuccess) verifyAll
   where
-    verifyAll :: Either SelectionIncorrectError ()
+    verifyAll :: Either VerifySelectionError ()
     verifyAll = do
         verifySelectionCollateralSufficiency cs ps selection
-            `failWith` SelectionIncorrectCollateralInsufficient
+            `failWith` VerifySelectionCollateralInsufficient
         verifySelectionCollateralSuitability cs ps selection
-            `failWith` SelectionIncorrectCollateralUnsuitable
+            `failWith` VerifySelectionCollateralUnsuitable
         verifySelectionDelta cs ps selection
-            `failWith` SelectionIncorrectDeltaInvalid
+            `failWith` VerifySelectionDeltaInvalid
         verifySelectionLimit cs ps selection
-            `failWith` SelectionIncorrectLimitExceeded
+            `failWith` VerifySelectionLimitExceeded
         verifySelectionOutputSizes cs ps selection
-            `failWith` SelectionIncorrectOutputSizeExceedsLimit
+            `failWith` VerifySelectionOutputSizeExceedsLimit
         verifySelectionOutputTokenQuantities cs ps selection
-            `failWith` SelectionIncorrectOutputTokenQuantityExceedsLimit
+            `failWith` VerifySelectionOutputTokenQuantityExceedsLimit
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
@@ -417,20 +417,20 @@ verifySelection cs ps selection =
 -- Selection correctness: collateral sufficiency
 --------------------------------------------------------------------------------
 
-data SelectionIncorrectCollateralInsufficientError =
-    SelectionIncorrectCollateralInsufficientError
+data VerifySelectionCollateralInsufficientError =
+    VerifySelectionCollateralInsufficientError
     { collateralSelected :: Coin
     , collateralRequired :: Coin
     }
     deriving (Eq, Show)
 
 verifySelectionCollateralSufficiency
-    :: VerifySelectionProperty SelectionIncorrectCollateralInsufficientError
+    :: VerifySelectionProperty VerifySelectionCollateralInsufficientError
 verifySelectionCollateralSufficiency cs ps selection
     | collateralSelected >= collateralRequired =
         Nothing
     | otherwise =
-        Just SelectionIncorrectCollateralInsufficientError
+        Just VerifySelectionCollateralInsufficientError
             {collateralSelected, collateralRequired}
   where
     collateralSelected = selectionCollateral selection
@@ -440,8 +440,8 @@ verifySelectionCollateralSufficiency cs ps selection
 -- Selection correctness: collateral suitability
 --------------------------------------------------------------------------------
 
-data SelectionIncorrectCollateralUnsuitableError =
-    SelectionIncorrectCollateralUnsuitableError
+data VerifySelectionCollateralUnsuitableError =
+    VerifySelectionCollateralUnsuitableError
     { collateralSelected
         :: [(TxIn, TxOut)]
     , collateralSelectedButUnsuitable
@@ -450,12 +450,12 @@ data SelectionIncorrectCollateralUnsuitableError =
     deriving (Eq, Show)
 
 verifySelectionCollateralSuitability
-    :: VerifySelectionProperty SelectionIncorrectCollateralUnsuitableError
+    :: VerifySelectionProperty VerifySelectionCollateralUnsuitableError
 verifySelectionCollateralSuitability cs _ps selection
     | null collateralSelectedButUnsuitable =
         Nothing
     | otherwise =
-        Just SelectionIncorrectCollateralUnsuitableError
+        Just VerifySelectionCollateralUnsuitableError
             {collateralSelected, collateralSelectedButUnsuitable}
   where
     collateralSelected =
@@ -470,7 +470,7 @@ verifySelectionCollateralSuitability cs _ps selection
 -- Selection correctness: delta validity
 --------------------------------------------------------------------------------
 
-data SelectionIncorrectDeltaInvalidError = SelectionIncorrectDeltaInvalidError
+data VerifySelectionDeltaInvalidError = VerifySelectionDeltaInvalidError
     { delta
         :: SelectionDelta TokenBundle
     , minimumCost
@@ -479,12 +479,12 @@ data SelectionIncorrectDeltaInvalidError = SelectionIncorrectDeltaInvalidError
     deriving (Eq, Show)
 
 verifySelectionDelta
-    :: VerifySelectionProperty SelectionIncorrectDeltaInvalidError
+    :: VerifySelectionProperty VerifySelectionDeltaInvalidError
 verifySelectionDelta cs ps selection
     | selectionHasValidSurplus cs ps selection =
         Nothing
     | otherwise =
-        Just SelectionIncorrectDeltaInvalidError {..}
+        Just VerifySelectionDeltaInvalidError {..}
   where
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
@@ -493,7 +493,7 @@ verifySelectionDelta cs ps selection
 -- Selection correctness: selection limit
 --------------------------------------------------------------------------------
 
-data SelectionIncorrectLimitExceededError = SelectionIncorrectLimitExceededError
+data VerifySelectionLimitExceededError = VerifySelectionLimitExceededError
     { collateralInputCount
         :: Int
     , ordinaryInputCount
@@ -506,12 +506,12 @@ data SelectionIncorrectLimitExceededError = SelectionIncorrectLimitExceededError
     deriving (Eq, Show)
 
 verifySelectionLimit
-    :: VerifySelectionProperty SelectionIncorrectLimitExceededError
+    :: VerifySelectionProperty VerifySelectionLimitExceededError
 verifySelectionLimit cs _ps selection
     | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
         Nothing
     | otherwise =
-        Just SelectionIncorrectLimitExceededError {..}
+        Just VerifySelectionLimitExceededError {..}
   where
     collateralInputCount = length (selection ^. #collateral)
     ordinaryInputCount = length (selection ^. #inputs)
@@ -522,17 +522,17 @@ verifySelectionLimit cs _ps selection
 -- Selection correctness: output sizes
 --------------------------------------------------------------------------------
 
-newtype SelectionIncorrectOutputSizeExceedsLimitError =
-    SelectionIncorrectOutputSizeExceedsLimitError
+newtype VerifySelectionOutputSizeExceedsLimitError =
+    VerifySelectionOutputSizeExceedsLimitError
     SelectionOutputSizeExceedsLimitError
     deriving (Eq, Show)
 
 verifySelectionOutputSizes
-    :: VerifySelectionProperty SelectionIncorrectOutputSizeExceedsLimitError
+    :: VerifySelectionProperty VerifySelectionOutputSizeExceedsLimitError
 verifySelectionOutputSizes cs _ps selection
     | e : _ <- errors =
         -- Just report the first error we encounter:
-        Just $ SelectionIncorrectOutputSizeExceedsLimitError e
+        Just $ VerifySelectionOutputSizeExceedsLimitError e
     | otherwise =
         Nothing
   where
@@ -555,18 +555,18 @@ verifySelectionOutputSizes cs _ps selection
 -- Selection correctness: output token quantities
 --------------------------------------------------------------------------------
 
-newtype SelectionIncorrectOutputTokenQuantityExceedsLimitError =
-    SelectionIncorrectOutputTokenQuantityExceedsLimitError
+newtype VerifySelectionOutputTokenQuantityExceedsLimitError =
+    VerifySelectionOutputTokenQuantityExceedsLimitError
     SelectionOutputTokenQuantityExceedsLimitError
     deriving (Eq, Show)
 
-verifySelectionOutputTokenQuantities
-    :: VerifySelectionProperty
-        SelectionIncorrectOutputTokenQuantityExceedsLimitError
+verifySelectionOutputTokenQuantities ::
+    VerifySelectionProperty
+    VerifySelectionOutputTokenQuantityExceedsLimitError
 verifySelectionOutputTokenQuantities _cs _ps selection
     | e : _ <- errors =
         -- Just report the first error we encounter:
-        Just $ SelectionIncorrectOutputTokenQuantityExceedsLimitError e
+        Just $ VerifySelectionOutputTokenQuantityExceedsLimitError e
     | otherwise =
         Nothing
   where

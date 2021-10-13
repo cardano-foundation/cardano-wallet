@@ -17,9 +17,9 @@ import Cardano.Wallet.Primitive.CoinSelection
     , Selection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
-    , SelectionCorrectness (..)
     , SelectionError (..)
     , SelectionParams (..)
+    , VerifySelectionResult (..)
     , computeMinimumCollateral
     , performSelection
     , prepareOutputsWith
@@ -222,7 +222,7 @@ prop_performSelection_onSuccess =
   where
     onSuccess constraints params selection =
         Pretty (verifySelection constraints params selection) ===
-        Pretty SelectionCorrect
+        Pretty VerifySelectionSuccess
 
 --------------------------------------------------------------------------------
 -- Construction of balance constraints and parameters
