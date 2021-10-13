@@ -98,6 +98,7 @@ module Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidScript
     , errMsg403InvalidConstructTx
     , errMsg403transactionAlreadyBalanced
+    , errMsg403MissingWitnesses
     ) where
 
 import Prelude
@@ -625,6 +626,10 @@ errMsg400ScriptNotUniformRoles =
 errMsg403transactionAlreadyBalanced :: String
 errMsg403transactionAlreadyBalanced =
     "The transaction is already balanced. Please send a transaction that requires more inputs/outputs to be picked to be balanced."
+
+errMsg403MissingWitnesses :: String
+errMsg403MissingWitnesses =
+    "I couldn't submit a transaction with missing witnesses."
 
 --------------------------------------------------------------------------------
 -- Transaction metadata

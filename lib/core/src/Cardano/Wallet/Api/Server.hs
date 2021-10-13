@@ -3822,7 +3822,7 @@ instance IsServerError ErrSubmitTx where
             }
         ErrSubmitTxImpossible e -> toServerError e
         ErrSubmitTxMissingWitnesses ->
-            apiError err404 MissingWitnesses $ mconcat
+            apiError err403 MissingWitnesses $ mconcat
                 [ "I couldn't submit a transaction with missing witnesses."
                 ]
 

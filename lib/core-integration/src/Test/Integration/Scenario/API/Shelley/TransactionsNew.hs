@@ -126,6 +126,7 @@ import Test.Integration.Framework.TestData
     ( errMsg403Fee
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
+    , errMsg403MissingWitnesses
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
     , errMsg403transactionAlreadyBalanced
@@ -1130,7 +1131,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- Submit tx
-        void $ submitTx ctx sealedTx [ expectResponseCode HTTP.status500 ]
+        void $ submitTx ctx sealedTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403MissingWitnesses ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
         (w, _) <- rewardWallet ctx
