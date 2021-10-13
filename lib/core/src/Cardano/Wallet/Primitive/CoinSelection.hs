@@ -356,12 +356,12 @@ toBalanceResult selection = Balance.SelectionResult
 --
 data VerifySelectionResult
     = VerifySelectionSuccess
-    | VerifySelectionFailure (NonEmpty VerifySelectionError)
+    | VerifySelectionFailure (NonEmpty VerifySelectionFailureReason)
     deriving (Eq, Show)
 
 -- | Indicates that verification of a 'Selection' has failed.
 --
-data VerifySelectionError
+data VerifySelectionFailureReason
     = VerifySelectionCollateralInsufficient
       VerifySelectionCollateralInsufficientError
     | VerifySelectionCollateralUnsuitable
@@ -403,7 +403,7 @@ verifySelection cs ps selection
     | otherwise =
         VerifySelectionSuccess
   where
-    errors :: [VerifySelectionError]
+    errors :: [VerifySelectionFailureReason]
     errors = lefts
         [ verifySelectionCollateralSufficiency cs ps selection
             `failWith` VerifySelectionCollateralInsufficient
