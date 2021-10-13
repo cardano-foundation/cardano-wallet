@@ -42,6 +42,10 @@ module Cardano.Wallet.Primitive.CoinSelection
     , VerifySelectionResult (..)
     , verifySelection
 
+    -- * Selection error verification
+    , VerifySelectionErrorResult (..)
+    , verifySelectionError
+
     -- * Selection deltas
     , SelectionDelta (..)
     , selectionDelta
@@ -610,6 +614,33 @@ verifySelectionOutputTokenQuantities _cs _ps selection
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError]
     errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
+
+--------------------------------------------------------------------------------
+-- Selection error verification
+--------------------------------------------------------------------------------
+
+-- | The result of verifying a 'SelectionError' with 'verifySelectionError'.
+--
+data VerifySelectionErrorResult
+    = VerifySelectionErrorSuccess
+    | VerifySelectionErrorFailure
+    deriving (Eq, Show)
+
+-- | Verifies a 'SelectionError' for correctness.
+--
+-- This function is provided primarily as a convenience for testing. As such,
+-- it's not usually necessary to call this function from ordinary application
+-- code, unless you suspect that a 'SelectionError' is incorrect in some way.
+--
+verifySelectionError
+    :: SelectionConstraints
+    -> SelectionParams
+    -> SelectionError
+    -> VerifySelectionErrorResult
+verifySelectionError _cs _ps _e =
+    -- TODO: [ADP-1037]
+    -- For now, all errors will verify successfully.
+    VerifySelectionErrorSuccess
 
 --------------------------------------------------------------------------------
 -- Selection deltas
