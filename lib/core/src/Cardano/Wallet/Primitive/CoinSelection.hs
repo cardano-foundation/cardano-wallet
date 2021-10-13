@@ -98,6 +98,8 @@ import Control.Monad.Random.Class
     ( MonadRandom )
 import Control.Monad.Trans.Except
     ( ExceptT (..), withExceptT )
+import Data.Either
+    ( lefts )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -129,6 +131,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -353,7 +356,7 @@ toBalanceResult selection = Balance.SelectionResult
 --
 data VerifySelectionResult
     = VerifySelectionSuccess
-    | VerifySelectionFailure VerifySelectionError
+    | VerifySelectionFailure (NonEmpty VerifySelectionError)
     deriving (Eq, Show)
 
 -- | Indicates that verification of a selection has failed.
@@ -394,25 +397,29 @@ verifySelection
     -> SelectionParams
     -> Selection
     -> VerifySelectionResult
-verifySelection cs ps selection =
-    either VerifySelectionFailure (const VerifySelectionSuccess) verifyAll
+verifySelection cs ps selection
+    | Just errorsNonEmpty <- NE.nonEmpty errors =
+        VerifySelectionFailure errorsNonEmpty
+    | otherwise =
+        VerifySelectionSuccess
   where
-    verifyAll :: Either VerifySelectionError ()
-    verifyAll = do
-        verifySelectionCollateralSufficiency cs ps selection
+    errors :: [VerifySelectionError]
+    errors = lefts
+        [ verifySelectionCollateralSufficiency cs ps selection
             `failWith` VerifySelectionCollateralInsufficient
-        verifySelectionCollateralSuitability cs ps selection
+        , verifySelectionCollateralSuitability cs ps selection
             `failWith` VerifySelectionCollateralUnsuitable
-        verifySelectionDelta cs ps selection
+        , verifySelectionDelta cs ps selection
             `failWith` VerifySelectionDeltaInvalid
-        verifySelectionLimit cs ps selection
+        , verifySelectionLimit cs ps selection
             `failWith` VerifySelectionLimitExceeded
-        verifySelectionOutputCoins cs ps selection
+        , verifySelectionOutputCoins cs ps selection
             `failWith` VerifySelectionOutputCoinBelowMinimum
-        verifySelectionOutputSizes cs ps selection
+        , verifySelectionOutputSizes cs ps selection
             `failWith` VerifySelectionOutputSizeExceedsLimit
-        verifySelectionOutputTokenQuantities cs ps selection
+        , verifySelectionOutputTokenQuantities cs ps selection
             `failWith` VerifySelectionOutputTokenQuantityExceedsLimit
+        ]
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
