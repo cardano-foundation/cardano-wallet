@@ -369,6 +369,8 @@ data SelectionIncorrectError
       SelectionIncorrectLimitExceededError
     | SelectionIncorrectOutputSizeExceedsLimit
       SelectionIncorrectOutputSizeExceedsLimitError
+    | SelectionIncorrectOutputTokenQuantityExceedsLimit
+      SelectionIncorrectOutputTokenQuantityExceedsLimitError
     deriving (Eq, Show)
 
 -- | The type of all selection property verification functions.
@@ -405,6 +407,8 @@ verifySelection cs ps selection =
             `failWith` SelectionIncorrectLimitExceeded
         verifySelectionOutputSizes cs ps selection
             `failWith` SelectionIncorrectOutputSizeExceedsLimit
+        verifySelectionOutputTokenQuantities cs ps selection
+            `failWith` SelectionIncorrectOutputTokenQuantityExceedsLimit
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
@@ -534,6 +538,40 @@ verifySelectionOutputSizes cs _ps selection
   where
     errors :: [SelectionOutputSizeExceedsLimitError]
     errors = mapMaybe (verifyOutputSize cs) allOutputs
+
+    -- We verify both ordinary outputs and generated change outputs. Since
+    -- generated change outputs do not have addresses at this stage, we
+    -- simply assign them all a dummy address.
+    --
+    allOutputs :: [TxOut]
+    allOutputs = (<>)
+        (selection ^. #outputs)
+        (selection ^. #change <&> TxOut dummyChangeAddress)
+      where
+        dummyChangeAddress :: Address
+        dummyChangeAddress = Address "<change>"
+
+--------------------------------------------------------------------------------
+-- Selection correctness: output token quantities
+--------------------------------------------------------------------------------
+
+newtype SelectionIncorrectOutputTokenQuantityExceedsLimitError =
+    SelectionIncorrectOutputTokenQuantityExceedsLimitError
+    SelectionOutputTokenQuantityExceedsLimitError
+    deriving (Eq, Show)
+
+verifySelectionOutputTokenQuantities
+    :: VerifySelectionProperty
+        SelectionIncorrectOutputTokenQuantityExceedsLimitError
+verifySelectionOutputTokenQuantities _cs _ps selection
+    | e : _ <- errors =
+        -- Just report the first error we encounter:
+        Just $ SelectionIncorrectOutputTokenQuantityExceedsLimitError e
+    | otherwise =
+        Nothing
+  where
+    errors :: [SelectionOutputTokenQuantityExceedsLimitError]
+    errors = verifyOutputTokenQuantities =<< allOutputs
 
     -- We verify both ordinary outputs and generated change outputs. Since
     -- generated change outputs do not have addresses at this stage, we
