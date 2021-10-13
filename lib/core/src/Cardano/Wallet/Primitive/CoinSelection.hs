@@ -351,20 +351,20 @@ toBalanceResult selection = Balance.SelectionResult
 --
 data SelectionCorrectness
     = SelectionCorrect
-    | SelectionIncorrect SelectionCorrectnessError
+    | SelectionIncorrect SelectionIncorrectError
     deriving (Eq, Show)
 
 -- | Indicates that a selection is incorrect.
 --
-data SelectionCorrectnessError
-    = SelectionCollateralInsufficient
-      SelectionCollateralInsufficientError
-    | SelectionCollateralUnsuitable
-      SelectionCollateralUnsuitableError
-    | SelectionDeltaInvalid
-      SelectionDeltaInvalidError
-    | SelectionLimitExceeded
-      SelectionLimitExceededError
+data SelectionIncorrectError
+    = SelectionIncorrectCollateralInsufficient
+      SelectionIncorrectCollateralInsufficientError
+    | SelectionIncorrectCollateralUnsuitable
+      SelectionIncorrectCollateralUnsuitableError
+    | SelectionIncorrectDeltaInvalid
+      SelectionIncorrectDeltaInvalidError
+    | SelectionIncorrectLimitExceeded
+      SelectionIncorrectLimitExceededError
     deriving (Eq, Show)
 
 -- | The type of all selection property verification functions.
@@ -389,16 +389,16 @@ verifySelection
 verifySelection cs ps selection =
     either SelectionIncorrect (const SelectionCorrect) verifyAll
   where
-    verifyAll :: Either SelectionCorrectnessError ()
+    verifyAll :: Either SelectionIncorrectError ()
     verifyAll = do
         verifySelectionCollateralSufficiency cs ps selection
-            `failWith` SelectionCollateralInsufficient
+            `failWith` SelectionIncorrectCollateralInsufficient
         verifySelectionCollateralSuitability cs ps selection
-            `failWith` SelectionCollateralUnsuitable
+            `failWith` SelectionIncorrectCollateralUnsuitable
         verifySelectionDelta cs ps selection
-            `failWith` SelectionDeltaInvalid
+            `failWith` SelectionIncorrectDeltaInvalid
         verifySelectionLimit cs ps selection
-            `failWith` SelectionLimitExceeded
+            `failWith` SelectionIncorrectLimitExceeded
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
@@ -407,19 +407,20 @@ verifySelection cs ps selection =
 -- Selection correctness: collateral sufficiency
 --------------------------------------------------------------------------------
 
-data SelectionCollateralInsufficientError = SelectionCollateralInsufficientError
+data SelectionIncorrectCollateralInsufficientError =
+    SelectionIncorrectCollateralInsufficientError
     { collateralSelected :: Coin
     , collateralRequired :: Coin
     }
     deriving (Eq, Show)
 
 verifySelectionCollateralSufficiency
-    :: VerifySelectionProperty SelectionCollateralInsufficientError
+    :: VerifySelectionProperty SelectionIncorrectCollateralInsufficientError
 verifySelectionCollateralSufficiency cs ps selection
     | collateralSelected >= collateralRequired =
         Nothing
     | otherwise =
-        Just SelectionCollateralInsufficientError
+        Just SelectionIncorrectCollateralInsufficientError
             {collateralSelected, collateralRequired}
   where
     collateralSelected = selectionCollateral selection
@@ -429,7 +430,8 @@ verifySelectionCollateralSufficiency cs ps selection
 -- Selection correctness: collateral suitability
 --------------------------------------------------------------------------------
 
-data SelectionCollateralUnsuitableError = SelectionCollateralUnsuitableError
+data SelectionIncorrectCollateralUnsuitableError =
+    SelectionIncorrectCollateralUnsuitableError
     { collateralSelected
         :: [(TxIn, TxOut)]
     , collateralSelectedButUnsuitable
@@ -438,12 +440,12 @@ data SelectionCollateralUnsuitableError = SelectionCollateralUnsuitableError
     deriving (Eq, Show)
 
 verifySelectionCollateralSuitability
-    :: VerifySelectionProperty SelectionCollateralUnsuitableError
+    :: VerifySelectionProperty SelectionIncorrectCollateralUnsuitableError
 verifySelectionCollateralSuitability cs _ps selection
     | null collateralSelectedButUnsuitable =
         Nothing
     | otherwise =
-        Just SelectionCollateralUnsuitableError
+        Just SelectionIncorrectCollateralUnsuitableError
             {collateralSelected, collateralSelectedButUnsuitable}
   where
     collateralSelected =
@@ -458,7 +460,7 @@ verifySelectionCollateralSuitability cs _ps selection
 -- Selection correctness: delta validity
 --------------------------------------------------------------------------------
 
-data SelectionDeltaInvalidError = SelectionDeltaInvalidError
+data SelectionIncorrectDeltaInvalidError = SelectionIncorrectDeltaInvalidError
     { delta
         :: SelectionDelta TokenBundle
     , minimumCost
@@ -467,12 +469,12 @@ data SelectionDeltaInvalidError = SelectionDeltaInvalidError
     deriving (Eq, Show)
 
 verifySelectionDelta
-    :: VerifySelectionProperty SelectionDeltaInvalidError
+    :: VerifySelectionProperty SelectionIncorrectDeltaInvalidError
 verifySelectionDelta cs ps selection
     | selectionHasValidSurplus cs ps selection =
         Nothing
     | otherwise =
-        Just SelectionDeltaInvalidError {..}
+        Just SelectionIncorrectDeltaInvalidError {..}
   where
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
@@ -481,7 +483,7 @@ verifySelectionDelta cs ps selection
 -- Selection correctness: selection limit
 --------------------------------------------------------------------------------
 
-data SelectionLimitExceededError = SelectionLimitExceededError
+data SelectionIncorrectLimitExceededError = SelectionIncorrectLimitExceededError
     { collateralInputCount
         :: Int
     , ordinaryInputCount
@@ -494,12 +496,12 @@ data SelectionLimitExceededError = SelectionLimitExceededError
     deriving (Eq, Show)
 
 verifySelectionLimit
-    :: VerifySelectionProperty SelectionLimitExceededError
+    :: VerifySelectionProperty SelectionIncorrectLimitExceededError
 verifySelectionLimit cs _ps selection
     | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
         Nothing
     | otherwise =
-        Just SelectionLimitExceededError {..}
+        Just SelectionIncorrectLimitExceededError {..}
   where
     collateralInputCount = length (selection ^. #collateral)
     ordinaryInputCount = length (selection ^. #inputs)
