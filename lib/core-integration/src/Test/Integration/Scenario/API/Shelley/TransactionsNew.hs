@@ -1202,11 +1202,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let scenarios =
                 [ ( "ping-pong"
                   , PlutusScenario.pingPong_1
-                  , [ PlutusScenario.pingPong_2 ]
+                  , [ PlutusScenario.pingPong_2
+                    ]
                   )
                 , ( "game state-machine"
                   , PlutusScenario.game_1
-                  , [ PlutusScenario.game_2 ]
+                  , [ PlutusScenario.game_2
+                    , PlutusScenario.game_3
+                    ]
                   )
                 ]
 
