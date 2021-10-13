@@ -19,6 +19,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionParams (..)
+    , VerifySelectionErrorResult (..)
     , VerifySelectionResult (..)
     , computeMinimumCollateral
     , performSelection
@@ -26,6 +27,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , selectionCollateralRequired
     , toBalanceConstraintsParams
     , verifySelection
+    , verifySelectionError
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimit, SelectionSkeleton )
@@ -189,7 +191,9 @@ prop_performSelection_inner constraints params result =
                 "failure: collateral" $
             cover 0.5 (isOutputError e)
                 "failure: output" $
-            property True
+            report e "selection error" $
+            Pretty (verifySelectionError constraints params e) ===
+            Pretty VerifySelectionErrorSuccess
         Right selection ->
             report selection "selection" $
             Pretty (verifySelection constraints params selection) ===
