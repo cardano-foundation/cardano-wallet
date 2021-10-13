@@ -152,6 +152,7 @@ mkTx fees ins cins outs wdrls md validity =
       , withdrawals = wdrls
       , metadata = md
       , scriptValidity = validity
+      , witnesses = []
       }
 
 -- | txId calculation for testing purposes.

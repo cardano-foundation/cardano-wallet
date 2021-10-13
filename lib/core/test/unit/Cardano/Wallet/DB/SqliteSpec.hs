@@ -582,6 +582,7 @@ fileModeSpec =  do
                                 , withdrawals = mempty
                                 , metadata = Nothing
                                 , scriptValidity = Just TxScriptValid
+                                , witnesses = []
                                 }
                             ]
 
@@ -607,6 +608,7 @@ fileModeSpec =  do
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Just TxScriptInvalid
+                            , witnesses = []
                             }
                         ]
 
@@ -644,6 +646,7 @@ fileModeSpec =  do
                             , withdrawals = mempty
                             , metadata = Nothing
                             , scriptValidity = Nothing
+                            , witnesses = []
                             }
                         ]
 
@@ -666,6 +669,7 @@ fileModeSpec =  do
                         , withdrawals = mempty
                         , metadata = Nothing
                         , scriptValidity = Nothing
+                        , witnesses = []
                         }
                     ]
 
@@ -1278,6 +1282,7 @@ testTxs = [(tx, txMeta)]
         , withdrawals = mempty
         , metadata = Nothing
         , scriptValidity = Nothing
+        , witnesses = []
         }
     txMeta = TxMeta
         { status = InLedger
