@@ -1489,23 +1489,41 @@ prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
     isAlonzo (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra _) = True
     isAlonzo (cardanoTx -> InAnyCardanoEra _ _) = False
 
+fst3 :: (a, b, c) -> a
+fst3 (a,_,_) = a
+
 sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
-    Set.fromList . map fst . view #resolvedInputs . _decodeSealedTx
+    Set.fromList . map fst . view #resolvedInputs . fst3 . _decodeSealedTx
 
 sealedCollateral :: SealedTx -> Set TxIn
 sealedCollateral =
-    Set.fromList . map fst . view #resolvedCollateral . _decodeSealedTx
+    Set.fromList . map fst . view #resolvedCollateral . fst3 . _decodeSealedTx
 
 sealedOutputs :: SealedTx -> Set TxOut
 sealedOutputs =
-    Set.fromList . view #outputs . _decodeSealedTx
+    Set.fromList . view #outputs . fst3 . _decodeSealedTx
+
+sealedNumberOfRedeemers :: SealedTx -> Int
+sealedNumberOfRedeemers sealedTx =
+    case cardanoTx sealedTx of
+        InAnyCardanoEra ByronEra _   -> 0
+        InAnyCardanoEra ShelleyEra _ -> 0
+        InAnyCardanoEra AllegraEra _ -> 0
+        InAnyCardanoEra MaryEra _    -> 0
+        InAnyCardanoEra AlonzoEra (Cardano.Tx body _) ->
+            let dats =
+                    case body of
+                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
+             in case dats of
+                    Cardano.TxBodyNoScriptData ->
+                        0
+                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
+                        Map.size rdmrs
 
 sealedFee :: SealedTx -> Maybe Coin
 sealedFee =
-    view #fee . _decodeSealedTx
-
-
+    view #fee . fst3 . _decodeSealedTx
 
 txWithInputsOutputsAndWits :: ByteString
 txWithInputsOutputsAndWits =

@@ -1763,7 +1763,7 @@ submitExternalTx ctx sealedTx = traceResult trPost $ do
     tl = ctx ^. transactionLayer @k
     nw = ctx ^. networkLayer
     trPost = contramap (MsgSubmitExternalTx (tx ^. #txId)) (ctx ^. logger)
-    tx = decodeTx tl sealedTx
+    (tx, _, _) = decodeTx tl sealedTx
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,

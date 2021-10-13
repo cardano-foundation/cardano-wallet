@@ -201,7 +201,7 @@ data TransactionLayer k tx = TransactionLayer
         -> TxConstraints
         -- The set of constraints that apply to all transactions.
 
-    , decodeTx :: tx -> Tx
+    , decodeTx :: tx -> (Tx, TokenMap, TokenMap)
     -- ^ Decode an externally-created transaction.
 
     , updateTx

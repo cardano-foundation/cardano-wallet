@@ -201,6 +201,10 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (txParameters)
     , TxParameters (getTokenBundleMaxSize)
     )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( toWalletTokenName, toWalletTokenPolicyId, toWalletTokenQuantity )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord, unsafeMkPercentage )
 import Cardano.Wallet.Util
@@ -237,6 +241,10 @@ import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( toList )
+import Data.Function
+    ( (&) )
+import Data.List
+    ( unzip5 )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -249,8 +257,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
-import Data.Tuple.Extra
-    ( fst3 )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
@@ -321,7 +327,8 @@ import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Era as Ledger.Era
 import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Ledger.SafeHash as SafeHash
-import qualified Cardano.Ledger.Shelley as SL
+import qualified Cardano.Ledger.Shelley as SL hiding
+    ( Value )
 import qualified Cardano.Ledger.Shelley.Constraints as SL
 import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
@@ -333,6 +340,7 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Redeemer as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -345,6 +353,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
+import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
@@ -487,7 +496,7 @@ fromShelleyBlock
     -> (W.Block, [W.PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, dlgCerts, poolCerts) = unzip3 $ map fromShelleyTx $ toList txs'
+       (txs, dlgCerts, poolCerts, _, _) = unzip5 $ map fromShelleyTx $ toList txs'
     in
         ( W.Block
             { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
@@ -503,7 +512,7 @@ fromAllegraBlock
     -> (W.Block, [W.PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, dlgCerts, poolCerts) = unzip3 $ map fromAllegraTx $ toList txs'
+       (txs, dlgCerts, poolCerts, _, _) = unzip5 $ map fromAllegraTx $ toList txs'
     in
         ( W.Block
             { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
@@ -513,14 +522,13 @@ fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
         , mconcat poolCerts
         )
 
-
 fromMaryBlock
     :: W.GenesisParameters
     -> ShelleyBlock (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
-       (txs, dlgCerts, poolCerts) = unzip3 $ map fromMaryTx $ toList txs'
+       (txs, dlgCerts, poolCerts, _, _) = unzip5 $ map fromMaryTx $ toList txs'
     in
         ( W.Block
             { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
@@ -544,7 +552,7 @@ fromAlonzoBlock
 fromAlonzoBlock gp blk@(ShelleyBlock (SL.Block _ txSeq) _) =
     let
         Alonzo.TxSeq txs' = txSeq
-        (txs, dlgCerts, poolCerts) = unzip3 $ map fromAlonzoValidatedTx $ toList txs'
+        (txs, dlgCerts, poolCerts, _, _) = unzip5 $ map fromAlonzoValidatedTx $ toList txs'
     in
         ( W.Block
             { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
@@ -1268,14 +1276,16 @@ toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
     safeCast :: Word64 -> Integer
     safeCast = fromIntegral
 
-fromCardanoTx :: Cardano.Tx era -> W.Tx
+fromCardanoTx :: Cardano.Tx era -> (W.Tx, TokenMap, TokenMap)
 fromCardanoTx = \case
     Cardano.ShelleyTx era tx -> case era of
-        Cardano.ShelleyBasedEraShelley -> fst3 $ fromShelleyTx tx
-        Cardano.ShelleyBasedEraAllegra -> fst3 $ fromAllegraTx tx
-        Cardano.ShelleyBasedEraMary    -> fst3 $ fromMaryTx tx
-        Cardano.ShelleyBasedEraAlonzo  -> fst3 $ fromAlonzoTx tx
-    Cardano.ByronTx tx                 -> fromTxAux tx
+        Cardano.ShelleyBasedEraShelley -> extract $ fromShelleyTx tx
+        Cardano.ShelleyBasedEraAllegra -> extract $ fromAllegraTx tx
+        Cardano.ShelleyBasedEraMary    -> extract $ fromMaryTx tx
+        Cardano.ShelleyBasedEraAlonzo  -> extract $ fromAlonzoTx tx
+    Cardano.ByronTx tx                 -> (fromTxAux tx, mempty, mempty)
+  where
+    extract (a,_b,_c,d,e) = (a,d,e)
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
@@ -1283,6 +1293,8 @@ fromShelleyTx
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
+       , TokenMap
+       , TokenMap
        )
 fromShelleyTx tx =
     ( W.Tx
@@ -1305,6 +1317,8 @@ fromShelleyTx tx =
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
+    , mempty
+    , mempty
     )
   where
     SL.Tx bod@(SL.TxBody ins outs certs wdrls fee _ _ _) _ mmd = tx
@@ -1314,6 +1328,8 @@ fromAllegraTx
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
+       , TokenMap
+       , TokenMap
        )
 fromAllegraTx tx =
     ( W.Tx
@@ -1337,6 +1353,8 @@ fromAllegraTx tx =
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
+    , mempty
+    , mempty
     )
   where
     SL.Tx bod@(MA.TxBody ins outs certs wdrls fee _ _ _ _) _ mmd = tx
@@ -1351,6 +1369,8 @@ fromMaryTx
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
+       , TokenMap
+       , TokenMap
        )
 fromMaryTx tx =
     ( W.Tx
@@ -1373,10 +1393,13 @@ fromMaryTx tx =
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
+    , assetsToMint
+    , assetsToBurn
     )
   where
     SL.Tx bod _wits mad = tx
-    MA.TxBody ins outs certs wdrls fee _valid _upd _adh _value = bod
+    MA.TxBody ins outs certs wdrls fee _valid _upd _adh mint = bod
+    (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
 
     -- fixme: [ADP-525] It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
@@ -1396,6 +1419,8 @@ fromAlonzoTxBodyAndAux
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
+       , TokenMap
+       , TokenMap
        )
 fromAlonzoTxBodyAndAux bod mad =
     ( W.Tx
@@ -1418,6 +1443,8 @@ fromAlonzoTxBodyAndAux bod mad =
         }
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
+    , assetsToMint
+    , assetsToBurn
     )
   where
     Alonzo.TxBody
@@ -1430,11 +1457,12 @@ fromAlonzoTxBodyAndAux bod mad =
         _valid
         _upd
         _reqSignerHashes
-        _mint
+        mint
         _wwpHash
         _adHash
         _network
         = bod
+    (assetsToMint, assetsToBurn) = fromLedgerMintValue mint
 
     fromAlonzoTxOut
          :: Alonzo.TxOut (Cardano.ShelleyLedgerEra AlonzoEra)
@@ -1450,6 +1478,8 @@ fromAlonzoValidatedTx
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
+       , TokenMap
+       , TokenMap
        )
 fromAlonzoValidatedTx (Alonzo.ValidatedTx bod _wits _isValidating aux) =
     fromAlonzoTxBodyAndAux bod aux
@@ -1459,9 +1489,11 @@ fromAlonzoTx
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
+       , TokenMap
+       , TokenMap
        )
 fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
-    (\(tx, d, p) -> (tx { W.scriptValidity = validity }, d, p))
+    (\(tx, d, p, m, b) -> (tx { W.scriptValidity = validity }, d, p, m, b))
     $ fromAlonzoTxBodyAndAux bod aux
     where
         validity =
@@ -1738,6 +1770,28 @@ toCardanoValue tb = Cardano.valueFromList $
 
     coinToQuantity = fromIntegral . W.unCoin
     toQuantity = fromIntegral . W.unTokenQuantity
+
+fromLedgerMintValue :: SL.Value StandardCrypto -> (TokenMap, TokenMap)
+fromLedgerMintValue (SL.Value _ ledgerTokens) =
+    (assetsToMint, assetsToBurn)
+  where
+    assetsToMint = ledgerTokens
+        & Map.map (Map.filter (> 0))
+        & Map.mapKeys toWalletTokenPolicyId
+        & Map.map mapInner
+        & Map.mapMaybe NonEmptyMap.fromMap
+        & TokenMap.fromNestedMap
+
+    assetsToBurn = ledgerTokens
+        & Map.map (Map.mapMaybe (\n -> if n > 0 then Nothing else Just (-n)))
+        & Map.mapKeys toWalletTokenPolicyId
+        & Map.map mapInner
+        & Map.mapMaybe NonEmptyMap.fromMap
+        & TokenMap.fromNestedMap
+
+    mapInner inner = inner
+        & Map.mapKeys toWalletTokenName
+        & Map.map toWalletTokenQuantity
 
 -- | Convert from reward account address (which is a hash of a public key)
 -- to a shelley ledger stake credential.

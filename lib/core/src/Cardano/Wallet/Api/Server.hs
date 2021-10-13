@@ -2234,7 +2234,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     -- TODO: This throws when still in the Byron era.
     nodePParams <- fromJust <$> liftIO (NW.currentNodeProtocolParameters nl)
 
-    let (outputs, txWithdrawal, txMetadata) = extractFromTx partialTx
+    let (outputs, txWithdrawal, txMetadata, txAssetsToMint, txAssetsToBurn) = extractFromTx partialTx
 
     (delta, extraInputs, extraCollateral, extraOutputs) <-
       withWorkerCtx ctx wid liftE liftE $ \wrk -> do
@@ -2263,6 +2263,8 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 { txPlutusScriptExecutionCost
                 , txMetadata
                 , txWithdrawal
+                , txAssetsToMint
+                , txAssetsToBurn
                 , txCollateralRequirement =
                     if txPlutusScriptExecutionCost > Coin 0 then
                         SelectionCollateralRequired
@@ -2360,7 +2362,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             (\(_,a,b) -> (a,b)) <$> L.find (\(i',_,_) -> i == i') externalInputs
 
     extractFromTx tx =
-        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt) = decodeTx tl tx
+        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt, toMint, toBurn) = decodeTx tl tx
             -- TODO: Find a better abstraction that can cover this case.
             wdrl = WithdrawalSelf
                 (error $ "WithdrawalSelf: reward-account should never been use "
@@ -2370,7 +2372,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                       <> "when balancing transactions but it was!"
                 )
                 (sumCoins wdrlMap)
-         in (outs, wdrl, meta)
+         in (outs, wdrl, meta, toMint, toBurn)
 
     -- | Wallet coin selection is unaware of many kinds of transaction content
     -- (e.g. datums, redeemers), which could be included in the input to
@@ -2387,7 +2389,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -> TransactionCtx
     padFeeEstimation sealedTx pp pp' txCtx =
         let
-            walletTx = decodeTx tl sealedTx
+            (walletTx, _, _) = decodeTx tl sealedTx
             worseEstimate = calcMinimumCost tl pp txCtx skeleton
             skeleton = SelectionSkeleton
                 { skeletonInputCount = length (view #resolvedInputs walletTx)

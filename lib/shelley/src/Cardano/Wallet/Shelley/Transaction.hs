@@ -111,7 +111,7 @@ import Cardano.Wallet.Primitive.Types.Redeemer
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -356,7 +356,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
     let signed = signTransaction networkId acctResolver addrResolver inputResolver
             (unsigned, mkExtraWits unsigned)
 
-    let withResolvedInputs tx = tx
+    let withResolvedInputs (tx, _, _) = tx
             { resolvedInputs = second txOutCoin <$> F.toList (view #inputs cs)
             }
     Right ( withResolvedInputs (fromCardanoTx signed)
@@ -556,7 +556,7 @@ newTransactionLayer networkId = TransactionLayer
     , updateTx = updateSealedTx
     }
 
-_decodeSealedTx :: SealedTx -> Tx
+_decodeSealedTx :: SealedTx -> (Tx, TokenMap, TokenMap)
 _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
 
 mkDelegationCertificates
