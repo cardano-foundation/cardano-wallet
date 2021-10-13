@@ -227,7 +227,7 @@ data TransactionLayer k tx = TransactionLayer
 
 -- | Describes modifications that can be made to a `Tx` using `updateTx`.
 data TxUpdate = TxUpdate
-    { extraInputs :: [TxIn]
+    { extraInputs :: [(TxIn, TxOut)]
     , extraCollateral :: [TxIn]
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.

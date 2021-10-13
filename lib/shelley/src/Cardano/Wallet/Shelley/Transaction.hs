@@ -693,7 +693,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                         txUpdate
                         mdHash
           where
-            extraInputs' = toCardanoTxIn <$> extraInputs
+            extraInputs' = toCardanoTxIn . fst <$> extraInputs
             extraCollateral' = toCardanoTxIn <$> extraCollateral
             extraOutputs' = toCardanoTxOut era <$> extraOutputs
             modifyFee' old = toLedgerCoin $ modifyFee $ fromLedgerCoin old

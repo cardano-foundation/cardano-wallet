@@ -463,6 +463,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Cardano.Wallet.Util
     ( mapFirst )
+import Control.Applicative
+    ( (<|>) )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -2282,7 +2284,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                 let (sel', _) = W.assignChangeAddresses genChange sel s
                     inputs = F.toList (sel' ^. #inputs)
                  in ( selectionDelta txOutCoin sel'
-                    , fst <$> inputs
+                    , inputs
                     , fst <$> (sel' ^. #collateral)
                     , sel' ^. #change
                     )
@@ -2359,7 +2361,9 @@ balanceTransaction ctx genChange (ApiT wid) body = do
       where
         resolveInput :: TxIn -> Maybe (TxOut, Maybe (Hash "Datum"))
         resolveInput i =
-            (\(_,a,b) -> (a,b)) <$> L.find (\(i',_,_) -> i == i') externalInputs
+            (\(_,o,d) -> (o,d)) <$> L.find (\(i',_,_) -> i == i') externalInputs
+            <|>
+            (\(_,o) -> (o, Nothing)) <$> L.find (\(i',_) -> i == i') (extraInputs update)
 
     extractFromTx tx =
         let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt, toMint, toBurn) = decodeTx tl tx

@@ -245,6 +245,7 @@ import Test.Utils.Pretty
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -493,14 +494,15 @@ feeCalculationSpec = describe "fee calculations" $ do
                 }
         txs <- readTestTransactions
         forM_ txs $ \(filepath, tx) -> do
-            if (hasPlutusScripts tx) then do
-                it ("with redeemers: " <> filepath) $
-                    _maxScriptExecutionCost ppWithPrices tx
-                        `shouldSatisfy` (> (Coin 0))
-            else do
+            let rdmrs = replicate (sealedNumberOfRedeemers tx) (error "Redeemer")
+            if (null rdmrs) then do
                 it ("without redeemers: " <> filepath) $
-                    _maxScriptExecutionCost ppWithPrices tx
+                    _maxScriptExecutionCost ppWithPrices rdmrs
                         `shouldBe` (Coin 0)
+            else do
+                it ("with redeemers: " <> filepath) $
+                    _maxScriptExecutionCost ppWithPrices rdmrs
+                        `shouldSatisfy` (> (Coin 0))
 
     describe "fee calculations" $ do
         it "withdrawals incur fees" $ property $ \wdrl ->
@@ -1471,13 +1473,13 @@ unsafeSealedTxFromHex =
   where
     isNewlineChar c = c `elem` [10,13]
 
-prop_updateSealedTx :: SealedTx -> [TxIn] -> [TxIn] -> [TxOut] -> Coin -> Property
+prop_updateSealedTx :: SealedTx -> [(TxIn, TxOut)] -> [TxIn] -> [TxOut] -> Coin -> Property
 prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
     let extra = TxUpdate extraIns extraCol extraOuts (const newFee)
     let tx' = either (error . show) id
             $ updateSealedTx tx extra
     conjoin
-        [ sealedInputs tx' === sealedInputs tx <> Set.fromList extraIns
+        [ sealedInputs tx' === sealedInputs tx <> Set.fromList (fst <$> extraIns)
         , sealedOutputs tx' === sealedOutputs tx <> Set.fromList extraOuts
         , sealedFee tx' === Just newFee
         , sealedCollateral tx' ===
@@ -1549,13 +1551,3 @@ readTestTransactions = runIO $ do
     listDirectory dir
         >>= traverse (\f -> (f,) <$> BS.readFile (dir </> f))
         >>= traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs)
-
-hasPlutusScripts :: SealedTx -> Bool
-hasPlutusScripts sealedTx =
-    case cardanoTx sealedTx of
-        InAnyCardanoEra ByronEra _   -> False
-        InAnyCardanoEra ShelleyEra _ -> False
-        InAnyCardanoEra AllegraEra _ -> False
-        InAnyCardanoEra MaryEra _    -> False
-        InAnyCardanoEra AlonzoEra (Cardano.Tx body _) -> case body of
-            Cardano.ShelleyTxBody _ _ scripts _ _ _ -> not (null scripts)
