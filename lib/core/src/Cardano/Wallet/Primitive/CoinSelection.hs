@@ -38,8 +38,8 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
-    -- * Selection correctness
-    , SelectionCorrectness (..)
+    -- * Selection verification
+    , VerifySelectionResult (..)
     , verifySelection
 
     -- * Selection deltas
@@ -77,7 +77,7 @@ import Prelude
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionDelta (..), SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -87,7 +87,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..), TxIn, TxOut, txOutMaxTokenQuantity )
+    ( TokenBundleSizeAssessment (..), TxIn, TxOut (..), txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.UTxOSelection
@@ -98,8 +98,12 @@ import Control.Monad.Random.Class
     ( MonadRandom )
 import Control.Monad.Trans.Except
     ( ExceptT (..), withExceptT )
+import Data.Either
+    ( lefts )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, set, view, (^.) )
 import Data.Generics.Labels
@@ -107,7 +111,7 @@ import Data.Generics.Labels
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( isNothing )
+    ( isNothing, mapMaybe )
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
@@ -127,6 +131,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -150,7 +155,7 @@ type PerformSelection m a =
 -- given a set of 'SelectionConstraints' @cs@ and 'SelectionParameters' @ps@,
 -- then the following property will hold:
 --
---    >>> verifySelection cs ps s == SelectionCorrect
+--    >>> verifySelection cs ps s == VerifySelectionSuccess
 --
 performSelection
     :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
@@ -344,27 +349,33 @@ toBalanceResult selection = Balance.SelectionResult
     }
 
 --------------------------------------------------------------------------------
--- Selection correctness
+-- Selection verification
 --------------------------------------------------------------------------------
 
--- | Indicates whether or not a selection is correct.
+-- | The result of verifying a selection with 'verifySelection'.
 --
-data SelectionCorrectness
-    = SelectionCorrect
-    | SelectionIncorrect SelectionCorrectnessError
+data VerifySelectionResult
+    = VerifySelectionSuccess
+    | VerifySelectionFailure (NonEmpty VerifySelectionError)
     deriving (Eq, Show)
 
--- | Indicates that a selection is incorrect.
+-- | Indicates that verification of a selection has failed.
 --
-data SelectionCorrectnessError
-    = SelectionCollateralInsufficient
-      SelectionCollateralInsufficientError
-    | SelectionCollateralUnsuitable
-      SelectionCollateralUnsuitableError
-    | SelectionDeltaInvalid
-      SelectionDeltaInvalidError
-    | SelectionLimitExceeded
-      SelectionLimitExceededError
+data VerifySelectionError
+    = VerifySelectionCollateralInsufficient
+      VerifySelectionCollateralInsufficientError
+    | VerifySelectionCollateralUnsuitable
+      VerifySelectionCollateralUnsuitableError
+    | VerifySelectionDeltaInvalid
+      VerifySelectionDeltaInvalidError
+    | VerifySelectionLimitExceeded
+      VerifySelectionLimitExceededError
+    | VerifySelectionOutputCoinBelowMinimum
+      VerifySelectionOutputCoinBelowMinimumError
+    | VerifySelectionOutputSizeExceedsLimit
+      VerifySelectionOutputSizeExceedsLimitError
+    | VerifySelectionOutputTokenQuantityExceedsLimit
+      VerifySelectionOutputTokenQuantityExceedsLimitError
     deriving (Eq, Show)
 
 -- | The type of all selection property verification functions.
@@ -385,51 +396,63 @@ verifySelection
     :: SelectionConstraints
     -> SelectionParams
     -> Selection
-    -> SelectionCorrectness
-verifySelection cs ps selection =
-    either SelectionIncorrect (const SelectionCorrect) verifyAll
+    -> VerifySelectionResult
+verifySelection cs ps selection
+    | Just errorsNonEmpty <- NE.nonEmpty errors =
+        VerifySelectionFailure errorsNonEmpty
+    | otherwise =
+        VerifySelectionSuccess
   where
-    verifyAll :: Either SelectionCorrectnessError ()
-    verifyAll = do
-        verifySelectionCollateralSufficiency cs ps selection
-            `failWith` SelectionCollateralInsufficient
-        verifySelectionCollateralSuitability cs ps selection
-            `failWith` SelectionCollateralUnsuitable
-        verifySelectionDelta cs ps selection
-            `failWith` SelectionDeltaInvalid
-        verifySelectionLimit cs ps selection
-            `failWith` SelectionLimitExceeded
+    errors :: [VerifySelectionError]
+    errors = lefts
+        [ verifySelectionCollateralSufficiency cs ps selection
+            `failWith` VerifySelectionCollateralInsufficient
+        , verifySelectionCollateralSuitability cs ps selection
+            `failWith` VerifySelectionCollateralUnsuitable
+        , verifySelectionDelta cs ps selection
+            `failWith` VerifySelectionDeltaInvalid
+        , verifySelectionLimit cs ps selection
+            `failWith` VerifySelectionLimitExceeded
+        , verifySelectionOutputCoins cs ps selection
+            `failWith` VerifySelectionOutputCoinBelowMinimum
+        , verifySelectionOutputSizes cs ps selection
+            `failWith` VerifySelectionOutputSizeExceedsLimit
+        , verifySelectionOutputTokenQuantities cs ps selection
+            `failWith` VerifySelectionOutputTokenQuantityExceedsLimit
+        ]
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
     onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
 
 --------------------------------------------------------------------------------
--- Selection correctness: collateral sufficiency
+-- Selection verification: collateral sufficiency
 --------------------------------------------------------------------------------
 
-data SelectionCollateralInsufficientError = SelectionCollateralInsufficientError
+data VerifySelectionCollateralInsufficientError =
+    VerifySelectionCollateralInsufficientError
     { collateralSelected :: Coin
     , collateralRequired :: Coin
     }
     deriving (Eq, Show)
 
 verifySelectionCollateralSufficiency
-    :: VerifySelectionProperty SelectionCollateralInsufficientError
+    :: VerifySelectionProperty VerifySelectionCollateralInsufficientError
 verifySelectionCollateralSufficiency cs ps selection
     | collateralSelected >= collateralRequired =
         Nothing
     | otherwise =
-        Just SelectionCollateralInsufficientError
+        Just VerifySelectionCollateralInsufficientError
             {collateralSelected, collateralRequired}
   where
     collateralSelected = selectionCollateral selection
     collateralRequired = selectionMinimumCollateral cs ps selection
 
 --------------------------------------------------------------------------------
--- Selection correctness: collateral suitability
+-- Selection verification: collateral suitability
 --------------------------------------------------------------------------------
 
-data SelectionCollateralUnsuitableError = SelectionCollateralUnsuitableError
+data VerifySelectionCollateralUnsuitableError =
+    VerifySelectionCollateralUnsuitableError
     { collateralSelected
         :: [(TxIn, TxOut)]
     , collateralSelectedButUnsuitable
@@ -438,12 +461,12 @@ data SelectionCollateralUnsuitableError = SelectionCollateralUnsuitableError
     deriving (Eq, Show)
 
 verifySelectionCollateralSuitability
-    :: VerifySelectionProperty SelectionCollateralUnsuitableError
+    :: VerifySelectionProperty VerifySelectionCollateralUnsuitableError
 verifySelectionCollateralSuitability cs _ps selection
     | null collateralSelectedButUnsuitable =
         Nothing
     | otherwise =
-        Just SelectionCollateralUnsuitableError
+        Just VerifySelectionCollateralUnsuitableError
             {collateralSelected, collateralSelectedButUnsuitable}
   where
     collateralSelected =
@@ -455,33 +478,36 @@ verifySelectionCollateralSuitability cs _ps selection
     utxoUnsuitableForCollateral = isNothing . (cs ^. #utxoSuitableForCollateral)
 
 --------------------------------------------------------------------------------
--- Selection correctness: delta validity
+-- Selection verification: delta validity
 --------------------------------------------------------------------------------
 
-data SelectionDeltaInvalidError = SelectionDeltaInvalidError
+data VerifySelectionDeltaInvalidError = VerifySelectionDeltaInvalidError
     { delta
         :: SelectionDelta TokenBundle
     , minimumCost
+        :: Coin
+    , maximumCost
         :: Coin
     }
     deriving (Eq, Show)
 
 verifySelectionDelta
-    :: VerifySelectionProperty SelectionDeltaInvalidError
+    :: VerifySelectionProperty VerifySelectionDeltaInvalidError
 verifySelectionDelta cs ps selection
     | selectionHasValidSurplus cs ps selection =
         Nothing
     | otherwise =
-        Just SelectionDeltaInvalidError {..}
+        Just VerifySelectionDeltaInvalidError {..}
   where
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
+    maximumCost = selectionMaximumCost cs ps selection
 
 --------------------------------------------------------------------------------
--- Selection correctness: selection limit
+-- Selection verification: selection limit
 --------------------------------------------------------------------------------
 
-data SelectionLimitExceededError = SelectionLimitExceededError
+data VerifySelectionLimitExceededError = VerifySelectionLimitExceededError
     { collateralInputCount
         :: Int
     , ordinaryInputCount
@@ -494,17 +520,96 @@ data SelectionLimitExceededError = SelectionLimitExceededError
     deriving (Eq, Show)
 
 verifySelectionLimit
-    :: VerifySelectionProperty SelectionLimitExceededError
+    :: VerifySelectionProperty VerifySelectionLimitExceededError
 verifySelectionLimit cs _ps selection
     | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
         Nothing
     | otherwise =
-        Just SelectionLimitExceededError {..}
+        Just VerifySelectionLimitExceededError {..}
   where
     collateralInputCount = length (selection ^. #collateral)
     ordinaryInputCount = length (selection ^. #inputs)
     totalInputCount = collateralInputCount + ordinaryInputCount
     selectionLimit = (cs ^. #computeSelectionLimit) (selection ^. #outputs)
+
+--------------------------------------------------------------------------------
+-- Selection verification: minimum ada quantities
+--------------------------------------------------------------------------------
+
+data VerifySelectionOutputCoinBelowMinimumError =
+    VerifySelectionOutputCoinBelowMinimumError
+    { minimumExpectedCoin :: Coin
+    , output :: TxOut
+    }
+    deriving (Eq, Show)
+
+verifySelectionOutputCoins
+    :: VerifySelectionProperty VerifySelectionOutputCoinBelowMinimumError
+verifySelectionOutputCoins cs _ps selection
+    | e : _ <- errors =
+        -- Just report the first error we encounter:
+        Just e
+    | otherwise =
+        Nothing
+  where
+    errors :: [VerifySelectionOutputCoinBelowMinimumError]
+    errors = mapMaybe maybeError (selectionAllOutputs selection)
+
+    maybeError :: TxOut -> Maybe VerifySelectionOutputCoinBelowMinimumError
+    maybeError output
+        | output ^. (#tokens . #coin) < minimumExpectedCoin =
+            Just VerifySelectionOutputCoinBelowMinimumError
+                {minimumExpectedCoin, output}
+        | otherwise =
+            Nothing
+      where
+        minimumExpectedCoin :: Coin
+        minimumExpectedCoin =
+            (cs ^. #computeMinimumAdaQuantity)
+            (output ^. (#tokens . #tokens))
+
+--------------------------------------------------------------------------------
+-- Selection verification: output sizes
+--------------------------------------------------------------------------------
+
+newtype VerifySelectionOutputSizeExceedsLimitError =
+    VerifySelectionOutputSizeExceedsLimitError
+    SelectionOutputSizeExceedsLimitError
+    deriving (Eq, Show)
+
+verifySelectionOutputSizes
+    :: VerifySelectionProperty VerifySelectionOutputSizeExceedsLimitError
+verifySelectionOutputSizes cs _ps selection
+    | e : _ <- errors =
+        -- Just report the first error we encounter:
+        Just $ VerifySelectionOutputSizeExceedsLimitError e
+    | otherwise =
+        Nothing
+  where
+    errors :: [SelectionOutputSizeExceedsLimitError]
+    errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs selection)
+
+--------------------------------------------------------------------------------
+-- Selection verification: output token quantities
+--------------------------------------------------------------------------------
+
+newtype VerifySelectionOutputTokenQuantityExceedsLimitError =
+    VerifySelectionOutputTokenQuantityExceedsLimitError
+    SelectionOutputTokenQuantityExceedsLimitError
+    deriving (Eq, Show)
+
+verifySelectionOutputTokenQuantities ::
+    VerifySelectionProperty
+    VerifySelectionOutputTokenQuantityExceedsLimitError
+verifySelectionOutputTokenQuantities _cs _ps selection
+    | e : _ <- errors =
+        -- Just report the first error we encounter:
+        Just $ VerifySelectionOutputTokenQuantityExceedsLimitError e
+    | otherwise =
+        Nothing
+  where
+    errors :: [SelectionOutputTokenQuantityExceedsLimitError]
+    errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
 
 --------------------------------------------------------------------------------
 -- Selection deltas
@@ -565,6 +670,18 @@ selectionMinimumCost
     -> Coin
 selectionMinimumCost constraints params selection =
     Balance.selectionMinimumCost
+        (fst $ toBalanceConstraintsParams (constraints, params))
+        (toBalanceResult selection)
+
+-- | Computes the maximum acceptable cost of a selection.
+--
+selectionMaximumCost
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Selection
+    -> Coin
+selectionMaximumCost constraints params selection =
+    Balance.selectionMaximumCost
         (fst $ toBalanceConstraintsParams (constraints, params))
         (toBalanceResult selection)
 
@@ -801,6 +918,19 @@ data SelectionOf change = Selection
 --
 type Selection = SelectionOf TokenBundle
 
+-- | Returns a selection's ordinary outputs and change outputs in a single list.
+--
+-- Since change outputs do not have addresses at the point of generation,
+-- this function assigns all change outputs with a dummy change address.
+--
+selectionAllOutputs :: Selection -> [TxOut]
+selectionAllOutputs selection = (<>)
+    (selection ^. #outputs)
+    (selection ^. #change <&> TxOut dummyChangeAddress)
+  where
+    dummyChangeAddress :: Address
+    dummyChangeAddress = Address "<change>"
+
 --------------------------------------------------------------------------------
 -- Preparing outputs
 --------------------------------------------------------------------------------
@@ -812,60 +942,33 @@ prepareOutputsInternal
     -> [TxOut]
     -> Either SelectionOutputInvalidError [TxOut]
 prepareOutputsInternal constraints outputsUnprepared
-    | (address, assetCount) : _ <- excessivelyLargeBundles =
+    | e : _ <- excessivelyLargeBundles =
         Left $
         -- We encountered one or more excessively large token bundles.
         -- Just report the first such bundle:
-        SelectionOutputSizeExceedsLimit $
-        SelectionOutputSizeExceedsLimitError
-            {address, assetCount}
-    | (address, asset, quantity) : _ <- excessiveTokenQuantities =
+        SelectionOutputSizeExceedsLimit e
+    | e : _ <- excessiveTokenQuantities =
         Left $
         -- We encountered one or more excessive token quantities.
         -- Just report the first such quantity:
-        SelectionOutputTokenQuantityExceedsLimit $
-        SelectionOutputTokenQuantityExceedsLimitError
-            { address
-            , asset
-            , quantity
-            , quantityMaxBound = txOutMaxTokenQuantity
-            }
+        SelectionOutputTokenQuantityExceedsLimit e
     | otherwise =
         pure outputsToCover
   where
     SelectionConstraints
-        { assessTokenBundleSize
-        , computeMinimumAdaQuantity
+        { computeMinimumAdaQuantity
         } = constraints
 
     -- The complete list of token bundles whose serialized lengths are greater
     -- than the limit of what is allowed in a transaction output:
-    excessivelyLargeBundles :: [(Address, Int)]
+    excessivelyLargeBundles :: [SelectionOutputSizeExceedsLimitError]
     excessivelyLargeBundles =
-        [ (address, assetCount)
-        | output <- F.toList outputsToCover
-        , let bundle = view #tokens output
-        , bundleIsExcessivelyLarge bundle
-        , let address = view #address output
-        , let assetCount = Set.size $ TokenBundle.getAssets bundle
-        ]
-
-      where
-        bundleIsExcessivelyLarge b = case assessTokenBundleSize b of
-            TokenBundleSizeWithinLimit -> False
-            OutputTokenBundleSizeExceedsLimit -> True
+        mapMaybe (verifyOutputSize constraints) outputsToCover
 
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
-    excessiveTokenQuantities :: [(Address, AssetId, TokenQuantity)]
-    excessiveTokenQuantities =
-        [ (address, asset, quantity)
-        | output <- F.toList outputsToCover
-        , let address = view #address output
-        , (asset, quantity) <-
-            TokenMap.toFlatList $ view #tokens $ view #tokens output
-        , quantity > txOutMaxTokenQuantity
-        ]
+    excessiveTokenQuantities :: [SelectionOutputTokenQuantityExceedsLimitError]
+    excessiveTokenQuantities = verifyOutputTokenQuantities =<< outputsToCover
 
     outputsToCover =
         prepareOutputsWith computeMinimumAdaQuantity outputsUnprepared
@@ -912,6 +1015,30 @@ data SelectionOutputSizeExceedsLimitError =
     }
     deriving (Eq, Generic, Show)
 
+-- | Verifies the size of an output.
+--
+-- Returns 'SelectionOutputSizeExceedsLimitError' if and only if the size
+-- exceeds the limit defined by the protocol.
+--
+verifyOutputSize
+    :: SelectionConstraints
+    -> TxOut
+    -> Maybe SelectionOutputSizeExceedsLimitError
+verifyOutputSize cs out
+    | withinLimit =
+        Nothing
+    | otherwise =
+        Just SelectionOutputSizeExceedsLimitError
+            { address = out ^. #address
+            , assetCount = TokenMap.size (out ^. (#tokens . #tokens))
+            }
+  where
+    withinLimit :: Bool
+    withinLimit =
+        case (cs ^. #assessTokenBundleSize) (out ^. #tokens) of
+            TokenBundleSizeWithinLimit -> True
+            OutputTokenBundleSizeExceedsLimit -> False
+
 -- | Indicates that a token quantity exceeds the maximum quantity that can
 --   appear in a transaction output's token bundle.
 --
@@ -927,6 +1054,21 @@ data SelectionOutputTokenQuantityExceedsLimitError =
       -- ^ The maximum allowable token quantity.
     }
     deriving (Eq, Generic, Show)
+
+-- | Verifies the token quantities of an output.
+--
+-- Returns a list of token quantities that exceed the limit defined by the
+-- protocol.
+--
+verifyOutputTokenQuantities
+    :: TxOut -> [SelectionOutputTokenQuantityExceedsLimitError]
+verifyOutputTokenQuantities out =
+    [ SelectionOutputTokenQuantityExceedsLimitError
+        {address, asset, quantity, quantityMaxBound = txOutMaxTokenQuantity}
+    | let address = out ^. #address
+    , (asset, quantity) <- TokenMap.toFlatList $ out ^. #tokens . #tokens
+    , quantity > txOutMaxTokenQuantity
+    ]
 
 --------------------------------------------------------------------------------
 -- Reporting

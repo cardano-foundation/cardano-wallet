@@ -56,6 +56,7 @@ module Cardano.Wallet.Primitive.CoinSelection.Balance
     , selectionHasValidSurplus
     , selectionSurplusCoin
     , selectionMinimumCost
+    , selectionMaximumCost
     , selectionSkeleton
 
     -- * Querying parameters
