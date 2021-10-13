@@ -4256,6 +4256,20 @@ x-errAssetNotPresent: &errAssetNotPresent
       type: string
       enum: ['asset_not_present']
 
+x-errMissingWitnesses: &errMissingWitnesses
+  <<: *responsesErr
+  title: missing_witnesses
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when a submitted transaction does not have all witnesses
+        needed. If the expected number of witnesses is included, but some
+        are incorrect, the error will be returned only after submission.
+    code:
+      type: string
+      enum: ['missing_witnesses']
+
 x-errTransactionAlreadyBalanced: &errTransactionAlreadyBalanced
   <<: *responsesErr
   title: transaction_already_balanced
@@ -4787,6 +4801,13 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errMissingWitnesses
   202:
     description: Accepted
     content:
