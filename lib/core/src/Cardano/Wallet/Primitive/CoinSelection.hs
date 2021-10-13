@@ -537,19 +537,7 @@ verifySelectionOutputSizes cs _ps selection
         Nothing
   where
     errors :: [SelectionOutputSizeExceedsLimitError]
-    errors = mapMaybe (verifyOutputSize cs) allOutputs
-
-    -- We verify both ordinary outputs and generated change outputs. Since
-    -- generated change outputs do not have addresses at this stage, we
-    -- simply assign them all a dummy address.
-    --
-    allOutputs :: [TxOut]
-    allOutputs = (<>)
-        (selection ^. #outputs)
-        (selection ^. #change <&> TxOut dummyChangeAddress)
-      where
-        dummyChangeAddress :: Address
-        dummyChangeAddress = Address "<change>"
+    errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs selection)
 
 --------------------------------------------------------------------------------
 -- Selection correctness: output token quantities
@@ -571,19 +559,7 @@ verifySelectionOutputTokenQuantities _cs _ps selection
         Nothing
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError]
-    errors = verifyOutputTokenQuantities =<< allOutputs
-
-    -- We verify both ordinary outputs and generated change outputs. Since
-    -- generated change outputs do not have addresses at this stage, we
-    -- simply assign them all a dummy address.
-    --
-    allOutputs :: [TxOut]
-    allOutputs = (<>)
-        (selection ^. #outputs)
-        (selection ^. #change <&> TxOut dummyChangeAddress)
-      where
-        dummyChangeAddress :: Address
-        dummyChangeAddress = Address "<change>"
+    errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
 
 --------------------------------------------------------------------------------
 -- Selection deltas
@@ -879,6 +855,19 @@ data SelectionOf change = Selection
 -- In this type of selection, change values do not have addresses assigned.
 --
 type Selection = SelectionOf TokenBundle
+
+-- | Returns a selection's ordinary outputs and change outputs in a single list.
+--
+-- Since change outputs do not have addresses at the point of generation,
+-- this function assigns all change outputs with a dummy change address.
+--
+selectionAllOutputs :: Selection -> [TxOut]
+selectionAllOutputs selection = (<>)
+    (selection ^. #outputs)
+    (selection ^. #change <&> TxOut dummyChangeAddress)
+  where
+    dummyChangeAddress :: Address
+    dummyChangeAddress = Address "<change>"
 
 --------------------------------------------------------------------------------
 -- Preparing outputs
