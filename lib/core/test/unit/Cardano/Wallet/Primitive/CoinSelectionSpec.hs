@@ -126,8 +126,8 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
 
     parallel $ describe "Performing selections" $ do
 
-        it "prop_performSelection_onSuccess" $
-            property prop_performSelection_onSuccess
+        it "prop_performSelection" $
+            property prop_performSelection
 
     parallel $ describe "Constructing balance constraints and parameters" $ do
 
@@ -155,32 +155,23 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
 -- Performing selections
 --------------------------------------------------------------------------------
 
-type PerformSelectionProperty =
-    Pretty MockSelectionConstraints ->
-    Pretty SelectionParams ->
-    Property
-
-type PerformSelectionPropertyInner =
-    SelectionConstraints ->
-    SelectionParams ->
-    Either SelectionError Selection ->
-    Property
-
-prop_performSelection_with
-    :: PerformSelectionPropertyInner
-    -> PerformSelectionProperty
-prop_performSelection_with mkProperty (Pretty mockConstraints) (Pretty params) =
-    monadicIO $ do
-        result <- run $ runExceptT $ performSelection constraints params
-        pure $ conjoin
-            [ prop_performSelection_coverage constraints params result
-            , mkProperty constraints params result
-            ]
+prop_performSelection
+    :: Pretty MockSelectionConstraints
+    -> Pretty SelectionParams
+    -> Property
+prop_performSelection (Pretty mockConstraints) (Pretty params) =
+    monadicIO $
+    prop_performSelection_inner constraints params <$>
+    run (runExceptT $ performSelection constraints params)
   where
     constraints = unMockSelectionConstraints mockConstraints
 
-prop_performSelection_coverage :: PerformSelectionPropertyInner
-prop_performSelection_coverage _constraints params result =
+prop_performSelection_inner
+    :: SelectionConstraints
+    -> SelectionParams
+    -> Either SelectionError Selection
+    -> Property
+prop_performSelection_inner constraints params result =
     checkCoverage $
     cover 10 (isLeft result)
         "failure" $
@@ -199,8 +190,10 @@ prop_performSelection_coverage _constraints params result =
             cover 0.5 (isOutputError e)
                 "failure: output" $
             property True
-        Right _ ->
-            property True
+        Right selection ->
+            report selection "selection" $
+            Pretty (verifySelection constraints params selection) ===
+            Pretty VerifySelectionSuccess
   where
     isBalanceError :: SelectionError -> Bool
     isBalanceError = \case
@@ -214,16 +207,6 @@ prop_performSelection_coverage _constraints params result =
     isOutputError = \case
         SelectionOutputError _ -> True
         _ -> False
-
-prop_performSelection_onSuccess :: PerformSelectionProperty
-prop_performSelection_onSuccess =
-    prop_performSelection_with $ \constraints params ->
-        either (const $ property True) (onSuccess constraints params)
-  where
-    onSuccess constraints params selection =
-        report selection "selection" $
-        Pretty (verifySelection constraints params selection) ===
-        Pretty VerifySelectionSuccess
 
 --------------------------------------------------------------------------------
 -- Construction of balance constraints and parameters
