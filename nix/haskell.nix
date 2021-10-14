@@ -213,6 +213,9 @@ let
         packages.cardano-config.components.library.build-tools = [
           pkgs.buildPackages.buildPackages.gitReallyMinimal
         ];
+        packages.cardano-wallet-core.components.library.build-tools = [
+          pkgs.buildPackages.buildPackages.gitReallyMinimal
+        ];
       })
 
       # Provide the swagger file in an environment variable for
