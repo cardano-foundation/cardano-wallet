@@ -2905,7 +2905,8 @@ postExternalTransaction
     -> ApiT W.SealedTx
     -> Handler ApiTxId
 postExternalTransaction ctx (ApiT sealed) = do
-    tx <- liftHandler $ W.submitExternalTx @ctx @k ctx sealed
+    tx <- liftHandler $ withExceptT ErrSubmitTxNetwork $
+        W.submitExternalTx @ctx @k ctx sealed
     return $ ApiTxId (ApiT (tx ^. #txId))
 
 signMetadata
@@ -3797,7 +3798,7 @@ instance IsServerError ErrRemoveTx where
 instance IsServerError ErrPostTx where
     toServerError = \case
         ErrPostTxValidationError err ->
-            apiError err500 CreatedInvalidTransaction $ mconcat
+            apiError err403 CreatedInvalidTransaction $ mconcat
                 [ "The submitted transaction was rejected by the local "
                 , "node. Here's an error message that may help with "
                 , "debugging:\n", err

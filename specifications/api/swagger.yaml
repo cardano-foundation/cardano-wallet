@@ -3950,7 +3950,7 @@ x-errCreatedInvalidTransaction: &errCreatedInvalidTransaction
   properties:
     message:
       type: string
-      description: Should never happen unless the server screwed up with the creation of transaction.
+      description: The transaction is invalid and is not accepted by node for the specified reason.
     code:
       type: string
       enum: ['created_invalid_transaction']
@@ -4787,6 +4787,13 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errCreatedInvalidTransaction
   202:
     description: Accepted
     content:
