@@ -13,11 +13,11 @@
 }:
 
 let
-  inherit (pkgs) lib commonLib;
+  inherit (pkgs) lib cardanoWalletLib;
 
   exe = assert lib.assertMsg (lib.length exes > 0) "empty list of exes";
     lib.head exes;
-  name = "${commonLib.versionTag exe.meta.name}-${platform}";
+  name = "${cardanoWalletLib.versionTag exe.meta.name}-${platform}";
 
   makeTarball = format == "tar.gz";
   makeZip = format == "zip";

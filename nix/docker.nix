@@ -3,7 +3,7 @@
 #
 # To test it out, use:
 #
-#   docker load -i $(nix-build -A dockerImage --no-out-link)
+#   docker load -i $(nix build --json .#dockerImage | jq -r '.[0].outputs.out')
 #   docker run cardano-wallet
 #
 ############################################################################

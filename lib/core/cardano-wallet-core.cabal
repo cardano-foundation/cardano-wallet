@@ -390,13 +390,14 @@ test-suite unit
     , wai
     , wai-extra
     , warp
-  build-tools:
-      hspec-discover
+  build-tool-depends:
+      hspec-discover:hspec-discover
   type:
       exitcode-stdio-1.0
   hs-source-dirs:
       test-common
       test/unit
+      test/data
   main-is:
       core-unit-test.hs
   other-modules:

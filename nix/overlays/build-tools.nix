@@ -16,14 +16,14 @@
 # you will also need to update Hackage.nix to get a recent
 # Hackage package index.
 #
-#   niv update hackage
+#   nix flake lock --update-input haskellNix
 #
 # After changing tool versions, you can update the generated
 # files which are cached in ./nix/materialized. Run this
 # command, follow the instructions shown, then commit the
 # updated files.
 #
-#   nix-shell --run regenerate-materialized-nix
+#   ./nix/regenerate.sh
 #
 ######################################################################
 
@@ -42,7 +42,7 @@ pkgs: super: let
   };
 
   # Use cabal.project as the source of GHC version and Hackage index-state.
-  inherit (pkgs.commonLib.cabalProjectIndexState ../../cabal.project)
+  inherit (pkgs.cardanoWalletLib.cabalProjectIndexState ../../cabal.project)
     index-state compiler-nix-name;
 
   hsPkgs = pkgs.lib.mapAttrs mkTool tools;
@@ -59,9 +59,9 @@ pkgs: super: let
     (pkgs.lib.optionalString enableMaterialization
       (pkgs.lib.concatStringsSep "\n" (pkgs.lib.mapAttrsToList (name: hsPkg: ''
         echo 'Updating materialized nix for ${name}'
-        ${mkMaterialize hsPkg}
+        ${mkMaterialize hsPkg} nix/materialized/${name}
       '') hsPkgs)));
-  mkMaterialize = hsPkg: hsPkg.project.plan-nix.passthru.updateMaterialized;
+  mkMaterialize = hsPkg: hsPkg.project.plan-nix.passthru.generateMaterialized;
   # https://github.com/input-output-hk/nix-tools/issues/97
   enableMaterialization = pkgs.stdenv.isLinux;
 
@@ -104,7 +104,7 @@ in {
       regenerateMaterialized = pkgs.writeShellScriptBin "regenerate-materialized-nix"
         (pkgs.lib.optionalString enableMaterialization ''
           echo 'Updating materialized nix for ${name}'
-          ${mkMaterialize project.iohk-nix-utils}
+          ${mkMaterialize project.iohk-nix-utils} nix/materialized/${name}
         '');
     };
   };

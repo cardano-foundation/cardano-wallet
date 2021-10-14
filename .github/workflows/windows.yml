@@ -21,7 +21,7 @@ jobs:
         id: hydra
         with:
           hydra: 'https://hydra.iohk.io'
-          jobs: 'cardano-wallet-tests-win64'
+          jobs: 'linux.windows.cardano-wallet-tests-win64'
       - name: 'Fetch Windows testing bundle'
         shell: powershell
         run: |

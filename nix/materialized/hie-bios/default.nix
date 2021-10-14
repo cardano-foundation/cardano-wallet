@@ -24,7 +24,6 @@
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
-        "HUnit".revision = (((hackage."HUnit")."1.6.2.0").revisions).default;
         "async".revision = (((hackage."async")."2.2.4").revisions).default;
         "async".flags.bench = false;
         "text".revision = (((hackage."text")."1.2.4.1").revisions).default;
@@ -100,7 +99,6 @@
         "clock".flags.llvm = false;
         "optparse-applicative".revision = (((hackage."optparse-applicative")."0.16.1.0").revisions).default;
         "optparse-applicative".flags.process = true;
-        "hspec-expectations".revision = (((hackage."hspec-expectations")."0.8.2").revisions).default;
         "tasty-expected-failure".revision = (((hackage."tasty-expected-failure")."0.12.3").revisions).default;
         "old-locale".revision = (((hackage."old-locale")."1.0.0.7").revisions).default;
         "tasty".revision = (((hackage."tasty")."1.4.2.1").revisions).default;
@@ -263,7 +261,6 @@
           "hslogger".components.library.planned = lib.mkOverride 900 true;
           "dlist".components.library.planned = lib.mkOverride 900 true;
           "ghc-prim".components.library.planned = lib.mkOverride 900 true;
-          "HUnit".components.library.planned = lib.mkOverride 900 true;
           "ghc-boot".components.library.planned = lib.mkOverride 900 true;
           "hpc".components.library.planned = lib.mkOverride 900 true;
           "array".components.library.planned = lib.mkOverride 900 true;
@@ -314,7 +311,6 @@
           "tasty".components.library.planned = lib.mkOverride 900 true;
           "containers".components.library.planned = lib.mkOverride 900 true;
           "aeson".components.library.planned = lib.mkOverride 900 true;
-          "hspec-expectations".components.library.planned = lib.mkOverride 900 true;
           "tasty-expected-failure".components.library.planned = lib.mkOverride 900 true;
           "ghc".components.library.planned = lib.mkOverride 900 true;
           "base-compat".components.library.planned = lib.mkOverride 900 true;

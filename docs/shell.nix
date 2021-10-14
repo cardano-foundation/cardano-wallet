@@ -1,8 +1,1 @@
-{ pkgs ? import ../nix/default.nix {} }:
-
-with pkgs;
-
-mkShell {
-  name = "cardano-wallet-docs-env";
-  nativeBuildInputs = [ emanote ];
-}
+{ ... }@args: (import ../nix/flake-compat.nix args).shellNix.devShells.${builtins.currentSystem}.docs

@@ -30,7 +30,7 @@ The following command will decrypt the E2E test fixtures (see LastPass for the p
 
 ```console
 $ export TESTS_E2E_FIXTURES=*******
-$ nix-shell --run "cd test/e2e && rake fixture_wallets_decode"
+$ nix develop --command "cd test/e2e && rake fixture_wallets_decode"
 $ jq 'map_values(.shelley|join(" "))' test/e2e/fixtures/fixture_wallets.json
 ```
 

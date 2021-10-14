@@ -58,24 +58,24 @@ branch.
 The Nix build also depends on the [Haskell.nix](https://github.com/input-output-hk/haskell.nix) build infrastructure. It may be necessary to update `haskell.nix` when moving to a
 new Haskell LTS version or adding Hackage dependencies.
 
-To update to the latest version, run the following command in a `nix-shell`:
+To update to the latest version, run the following command in a `nix develop`:
 
 ```
-niv update haskell.nix
+nix flake lock --update-input haskellNix
 ```
 
 Then commit the updated
-[sources.json](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/sources.json#L1)
+[flack.lock](https://github.com/input-output-hk/cardano-wallet/blob/master/flack.lock#L1)
 file.
 
 When updating Haskell.nix, consult the [ChangeLog](https://github.com/input-output-hk/haskell.nix/blob/master/changelog.md#L1) file. There may have been API changes which need corresponding updates in `cardano-wallet`.
 
 ### iohk-nix pin
 
-The procedure for updating the [`iohk-nix`](https://github.com/input-output-hk/iohk-nix) library of common code is much the same as for Haskell.nix. Run this in a `nix-shell` and commit the updated `nix/sources.json` file:
+The procedure for updating the [`iohk-nix`](https://github.com/input-output-hk/iohk-nix) library of common code is much the same as for Haskell.nix. Run this in a `nix develop` and commit the updated `flake.lock` file:
 
 ```
-niv update iohk-nix
+nix flake lock --update-input iohkNix
 ```
 
 It is not often necessary to update `iohk-nix`. Before updating, ask devops whether there may be changes which affect our build.
