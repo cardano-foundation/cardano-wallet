@@ -364,6 +364,7 @@ test-suite unit
   hs-source-dirs:
       test/unit
       test/shared
+      test/data
   main-is:
       Main.hs
   other-modules:

@@ -64,7 +64,7 @@ steps:
   #   if: 'build.env("step") == null || build.env("step") =~ /migration-tests/'
 
   - label: 'Full cabal build'
-    command: 'nix-shell nix/cabal-shell.nix --arg withCabalCache true --run "scripts/buildkite/cabal-ci.sh build"'
+    command: 'nix-shell -A cabal --arg withCabalCache true --run "scripts/buildkite/cabal-ci.sh build"'
     env:
       CABAL_CACHE_ARCHIVE: "/cache/cardano-wallet"
       CABAL_STORE_DIR: "/build/cardano-wallet.store"

@@ -3,7 +3,7 @@ pkgs: _: {
   # https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html
   cardano-node-deployments = let
     environments = {
-      inherit (pkgs.commonLib.cardanoLib.environments)
+      inherit (pkgs.cardanoLib.environments)
         mainnet
         staging
         testnet
@@ -20,7 +20,7 @@ pkgs: _: {
     } else {
       GenesisFile = "genesis.json";
     });
-    mkTopology = env: pkgs.commonLib.cardanoLib.mkEdgeTopology {
+    mkTopology = env: pkgs.cardanoLib.mkEdgeTopology {
       edgeNodes = [ env.relaysNew ];
       valency = 2;
     };

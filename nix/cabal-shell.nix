@@ -5,36 +5,35 @@
 # The default shell (../shell.nix) uses the Haskell.nix shellFor to
 # also provide Haskell package dependencies in the shell environment.
 
-{ walletPackages ? import ../default.nix {}
-, pkgs ? walletPackages.private.pkgs
+{ haskellProject
+# Enable building the cabal-cache util - only needed under CI
+, withCabalCache
 # optional string argument to override compiler, e.g.
 #   nix-shell nix/cabal-shell.nix --argstr ghcVersion ghc8105
-, ghcVersion ? null
-# Enable building the cabal-cache util - only needed under CI
-, withCabalCache ? false
+, ghcVersion
 }:
 
-with pkgs;
+with haskellProject.pkgs;
 
 mkShell rec {
   name = "cardano-wallet-cabal-env";
   meta.platforms = lib.platforms.unix;
 
   ghc = if (ghcVersion == null)
-    then walletPackages.private.project.pkg-set.config.ghc.package
+    then haskellProject.pkg-set.config.ghc.package
     else haskell-nix.compiler.${ghcVersion};
 
   tools = [
     ghc
     haskell-build-tools.cabal-install
-    nix
+    nixWrapped
     pkgconfig
     gnutar
   ]
   ++ lib.optional (!stdenv.isDarwin) git
-  ++ (with walletPackages; [
-    cardano-node
-    cardano-cli
+  ++ (with haskellProject.hsPkgs; [
+    cardano-node.components.exes.cardano-node
+    cardano-cli.components.exes.cardano-cli
   ])
   ++ lib.optional withCabalCache haskell-build-tools.cabal-cache;
 
@@ -55,11 +54,11 @@ mkShell rec {
     Cocoa CoreServices libcxx libiconv
   ]);
 
-  buildInputs = tools ++ libs;
+  nativeBuildInputs = tools ++ libs;
 
   # allow building the shell so that it can be cached in hydra
   phases = ["nobuildPhase"];
-  nobuildPhase = "echo '${lib.concatStringsSep "\n" buildInputs}' > $out";
+  nobuildPhase = "echo '${lib.concatStringsSep "\n" nativeBuildInputs}' > $out";
   preferLocalBuild = true;
 
   # Ensure that libz.so and other libraries are available to TH splices.

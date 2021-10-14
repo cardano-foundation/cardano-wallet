@@ -8,7 +8,6 @@
 ############################################################################
 
 { pkgs
-, project
 , cardano-wallet
 , cardano-node
 , cardano-cli
@@ -23,7 +22,7 @@ let
     cli = ../lib/cli/test/data;
   };
 
-  name = "cardano-wallet-${project.version}-tests-win64";
+  name = "cardano-wallet-${cardano-wallet.version}-tests-win64";
 
 in pkgs.runCommand name {
   nativeBuildInputs = [ pkgs.zip pkgs.gnused ];
@@ -46,7 +45,7 @@ in pkgs.runCommand name {
   # Add each one to tests.bat.
   ${pkgs.lib.concatMapStringsSep "\n" (test: ''
     exe=`cd ${test}/bin; ls -1 *.exe`
-    name=${test.packageName}-test-$exe
+    name=${test.passthru.identifier.name}-test-$exe
     cp ${test}/bin/$exe $name
     echo $name >> tests.bat
     echo "if %errorlevel% neq 0 exit /b %errorlevel%" >> tests.bat
@@ -55,7 +54,7 @@ in pkgs.runCommand name {
   # Copy in benchmark executables and rename.
   ${pkgs.lib.concatMapStringsSep "\n" (bench: ''
     exe=`cd ${bench}/bin; ls -1 *.exe`
-    name=${bench.packageName}-bench-$exe
+    name=${bench.passthru.identifier.name}-bench-$exe
     cp ${bench}/bin/$exe $name
   '') benchmarks}
 

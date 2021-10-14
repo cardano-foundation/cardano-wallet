@@ -1,0 +1,33 @@
+{ system
+  , compiler
+  , flags
+  , pkgs
+  , hsPkgs
+  , pkgconfPkgs
+  , errorHandler
+  , config
+  , ... }:
+  {
+    flags = { development = false; };
+    package = {
+      specVersion = "1.10";
+      identifier = { name = "base-deriving-via"; version = "0.1.0.0"; };
+      license = "Apache-2.0";
+      copyright = "IOHK";
+      maintainer = "operations@iohk.io";
+      author = "IOHK";
+      homepage = "";
+      url = "";
+      synopsis = "A general hook newtype for use with deriving via";
+      description = "";
+      buildType = "Simple";
+      };
+    components = {
+      "library" = {
+        depends = [ (hsPkgs."base" or (errorHandler.buildDepError "base")) ];
+        buildable = true;
+        };
+      };
+    } // rec {
+    src = (pkgs.lib).mkDefault /nix/store/sc0nbk2kbs8ifb4gsp62p3aqx9vl9cix-cardano-base-e8a48cf/base-deriving-via;
+    }

@@ -1,4 +1,4 @@
-{ pkgs ? import ../nix/default.nix {} }:
+{ pkgs ? (import ../default.nix {}).legacyPackages.${builtins.currentSystem}.pkgs }:
 
 with pkgs.lib;
 with pkgs;

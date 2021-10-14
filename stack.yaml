@@ -205,7 +205,7 @@ extra-deps:
   - plugins/scribe-systemd
   - tracer-transformers
 
-- git: https://github.com/shmish111/purescript-bridge.git
+- git: https://github.com/shmish111/purescript-bridge
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/ouroboros-network
@@ -253,7 +253,7 @@ extra-deps:
     - quickcheck-dynamic
     - word-array
 
-- git: https://github.com/shmish111/servant-purescript.git
+- git: https://github.com/shmish111/servant-purescript
   commit: a76104490499aa72d40c2790d10e9383e0dbde63
 
 - git: https://github.com/input-output-hk/Win32-network

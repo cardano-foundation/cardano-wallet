@@ -36,15 +36,15 @@ steps:
       system: x86_64-linux
 
   - label: 'Check Cabal Configure'
-    command: 'nix-shell --pure nix/cabal-shell.nix --run "scripts/buildkite/cabal-ci.sh configure"'
+    command: 'nix-shell --pure -A cabal --run "scripts/buildkite/cabal-ci.sh configure"'
     agents:
       system: x86_64-linux
 
   - label: 'Check auto-generated Nix'
     key: nix
     commands:
-      - './nix/regenerate.sh --cache /dev/null'
-      - 'nix-build ./nix -A iohkNix.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
+      - './nix/regenerate.sh'
+      - 'nix-build -A private.project.pkgs.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
     agents:
       system: x86_64-linux
 

@@ -244,6 +244,7 @@ test-suite unit
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
+      test/data
   main-is:
       Main.hs
   other-modules:
@@ -292,6 +293,7 @@ test-suite integration
      exitcode-stdio-1.0
   hs-source-dirs:
       test/integration
+      test/data
   main-is:
       Main.hs
   other-modules:

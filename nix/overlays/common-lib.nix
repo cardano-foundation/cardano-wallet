@@ -1,7 +1,7 @@
 self: super: let
   inherit (self) lib;
 in {
-  commonLib = super.commonLib // {
+  cardanoWalletLib = {
 
     # lib.cleanSourceWith filter function which removes socket files
     # from a source tree. This files can be created by cardano-node and
