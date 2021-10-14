@@ -13,7 +13,7 @@ protocolParams:
   poolDeposit: 0
   protocolVersion:
     minor: 0
-    major: 0
+    major: 6
   minUTxOValue: 1000000
   decentralisationParam: 0.25 # means 75% decentralised
   maxTxSize: 16384
