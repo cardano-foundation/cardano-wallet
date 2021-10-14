@@ -42,8 +42,11 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
     # @wid_rnd = "94c0af1034914f4455b7eb795ebea74392deafe9"
     # @wid_ic = "a468e96ab85ad2043e48cf2e5f3437b4356769f4"
-    @wid = "2269611a3c10b219b0d38d74b004c298b76d16a9"
+    @wid = "a042bafdaf98844cfa8f6d4b1dc47519b21a4d95"
     @target_id = "2269611a3c10b219b0d38d74b004c298b76d16a9"
+    # 1f82e83772b7579fc0854bd13db6a9cce21ccd95
+    # 2269611a3c10b219b0d38d74b004c298b76d16a9
+    # a042bafdaf98844cfa8f6d4b1dc47519b21a4d95
   end
 
   # after(:all) do
@@ -81,6 +84,14 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         payload = get_templated_plutus_tx(s, tx_id)
         tx_id = run_script(s, payload)
       end
+    end
+
+    it "cannot balance on empty wallet" do
+      wid = create_shelley_wallet
+      payload = get_plutus_tx "ping-pong_1.json"
+      tx_balanced = SHELLEY.transactions.balance(wid, payload)
+      expect(tx_balanced).to be_correct_and_respond 403
+      expect(tx_balanced.to_s).to include "not_enough_money"
     end
 
     it "ping-pong" do
