@@ -128,6 +128,7 @@ import Test.Integration.Framework.TestData
     , errMsg403MinUTxOValue
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
+    , errMsg403TransactionInvalid
     , errMsg403transactionAlreadyBalanced
     , errMsg404NoSuchPool
     )
@@ -1130,7 +1131,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- Submit tx
-        void $ submitTx ctx sealedTx [ expectResponseCode HTTP.status500 ]
+        void $ submitTx ctx sealedTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403TransactionInvalid
+            , expectErrorMessage "MissingVKeyWitnessesUTXOW"
+            ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
         (w, _) <- rewardWallet ctx
@@ -1192,7 +1197,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- should be able to construct transactions with extra signers from the
         -- API!
         void $ submitTx ctx signedTx
-            [ expectResponseCode HTTP.status500
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403TransactionInvalid
             , expectErrorMessage "FeeTooSmallUTxO"
             ]
 

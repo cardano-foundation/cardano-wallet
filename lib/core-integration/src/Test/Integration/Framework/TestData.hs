@@ -98,6 +98,7 @@ module Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidScript
     , errMsg403InvalidConstructTx
     , errMsg403transactionAlreadyBalanced
+    , errMsg403TransactionInvalid
     ) where
 
 import Prelude
@@ -625,6 +626,12 @@ errMsg400ScriptNotUniformRoles =
 errMsg403transactionAlreadyBalanced :: String
 errMsg403transactionAlreadyBalanced =
     "The transaction is already balanced. Please send a transaction that requires more inputs/outputs to be picked to be balanced."
+
+errMsg403TransactionInvalid :: String
+errMsg403TransactionInvalid = mconcat
+    [ "The submitted transaction was rejected by the local node. "
+    , "Here's an error message that may help with debugging:"
+    ]
 
 --------------------------------------------------------------------------------
 -- Transaction metadata
