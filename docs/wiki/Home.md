@@ -11,6 +11,7 @@
 - [Building](https://github.com/input-output-hk/cardano-wallet/wiki/Building)
 - [Testing](https://github.com/input-output-hk/cardano-wallet/wiki/Testing)
 - [Logging Guidelines](https://github.com/input-output-hk/cardano-wallet/wiki/Logging-Guidelines)
+- [Upgrading GHC version](https://github.com/input-output-hk/cardano-wallet/wiki/Notes-from-upgrading-GHC-version)
 
 # Maintainer Guides
 
