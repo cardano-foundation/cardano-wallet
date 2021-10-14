@@ -92,7 +92,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimitOf (..), SelectionSkeleton (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException, TimeInterpreter (..) )
+    ( PastHorizonException, TimeInterpreter, getSystemStart, toEpochInfo )
 import Cardano.Wallet.Primitive.Types
     ( ExecutionUnitPrices (..)
     , ExecutionUnits (..)
@@ -148,7 +148,6 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
-    , toSystemStart
     )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( computeMinimumAdaQuantity, toAlonzoTxOut )
@@ -202,8 +201,6 @@ import Data.Word
     ( Word16, Word64, Word8 )
 import GHC.Generics
     ( Generic )
-import Ouroboros.Consensus.HardFork.History.EpochInfo
-    ( interpreterToEpochInfo )
 import Ouroboros.Network.Block
     ( SlotNo )
 import Shelley.Spec.Ledger.API
@@ -937,14 +934,11 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
     evaluateExecutionUnits indexedRedeemers alonzoTx = withExceptT ErrAssignRedeemersPastHorizon $ do
         let utxo = utxoFromAlonzoTx alonzoTx
         let costs = toCostModelsAsArray (Alonzo._costmdls pparams)
+        let systemStart = getSystemStart ti
 
-        (systemStart, epochInfo) <- case ti of
-            TimeInterpreter{interpreter,blockchainStartTime} -> do
-                let systemStart = toSystemStart blockchainStartTime
-                epochInfo <- interpreterToEpochInfo <$> interpreter
-                pure (systemStart, epochInfo)
+        epochInfo <- toEpochInfo ti
 
-        mapExceptT (pure . hoistScriptFailure . runIdentity) $
+        mapExceptT (pure . hoistScriptFailure . runIdentity) $ do
             evaluateTransactionExecutionUnits
                 pparams
                 alonzoTx
