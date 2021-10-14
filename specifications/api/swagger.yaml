@@ -2256,6 +2256,28 @@ components:
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 
+    ApiDecodedTransaction: &ApiDecodedTransaction
+      type: object
+      required:
+        - id
+        - fee
+        - deposit
+        - inputs
+        - outputs
+        - withdrawals
+        - mint
+      properties:
+        id: *transactionId
+        fee: *amount
+        deposit: *amount
+        inputs: *transactionInputs
+        outputs: *transactionOutputs
+        collateral: *transactionCollateral
+        withdrawals: *transactionWithdrawals
+        mint: *transactionMint
+        metadata: *transactionMetadata
+        script_validity: *txScriptValidity
+
     x-txBody: &txBody
       oneOf:
         - <<: *serialisedTransactionBase64
@@ -4758,6 +4780,17 @@ x-responsesSignTransaction: &responsesSignTransaction
       application/json:
         schema: *ApiSignedTransaction
 
+x-responsesDecodedTransaction: &responsesDecodedTransaction
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiDecodedTransaction
+
 x-responsesSubmitTransaction: &responsesSubmitTransaction
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
@@ -5525,6 +5558,24 @@ paths:
           application/json:
             schema: *ApiSignTransactionPostData
       responses: *responsesSignTransaction
+
+  /wallets/{walletId}/transactions-decode:
+    post:
+      operationId: decodeTransaction
+      tags: ["Transactions New"]
+      summary: Decode
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Decode a serialized transaction.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSerialisedTransaction
+      responses: *responsesDecodedTransaction
 
   /wallets/{walletId}/addresses:
     get:
