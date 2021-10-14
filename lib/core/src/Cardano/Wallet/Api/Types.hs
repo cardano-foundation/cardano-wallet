@@ -2372,6 +2372,16 @@ instance FromJSON (ApiT XPrv) where
 instance ToJSON (ApiT XPrv) where
     toJSON = toJSON . toText
 
+instance FromJSON (ApiT (Hash "VerificationKey")) where
+    parseJSON = fromTextJSON "VerificationKey Hash"
+instance ToJSON (ApiT (Hash "VerificationKey")) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT (Hash "TokenPolicy")) where
+    parseJSON = fromTextJSON "TokenPolicy Hash"
+instance ToJSON (ApiT (Hash "TokenPolicy")) where
+    toJSON = toTextJSON
+
 instance FromJSON ByronWalletFromXPrvPostData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ByronWalletFromXPrvPostData where

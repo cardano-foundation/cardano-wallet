@@ -112,6 +112,7 @@ import Test.Integration.Framework.DSL
     , fixtureWalletWith
     , fixtureWalletWithMnemonics
     , getFromResponse
+    , getSomeVerificationKey
     , json
     , listAddresses
     , minUTxOValue
@@ -1201,23 +1202,45 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     describe "Plutus scenarios" $ do
         let scenarios =
                 [ ( "ping-pong"
-                  , PlutusScenario.pingPong_1
-                  , [ PlutusScenario.pingPong_2
-                    ]
+                  , \_ _ -> pure
+                      ( PlutusScenario.pingPong_1
+                      , [ PlutusScenario.pingPong_2 ]
+                      )
                   )
                 , ( "game state-machine"
-                  , PlutusScenario.game_1
-                  , [ PlutusScenario.game_2
-                    , PlutusScenario.game_3
-                    ]
+                  , \_ _ -> pure
+                      ( PlutusScenario.game_1
+                      , [ PlutusScenario.game_2
+                        , PlutusScenario.game_3
+                        ]
+                      )
+                  )
+                , ( "mint-burn"
+                  , \ctx w -> do
+                        (_vk, vkHash) <- getSomeVerificationKey ctx w
+                        let (policy, policyId) = PlutusScenario.mkMintBurnPolicy [json|{
+                                "vkHash": #{vkHash} }
+                            |]
+                        mint <- PlutusScenario.mintBurn_1 [json|{
+                            "policy": #{policy},
+                            "policyId": #{policyId},
+                            "vkHash": #{vkHash}
+                        }|]
+                        let burn = \_ -> PlutusScenario.mintBurn_2 [json|{
+                                "policy": #{policy},
+                                "policyId": #{policyId},
+                                "vkHash": #{vkHash}
+                            }|]
+                        pure (mint, [burn])
                   )
                 ]
 
-        forM_ scenarios $ \(title, setup, steps) -> it title $ \ctx -> runResourceT $ do
+        forM_ scenarios $ \(title, setupContract) -> it title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             let balanceEndpoint = Link.balanceTransaction @'Shelley w
             let signEndpoint = Link.signTransaction @'Shelley w
 
+            (setup, steps) <- setupContract ctx w
 
             -- Balance
             let toBalance = Json setup
