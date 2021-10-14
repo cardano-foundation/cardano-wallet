@@ -981,19 +981,8 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
             :: (dat, Alonzo.ExUnits)
             -> Either err Alonzo.ExUnits
             -> Either err (dat, Alonzo.ExUnits)
-        assignUnits (dats, _zero) = \case
-            Left e -> Left e
-            -- TODO: We currently scale a bit the estimate because somehow, it
-            -- is wrong? Or more exactly, after assigning the execution budget
-            -- to each redeemer, the execution costs change (becomes more
-            -- expensive).
-            -- We should ideally unit test this at a lower level to understand
-            -- what's causing this. As for now, to get us going, get twice the
-            -- estimated value as a safe margin.
-            Right (Alonzo.ExUnits mem step) -> Right
-                ( dats
-                , Alonzo.ExUnits (2*mem) (2*step)
-                )
+        assignUnits (dats, _zero) =
+            fmap (dats,)
 
     -- | Finally, calculate and add the script integrity hash with the new
     -- final redeemers, if any.
