@@ -42,6 +42,10 @@ module Cardano.Wallet.Primitive.CoinSelection
     , VerifySelectionResult (..)
     , verifySelection
 
+    -- * Selection error verification
+    , VerifySelectionErrorResult (..)
+    , verifySelectionError
+
     -- * Selection deltas
     , SelectionDelta (..)
     , selectionDelta
@@ -151,11 +155,18 @@ type PerformSelection m a =
 --  - producing change outputs to return excess value to the wallet;
 --  - balancing a selection to pay for the transaction fee.
 --
--- This function guarantees that if it successfully creates a 'Selection' @s@,
--- given a set of 'SelectionConstraints' @cs@ and 'SelectionParameters' @ps@,
--- then the following property will hold:
+-- This function guarantees that given a set of 'SelectionConstraints' @cs@
+-- and 'SelectionParams' @ps@:
 --
---    >>> verifySelection cs ps s == VerifySelectionSuccess
+--  - if creation of a selection succeeds, a value @s@ of type 'Selection'
+--    will be returned for which the following property holds:
+--
+--      >>> verifySelection cs ps s == VerifySelectionSuccess
+--
+--  - if creation of a selection fails, a value @e@ of type 'SelectionError'
+--    will be returned for which the following property holds:
+--
+--      >>> verifySelectionError cs ps e == VerifySelectionErrorSuccess
 --
 performSelection
     :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
@@ -352,16 +363,16 @@ toBalanceResult selection = Balance.SelectionResult
 -- Selection verification
 --------------------------------------------------------------------------------
 
--- | The result of verifying a selection with 'verifySelection'.
+-- | The result of verifying a 'Selection' with 'verifySelection'.
 --
 data VerifySelectionResult
     = VerifySelectionSuccess
-    | VerifySelectionFailure (NonEmpty VerifySelectionError)
+    | VerifySelectionFailure (NonEmpty VerifySelectionFailureReason)
     deriving (Eq, Show)
 
--- | Indicates that verification of a selection has failed.
+-- | Indicates that verification of a 'Selection' has failed.
 --
-data VerifySelectionError
+data VerifySelectionFailureReason
     = VerifySelectionCollateralInsufficient
       VerifySelectionCollateralInsufficientError
     | VerifySelectionCollateralUnsuitable
@@ -378,7 +389,7 @@ data VerifySelectionError
       VerifySelectionOutputTokenQuantityExceedsLimitError
     deriving (Eq, Show)
 
--- | The type of all selection property verification functions.
+-- | The type of all 'Selection' verification functions.
 --
 type VerifySelectionProperty error =
     SelectionConstraints ->
@@ -386,11 +397,11 @@ type VerifySelectionProperty error =
     Selection ->
     Maybe error
 
--- | Verifies a selection for correctness.
+-- | Verifies a 'Selection' for correctness.
 --
 -- This function is provided primarily as a convenience for testing. As such,
 -- it's not usually necessary to call this function from ordinary application
--- code, unless you suspect that a selection is incorrect in some way.
+-- code, unless you suspect that a 'Selection' is incorrect in some way.
 --
 verifySelection
     :: SelectionConstraints
@@ -403,7 +414,7 @@ verifySelection cs ps selection
     | otherwise =
         VerifySelectionSuccess
   where
-    errors :: [VerifySelectionError]
+    errors :: [VerifySelectionFailureReason]
     errors = lefts
         [ verifySelectionCollateralSufficiency cs ps selection
             `failWith` VerifySelectionCollateralInsufficient
@@ -610,6 +621,33 @@ verifySelectionOutputTokenQuantities _cs _ps selection
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError]
     errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
+
+--------------------------------------------------------------------------------
+-- Selection error verification
+--------------------------------------------------------------------------------
+
+-- | The result of verifying a 'SelectionError' with 'verifySelectionError'.
+--
+data VerifySelectionErrorResult
+    = VerifySelectionErrorSuccess
+    | VerifySelectionErrorFailure
+    deriving (Eq, Show)
+
+-- | Verifies a 'SelectionError' for correctness.
+--
+-- This function is provided primarily as a convenience for testing. As such,
+-- it's not usually necessary to call this function from ordinary application
+-- code, unless you suspect that a 'SelectionError' is incorrect in some way.
+--
+verifySelectionError
+    :: SelectionConstraints
+    -> SelectionParams
+    -> SelectionError
+    -> VerifySelectionErrorResult
+verifySelectionError _cs _ps _e =
+    -- TODO: [ADP-1037]
+    -- For now, all errors will verify successfully.
+    VerifySelectionErrorSuccess
 
 --------------------------------------------------------------------------------
 -- Selection deltas
