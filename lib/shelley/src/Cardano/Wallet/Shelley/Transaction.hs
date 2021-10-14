@@ -632,9 +632,8 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
         adjustBody (TxUpdate extraInputs extraCollateral extraOutputs modifyFee) era body = case era of
             ShelleyBasedEraAlonzo -> body
-                    { Alonzo.outputs =
-                        StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
-                        <> Alonzo.outputs body
+                    { Alonzo.outputs = Alonzo.outputs body
+                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
                     , Alonzo.inputs = Alonzo.inputs body
                         <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
                     , Alonzo.collateral = Alonzo.collateral body
