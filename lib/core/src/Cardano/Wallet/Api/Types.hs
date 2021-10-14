@@ -162,6 +162,8 @@ module Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostData (..)
     , ApiExternalInput (..)
     , ApiRedeemer (..)
+    , ApiRedeemerCertificate (..)
+    , ApiDecodedTransaction (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -217,6 +219,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostDataT
     , PostMintBurnAssetDataT
     , ApiBalanceTransactionPostDataT
+    , ApiDecodedTransactionT
 
     -- * API Type Conversions
     , coinToQuantity
@@ -1126,6 +1129,19 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , withdrawals :: ![ApiWithdrawal n]
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
+    , metadata :: !ApiTxMetadata
+    , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
+    } deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
+data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
+    { id :: !(ApiT (Hash "Tx"))
+    , fee :: !(Quantity "lovelace" Natural)
+    , inputs :: ![ApiTxInput n]
+    , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
+    , collateral :: ![ApiTxCollateral n]
+    , withdrawals :: ![ApiWithdrawal n]
+    , mint :: !(ApiT W.TokenMap)
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
@@ -2940,6 +2956,19 @@ instance
   where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance
+    ( DecodeAddress n
+    , DecodeStakeAddress n
+    ) => FromJSON (ApiDecodedTransaction n)
+  where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance
+    ( EncodeAddress n
+    , EncodeStakeAddress n
+    ) => ToJSON (ApiDecodedTransaction n)
+  where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance FromJSON (ApiT TxMetadata) where
     parseJSON = fmap ApiT
         . either (fail . displayError) pure
@@ -3548,6 +3577,7 @@ type family ApiWalletMigrationPlanPostDataT (n :: k) :: Type
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
 type family ApiPutAddressesDataT (n :: k) :: Type
 type family ApiBalanceTransactionPostDataT (n :: k) :: Type
+type family ApiDecodedTransactionT (n :: k) :: Type
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
@@ -3595,6 +3625,9 @@ type instance ApiMintedBurnedTransactionT (n :: NetworkDiscriminant) =
 
 type instance ApiBalanceTransactionPostDataT (n :: NetworkDiscriminant) =
     ApiBalanceTransactionPostData n
+
+type instance ApiDecodedTransactionT (n :: NetworkDiscriminant) =
+    ApiDecodedTransaction n
 
 {-------------------------------------------------------------------------------
                          SMASH interfacing types

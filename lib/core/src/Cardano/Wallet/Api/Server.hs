@@ -92,6 +92,7 @@ module Cardano.Wallet.Api.Server
     , mkSharedWallet
     , mintBurnAssets
     , balanceTransaction
+    , decodeTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -209,6 +210,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiDecodedTransaction
     , ApiEpochInfo (ApiEpochInfo)
     , ApiEra (..)
     , ApiErrorCode (..)
@@ -2245,6 +2247,16 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         return $ ApiSerialisedTransaction { transaction }
   where
     nl = ctx ^. networkLayer
+
+decodeTransaction
+    :: forall ctx s k n.
+        ( ctx ~ ApiLayer s k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiSerialisedTransaction
+    -> Handler (ApiDecodedTransaction n)
+decodeTransaction _ctx _wid (ApiSerialisedTransaction (ApiT _sealed)) = undefined
 
 joinStakePool
     :: forall ctx s n k.
