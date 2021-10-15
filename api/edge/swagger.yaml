@@ -337,36 +337,6 @@ x-valueNodes: &valueNodes
     - {"lovelace": 1423}
     - {"lovelace": 1423, "7191ae0e1286891fe5c027a5dc041b7401689938e18e14ec83cf74fb": {"asset1": 12, "asset2": 33}}
 
-x-txOutNodeWithoutDatum: &txOutNodeWithoutDatum
-  description: tx out without datum
-  type: object
-  required:
-    - address
-    - value
-  properties:
-    address: *addressId
-    value: *valueNodes
-
-x-txOutNodeWithDatum: &txOutNodeWithDatum
-  description: tx out without datum
-  type: object
-  required:
-    - address
-    - data
-    - value
-  properties:
-    address: *addressId
-    data: *dataHash
-    value: *valueNodes
-
-x-txOutNode: &txOutNode
-  nullable: false
-  oneOf:
-    - <<: *txOutNodeWithDatum
-      title: tx out with datum
-    - <<: *txOutNodeWithoutDatum
-      title: tx out without datum
-
 x-stakePoolId: &stakePoolId
   type: string
   format: hex|bech32
@@ -1022,6 +992,14 @@ x-transactionId: &transactionId
   maxLength: 64
   minLength: 64
   example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
+
+x-datum: &datum
+  description: A datum hash.
+  type: string
+  format: hex
+  maxLength: 64
+  minLength: 64
+  example: 16f30f4e8d665d53eb4ab6028bd0ac971809d514c92d423856bc91c49e928faf
 
 x-transactionInsertedAt: &transactionInsertedAt
   description: |
@@ -3258,20 +3236,6 @@ components:
         metadata: *transactionMetadata
         time_to_live: *transactionTTL
 
-    ApiExternalInput: &ApiExternalInput
-      type: object
-      required:
-        - txIn
-        - txOut
-      properties:
-        txIn: *txInNode
-        txOut: *txOutNode
-
-    ApiExternalInputs: &ApiExternalInputs
-      description: A flat list of node compliant inputs.
-      type: array
-      items: *ApiExternalInput
-
     ApiRedeemerSpending: &ApiRedeemerSpending
       type: object
       required:
@@ -3329,35 +3293,6 @@ components:
           format: base16
         stake_address: *stakeAddress
 
-    ApiRedeemerCertifying: &ApiRedeemerCertifying
-      type: object
-      required:
-        - purpose
-        - data
-        - certificate
-      properties:
-        purpose:
-          type: string
-          enum: ["certifying"]
-        data:
-          type: string
-          format: base16
-        certificate:
-          type: object
-          required:
-            - delegator
-            - delegate
-            - epoch_number
-            - signature
-          properties:
-            delegator: *credentialPubKey
-            delegate: *credentialPubKey
-            epoch_number: *epochNumber
-            signature:
-              description: A signature of the epoch_number and delegator key.
-              type: string
-              format: base16
-
     ApiRedeemer: &ApiRedeemer
       oneOf:
         - title: spending
@@ -3368,9 +3303,6 @@ components:
 
         - title: rewarding
           <<: *ApiRedeemerRewarding
-
-        - title: certifying
-          <<: *ApiRedeemerCertifying
 
     ApiBalanceTransactionPostData: &ApiBalanceTransactionPostData
       type: object
@@ -3395,6 +3327,7 @@ components:
                   minimum: 0
                 address: *addressId
                 amount: *amount
+                datum: *datum
                 assets: *walletAssets
         redeemers:
             description: A list of redeemers data with their purpose.
@@ -4268,6 +4201,54 @@ x-errTransactionAlreadyBalanced: &errTransactionAlreadyBalanced
       type: string
       enum: ['transaction_already_balanced']
 
+x-errRedeemerScriptFailure: &errRedeemerScriptFailure
+  <<: *responsesErr
+  title: redeemer_script_failure
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when balancing transaction with failing scripts.
+    code:
+      type: string
+      enum: ['redeemer_script_failure']
+
+x-errRedeemerTargetNotFound: &errRedeemerTargetNotFound
+  <<: *responsesErr
+  title: redeemer_target_not_found
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when balancing transaction with reedemers that point to unknown entities.
+    code:
+      type: string
+      enum: ['redeemer_target_not_found']
+
+x-errRedeemerInvalidData: &errRedeemerInvalidData
+  <<: *responsesErr
+  title: redeemer_invalid_data
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when data in provided redeemers do not decode to valid Plutus data.
+    code:
+      type: string
+      enum: ['redeemer_invalid_data']
+
+x-errExistingKeyWitnesses: &errExistingKeyWitnesses
+  <<: *responsesErr
+  title: existing_key_witnesses
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when trying to balance a transaction that already has key witnesses.
+    code:
+      type: string
+      enum: ['existing_key_witnesses']
+
 x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
@@ -5104,6 +5085,9 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
         schema:
           oneOf:
             - <<: *errBadRequest
+            - <<: *errRedeemerScriptFailure
+            - <<: *errRedeemerTargetNotFound
+            - <<: *errRedeemerInvalidData
   403:
     description: Forbidden
     content:
@@ -5118,6 +5102,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
             - <<: *errTransactionAlreadyBalanced
+            - <<: *errExistingKeyWitnesses
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
