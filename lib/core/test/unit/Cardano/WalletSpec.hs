@@ -1276,6 +1276,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: calcMinimumCost not implemented"
     , maxScriptExecutionCost =
         error "dummyTransactionLayer: maxScriptExecutionCost not implemented"
+    , assignScriptRedeemers =
+        error "dummyTransactionLayer: assignScriptRedeemers not implemented"
     , evaluateMinimumFee =
         error "dummyTransactionLayer: evaluateMinimumFee not implemented"
     , computeSelectionLimit =
@@ -1285,9 +1287,9 @@ dummyTransactionLayer = TransactionLayer
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
-        Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing
-    , updateTx = \_ sealed _update ->
-            pure sealed
+        (Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing, mempty, mempty)
+    , updateTx = \sealed _update ->
+        pure sealed
     }
   where
     forMaybe :: [a] -> (a -> Maybe b) -> [b]

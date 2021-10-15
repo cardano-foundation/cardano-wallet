@@ -1,5 +1,7 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -43,6 +45,8 @@ import Prelude
 
 import Cardano.Crypto.Hash
     ( hashFromBytes, hashToBytes )
+import Cardano.Ledger.SafeHash
+    ( unsafeMakeSafeHash )
 import Cardano.Wallet.Primitive.Types
     ( MinimumUTxOValue (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -61,6 +65,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
+import Data.ByteString.Short
+    ( toShort )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -76,8 +82,9 @@ import GHC.Stack
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto )
 
-import qualified Cardano.Ledger.Address as Ledger
 
+import qualified Cardano.Crypto.Hash.Class as Crypto
+import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Rules.Utxo as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
@@ -280,12 +287,20 @@ instance Convert Address (Ledger.Addr StandardCrypto) where
 
 toAlonzoTxOut
     :: TxOut
+    -> Maybe (Hash "Datum")
     -> Alonzo.TxOut (Alonzo.AlonzoEra StandardCrypto)
-toAlonzoTxOut (TxOut addr bundle) =
-    Alonzo.TxOut
-        (toLedger addr)
-        (toLedger bundle)
-        Ledger.SNothing
+toAlonzoTxOut (TxOut addr bundle) = \case
+    Nothing ->
+        Alonzo.TxOut
+            (toLedger addr)
+            (toLedger bundle)
+            Ledger.SNothing
+    Just (Hash bytes) ->
+        Alonzo.TxOut
+            (toLedger addr)
+            (toLedger bundle)
+            (Ledger.SJust $ unsafeMakeSafeHash $ Crypto.UnsafeHash $ toShort bytes)
+
 
 --------------------------------------------------------------------------------
 -- Internal functions
@@ -319,7 +334,8 @@ computeMinimumAdaQuantityInternal (MinimumUTxOValue protocolMinimum) bundle =
             (toLedgerCoin protocolMinimum)
 computeMinimumAdaQuantityInternal (MinimumUTxOValueCostPerWord (Coin perWord)) bundle =
     let
-        outputSize = Alonzo.utxoEntrySize (toAlonzoTxOut (TxOut dummyAddr bundle))
+        outputSize = Alonzo.utxoEntrySize $
+            toAlonzoTxOut (TxOut dummyAddr bundle) Nothing
     in
         Coin $ fromIntegral outputSize * perWord
   where

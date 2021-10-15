@@ -84,6 +84,7 @@ module Test.Integration.Framework.DSL
     , getSharedWalletKey
     , postAccountKeyShared
     , getAccountKeyShared
+    , getSomeVerificationKey
 
     -- * Wallet helpers
     , listFilteredWallets
@@ -249,6 +250,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (ApiTxId)
     , ApiUtxoStatistics (..)
     , ApiVerificationKeyShared
+    , ApiVerificationKeyShelley (..)
     , ApiWallet
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
@@ -333,6 +335,8 @@ import Control.Retry
     ( capDelay, constantDelay, retrying )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
+import Crypto.Hash.Utils
+    ( blake2b224 )
 import Data.Aeson
     ( FromJSON, ToJSON, Value, (.=) )
 import Data.Aeson.QQ
@@ -1558,13 +1562,13 @@ getSharedWalletKey
     -> DerivationIndex
     -> Maybe Bool
     -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
-getSharedWalletKey ctx wal role ix hashed =
+getSharedWalletKey ctx wal role ix isHashed =
     case wal of
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiVerificationKeyShared)
-      r w = request @ApiVerificationKeyShared ctx (Link.getWalletKey @'Shared w role ix hashed) Default Empty
+      r w = request @ApiVerificationKeyShared ctx (Link.getWalletKey @'Shared w role ix isHashed) Default Empty
 
 postAccountKeyShared
     :: forall m.
@@ -1594,13 +1598,27 @@ getAccountKeyShared
     -> ApiSharedWallet
     -> Maybe KeyFormat
     -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
-getAccountKeyShared ctx wal hashed =
+getAccountKeyShared ctx wal isHashed =
     case wal of
         ApiSharedWallet (Left wal') -> r wal'
         ApiSharedWallet (Right wal') -> r wal'
   where
       r :: forall w. HasType (ApiT WalletId) w => w -> m (HTTP.Status, Either RequestException ApiAccountKeyShared)
-      r w = request @ApiAccountKeyShared ctx (Link.getAccountKey @'Shared w hashed) Default Empty
+      r w = request @ApiAccountKeyShared ctx (Link.getAccountKey @'Shared w isHashed) Default Empty
+
+getSomeVerificationKey
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiWallet
+    -> m (ApiVerificationKeyShelley, ApiT (Hash "VerificationKey"))
+getSomeVerificationKey ctx w = do
+    let link = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex 0) Nothing
+    (_, vk@(ApiVerificationKeyShelley (bytes, _) _)) <-
+        unsafeRequest @ApiVerificationKeyShelley ctx link Empty
+    pure (vk, ApiT $ Hash $ blake2b224 @ByteString bytes)
 
 patchEndpointEnding :: CredentialType -> Text
 patchEndpointEnding = \case

@@ -64,6 +64,7 @@ import Cardano.Wallet.Shelley.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterLog
+    , Credential (..)
     , RunningNode (..)
     , clusterEraFromEnv
     , clusterEraToString
@@ -250,7 +251,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         poolGarbageCollectionEvents <- newIORef []
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
-        let setupContext smashUrl faucetConn np baseUrl = bracketTracer' tr "setupContext" $ do
+        let setupContext smashUrl conn np baseUrl = bracketTracer' tr "setupContext" $ do
                 prometheusUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)) <$> getPrometheusURL
                 ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
                 traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
@@ -276,9 +277,12 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _smashUrl = smashUrl
                     , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                         withMVar mintSeaHorseAssetsLock $ \() ->
-                            sendFaucetAssetsTo tr' faucetConn testDir batchSize
+                            sendFaucetAssetsTo tr' conn testDir batchSize
                                 $ encodeAddresses
                                 $ seaHorseTestAssets nPerAddr c addrs
+                    , _moveRewardsToScript = \(script, coin) ->
+                            moveInstantaneousRewardsTo tr' conn testDir
+                            [(ScriptCredential script, coin)]
                     }
         let action' = bracketTracer' tr "spec" . action
         res <- race
@@ -320,7 +324,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         traceWith tr MsgSettingUpFaucet
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
                 concatMap genRewardAccounts mirMnemonics
-        moveInstantaneousRewardsTo tr' conn testDir rewards
+        moveInstantaneousRewardsTo tr' conn testDir (first KeyCredential <$> rewards)
         sendFaucetFundsTo tr' conn testDir $
             encodeAddresses shelleyIntegrationTestFunds
         sendFaucetAssetsTo tr' conn testDir 20 $

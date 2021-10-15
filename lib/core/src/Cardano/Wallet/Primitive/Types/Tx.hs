@@ -65,6 +65,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txIns
     , txMetadataIsNull
     , txOutCoin
+    , txOutAddCoin
     , failedScriptValidation
 
     -- * Constants
@@ -315,6 +316,11 @@ data TxOut = TxOut
 --
 txOutCoin :: TxOut -> Coin
 txOutCoin = TokenBundle.getCoin . view #tokens
+
+-- Add a fixed coin value to an existing output.
+txOutAddCoin :: Coin -> TxOut -> TxOut
+txOutAddCoin val (TxOut addr tokens) =
+    TxOut addr (tokens <> TokenBundle.fromCoin val)
 
 -- Since the 'TokenBundle' type deliberately does not provide an 'Ord' instance
 -- (as that would lead to arithmetically invalid orderings), this means we can't

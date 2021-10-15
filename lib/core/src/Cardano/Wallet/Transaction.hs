@@ -33,6 +33,7 @@ module Cardano.Wallet.Transaction
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrUpdateSealedTx (..)
+    , ErrAssignRedeemers(..)
     ) where
 
 import Prelude
@@ -48,10 +49,9 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException )
+    ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( ExecutionUnits
-    , PoolId
+    ( PoolId
     , ProtocolParameters
     , SlotNo (..)
     , TokenBundleMaxSize (..)
@@ -61,19 +61,24 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
+import Cardano.Wallet.Primitive.Types.Redeemer
+    ( Redeemer )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( ScriptWitnessIndex
-    , TokenBundleSizeAssessor
+    ( TokenBundleSizeAssessor
     , Tx (..)
     , TxConstraints
     , TxIn
     , TxMetadata
     , TxOut
     )
+import Control.Monad.Trans.Except
+    ( ExceptT )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Text
@@ -161,8 +166,8 @@ data TransactionLayer k tx = TransactionLayer
     , maxScriptExecutionCost
         :: ProtocolParameters
             -- Current protocol parameters
-        -> tx
-            -- The constructed transaction that could contain plutus scripts
+        -> [Redeemer]
+            -- Redeemers for this transaction
         -> Coin
         -- ^ Compute the maximum execution cost of scripts in a given transaction.
 
@@ -196,27 +201,37 @@ data TransactionLayer k tx = TransactionLayer
         -> TxConstraints
         -- The set of constraints that apply to all transactions.
 
-    , decodeTx :: tx -> Tx
+    , decodeTx :: tx -> (Tx, TokenMap, TokenMap)
     -- ^ Decode an externally-created transaction.
 
     , updateTx
-        :: Node.ProtocolParameters
-        -> tx
+        :: tx
         -> TxUpdate
         -> Either ErrUpdateSealedTx tx
         -- ^ Update tx by adding additional inputs and outputs
+
+    , assignScriptRedeemers
+        :: Node.ProtocolParameters
+            -- Current protocol parameters
+        -> TimeInterpreter (ExceptT PastHorizonException IO)
+            -- Time interpreter in the Monad m
+        -> (TxIn -> Maybe (TxOut, Maybe (Hash "Datum")))
+            -- A input resolver for transactions' inputs containing scripts.
+        -> [Redeemer]
+            -- A list of redeemers to set on the transaction.
+        -> tx
+            -- Transaction containing scripts
+        -> IO (Either ErrAssignRedeemers tx)
     }
     deriving Generic
 
 -- | Describes modifications that can be made to a `Tx` using `updateTx`.
 data TxUpdate = TxUpdate
-    { extraInputs :: [TxIn]
+    { extraInputs :: [(TxIn, TxOut)]
     , extraCollateral :: [TxIn]
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [TxOut]
-    , newExUnits :: ScriptWitnessIndex -> ExecutionUnits -> ExecutionUnits
-       -- ^ Adjust execution units on existing redeemers.
     , newFee :: Coin -> Coin
         -- ^ Set the new fee, given the old one.
         --
@@ -296,6 +311,21 @@ data ErrMkTransaction
     | ErrMkTransactionJoinStakePool ErrCannotJoin
     | ErrMkTransactionQuitStakePool ErrCannotQuit
     | ErrMkTransactionIncorrectTTL PastHorizonException
+    deriving (Generic, Eq, Show)
+
+data ErrAssignRedeemers
+    = ErrAssignRedeemersScriptFailure Redeemer String
+    -- ^ Failed to assign execution units for a particular redeemer. The
+    -- 'String' indicates the reason of the failure.
+    --
+    -- TODO: Refine this type to avoid the 'String' and provides a better
+    -- sum-type of possible errors.
+    | ErrAssignRedeemersTargetNotFound Redeemer
+    -- ^ The given redeemer target couldn't be located in the transaction.
+    | ErrAssignRedeemersInvalidData Redeemer String
+    -- ^ Redeemer's data isn't a valid Plutus' data.
+    | ErrAssignRedeemersPastHorizon PastHorizonException
+    -- ^ Evaluating the Plutus script failed past the visible horizon.
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error

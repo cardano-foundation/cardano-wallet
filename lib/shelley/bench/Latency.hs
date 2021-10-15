@@ -443,6 +443,8 @@ withShelleyServer tracers action = do
                 , _smashUrl = ""
                 , _mainEra = maxBound
                 , _mintSeaHorseAssets = error "mintSeaHorseAssets not available"
+                , _moveRewardsToScript =
+                    error "moveRewardsToScript not available"
                 }
     race_ (takeMVar ctx >>= action) (withServer setupContext)
 

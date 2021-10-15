@@ -123,7 +123,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyShelleyBasedEra (..)
     , computeTokenBundleSerializedLengthBytes
-    , fromLedgerAlonzoPParams
     , getShelleyBasedEra
     , shelleyToCardanoEra
     , toCardanoLovelace
@@ -246,7 +245,7 @@ import Test.Utils.Pretty
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -495,14 +494,15 @@ feeCalculationSpec = describe "fee calculations" $ do
                 }
         txs <- readTestTransactions
         forM_ txs $ \(filepath, tx) -> do
-            if (hasPlutusScripts tx) then do
-                it ("with redeemers: " <> filepath) $
-                    _maxScriptExecutionCost ppWithPrices tx
-                        `shouldSatisfy` (> (Coin 0))
-            else do
+            let rdmrs = replicate (sealedNumberOfRedeemers tx) (error "Redeemer")
+            if (null rdmrs) then do
                 it ("without redeemers: " <> filepath) $
-                    _maxScriptExecutionCost ppWithPrices tx
+                    _maxScriptExecutionCost ppWithPrices rdmrs
                         `shouldBe` (Coin 0)
+            else do
+                it ("with redeemers: " <> filepath) $
+                    _maxScriptExecutionCost ppWithPrices rdmrs
+                        `shouldSatisfy` (> (Coin 0))
 
     describe "fee calculations" $ do
         it "withdrawals incur fees" $ property $ \wdrl ->
@@ -1443,7 +1443,7 @@ updateSealedTxSpec = do
             txs <- readTestTransactions
             forM_ txs $ \(filepath, tx) -> do
                 it ("without TxUpdate: " <> filepath) $ do
-                    case updateSealedTx dummyNodeProtocolParameters tx noTxUpdate of
+                    case updateSealedTx tx noTxUpdate of
                         Left e ->
                             expectationFailure $ "expected update to succeed but failed: " <> show e
                         Right tx' -> do
@@ -1461,7 +1461,7 @@ updateSealedTxSpec = do
                 case sealedTxFromBytes $ unsafeFromHex txWithInputsOutputsAndWits of
                     Left e -> expectationFailure $ show e
                     Right tx -> do
-                        updateSealedTx dummyNodeProtocolParameters tx noTxUpdate
+                        updateSealedTx tx noTxUpdate
                             `shouldBe` Left (ErrExistingKeyWitnesses 2)
 
             it "returns `Left err` when extra body content is non-empty" $ do
@@ -1473,13 +1473,13 @@ unsafeSealedTxFromHex =
   where
     isNewlineChar c = c `elem` [10,13]
 
-prop_updateSealedTx :: SealedTx -> [TxIn] -> [TxIn] -> [TxOut] -> Coin -> Property
+prop_updateSealedTx :: SealedTx -> [(TxIn, TxOut)] -> [TxIn] -> [TxOut] -> Coin -> Property
 prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
-    let extra = TxUpdate extraIns extraCol extraOuts (const id) (const newFee)
+    let extra = TxUpdate extraIns extraCol extraOuts (const newFee)
     let tx' = either (error . show) id
-            $ updateSealedTx dummyNodeProtocolParameters tx extra
+            $ updateSealedTx tx extra
     conjoin
-        [ sealedInputs tx' === sealedInputs tx <> Set.fromList extraIns
+        [ sealedInputs tx' === sealedInputs tx <> Set.fromList (fst <$> extraIns)
         , sealedOutputs tx' === sealedOutputs tx <> Set.fromList extraOuts
         , sealedFee tx' === Just newFee
         , sealedCollateral tx' ===
@@ -1491,23 +1491,41 @@ prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
     isAlonzo (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra _) = True
     isAlonzo (cardanoTx -> InAnyCardanoEra _ _) = False
 
+fst3 :: (a, b, c) -> a
+fst3 (a,_,_) = a
+
 sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
-    Set.fromList . map fst . view #resolvedInputs . _decodeSealedTx
+    Set.fromList . map fst . view #resolvedInputs . fst3 . _decodeSealedTx
 
 sealedCollateral :: SealedTx -> Set TxIn
 sealedCollateral =
-    Set.fromList . map fst . view #resolvedCollateral . _decodeSealedTx
+    Set.fromList . map fst . view #resolvedCollateral . fst3 . _decodeSealedTx
 
 sealedOutputs :: SealedTx -> Set TxOut
 sealedOutputs =
-    Set.fromList . view #outputs . _decodeSealedTx
+    Set.fromList . view #outputs . fst3 . _decodeSealedTx
+
+sealedNumberOfRedeemers :: SealedTx -> Int
+sealedNumberOfRedeemers sealedTx =
+    case cardanoTx sealedTx of
+        InAnyCardanoEra ByronEra _   -> 0
+        InAnyCardanoEra ShelleyEra _ -> 0
+        InAnyCardanoEra AllegraEra _ -> 0
+        InAnyCardanoEra MaryEra _    -> 0
+        InAnyCardanoEra AlonzoEra (Cardano.Tx body _) ->
+            let dats =
+                    case body of
+                        Cardano.ShelleyTxBody _ _ _ d _ _ -> d
+             in case dats of
+                    Cardano.TxBodyNoScriptData ->
+                        0
+                    Cardano.TxBodyScriptData _ _ (Alonzo.Redeemers rdmrs) ->
+                        Map.size rdmrs
 
 sealedFee :: SealedTx -> Maybe Coin
 sealedFee =
-    view #fee . _decodeSealedTx
-
-
+    view #fee . fst3 . _decodeSealedTx
 
 txWithInputsOutputsAndWits :: ByteString
 txWithInputsOutputsAndWits =
@@ -1533,16 +1551,3 @@ readTestTransactions = runIO $ do
     listDirectory dir
         >>= traverse (\f -> (f,) <$> BS.readFile (dir </> f))
         >>= traverse (\(f,bs) -> (f,) <$> unsafeSealedTxFromHex bs)
-
-dummyNodeProtocolParameters :: Cardano.ProtocolParameters
-dummyNodeProtocolParameters = fromLedgerAlonzoPParams Alonzo.emptyPParams
-
-hasPlutusScripts :: SealedTx -> Bool
-hasPlutusScripts sealedTx =
-    case cardanoTx sealedTx of
-        InAnyCardanoEra ByronEra _   -> False
-        InAnyCardanoEra ShelleyEra _ -> False
-        InAnyCardanoEra AllegraEra _ -> False
-        InAnyCardanoEra MaryEra _    -> False
-        InAnyCardanoEra AlonzoEra (Cardano.Tx body _) -> case body of
-            Cardano.ShelleyTxBody _ _ scripts _ _ _ -> not (null scripts)

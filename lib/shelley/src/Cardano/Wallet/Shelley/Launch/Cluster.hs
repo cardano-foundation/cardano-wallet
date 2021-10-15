@@ -56,6 +56,7 @@ module Cardano.Wallet.Shelley.Launch.Cluster
     , tokenMetadataServerFromEnv
 
       -- * Faucets
+    , Credential (..)
     , sendFaucetFundsTo
     , sendFaucetAssetsTo
     , moveInstantaneousRewardsTo
@@ -134,7 +135,11 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Launch
     ( TempDirLog (..), envFromText, isEnvSet, lookupEnvNonEmpty )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeRunExceptT )
+    ( unsafeBech32Decode, unsafeFromHex, unsafeRunExceptT )
+import Cardano.Wallet.Util
+    ( mapFirst )
+import Codec.Binary.Bech32.TH
+    ( humanReadablePart )
 import Control.Monad
     ( forM, forM_, liftM2, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Trans.Except
@@ -149,6 +154,8 @@ import Data.Aeson
     ( FromJSON (..), object, toJSON, (.:), (.=) )
 import Data.Bifunctor
     ( bimap )
+import Data.Bits
+    ( (.|.) )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -216,6 +223,9 @@ import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Shelley
+import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
@@ -765,7 +775,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
     (kesPrv, kesPub) <- genKesKeyPair tr dir
     (stakePrv, stakePub) <- genStakeAddrKeyPair tr dir
 
-    stakeCert <- issueStakeCert tr dir "stake-pool" stakePub
+    stakeCert <- issueStakeVkCert tr dir "stake-pool" stakePub
     poolRegistrationCert <- issuePoolRegistrationCert
         tr dir opPub vrfPub stakePub url metadata pledgeAmt
     mPoolRetirementCert <- traverse
@@ -1097,18 +1107,34 @@ issueOpCert tr dir kesPub opPrv opCount = do
         ]
     pure file
 
--- | Create a stake address registration certificate
-issueStakeCert
+-- | Create a stake address registration certificate from a vk
+issueStakeVkCert
     :: Tracer IO ClusterLog
     -> FilePath
     -> String
     -> FilePath
     -> IO FilePath
-issueStakeCert tr dir prefix stakePub = do
+issueStakeVkCert tr dir prefix stakePub = do
     let file = dir </> prefix <> "-stake.cert"
     cli tr
         [ "stake-address", "registration-certificate"
         , "--staking-verification-key-file", stakePub
+        , "--out-file", file
+        ]
+    pure file
+
+-- | Create a stake address registration certificate from a script
+issueStakeScriptCert
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> String
+    -> FilePath
+    -> IO FilePath
+issueStakeScriptCert tr dir prefix stakeScript = do
+    let file = dir </> prefix <> "-stake.cert"
+    cli tr
+        [ "stake-address", "registration-certificate"
+        , "--stake-script-file", stakeScript
         , "--out-file", file
         ]
     pure file
@@ -1351,14 +1377,18 @@ batch s xs = forM_ (group s xs)
       | n > 0 = (take n l) : (group n (drop n l))
       | otherwise = error "Negative or zero n"
 
+data Credential
+    = KeyCredential XPub
+    | ScriptCredential ByteString
+
 moveInstantaneousRewardsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> FilePath
-    -> [(XPub, Coin)]
+    -> [(Credential, Coin)]
     -> IO ()
 moveInstantaneousRewardsTo tr conn dir targets = do
-    certs <- mapM (mkVerificationKey >=> mkMIRCertificate) targets
+    certs <- mapM mkCredentialCerts targets
     (faucetInput, faucetPrv) <- takeFaucet
     let file = dir </> "mir-tx.raw"
 
@@ -1371,7 +1401,7 @@ moveInstantaneousRewardsTo tr conn dir targets = do
     cli tr $
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
-        , "--ttl", "600"
+        , "--ttl", "999999999"
         , "--fee", show (faucetAmt - 1_000_000 - totalDeposit)
         , "--tx-out", sink <> "+" <> "1000000"
         , "--out-file", file
@@ -1383,10 +1413,52 @@ moveInstantaneousRewardsTo tr conn dir targets = do
     tx <- signTx tr dir file [faucetPrv, bftPrv]
     submitTx tr conn "MIR certificates" tx
   where
+    mkCredentialCerts
+        :: (Credential, Coin)
+        -> IO [FilePath]
+    mkCredentialCerts = \case
+        (KeyCredential xpub, coin) -> do
+            (prefix, vkFile) <- mkVerificationKey xpub
+            stakeAddr <- cliLine tr
+                [ "stake-address"
+                , "build"
+                , "--mainnet"
+                , "--stake-verification-key-file" , vkFile
+                ]
+            stakeCert <- issueStakeVkCert tr dir prefix vkFile
+            mirCert <- mkMIRCertificate (stakeAddr, coin)
+            pure [stakeCert, mirCert]
+
+        (ScriptCredential script, coin) -> do
+            (prefix, scriptFile) <- mkScript script
+            -- NOTE: cardano-cli does not support creating stake-address from
+            -- scripts just yet... So it's a bit ugly, but we create a stake
+            -- address by creating a standard address, and replacing the header.
+            stakeAddr <- toStakeAddress <$> cliLine tr
+                [ "address"
+                , "build"
+                , "--mainnet"
+                , "--payment-script-file" , scriptFile
+                ]
+            stakeCert <- issueStakeScriptCert tr dir prefix scriptFile
+            mirCert <- mkMIRCertificate (stakeAddr, coin)
+            pure [stakeCert, mirCert]
+
+      where
+        toStakeAddress =
+            T.unpack
+            . Bech32.encodeLenient hrp . Bech32.dataPartFromBytes
+            . BL.toStrict
+            . BL.pack . mapFirst (240 .|.) . BL.unpack
+            . unsafeBech32Decode
+            . T.pack
+          where
+            hrp = [humanReadablePart|stake|]
+
     mkVerificationKey
-        :: (XPub, Coin)
-        -> IO (String, FilePath, Coin)
-    mkVerificationKey (xpub, reward) = do
+        :: XPub
+        -> IO (String, FilePath)
+    mkVerificationKey xpub = do
         let base16 = T.unpack $ T.decodeUtf8 $ hex $ xpubPublicKey xpub
         let json = Aeson.object
                 [ "type" .= Aeson.String "StakeVerificationKeyShelley_ed25519"
@@ -1395,21 +1467,28 @@ moveInstantaneousRewardsTo tr conn dir targets = do
                 ]
         let file = dir </> base16 <> ".vk"
         BL8.writeFile file (Aeson.encode json)
-        pure (base16, file, reward)
+        pure (base16, file)
+
+    mkScript
+        :: ByteString
+        -> IO (String, FilePath)
+    mkScript bytes = do
+        let base16 = T.decodeUtf8 $ hex $ CBOR.toStrictByteString $ CBOR.encodeBytes bytes
+        let json = Aeson.object
+                [ "type" .= Aeson.String "PlutusScriptV1"
+                , "description" .= Aeson.String ""
+                , "cborHex" .= Aeson.String base16
+                ]
+        let prefix = take 100 (T.unpack base16)
+        let file = dir </> prefix <> ".plutus"
+        BL8.writeFile file (Aeson.encode json)
+        pure (prefix, file)
 
     mkMIRCertificate
-        :: (String, FilePath, Coin)
-        -> IO [FilePath]
-    mkMIRCertificate (pub, stakeVK, Coin reward) = do
-        let mirCert = dir </> pub <> ".mir"
-        stakeCert <- issueStakeCert tr dir pub stakeVK
-        stakeAddr <- cliLine tr
-            [ "stake-address"
-            , "build"
-            , "--mainnet"
-            , "--stake-verification-key-file" , stakeVK
-            ]
-
+        :: (String, Coin)
+        -> IO FilePath
+    mkMIRCertificate (stakeAddr, Coin reward) = do
+        let mirCert = dir </> stakeAddr <> ".mir"
         cli tr
             [ "governance", "create-mir-certificate"
             , "--reserves"
@@ -1417,7 +1496,7 @@ moveInstantaneousRewardsTo tr conn dir targets = do
             , "--stake-address", stakeAddr
             , "--out-file", mirCert
             ]
-        pure [stakeCert, mirCert]
+        pure mirCert
 
 -- | Generate a raw transaction. We kill two birds one stone here by also
 -- automatically delegating 'pledge' amount to the given stake key.
@@ -1433,7 +1512,7 @@ prepareKeyRegistration tr dir = do
 
     (faucetInput, faucetPrv) <- takeFaucet
 
-    cert <- issueStakeCert tr dir "pre-registered" stakePub
+    cert <- issueStakeVkCert tr dir "pre-registered" stakePub
     sink <- genSinkAddress tr dir Nothing
 
     cli tr

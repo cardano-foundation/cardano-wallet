@@ -49,6 +49,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
     , TxStatus (..)
@@ -57,9 +59,11 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardanoBody
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkMnemonic )
+    ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Arrow
     ( second )
+import Control.Monad
+    ( foldM_, forM_ )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -110,6 +114,7 @@ import Test.Integration.Framework.DSL
     , fixtureWalletWith
     , fixtureWalletWithMnemonics
     , getFromResponse
+    , getSomeVerificationKey
     , json
     , listAddresses
     , minUTxOValue
@@ -120,6 +125,7 @@ import Test.Integration.Framework.DSL
     , submitTx
     , unsafeRequest
     , verify
+    , waitForNextEpoch
     , waitForTxImmutability
     )
 import Test.Integration.Framework.TestData
@@ -144,6 +150,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
@@ -1197,34 +1204,63 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     describe "Plutus scenarios" $ do
-        -- NOTE: This test scenario is currently unreliable because of the way
-        -- the redeemer pointers work. Redeemers are identified by pointers into
-        -- the input set, but that set is an ordered set where the order is
-        -- determined lexicographically based on the txin's transaction id and
-        -- index. Thus, adding new inputs during the coin selection may
-        -- arbitrarily change the order of inputs in the inputs set and thus,
-        -- render redeemer pointers invalid.
-        --
-        -- A solution to this would be to assign pointers only after the
-        -- transaction has been balanced; to be done properly, this requires an
-        -- API change so that clients (e.g. the PAB) can give us a little bit
-        -- more information about the nature of each redeemers in order to
-        -- connect the dots at the end.
-        it "ping-pong" $ \ctx -> runResourceT $ do
-            liftIO $ pendingWith "Need to dynamically assign redeemer pointers in API."
+        let scenarios =
+                [ ( "ping-pong"
+                  , \_ _ -> pure
+                      ( PlutusScenario.pingPong_1
+                      , [ PlutusScenario.pingPong_2 ]
+                      )
+                  )
+                , ( "game state-machine"
+                  , \_ _ -> pure
+                      ( PlutusScenario.game_1
+                      , [ PlutusScenario.game_2
+                        , PlutusScenario.game_3
+                        ]
+                      )
+                  )
+                , ( "mint-burn"
+                  , \ctx w -> do
+                        (_vk, vkHash) <- getSomeVerificationKey ctx w
+                        let (policy, policyId) = PlutusScenario.mkSignerPolicy [json|{
+                                "vkHash": #{vkHash} }
+                            |]
+                        mint <- PlutusScenario.mintBurn_1 [json|{
+                            "policy": #{policy},
+                            "policyId": #{policyId},
+                            "vkHash": #{vkHash}
+                        }|]
+                        let burn = \_ -> PlutusScenario.mintBurn_2 [json|{
+                                "policy": #{policy},
+                                "policyId": #{policyId},
+                                "vkHash": #{vkHash}
+                            }|]
+                        pure (mint, [burn])
+                  )
+                , ( "withdrawal"
+                  , \ctx _w -> do
+                        let (script, _scriptHash) = PlutusScenario.alwaysTrueValidator
+                        liftIO $ _moveRewardsToScript ctx
+                            ( unsafeFromHex $ T.encodeUtf8 script
+                            , Coin 42000000
+                            )
+                        waitForNextEpoch ctx
+                        withdrawal <- PlutusScenario.withdrawScript_1
+                        pure (withdrawal, [])
+                  )
+                ]
 
+        forM_ scenarios $ \(title, setupContract) -> it title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             let balanceEndpoint = Link.balanceTransaction @'Shelley w
             let signEndpoint = Link.signTransaction @'Shelley w
 
-            --
-            -- Part 1 :: Contract Setup
-            --
+            (setup, steps) <- setupContract ctx w
 
             -- Balance
-            let toBalance = Json PlutusScenario.pingPong_1
+            let toBalance = Json setup
             (_, sealedTx) <- second (view #transaction) <$>
-                unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance
+                unsafeRequest @ApiSerialisedTransaction ctx balanceEndpoint toBalance
 
             -- Sign
             let toSign = Json [json|
@@ -1236,30 +1272,28 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             -- Submit
             txid <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
-            waitForTxImmutability ctx
 
-            --
-            -- Part 2 :: Contract Utilization
-            --
+            let runStep = \previous step -> do
+                    waitForTxImmutability ctx
 
-            -- Balance
-            partialTx' <- PlutusScenario.pingPong_2 $ Aeson.object
-                [ "transactionId" .= view #id txid ]
-            let toBalance' = Json (toJSON partialTx')
+                    -- Balance
+                    partialTx' <- step $ Aeson.object [ "transactionId" .= view #id previous ]
+                    let toBalance' = Json (toJSON partialTx')
 
-            -- Sign
-            (_, sealedTx') <- second (view #transaction) <$>
-                unsafeRequest @(ApiConstructTransaction n) ctx balanceEndpoint toBalance'
+                    -- Sign
+                    (_, sealedTx') <- second (view #transaction) <$>
+                        unsafeRequest @ApiSerialisedTransaction ctx balanceEndpoint toBalance'
+                    let toSign' = Json [json|
+                            { "transaction": #{sealedTx'}
+                            , "passphrase": #{fixturePassphrase}
+                            }|]
+                    (_, signedTx') <- second (view #transaction) <$>
+                        unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign'
 
-            let toSign' = Json [json|
-                    { "transaction": #{sealedTx'}
-                    , "passphrase": #{fixturePassphrase}
-                    }|]
-            (_, signedTx') <- second (view #transaction) <$>
-                unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign'
+                    -- Submit
+                    submitTx ctx signedTx' [ expectResponseCode HTTP.status202 ]
 
-            -- Submit
-            void $ submitTx ctx signedTx' [ expectResponseCode HTTP.status202 ]
+            foldM_ runStep txid steps
   where
     unsafeGetTx
         :: MonadIO m

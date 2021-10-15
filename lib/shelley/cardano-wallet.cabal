@@ -31,6 +31,7 @@ library
   build-depends:
       base
     , aeson
+    , array
     , base58-bytestring
     , bech32
     , bech32-th
@@ -75,6 +76,7 @@ library
     , ouroboros-network-framework
     , random
     , retry
+    , serialise
     , servant-server
     , shelley-spec-ledger
     , strict-containers

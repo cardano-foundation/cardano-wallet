@@ -162,7 +162,6 @@ module Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostData (..)
     , ApiExternalInput (..)
     , ApiRedeemer (..)
-    , ApiRedeemerCertificate (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -241,9 +240,8 @@ import Cardano.Address.Derivation
 import Cardano.Address.Script
     ( Cosigner (..), KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
 import Cardano.Api
-    ( PaymentKey
+    ( StakeAddress
     , TxMetadataJsonSchema (..)
-    , VerificationKey
     , deserialiseFromBech32
     , displayError
     , metadataFromJson
@@ -1007,6 +1005,7 @@ data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     , address :: !(ApiT Address, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
+    , datum :: !(Maybe (ApiT (Hash "Datum")))
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
@@ -1021,24 +1020,8 @@ type ApiRedeemerData = ApiBytesT 'Base16 ByteString
 data ApiRedeemer (n :: NetworkDiscriminant)
     = ApiRedeemerSpending ApiRedeemerData (ApiT TxIn)
     | ApiRedeemerMinting ApiRedeemerData (ApiT W.TokenPolicyId)
-    | ApiRedeemerRewarding ApiRedeemerData (ApiT W.RewardAccount, Proxy n)
-    | ApiRedeemerCertifying ApiRedeemerData ApiRedeemerCertificate
+    | ApiRedeemerRewarding ApiRedeemerData StakeAddress
     deriving (Eq, Generic, Show)
-
-data ApiRedeemerCertificate = ApiRedeemerCertificate
-    { delegator :: !(ApiT (VerificationKey PaymentKey))
-    , delegate :: !(ApiT (VerificationKey PaymentKey))
-    , epochNumber :: !(ApiT EpochNo)
-    , signature :: !(ApiBytesT 'Base16 ByteString)
-    } deriving (Eq, Generic, Show)
-
-instance ToJSON (ApiT (VerificationKey PaymentKey)) where
-    toJSON = toJSON . serialiseToBech32 . getApiT
-instance FromJSON (ApiT (VerificationKey PaymentKey)) where
-    parseJSON = withText "VerificationKey" $ \text ->
-        case deserialiseFromBech32 (proxyToAsType Proxy) text of
-            Left e -> fail (show e)
-            Right vk -> pure (ApiT vk)
 
 data ApiFee = ApiFee
     { estimatedMin :: !(Quantity "lovelace" Natural)
@@ -1573,6 +1556,10 @@ data ApiErrorCode
     | SharedWalletScriptTemplateInvalid
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
+    | RedeemerScriptFailure
+    | RedeemerTargetNotFound
+    | RedeemerInvalidData
+    | ExistingKeyWitnesses
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
@@ -2376,6 +2363,16 @@ instance FromJSON (ApiT XPrv) where
 instance ToJSON (ApiT XPrv) where
     toJSON = toJSON . toText
 
+instance FromJSON (ApiT (Hash "VerificationKey")) where
+    parseJSON = fromTextJSON "VerificationKey Hash"
+instance ToJSON (ApiT (Hash "VerificationKey")) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT (Hash "TokenPolicy")) where
+    parseJSON = fromTextJSON "TokenPolicy Hash"
+instance ToJSON (ApiT (Hash "TokenPolicy")) where
+    toJSON = toTextJSON
+
 instance FromJSON ByronWalletFromXPrvPostData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ByronWalletFromXPrvPostData where
@@ -2742,10 +2739,11 @@ instance DecodeStakeAddress n => FromJSON (ApiRedeemer n) where
                 ApiRedeemerSpending bytes <$> (o .: "input")
             "minting" ->
                 ApiRedeemerMinting bytes <$> (o .: "policy_id")
-            "rewarding" ->
-                ApiRedeemerRewarding bytes <$> (o .: "stake_address")
-            "certifying" ->
-                ApiRedeemerCertifying bytes <$> (o .: "certificate")
+            "rewarding" -> do
+                text <- o .: "stake_address"
+                case deserialiseFromBech32 (proxyToAsType Proxy) text of
+                    Left e -> fail (show e)
+                    Right addr -> pure $ ApiRedeemerRewarding bytes addr
             _ ->
                 fail "unknown purpose for redeemer."
 instance EncodeStakeAddress n => ToJSON (ApiRedeemer n) where
@@ -2763,18 +2761,8 @@ instance EncodeStakeAddress n => ToJSON (ApiRedeemer n) where
         ApiRedeemerRewarding bytes addr -> object
             [ "purpose" .= ("rewarding" :: Text)
             , "data" .= bytes
-            , "stake_address" .= addr
+            , "stake_address" .= serialiseToBech32 addr
             ]
-        ApiRedeemerCertifying bytes cert -> object
-            [ "purpose" .= ("certifying" :: Text)
-            , "data" .= bytes
-            , "certificate" .= cert
-            ]
-
-instance FromJSON ApiRedeemerCertificate where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiRedeemerCertificate where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance (DecodeStakeAddress n, DecodeAddress n)
     => FromJSON (ApiBalanceTransactionPostData n)
@@ -3021,6 +3009,11 @@ instance ToJSON (ApiT TxIn) where
 instance FromJSON (ApiT (Hash "Tx")) where
     parseJSON = fromTextJSON "Tx Hash"
 instance ToJSON (ApiT (Hash "Tx")) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT (Hash "Datum")) where
+    parseJSON = fromTextJSON "Datum Hash"
+instance ToJSON (ApiT (Hash "Datum")) where
     toJSON = toTextJSON
 
 instance FromJSON (ApiT Direction) where

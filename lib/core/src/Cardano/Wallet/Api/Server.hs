@@ -228,6 +228,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostAccountKeyDataWithPurpose (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
+    , ApiRedeemer (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsPayments
     , ApiSerialisedTransaction (..)
@@ -419,6 +420,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), coinQuantity, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Redeemer
+    ( Redeemer (..), redeemerData )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -426,13 +429,15 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo
+    ( SealedTx
+    , TransactionInfo
     , Tx (..)
     , TxChange (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , txOutAddCoin
     , txOutCoin
     )
 import Cardano.Wallet.Registry
@@ -446,6 +451,7 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , ErrAssignRedeemers (..)
     , ErrSignTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
@@ -455,6 +461,10 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Cardano.Wallet.Util
+    ( mapFirst )
+import Control.Applicative
+    ( (<|>) )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -591,6 +601,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -602,6 +613,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -2224,15 +2236,15 @@ balanceTransaction ctx genChange (ApiT wid) body = do
     -- TODO: This throws when still in the Byron era.
     nodePParams <- fromJust <$> liftIO (NW.currentNodeProtocolParameters nl)
 
-    let partialTx = body ^. #transaction . #getApiT
-    let (outputs, txWithdrawal, txMetadata) = extractFromTx partialTx
+    let (outputs, txWithdrawal, txMetadata, txAssetsToMint, txAssetsToBurn) = extractFromTx partialTx
 
-    (newFee, extraInputs, extraCollateral, extraOutputs) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (delta, extraInputs, extraCollateral, extraOutputs) <-
+      withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (internalUtxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
 
-        let externalSelectedUtxo =
-                UTxOIndex.fromSequence (toTxInTxOut <$> (body ^. #inputs))
+        let externalSelectedUtxo = UTxOIndex.fromSequence
+                ((\(a,b,_)-> (a,b)) <$> externalInputs)
 
         let utxoAvailableForInputs = UTxOSelection.fromIndexPair
                 (internalUtxoAvailable, externalSelectedUtxo)
@@ -2248,11 +2260,13 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -- transaction considering only the maximum cost, and only after, try to
         -- adjust the change and ExUnits of each redeemer to something more
         -- sensible than the max execution cost.
-        let txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp partialTx
+        let txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp redeemers
         let txContext = defaultTransactionCtx
                 { txPlutusScriptExecutionCost
                 , txMetadata
                 , txWithdrawal
+                , txAssetsToMint
+                , txAssetsToBurn
                 , txCollateralRequirement =
                     if txPlutusScriptExecutionCost > Coin 0 then
                         SelectionCollateralRequired
@@ -2268,8 +2282,9 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -- balancing.
         let transform s sel =
                 let (sel', _) = W.assignChangeAddresses genChange sel s
-                 in ( const (selectionDelta txOutCoin sel')
-                    , fst <$> F.toList (sel' ^. #inputs)
+                    inputs = F.toList (sel' ^. #inputs)
+                 in ( selectionDelta txOutCoin sel'
+                    , inputs
                     , fst <$> (sel' ^. #collateral)
                     , sel' ^. #change
                     )
@@ -2283,30 +2298,75 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             }
             transform
 
-    let txUpdate =
-            TxUpdate { extraInputs, extraCollateral, extraOutputs, newFee, newExUnits }
-          where
-            -- FIXME: At this stage, we set all execution units for all redeemers to the
-            -- max cost, which is guaranteed to succeed (given the coin selection above
-            -- was done with the same assumption) but also terribly ineffective when it
-            -- comes to reducing the cost. This is however sufficient to start
-            -- preliminary integration work.
-            newExUnits = const (const (pp ^. #txParameters . #getMaxExecutionUnits))
+    -- NOTE:
+    -- Once the coin-selection is done, we need to
+    --
+    -- (a) Add selected inputs, collateral and change outputs to the transaction
+    -- (b) Assign correct execution units to every redeemers
+    -- (c) Correctly reference redeemed entities with redeemer pointers
+    -- (d) Adjust fees and change output(s) to the new fees.
+    --
+    -- There's a strong assumption that modifying the fee value AND increasing
+    -- the coin value of change outputs does not modify transaction fees; or
+    -- more exactly, does not modify the execution units of scripts. This is in
+    -- principle a fair assumption because scripts validators ought to be
+    -- unaware of change outputs. If their execution cost increases when change
+    -- output increases, then it becomes impossible to guarantee that the fee
+    -- balancing will ever converge towards a fixed point. A script validator
+    -- doing such thing is considered bonkers and this is not a behavior we
+    -- ought to support.
 
-    case ApiT <$> updateTx tl nodePParams partialTx txUpdate of
-        Left err -> liftHandler $ throwE $ ErrBalanceTxUpdateError err
-        Right transaction -> pure $ ApiSerialisedTransaction { transaction }
+    candidateTx <- assembleTransaction nodePParams $ TxUpdate
+        { extraInputs
+        , extraCollateral
+        , extraOutputs
+        , newFee = const delta
+        }
+    let candidateMinFee = fromMaybe (Coin 0) $
+            evaluateMinimumFee tl nodePParams candidateTx
+
+    let surplus = delta `Coin.distance` candidateMinFee
+    finalTx <- assembleTransaction nodePParams $ TxUpdate
+        { extraInputs
+        , extraCollateral
+        , extraOutputs = mapFirst (txOutAddCoin surplus) extraOutputs
+        , newFee = const candidateMinFee
+        }
+
+    pure $ ApiSerialisedTransaction
+        { transaction = ApiT finalTx
+        }
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. W.transactionLayer @k
+    ti = timeInterpreter (ctx ^. networkLayer)
 
-    toTxInTxOut (ApiExternalInput (ApiT tid) ix (ApiT addr, _) (Quantity amt) (ApiT assets)) =
-      ( TxIn tid ix
-      , TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
-      )
+    partialTx :: SealedTx
+    partialTx = body ^. #transaction . #getApiT
+
+    redeemers :: [Redeemer]
+    redeemers = fromApiRedeemer <$> body ^. #redeemers
+
+    externalInputs :: [(TxIn, TxOut, Maybe (Hash "Datum"))]
+    externalInputs = fromExternalInput <$> body ^. #inputs
+
+    assembleTransaction
+        :: Cardano.ProtocolParameters
+        -> TxUpdate
+        -> Handler SealedTx
+    assembleTransaction nodePParams update = do
+        tx' <- asHandler $ updateTx tl partialTx update
+        liftHandler $ ExceptT $ assignScriptRedeemers
+            tl nodePParams ti resolveInput redeemers tx'
+      where
+        resolveInput :: TxIn -> Maybe (TxOut, Maybe (Hash "Datum"))
+        resolveInput i =
+            (\(_,o,d) -> (o,d)) <$> L.find (\(i',_,_) -> i == i') externalInputs
+            <|>
+            (\(_,o) -> (o, Nothing)) <$> L.find (\(i',_) -> i == i') (extraInputs update)
 
     extractFromTx tx =
-        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt) = decodeTx tl tx
+        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt, toMint, toBurn) = decodeTx tl tx
             -- TODO: Find a better abstraction that can cover this case.
             wdrl = WithdrawalSelf
                 (error $ "WithdrawalSelf: reward-account should never been use "
@@ -2316,7 +2376,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                       <> "when balancing transactions but it was!"
                 )
                 (sumCoins wdrlMap)
-         in (outs, wdrl, meta)
+         in (outs, wdrl, meta, toMint, toBurn)
 
     -- | Wallet coin selection is unaware of many kinds of transaction content
     -- (e.g. datums, redeemers), which could be included in the input to
@@ -2333,7 +2393,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
         -> TransactionCtx
     padFeeEstimation sealedTx pp pp' txCtx =
         let
-            walletTx = decodeTx tl sealedTx
+            (walletTx, _, _) = decodeTx tl sealedTx
             worseEstimate = calcMinimumCost tl pp txCtx skeleton
             skeleton = SelectionSkeleton
                 { skeletonInputCount = length (view #resolvedInputs walletTx)
@@ -2343,7 +2403,13 @@ balanceTransaction ctx genChange (ApiT wid) body = do
             LinearFee _ (Quantity b) = pp ^. #txParameters . #getFeePolicy
             -- NOTE: Coping with the later additions of script integrity hash and
             -- redeemers ex units increased from 0 to their actual values.
-            extraMargin = Coin $ ceiling (100 * b)
+            extraMargin = Coin $ ceiling $ (*) b $ fromIntegral
+                $ sizeOfScriptIntegrityHash
+                + sum ((+sizeOfRedeemerCommon) . BS.length . redeemerData <$> redeemers)
+              where
+                sizeOfScriptIntegrityHash = 35
+                sizeOfRedeemerCommon = 17
+
             txFeePadding = (<> extraMargin) $ fromMaybe (Coin 0) $ do
                 betterEstimate <- evaluateMinimumFee tl pp' sealedTx
                 betterEstimate `subtractCoin` worseEstimate
@@ -3389,6 +3455,30 @@ getWalletTip
     -> m ApiBlockReference
 getWalletTip ti = makeApiBlockReferenceFromHeader ti . currentTip
 
+fromExternalInput :: ApiExternalInput n -> (TxIn, TxOut, Maybe (Hash "Datum"))
+fromExternalInput ApiExternalInput
+    { id = ApiT tid
+    , index = ix
+    , address = (ApiT addr, _)
+    , amount = Quantity amt
+    , assets = ApiT assets
+    , datum
+    }
+  =
+    ( TxIn tid ix
+    , TxOut addr (TokenBundle (Coin $ fromIntegral amt) assets)
+    , getApiT <$> datum
+    )
+
+fromApiRedeemer :: ApiRedeemer n -> Redeemer
+fromApiRedeemer = \case
+    ApiRedeemerSpending (ApiBytesT bytes) (ApiT i) ->
+        RedeemerSpending bytes i
+    ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
+        RedeemerMinting bytes p
+    ApiRedeemerRewarding (ApiBytesT bytes) r ->
+        RedeemerRewarding bytes r
+
 {-------------------------------------------------------------------------------
                                 Api Layer
 -------------------------------------------------------------------------------}
@@ -3561,6 +3651,11 @@ liftHandler action = Handler (withExceptT toServerError action)
 
 liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
+
+asHandler :: IsServerError e => Either e a -> Handler a
+asHandler = \case
+    Left e  -> liftE e
+    Right a -> return a
 
 apiError :: ServerError -> ApiErrorCode -> Text -> ServerError
 apiError err code message = err
@@ -4168,6 +4263,47 @@ instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
                 , "indexes valid for hardened derivation only. That is, indexes "
                 , "between 0H and ", pretty (Index $ maxIx - minIx), "H."
                 ]
+
+instance IsServerError ErrUpdateSealedTx where
+    toServerError = \case
+        ErrExistingKeyWitnesses{} ->
+            apiError err400 ExistingKeyWitnesses $ T.unwords
+                [ "I cannot proceed with the request because there are key"
+                , "witnesses defined in the input transaction and, adjusting"
+                , "the transaction body will render witnesses invalid!"
+                , "Please make sure to remove all key witnesses from the request."
+                ]
+        ErrByronTxNotSupported{} ->
+            apiError err501 NotImplemented  $ T.unwords
+                [ "You just tried to submit a transaction in the Byron format,"
+                , "but this is not something I support on this particular"
+                , "endpoint. It's time to upgrade!"
+                ]
+
+instance IsServerError ErrAssignRedeemers where
+    toServerError = \case
+        ErrAssignRedeemersScriptFailure r failure ->
+            apiError err400 RedeemerScriptFailure $ T.unwords
+                [ "I was unable to assign execution units to one of your"
+                , "redeemers:", pretty r <> ";"
+                , "Its execution is failing with the following error:"
+                , T.pack failure <> "."
+                ]
+        ErrAssignRedeemersTargetNotFound r ->
+            apiError err400 RedeemerTargetNotFound $ T.unwords
+                [ "I was unable to resolve one of your redeemers to the location"
+                , "indicated in the request payload:", pretty r <> ";"
+                , "Please double-check both your serialised transaction and"
+                , "the provided redeemers."
+                ]
+        ErrAssignRedeemersInvalidData r _ ->
+            apiError err400 RedeemerInvalidData $ T.unwords
+                [ "It looks like you have provided an invalid 'data' payload"
+                , "for one of your redeemers since I am unable to decode it"
+                , "into a valid Plutus data:", pretty r <> "."
+                ]
+        ErrAssignRedeemersPastHorizon e ->
+            toServerError e
 
 instance IsServerError (Request, ServerError) where
     toServerError (req, err@(ServerError code _ body _))

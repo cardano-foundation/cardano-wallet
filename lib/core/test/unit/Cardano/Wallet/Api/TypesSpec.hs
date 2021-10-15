@@ -36,7 +36,7 @@ import Cardano.Address.Script
     , ValidationLevel (..)
     )
 import Cardano.Api
-    ( PaymentKey, VerificationKey, deserialiseFromRawBytes, proxyToAsType )
+    ( StakeAddress, deserialiseFromRawBytes, proxyToAsType )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -114,7 +114,6 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
-    , ApiRedeemerCertificate (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
@@ -2077,6 +2076,7 @@ instance Arbitrary (ApiExternalInput n) where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary (ApiBalanceTransactionPostData n) where
     arbitrary = ApiBalanceTransactionPostData
@@ -2089,20 +2089,15 @@ instance Arbitrary (ApiRedeemer n) where
         [ ApiRedeemerSpending <$> arbitrary <*> arbitrary
         , ApiRedeemerMinting <$> arbitrary <*> arbitrary
         , ApiRedeemerRewarding <$> arbitrary <*> arbitrary
-        , ApiRedeemerCertifying <$> arbitrary <*> arbitrary
         ]
 
-instance Arbitrary ApiRedeemerCertificate where
-    arbitrary = ApiRedeemerCertificate
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-
-instance Arbitrary (VerificationKey PaymentKey) where
+instance Arbitrary StakeAddress where
     arbitrary = do
-        bytes <- BS.pack <$> vector 32
-        pure $ fromJust $ deserialiseFromRawBytes (proxyToAsType Proxy) bytes
+        header  <- elements [ BS.singleton 241, BS.singleton 224 ]
+        payload <- BS.pack <$> vector 28
+        pure $ fromJust $ deserialiseFromRawBytes
+            (proxyToAsType Proxy)
+            (header <> payload)
 
 instance Arbitrary (PostMintBurnAssetData n) where
     arbitrary = applyArbitrary4 PostMintBurnAssetData
@@ -2402,6 +2397,9 @@ instance Arbitrary (Quantity "slot" Natural) where
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word8)
 
 instance Arbitrary (Hash "Tx") where
+    arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
+
+instance Arbitrary (Hash "Datum") where
     arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
 
 instance Arbitrary Direction where

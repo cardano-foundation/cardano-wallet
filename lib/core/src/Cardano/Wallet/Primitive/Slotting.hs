@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE Rank2Types #-}
@@ -37,6 +38,10 @@ module Cardano.Wallet.Primitive.Slotting
     , fromRelativeTime
     , addRelTime
 
+      -- ** Blockchain-absolute times
+    , SystemStart
+    , getSystemStart
+
       -- ** What's the time?
     , currentRelativeTime
     , getCurrentTimeRelativeFromStart
@@ -48,6 +53,10 @@ module Cardano.Wallet.Primitive.Slotting
     , PastHorizonException (..)
     , interpretQuery
     , TimeInterpreterLog (..)
+
+      -- ** EpochInfo
+    , EpochInfo
+    , toEpochInfo
 
       -- ** Combinators for running queries
     , unsafeExtendSafeZone
@@ -62,6 +71,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasSeverityAnnotation (..) )
+import Cardano.Slotting.EpochInfo.API
+    ( EpochInfo )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types
@@ -108,7 +119,9 @@ import Fmt
 import GHC.Stack
     ( CallStack, HasCallStack, getCallStack, prettySrcLoc )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), SystemStart (..), addRelTime )
+    ( RelativeTime (..), SystemStart (SystemStart), addRelTime )
+import Ouroboros.Consensus.HardFork.History.EpochInfo
+    ( interpreterToEpochInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( Expr (..)
     , Interpreter
@@ -375,6 +388,17 @@ data TimeInterpreter m = forall eras. TimeInterpreter
     , tracer :: Tracer m TimeInterpreterLog
     , handleResult :: forall a. Either PastHorizonException a -> m a
     }
+
+toEpochInfo
+    :: forall m. (Applicative m)
+    => TimeInterpreter m
+    -> m (EpochInfo (ExceptT PastHorizonException Identity))
+toEpochInfo TimeInterpreter{interpreter} =
+    interpreterToEpochInfo <$> interpreter
+
+getSystemStart :: TimeInterpreter m -> SystemStart
+getSystemStart TimeInterpreter{blockchainStartTime} =
+    let (StartTime t) = blockchainStartTime in SystemStart t
 
 data TimeInterpreterLog
     = MsgInterpreterPastHorizon

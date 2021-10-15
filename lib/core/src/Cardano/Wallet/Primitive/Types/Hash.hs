@@ -22,6 +22,8 @@ module Cardano.Wallet.Primitive.Types.Hash
 
 import Prelude
 
+import Cardano.Wallet.Util
+    ( mapFirst )
 import Control.DeepSeq
     ( NFData (..) )
 import Crypto.Hash
@@ -70,14 +72,15 @@ instance Buildable (Hash tag) where
 instance ToText (Hash tag) where
     toText = T.decodeUtf8 . convertToBase Base16 . getHash
 
-instance FromText (Hash "Tx")            where fromText = hashFromText 32
-instance FromText (Hash "Account")       where fromText = hashFromText 32
-instance FromText (Hash "Genesis")       where fromText = hashFromText 32
-instance FromText (Hash "Block")         where fromText = hashFromText 32
-instance FromText (Hash "BlockHeader")   where fromText = hashFromText 32
-instance FromText (Hash "RewardAccount") where fromText = hashFromText 28
-instance FromText (Hash "TokenPolicy")   where fromText = hashFromText 28 -- Script Hash
-instance FromText (Hash "Datum")         where fromText = hashFromText 32
+instance FromText (Hash "Tx")              where fromText = hashFromText 32
+instance FromText (Hash "Account")         where fromText = hashFromText 32
+instance FromText (Hash "Genesis")         where fromText = hashFromText 32
+instance FromText (Hash "Block")           where fromText = hashFromText 32
+instance FromText (Hash "BlockHeader")     where fromText = hashFromText 32
+instance FromText (Hash "RewardAccount")   where fromText = hashFromText 28
+instance FromText (Hash "TokenPolicy")     where fromText = hashFromText 28 -- Script Hash
+instance FromText (Hash "Datum")           where fromText = hashFromText 32
+instance FromText (Hash "VerificationKey") where fromText = hashFromText 28
 
 hashFromText
     :: forall t. (KnownSymbol t)
@@ -98,10 +101,6 @@ hashFromText len text = case decoded of
             ]
   where
     decoded = convertFromBase Base16 $ T.encodeUtf8 text
-
-    mapFirst :: (a -> a) -> [a] -> [a]
-    mapFirst _     [] = []
-    mapFirst fn (h:q) = fn h:q
 
 -- | Constructs a hash that is good enough for testing.
 --

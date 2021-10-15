@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
 
 -- |
@@ -21,6 +22,10 @@ module Cardano.Wallet.Util
 
     -- * String formatting
     , ShowFmt (..)
+    , mapFirst
+
+    -- * StateT
+    , modifyM
 
     -- * HTTP(S) URIs
     , uriToText
@@ -37,8 +42,12 @@ import Control.Exception
     ( ErrorCall, displayException )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( runExceptT, throwE )
+import Control.Monad.Trans.State.Strict
+    ( StateT, get, put )
 import Data.Foldable
     ( asum )
 import Data.Functor.Identity
@@ -75,6 +84,10 @@ isInternalErrorMsg msg = "INTERNAL ERROR" `isPrefixOf` msg
 -- There is no alternative.
 tina :: HasCallStack => Builder -> [Maybe a] -> a
 tina msg = fromMaybe (internalError msg) . asum
+
+-- | Effectfully modify the state of a state-monad transformer stack.
+modifyM  :: forall m s. (Monad m) => (s -> m s) -> StateT s m ()
+modifyM fn = get >>= lift . fn >>= put
 
 -- | Checks whether or not an invariant holds, by applying the given predicate
 --   to the given value.
@@ -125,6 +138,12 @@ instance NFData a => NFData (ShowFmt a)
 
 instance Buildable a => Show (ShowFmt a) where
     show (ShowFmt a) = fmt (build a)
+
+-- | Map a function to the first element of a list. Does nothing if the list is
+-- empty.
+mapFirst :: (a -> a) -> [a] -> [a]
+mapFirst _     [] = []
+mapFirst fn (h:q) = fn h:q
 
 {-------------------------------------------------------------------------------
                                   HTTP(S) URIs
