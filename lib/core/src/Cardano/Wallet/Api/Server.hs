@@ -2262,22 +2262,35 @@ decodeTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     let (Tx txid feeM colls inps outs wdrlMap meta vldt) = decodeTx tl sealed
-    _txinsOutsPaths <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
+    txinsOutsPaths <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
         liftHandler $ W.lookupTxIns wrk wid (fst <$> inps)
+    collsOutsPaths <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
+        liftHandler $ W.lookupTxIns wrk wid (fst <$> colls)
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = fromMaybe (Quantity 0) (Quantity . fromIntegral . unCoin <$> feeM)
-        , inputs = map toInp inps
+        , inputs = zipWith toInp txinsOutsPaths inps
         , outputs = map (toAddressAmount @n) outs
-        , collateral = map toInp colls
+        , collateral = zipWith toInp collsOutsPaths colls
         , withdrawals = map toWrdl $ Map.assocs wdrlMap
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
   where
     tl = ctx ^. W.transactionLayer @k
-    toInp (txin, Coin c) =
-        ExternalInput (ApiT txin, Quantity $ fromIntegral c)
+    toInp (txin@(TxIn txid ix), txoutPathM) (_, Coin c) =
+        case txoutPathM of
+            Nothing ->
+                ExternalInput (ApiT txin, Quantity $ fromIntegral c)
+            Just (TxOut addr (TokenBundle _c tmap), path) ->
+                WalletInput $ ApiCoinSelectionInput
+                { id = ApiT txid
+                , index = ix
+                , address = (ApiT addr, Proxy @n)
+                , derivationPath = NE.map ApiT path
+                , amount = Quantity $ fromIntegral c
+                , assets = ApiT tmap
+                }
     toWrdl (rewardKey, (Coin c)) =
         ApiWithdrawal (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c)
 
