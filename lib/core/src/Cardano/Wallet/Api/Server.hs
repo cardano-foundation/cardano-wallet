@@ -210,7 +210,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
-    , ApiDecodedTransaction
+    , ApiDecodedTransaction (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiEra (..)
     , ApiErrorCode (..)
@@ -2256,7 +2256,20 @@ decodeTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeTransaction _ctx _wid (ApiSerialisedTransaction (ApiT _sealed)) = undefined
+decodeTransaction ctx _wid (ApiSerialisedTransaction (ApiT sealed)) = do
+    let (Tx txid feeM coll inps outs wdrlMap meta vldt) = decodeTx tl sealed
+    pure $ ApiDecodedTransaction
+        { id = ApiT txid
+        , fee = fromMaybe (Quantity 0) (Quantity . fromIntegral . unCoin <$> feeM)
+        , inputs = []
+        , outputs = []
+        , collateral = []
+        , withdrawals = []
+        , metadata = ApiTxMetadata $ ApiT <$> meta
+        , scriptValidity = Nothing
+        }
+  where
+    tl = ctx ^. W.transactionLayer @k
 
 joinStakePool
     :: forall ctx s n k.

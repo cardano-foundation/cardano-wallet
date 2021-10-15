@@ -1309,6 +1309,30 @@ x-transactionResolvedInputs: &transactionResolvedInputs
         type: integer
         minimum: 0
 
+x-transactionInputsWithoutSource: &transactionInputsWithoutSource
+  description: |
+    A list of transaction inputs without source.
+  type: array
+  minItems: 0
+  items:
+    type: object
+    required:
+      - id
+      - index
+    properties:
+      id: *transactionId
+      index:
+        type: integer
+        minimum: 0
+
+x-transactionInputsGeneral: &transactionInputsGeneral
+  nullable: false
+  oneOf:
+    - <<: *transactionInputsWithoutSource
+      title: tx inputs without source not belonging to a given wallet
+    - <<: *transactionResolvedInputs
+      title: tx inputs belonging to a given wallet
+
 x-transactionResolvedCollateral: &transactionResolvedCollateral
   description: A list of transaction inputs used for collateral
   type: array
@@ -2261,20 +2285,16 @@ components:
       required:
         - id
         - fee
-        - deposit
         - inputs
         - outputs
         - withdrawals
-        - mint
       properties:
         id: *transactionId
         fee: *amount
-        deposit: *amount
-        inputs: *transactionInputs
+        inputs: *transactionInputsGeneral
         outputs: *transactionOutputs
-        collateral: *transactionCollateral
+        collateral: *transactionInputsGeneral
         withdrawals: *transactionWithdrawals
-        mint: *transactionMint
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 

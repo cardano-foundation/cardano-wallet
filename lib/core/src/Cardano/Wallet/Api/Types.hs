@@ -164,6 +164,7 @@ module Cardano.Wallet.Api.Types
     , ApiRedeemer (..)
     , ApiRedeemerCertificate (..)
     , ApiDecodedTransaction (..)
+    , ApiTxInputGeneral (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1134,14 +1135,19 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
+data ApiTxInputGeneral (n :: NetworkDiscriminant) =
+      ExternalInput (ApiT TxIn, Quantity "lovelace" Natural)
+    | WalletInput (ApiCoinSelectionInput n)
+      deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
 data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     { id :: !(ApiT (Hash "Tx"))
     , fee :: !(Quantity "lovelace" Natural)
-    , inputs :: ![ApiTxInput n]
+    , inputs :: ![ApiTxInputGeneral n]
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
-    , collateral :: ![ApiTxCollateral n]
+    , collateral :: ![ApiTxInputGeneral n]
     , withdrawals :: ![ApiWithdrawal n]
-    , mint :: !(ApiT W.TokenMap)
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
@@ -2966,6 +2972,19 @@ instance
     ( EncodeAddress n
     , EncodeStakeAddress n
     ) => ToJSON (ApiDecodedTransaction n)
+  where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance
+    ( DecodeAddress n
+    , DecodeStakeAddress n
+    ) => FromJSON (ApiTxInputGeneral n)
+  where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance
+    ( EncodeAddress n
+    , EncodeStakeAddress n
+    ) => ToJSON (ApiTxInputGeneral n)
   where
     toJSON = genericToJSON defaultRecordTypeOptions
 
