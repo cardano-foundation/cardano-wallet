@@ -47,6 +47,7 @@ import Cardano.Wallet.Shelley.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterLog (..)
+    , Credential (..)
     , RunningNode (..)
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
@@ -221,7 +222,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
         traceWith trCluster MsgSettingUpFaucet
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
-        let accts = concatMap genRewardAccounts mirMnemonics
+        let accts = KeyCredential <$> concatMap genRewardAccounts mirMnemonics
         let rewards = (, Coin $ fromIntegral oneMillionAda) <$> accts
 
         sendFaucetFundsTo trCluster' socketPath dir $
