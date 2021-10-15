@@ -404,6 +404,7 @@ signTransaction networkId resolveRewardAcct resolveAddress resolveInput (body, w
         , mapMaybe mkTxInWitness  collaterals
         , mapMaybe mkWdrlWitness  wdrls
         , mapMaybe mkExtraWitness extraKeys
+        -- TODO: delegation certificates & key-deregistrations
         ]
       where
         Cardano.TxBody bodyContent = body
@@ -447,6 +448,11 @@ signTransaction networkId resolveRewardAcct resolveAddress resolveInput (body, w
 
     mkExtraWitness :: Cardano.Hash Cardano.PaymentKey -> Maybe (Cardano.KeyWitness era)
     mkExtraWitness vkh = do
+        -- NOTE: We cannot resolve key hashes directly, so create a one-time
+        -- temporary address with that key hash which is fine to lookup via the
+        -- address lookup provided above. It works _fine_ because the discovery
+        -- of addresses is done properly based on the address constituants (i.e.
+        -- the key hash) and not the overall address itself.
         let addr = Cardano.makeShelleyAddress networkId
                 (Cardano.PaymentCredentialByKey vkh)
                 Cardano.NoStakeAddress
