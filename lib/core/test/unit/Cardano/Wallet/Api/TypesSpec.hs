@@ -36,7 +36,7 @@ import Cardano.Address.Script
     , ValidationLevel (..)
     )
 import Cardano.Api
-    ( PaymentKey, VerificationKey, deserialiseFromRawBytes, proxyToAsType )
+    ( StakeAddress, deserialiseFromRawBytes, proxyToAsType )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -2091,10 +2091,13 @@ instance Arbitrary (ApiRedeemer n) where
         , ApiRedeemerRewarding <$> arbitrary <*> arbitrary
         ]
 
-instance Arbitrary (VerificationKey PaymentKey) where
+instance Arbitrary StakeAddress where
     arbitrary = do
-        bytes <- BS.pack <$> vector 32
-        pure $ fromJust $ deserialiseFromRawBytes (proxyToAsType Proxy) bytes
+        header  <- elements [ BS.singleton 241, BS.singleton 224 ]
+        payload <- BS.pack <$> vector 28
+        pure $ fromJust $ deserialiseFromRawBytes
+            (proxyToAsType Proxy)
+            (header <> payload)
 
 instance Arbitrary (PostMintBurnAssetData n) where
     arbitrary = applyArbitrary4 PostMintBurnAssetData

@@ -539,7 +539,7 @@ newTransactionLayer networkId = TransactionLayer
         _maxScriptExecutionCost
 
     , assignScriptRedeemers =
-        _assignScriptRedeemers networkId
+        _assignScriptRedeemers
 
     , evaluateMinimumFee =
         _evaluateMinimumFee
@@ -854,14 +854,13 @@ type AlonzoTx =
 
 _assignScriptRedeemers
     :: forall m.  ( Monad m )
-    => NetworkId
-    -> Cardano.ProtocolParameters
+    => Cardano.ProtocolParameters
     -> TimeInterpreter (ExceptT PastHorizonException m)
     -> (TxIn -> Maybe (TxOut, Maybe (Hash "Datum")))
     -> [Redeemer]
     -> SealedTx
     -> m (Either ErrAssignRedeemers SealedTx)
-_assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeemers tx =
+_assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx =
     runExceptT $ case cardanoTx tx of
         InAnyCardanoEra ByronEra _ ->
             pure tx
@@ -888,9 +887,7 @@ _assignScriptRedeemers ntwrk (toAlonzoPParams -> pparams) ti resolveInput redeem
         -> ExceptT ErrAssignRedeemers m (Map Alonzo.RdmrPtr Redeemer, AlonzoTx)
     assignNullRedeemers alonzoTx = do
         (indexedRedeemers, nullRedeemers) <- fmap unzip $ forM redeemers $ \rd -> do
-            let purpose = toScriptPurpose ntwrk rd
-
-            ptr <- case Alonzo.rdptr (Alonzo.body alonzoTx) purpose of
+            ptr <- case Alonzo.rdptr (Alonzo.body alonzoTx) (toScriptPurpose rd) of
                 SNothing ->
                     throwE $ ErrAssignRedeemersTargetNotFound rd
                 SJust ptr ->

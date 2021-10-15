@@ -1633,14 +1633,14 @@ fromUnitInterval x =
 toSystemStart :: W.StartTime -> SystemStart
 toSystemStart (W.StartTime t) = SystemStart t
 
-toScriptPurpose :: SL.Crypto crypto => NetworkId -> W.Redeemer -> Alonzo.ScriptPurpose crypto
-toScriptPurpose ntwrk = \case
+toScriptPurpose :: W.Redeemer -> Alonzo.ScriptPurpose StandardCrypto
+toScriptPurpose = \case
     W.RedeemerSpending _ txin ->
         Alonzo.Spending (toTxIn txin)
     W.RedeemerMinting _ pid ->
         Alonzo.Minting (toPolicyID pid)
-    W.RedeemerRewarding _ acct ->
-        Alonzo.Rewarding (toRewardAcnt ntwrk acct)
+    W.RedeemerRewarding _ (Cardano.StakeAddress ntwrk acct) ->
+        Alonzo.Rewarding (SL.RewardAcnt ntwrk acct)
 
 toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
 toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash $ toShort h
@@ -1656,10 +1656,6 @@ toTxIn (W.TxIn tid ix) =
 toTxId :: W.Hash "Tx" -> SL.TxId crypto
 toTxId (W.Hash h) =
     (SL.TxId (SafeHash.unsafeMakeSafeHash $ UnsafeHash $ toShort h))
-
-toRewardAcnt :: SL.Crypto crypto => NetworkId -> W.RewardAccount -> SL.RewardAcnt crypto
-toRewardAcnt ntwrk acct =
-    SL.RewardAcnt (toNetwork ntwrk) (toStakeCredential acct)
 
 toPolicyID :: SL.Crypto crypto => W.TokenPolicyId -> SL.PolicyID crypto
 toPolicyID (W.UnsafeTokenPolicyId (W.Hash bytes)) =
@@ -1965,11 +1961,6 @@ toNetworkId :: SL.Network -> Word8
 toNetworkId = \case
     SL.Testnet -> 0
     SL.Mainnet -> 1
-
-toNetwork :: NetworkId -> SL.Network
-toNetwork = \case
-    Cardano.Testnet{} -> SL.Testnet
-    Cardano.Mainnet{} -> SL.Mainnet
 
 _encodeStakeAddress
     :: SL.Network

@@ -240,9 +240,8 @@ import Cardano.Address.Derivation
 import Cardano.Address.Script
     ( Cosigner (..), KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
 import Cardano.Api
-    ( PaymentKey
+    ( StakeAddress
     , TxMetadataJsonSchema (..)
-    , VerificationKey
     , deserialiseFromBech32
     , displayError
     , metadataFromJson
@@ -1021,16 +1020,8 @@ type ApiRedeemerData = ApiBytesT 'Base16 ByteString
 data ApiRedeemer (n :: NetworkDiscriminant)
     = ApiRedeemerSpending ApiRedeemerData (ApiT TxIn)
     | ApiRedeemerMinting ApiRedeemerData (ApiT W.TokenPolicyId)
-    | ApiRedeemerRewarding ApiRedeemerData (ApiT W.RewardAccount, Proxy n)
+    | ApiRedeemerRewarding ApiRedeemerData StakeAddress
     deriving (Eq, Generic, Show)
-
-instance ToJSON (ApiT (VerificationKey PaymentKey)) where
-    toJSON = toJSON . serialiseToBech32 . getApiT
-instance FromJSON (ApiT (VerificationKey PaymentKey)) where
-    parseJSON = withText "VerificationKey" $ \text ->
-        case deserialiseFromBech32 (proxyToAsType Proxy) text of
-            Left e -> fail (show e)
-            Right vk -> pure (ApiT vk)
 
 data ApiFee = ApiFee
     { estimatedMin :: !(Quantity "lovelace" Natural)
@@ -2748,8 +2739,11 @@ instance DecodeStakeAddress n => FromJSON (ApiRedeemer n) where
                 ApiRedeemerSpending bytes <$> (o .: "input")
             "minting" ->
                 ApiRedeemerMinting bytes <$> (o .: "policy_id")
-            "rewarding" ->
-                ApiRedeemerRewarding bytes <$> (o .: "stake_address")
+            "rewarding" -> do
+                text <- o .: "stake_address"
+                case deserialiseFromBech32 (proxyToAsType Proxy) text of
+                    Left e -> fail (show e)
+                    Right addr -> pure $ ApiRedeemerRewarding bytes addr
             _ ->
                 fail "unknown purpose for redeemer."
 instance EncodeStakeAddress n => ToJSON (ApiRedeemer n) where
@@ -2767,7 +2761,7 @@ instance EncodeStakeAddress n => ToJSON (ApiRedeemer n) where
         ApiRedeemerRewarding bytes addr -> object
             [ "purpose" .= ("rewarding" :: Text)
             , "data" .= bytes
-            , "stake_address" .= addr
+            , "stake_address" .= serialiseToBech32 addr
             ]
 
 instance (DecodeStakeAddress n, DecodeAddress n)

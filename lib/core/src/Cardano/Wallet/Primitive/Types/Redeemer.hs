@@ -15,8 +15,8 @@ module Cardano.Wallet.Primitive.Types.Redeemer
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.RewardAccount
-    ( RewardAccount )
+import Cardano.Api
+    ( StakeAddress, serialiseToBech32 )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -31,7 +31,7 @@ import GHC.Generics
 data Redeemer
     = RedeemerSpending ByteString TxIn
     | RedeemerMinting ByteString TokenPolicyId
-    | RedeemerRewarding ByteString RewardAccount
+    | RedeemerRewarding ByteString StakeAddress
     deriving (Eq, Generic, Show)
 
 instance Buildable Redeemer where
@@ -40,8 +40,8 @@ instance Buildable Redeemer where
             "spending(" <> build input <> ")"
         RedeemerMinting _ pid ->
             "minting(" <> build pid <> ")"
-        RedeemerRewarding _ acct ->
-            "rewarding(" <> build acct <> ")"
+        RedeemerRewarding _ addr ->
+            "rewarding(" <> build (serialiseToBech32 addr) <> ")"
 
 redeemerData :: Redeemer -> ByteString
 redeemerData = \case
