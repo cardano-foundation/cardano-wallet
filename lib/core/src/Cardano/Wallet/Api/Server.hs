@@ -248,6 +248,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxCollateral (..)
     , ApiTxId (..)
     , ApiTxInput (..)
+    , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
@@ -2257,19 +2258,21 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx _wid (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM coll inps outs wdrlMap meta vldt) = decodeTx tl sealed
+    let (Tx txid feeM colls inps outs wdrlMap meta vldt) = decodeTx tl sealed
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = fromMaybe (Quantity 0) (Quantity . fromIntegral . unCoin <$> feeM)
-        , inputs = []
-        , outputs = []
-        , collateral = []
+        , inputs = map toInp inps
+        , outputs = map (toAddressAmount @n) outs
+        , collateral =map toInp colls
         , withdrawals = []
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = Nothing
         }
   where
     tl = ctx ^. W.transactionLayer @k
+    toInp (txin, Coin c) =
+        ExternalInput (ApiT txin, Quantity $ fromIntegral c)
 
 joinStakePool
     :: forall ctx s n k.
@@ -3157,14 +3160,14 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         , depth = Nothing
         , direction = ApiT (tx ^. (#txMeta . #direction))
         , inputs =
-            [ ApiTxInput (fmap toAddressAmount o) (ApiT i)
+            [ ApiTxInput (fmap (toAddressAmount @n) o) (ApiT i)
             | (i, o) <- tx ^. #txInputs
             ]
         , collateral =
             [ ApiTxCollateral (fmap toAddressAmountNoAssets o) (ApiT i)
             | (i, o) <- tx ^. #txCollateral
             ]
-        , outputs = toAddressAmount <$> tx ^. #txOutputs
+        , outputs = toAddressAmount @n <$> tx ^. #txOutputs
         , withdrawals = mkApiWithdrawal @n <$> Map.toList (tx ^. #txWithdrawals)
         , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (tx ^. (#txMeta . #status))
@@ -3227,15 +3230,18 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         txOutValue :: TxOut -> Natural
         txOutValue = fromIntegral . unCoin . txOutCoin
 
-    toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
-    toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
-        AddressAmount (ApiT addr, Proxy @n) (mkApiCoin coin) (ApiT assets)
-
     toAddressAmountNoAssets
         :: TxOut
         -> AddressAmountNoAssets (ApiT Address, Proxy n)
     toAddressAmountNoAssets (TxOut addr (TokenBundle.TokenBundle coin _)) =
         AddressAmountNoAssets (ApiT addr, Proxy @n) (mkApiCoin coin)
+
+toAddressAmount
+    :: forall (n :: NetworkDiscriminant). ()
+    => TxOut
+    -> AddressAmount (ApiT Address, Proxy n)
+toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
+    AddressAmount (ApiT addr, Proxy @n) (mkApiCoin coin) (ApiT assets)
 
 mkApiCoin
     :: Coin

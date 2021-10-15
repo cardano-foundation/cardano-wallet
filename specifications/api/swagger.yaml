@@ -1319,11 +1319,13 @@ x-transactionInputsWithoutSource: &transactionInputsWithoutSource
     required:
       - id
       - index
+      - amount
     properties:
       id: *transactionId
       index:
         type: integer
         minimum: 0
+      amount: *amount
 
 x-transactionInputsGeneral: &transactionInputsGeneral
   nullable: false
