@@ -101,9 +101,11 @@ module Cardano.Wallet
     , importRandomAddresses
     , listAddresses
     , normalizeDelegationAddress
+    , lookupTxIns
     , ErrCreateRandomAddress(..)
     , ErrImportRandomAddress(..)
     , ErrImportAddress(..)
+    , ErrDecodeTx (..)
 
     -- ** Payment
     , getTxExpiry
@@ -1168,6 +1170,33 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
 {-------------------------------------------------------------------------------
                                     Address
 -------------------------------------------------------------------------------}
+
+lookupTxIns
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , KnownAddresses s
+        , IsOurs s Address
+        )
+    => ctx
+    -> WalletId
+    -> [TxIn]
+    -> ExceptT ErrDecodeTx IO [(TxIn, Maybe (TxOut, NonEmpty DerivationIndex))]
+lookupTxIns ctx wid txins = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically
+          $ withExceptT ErrDecodeTxNoSuchWallet
+          $ withNoSuchWallet wid
+          $ readCheckpoint wid
+    let walletAddr = knownAddresses (getState cp)
+    pure $ map (tryGetTxOutPath cp walletAddr) txins
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    tryGetTxOutPath cp walletAddr txin =
+        case UTxO.lookup txin (totalUTxO mempty cp) of
+            Nothing -> (txin, Nothing)
+            Just (txout@(TxOut addr _)) ->
+                let path:_ = map (\(_, _,p) -> p) $
+                        filter (\(addr', _,_) -> addr' == addr) walletAddr
+                in (txin, Just (txout, path))
 
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
@@ -2823,6 +2852,11 @@ data ErrWitnessTx
     | ErrWitnessTxNoSuchWallet ErrNoSuchWallet
     | ErrWitnessTxWithRootKey ErrWithRootKey
     | ErrWitnessTxIncorrectTTL PastHorizonException
+    deriving (Show, Eq)
+
+-- | Errors that can occur when decoding a transaction.
+newtype ErrDecodeTx
+    = ErrDecodeTxNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction to the network.

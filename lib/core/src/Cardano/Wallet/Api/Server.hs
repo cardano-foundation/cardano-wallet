@@ -137,6 +137,7 @@ import Cardano.Wallet
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
     , ErrCreateRandomAddress (..)
+    , ErrDecodeTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
     , ErrGetTransaction (..)
@@ -2252,13 +2253,17 @@ balanceTransaction ctx genChange (ApiT wid) body = do
 decodeTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
+        , KnownAddresses s
+        , IsOurs s Address
         )
     => ctx
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
-decodeTransaction ctx _wid (ApiSerialisedTransaction (ApiT sealed)) = do
+decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     let (Tx txid feeM colls inps outs wdrlMap meta vldt) = decodeTx tl sealed
+    _txinsOutsPaths <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
+        liftHandler $ W.lookupTxIns wrk wid (fst <$> inps)
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = fromMaybe (Quantity 0) (Quantity . fromIntegral . unCoin <$> feeM)
@@ -3710,6 +3715,13 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
+
+instance IsServerError ErrDecodeTx where
+    toServerError = \case
+        ErrDecodeTxNoSuchWallet e -> (toServerError e)
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
+            }
 
 instance IsServerError ErrBalanceTx where
     toServerError = \case
