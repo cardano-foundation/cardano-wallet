@@ -49,6 +49,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
     , TxStatus (..)
@@ -57,7 +59,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , sealedTxFromCardanoBody
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeMkMnemonic )
+    ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Arrow
     ( second )
 import Control.Monad
@@ -123,6 +125,7 @@ import Test.Integration.Framework.DSL
     , submitTx
     , unsafeRequest
     , verify
+    , waitForNextEpoch
     , waitForTxImmutability
     )
 import Test.Integration.Framework.TestData
@@ -147,6 +150,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
@@ -1218,7 +1222,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , ( "mint-burn"
                   , \ctx w -> do
                         (_vk, vkHash) <- getSomeVerificationKey ctx w
-                        let (policy, policyId) = PlutusScenario.mkMintBurnPolicy [json|{
+                        let (policy, policyId) = PlutusScenario.mkSignerPolicy [json|{
                                 "vkHash": #{vkHash} }
                             |]
                         mint <- PlutusScenario.mintBurn_1 [json|{
@@ -1232,6 +1236,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                 "vkHash": #{vkHash}
                             }|]
                         pure (mint, [burn])
+                  )
+                , ( "withdrawal"
+                  , \ctx _w -> do
+                        let (script, _scriptHash) = PlutusScenario.alwaysTrueValidator
+                        liftIO $ _moveRewardsToScript ctx
+                            ( unsafeFromHex $ T.encodeUtf8 script
+                            , Coin 42000000
+                            )
+                        waitForNextEpoch ctx
+                        withdrawal <- PlutusScenario.withdrawScript_1
+                        pure (withdrawal, [])
                   )
                 ]
 
