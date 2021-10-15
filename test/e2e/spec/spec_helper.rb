@@ -1,6 +1,7 @@
 require "bundler/setup"
 require "cardano_wallet"
 require "base64"
+require "blake2b"
 require "mustache"
 require_relative "../env"
 require_relative "../helpers/utils"
@@ -330,11 +331,23 @@ def balance_sign_submit(wid, payload)
   [tx_balanced, tx_signed, tx_submitted]
 end
 
-
 def get_plutus_tx(file)
   JSON.parse(File.read(File.join(PLUTUS_DIR, file)))
 end
 
-def get_templated_plutus_tx(file, tx_id)
-  JSON.parse(Mustache.render(File.read(File.join(PLUTUS_DIR, file)), transactionId: tx_id))
+def read_mustached_file(file, ctx = {})
+  Mustache.render(File.read(File.join(PLUTUS_DIR, file)), ctx).strip
+end
+
+def get_templated_plutus_tx(file, ctx = {})
+  JSON.parse(read_mustached_file(file, ctx))
+end
+
+##
+# Get policyId of base16-encoded minting policy
+# which is Blake2b (28 byte long) hash of (script tag = 0x01 + policy)
+def get_policy_id(policy)
+  key = Blake2b::Key.none
+  policy_id = Blake2b.hex(hex_to_bytes("01#{policy}"), key, 28)
+  policy_id
 end

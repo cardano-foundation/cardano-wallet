@@ -1,0 +1,11 @@
+{
+    "transaction": "84a600800d80018002000e81581c{{ vkHash }}09a1581c{{ policyId }}a1496d696e742d6275726e01a20381591611{{ policy }}0480f5f6",
+    "inputs": [],
+    "redeemers": [
+        {
+            "purpose": "minting",
+            "policy_id": "{{ policyId }}",
+            "data": "D87980"
+        }
+    ]
+}

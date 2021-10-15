@@ -40,6 +40,14 @@ module Helpers
          | cardano-address key public #{chain_code} #{" | bech32" if hex})).gsub("\n", '')
     end
 
+    def bech32_to_base16(key)
+      cmd(%(echo #{key} | bech32)).gsub("\n", '')
+    end
+
+    def hex_to_bytes(s)
+      s.scan(/../).map { |x| x.hex.chr }.join
+    end
+
     def absolute_path(path)
       if path.start_with? "."
         File.join(Dir.pwd, path[1..-1])

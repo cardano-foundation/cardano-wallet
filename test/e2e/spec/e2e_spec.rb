@@ -42,7 +42,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
     # @wid_rnd = "94c0af1034914f4455b7eb795ebea74392deafe9"
     # @wid_ic = "a468e96ab85ad2043e48cf2e5f3437b4356769f4"
-    @wid = "a042bafdaf98844cfa8f6d4b1dc47519b21a4d95"
+    @wid = "2269611a3c10b219b0d38d74b004c298b76d16a9"
     @target_id = "2269611a3c10b219b0d38d74b004c298b76d16a9"
     # 1f82e83772b7579fc0854bd13db6a9cce21ccd95
     # 2269611a3c10b219b0d38d74b004c298b76d16a9
@@ -81,7 +81,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
       # Run Plutus contract
       scripts.each do |s|
-        payload = get_templated_plutus_tx(s, tx_id)
+        payload = get_templated_plutus_tx(s, {transactionId: tx_id})
         tx_id = run_script(s, payload)
       end
     end
@@ -106,6 +106,22 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       scripts = [ "game_2.json", "game_3.json" ]
 
       run_contract(contract_setup, scripts)
+    end
+
+    it "mint-burn" do
+      vk = SHELLEY.keys.get_public_key(@wid, 'utxo_external', 0, {hash: true})
+      vkHash = bech32_to_base16(vk)
+      policy = read_mustached_file("mintBurn_policy", {vkHash: vkHash}).strip
+      policy_id = get_policy_id(policy)
+
+      scripts = [ "mintBurn_1.json", "mintBurn_2.json" ]
+      scripts.each do |s|
+        payload = get_templated_plutus_tx(s,{vkHash: vkHash,
+                                             policyId: policy_id,
+                                             policy: policy})
+        run_script(s, payload)
+      end
+
     end
 
   end
