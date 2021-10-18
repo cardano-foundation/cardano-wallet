@@ -367,26 +367,26 @@ toBalanceResult selection = Balance.SelectionResult
 --
 data VerifySelectionResult
     = VerifySelectionSuccess
-    | VerifySelectionFailure (NonEmpty VerifySelectionFailureReason)
+    | VerifySelectionFailure (NonEmpty VerifySelectionFailureInfo)
     deriving (Eq, Show)
 
 -- | Indicates that verification of a 'Selection' has failed.
 --
-data VerifySelectionFailureReason
-    = VerifySelectionCollateralInsufficient
-      VerifySelectionCollateralInsufficientError
-    | VerifySelectionCollateralUnsuitable
-      VerifySelectionCollateralUnsuitableError
-    | VerifySelectionDeltaInvalid
-      VerifySelectionDeltaInvalidError
-    | VerifySelectionLimitExceeded
-      VerifySelectionLimitExceededError
-    | VerifySelectionOutputCoinBelowMinimum
-      VerifySelectionOutputCoinBelowMinimumError
-    | VerifySelectionOutputSizeExceedsLimit
-      VerifySelectionOutputSizeExceedsLimitError
-    | VerifySelectionOutputTokenQuantityExceedsLimit
-      VerifySelectionOutputTokenQuantityExceedsLimitError
+data VerifySelectionFailureInfo
+    = VerifySelectionCollateralSufficientFailure
+      VerifySelectionCollateralSufficientFailureInfo
+    | VerifySelectionCollateralSuitableFailure
+      VerifySelectionCollateralSuitableFailureInfo
+    | VerifySelectionDeltaValidFailure
+      VerifySelectionDeltaValidFailureInfo
+    | VerifySelectionInputCountWithinLimitFailure
+      VerifySelectionInputCountWithinLimitFailureInfo
+    | VerifySelectionOutputCoinsSufficientFailure
+      VerifySelectionOutputCoinsSufficientFailureInfo
+    | VerifySelectionOutputSizesWithinLimitFailure
+      VerifySelectionOutputSizesWithinLimitFailureInfo
+    | VerifySelectionOutputTokenQuantitiesWithinLimitFailure
+      VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
     deriving (Eq, Show)
 
 -- | The type of all 'Selection' verification functions.
@@ -414,22 +414,22 @@ verifySelection cs ps selection
     | otherwise =
         VerifySelectionSuccess
   where
-    errors :: [VerifySelectionFailureReason]
+    errors :: [VerifySelectionFailureInfo]
     errors = lefts
-        [ verifySelectionCollateralSufficiency cs ps selection
-            `failWith` VerifySelectionCollateralInsufficient
-        , verifySelectionCollateralSuitability cs ps selection
-            `failWith` VerifySelectionCollateralUnsuitable
-        , verifySelectionDelta cs ps selection
-            `failWith` VerifySelectionDeltaInvalid
-        , verifySelectionLimit cs ps selection
-            `failWith` VerifySelectionLimitExceeded
-        , verifySelectionOutputCoins cs ps selection
-            `failWith` VerifySelectionOutputCoinBelowMinimum
-        , verifySelectionOutputSizes cs ps selection
-            `failWith` VerifySelectionOutputSizeExceedsLimit
-        , verifySelectionOutputTokenQuantities cs ps selection
-            `failWith` VerifySelectionOutputTokenQuantityExceedsLimit
+        [ verifySelectionCollateralSufficient cs ps selection
+            `failWith` VerifySelectionCollateralSufficientFailure
+        , verifySelectionCollateralSuitable cs ps selection
+            `failWith` VerifySelectionCollateralSuitableFailure
+        , verifySelectionDeltaValid cs ps selection
+            `failWith` VerifySelectionDeltaValidFailure
+        , verifySelectionInputCountWithinLimit cs ps selection
+            `failWith` VerifySelectionInputCountWithinLimitFailure
+        , verifySelectionOutputCoinsSufficient cs ps selection
+            `failWith` VerifySelectionOutputCoinsSufficientFailure
+        , verifySelectionOutputSizesWithinLimit cs ps selection
+            `failWith` VerifySelectionOutputSizesWithinLimitFailure
+        , verifySelectionOutputTokenQuantitiesWithinLimit cs ps selection
+            `failWith` VerifySelectionOutputTokenQuantitiesWithinLimitFailure
         ]
 
     failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
@@ -439,20 +439,20 @@ verifySelection cs ps selection
 -- Selection verification: collateral sufficiency
 --------------------------------------------------------------------------------
 
-data VerifySelectionCollateralInsufficientError =
-    VerifySelectionCollateralInsufficientError
+data VerifySelectionCollateralSufficientFailureInfo =
+    VerifySelectionCollateralSufficientFailureInfo
     { collateralSelected :: Coin
     , collateralRequired :: Coin
     }
     deriving (Eq, Show)
 
-verifySelectionCollateralSufficiency
-    :: VerifySelectionProperty VerifySelectionCollateralInsufficientError
-verifySelectionCollateralSufficiency cs ps selection
+verifySelectionCollateralSufficient
+    :: VerifySelectionProperty VerifySelectionCollateralSufficientFailureInfo
+verifySelectionCollateralSufficient cs ps selection
     | collateralSelected >= collateralRequired =
         Nothing
     | otherwise =
-        Just VerifySelectionCollateralInsufficientError
+        Just VerifySelectionCollateralSufficientFailureInfo
             {collateralSelected, collateralRequired}
   where
     collateralSelected = selectionCollateral selection
@@ -462,8 +462,8 @@ verifySelectionCollateralSufficiency cs ps selection
 -- Selection verification: collateral suitability
 --------------------------------------------------------------------------------
 
-data VerifySelectionCollateralUnsuitableError =
-    VerifySelectionCollateralUnsuitableError
+data VerifySelectionCollateralSuitableFailureInfo =
+    VerifySelectionCollateralSuitableFailureInfo
     { collateralSelected
         :: [(TxIn, TxOut)]
     , collateralSelectedButUnsuitable
@@ -471,13 +471,13 @@ data VerifySelectionCollateralUnsuitableError =
     }
     deriving (Eq, Show)
 
-verifySelectionCollateralSuitability
-    :: VerifySelectionProperty VerifySelectionCollateralUnsuitableError
-verifySelectionCollateralSuitability cs _ps selection
+verifySelectionCollateralSuitable
+    :: VerifySelectionProperty VerifySelectionCollateralSuitableFailureInfo
+verifySelectionCollateralSuitable cs _ps selection
     | null collateralSelectedButUnsuitable =
         Nothing
     | otherwise =
-        Just VerifySelectionCollateralUnsuitableError
+        Just VerifySelectionCollateralSuitableFailureInfo
             {collateralSelected, collateralSelectedButUnsuitable}
   where
     collateralSelected =
@@ -492,7 +492,7 @@ verifySelectionCollateralSuitability cs _ps selection
 -- Selection verification: delta validity
 --------------------------------------------------------------------------------
 
-data VerifySelectionDeltaInvalidError = VerifySelectionDeltaInvalidError
+data VerifySelectionDeltaValidFailureInfo = VerifySelectionDeltaValidFailureInfo
     { delta
         :: SelectionDelta TokenBundle
     , minimumCost
@@ -502,13 +502,13 @@ data VerifySelectionDeltaInvalidError = VerifySelectionDeltaInvalidError
     }
     deriving (Eq, Show)
 
-verifySelectionDelta
-    :: VerifySelectionProperty VerifySelectionDeltaInvalidError
-verifySelectionDelta cs ps selection
+verifySelectionDeltaValid
+    :: VerifySelectionProperty VerifySelectionDeltaValidFailureInfo
+verifySelectionDeltaValid cs ps selection
     | selectionHasValidSurplus cs ps selection =
         Nothing
     | otherwise =
-        Just VerifySelectionDeltaInvalidError {..}
+        Just VerifySelectionDeltaValidFailureInfo {..}
   where
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
@@ -518,7 +518,8 @@ verifySelectionDelta cs ps selection
 -- Selection verification: selection limit
 --------------------------------------------------------------------------------
 
-data VerifySelectionLimitExceededError = VerifySelectionLimitExceededError
+data VerifySelectionInputCountWithinLimitFailureInfo =
+    VerifySelectionInputCountWithinLimitFailureInfo
     { collateralInputCount
         :: Int
     , ordinaryInputCount
@@ -530,13 +531,13 @@ data VerifySelectionLimitExceededError = VerifySelectionLimitExceededError
     }
     deriving (Eq, Show)
 
-verifySelectionLimit
-    :: VerifySelectionProperty VerifySelectionLimitExceededError
-verifySelectionLimit cs _ps selection
+verifySelectionInputCountWithinLimit
+    :: VerifySelectionProperty VerifySelectionInputCountWithinLimitFailureInfo
+verifySelectionInputCountWithinLimit cs _ps selection
     | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
         Nothing
     | otherwise =
-        Just VerifySelectionLimitExceededError {..}
+        Just VerifySelectionInputCountWithinLimitFailureInfo {..}
   where
     collateralInputCount = length (selection ^. #collateral)
     ordinaryInputCount = length (selection ^. #inputs)
@@ -547,29 +548,29 @@ verifySelectionLimit cs _ps selection
 -- Selection verification: minimum ada quantities
 --------------------------------------------------------------------------------
 
-data VerifySelectionOutputCoinBelowMinimumError =
-    VerifySelectionOutputCoinBelowMinimumError
+data VerifySelectionOutputCoinsSufficientFailureInfo =
+    VerifySelectionOutputCoinsSufficientFailureInfo
     { minimumExpectedCoin :: Coin
     , output :: TxOut
     }
     deriving (Eq, Show)
 
-verifySelectionOutputCoins
-    :: VerifySelectionProperty VerifySelectionOutputCoinBelowMinimumError
-verifySelectionOutputCoins cs _ps selection
+verifySelectionOutputCoinsSufficient
+    :: VerifySelectionProperty VerifySelectionOutputCoinsSufficientFailureInfo
+verifySelectionOutputCoinsSufficient cs _ps selection
     | e : _ <- errors =
         -- Just report the first error we encounter:
         Just e
     | otherwise =
         Nothing
   where
-    errors :: [VerifySelectionOutputCoinBelowMinimumError]
+    errors :: [VerifySelectionOutputCoinsSufficientFailureInfo]
     errors = mapMaybe maybeError (selectionAllOutputs selection)
 
-    maybeError :: TxOut -> Maybe VerifySelectionOutputCoinBelowMinimumError
+    maybeError :: TxOut -> Maybe VerifySelectionOutputCoinsSufficientFailureInfo
     maybeError output
         | output ^. (#tokens . #coin) < minimumExpectedCoin =
-            Just VerifySelectionOutputCoinBelowMinimumError
+            Just VerifySelectionOutputCoinsSufficientFailureInfo
                 {minimumExpectedCoin, output}
         | otherwise =
             Nothing
@@ -583,17 +584,17 @@ verifySelectionOutputCoins cs _ps selection
 -- Selection verification: output sizes
 --------------------------------------------------------------------------------
 
-newtype VerifySelectionOutputSizeExceedsLimitError =
-    VerifySelectionOutputSizeExceedsLimitError
+newtype VerifySelectionOutputSizesWithinLimitFailureInfo =
+    VerifySelectionOutputSizesWithinLimitFailureInfo
     SelectionOutputSizeExceedsLimitError
     deriving (Eq, Show)
 
-verifySelectionOutputSizes
-    :: VerifySelectionProperty VerifySelectionOutputSizeExceedsLimitError
-verifySelectionOutputSizes cs _ps selection
+verifySelectionOutputSizesWithinLimit
+    :: VerifySelectionProperty VerifySelectionOutputSizesWithinLimitFailureInfo
+verifySelectionOutputSizesWithinLimit cs _ps selection
     | e : _ <- errors =
         -- Just report the first error we encounter:
-        Just $ VerifySelectionOutputSizeExceedsLimitError e
+        Just $ VerifySelectionOutputSizesWithinLimitFailureInfo e
     | otherwise =
         Nothing
   where
@@ -604,18 +605,18 @@ verifySelectionOutputSizes cs _ps selection
 -- Selection verification: output token quantities
 --------------------------------------------------------------------------------
 
-newtype VerifySelectionOutputTokenQuantityExceedsLimitError =
-    VerifySelectionOutputTokenQuantityExceedsLimitError
+newtype VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo =
+    VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
     SelectionOutputTokenQuantityExceedsLimitError
     deriving (Eq, Show)
 
-verifySelectionOutputTokenQuantities ::
+verifySelectionOutputTokenQuantitiesWithinLimit ::
     VerifySelectionProperty
-    VerifySelectionOutputTokenQuantityExceedsLimitError
-verifySelectionOutputTokenQuantities _cs _ps selection
+    VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
+verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection
     | e : _ <- errors =
         -- Just report the first error we encounter:
-        Just $ VerifySelectionOutputTokenQuantityExceedsLimitError e
+        Just $ VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo e
     | otherwise =
         Nothing
   where
