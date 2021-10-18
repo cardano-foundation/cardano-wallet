@@ -49,6 +49,7 @@ import Cardano.Api
     , CardanoMode
     , LocalChainSyncClient (NoLocalChainSyncClient)
     , LocalNodeClientProtocols (..)
+    , LocalNodeClientProtocolsInMode
     , LocalNodeConnectInfo (..)
     , NodeToClientVersion (..)
     , SlotNo (..)
@@ -293,7 +294,11 @@ data instance Cursor = Cursor
     (Point (CardanoBlock StandardCrypto))
     (TQueue IO (ChainSyncCmd (CardanoBlock StandardCrypto) IO))
 
--- | Create an instance of the network layer
+{-------------------------------------------------------------------------------
+    Create/Initialize a NetworkLayer
+-------------------------------------------------------------------------------}
+
+-- | Create an instance of 'NetworkLayer' by connecting to a local node.
 withNetworkLayer
     :: HasCallStack
     => Tracer IO NetworkLayerLog
@@ -389,12 +394,6 @@ withNetworkLayerBase tr net np conn versionData tol action = do
     connectInfo = localNodeConnectInfo sp net conn
     cfg = codecConfig sp
 
-    -- Put if empty, replace if not empty.
-    repsertTMVar var x = do
-        e <- isEmptyTMVar var
-        unless e $ void $ takeTMVar var
-        putTMVar var x
-
     connectNodeTipClient
         :: HasCallStack
         => RetryHandlers
@@ -423,7 +422,8 @@ withNetworkLayerBase tr net np conn versionData tol action = do
               )
     connectLocalTxSubmissionClient handlers = do
         q <- atomically newTQueue
-        link =<< async (connectCardanoApiClient tr handlers connectInfo q)
+        let client = mkLocalTxSubmissionClient tr q
+        link =<< async (connectCardanoApiClient tr handlers connectInfo client)
         pure q
 
     connectDelegationRewardsClient
@@ -432,10 +432,10 @@ withNetworkLayerBase tr net np conn versionData tol action = do
         -> IO (TQueue IO
                 (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO))
     connectDelegationRewardsClient handlers = do
-        cmdQ <- atomically newTQueue
-        let cl = mkDelegationRewardsClient tr cfg cmdQ
-        link =<< async (connectClient tr handlers cl versionData conn)
-        pure cmdQ
+        q <- atomically newTQueue
+        let client = mkDelegationRewardsClient tr cfg q
+        link =<< async (connectClient tr handlers client versionData conn)
+        pure q
 
     _initCursor :: HasCallStack => [W.BlockHeader] -> IO Cursor
     _initCursor headers = do
@@ -585,9 +585,16 @@ withNetworkLayerBase tr net np conn versionData tol action = do
                     Left _pastHorizon -> return NotResponding
                     Right p -> return p
 
---------------------------------------------------------------------------------
---
--- Network Client
+{-------------------------------------------------------------------------------
+    NetworkClient
+    Node-to-client mini-protocol descriptions
+-------------------------------------------------------------------------------}
+-- | A protocol client that will never leave the initial state.
+doNothingProtocol
+    :: MonadTimer m => RunMiniProtocol 'InitiatorMode ByteString m a Void
+doNothingProtocol =
+    InitiatorProtocolOnly $ MuxPeerRaw $
+    const $ forever $ threadDelay 1e6
 
 -- | Type representing a network client running two mini-protocols to sync
 -- from the chain and, submit transactions.
@@ -672,47 +679,6 @@ mkDelegationRewardsClient tr cfg queryRewardQ v =
     tr' = contramap (MsgLocalStateQuery DelegationRewardsClient) tr
     codec = cStateQueryCodec (serialisedCodecs v cfg)
 
-{-------------------------------------------------------------------------------
-                                     Codecs
--------------------------------------------------------------------------------}
-
-codecVersion
-    :: NodeToClientVersion
-    -> BlockNodeToClientVersion (CardanoBlock StandardCrypto)
-codecVersion version = verMap ! version
-    where verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock StandardCrypto))
-
-codecConfig :: W.SlottingParameters -> CodecConfig (CardanoBlock c)
-codecConfig sp = CardanoCodecConfig
-    (byronCodecConfig sp)
-    ShelleyCodecConfig
-    ShelleyCodecConfig
-    ShelleyCodecConfig
-    ShelleyCodecConfig
-
-
--- | A group of codecs which will deserialise block data.
-codecs
-    :: MonadST m
-    => NodeToClientVersion
-    -> CodecConfig (CardanoBlock StandardCrypto)
-    -> ClientCodecs (CardanoBlock StandardCrypto) m
-codecs nodeToClientVersion cfg =
-    clientCodecs cfg (codecVersion nodeToClientVersion) nodeToClientVersion
-
--- | A group of codecs which won't deserialise block data. Often only the block
--- headers are needed. It's more efficient and easier not to deserialise.
-serialisedCodecs
-    :: MonadST m
-    => NodeToClientVersion
-    -> CodecConfig (CardanoBlock StandardCrypto)
-    -> DefaultCodecs (CardanoBlock StandardCrypto) m
-serialisedCodecs nodeToClientVersion cfg =
-    defaultCodecs cfg (codecVersion nodeToClientVersion) nodeToClientVersion
-
-{-------------------------------------------------------------------------------
-                                     Tip sync
--------------------------------------------------------------------------------}
 
 type CardanoInterpreter sc = Interpreter (CardanoEras sc)
 
@@ -827,48 +793,25 @@ mkTipSyncClient tr np onPParamsUpdate onInterpreterUpdate onEraUpdate = do
     return (client, snd <$> readTVar tipVar)
     -- FIXME: We can remove the era from the tip sync client now.
 
--- | Construct a network client with the given communication channel, for the
--- purpose of submitting transactions.
-connectCardanoApiClient
+mkLocalTxSubmissionClient
     :: Tracer IO NetworkLayerLog
-        -- ^ Base trace for underlying protocols
-    -> RetryHandlers
-    -> LocalNodeConnectInfo CardanoMode
-    -> TQueue IO
-        (LocalTxSubmissionCmd
+    -> TQueue IO (LocalTxSubmissionCmd
             (Cardano.TxInMode CardanoMode)
             (Cardano.TxValidationErrorInMode CardanoMode)
-            IO)
-        -- ^ Communication channel with the LocalTxSubmission client
-    -> IO ()
-connectCardanoApiClient tr handlers info localTxSubmissionQ =
-    recoveringNodeConnection tr handlers $
-        connectToLocalNode info proto
-  where
-    proto = LocalNodeClientProtocols
-            { localChainSyncClient = NoLocalChainSyncClient
-            , localTxSubmissionClient = Just client
-            , localStateQueryClient = Nothing
-            }
-    client = localTxSubmission localTxSubmissionQ
-    -- fixme: put back tracing of messages
+            IO )
+    -> LocalNodeClientProtocolsInMode CardanoMode
+mkLocalTxSubmissionClient _tr localTxSubmissionQ = LocalNodeClientProtocols
+    { localChainSyncClient = NoLocalChainSyncClient
+    , localTxSubmissionClient = Just $ localTxSubmission localTxSubmissionQ
+    , localStateQueryClient = Nothing
+    }
+    -- FIXME: Put back logging for local Tx Submission.
     -- tr' = contramap MsgTxSubmission tr
 
--- Reward Account Balances
-
--- | Monitors values for keys, and allows clients to @query@ them.
---
--- Designed to be used for observing reward balances, where we want to cache the
--- balances of /all/ the wallets' accounts on tip change, and allow wallet
--- workers to @query@ the cache later, often, and whenever they want.
---
--- NOTE: One could imagine replacing @query@ getter with a push-based approach.
-data Observer m key value = Observer
-    { startObserving :: key -> m ()
-    , stopObserving :: key -> m ()
-    , query :: key -> m (Maybe value)
-    }
-
+{-------------------------------------------------------------------------------
+    Thread for observing
+    Reward Account Balance
+-------------------------------------------------------------------------------}
 newRewardBalanceFetcher
     :: Tracer IO NetworkLayerLog
     -- ^ Used to convert tips for logging
@@ -938,36 +881,18 @@ fetchRewardAccounts tr queryRewardQ accounts = do
         , [MsgAccountDelegationAndRewards deleg rewardAccounts]
         )
 
-data ObserverLog key value
-    = MsgWillFetch (Set key)
-    | MsgDidFetch (Map key value)
-    | MsgDidChange (Map key value)
-    | MsgAddedObserver key
-    | MsgRemovedObserver key
-    deriving (Eq, Show)
-
-instance (Ord key, Buildable key, Buildable value)
-    => ToText (ObserverLog key value) where
-    toText (MsgWillFetch keys) = mconcat
-        [ "Will fetch values for keys "
-        , fmt $ listF keys
-        ]
-    toText (MsgDidFetch m) = mconcat
-        [ "Did fetch values "
-        , fmt $ mapF m
-        ]
-    toText (MsgDidChange m) = mconcat
-        [ "New values: "
-        , fmt $ mapF m
-        ]
-    toText (MsgAddedObserver key) = mconcat
-        [ "Started observing values for key "
-        , pretty key
-        ]
-    toText (MsgRemovedObserver key) = mconcat
-        [ "Stopped observing values for key "
-        , pretty key
-        ]
+-- | Monitors values for keys, and allows clients to @query@ them.
+--
+-- Designed to be used for observing reward balances, where we want to cache the
+-- balances of /all/ the wallets' accounts on tip change, and allow wallet
+-- workers to @query@ the cache later, often, and whenever they want.
+--
+-- NOTE: One could imagine replacing @query@ getter with a push-based approach.
+data Observer m key value = Observer
+    { startObserving :: key -> m ()
+    , stopObserving :: key -> m ()
+    , query :: key -> m (Maybe value)
+    }
 
 -- | Given a way to fetch values for a set of keys, create:
 -- 1. An @Observer@ for consuming values
@@ -1029,48 +954,60 @@ newObserver tr fetch = do
                     traceWith tr $ MsgDidChange values
                 atomically $ writeTVar cacheVar values
 
--- | Return a function to run an action only if its single parameter has changed
--- since the previous time it was called.
-debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
-debounce action = do
-    mvar <- newTMVarIO Nothing
-    pure $ \cur -> do
-        prev <- atomically $ takeTMVar mvar
-        unless (Just cur == prev) $ action cur
-        atomically $ putTMVar mvar (Just cur)
+{-------------------------------------------------------------------------------
+    Codecs
+-------------------------------------------------------------------------------}
 
--- | Convenience function to trace around a local state query.
--- See 'addTimings'.
-bracketQuery
-    :: MonadUnliftIO m
-    => String
-    -> Tracer m NetworkLayerLog
-    -> m a
-    -> m a
-bracketQuery label tr = bracketTracer (contramap (MsgQuery label) tr)
+codecVersion
+    :: NodeToClientVersion
+    -> BlockNodeToClientVersion (CardanoBlock StandardCrypto)
+codecVersion version = verMap ! version
+    where verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock StandardCrypto))
 
--- | A tracer transformer which processes 'MsgQuery' logs to make new
--- 'MsgQueryTime' logs, so that we can get logs like:
+codecConfig :: W.SlottingParameters -> CodecConfig (CardanoBlock c)
+codecConfig sp = CardanoCodecConfig
+    (byronCodecConfig sp)
+    ShelleyCodecConfig
+    ShelleyCodecConfig
+    ShelleyCodecConfig
+    ShelleyCodecConfig
+
+-- | A group of codecs which will deserialise block data.
+codecs
+    :: MonadST m
+    => NodeToClientVersion
+    -> CodecConfig (CardanoBlock StandardCrypto)
+    -> ClientCodecs (CardanoBlock StandardCrypto) m
+codecs nodeToClientVersion cfg =
+    clientCodecs cfg (codecVersion nodeToClientVersion) nodeToClientVersion
+
+-- | A group of codecs which won't deserialise block data. Often only the block
+-- headers are needed. It's more efficient and easier not to deserialise.
+serialisedCodecs
+    :: MonadST m
+    => NodeToClientVersion
+    -> CodecConfig (CardanoBlock StandardCrypto)
+    -> DefaultCodecs (CardanoBlock StandardCrypto) m
+serialisedCodecs nodeToClientVersion cfg =
+    defaultCodecs cfg (codecVersion nodeToClientVersion) nodeToClientVersion
+
+{-------------------------------------------------------------------------------
+    I/O -- Connect to the cardano-node process.
+-------------------------------------------------------------------------------}
+-- | Construct a network client with the given protocols.
 --
--- >>> Query getAccountBalance took 51.664463s
-traceQueryTimings :: Tracer IO NetworkLayerLog -> IO (Tracer IO NetworkLayerLog)
-traceQueryTimings tr = produceTimings msgQuery trDiffTime
-  where
-    trDiffTime = contramap (uncurry MsgQueryTime) tr
-    msgQuery = \case
-        MsgQuery l b -> Just (l, b)
-        _ -> Nothing
-
--- | Consider a "slow query" to be something that takes 200ms or more.
-isSlowQuery :: String -> DiffTime -> Bool
-isSlowQuery _label = (>= 0.2)
-
--- | A protocol client that will never leave the initial state.
-doNothingProtocol
-    :: MonadTimer m => RunMiniProtocol 'InitiatorMode ByteString m a Void
-doNothingProtocol =
-    InitiatorProtocolOnly $ MuxPeerRaw $
-    const $ forever $ threadDelay 1e6
+-- FIXME: This functions overlaps with 'connectClient'.
+-- However, it is more modern in that is uses 'Cardano.Api'.
+-- We may or may not want to switch 'Cardano.Api' in the future.
+connectCardanoApiClient
+    :: Tracer IO NetworkLayerLog
+        -- ^ Base trace for underlying protocols
+    -> RetryHandlers
+    -> LocalNodeConnectInfo CardanoMode
+    -> LocalNodeClientProtocolsInMode CardanoMode
+    -> IO ()
+connectCardanoApiClient tr handlers info =
+    recoveringNodeConnection tr handlers . connectToLocalNode info
 
 -- Connect a client to a network, see `mkWalletClient` to construct a network
 -- client interface.
@@ -1093,8 +1030,9 @@ connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
     let socket = localSnocket iocp (nodeSocketFile conn)
-    recoveringNodeConnection tr handlers $
-        connectTo socket tracers versions (nodeSocketFile conn)
+    flip withException (print @SomeException) $
+        recoveringNodeConnection tr handlers $
+            connectTo socket tracers versions (nodeSocketFile conn)
 
 recoveringNodeConnection
     :: Tracer IO NetworkLayerLog
@@ -1183,8 +1121,68 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxBlockedOnCompletionVar _ -> pure False -- TODO: Is this correct?
 
 {-------------------------------------------------------------------------------
+    Helper functions of the Control.* and STM variety
+-------------------------------------------------------------------------------}
+-- | Return a function to run an action only if its single parameter has changed
+-- since the previous time it was called.
+debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
+debounce action = do
+    mvar <- newTMVarIO Nothing
+    pure $ \cur -> do
+        prev <- atomically $ takeTMVar mvar
+        unless (Just cur == prev) $ action cur
+        atomically $ putTMVar mvar (Just cur)
+
+-- | Trigger an action initially, and when the value changes.
+--
+-- There's no guarantee that we will see every intermediate value.
+observeForever :: (MonadSTM m, Eq a) => STM m a -> (a -> m ()) -> m ()
+observeForever readVal action = go Nothing
+  where
+    go old = do
+        new <- atomically $ do
+            new <- readVal
+            guard (old /= Just new)
+            return new
+        action new
+        go (Just new)
+
+-- | Put if empty, replace if not empty.
+repsertTMVar :: TMVar IO a -> a -> STM IO ()
+repsertTMVar var x = do
+    e <- isEmptyTMVar var
+    unless e $ void $ takeTMVar var
+    putTMVar var x
+
+{-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
+
+-- | Convenience function to trace around a local state query.
+-- See 'addTimings'.
+bracketQuery
+    :: MonadUnliftIO m
+    => String
+    -> Tracer m NetworkLayerLog
+    -> m a
+    -> m a
+bracketQuery label tr = bracketTracer (contramap (MsgQuery label) tr)
+
+-- | A tracer transformer which processes 'MsgQuery' logs to make new
+-- 'MsgQueryTime' logs, so that we can get logs like:
+--
+-- >>> Query getAccountBalance took 51.664463s
+traceQueryTimings :: Tracer IO NetworkLayerLog -> IO (Tracer IO NetworkLayerLog)
+traceQueryTimings tr = produceTimings msgQuery trDiffTime
+  where
+    trDiffTime = contramap (uncurry MsgQueryTime) tr
+    msgQuery = \case
+        MsgQuery l b -> Just (l, b)
+        _ -> Nothing
+
+-- | Consider a "slow query" to be something that takes 200ms or more.
+isSlowQuery :: String -> DiffTime -> Bool
+isSlowQuery _label = (>= 0.2)
 
 data NetworkLayerLog where
     MsgCouldntConnect :: Int -> NetworkLayerLog
@@ -1359,25 +1357,40 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgObserverLog (MsgDidChange _)    -> Notice
         MsgObserverLog{}                   -> Debug
 
+data ObserverLog key value
+    = MsgWillFetch (Set key)
+    | MsgDidFetch (Map key value)
+    | MsgDidChange (Map key value)
+    | MsgAddedObserver key
+    | MsgRemovedObserver key
+    deriving (Eq, Show)
 
+instance (Ord key, Buildable key, Buildable value)
+    => ToText (ObserverLog key value) where
+    toText (MsgWillFetch keys) = mconcat
+        [ "Will fetch values for keys "
+        , fmt $ listF keys
+        ]
+    toText (MsgDidFetch m) = mconcat
+        [ "Did fetch values "
+        , fmt $ mapF m
+        ]
+    toText (MsgDidChange m) = mconcat
+        [ "New values: "
+        , fmt $ mapF m
+        ]
+    toText (MsgAddedObserver key) = mconcat
+        [ "Started observing values for key "
+        , pretty key
+        ]
+    toText (MsgRemovedObserver key) = mconcat
+        [ "Stopped observing values for key "
+        , pretty key
+        ]
 
--- | Trigger an action initially, and when the value changes.
---
--- There's no guarantee that we will see every intermediate value.
-observeForever :: (MonadSTM m, Eq a) => STM m a -> (a -> m ()) -> m ()
-observeForever readVal action = go Nothing
-  where
-    go old = do
-        new <- atomically $ do
-            new <- readVal
-            guard (old /= Just new)
-            return new
-        action new
-        go (Just new)
-
---
--- LSQ Helpers
---
+{-------------------------------------------------------------------------------
+    Local State Query Helpers
+-------------------------------------------------------------------------------}
 
 byronOrShelleyBased
     :: LSQ Byron.ByronBlock m a
