@@ -391,7 +391,7 @@ data VerifySelectionFailureInfo
 
 -- | The type of all 'Selection' verification functions.
 --
-type VerifySelectionProperty error =
+type VerifySelection error =
     SelectionConstraints ->
     SelectionParams ->
     Selection ->
@@ -447,7 +447,7 @@ data VerifySelectionCollateralSufficientFailureInfo =
     deriving (Eq, Show)
 
 verifySelectionCollateralSufficient
-    :: VerifySelectionProperty VerifySelectionCollateralSufficientFailureInfo
+    :: VerifySelection VerifySelectionCollateralSufficientFailureInfo
 verifySelectionCollateralSufficient cs ps selection
     | collateralSelected >= collateralRequired =
         Nothing
@@ -472,7 +472,7 @@ data VerifySelectionCollateralSuitableFailureInfo =
     deriving (Eq, Show)
 
 verifySelectionCollateralSuitable
-    :: VerifySelectionProperty VerifySelectionCollateralSuitableFailureInfo
+    :: VerifySelection VerifySelectionCollateralSuitableFailureInfo
 verifySelectionCollateralSuitable cs _ps selection
     | null collateralSelectedButUnsuitable =
         Nothing
@@ -503,7 +503,7 @@ data VerifySelectionDeltaValidFailureInfo = VerifySelectionDeltaValidFailureInfo
     deriving (Eq, Show)
 
 verifySelectionDeltaValid
-    :: VerifySelectionProperty VerifySelectionDeltaValidFailureInfo
+    :: VerifySelection VerifySelectionDeltaValidFailureInfo
 verifySelectionDeltaValid cs ps selection
     | selectionHasValidSurplus cs ps selection =
         Nothing
@@ -532,7 +532,7 @@ data VerifySelectionInputCountWithinLimitFailureInfo =
     deriving (Eq, Show)
 
 verifySelectionInputCountWithinLimit
-    :: VerifySelectionProperty VerifySelectionInputCountWithinLimitFailureInfo
+    :: VerifySelection VerifySelectionInputCountWithinLimitFailureInfo
 verifySelectionInputCountWithinLimit cs _ps selection
     | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
         Nothing
@@ -561,7 +561,7 @@ data SelectionOutputCoinInsufficientError =
     deriving (Eq, Show)
 
 verifySelectionOutputCoinsSufficient
-    :: VerifySelectionProperty VerifySelectionOutputCoinsSufficientFailureInfo
+    :: VerifySelection VerifySelectionOutputCoinsSufficientFailureInfo
 verifySelectionOutputCoinsSufficient cs _ps selection =
     VerifySelectionOutputCoinsSufficientFailureInfo <$> NE.nonEmpty errors
   where
@@ -591,7 +591,7 @@ newtype VerifySelectionOutputSizesWithinLimitFailureInfo =
     deriving (Eq, Show)
 
 verifySelectionOutputSizesWithinLimit
-    :: VerifySelectionProperty VerifySelectionOutputSizesWithinLimitFailureInfo
+    :: VerifySelection VerifySelectionOutputSizesWithinLimitFailureInfo
 verifySelectionOutputSizesWithinLimit cs _ps selection =
     VerifySelectionOutputSizesWithinLimitFailureInfo <$> NE.nonEmpty errors
   where
@@ -608,7 +608,7 @@ newtype VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo =
     deriving (Eq, Show)
 
 verifySelectionOutputTokenQuantitiesWithinLimit ::
-    VerifySelectionProperty
+    VerifySelection
     VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
 verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection =
     VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
