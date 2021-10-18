@@ -807,7 +807,7 @@ prop_rollbackCheckpoint db@DBLayer{..} cp0 (MockChain chain) = do
         let str = maybe "∅" pretty cp
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
         assert (ShowFmt cp == ShowFmt (pure point))
-        assert (ShowFmt point' == ShowFmt (tip ^. #slotNo))
+        assert (ShowFmt (point' ^. #slotNo) == ShowFmt (tip ^. #slotNo))
 
 -- | Re-schedule pending transaction on rollback, i.e.:
 --
@@ -840,7 +840,8 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
             unsafeRunExceptT $ putTxHistory wid txs0
 
     prop wid requestedPoint = do
-        point <- run $ unsafeRunExceptT $ mapExceptT atomically $ rollbackTo wid requestedPoint
+        point <- run $ unsafeRunExceptT $ mapExceptT atomically $
+            view #slotNo <$> rollbackTo wid requestedPoint
         txs <- run $ atomically $ fmap toTxHistory
             <$> readTxHistory wid Nothing Descending wholeRange Nothing
 

@@ -340,6 +340,7 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
+    , ChainPoint (..)
     , DelegationCertificate (..)
     , FeePolicy (LinearFee)
     , GenesisParameters (..)
@@ -892,7 +893,7 @@ restoreWallet
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     liftIO $ chainSync nw tr' $ ChainFollower
         { readLocalTip =
-            liftIO $ atomically $ listCheckpoints wid
+            liftIO $ atomically $ map toChainPoint <$> listCheckpoints wid
         , rollForward = \tip blocks -> throwInIO $
             restoreBlocks @ctx @s @k
                 ctx (contramap MsgFollowLog tr') wid blocks tip
@@ -916,12 +917,47 @@ rollbackBlocks
     :: forall ctx s k. (HasDBLayer IO s k ctx)
     => ctx
     -> WalletId
-    -> SlotNo
-    -> ExceptT ErrNoSuchWallet IO SlotNo
+    -> ChainPoint
+    -> ExceptT ErrNoSuchWallet IO ChainPoint
 rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
-    mapExceptT atomically $ rollbackTo wid point
+    mapExceptT atomically $ toChainPoint <$> rollbackTo wid (pseudoPointSlot point)
   where
     db = ctx ^. dbLayer @IO @s @k
+
+-- See NOTE [PointSlotNo]
+pseudoPointSlot :: ChainPoint -> SlotNo
+pseudoPointSlot ChainPointAtGenesis = W.SlotNo 0
+pseudoPointSlot (ChainPoint slot _) = slot
+
+toChainPoint :: W.BlockHeader -> ChainPoint
+toChainPoint (BlockHeader slot _ h _) = ChainPoint slot h
+
+{- NOTE [PointSlotNo] 
+
+`SlotNo` cannot represent the genesis point `Origin`.
+
+Historical hack. Our DB layers can't represent `Origin` when rolling
+back, so we map `Origin` to `SlotNo 0`, which is wrong.
+
+Rolling back to SlotNo 0 instead of Origin is fine for followers starting
+from genesis (which should be the majority of cases). Other, non-trivial
+rollbacks to genesis cannot occur on mainnet (genesis is years within
+stable part, and there were no rollbacks in byron).
+
+Could possibly be problematic in the beginning of a testnet without a
+byron era. /Perhaps/ this is what is happening in the
+>>> [cardano-wallet.pools-engine:Error:1293] [2020-11-24 10:02:04.00 UTC]
+>>> Couldn't store production for given block before it conflicts with
+>>> another block. Conflicting block header is:
+>>> 5bde7e7b<-[f1b35b98-4290#2008]
+errors observed in the integration tests.
+
+FIXME: Fix should be relatively straight-forward, so we should probably
+do it.
+Heinrich: I have introduced the 'ChainPoint' type to represent points
+on the chain. This type is already used in chain sync protocol,
+but it still needs to be propagated to the database layer.
+-}
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.

@@ -71,6 +71,7 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
     , CertificatePublicationTime (..)
+    , ChainPoint (..)
     , EpochNo (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
@@ -83,6 +84,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     , Settings (..)
     , SlotLength (..)
+    , SlotNo (..)
     , SlottingParameters (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
@@ -538,14 +540,22 @@ monitorStakePools followTr (NetworkParameters gp sp _pp) nl DBLayer{..} =
     monitor latestGarbageCollectionEpochRef = do
             let rollForward = forward latestGarbageCollectionEpochRef
 
-            let rollback slot = do
-                    liftIO . atomically $ rollbackTo slot
+            let rollback point = do
+                    liftIO . atomically $ rollbackTo $ pseudoPointSlot point
                     -- The DB will always rollback to the requested slot, so we
                     -- return it.
-                    return $ Right slot
+                    return $ Right point
+
+                -- See NOTE [PointSlotNo]
+                pseudoPointSlot :: ChainPoint -> SlotNo
+                pseudoPointSlot ChainPointAtGenesis = SlotNo 0
+                pseudoPointSlot (ChainPoint slot _) = slot
+
+                toChainPoint :: BlockHeader -> ChainPoint
+                toChainPoint (BlockHeader slot _ h _) = ChainPoint slot h
 
             chainSync nl followTr $ ChainFollower
-                { readLocalTip = initCursor
+                { readLocalTip = map toChainPoint <$> initCursor
                 , rollForward = \tip blocks -> rollForward blocks tip innerTr
                 , rollBackward = fmap (either (error "todo") id) . rollback
                 }

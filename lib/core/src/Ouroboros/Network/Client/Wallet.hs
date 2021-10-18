@@ -106,7 +106,6 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Client
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( SubmitResult (..) )
 
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.List.NonEmpty as NE
 import qualified Ouroboros.Network.Protocol.ChainSync.ClientPipelined as P
 import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
@@ -429,28 +428,6 @@ chainSyncWithBlocks tr chainFollower =
             , P.recvMsgRollBackward = \_point _tip ->
                 clientStNegotiateIntersection
             }
-
-    -- Historical hack. Our DB layers can't represent `Origin` when rolling
-    -- back, so we map `Origin` to `SlotNo 0`, which is wrong.
-    --
-    -- Rolling back to SlotNo 0 instead of Origin is fine for followers starting
-    -- from genesis (which should be the majority of cases). Other, non-trivial
-    -- rollbacks to genesis cannot occur on mainnet (genesis is years within
-    -- stable part, and there were no rollbacks in byron).
-    --
-    -- Could possibly be problematic in the beginning of a testnet without a
-    -- byron era. /Perhaps/ this is what is happening in the
-    -- >>> [cardano-wallet.pools-engine:Error:1293] [2020-11-24 10:02:04.00 UTC]
-    -- >>> Couldn't store production for given block before it conflicts with
-    -- >>> another block. Conflicting block header is:
-    -- >>> 5bde7e7b<-[f1b35b98-4290#2008]
-    -- errors observed in the integration tests.
-    --
-    -- FIXME: Fix should be relatively straight-forward, so we should probably
-    -- do it.
-    pseudoPointSlot p = case pointSlot p of
-        Origin -> W.SlotNo 0
-        At slot -> slot
 
 --------------------------------------------------------------------------------
 --

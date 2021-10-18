@@ -1444,7 +1444,9 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
                     refreshCache wid
-                    pure (Right nearestPoint)
+                    selectLatestCheckpointCached wid >>= \case
+                        Nothing -> error "Sqlite.rollbackTo: impossible code path"
+                        Just cp -> pure $ Right $ cp ^. #currentTip
 
         , prune = \wid epochStability -> ExceptT $ do
             selectLatestCheckpointCached wid >>= \case

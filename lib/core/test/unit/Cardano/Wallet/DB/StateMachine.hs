@@ -118,7 +118,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader
+    ( BlockHeader (..)
     , DecentralizationLevel
     , DelegationCertificate
     , EpochNo (..)
@@ -158,7 +158,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
-    , TxMeta (..)
+    , TxMeta
     , TxMetadata
     , TxOut (..)
     , TxScriptValidity
@@ -457,7 +457,7 @@ runMock = \case
         first (Resp . fmap DelegationRewardBalance)
         . mReadDelegationRewardBalance wid
     RollbackTo wid sl ->
-        first (Resp . fmap Point) . mRollbackTo wid sl
+        first (Resp . fmap (Point . slotNo)) . mRollbackTo wid sl
   where
     timeInterpreter = dummyTimeInterpreter
 
@@ -535,7 +535,7 @@ runIO db@DBLayer{..} = fmap Resp . go
         ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
             atomically (readDelegationRewardBalance wid)
         RollbackTo wid sl -> catchNoSuchWallet Point $
-            mapExceptT atomically $ rollbackTo wid sl
+            mapExceptT atomically $ fmap slotNo $ rollbackTo wid sl
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT

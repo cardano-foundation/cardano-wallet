@@ -8,7 +8,7 @@ module Cardano.Wallet.NetworkSpec
 import Prelude
 
 import Cardano.Wallet.Gen
-    ( genBlockHeader, genSlotNo )
+    ( genBlockHeader, genChainPoint, genSlotNo )
 import Cardano.Wallet.Network
     ( ErrPostTx (..), FollowLog (..), emptyStats, updateStats )
 import Cardano.Wallet.Primitive.Types
@@ -49,8 +49,8 @@ instance Arbitrary (FollowLog msg) where
           <$> arbitrary
           <*> ((NE.fromList . getNonEmpty) <$> arbitrary)
       , MsgDidRollback
-          <$> genSlotNo
-          <*> genSlotNo
+          <$> genChainPoint
+          <*> genChainPoint
       , MsgFollowerTip . Just
           <$> arbitrary
       , pure $ MsgFollowerTip Nothing

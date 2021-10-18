@@ -14,6 +14,7 @@ module Cardano.Wallet.Gen
     , shrinkPercentage
     , genLegacyAddress
     , genBlockHeader
+    , genChainPoint
     , genActiveSlotCoefficient
     , shrinkActiveSlotCoefficient
     , genSlotNo
@@ -50,6 +51,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
+    , ChainPoint (..)
     , ProtocolMagic (..)
     , SlotNo (..)
     )
@@ -91,6 +93,7 @@ import Test.QuickCheck
     , arbitrarySizedNatural
     , choose
     , elements
+    , frequency
     , listOf
     , listOf1
     , oneof
@@ -166,6 +169,14 @@ genSlotNo = SlotNo . fromIntegral <$> arbitrary @Word32
 
 shrinkSlotNo :: SlotNo -> [SlotNo]
 shrinkSlotNo (SlotNo x) = map SlotNo $ shrink x
+
+genChainPoint :: Gen ChainPoint
+genChainPoint = frequency
+    [ ( 1, pure ChainPointAtGenesis)  -- "common" but not "very common"
+    , (40, toChainPoint <$> (genBlockHeader =<< genSlotNo))
+    ]
+  where
+    toChainPoint (BlockHeader slot _ h _) = ChainPoint slot h
 
 genBlockHeader :: SlotNo -> Gen BlockHeader
 genBlockHeader sl = do

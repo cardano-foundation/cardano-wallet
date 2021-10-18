@@ -301,7 +301,7 @@ mRemovePendingOrExpiredTx wid tid = alterModelErr wid $ \wal ->
                 , submittedTxs = Map.delete tid (submittedTxs wal)
                 } )
 
-mRollbackTo :: Ord wid => wid -> SlotNo -> ModelOp wid s xprv SlotNo
+mRollbackTo :: Ord wid => wid -> SlotNo -> ModelOp wid s xprv BlockHeader
 mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallets of
     Nothing ->
         ( Left (NoSuchWallet wid), db )
@@ -319,7 +319,7 @@ mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallet
                             Map.mapMaybe (rescheduleOrForget point) (txHistory wal)
                         }
                 in
-                    ( Right point
+                    ( Right $ view #currentTip (checkpoints wal Map.! point)
                     , Database (Map.insert wid wal' wallets) txs
                     )
   where

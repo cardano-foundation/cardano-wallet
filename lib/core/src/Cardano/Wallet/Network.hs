@@ -52,6 +52,7 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , ChainPoint
     , ProtocolParameters
     , SlotNo (..)
     , SlottingParameters (..)
@@ -112,7 +113,7 @@ data NetworkLayer m block = NetworkLayer
     { chainSync
         :: forall msg. Tracer IO (FollowLog msg)
         -> ChainFollower m
-            BlockHeader
+            ChainPoint
             BlockHeader
             block
         -> m ()
@@ -197,11 +198,9 @@ data ChainFollower m point tip block = ChainFollower
         --
         -- Implementors _may_ delete old checkpoints while rolling forward.
 
-    , rollBackward :: SlotNo -> m SlotNo
+    , rollBackward :: point -> m point
         -- ^ Roll back to the requested slot, or further, and return the point
         -- actually rolled back to.
-        --
-        -- TODO: `SlotNo` cannot represent the genesis point `Origin`.
         --
         -- __Example 1:__
         --
@@ -239,15 +238,16 @@ data ChainFollower m point tip block = ChainFollower
 mapChainFollower
     :: Functor m
     => (point1 -> point2) -- ^ Covariant
+    -> (point2 -> point1) -- ^ Contravariant
     -> (tip2 -> tip1) -- ^ Contravariant
     -> (block2 -> block1) -- ^ Contravariant
     -> ChainFollower m point1 tip1 block1
     -> ChainFollower m point2 tip2 block2
-mapChainFollower fpoint ftip fblock cf =
+mapChainFollower fpoint12 fpoint21 ftip fblock cf =
     ChainFollower
-        { readLocalTip = map fpoint <$> readLocalTip cf
+        { readLocalTip = map fpoint12 <$> readLocalTip cf
         , rollForward = \t bs -> rollForward cf (ftip t) (fmap fblock bs)
-        , rollBackward = rollBackward cf
+        , rollBackward = fmap fpoint12 . rollBackward cf . fpoint21
         }
 
 
@@ -316,8 +316,8 @@ data FollowLog msg
     | MsgFollowStats (FollowStats LogState)
     | MsgApplyBlocks BlockHeader (NonEmpty BlockHeader)
     | MsgFollowLog msg -- Inner tracer
-    | MsgWillRollback SlotNo
-    | MsgDidRollback SlotNo SlotNo
+    | MsgWillRollback ChainPoint
+    | MsgDidRollback ChainPoint ChainPoint
     | MsgFailedRollingBack Text -- Reason
     | MsgWillIgnoreRollback SlotNo Text -- Reason
     | MsgChainSync (ChainSyncLog Text Text)
@@ -535,8 +535,8 @@ instance HasSeverityAnnotation (FollowStats LogState) where
 addFollowerLogging
     :: Monad m
     => Tracer m (FollowLog msg)
-    -> ChainFollower m point BlockHeader block
-    -> ChainFollower m point BlockHeader block
+    -> ChainFollower m ChainPoint BlockHeader block
+    -> ChainFollower m ChainPoint BlockHeader block
 addFollowerLogging tr cf = ChainFollower
     { readLocalTip = do
         readLocalTip cf
@@ -544,10 +544,10 @@ addFollowerLogging tr cf = ChainFollower
         traceWith tr $ MsgApplyBlocks tip (fromBlock <$> blocks)
         traceWith tr $ MsgFollowerTip (Just tip)
         rollForward cf tip blocks
-    , rollBackward = \slot -> do
-        slot' <- rollBackward cf slot
-        traceWith tr $ MsgDidRollback slot slot'
-        return slot'
+    , rollBackward = \point -> do
+        point' <- rollBackward cf point
+        traceWith tr $ MsgDidRollback point point'
+        pure point'
     }
 
 -- | Starts a new thread for monitoring health and statistics from

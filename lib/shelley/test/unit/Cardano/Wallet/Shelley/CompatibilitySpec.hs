@@ -89,7 +89,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , invertUnitInterval
     , toCardanoHash
     , toCardanoValue
-    , toPoint
+    , toTip
     , tokenBundleSizeAssessor
     )
 import Cardano.Wallet.Unsafe
@@ -127,7 +127,7 @@ import Data.Word
 import GHC.TypeLits
     ( natVal )
 import Ouroboros.Network.Block
-    ( BlockNo (..), Point, SlotNo (..), Tip (..), getTipPoint )
+    ( BlockNo (..), SlotNo (..), Tip (..) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.Hspec.Core.Spec
@@ -175,10 +175,10 @@ import qualified Shelley.Spec.Ledger.PParams as SL
 spec :: Spec
 spec = do
     describe "Conversions" $ do
-        it "toPoint' . fromTip' == getTipPoint" $ property $ \gh tip -> do
+        it "toTip' . fromTip' == id" $ property $ \gh tip -> do
             let fromTip' = fromTip gh
-            let toPoint' = toPoint gh :: W.BlockHeader -> Point (CardanoBlock StandardCrypto)
-            toPoint' (fromTip' tip) === (getTipPoint tip)
+            let toTip' = toTip gh :: W.BlockHeader -> Tip (CardanoBlock StandardCrypto)
+            toTip' (fromTip' tip) === tip
 
         it "unsafeIntToWord" $
             property prop_unsafeIntToWord

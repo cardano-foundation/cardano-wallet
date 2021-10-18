@@ -304,7 +304,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     , rollbackTo
         :: WalletId
         -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm SlotNo
+        -> ExceptT ErrNoSuchWallet stm BlockHeader
         -- ^ Drops all checkpoints and transaction data after the given slot.
         --
         -- Returns the actual slot to which the database has rolled back. This

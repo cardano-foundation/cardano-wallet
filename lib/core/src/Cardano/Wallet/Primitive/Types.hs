@@ -35,6 +35,7 @@ module Cardano.Wallet.Primitive.Types
     -- * Block
       Block(..)
     , BlockHeader(..)
+    , ChainPoint (..)
 
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
@@ -773,6 +774,26 @@ instance Buildable (Block) where
     build (Block h txs _) = mempty
         <> build h
         <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
+
+-- | A point on the blockchain
+-- is either the genesis block, or a block with a hash that was
+-- created at a particular 'SlotNo'.
+--
+-- TODO: This type is essentially a copy of the 'Cardano.Api.Block.ChainPoint'
+-- type. We want to import it from there when overhauling our types.
+data ChainPoint
+    = ChainPointAtGenesis
+    | ChainPoint !SlotNo !(Hash "BlockHeader")
+    deriving (Eq, Show, Generic)
+
+instance NFData ChainPoint
+
+instance Buildable ChainPoint where
+    build ChainPointAtGenesis    = "[point genesis]"
+    build (ChainPoint slot hash) =
+        "[point " <> hashF <> " at slot " <> pretty slot <> "]"
+      where
+        hashF = prefixF 8 $ T.decodeUtf8 $ convertToBase Base16 $ getHash hash
 
 data BlockHeader = BlockHeader
     { slotNo
