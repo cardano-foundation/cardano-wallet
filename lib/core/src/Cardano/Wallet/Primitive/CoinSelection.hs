@@ -1,7 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -625,8 +627,19 @@ verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection =
 --
 data VerifySelectionErrorResult
     = VerifySelectionErrorSuccess
-    | VerifySelectionErrorFailure
+    | VerifySelectionErrorFailure VerifySelectionErrorFailureInfo
     deriving (Eq, Show)
+
+data VerifySelectionErrorFailureInfo
+    deriving (Eq, Show)
+
+-- | The type of all 'SelectionError' verification functions.
+--
+type VerifySelectionError e =
+    SelectionConstraints ->
+    SelectionParams ->
+    e ->
+    VerifySelectionErrorResult
 
 -- | Verifies a 'SelectionError' for correctness.
 --
@@ -635,13 +648,91 @@ data VerifySelectionErrorResult
 -- code, unless you suspect that a 'SelectionError' is incorrect in some way.
 --
 verifySelectionError
-    :: SelectionConstraints
-    -> SelectionParams
-    -> SelectionError
-    -> VerifySelectionErrorResult
-verifySelectionError _cs _ps _e =
+    :: VerifySelectionError SelectionError
+verifySelectionError cs ps = \case
+    SelectionBalanceError e ->
+        verifySelectionBalanceError cs ps e
+    SelectionCollateralError e ->
+        verifySelectionCollateralError cs ps e
+    SelectionOutputError e ->
+        verifySelectionOutputError cs ps e
+
+--------------------------------------------------------------------------------
+-- Selection error verification: balance errors
+--------------------------------------------------------------------------------
+
+verifySelectionBalanceError
+    :: VerifySelectionError Balance.SelectionError
+verifySelectionBalanceError _cs _ps = \case
+    Balance.BalanceInsufficient _e ->
+        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+    Balance.EmptyUTxO ->
+        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+    Balance.InsufficientMinCoinValues _e ->
+        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+    Balance.UnableToConstructChange _e ->
+        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+    Balance.SelectionLimitReached _e ->
+        -- TODO: [ADP-1037]
+        --
+        -- Verify that the number of the selected inputs is correct given the
+        -- amount of space we expect to be reserved for collateral inputs.
+        VerifySelectionErrorSuccess
+  where
+    -- Indicates that we are temporarily assuming correctness based on test
+    -- coverage for the 'Balance' module.
+    --
     -- TODO: [ADP-1037]
-    -- For now, all errors will verify successfully.
+    -- Reuse properties exported from the module 'Balance' here, so that we
+    -- can reassert that these properties still hold.
+    --
+    temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule =
+        VerifySelectionErrorSuccess
+
+--------------------------------------------------------------------------------
+-- Selection error verification: collateral errors
+--------------------------------------------------------------------------------
+
+verifySelectionCollateralError
+    :: VerifySelectionError Collateral.SelectionError
+verifySelectionCollateralError _cs _ps _e =
+    -- TODO: [ADP-1037]
+    --
+    -- Verify that:
+    --
+    --   - the largest available combination of UTxOs consists of UTxOs that
+    --     are all suitable for use as collateral.
+    --   - the largest available combination of UTxOs has a balance that is
+    --     smaller than the minimum selection amount.
+    --
+    VerifySelectionErrorSuccess
+
+--------------------------------------------------------------------------------
+-- Selection error verification: output errors
+--------------------------------------------------------------------------------
+
+verifySelectionOutputError
+    :: VerifySelectionError SelectionOutputInvalidError
+verifySelectionOutputError cs ps = \case
+    SelectionOutputSizeExceedsLimit e ->
+        verifySelectionOutputSizeExceedsLimitError cs ps e
+    SelectionOutputTokenQuantityExceedsLimit e ->
+        verifySelectionOutputTokenQuantityExceedsLimitError cs ps e
+
+verifySelectionOutputSizeExceedsLimitError
+    :: VerifySelectionError SelectionOutputSizeExceedsLimitError
+verifySelectionOutputSizeExceedsLimitError _cs _ps _e =
+    -- TODO: [ADP-1037]
+    --
+    -- Verify that the indicated output size is above the limit.
+    VerifySelectionErrorSuccess
+
+verifySelectionOutputTokenQuantityExceedsLimitError
+    :: VerifySelectionError SelectionOutputTokenQuantityExceedsLimitError
+verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps _e =
+    -- TODO: [ADP-1037]
+    --
+    -- Verify that the indicated output token quantity is above the limit.
     VerifySelectionErrorSuccess
 
 --------------------------------------------------------------------------------
