@@ -269,6 +269,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot (..)
     , ApiWalletUtxoSnapshotEntry (..)
     , ApiWithdrawal (..)
+    , ApiWithdrawalGeneral (..)
     , ApiWithdrawalPostData (..)
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
@@ -279,6 +280,7 @@ import Cardano.Wallet.Api.Types
     , MinWithdrawal (..)
     , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
+    , ResourceContext (..)
     , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -342,7 +344,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , ParentContext (..)
     , SeqState (..)
-    , context
     , defaultAddressPoolGap
     , gap
     , mkSeqStateFromAccountXPub
@@ -1065,7 +1066,7 @@ mkSharedWallet ctx wid cp meta pending progress = case getState cp of
             cp
         let available = availableBalance pending cp
         let total = totalBalance pending reward cp
-        let (ParentContextShared _ pTemplate dTemplateM) = context pool
+        let (ParentContextShared _ pTemplate dTemplateM) = pool ^. #context
         pure $ ApiSharedWallet $ Right $ ApiActiveSharedWallet
             { id = ApiT wid
             , name = ApiT $ meta ^. #name
@@ -2256,6 +2257,8 @@ decodeTransaction
         ( ctx ~ ApiLayer s k
         , KnownAddresses s
         , IsOurs s Address
+        , Typeable s
+        , Typeable n
         )
     => ctx
     -> ApiT WalletId
@@ -2263,17 +2266,19 @@ decodeTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     let (Tx txid feeM colls inps outs wdrlMap meta vldt, _toMint, _toBurn) = decodeTx tl sealed
-    txinsOutsPaths <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
-        liftHandler $ W.lookupTxIns wrk wid (fst <$> inps)
-    collsOutsPaths <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
-        liftHandler $ W.lookupTxIns wrk wid (fst <$> colls)
+    (txinsOutsPaths, collsOutsPaths, acct)  <-
+        withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+          txinsOutsPaths <- liftHandler $ W.lookupTxIns wrk wid (fst <$> inps)
+          (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+          collsOutsPaths <- liftHandler $ W.lookupTxIns wrk wid (fst <$> colls)
+          pure (txinsOutsPaths, collsOutsPaths, acct)
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = fromMaybe (Quantity 0) (Quantity . fromIntegral . unCoin <$> feeM)
         , inputs = zipWith toInp txinsOutsPaths inps
         , outputs = map (toAddressAmount @n) outs
         , collateral = zipWith toInp collsOutsPaths colls
-        , withdrawals = map toWrdl $ Map.assocs wdrlMap
+        , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
@@ -2293,8 +2298,11 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
                 , amountSent = Quantity $ fromIntegral cTaken
                 , assets = ApiT tmap
                 }
-    toWrdl (rewardKey, (Coin c)) =
-        ApiWithdrawal (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c)
+    toWrdl acct (rewardKey, (Coin c)) =
+        if rewardKey == acct then
+           ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
+        else
+           ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) External
 
 joinStakePool
     :: forall ctx s n k.

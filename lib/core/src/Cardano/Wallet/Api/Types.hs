@@ -165,6 +165,8 @@ module Cardano.Wallet.Api.Types
     , ApiDecodedTransaction (..)
     , ApiWalletInput (..)
     , ApiTxInputGeneral (..)
+    , ResourceContext (..)
+    , ApiWithdrawalGeneral (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1152,13 +1154,24 @@ data ApiTxInputGeneral (n :: NetworkDiscriminant) =
       deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
+data ResourceContext = External | Our
+      deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
+data ApiWithdrawalGeneral n = ApiWithdrawalGeneral
+    { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
+    , amount :: !(Quantity "lovelace" Natural)
+    , context :: !ResourceContext
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     { id :: !(ApiT (Hash "Tx"))
     , fee :: !(Quantity "lovelace" Natural)
     , inputs :: ![ApiTxInputGeneral n]
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , collateral :: ![ApiTxInputGeneral n]
-    , withdrawals :: ![ApiWithdrawal n]
+    , withdrawals :: ![ApiWithdrawalGeneral n]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
@@ -3160,6 +3173,26 @@ instance DecodeStakeAddress n => FromJSON (ApiWithdrawal n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeStakeAddress n => ToJSON (ApiWithdrawal n) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeStakeAddress n => FromJSON (ApiWithdrawalGeneral n) where
+    parseJSON obj = do
+        myResource <-
+            (withObject "ApiWithdrawalGeneral" $
+             \o -> o .:? "context" :: Aeson.Parser (Maybe Text)) obj
+        case myResource of
+            Nothing -> do
+                (ApiWithdrawal addr amt)  <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
+                pure $ ApiWithdrawalGeneral addr amt External
+            _ -> do
+                (ApiWithdrawal addr amt)  <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
+                pure $ ApiWithdrawalGeneral addr amt Our
+instance EncodeStakeAddress n => ToJSON (ApiWithdrawalGeneral n) where
+    toJSON (ApiWithdrawalGeneral addr amt ctx) = do
+        let obj = [ "stake_address" .= toJSON addr
+                  , "amount" .= toJSON amt]
+        case ctx of
+            External -> object obj
+            Our -> object $ obj ++ ["context" .= String "ours"]
 
 instance {-# OVERLAPS #-} (DecodeStakeAddress n)
     => FromJSON (ApiT W.RewardAccount, Proxy n)
