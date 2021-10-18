@@ -548,8 +548,13 @@ verifySelectionInputCountWithinLimit cs _ps selection
 -- Selection verification: minimum ada quantities
 --------------------------------------------------------------------------------
 
-data VerifySelectionOutputCoinsSufficientFailureInfo =
+newtype VerifySelectionOutputCoinsSufficientFailureInfo =
     VerifySelectionOutputCoinsSufficientFailureInfo
+    (NonEmpty SelectionOutputCoinInsufficientError)
+    deriving (Eq, Show)
+
+data SelectionOutputCoinInsufficientError =
+    SelectionOutputCoinInsufficientError
     { minimumExpectedCoin :: Coin
     , output :: TxOut
     }
@@ -557,20 +562,16 @@ data VerifySelectionOutputCoinsSufficientFailureInfo =
 
 verifySelectionOutputCoinsSufficient
     :: VerifySelectionProperty VerifySelectionOutputCoinsSufficientFailureInfo
-verifySelectionOutputCoinsSufficient cs _ps selection
-    | e : _ <- errors =
-        -- Just report the first error we encounter:
-        Just e
-    | otherwise =
-        Nothing
+verifySelectionOutputCoinsSufficient cs _ps selection =
+    VerifySelectionOutputCoinsSufficientFailureInfo <$> NE.nonEmpty errors
   where
-    errors :: [VerifySelectionOutputCoinsSufficientFailureInfo]
+    errors :: [SelectionOutputCoinInsufficientError]
     errors = mapMaybe maybeError (selectionAllOutputs selection)
 
-    maybeError :: TxOut -> Maybe VerifySelectionOutputCoinsSufficientFailureInfo
+    maybeError :: TxOut -> Maybe SelectionOutputCoinInsufficientError
     maybeError output
         | output ^. (#tokens . #coin) < minimumExpectedCoin =
-            Just VerifySelectionOutputCoinsSufficientFailureInfo
+            Just SelectionOutputCoinInsufficientError
                 {minimumExpectedCoin, output}
         | otherwise =
             Nothing
@@ -586,17 +587,13 @@ verifySelectionOutputCoinsSufficient cs _ps selection
 
 newtype VerifySelectionOutputSizesWithinLimitFailureInfo =
     VerifySelectionOutputSizesWithinLimitFailureInfo
-    SelectionOutputSizeExceedsLimitError
+    (NonEmpty SelectionOutputSizeExceedsLimitError)
     deriving (Eq, Show)
 
 verifySelectionOutputSizesWithinLimit
     :: VerifySelectionProperty VerifySelectionOutputSizesWithinLimitFailureInfo
-verifySelectionOutputSizesWithinLimit cs _ps selection
-    | e : _ <- errors =
-        -- Just report the first error we encounter:
-        Just $ VerifySelectionOutputSizesWithinLimitFailureInfo e
-    | otherwise =
-        Nothing
+verifySelectionOutputSizesWithinLimit cs _ps selection =
+    VerifySelectionOutputSizesWithinLimitFailureInfo <$> NE.nonEmpty errors
   where
     errors :: [SelectionOutputSizeExceedsLimitError]
     errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs selection)
@@ -607,18 +604,15 @@ verifySelectionOutputSizesWithinLimit cs _ps selection
 
 newtype VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo =
     VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
-    SelectionOutputTokenQuantityExceedsLimitError
+    (NonEmpty SelectionOutputTokenQuantityExceedsLimitError)
     deriving (Eq, Show)
 
 verifySelectionOutputTokenQuantitiesWithinLimit ::
     VerifySelectionProperty
     VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
-verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection
-    | e : _ <- errors =
-        -- Just report the first error we encounter:
-        Just $ VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo e
-    | otherwise =
-        Nothing
+verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection =
+    VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
+        <$> NE.nonEmpty errors
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError]
     errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
