@@ -1211,6 +1211,29 @@ x-transactionWithdrawals: &transactionWithdrawals
       stake_address: *stakeAddress
       amount: *amount
 
+x-ours: &ours
+  type: string
+  enum: ["our"]
+  description: |
+    Used when withdrawal or output is ours.
+
+x-transactionWithdrawalsGeneral: &transactionWithdrawalsGeneral
+  description: |
+     A list of withdrawals from stake addresses. Withdrawal belonging to the wallet
+     is underlined.
+  type: array
+  minItems: 0
+  items:
+    type: object
+    additionalProperties: false
+    required:
+      - stake_address
+      - amount
+    properties:
+      stake_address: *stakeAddress
+      amount: *amount
+      context: *ours
+
 x-softIndex: &softIndex
   type: integer
   minimum: 0
@@ -2320,7 +2343,7 @@ components:
         inputs: *transactionInputsGeneral
         outputs: *transactionOutputs
         collateral: *transactionInputsGeneral
-        withdrawals: *transactionWithdrawals
+        withdrawals: *transactionWithdrawalsGeneral
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 
