@@ -257,6 +257,7 @@ library
         --
         -- Use cardano-api:gen to import these generators from cardano-api
       Cardano.Api.Typed.Gen
+      Cardano.Api.Typed.Gen.QuickCheck
       Cardano.Api.Metadata.Gen
   other-modules:
       Paths_cardano_wallet_core
