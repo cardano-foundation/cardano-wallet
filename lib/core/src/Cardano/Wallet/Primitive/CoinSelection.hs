@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -8,6 +7,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{- HLINT ignore "Use newtype instead of data" -}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -631,6 +631,8 @@ data VerifySelectionErrorResult
     deriving (Eq, Show)
 
 data VerifySelectionErrorFailureInfo
+    = VerifySelectionLimitReachedErrorFailure
+      VerifySelectionLimitReachedErrorFailureInfo
     deriving (Eq, Show)
 
 -- | The type of all 'SelectionError' verification functions.
@@ -663,7 +665,7 @@ verifySelectionError cs ps = \case
 
 verifySelectionBalanceError
     :: VerifySelectionError Balance.SelectionError
-verifySelectionBalanceError _cs _ps = \case
+verifySelectionBalanceError cs ps = \case
     Balance.BalanceInsufficient _e ->
         temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
     Balance.EmptyUTxO ->
@@ -672,12 +674,8 @@ verifySelectionBalanceError _cs _ps = \case
         temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
     Balance.UnableToConstructChange _e ->
         temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
-    Balance.SelectionLimitReached _e ->
-        -- TODO: [ADP-1037]
-        --
-        -- Verify that the number of the selected inputs is correct given the
-        -- amount of space we expect to be reserved for collateral inputs.
-        VerifySelectionErrorSuccess
+    Balance.SelectionLimitReached e ->
+        verifySelectionLimitReachedError cs ps e
   where
     -- Indicates that we are temporarily assuming correctness based on test
     -- coverage for the 'Balance' module.
@@ -688,6 +686,60 @@ verifySelectionBalanceError _cs _ps = \case
     --
     temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule =
         VerifySelectionErrorSuccess
+
+data VerifySelectionLimitReachedErrorFailureInfo =
+    VerifySelectionLimitReachedErrorFailureInfo
+        { selectedInputs
+            :: [(TxIn, TxOut)]
+            -- ^ The inputs that were actually selected.
+        , selectedInputCount
+            :: Int
+            -- ^ The number of inputs that were actually selected.
+        , selectionLimitOriginal
+            :: SelectionLimit
+            -- ^ The selection limit before accounting for collateral inputs.
+        , selectionLimitAdjusted
+            :: SelectionLimit
+            -- ^ The selection limit after accounting for collateral inputs.
+        }
+    deriving (Eq, Show)
+
+-- | Verifies a 'Balance.SelectionLimitReachedError'.
+--
+-- This function verifies that the number of the selected inputs is correct
+-- given the amount of space we expect to be reserved for collateral inputs.
+--
+verifySelectionLimitReachedError
+    :: VerifySelectionError Balance.SelectionLimitReachedError
+verifySelectionLimitReachedError cs ps e
+    | Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted =
+        VerifySelectionErrorSuccess
+    | otherwise =
+        VerifySelectionErrorFailure $
+        VerifySelectionLimitReachedErrorFailure $
+        VerifySelectionLimitReachedErrorFailureInfo
+            { selectedInputs
+            , selectedInputCount
+            , selectionLimitAdjusted
+            , selectionLimitOriginal
+            }
+  where
+    selectedInputs :: [(TxIn, TxOut)]
+    selectedInputs = e ^. #inputsSelected
+
+    selectedInputCount :: Int
+    selectedInputCount = F.length selectedInputs
+
+    selectionLimitAdjusted :: SelectionLimit
+    selectionLimitAdjusted = toBalanceConstraintsParams (cs, ps)
+        & fst
+        & view #computeSelectionLimit
+        & ($ F.toList $ e ^. #outputsToCover)
+
+    selectionLimitOriginal :: SelectionLimit
+    selectionLimitOriginal = cs
+        & view #computeSelectionLimit
+        & ($ F.toList $ e ^. #outputsToCover)
 
 --------------------------------------------------------------------------------
 -- Selection error verification: collateral errors
