@@ -1309,9 +1309,9 @@ x-transactionResolvedInputs: &transactionResolvedInputs
         type: integer
         minimum: 0
 
-x-transactionInputsWithoutSource: &transactionInputsWithoutSource
+x-transactionInputsOutsideWallet: &transactionInputsOutsideWallet
   description: |
-    A list of transaction inputs without source.
+    A list of transaction inputs not belonging to a given wallet.
   type: array
   minItems: 0
   items:
@@ -1327,12 +1327,36 @@ x-transactionInputsWithoutSource: &transactionInputsWithoutSource
         minimum: 0
       amount: *amount
 
+x-transactionInputsInsideWallet: &transactionInputsInsideWallet
+  description: |
+    A list of transaction inputs belonging to a given wallet.
+  type: array
+  items:
+    type: object
+    required:
+      - id
+      - index
+      - address
+      - amount_before
+      - amount_picked
+      - derivation_path
+    properties:
+      address: *addressId
+      amount_before: *amount
+      amount_sent: *amount
+      assets: *walletAssets
+      id: *transactionId
+      derivation_path: *derivationPath
+      index:
+        type: integer
+        minimum: 0
+
 x-transactionInputsGeneral: &transactionInputsGeneral
   nullable: false
   oneOf:
-    - <<: *transactionInputsWithoutSource
+    - <<: *transactionInputsOutsideWallet
       title: tx inputs without source not belonging to a given wallet
-    - <<: *transactionResolvedInputs
+    - <<: *transactionInputsInsideWallet
       title: tx inputs belonging to a given wallet
 
 x-transactionResolvedCollateral: &transactionResolvedCollateral

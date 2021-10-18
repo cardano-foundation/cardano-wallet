@@ -162,8 +162,8 @@ module Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostData (..)
     , ApiExternalInput (..)
     , ApiRedeemer (..)
-    , ApiRedeemerCertificate (..)
     , ApiDecodedTransaction (..)
+    , ApiWalletInput (..)
     , ApiTxInputGeneral (..)
 
     -- * API Types (Byron)
@@ -1135,9 +1135,20 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
+data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
+    { id :: !(ApiT (Hash "Tx"))
+    , index :: !Word32
+    , address :: !(ApiT Address, Proxy n)
+    , derivationPath :: NonEmpty (ApiT DerivationIndex)
+    , amountBefore :: !(Quantity "lovelace" Natural)
+    , amountSent :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
+    } deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
 data ApiTxInputGeneral (n :: NetworkDiscriminant) =
       ExternalInput (ApiT TxIn, Quantity "lovelace" Natural)
-    | WalletInput (ApiCoinSelectionInput n)
+    | WalletInput (ApiWalletInput n)
       deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
@@ -2960,6 +2971,11 @@ instance
     , EncodeStakeAddress n
     ) => ToJSON (ApiTransaction n)
   where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiWalletInput n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiWalletInput n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance

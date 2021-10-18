@@ -258,6 +258,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , ApiWalletInput (..)
     , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
@@ -2261,7 +2262,7 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM colls inps outs wdrlMap meta vldt) = decodeTx tl sealed
+    let (Tx txid feeM colls inps outs wdrlMap meta vldt, _toMint, _toBurn) = decodeTx tl sealed
     txinsOutsPaths <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
         liftHandler $ W.lookupTxIns wrk wid (fst <$> inps)
     collsOutsPaths <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
@@ -2278,17 +2279,18 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         }
   where
     tl = ctx ^. W.transactionLayer @k
-    toInp (txin@(TxIn txid ix), txoutPathM) (_, Coin c) =
+    toInp (txin@(TxIn txid ix), txoutPathM) (_, Coin cTaken) =
         case txoutPathM of
             Nothing ->
-                ExternalInput (ApiT txin, Quantity $ fromIntegral c)
-            Just (TxOut addr (TokenBundle _c tmap), path) ->
-                WalletInput $ ApiCoinSelectionInput
+                ExternalInput (ApiT txin, Quantity $ fromIntegral cTaken)
+            Just (TxOut addr (TokenBundle (Coin cInitial) tmap), path) ->
+                WalletInput $ ApiWalletInput
                 { id = ApiT txid
                 , index = ix
                 , address = (ApiT addr, Proxy @n)
                 , derivationPath = NE.map ApiT path
-                , amount = Quantity $ fromIntegral c
+                , amountBefore = Quantity $ fromIntegral cInitial
+                , amountSent = Quantity $ fromIntegral cTaken
                 , assets = ApiT tmap
                 }
     toWrdl (rewardKey, (Coin c)) =
