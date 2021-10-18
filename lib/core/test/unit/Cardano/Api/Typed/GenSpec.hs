@@ -7,7 +7,9 @@ module Cardano.Api.Typed.GenSpec (spec) where
 import Prelude
 
 import Cardano.Api
-    ( AnyCardanoEra (..)
+    ( AddressInEra (..)
+    , AddressTypeInEra (..)
+    , AnyCardanoEra (..)
     , AssetId (..)
     , AssetName (..)
     , CardanoEra (..)
@@ -29,7 +31,10 @@ import Cardano.Api
     , TxIn (..)
     , TxInsCollateral (..)
     , TxIx (..)
+    , TxOutValue (..)
+    , Value (..)
     , quantityToLovelace
+    , valueToList
     )
 import Cardano.Api.Byron
     ( WitnessNetworkIdOrByronAddress (..) )
@@ -165,8 +170,44 @@ spec =
                 property (forAll genIx $ genIxCoverage)
             it "genPtr" $
                 property genPtrCoverage
-            it "genStakeAddressReference" $
-                property genStakeAddressReferenceCoverage
+            -- it "genStakeAddressReference" $
+            --     property genStakeAddressReferenceCoverage
+            describe "genAddressInEra" $ do
+                it "genAddressInEra ByronEra" $
+                    property genAddressInByronEraCoverage
+                it "genAddressInEra ShelleyEra" $
+                    property $ forAll (genAddressInEra ShelleyEra) $
+                    genAddressInShelleyBasedEraCoverage
+                it "genAddressInEra AllegraEra" $
+                    property $ forAll (genAddressInEra AllegraEra) $
+                    genAddressInShelleyBasedEraCoverage
+                it "genAddressInEra MaryEra" $
+                    property $ forAll (genAddressInEra MaryEra) $
+                    genAddressInShelleyBasedEraCoverage
+                it "genAddressInEra AlonzoEra" $
+                    property $ forAll (genAddressInEra AlonzoEra) $
+                    genAddressInShelleyBasedEraCoverage
+            it "genUnsignedQuantity" $
+                property $
+                    forAll genUnsignedQuantity genUnsignedQuantityCoverage
+            it "genValueForTxOutCoverage" $
+                property $ forAll genValueForTxOut genValueForTxOutCoverage
+            describe "genTxOutValue" $ do
+                it "genTxOutValue ByronEra" $
+                    property $ forAll (genTxOutValue ByronEra)
+                        genTxOutValueCoverageAdaOnly
+                it "genTxOutValue ShelleyEra" $
+                    property $ forAll (genTxOutValue ShelleyEra)
+                        genTxOutValueCoverageAdaOnly
+                it "genTxOutValue AllegraEra" $
+                    property $ forAll (genTxOutValue AllegraEra)
+                        genTxOutValueCoverageAdaOnly
+                it "genTxOutValue MaryEra" $
+                    property $ forAll (genTxOutValue MaryEra)
+                        genTxOutValueCoverageMultiAsset
+                it "genTxOutValue AlonzoEra" $
+                    property $ forAll (genTxOutValue AlonzoEra)
+                        genTxOutValueCoverageMultiAsset
 
 genLovelaceCoverage :: Lovelace -> Property
 genLovelaceCoverage l = checkCoverage
@@ -663,3 +704,82 @@ genStakeAddressReferenceCoverage ref = checkCoverage
 
 instance Arbitrary StakeAddressReference where
     arbitrary = genStakeAddressReference
+
+genAddressInByronEraCoverage :: Property
+genAddressInByronEraCoverage = forAll (genAddressInEra ByronEra) $ \addr ->
+    label "in Byron era, always generate byron addresses"
+    $ case addr of
+        AddressInEra ByronAddressInAnyEra _addr ->
+            True
+        _ ->
+            False
+
+genAddressInShelleyBasedEraCoverage :: AddressInEra era -> Property
+genAddressInShelleyBasedEraCoverage addr = checkCoverage
+    $ cover 10 (isByronAddress addr)
+        "byron address"
+    $ cover 10 (isShelleyAddress addr)
+        "shelley address"
+    $ True
+
+    where
+        isByronAddress = \case
+            AddressInEra ByronAddressInAnyEra _addr -> True
+            _ -> False
+        isShelleyAddress = \case
+            AddressInEra (ShelleyAddressInEra _era) _addr -> True
+            _ -> False
+
+genUnsignedQuantityCoverage :: Quantity -> Property
+genUnsignedQuantityCoverage qty = checkCoverage
+    $ cover 1 (qty == 0)
+        "unsigned quantity is zero"
+    $ cover 1 (qty >= veryLargeQuantity)
+        "unsigned quantity is very large"
+    $ cover 10 (qty > 0 && qty < veryLargeQuantity)
+        "unsigned quantity is between zero and very large"
+    $ label "unsigned quantity >= 0" (qty >= 0)
+
+    where
+        veryLargeQuantity :: Quantity
+        veryLargeQuantity = fromInteger $ toInteger (maxBound :: Word32)
+
+genValueForTxOutCoverage :: Value -> Property
+genValueForTxOutCoverage val =
+    let
+        valList = valueToList val
+    in
+        checkCoverage
+        $ cover 1 (null valList)
+            "Value has no assets"
+        $ cover 10 (length valList >= 1)
+            "Value has some assets"
+        $ cover 10 (length valList >= 3)
+            "Value has more assets"
+        $ True
+
+genTxOutValueCoverageAdaOnly :: TxOutValue era -> Property
+genTxOutValueCoverageAdaOnly val = conjoin
+    [ label "ada only supported in era" (isAdaOnly val)
+    , case val of
+          (TxOutAdaOnly _ l) -> genLovelaceCoverage l
+          _                  -> property False
+    ]
+
+    where
+        isAdaOnly = \case
+            TxOutAdaOnly _ _ -> True
+            _                -> False
+
+genTxOutValueCoverageMultiAsset :: TxOutValue era -> Property
+genTxOutValueCoverageMultiAsset val = conjoin
+    [ label "multi-asset supported in era" (isMultiAsset val)
+    , case val of
+          (TxOutValue _ value) -> genValueForTxOutCoverage value
+          _                    -> property False
+    ]
+
+    where
+        isMultiAsset = \case
+            TxOutValue _ _ -> True
+            _              -> False

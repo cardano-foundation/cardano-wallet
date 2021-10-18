@@ -27,6 +27,10 @@ module Cardano.Api.Typed.Gen.QuickCheck
   , genIx
   , genPtr
   , genStakeAddressReference
+  , genAddressInEra
+  , genUnsignedQuantity
+  , genValueForTxOut
+  , genTxOutValue
 
   -- * Coverage doesn't make much sense rn
   , genPolicyId
@@ -40,6 +44,7 @@ module Cardano.Api.Typed.Gen.QuickCheck
   , genPlutusScript
   , genShelleyHash
   , genTxId
+  , genAddressShelley
   ) where
 
 import Prelude
@@ -254,13 +259,15 @@ genQuantity = do
 -- genSignedQuantity :: QuickCheck.Gen Quantity
 -- genSignedQuantity = genQuantity
 
--- genUnsignedQuantity :: QuickCheck.Gen Quantity
--- genUnsignedQuantity = QuickCheck.scale (`mod` 2) genQuantity
+genUnsignedQuantity :: QuickCheck.Gen Quantity
+genUnsignedQuantity = do
+    (Large (n :: Word64)) <- QuickCheck.arbitrary
+    pure $ fromIntegral n
 
--- genValue :: QuickCheck.Gen AssetId -> QuickCheck.Gen Quantity -> QuickCheck.Gen Value
--- genValue genAId genQuant =
---   valueFromList <$>
---     QuickCheck.listOf ((,) <$> genAId <*> genQuant)
+genValue :: QuickCheck.Gen AssetId -> QuickCheck.Gen Quantity -> QuickCheck.Gen Value
+genValue genAId genQuant =
+  valueFromList <$>
+    QuickCheck.listOf ((,) <$> genAId <*> genQuant)
 
 
 -- -- | Generate a 'Value' suitable for minting, i.e. non-ADA asset ID and a
@@ -271,10 +278,10 @@ genQuantity = do
 --     genAssetIdNoAda :: QuickCheck.Gen AssetId
 --     genAssetIdNoAda = AssetId <$> genPolicyId <*> genAssetName
 
--- -- | Generate a 'Value' suitable for usage in a transaction output, i.e. any
--- -- asset ID and a positive quantity.
--- genValueForTxOut :: QuickCheck.Gen Value
--- genValueForTxOut = genValue genAssetId genUnsignedQuantity
+-- | Generate a 'Value' suitable for usage in a transaction output, i.e. any
+-- asset ID and a positive quantity.
+genValueForTxOut :: QuickCheck.Gen Value
+genValueForTxOut = genValue genAssetId genUnsignedQuantity
 
 genNetworkId :: QuickCheck.Gen NetworkId
 genNetworkId =
@@ -359,11 +366,11 @@ genTxIndex = do
     (Large (n :: Word)) <- QuickCheck.arbitrary
     pure $ TxIx n
 
--- genTxOutValue :: CardanoEra era -> QuickCheck.Gen (TxOutValue era)
--- genTxOutValue era =
---   case multiAssetSupportedInEra era of
---     Left adaOnlyInEra     -> TxOutAdaOnly adaOnlyInEra <$> genLovelace
---     Right multiAssetInEra -> TxOutValue multiAssetInEra <$> genValueForTxOut
+genTxOutValue :: CardanoEra era -> QuickCheck.Gen (TxOutValue era)
+genTxOutValue era =
+  case multiAssetSupportedInEra era of
+    Left adaOnlyInEra     -> TxOutAdaOnly adaOnlyInEra <$> genLovelace
+    Right multiAssetInEra -> TxOutValue multiAssetInEra <$> genValueForTxOut
 
 -- genTxOut :: CardanoEra era -> QuickCheck.Gen (TxOut era)
 -- genTxOut era =
