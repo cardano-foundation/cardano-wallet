@@ -31,10 +31,14 @@ import Cardano.Wallet.Api.Types
     ( ApiCoinSelection (withdrawals)
     , ApiCoinSelectionInput (..)
     , ApiConstructTransaction (..)
+    , ApiDecodedTransaction
+    , ApiFee (..)
     , ApiSerialisedTransaction
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
+    , ApiTxInputGeneral (..)
+    , ApiTxMetadata (..)
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -50,9 +54,11 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
+    , Direction (..)
     , SealedTx
+    , TxIn (..)
     , TxStatus (..)
     , cardanoTx
     , getSealedTxBody
@@ -133,7 +139,6 @@ import Test.Integration.Framework.TestData
     , errMsg403MinUTxOValue
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
-    , errMsg403transactionAlreadyBalanced
     , errMsg404NoSuchPool
     )
 
@@ -1075,24 +1080,23 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
   -- update with sign / submit tx where applicable
   -- end to end join pool and get rewards
 
-    it "TRANS_NEW_BALANCE_01a - multiple-output transaction with all covering inputs present" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "ADP-1179: Behavior needs to be clarified"
+    it "TRANS_DECODE_01a - multiple-output transaction with all covering inputs" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
 
-        -- the tx involes two outputs :
+        -- The normal tx was created for some wallets and they are different than the wa.
+        -- The transaction involves four outputs with the amounts :
         -- 999978
         -- 999978
-        -- results in two changes
         -- 49998927722
         -- 49998927722
         -- incurs the fee of
         -- 144600
-        -- and involves one input
+        -- and involves one external input
         -- 100000000000
+        -- no metadata, no collaterals, no withdrawals
         let serializedTxHex =
                 "84a600818258200eaa33be8780935ca5a7c1e628a2d54402446f96236c\
                 \a8f1770e07fa22ba8648000d80018482583901a65f0e7aea387adbc109\
@@ -1106,21 +1110,22 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \2b143b1ce1b68ccb62f8e8437b3089fc61d21ddfcbd4d43652bf05c40c\
                 \346fa794871423b65052d7614c1b0000000ba42b176a021a000234d803\
                 \198ceb0e80a0f5f6" :: Text
-        let balancePayload = Json [json|{
-              "transaction": { "cborHex" : #{serializedTxHex}, "description": "", "type": "Tx AlonzoEra" },
-              "inputs": [
-                  { "txIn" : "0eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648#0"
-                  , "txOut" :
-                      { "value" : { "lovelace": 100000000000 }
-                      , "address": "addr1vx0d0kyppx3qls8laq5jvpq0qa52d0gahm8tsyj2jpg0lpg4ue9lt"
-                      }
-                  }]
+
+        let theTxHash = Hash "\SO\170\&3\190\135\128\147\\\165\167\193\230(\162\213D\STXDo\150#l\168\241w\SO\a\250\"\186\134H"
+
+        let decodePayload = Json [json|{
+              "transaction": #{serializedTxHex}
           }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.balanceTransaction @'Shelley wa) Default balancePayload
+        rTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403transactionAlreadyBalanced
+            [ expectResponseCode HTTP.status202
+            , expectField (#fee . #getQuantity) (`shouldBe` 144600)
+            , expectField #withdrawals (`shouldBe` [])
+            , expectField #collateral (`shouldBe` [])
+            , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
+            , expectField #inputs
+                  (`shouldBe` [ExternalInput (ApiT (TxIn theTxHash 0), Quantity 0)])
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
