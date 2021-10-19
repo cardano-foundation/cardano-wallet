@@ -383,6 +383,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
     it "TRANS_NEW_CREATE_04a - Single Output Transaction" $ \ctx -> runResourceT $ do
+<<<<<<< HEAD
+=======
+
+>>>>>>> 14b12431a (unpend single output tx test)
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
@@ -400,6 +404,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let filterInitialAmt =
