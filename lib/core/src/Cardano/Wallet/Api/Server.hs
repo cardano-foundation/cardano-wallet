@@ -3748,11 +3748,6 @@ instance IsServerError ErrDecodeTx where
 
 instance IsServerError ErrBalanceTx where
     toServerError = \case
-        ErrBalanceTxTxAlreadyBalanced ->
-            apiError err403 TransactionAlreadyBalanced $ mconcat
-                [ "The transaction is already balanced. "
-                , "Please send a transaction that requires more inputs/outputs to be picked to be balanced."
-                ]
         ErrBalanceTxUpdateError ErrByronTxNotSupported ->
             apiError err403 CreatedInvalidTransaction
                 "Balancing Byron transactions is not supported."
@@ -3766,9 +3761,6 @@ instance IsServerError ErrBalanceTx where
                 ]
         ErrBalanceTxSelectAssets err -> toServerError err
         ErrBalanceTxAssignRedeemers err -> toServerError err
-        ErrBalanceTxNotImplemented ->
-            apiError err501 NotImplemented
-                "This feature is not yet implemented."
 
 instance IsServerError ErrMintBurnAssets where
     toServerError = \case

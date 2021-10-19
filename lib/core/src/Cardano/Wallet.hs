@@ -2823,11 +2823,9 @@ data ErrSignPayment
 
 -- | Errors that can occur when balancing transaction.
 data ErrBalanceTx
-    = ErrBalanceTxTxAlreadyBalanced
-    | ErrBalanceTxUpdateError ErrUpdateSealedTx
+    = ErrBalanceTxUpdateError ErrUpdateSealedTx
     | ErrBalanceTxSelectAssets ErrSelectAssets
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
-    | ErrBalanceTxNotImplemented
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.
