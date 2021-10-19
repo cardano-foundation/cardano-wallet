@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -31,6 +32,12 @@ module Cardano.Api.Typed.Gen.QuickCheck
   , genUnsignedQuantity
   , genValueForTxOut
   , genTxOutValue
+  , genTxOutDatumHash
+  , genTxOut
+  , genTxValidityLowerBound
+  , genTxValidityUpperBound
+  , genTxValidityRange
+  , genScriptData
 
   -- * Coverage doesn't make much sense rn
   , genPolicyId
@@ -45,6 +52,8 @@ module Cardano.Api.Typed.Gen.QuickCheck
   , genShelleyHash
   , genTxId
   , genAddressShelley
+  , genStakeAddress
+  , genHashScriptData
   ) where
 
 import Prelude
@@ -79,12 +88,14 @@ import Data.Int
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( maybeToList )
+    ( catMaybes, maybeToList )
 import Data.Ratio
     ( Ratio, (%) )
 import Data.String
+import Data.Traversable
+    ( for )
 import Data.Word
-    ( Word64 )
+    ( Word64, Word8 )
 import Hedgehog
     ( Gen, Range )
 import Numeric.Natural
@@ -157,7 +168,7 @@ genSimpleScript lang =
     genTerm 0 = QuickCheck.oneof nonRecursive
     genTerm n = QuickCheck.frequency
         [ (3, QuickCheck.oneof (recursive n))
-        , (1, QuickCheck.oneof (nonRecursive))
+        , (1, QuickCheck.oneof nonRecursive)
         ]
 
     -- Non-recursive generators
@@ -185,6 +196,38 @@ genSimpleScript lang =
     recurse n = do
         (QuickCheck.Positive m) <- QuickCheck.arbitrary
         genTerm (n `div` (m + 3))
+
+genScriptData :: QuickCheck.Gen ScriptData
+genScriptData =
+    QuickCheck.sized genTerm
+
+    where
+        genTerm 0 = QuickCheck.oneof nonRecursive
+        genTerm n = QuickCheck.frequency
+            [ (3, QuickCheck.oneof (recursive n))
+            , (1, QuickCheck.oneof nonRecursive)
+            ]
+
+        -- Non-recursive generators
+        nonRecursive =
+            [ do
+                 (Large (n :: Int64)) <- arbitrary
+                 pure $ ScriptDataNumber $ fromIntegral n
+            , do
+                 (Large (n :: Word8)) <- arbitrary
+                 (ScriptDataBytes . BS.pack) <$> QuickCheck.vector (fromIntegral n)
+            ]
+
+        -- Recursive generators
+        recursive n =
+            [ ScriptDataList <$> QuickCheck.listOf (recurse n)
+            , ScriptDataMap <$> QuickCheck.listOf ((,) <$> recurse n <*> recurse n)
+            , ScriptDataConstructor <$> arbitrary <*> QuickCheck.listOf (recurse n)
+            ]
+
+        recurse n = do
+            (QuickCheck.Positive m) <- QuickCheck.arbitrary
+            genTerm (n `div` (m + 3))
 
 genPlutusScript :: PlutusScriptVersion lang -> QuickCheck.Gen (PlutusScript lang)
 genPlutusScript _ =
@@ -349,6 +392,9 @@ genStakeCredential =
 
       byScript = StakeCredentialByScript <$> genScriptHash
 
+genStakeAddress :: QuickCheck.Gen StakeAddress
+genStakeAddress = makeStakeAddress <$> genNetworkId <*> genStakeCredential
+
 genShelleyHash :: QuickCheck.Gen (Crypto.Hash Crypto.Blake2b_256 Ledger.EraIndependentTxBody)
 genShelleyHash = return . Crypto.castHash $ Crypto.hashWith CBOR.serialize' ()
 
@@ -372,43 +418,43 @@ genTxOutValue era =
     Left adaOnlyInEra     -> TxOutAdaOnly adaOnlyInEra <$> genLovelace
     Right multiAssetInEra -> TxOutValue multiAssetInEra <$> genValueForTxOut
 
--- genTxOut :: CardanoEra era -> QuickCheck.Gen (TxOut era)
--- genTxOut era =
---   TxOut <$> genAddressInEra era
---         <*> genTxOutValue era
---         <*> genTxOutDatumHash era
+genTxOut :: CardanoEra era -> QuickCheck.Gen (TxOut era)
+genTxOut era =
+  TxOut <$> genAddressInEra era
+        <*> genTxOutValue era
+        <*> genTxOutDatumHash era
 
 genTtl :: QuickCheck.Gen SlotNo
 genTtl = genSlotNo
 
--- -- TODO: Accept a range for generating ttl.
--- genTxValidityLowerBound :: CardanoEra era -> QuickCheck.Gen (TxValidityLowerBound era)
--- genTxValidityLowerBound era =
---   case validityLowerBoundSupportedInEra era of
---     Nothing        -> pure TxValidityNoLowerBound
---     Just supported -> TxValidityLowerBound supported <$> genTtl
+-- TODO: Accept a range for generating ttl.
+genTxValidityLowerBound :: CardanoEra era -> QuickCheck.Gen (TxValidityLowerBound era)
+genTxValidityLowerBound era =
+  case validityLowerBoundSupportedInEra era of
+    Nothing        -> pure TxValidityNoLowerBound
+    Just supported -> TxValidityLowerBound supported <$> genTtl
 
--- -- TODO: Accept a range for generating ttl.
--- genTxValidityUpperBound :: CardanoEra era -> QuickCheck.Gen (TxValidityUpperBound era)
--- genTxValidityUpperBound era =
---   case (validityUpperBoundSupportedInEra era,
---        validityNoUpperBoundSupportedInEra era) of
---     (Just supported, _) ->
---       TxValidityUpperBound supported <$> genTtl
+-- TODO: Accept a range for generating ttl.
+genTxValidityUpperBound :: CardanoEra era -> QuickCheck.Gen (TxValidityUpperBound era)
+genTxValidityUpperBound era =
+  case (validityUpperBoundSupportedInEra era,
+       validityNoUpperBoundSupportedInEra era) of
+    (Just supported, _) ->
+      TxValidityUpperBound supported <$> genTtl
 
---     (Nothing, Just supported) ->
---       pure (TxValidityNoUpperBound supported)
+    (Nothing, Just supported) ->
+      pure (TxValidityNoUpperBound supported)
 
---     (Nothing, Nothing) ->
---       error "genTxValidityUpperBound: unexpected era support combination"
+    (Nothing, Nothing) ->
+      error "genTxValidityUpperBound: unexpected era support combination"
 
--- genTxValidityRange
---   :: CardanoEra era
---   -> QuickCheck.Gen (TxValidityLowerBound era, TxValidityUpperBound era)
--- genTxValidityRange era =
---   (,)
---     <$> genTxValidityLowerBound era
---     <*> genTxValidityUpperBound era
+genTxValidityRange
+  :: CardanoEra era
+  -> QuickCheck.Gen (TxValidityLowerBound era, TxValidityUpperBound era)
+genTxValidityRange era =
+  (,)
+    <$> genTxValidityLowerBound era
+    <*> genTxValidityUpperBound era
 
 -- genTxMetadataInEra :: CardanoEra era -> Gen (TxMetadataInEra era)
 -- genTxMetadataInEra era =
@@ -428,16 +474,71 @@ genTtl = genSlotNo
 --       TxAuxScripts supported <$>
 --         QuickCheck.scale (`mod` 3) (QuickCheck.listOf (genScriptInEra era))
 
--- genTxWithdrawals :: CardanoEra era -> QuickCheck.Gen (TxWithdrawals BuildTx era)
--- genTxWithdrawals era =
---   case withdrawalsSupportedInEra era of
---     Nothing -> pure TxWithdrawalsNone
---     Just supported ->
---       QuickCheck.oneof
---         [ pure TxWithdrawalsNone
---         , pure (TxWithdrawals supported mempty)
---           -- TODO: Generate withdrawals
---         ]
+genTxWithdrawals :: CardanoEra era -> QuickCheck.Gen (TxWithdrawals BuildTx era)
+genTxWithdrawals era =
+  case withdrawalsSupportedInEra era of
+    Nothing ->
+        pure TxWithdrawalsNone
+    Just supported -> do
+        QuickCheck.frequency
+          [ ( 1 , pure TxWithdrawalsNone )
+          , ( 3 , TxWithdrawals supported
+                  <$> QuickCheck.listOf (genWithdrawalInfo era) )
+          ]
+
+genWithdrawalInfo
+    :: CardanoEra era
+    -> QuickCheck.Gen ( StakeAddress
+                      , Lovelace
+                      , BuildTxWith BuildTx (Witness WitCtxStake era)
+                      )
+genWithdrawalInfo era = do
+    stakeAddr <- genStakeAddress
+    amt <- genLovelace
+    wit <- BuildTxWith <$> genWitnessStake era
+    pure (stakeAddr, amt, wit)
+
+genWitnessStake :: CardanoEra era -> QuickCheck.Gen (Witness WitCtxStake era)
+genWitnessStake era = QuickCheck.oneof $
+    [ pure $ KeyWitness KeyWitnessForStakeAddr ]
+    <> forEachLanguage (\lang ->
+        case scriptLanguageSupportedInEra era lang of
+            Nothing ->
+                []
+            Just langEra ->
+                [ ScriptWitness ScriptWitnessForStakeAddr
+                  <$> genScriptWitnessStake langEra
+                ]
+    )
+
+forEachLanguage
+    :: Semigroup a
+    => (forall lang. ScriptLanguage lang -> a)
+    -> a
+forEachLanguage f =
+    f (SimpleScriptLanguage SimpleScriptV1)
+    <> f (SimpleScriptLanguage SimpleScriptV2)
+    <> f (PlutusScriptLanguage PlutusScriptV1)
+
+genScriptWitnessStake
+    :: ScriptLanguageInEra lang era
+    -> QuickCheck.Gen (ScriptWitness WitCtxStake era)
+genScriptWitnessStake langEra =
+    case languageOfScriptLanguageInEra langEra of
+        (SimpleScriptLanguage ver) ->
+            SimpleScriptWitness langEra ver <$> genSimpleScript ver
+        (PlutusScriptLanguage ver) ->
+            PlutusScriptWitness langEra ver
+            <$> genPlutusScript ver
+            <*> pure NoScriptDatumForStake
+            <*> genScriptData
+            <*> genScriptExecutionUnits
+
+genScriptExecutionUnits :: QuickCheck.Gen ExecutionUnits
+genScriptExecutionUnits = do
+    (Large executionSteps) <- arbitrary
+    (Large executionMemory) <- arbitrary
+    pure $ ExecutionUnits executionSteps executionMemory
 
 -- genTxCertificates :: CardanoEra era -> QuickCheck.Gen (TxCertificates BuildTx era)
 -- genTxCertificates era =
@@ -739,19 +840,19 @@ genEpochNo = EpochNo <$> QuickCheck.arbitrary
 -- genExecutionUnitPrices :: QuickCheck.Gen ExecutionUnitPrices
 -- genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
 
--- genTxOutDatumHash :: CardanoEra era -> QuickCheck.Gen (TxOutDatumHash era)
--- genTxOutDatumHash era = case era of
---     ByronEra -> pure TxOutDatumHashNone
---     ShelleyEra -> pure TxOutDatumHashNone
---     AllegraEra -> pure TxOutDatumHashNone
---     MaryEra -> pure TxOutDatumHashNone
---     AlonzoEra -> QuickCheck.oneof
---       [ pure TxOutDatumHashNone
---       , TxOutDatumHash ScriptDataInAlonzoEra <$> genHashScriptData
---       ]
+genTxOutDatumHash :: CardanoEra era -> QuickCheck.Gen (TxOutDatumHash era)
+genTxOutDatumHash era = case era of
+    ByronEra -> pure TxOutDatumHashNone
+    ShelleyEra -> pure TxOutDatumHashNone
+    AllegraEra -> pure TxOutDatumHashNone
+    MaryEra -> pure TxOutDatumHashNone
+    AlonzoEra -> QuickCheck.oneof
+      [ pure TxOutDatumHashNone
+      , TxOutDatumHash ScriptDataInAlonzoEra <$> genHashScriptData
+      ]
 
--- mkDummyHash :: forall h a. CRYPTO.HashAlgorithm h => Int -> CRYPTO.Hash h a
--- mkDummyHash = coerce . CRYPTO.hashWithSerialiser @h CBOR.toCBOR
+mkDummyHash :: forall h a. CRYPTO.HashAlgorithm h => Int -> CRYPTO.Hash h a
+mkDummyHash = coerce . CRYPTO.hashWithSerialiser @h CBOR.toCBOR
 
--- genHashScriptData :: QuickCheck.Gen (Cardano.Api.Hash ScriptData)
--- genHashScriptData = ScriptDataHash . unsafeMakeSafeHash . mkDummyHash <$> (QuickCheck.scale (`mod` 10) $ QuickCheck.arbitrary)
+genHashScriptData :: QuickCheck.Gen (Cardano.Api.Hash ScriptData)
+genHashScriptData = ScriptDataHash . unsafeMakeSafeHash . mkDummyHash <$> (QuickCheck.scale (`mod` 10) $ QuickCheck.arbitrary)
