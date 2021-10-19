@@ -59,14 +59,6 @@ mkShell rec {
   nobuildPhase = "echo '${lib.concatStringsSep "\n" buildInputs}' > $out";
   preferLocalBuild = true;
 
-  # Ensure that libz.so and other libraries are available to TH splices.
-  # LD_LIBRARY_PATH = lib.makeLibraryPath libs;
-  CABAL_LD_LIBRARY_PATH = lib.makeLibraryPath libs;
-  shellHook = ''
-    echo "Running shellHook"
-    export LD_LIBRARY_PATH=$CABAL_LD_LIBRARY_PATH''${LD_LIBRARY_PATH:+:}$LD_LIBRARY_PATH
-  '';
-
   # Force a UTF-8 locale because many Haskell programs and tests assume this.
   LANG = "en_US.UTF-8";
 }
