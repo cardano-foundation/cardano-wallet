@@ -450,7 +450,7 @@ instance ToText (FollowStats Rearview) where
             [ "Applied " <> pretty (using (-) b) <> " blocks, "
             , pretty (using (-) r) <> " rollbacks "
             , "in the last " <> pretty (using diffUTCTime t) <> ". "
-            , "Currently tip is" <> pretty (current tip) <> "."
+            , "Current tip is " <> pretty (current tip) <> "."
             ]
           where
             using f x = f (current x) (past x)

@@ -61,7 +61,7 @@ import Control.Monad.Class.MonadSTM
     , writeTQueue
     )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow )
+    ( Exception, MonadThrow, throwIO )
 import Control.Monad.IO.Class
     ( MonadIO )
 import Data.Functor
@@ -219,7 +219,6 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
 type RequestNextStrategy m n block
     = P.ClientPipelinedStIdle n block (Point block) (Tip block) m Void
 
-
 -- | Helper type for the different ways we handle rollbacks.
 --
 -- Helps remove some boilerplate.
@@ -271,7 +270,7 @@ data LocalRollbackResult block
 --      *------*
 --
 chainSyncWithBlocks
-    :: forall m block. (Monad m, MonadSTM m, HasHeader block)
+    :: forall m block. (Monad m, MonadSTM m, MonadThrow m, HasHeader block)
     => Tracer m (ChainSyncLog block (Point block))
     -> ChainFollower m (Point block) (Tip block) block
     -> ChainSyncClientPipelined block (Point block) (Tip block) m Void
@@ -321,8 +320,20 @@ chainSyncWithBlocks tr chainFollower =
             --
             -- See also
             -- https://input-output-rnd.slack.com/archives/CDA6LUXAQ/p1634644689103100
-            pure clientStIntersect
+            clientStNegotiateGenesis
             }
+
+    -- Explictly negotiate the genesis point
+    clientStNegotiateGenesis
+        :: m (P.ClientPipelinedStIdle 'Z block (Point block) (Tip block) m Void)
+    clientStNegotiateGenesis = do
+        let genesis = [Point Origin]
+        traceWith tr $ MsgChainFindIntersect genesis
+        pure $ P.SendMsgFindIntersect genesis $
+            clientStIntersect
+                { P.recvMsgIntersectNotFound = \_tip ->
+                    throwIO ErrChainSyncNoIntersectGenesis
+                }
 
     clientStIdle
         :: RequestNextStrategy m 'Z block
@@ -659,3 +670,15 @@ send queue cmd = do
     tvar <- newEmptyTMVarIO
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
     atomically $ takeTMVar tvar
+
+{-------------------------------------------------------------------------------
+    Errors
+-------------------------------------------------------------------------------}
+data ErrChainSync
+    = ErrChainSyncNoIntersectGenesis
+    -- ^ The node does not give us genesis when we request it with a
+    -- 'MsgFindIntersect' message in the ChainSync protocol.
+    -- This should not happen.
+    deriving (Eq, Show)
+
+instance Exception ErrChainSync

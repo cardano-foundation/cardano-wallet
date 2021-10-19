@@ -535,7 +535,7 @@ runIO db@DBLayer{..} = fmap Resp . go
         ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
             atomically (readDelegationRewardBalance wid)
         RollbackTo wid sl -> catchNoSuchWallet Point $
-            mapExceptT atomically $ fmap slotNo $ rollbackTo wid sl
+            mapExceptT atomically (slotNo <$> rollbackTo wid sl)
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT

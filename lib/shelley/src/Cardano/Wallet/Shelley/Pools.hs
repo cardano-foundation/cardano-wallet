@@ -550,7 +550,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
             pseudoPointSlot (ChainPoint slot _) = slot
 
             toChainPoint :: BlockHeader -> ChainPoint
-            toChainPoint (BlockHeader slot _ h _) = ChainPoint slot h
+            toChainPoint (BlockHeader  0 _ _ _) = ChainPointAtGenesis
+            toChainPoint (BlockHeader sl _ h _) = ChainPoint sl h
 
         chainSync nl (contramap MsgChainMonitoring tr) $ ChainFollower
             { readLocalTip = map toChainPoint <$> initCursor
