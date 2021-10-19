@@ -61,7 +61,7 @@ import Crypto.Scrypt
 checkPassphrase :: Passphrase "encryption" -> PassphraseHash -> Maybe Bool
 checkPassphrase pwd stored = Just $ verifyPass' pass encryptedPass
   where
-    pass = Pass pwd
+    pass = Pass (BA.convert pwd)
     encryptedPass = EncryptedPass (BA.convert stored)
 #else
 -- | Stub function for when compiled without @scrypt@.
