@@ -9,7 +9,7 @@
 module Cardano.Api.Typed.Gen.QuickCheck
   ( genLovelace
   , genNetworkMagic
-  , genScriptExecutionUnits
+  , genExecutionUnits
   , genNetworkId
   , genQuantity
   , genAssetName
@@ -46,6 +46,9 @@ module Cardano.Api.Typed.Gen.QuickCheck
   , genValueForMinting
   , genTxMintValue
   , genExtraKeyWitnesses
+  , genTxMetadataValue
+  , genTxMetadata
+  , genNat
 
   -- * Coverage doesn't make much sense rn
   , genPolicyId
@@ -73,8 +76,8 @@ import Cardano.Api.Byron
     , Lovelace (Lovelace)
     , WitnessNetworkIdOrByronAddress (..)
     )
-import Cardano.Api.Metadata.Gen
-    ( genTxMetadata )
+-- import Cardano.Api.Metadata.Gen
+--     ( genTxMetadata )
 import Cardano.Api.Shelley
     ( Hash (ScriptDataHash)
     , KESPeriod (KESPeriod)
@@ -100,6 +103,8 @@ import Data.Maybe
 import Data.Ratio
     ( Ratio, (%) )
 import Data.String
+import Data.Text
+    ( Text )
 import Data.Traversable
     ( for )
 import Data.Word
@@ -110,6 +115,10 @@ import Numeric.Natural
     ( Natural )
 import Test.Cardano.Chain.UTxO.Gen
     ( genVKWitness )
+import Test.Cardano.Chain.UTxO.Gen
+    ( genVKWitness )
+import Test.Cardano.Crypto.Gen
+    ( genProtocolMagicId )
 import Test.Cardano.Crypto.Gen
     ( genProtocolMagicId )
 import Test.QuickCheck
@@ -126,6 +135,7 @@ import qualified Cardano.Crypto.Seed as Crypto
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as Text
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 import qualified Plutus.V1.Ledger.Api as Plutus
@@ -264,6 +274,53 @@ genScriptHash = do
     ScriptInAnyLang _ script <- genScriptInAnyLang
     return (hashScript script)
 
+genTxMetadata :: QuickCheck.Gen TxMetadata
+genTxMetadata =
+    QuickCheck.sized $ \sz ->
+      fmap (TxMetadata . Map.fromList) $ do
+          n <- QuickCheck.chooseInt (0, fromIntegral sz)
+          QuickCheck.vectorOf n
+               ((,) <$> (getLarge <$> arbitrary)
+                    <*> genTxMetadataValue)
+
+genTxMetadataValue :: QuickCheck.Gen TxMetadataValue
+genTxMetadataValue =
+    QuickCheck.sized $ \sz ->
+        QuickCheck.frequency
+            [ (1, TxMetaNumber <$> genTxMetaNumber)
+            , (1, TxMetaBytes  <$> genTxMetaBytes)
+            , (1, TxMetaText   <$> genTxMetaText)
+            , (fromIntegral (signum sz),
+                  TxMetaList <$> QuickCheck.scale (`div` 2) genTxMetaList)
+            , (fromIntegral (signum sz),
+                  TxMetaMap <$> QuickCheck.scale (`div` 2) genTxMetaMap)
+            ]
+    where
+        genTxMetaNumber :: QuickCheck.Gen Integer
+        genTxMetaNumber = do
+            (Large (n :: Int64)) <- arbitrary
+            pure (fromIntegral n)
+
+        genTxMetaBytes :: QuickCheck.Gen ByteString
+        genTxMetaBytes = do
+            n <- QuickCheck.chooseInt (0, 64)
+            BS.pack <$> QuickCheck.vector n
+
+        genTxMetaText :: QuickCheck.Gen Text
+        genTxMetaText = do
+            n <- QuickCheck.chooseInt (0, 64)
+            Text.pack <$> QuickCheck.vectorOf n genAlphaNum
+
+        genTxMetaList :: QuickCheck.Gen [TxMetadataValue]
+        genTxMetaList = QuickCheck.sized $ \sz -> do
+            n <- QuickCheck.chooseInt (0, sz)
+            QuickCheck.vectorOf n genTxMetadataValue
+
+        genTxMetaMap :: QuickCheck.Gen [(TxMetadataValue, TxMetadataValue)]
+        genTxMetaMap = QuickCheck.sized $ \sz -> do
+            n <- QuickCheck.chooseInt (0, sz)
+            QuickCheck.vectorOf n
+                ((,) <$> genTxMetadataValue <*> genTxMetadataValue)
 
 ----------------------------------------------------------------------------
 -- Multi-asset generators
@@ -464,15 +521,15 @@ genTxValidityRange era =
     <$> genTxValidityLowerBound era
     <*> genTxValidityUpperBound era
 
--- genTxMetadataInEra :: CardanoEra era -> Gen (TxMetadataInEra era)
--- genTxMetadataInEra era =
---   case txMetadataSupportedInEra era of
---     Nothing -> pure TxMetadataNone
---     Just supported ->
---       Gen.choice
---         [ pure TxMetadataNone
---         , TxMetadataInEra supported <$> genTxMetadata
---         ]
+genTxMetadataInEra :: CardanoEra era -> QuickCheck.Gen (TxMetadataInEra era)
+genTxMetadataInEra era =
+  case txMetadataSupportedInEra era of
+    Nothing -> pure TxMetadataNone
+    Just supported ->
+        QuickCheck.oneof
+            [ pure TxMetadataNone
+            , TxMetadataInEra supported <$> genTxMetadata
+            ]
 
 genTxAuxScripts :: CardanoEra era -> QuickCheck.Gen (TxAuxScripts era)
 genTxAuxScripts era =
@@ -540,34 +597,34 @@ genScriptWitnessStake langEra =
             <$> genPlutusScript ver
             <*> pure NoScriptDatumForStake
             <*> genScriptData
-            <*> genScriptExecutionUnits
+            <*> genExecutionUnits
 
-genScriptExecutionUnits :: QuickCheck.Gen ExecutionUnits
-genScriptExecutionUnits = do
+genExecutionUnits :: QuickCheck.Gen ExecutionUnits
+genExecutionUnits = do
     (Large executionSteps) <- arbitrary
     (Large executionMemory) <- arbitrary
     pure $ ExecutionUnits executionSteps executionMemory
 
--- genTxCertificates :: CardanoEra era -> QuickCheck.Gen (TxCertificates BuildTx era)
--- genTxCertificates era =
---   case certificatesSupportedInEra era of
---     Nothing -> pure TxCertificatesNone
---     Just supported ->
---       QuickCheck.oneof
---         [ pure TxCertificatesNone
---         , pure (TxCertificates supported mempty $ BuildTxWith mempty)
---           -- TODO: Generate certificates
---         ]
+genTxCertificates :: CardanoEra era -> QuickCheck.Gen (TxCertificates BuildTx era)
+genTxCertificates era =
+  case certificatesSupportedInEra era of
+    Nothing -> pure TxCertificatesNone
+    Just supported ->
+      QuickCheck.oneof
+        [ pure TxCertificatesNone
+        , pure (TxCertificates supported mempty $ BuildTxWith mempty)
+          -- TODO: Generate certificates
+        ]
 
--- genTxUpdateProposal :: CardanoEra era -> QuickCheck.Gen (TxUpdateProposal era)
--- genTxUpdateProposal era =
---   case updateProposalSupportedInEra era of
---     Nothing -> pure TxUpdateProposalNone
---     Just supported ->
---       QuickCheck.oneof
---         [ pure TxUpdateProposalNone
---         , TxUpdateProposal supported <$> genUpdateProposal
---         ]
+genTxUpdateProposal :: CardanoEra era -> QuickCheck.Gen (TxUpdateProposal era)
+genTxUpdateProposal era =
+  case updateProposalSupportedInEra era of
+    Nothing -> pure TxUpdateProposalNone
+    Just supported ->
+      QuickCheck.oneof
+        [ pure TxUpdateProposalNone
+        , TxUpdateProposal supported <$> genUpdateProposal
+        ]
 
 genTxMintValue :: CardanoEra era -> QuickCheck.Gen (TxMintValue BuildTx era)
 genTxMintValue era =
@@ -590,41 +647,41 @@ genExtraKeyWitnesses era =
               <$> QuickCheck.listOf (genVerificationKeyHash AsPaymentKey)
             ]
 
--- genTxBodyContent :: CardanoEra era -> QuickCheck.Gen (TxBodyContent BuildTx era)
--- genTxBodyContent era = do
---   txIns <- map (, BuildTxWith (KeyWitness KeyWitnessForSpending)) <$> QuickCheck.listOf1 genTxIn
---   txInsCollateral <- genTxInsCollateral era
---   txOuts <- QuickCheck.listOf (genTxOut era)
---   txFee <- genTxFee era
---   txValidityRange <- genTxValidityRange era
---   txMetadata <- hedgehog $ genTxMetadataInEra era
---   txAuxScripts <- genTxAuxScripts era
---   let txExtraScriptData = BuildTxWith TxExtraScriptDataNone --TODO: Alonzo era: Generate extra script data
---   let txExtraKeyWits = TxExtraKeyWitnessesNone --TODO: Alonzo era: Generate witness key hashes
---   txProtocolParams <- BuildTxWith <$> QuickCheck.liftArbitrary genProtocolParameters
---   txWithdrawals <- genTxWithdrawals era
---   txCertificates <- genTxCertificates era
---   txUpdateProposal <- genTxUpdateProposal era
---   txMintValue <- genTxMintValue era
---   txScriptValidity <- genTxScriptValidity era
+genTxBodyContent :: CardanoEra era -> QuickCheck.Gen (TxBodyContent BuildTx era)
+genTxBodyContent era = do
+  txIns <- map (, BuildTxWith (KeyWitness KeyWitnessForSpending)) <$> QuickCheck.listOf1 genTxIn
+  txInsCollateral <- genTxInsCollateral era
+  txOuts <- QuickCheck.listOf (genTxOut era)
+  txFee <- genTxFee era
+  txValidityRange <- genTxValidityRange era
+  txMetadata <- genTxMetadataInEra era
+  txAuxScripts <- genTxAuxScripts era
+  let txExtraScriptData = BuildTxWith TxExtraScriptDataNone --TODO: Alonzo era: Generate extra script data
+  let txExtraKeyWits = TxExtraKeyWitnessesNone --TODO: Alonzo era: Generate witness key hashes
+  txProtocolParams <- BuildTxWith <$> QuickCheck.liftArbitrary genProtocolParameters
+  txWithdrawals <- genTxWithdrawals era
+  txCertificates <- genTxCertificates era
+  txUpdateProposal <- genTxUpdateProposal era
+  txMintValue <- genTxMintValue era
+  txScriptValidity <- genTxScriptValidity era
 
---   pure $ TxBodyContent
---     { Api.txIns
---     , Api.txInsCollateral
---     , Api.txOuts
---     , Api.txFee
---     , Api.txValidityRange
---     , Api.txMetadata
---     , Api.txAuxScripts
---     , Api.txExtraScriptData
---     , Api.txExtraKeyWits
---     , Api.txProtocolParams
---     , Api.txWithdrawals
---     , Api.txCertificates
---     , Api.txUpdateProposal
---     , Api.txMintValue
---     , Api.txScriptValidity
---     }
+  pure $ TxBodyContent
+    { Api.txIns
+    , Api.txInsCollateral
+    , Api.txOuts
+    , Api.txFee
+    , Api.txValidityRange
+    , Api.txMetadata
+    , Api.txAuxScripts
+    , Api.txExtraScriptData
+    , Api.txExtraKeyWits
+    , Api.txProtocolParams
+    , Api.txWithdrawals
+    , Api.txCertificates
+    , Api.txUpdateProposal
+    , Api.txMintValue
+    , Api.txScriptValidity
+    }
 
 genTxInsCollateral :: CardanoEra era -> QuickCheck.Gen (TxInsCollateral era)
 genTxInsCollateral era =
@@ -641,12 +698,12 @@ genTxFee era =
     Left  supported -> pure (TxFeeImplicit supported)
     Right supported -> TxFeeExplicit supported <$> genLovelace
 
--- genTxBody :: IsCardanoEra era => CardanoEra era -> QuickCheck.Gen (TxBody era)
--- genTxBody era = do
---   res <- makeTransactionBody <$> genTxBodyContent era
---   case res of
---     Left err -> error (displayError err)
---     Right txBody -> pure txBody
+genTxBody :: IsCardanoEra era => CardanoEra era -> QuickCheck.Gen (TxBody era)
+genTxBody era = do
+  res <- makeTransactionBody <$> genTxBodyContent era
+  case res of
+    Left err -> error (displayError err)
+    Right txBody -> pure txBody
 
 genTxScriptValidity :: CardanoEra era -> QuickCheck.Gen (TxScriptValidity era)
 genTxScriptValidity era = case txScriptValiditySupportedInCardanoEra era of
@@ -656,26 +713,32 @@ genTxScriptValidity era = case txScriptValiditySupportedInCardanoEra era of
 genScriptValidity :: QuickCheck.Gen ScriptValidity
 genScriptValidity = QuickCheck.elements [ScriptInvalid, ScriptValid]
 
--- genTx :: forall era. IsCardanoEra era => CardanoEra era -> QuickCheck.Gen (Tx era)
--- genTx era =
---   makeSignedTransaction
---     <$> genWitnesses era
---     <*> genTxBody era
+genTx :: forall era. IsCardanoEra era => CardanoEra era -> QuickCheck.Gen (Tx era)
+genTx era =
+  makeSignedTransaction
+    <$> genWitnesses era
+    <*> genTxBody era
 
--- genWitnesses :: CardanoEra era -> QuickCheck.Gen [KeyWitness era]
--- genWitnesses era =
---     case cardanoEraStyle era of
---         LegacyByronEra    -> QuickCheck.scale (`mod` 10) $ QuickCheck.listOf1 (hedgehog genByronKeyWitness)
---         ShelleyBasedEra _ -> do
---           bsWits  <- QuickCheck.frequency
---               [ (3, QuickCheck.scale (`mod` 10) $ QuickCheck.listOf1 (hedgehog $ genShelleyBootstrapWitness era))
---               , (1, pure [])
---               ]
---           keyWits <- QuickCheck.frequency
---               [ (3, QuickCheck.scale (`mod` 10) $ QuickCheck.listOf1 (hedgehog $ genShelleyKeyWitness era))
---               , (1, pure [])
---               ]
---           return $ bsWits ++ keyWits
+genByronKeyWitness :: QuickCheck.Gen (KeyWitness ByronEra)
+genByronKeyWitness = do
+  pmId <- hedgehog $ genProtocolMagicId
+  txinWitness <- hedgehog $ genVKWitness pmId
+  return $ ByronKeyWitness txinWitness
+
+genWitnesses :: CardanoEra era -> QuickCheck.Gen [KeyWitness era]
+genWitnesses era =
+    case cardanoEraStyle era of
+        LegacyByronEra    -> QuickCheck.scale (`mod` 10) $ QuickCheck.listOf1 genByronKeyWitness
+        ShelleyBasedEra _ -> do
+          bsWits  <- QuickCheck.frequency
+              [ (3, QuickCheck.scale (`mod` 10) $ QuickCheck.listOf1 (genShelleyBootstrapWitness era))
+              , (1, pure [])
+              ]
+          keyWits <- QuickCheck.frequency
+              [ (3, QuickCheck.scale (`mod` 10) $ QuickCheck.listOf1 (genShelleyKeyWitness era))
+              , (1, pure [])
+              ]
+          return $ bsWits ++ keyWits
 
 genVerificationKey :: Key keyrole => AsType keyrole -> QuickCheck.Gen (VerificationKey keyrole)
 genVerificationKey roletoken = getVerificationKey <$> genSigningKey roletoken
@@ -691,34 +754,34 @@ genWitnessNetworkIdOrByronAddress =
     , WitnessByronAddress <$> genAddressByron
     ]
 
--- genShelleyBootstrapWitness
---   :: IsShelleyBasedEra era
---   => CardanoEra era
---   -> Gen (KeyWitness era)
--- genShelleyBootstrapWitness era =
---  makeShelleyBootstrapWitness
---    <$> genWitnessNetworkIdOrByronAddress
---    <*> genTxBody era
---    <*> genSigningKey AsByronKey
+genShelleyBootstrapWitness
+  :: IsShelleyBasedEra era
+  => CardanoEra era
+  -> QuickCheck.Gen (KeyWitness era)
+genShelleyBootstrapWitness era =
+ makeShelleyBootstrapWitness
+   <$> genWitnessNetworkIdOrByronAddress
+   <*> genTxBody era
+   <*> genSigningKey AsByronKey
 
--- genShelleyKeyWitness
---   :: IsShelleyBasedEra era
---   => CardanoEra era
---   -> Gen (KeyWitness era)
--- genShelleyKeyWitness era =
---   makeShelleyKeyWitness
---     <$> genTxBody era
---     <*> genShelleyWitnessSigningKey
+genShelleyKeyWitness
+  :: IsShelleyBasedEra era
+  => CardanoEra era
+  -> QuickCheck.Gen (KeyWitness era)
+genShelleyKeyWitness era =
+  makeShelleyKeyWitness
+    <$> genTxBody era
+    <*> genShelleyWitnessSigningKey
 
--- genShelleyWitness
---   :: IsShelleyBasedEra era
---   => CardanoEra era
---   -> Gen (KeyWitness era)
--- genShelleyWitness era =
---   Gen.choice
---    [ genShelleyKeyWitness era
---    , genShelleyBootstrapWitness era
---    ]
+genShelleyWitness
+  :: IsShelleyBasedEra era
+  => CardanoEra era
+  -> QuickCheck.Gen (KeyWitness era)
+genShelleyWitness era =
+    QuickCheck.oneof
+        [ genShelleyKeyWitness era
+        , genShelleyBootstrapWitness era
+        ]
 
 genShelleyWitnessSigningKey :: QuickCheck.Gen ShelleyWitnessSigningKey
 genShelleyWitnessSigningKey =
@@ -742,127 +805,128 @@ genShelleyWitnessSigningKey =
 genSeed :: Int -> QuickCheck.Gen Crypto.Seed
 genSeed n = (Crypto.mkSeedFromBytes . BS.pack) <$> QuickCheck.vector n
 
--- genNat :: QuickCheck.Gen Natural
--- genNat = (fromIntegral . QuickCheck.getPositive)
---     <$> (QuickCheck.arbitrary :: QuickCheck.Gen (QuickCheck.Positive Integer))
+genNat :: QuickCheck.Gen Natural
+genNat = do
+    Large (n :: Word64) <- QuickCheck.arbitrary
+    pure $ fromIntegral n
 
--- genRational :: QuickCheck.Gen Rational
--- genRational =
---     (\d -> ratioToRational (1 % d)) <$> genDenominator
---   where
---     genDenominator :: QuickCheck.Gen Word64
---     genDenominator = QuickCheck.chooseBoundedIntegral (1, maxBound)
+genRational :: QuickCheck.Gen Rational
+genRational =
+    (\d -> ratioToRational (1 % d)) <$> genDenominator
+  where
+    genDenominator :: QuickCheck.Gen Word64
+    genDenominator = QuickCheck.chooseBoundedIntegral (1, maxBound)
 
---     ratioToRational :: Ratio Word64 -> Rational
---     ratioToRational = toRational
+    ratioToRational :: Ratio Word64 -> Rational
+    ratioToRational = toRational
 
--- -- TODO: consolidate this back to just genRational once this is merged:
--- -- https://github.com/input-output-hk/cardano-ledger-specs/pull/2330
--- genRationalInt64 :: QuickCheck.Gen Rational
--- genRationalInt64 =
---     (\d -> ratioToRational (1 % d)) <$> genDenominator
---   where
---     genDenominator :: QuickCheck.Gen Int64
---     genDenominator = QuickCheck.chooseBoundedIntegral (1, maxBound)
+-- TODO: consolidate this back to just genRational once this is merged:
+-- https://github.com/input-output-hk/cardano-ledger-specs/pull/2330
+genRationalInt64 :: QuickCheck.Gen Rational
+genRationalInt64 =
+    (\d -> ratioToRational (1 % d)) <$> genDenominator
+  where
+    genDenominator :: QuickCheck.Gen Int64
+    genDenominator = QuickCheck.chooseBoundedIntegral (1, maxBound)
 
---     ratioToRational :: Ratio Int64 -> Rational
---     ratioToRational = toRational
+    ratioToRational :: Ratio Int64 -> Rational
+    ratioToRational = toRational
 
 genEpochNo :: QuickCheck.Gen EpochNo
 genEpochNo = EpochNo <$> QuickCheck.arbitrary
 
--- genPraosNonce :: QuickCheck.Gen PraosNonce
--- genPraosNonce = makePraosNonce <$> QuickCheck.arbitrary
+genPraosNonce :: QuickCheck.Gen PraosNonce
+genPraosNonce = makePraosNonce <$> QuickCheck.arbitrary
 
--- genMaybePraosNonce :: QuickCheck.Gen (Maybe PraosNonce)
--- genMaybePraosNonce = QuickCheck.liftArbitrary genPraosNonce
+genMaybePraosNonce :: QuickCheck.Gen (Maybe PraosNonce)
+genMaybePraosNonce = QuickCheck.liftArbitrary genPraosNonce
 
--- genProtocolParameters :: QuickCheck.Gen ProtocolParameters
--- genProtocolParameters =
---   ProtocolParameters
---     <$> ((,) <$> genNat <*> genNat)
---     <*> genRational
---     <*> genMaybePraosNonce
---     <*> genNat
---     <*> genNat
---     <*> genNat
---     <*> genNat
---     <*> genNat
---     <*> QuickCheck.liftArbitrary genLovelace
---     <*> genLovelace
---     <*> genLovelace
---     <*> genLovelace
---     <*> genEpochNo
---     <*> genNat
---     <*> genRationalInt64
---     <*> genRational
---     <*> genRational
---     <*> QuickCheck.liftArbitrary genLovelace
---     <*> genCostModels
---     <*> QuickCheck.liftArbitrary genExecutionUnitPrices
---     <*> QuickCheck.liftArbitrary genExecutionUnits
---     <*> QuickCheck.liftArbitrary genExecutionUnits
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genNat
+genProtocolParameters :: QuickCheck.Gen ProtocolParameters
+genProtocolParameters =
+  ProtocolParameters
+    <$> ((,) <$> genNat <*> genNat)
+    <*> genRational
+    <*> genMaybePraosNonce
+    <*> genNat
+    <*> genNat
+    <*> genNat
+    <*> genNat
+    <*> genNat
+    <*> QuickCheck.liftArbitrary genLovelace
+    <*> genLovelace
+    <*> genLovelace
+    <*> genLovelace
+    <*> genEpochNo
+    <*> genNat
+    <*> genRationalInt64
+    <*> genRational
+    <*> genRational
+    <*> QuickCheck.liftArbitrary genLovelace
+    <*> genCostModels
+    <*> QuickCheck.liftArbitrary genExecutionUnitPrices
+    <*> QuickCheck.liftArbitrary genExecutionUnits
+    <*> QuickCheck.liftArbitrary genExecutionUnits
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genNat
 
--- genProtocolParametersUpdate :: QuickCheck.Gen ProtocolParametersUpdate
--- genProtocolParametersUpdate =
---   ProtocolParametersUpdate
---     <$> QuickCheck.liftArbitrary ((,) <$> genNat <*> genNat)
---     <*> QuickCheck.liftArbitrary genRational
---     <*> QuickCheck.liftArbitrary genMaybePraosNonce
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genLovelace
---     <*> QuickCheck.liftArbitrary genLovelace
---     <*> QuickCheck.liftArbitrary genLovelace
---     <*> QuickCheck.liftArbitrary genLovelace
---     <*> QuickCheck.liftArbitrary genEpochNo
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genRationalInt64
---     <*> QuickCheck.liftArbitrary genRational
---     <*> QuickCheck.liftArbitrary genRational
---     <*> QuickCheck.liftArbitrary genLovelace
---     <*> genCostModels
---     <*> QuickCheck.liftArbitrary genExecutionUnitPrices
---     <*> QuickCheck.liftArbitrary genExecutionUnits
---     <*> QuickCheck.liftArbitrary genExecutionUnits
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genNat
---     <*> QuickCheck.liftArbitrary genNat
+genProtocolParametersUpdate :: QuickCheck.Gen ProtocolParametersUpdate
+genProtocolParametersUpdate =
+  ProtocolParametersUpdate
+    <$> QuickCheck.liftArbitrary ((,) <$> genNat <*> genNat)
+    <*> QuickCheck.liftArbitrary genRational
+    <*> QuickCheck.liftArbitrary genMaybePraosNonce
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genLovelace
+    <*> QuickCheck.liftArbitrary genLovelace
+    <*> QuickCheck.liftArbitrary genLovelace
+    <*> QuickCheck.liftArbitrary genLovelace
+    <*> QuickCheck.liftArbitrary genEpochNo
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genRationalInt64
+    <*> QuickCheck.liftArbitrary genRational
+    <*> QuickCheck.liftArbitrary genRational
+    <*> QuickCheck.liftArbitrary genLovelace
+    <*> genCostModels
+    <*> QuickCheck.liftArbitrary genExecutionUnitPrices
+    <*> QuickCheck.liftArbitrary genExecutionUnits
+    <*> QuickCheck.liftArbitrary genExecutionUnits
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genNat
+    <*> QuickCheck.liftArbitrary genNat
 
--- genUpdateProposal :: QuickCheck.Gen UpdateProposal
--- genUpdateProposal =
---   UpdateProposal
---     <$> Map.fromList <$> QuickCheck.listOf
---                 ((,) <$> genVerificationKeyHash AsGenesisKey
---                      <*> genProtocolParametersUpdate)
---     <*> genEpochNo
+genUpdateProposal :: QuickCheck.Gen UpdateProposal
+genUpdateProposal =
+  UpdateProposal
+    <$> Map.fromList <$> QuickCheck.listOf
+                ((,) <$> genVerificationKeyHash AsGenesisKey
+                     <*> genProtocolParametersUpdate)
+    <*> genEpochNo
 
--- genCostModel :: QuickCheck.Gen CostModel
--- genCostModel = case Plutus.defaultCostModelParams of
---   Nothing -> error "Plutus defaultCostModelParams is broken."
---   Just dcm ->
---       CostModel
---     -- TODO This needs to be the cost model struct for whichever
---     -- Plutus version we're using, once we support multiple Plutus versions.
---     <$> mapM (const $ QuickCheck.scale (`mod` 5000) QuickCheck.arbitrary) dcm
+genCostModel :: QuickCheck.Gen CostModel
+genCostModel = case Plutus.defaultCostModelParams of
+  Nothing -> error "Plutus defaultCostModelParams is broken."
+  Just dcm ->
+      CostModel
+    -- TODO This needs to be the cost model struct for whichever
+    -- Plutus version we're using, once we support multiple Plutus versions.
+    <$> mapM (const $ QuickCheck.scale (`mod` 5000) QuickCheck.arbitrary) dcm
 
--- genCostModels :: QuickCheck.Gen (Map AnyPlutusScriptVersion CostModel)
--- genCostModels = QuickCheck.scale (`mod` (length plutusScriptVersions)) $
---     Map.fromList <$> QuickCheck.listOf
---             ((,) <$> QuickCheck.elements plutusScriptVersions
---                  <*> genCostModel)
---   where
---     plutusScriptVersions :: [AnyPlutusScriptVersion]
---     plutusScriptVersions = [minBound..maxBound]
+genCostModels :: QuickCheck.Gen (Map AnyPlutusScriptVersion CostModel)
+genCostModels = QuickCheck.scale (`mod` (length plutusScriptVersions)) $
+    Map.fromList <$> QuickCheck.listOf
+            ((,) <$> QuickCheck.elements plutusScriptVersions
+                 <*> genCostModel)
+  where
+    plutusScriptVersions :: [AnyPlutusScriptVersion]
+    plutusScriptVersions = [minBound..maxBound]
 
--- genExecutionUnitPrices :: QuickCheck.Gen ExecutionUnitPrices
--- genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
+genExecutionUnitPrices :: QuickCheck.Gen ExecutionUnitPrices
+genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
 
 genTxOutDatumHash :: CardanoEra era -> QuickCheck.Gen (TxOutDatumHash era)
 genTxOutDatumHash era = case era of
