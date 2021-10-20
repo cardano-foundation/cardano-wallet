@@ -98,7 +98,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , RequestException (..)
     , arbitraryStake
     , arbitraryStake
     , delegating
@@ -137,8 +136,6 @@ import Test.Integration.Framework.TestData
     , errMsg403transactionAlreadyBalanced
     , errMsg404NoSuchPool
     )
-import UnliftIO.Exception
-    ( throwIO )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
@@ -208,18 +205,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_02 - Only metadata" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
-        let expectedFee = 129500
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default metadata
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
 
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let apiTx = getFromResponse #transaction rTx
-
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Check for the presence of metadata on signed transaction
@@ -292,7 +288,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_03a - Withdrawal from self" $ \ctx -> runResourceT $ do
         (wa, _) <- rewardWallet ctx
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
-        let expectedFee = 139500
         let withdrawalAmt = 1_000_000_000_000
         let rewardInitialBalance = 100_000_000_000
 
@@ -301,10 +296,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
 
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
@@ -340,7 +336,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (wr, mw) <- rewardWallet ctx
         wa <- fixtureWallet ctx
         let withdrawal = Json [json|{ "withdrawal": #{mnemonicToText mw} }|]
-        let expectedFee = 139500
         let withdrawalAmt = 1000000000000
         let rewardInitialBalance = 100_000_000_000
 
@@ -349,10 +344,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
 
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
@@ -975,7 +971,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         pool:_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
-        let expectedFee = 148800
 
         let payload = Json [json|{
                 "payments": [{
@@ -1021,26 +1016,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             -- , expectField (#coinSelection . #deposit) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
 
-        -- TODO: make sure delegation cerificates are inserted
-        --       make sure metadata is on chain
-        apiTx <- case (rTx :: (HTTP.Status, Either RequestException (ApiConstructTransaction n))) of
-            (_, Left e) -> throwIO e
-            (_, Right tx) -> pure tx
-
-        let sealedTx = apiTx ^. #transaction
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
         -- Sign tx
-        let toSign = Json [json|
-                               { "transaction": #{sealedTx}
-                               , "passphrase": #{fixturePassphrase}
-                               }|]
-        let signEndpoint = Link.signTransaction @'Shelley wa
-        signedTx <- getFromResponse #transaction <$>
-            request @ApiSerialisedTransaction ctx signEndpoint Default toSign
-
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
         -- Submit tx
         txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
