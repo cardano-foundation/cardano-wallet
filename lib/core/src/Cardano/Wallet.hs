@@ -561,7 +561,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
 
-
 -- $Development
 -- __Naming Conventions__
 --
@@ -1172,31 +1171,41 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
 -------------------------------------------------------------------------------}
 
 lookupTxIns
-    :: forall ctx s k.
+    :: forall ctx s k (n :: NetworkDiscriminant).
         ( HasDBLayer IO s k ctx
         , KnownAddresses s
         , IsOurs s Address
+        , WalletKey k
+        , DelegationAddress n k
         )
     => ctx
     -> WalletId
     -> [TxIn]
+    -> XPub
     -> ExceptT ErrDecodeTx IO [(TxIn, Maybe (TxOut, NonEmpty DerivationIndex))]
-lookupTxIns ctx wid txins = db & \DBLayer{..} -> do
+lookupTxIns ctx wid txins xpub = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
           $ withExceptT ErrDecodeTxNoSuchWallet
           $ withNoSuchWallet wid
           $ readCheckpoint wid
-    let walletAddr = knownAddresses (getState cp)
-    pure $ map (tryGetTxOutPath cp walletAddr) txins
+    let f (addr, addrState, ix) =
+            ( liftDelegationAddress @n @k ((\(Right finger) -> finger) $
+                  paymentKeyFingerprint @k addr) (liftRawKey @k xpub)
+            , addrState
+            , ix )
+    let walletAddrs = map f $ knownAddresses (getState cp)
+    pure $ map (tryGetTxOutPath cp walletAddrs) txins
   where
     db = ctx ^. dbLayer @IO @s @k
-    tryGetTxOutPath cp walletAddr txin =
+    tryGetTxOutPath cp walletAddrs txin =
         case UTxO.lookup txin (totalUTxO mempty cp) of
             Nothing -> (txin, Nothing)
             Just (txout@(TxOut addr _)) ->
-                let path:_ = map (\(_, _,p) -> p) $
-                        filter (\(addr', _,_) -> addr' == addr) walletAddr
-                in (txin, Just (txout, path))
+                let path = map (\(_, _,p) -> p) $
+                        filter (\(addr', _,_) -> addr' == addr) walletAddrs
+                in case path of
+                    [] -> (txin, Nothing) -- will probably use error here
+                    path':_ -> (txin, Just (txout, path'))
 
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.

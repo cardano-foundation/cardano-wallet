@@ -2259,6 +2259,8 @@ decodeTransaction
         , IsOurs s Address
         , Typeable s
         , Typeable n
+        , DelegationAddress n k
+        , WalletKey k
         )
     => ctx
     -> ApiT WalletId
@@ -2268,9 +2270,9 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     let (Tx txid feeM colls inps outs wdrlMap meta vldt, _toMint, _toBurn) = decodeTx tl sealed
     (txinsOutsPaths, collsOutsPaths, acct)  <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-          txinsOutsPaths <- liftHandler $ W.lookupTxIns wrk wid (fst <$> inps)
-          (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-          collsOutsPaths <- liftHandler $ W.lookupTxIns wrk wid (fst <$> colls)
+          (acct, xpub, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+          txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> inps) xpub
+          collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> colls) xpub
           pure (txinsOutsPaths, collsOutsPaths, acct)
     pure $ ApiDecodedTransaction
         { id = ApiT txid

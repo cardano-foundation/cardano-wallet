@@ -33,7 +33,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
     , ApiFee (..)
-    , ApiSerialisedTransaction
+    , ApiSerialisedTransaction (..)
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -156,6 +156,10 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
+
+
+import qualified Debug.Trace as TR
+
 
 spec :: forall n.
     ( DecodeAddress n
@@ -405,6 +409,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let txCbor = getFromResponse #transaction rTx
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        TR.trace ("rDecodedTx"<>show rDecodedTx) $ verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField #withdrawals (`shouldBe` [])
+            , expectField #collateral (`shouldBe` [])
+            , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
+            ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let filterInitialAmt =
