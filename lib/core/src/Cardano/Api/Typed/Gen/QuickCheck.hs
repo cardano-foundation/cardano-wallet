@@ -9,6 +9,7 @@
 module Cardano.Api.Typed.Gen.QuickCheck
   ( genLovelace
   , genNetworkMagic
+  , genScriptExecutionUnits
   , genNetworkId
   , genQuantity
   , genAssetName
@@ -38,6 +39,13 @@ module Cardano.Api.Typed.Gen.QuickCheck
   , genTxValidityUpperBound
   , genTxValidityRange
   , genScriptData
+  , genWitnessStake
+  , genScriptValidity
+  , genTxScriptValidity
+  , genShelleyWitnessSigningKey
+  , genValueForMinting
+  , genTxMintValue
+  , genExtraKeyWitnesses
 
   -- * Coverage doesn't make much sense rn
   , genPolicyId
@@ -244,12 +252,12 @@ genScriptInAnyLang =
       [ ScriptInAnyLang lang <$> genScript lang
       | AnyScriptLanguage lang <- [minBound..maxBound] ]
 
--- genScriptInEra :: CardanoEra era -> QuickCheck.Gen (ScriptInEra era)
--- genScriptInEra era =
---     QuickCheck.oneof
---       [ ScriptInEra langInEra <$> genScript lang
---       | AnyScriptLanguage lang <- [minBound..maxBound]
---       , Just langInEra <- [scriptLanguageSupportedInEra era lang] ]
+genScriptInEra :: CardanoEra era -> QuickCheck.Gen (ScriptInEra era)
+genScriptInEra era =
+    QuickCheck.oneof
+      [ ScriptInEra langInEra <$> genScript lang
+      | AnyScriptLanguage lang <- [minBound..maxBound]
+      , Just langInEra <- [scriptLanguageSupportedInEra era lang] ]
 
 genScriptHash :: QuickCheck.Gen ScriptHash
 genScriptHash = do
@@ -298,9 +306,9 @@ genQuantity = do
     (Large (n :: Int64)) <- QuickCheck.arbitrary
     pure $ fromIntegral n
 
--- -- | Generate a positive or negative quantity.
--- genSignedQuantity :: QuickCheck.Gen Quantity
--- genSignedQuantity = genQuantity
+-- | Generate a positive or negative quantity.
+genSignedQuantity :: QuickCheck.Gen Quantity
+genSignedQuantity = genQuantity
 
 genUnsignedQuantity :: QuickCheck.Gen Quantity
 genUnsignedQuantity = do
@@ -313,13 +321,13 @@ genValue genAId genQuant =
     QuickCheck.listOf ((,) <$> genAId <*> genQuant)
 
 
--- -- | Generate a 'Value' suitable for minting, i.e. non-ADA asset ID and a
--- -- positive or negative quantity.
--- genValueForMinting :: QuickCheck.Gen Value
--- genValueForMinting = genValue genAssetIdNoAda genSignedQuantity
---   where
---     genAssetIdNoAda :: QuickCheck.Gen AssetId
---     genAssetIdNoAda = AssetId <$> genPolicyId <*> genAssetName
+-- | Generate a 'Value' suitable for minting, i.e. non-ADA asset ID and a
+-- positive or negative quantity.
+genValueForMinting :: QuickCheck.Gen Value
+genValueForMinting = genValue genAssetIdNoAda genSignedQuantity
+  where
+    genAssetIdNoAda :: QuickCheck.Gen AssetId
+    genAssetIdNoAda = AssetId <$> genPolicyId <*> genAssetName
 
 -- | Generate a 'Value' suitable for usage in a transaction output, i.e. any
 -- asset ID and a positive quantity.
@@ -466,13 +474,13 @@ genTxValidityRange era =
 --         , TxMetadataInEra supported <$> genTxMetadata
 --         ]
 
--- genTxAuxScripts :: CardanoEra era -> QuickCheck.Gen (TxAuxScripts era)
--- genTxAuxScripts era =
---   case auxScriptsSupportedInEra era of
---     Nothing -> pure TxAuxScriptsNone
---     Just supported ->
---       TxAuxScripts supported <$>
---         QuickCheck.scale (`mod` 3) (QuickCheck.listOf (genScriptInEra era))
+genTxAuxScripts :: CardanoEra era -> QuickCheck.Gen (TxAuxScripts era)
+genTxAuxScripts era =
+  case auxScriptsSupportedInEra era of
+    Nothing -> pure TxAuxScriptsNone
+    Just supported ->
+      TxAuxScripts supported <$>
+        QuickCheck.scale (`mod` 3) (QuickCheck.listOf (genScriptInEra era))
 
 genTxWithdrawals :: CardanoEra era -> QuickCheck.Gen (TxWithdrawals BuildTx era)
 genTxWithdrawals era =
@@ -561,15 +569,26 @@ genScriptExecutionUnits = do
 --         , TxUpdateProposal supported <$> genUpdateProposal
 --         ]
 
--- genTxMintValue :: CardanoEra era -> QuickCheck.Gen (TxMintValue BuildTx era)
--- genTxMintValue era =
---   case multiAssetSupportedInEra era of
---     Left _ -> pure TxMintNone
---     Right supported ->
---       QuickCheck.oneof
---         [ pure TxMintNone
---         , TxMintValue supported <$> genValueForMinting <*> return (BuildTxWith mempty)
---         ]
+genTxMintValue :: CardanoEra era -> QuickCheck.Gen (TxMintValue BuildTx era)
+genTxMintValue era =
+  case multiAssetSupportedInEra era of
+    Left _ -> pure TxMintNone
+    Right supported ->
+      QuickCheck.oneof
+        [ pure TxMintNone
+        -- TODO gen policy IDs
+        , TxMintValue supported <$> genValueForMinting <*> return (BuildTxWith mempty)
+        ]
+
+genExtraKeyWitnesses :: CardanoEra era -> QuickCheck.Gen (TxExtraKeyWitnesses era)
+genExtraKeyWitnesses era =
+    case extraKeyWitnessesSupportedInEra era of
+        Nothing -> pure TxExtraKeyWitnessesNone
+        Just supported  -> QuickCheck.oneof
+            [ pure TxExtraKeyWitnessesNone
+            , TxExtraKeyWitnesses supported
+              <$> QuickCheck.listOf (genVerificationKeyHash AsPaymentKey)
+            ]
 
 -- genTxBodyContent :: CardanoEra era -> QuickCheck.Gen (TxBodyContent BuildTx era)
 -- genTxBodyContent era = do
@@ -629,13 +648,13 @@ genTxFee era =
 --     Left err -> error (displayError err)
 --     Right txBody -> pure txBody
 
--- genTxScriptValidity :: CardanoEra era -> QuickCheck.Gen (TxScriptValidity era)
--- genTxScriptValidity era = case txScriptValiditySupportedInCardanoEra era of
---   Nothing -> pure TxScriptValidityNone
---   Just witness -> TxScriptValidity witness <$> genScriptValidity
+genTxScriptValidity :: CardanoEra era -> QuickCheck.Gen (TxScriptValidity era)
+genTxScriptValidity era = case txScriptValiditySupportedInCardanoEra era of
+  Nothing -> pure TxScriptValidityNone
+  Just witness -> TxScriptValidity witness <$> genScriptValidity
 
--- genScriptValidity :: QuickCheck.Gen ScriptValidity
--- genScriptValidity = QuickCheck.elements [ScriptInvalid, ScriptValid]
+genScriptValidity :: QuickCheck.Gen ScriptValidity
+genScriptValidity = QuickCheck.elements [ScriptInvalid, ScriptValid]
 
 -- genTx :: forall era. IsCardanoEra era => CardanoEra era -> QuickCheck.Gen (Tx era)
 -- genTx era =
@@ -701,15 +720,24 @@ genWitnessNetworkIdOrByronAddress =
 --    , genShelleyBootstrapWitness era
 --    ]
 
--- genShelleyWitnessSigningKey :: Gen ShelleyWitnessSigningKey
--- genShelleyWitnessSigningKey =
---   Gen.choice [ WitnessPaymentKey <$>  genSigningKey AsPaymentKey
---              , WitnessPaymentExtendedKey <$>  genSigningKey AsPaymentExtendedKey
---              , WitnessStakeKey <$>  genSigningKey AsStakeKey
---              , WitnessStakePoolKey <$>  genSigningKey AsStakePoolKey
---              , WitnessGenesisDelegateKey <$>  genSigningKey AsGenesisDelegateKey
---              , WitnessGenesisUTxOKey <$>  genSigningKey AsGenesisUTxOKey
---              ]
+genShelleyWitnessSigningKey :: QuickCheck.Gen ShelleyWitnessSigningKey
+genShelleyWitnessSigningKey =
+  QuickCheck.oneof
+      [ WitnessPaymentKey
+        <$> genSigningKey AsPaymentKey
+      , WitnessPaymentExtendedKey
+        <$> genSigningKey AsPaymentExtendedKey
+      , WitnessStakeKey
+        <$> genSigningKey AsStakeKey
+      , WitnessStakeExtendedKey
+        <$> genSigningKey AsStakeExtendedKey
+      , WitnessStakePoolKey
+        <$> genSigningKey AsStakePoolKey
+      , WitnessGenesisDelegateKey
+        <$> genSigningKey AsGenesisDelegateKey
+      , WitnessGenesisUTxOKey
+        <$> genSigningKey AsGenesisUTxOKey
+      ]
 
 genSeed :: Int -> QuickCheck.Gen Crypto.Seed
 genSeed n = (Crypto.mkSeedFromBytes . BS.pack) <$> QuickCheck.vector n
@@ -832,10 +860,6 @@ genEpochNo = EpochNo <$> QuickCheck.arbitrary
 --   where
 --     plutusScriptVersions :: [AnyPlutusScriptVersion]
 --     plutusScriptVersions = [minBound..maxBound]
-
--- genExecutionUnits :: QuickCheck.Gen ExecutionUnits
--- genExecutionUnits = QuickCheck.scale (`mod` 1000) $
---     ExecutionUnits <$> QuickCheck.arbitrary <*> QuickCheck.arbitrary
 
 -- genExecutionUnitPrices :: QuickCheck.Gen ExecutionUnitPrices
 -- genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational

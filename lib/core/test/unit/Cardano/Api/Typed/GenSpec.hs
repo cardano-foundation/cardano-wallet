@@ -12,33 +12,48 @@ import Cardano.Api
     , AnyCardanoEra (..)
     , AssetId (..)
     , AssetName (..)
+    , BuildTx (..)
     , CardanoEra (..)
     , EpochNo (..)
+    , ExecutionUnits (..)
+    , KeyWitnessInCtx (..)
     , Lovelace
     , NetworkId (..)
     , NetworkMagic (..)
     , PaymentCredential (..)
     , Quantity (..)
     , ScriptData (..)
+    , ScriptLanguageInEra (..)
+    , ScriptValidity (..)
+    , ScriptWitnessInCtx (..)
+    , ShelleyWitnessSigningKey (..)
     , SimpleScript (..)
     , SimpleScriptVersion (..)
     , SlotNo (..)
     , StakeAddressPointer (..)
     , StakeAddressReference (..)
     , StakeCredential (..)
+    , TxExtraKeyWitnesses (..)
     , TxFee (..)
     , TxFeesExplicitInEra (..)
     , TxFeesImplicitInEra (..)
     , TxIn (..)
     , TxInsCollateral (..)
     , TxIx (..)
+    , TxMintValue (..)
     , TxOut (..)
     , TxOutDatumHash (..)
     , TxOutValue (..)
+    , TxScriptValidity (..)
     , TxValidityLowerBound (..)
     , TxValidityUpperBound (..)
     , Value (..)
+    , WitCtxStake (..)
+    , Witness (..)
+    , extraKeyWitnessesSupportedInEra
+    , multiAssetSupportedInEra
     , quantityToLovelace
+    , txScriptValiditySupportedInCardanoEra
     , valueToList
     )
 import Cardano.Api.Byron
@@ -54,10 +69,14 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import Data.Char
     ( isAlphaNum, isDigit, isLower, isUpper )
+import Data.Foldable
+    ( for_ )
 import Data.Function
     ( (&) )
 import Data.Int
     ( Int32, Int64 )
+import Data.Traversable
+    ( for )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Test.Hspec
@@ -313,9 +332,92 @@ spec =
                     property
                     $ forAll (genTxValidityRange AlonzoEra)
                     $ genTxValidityRangeAlonzoCoverage
-
             it "genScriptDataCoverage" $
                 property genScriptDataCoverage
+            it "genScriptExecutionUnits" $
+                property genScriptExecutionUnitsCoverage
+            it "genScriptValidity" $
+                property genScriptValidityCoverage
+            describe "genTxScriptValidity" $ do
+                it "genTxScriptValidity ByronEra" $
+                    property
+                    $ forAll (genTxScriptValidity ByronEra)
+                    $ genTxScriptValidityCoverage ByronEra
+                it "genTxScriptValidity ShelleyEra" $
+                    property
+                    $ forAll (genTxScriptValidity ShelleyEra)
+                    $ genTxScriptValidityCoverage ShelleyEra
+                it "genTxScriptValidity AllegraEra" $
+                    property
+                    $ forAll (genTxScriptValidity AllegraEra)
+                    $ genTxScriptValidityCoverage AllegraEra
+                it "genTxScriptValidity MaryEra" $
+                    property
+                    $ forAll (genTxScriptValidity MaryEra)
+                    $ genTxScriptValidityCoverage MaryEra
+                it "genTxScriptValidity AlonzoEra" $
+                    property
+                    $ forAll (genTxScriptValidity AlonzoEra)
+                    $ genTxScriptValidityCoverage AlonzoEra
+            it "genShelleyWitnessSigningKey" $
+                property genShelleyWitnessSigningKeyCoverage
+            it "genValueForMinting" $
+                property
+                $ forAll genValueForMinting genValueForMintingCoverage
+            describe "genTxMintValue" $ do
+                it "genTxMintValue ByronEra" $
+                    property
+                    $ forAll (genTxMintValue ByronEra)
+                    $ genTxMintValueCoverage ByronEra
+                it "genTxMintValue ShelleyEra" $
+                    property
+                    $ forAll (genTxMintValue ShelleyEra)
+                    $ genTxMintValueCoverage ShelleyEra
+                it "genTxMintValue AllegraEra" $
+                    property
+                    $ forAll (genTxMintValue AllegraEra)
+                    $ genTxMintValueCoverage AllegraEra
+                it "genTxMintValue MaryEra" $
+                    property
+                    $ forAll (genTxMintValue MaryEra)
+                    $ genTxMintValueCoverage MaryEra
+                it "genTxMintValue AlonzoEra" $
+                    property
+                    $ forAll (genTxMintValue AlonzoEra)
+                    $ genTxMintValueCoverage AlonzoEra
+            describe "genExtraKeyWitnesses" $ do
+                it "genExtraKeyWitnesses ByronEra" $
+                    property
+                    $ forAll (genExtraKeyWitnesses ByronEra)
+                    $ genExtraKeyWitnessesCoverage ByronEra
+                it "genExtraKeyWitnesses ShelleyEra" $
+                    property
+                    $ forAll (genExtraKeyWitnesses ShelleyEra)
+                    $ genExtraKeyWitnessesCoverage ShelleyEra
+                it "genExtraKeyWitnesses AllegraEra" $
+                    property
+                    $ forAll (genExtraKeyWitnesses AllegraEra)
+                    $ genExtraKeyWitnessesCoverage AllegraEra
+                it "genExtraKeyWitnesses MaryEra" $
+                    property
+                    $ forAll (genExtraKeyWitnesses MaryEra)
+                    $ genExtraKeyWitnessesCoverage MaryEra
+                it "genExtraKeyWitnesses AlonzoEra" $
+                    property
+                    $ forAll (genExtraKeyWitnesses AlonzoEra)
+                    $ genExtraKeyWitnessesCoverage AlonzoEra
+            it "genTxMetadataValue" $
+                property genTxMetadataValueCoverage
+
+            -- describe "genWitnessStake" $ do
+            --     it "genWitnessStake ByronEra" $
+            --         property
+            --         $ forAll (genWitnessStake ByronEra)
+            --                  (genWitnessStakeCoverage ByronEra)
+            --     it "genWitnessStake ShelleyEra" $
+            --         property
+            --         $ forAll (genWitnessStake ShelleyEra)
+            --                  (genWitnessStakeCoverage ShelleyEra)
 
 genLovelaceCoverage :: Lovelace -> Property
 genLovelaceCoverage l = checkCoverage
@@ -1080,7 +1182,7 @@ genScriptDataConstructorCoverage (ix, ss) = checkCoverage
         "some scripts in constr"
     $ cover 10 (length ss > 3)
         "lots of scripts in constr"
-    $ cover 10 (ix == 0)
+    $ cover 1 (ix == 0)
         "ix == 0"
     $ cover 10 (ix > 0)
         "ix > 0"
@@ -1089,14 +1191,229 @@ genScriptDataConstructorCoverage (ix, ss) = checkCoverage
     $ True
 
 genScriptDataCoverage :: ScriptData -> Property
-genScriptDataCoverage dat = checkCoverage
-    $ case dat of
-        ScriptDataNumber _        -> cover 10 True "is script data number"
-        ScriptDataBytes _         -> cover 10 True "is script data bytes"
-        ScriptDataList _          -> cover 10 True "is script data list"
-        ScriptDataMap _           -> cover 10 True "is script data map"
-        ScriptDataConstructor _ _ -> cover 10 True "is script data constructor"
-    $ True
+genScriptDataCoverage dat = conjoin
+    [ checkCoverage
+      $ case dat of
+          ScriptDataNumber _        -> cover 10 True "is script data number"
+          ScriptDataBytes _         -> cover 10 True "is script data bytes"
+          ScriptDataList _          -> cover 10 True "is script data list"
+          ScriptDataMap _           -> cover 10 True "is script data map"
+          ScriptDataConstructor _ _ -> cover 10 True "is script data constructor"
+      $ True
+    , case dat of
+          ScriptDataNumber n        ->
+              genScriptDataNumberCoverage n
+          ScriptDataBytes bs        ->
+              genScriptDataBytesCoverage bs
+          ScriptDataList ss          ->
+              genScriptDataListCoverage ss
+          ScriptDataMap ss           ->
+              genScriptDataMapCoverage ss
+          ScriptDataConstructor n ss ->
+              genScriptDataConstructorCoverage (n, ss)
+    ]
 
 instance Arbitrary ScriptData where
     arbitrary = genScriptData
+
+genScriptExecutionUnitsCoverage :: ExecutionUnits -> Property
+genScriptExecutionUnitsCoverage (ExecutionUnits steps mem) = conjoin
+    [ checkCoverage
+      $ cover 1 (steps == 0)
+        "execution steps is zero"
+      $ cover 2 (steps >= veryLargeNumber)
+        "execution steps is very large"
+      $ cover 10 (steps > 0 && steps < veryLargeNumber)
+        "execution steps is between smallest and very large"
+      $ label "no execution steps is negative" (steps >= 0)
+        & counterexample "execution steps was negative"
+    , checkCoverage
+      $ cover 1 (mem == 0)
+        "execution mem is zero"
+      $ cover 2 (mem >= veryLargeNumber)
+        "execution mem is very large"
+      $ cover 10 (mem > 0 && mem < veryLargeNumber)
+        "execution mem is between smallest and very large"
+      $ label "no execution mem is negative" (mem >= 0)
+        & counterexample "execution mem was negative"
+    ]
+
+    where
+        veryLargeNumber = fromIntegral (maxBound :: Word32)
+
+instance Arbitrary ExecutionUnits where
+    arbitrary = genScriptExecutionUnits
+
+-- genWitnessStakeCoverage :: CardanoEra era -> Witness WitCtxStake era -> Property
+-- genWitnessStakeCoverage era wit =
+--     case era of
+--           ByronEra -> checkCoverage
+--               $ cover 100 (wit == KeyWitness KeyWitnessForStakeAddr)
+--                 "byron era always generates key witnesses"
+--               $ True
+--           ShelleyEra -> checkCoverage
+--               $ cover 10 (isKeyWitness wit)
+--                 "key witness in Shelley era"
+--               $ cover 10 (isSimpleScriptWitness wit)
+--                 "script witness in Shelley era"
+--               $ cover 100 (isKeyWitness wit || isSimpleScriptWitness wit)
+--                 "is appropriate key or script witness"
+--               $ True
+--           AllegraEra -> checkCoverage
+--               $ cover 10 (isKeyWitness wit)
+--                 "key witness in Allegra era"
+--               $ cover 10 (isSimplewit)
+--           MaryEra -> checkCoverage $ cover 100 True "" $ True
+--           AlonzoEra -> checkCoverage $ cover 100 True "" $ True
+
+--     where
+--         isKeyWitness =
+--             (KeyWitness KeyWitnessForStakeAddr ==)
+
+--         isSimpleScriptWitness = \case
+--             KeyWitness _                              -> False
+--             ScriptWitness ScriptWitnessForStakeAddr _ -> True
+--             ScriptWitness _ _                         -> False
+
+genScriptValidityCoverage :: ScriptValidity -> Property
+genScriptValidityCoverage scriptValidity = checkCoverage
+    $ cover 10 (scriptValidity == ScriptInvalid)
+        "script is invalid"
+    $ cover 10 (scriptValidity == ScriptValid)
+        "script is valid"
+    $ True
+
+instance Arbitrary ScriptValidity where
+    arbitrary = genScriptValidity
+
+genTxScriptValidityCoverage :: CardanoEra era -> TxScriptValidity era -> Property
+genTxScriptValidityCoverage era txScriptValidity =
+    case txScriptValiditySupportedInCardanoEra era of
+        Nothing -> checkCoverage
+            $ cover 100 (txScriptValidity == TxScriptValidityNone)
+              "script validity is always none in eras it is not supported"
+            $ True
+        Just _  -> checkCoverage
+            $ cover 100 (hasScriptValidity txScriptValidity)
+              "script validity is always present in eras it is supported"
+            $ case txScriptValidity of
+                  TxScriptValidityNone ->
+                      False & counterexample "era should have script validity"
+                  TxScriptValidity _ scriptValidity ->
+                      genScriptValidityCoverage scriptValidity
+    where
+        hasScriptValidity = \case
+            TxScriptValidityNone -> False
+            TxScriptValidity _ _ -> True
+
+genShelleyWitnessSigningKeyCoverage :: ShelleyWitnessSigningKey -> Property
+genShelleyWitnessSigningKeyCoverage sk = checkCoverage
+    $ case sk of
+          WitnessPaymentKey _ ->
+              cover 10 True "is witness payment key"
+          WitnessPaymentExtendedKey _ ->
+              cover 10 True "is witness payment extended key"
+          WitnessStakeKey _ ->
+              cover 10 True "is witness stake key"
+          WitnessStakeExtendedKey _ ->
+              cover 10 True "is witness stake extended key"
+          WitnessStakePoolKey _ ->
+              cover 10 True "is witness stake pool key"
+          WitnessGenesisDelegateKey _ ->
+              cover 10 True "is witness genesis delegate key"
+          WitnessGenesisUTxOKey _ ->
+              cover 10 True "is witness genesis utxo key"
+    $ True
+
+instance Arbitrary ShelleyWitnessSigningKey where
+    arbitrary = genShelleyWitnessSigningKey
+
+instance Show ShelleyWitnessSigningKey where
+    show (WitnessPaymentKey sk) = show sk
+    show (WitnessPaymentExtendedKey sk) = show sk
+    show (WitnessStakeKey sk) = show sk
+    show (WitnessStakeExtendedKey sk) = show sk
+    show (WitnessStakePoolKey sk) = show sk
+    show (WitnessGenesisKey sk) = show sk
+    show (WitnessGenesisExtendedKey sk) = show sk
+    show (WitnessGenesisDelegateKey sk) = show sk
+    show (WitnessGenesisDelegateExtendedKey sk) = show sk
+    show (WitnessGenesisUTxOKey sk) = show sk
+
+genValueForMintingCoverage :: Value -> Property
+genValueForMintingCoverage val = checkCoverage
+    $ cover 10 (hasMintingValue val)
+      "minting assets"
+    $ cover 10 (hasBurningValue val)
+      "burning assets"
+    $ conjoin
+      [ label "no empty mint/burn" (not $ hasZeroValue val)
+        & counterexample "shouldn't generate a zero mint/burn value"
+      , label "is never ADA value (can't mint ADA)" (hasNoAdaValue val)
+        & counterexample "generated ADA mint (you can't mint ADA!)"
+      ]
+
+    where
+        hasNoAdaValue = all ((/= AdaAssetId) . fst) . valueToList
+
+        hasMintingValue = any ((> 0) . snd) . valueToList
+
+        hasBurningValue = any ((< 0) . snd) . valueToList
+
+        hasZeroValue = any ((== 0) . snd) . valueToList
+
+genTxMintValueCoverage :: CardanoEra era -> TxMintValue BuildTx era -> Property
+genTxMintValueCoverage era val =
+    case multiAssetSupportedInEra era of
+        Left _ ->
+            label "mint values are not generated in unsupported eras"
+                (val == TxMintNone)
+            & counterexample "a mint value was generated in an unsupported era"
+        Right _ ->
+            checkCoverage
+            $ cover 10 (noMint val)
+              "no mint"
+            $ cover 10 (someMint val)
+              "mint"
+            $ case val of
+                TxMintNone -> property True
+                (TxMintValue _ value _) ->
+                    genValueForMintingCoverage value
+
+    where
+        noMint = (== TxMintNone)
+
+        someMint = \case
+            TxMintNone -> False
+            TxMintValue _ _ _ -> True
+
+genExtraKeyWitnessesCoverage
+    :: CardanoEra era -> TxExtraKeyWitnesses era -> Property
+genExtraKeyWitnessesCoverage era ws =
+    case extraKeyWitnessesSupportedInEra era of
+        Nothing ->
+            label "extra key witnesses are not generated in unsupported eras"
+                (noWitnesses ws)
+            & counterexample "key witnesses were generated in an unsupported era"
+        Just _ -> checkCoverage
+            $ cover 10 (noWitnesses ws)
+                "no witnesses"
+            $ cover 10 (witnesses ws)
+                "witnesses"
+            $ case ws of
+                TxExtraKeyWitnessesNone -> property True
+                (TxExtraKeyWitnesses _ wits) -> checkCoverage
+                    $ cover 1 (length wits == 0)
+                       "empty witneses"
+                    $ cover 30 (length wits > 0)
+                       "some witnesses"
+                    $ cover 10 (length wits > 3)
+                       "> 3 witnesses"
+                    $ True
+
+    where
+        noWitnesses = (== TxExtraKeyWitnessesNone)
+
+        witnesses = \case
+            TxExtraKeyWitnessesNone -> False
+            TxExtraKeyWitnesses _ _ -> True
