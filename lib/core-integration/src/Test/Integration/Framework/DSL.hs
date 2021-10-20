@@ -2259,16 +2259,18 @@ signTx
     => Context
     -> ApiWallet
     -> ApiConstructTransaction n
+    -> [(HTTP.Status, Either RequestException ApiSerialisedTransaction) -> m ()]
     -> m (ApiT SealedTx)
-signTx ctx w apiTx = do
+signTx ctx w apiTx expectations = do
     let sealedTx = transaction apiTx
     let toSign = Json [aesonQQ|
                            { "transaction": #{sealedTx}
                            , "passphrase": #{fixturePassphrase}
                            }|]
     let signEndpoint = Link.signTransaction @'Shelley w
-    getFromResponse (#transaction) <$>
-        request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+    r <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+    verify r expectations
+    pure $ getFromResponse #transaction r
 
 submitTx
     :: MonadUnliftIO m
