@@ -167,6 +167,8 @@ module Cardano.Wallet.Api.Types
     , ApiTxInputGeneral (..)
     , ResourceContext (..)
     , ApiWithdrawalGeneral (..)
+    , ApiWalletOutput (..)
+    , ApiTxOutputGeneral (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1164,11 +1166,27 @@ data ApiWithdrawalGeneral n = ApiWithdrawalGeneral
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
+    { address :: !(ApiT Address, Proxy n)
+    , amount :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
+    , derivationPath :: NonEmpty (ApiT DerivationIndex)
+    , amountIncoming :: !(Quantity "lovelace" Natural)
+    , assetsIncoming :: !(ApiT W.TokenMap)
+    } deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
+data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
+      ExternalOutput (AddressAmount (ApiT Address, Proxy n))
+    | WalletOutput (ApiWalletOutput n)
+      deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
 data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     { id :: !(ApiT (Hash "Tx"))
     , fee :: !(Quantity "lovelace" Natural)
     , inputs :: ![ApiTxInputGeneral n]
-    , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
+    , outputs :: ![ApiTxOutputGeneral n]
     , collateral :: ![ApiTxInputGeneral n]
     , withdrawals :: ![ApiWithdrawalGeneral n]
     , metadata :: !ApiTxMetadata
@@ -2990,6 +3008,11 @@ instance DecodeAddress n => FromJSON (ApiWalletInput n) where
 instance EncodeAddress n => ToJSON (ApiWalletInput n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance DecodeAddress n => FromJSON (ApiWalletOutput n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiWalletOutput n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance
     ( DecodeAddress n
     , DecodeStakeAddress n
@@ -3000,6 +3023,19 @@ instance
     ( EncodeAddress n
     , EncodeStakeAddress n
     ) => ToJSON (ApiDecodedTransaction n)
+  where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance
+    ( DecodeAddress n
+    , DecodeStakeAddress n
+    ) => FromJSON (ApiTxOutputGeneral n)
+  where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance
+    ( EncodeAddress n
+    , EncodeStakeAddress n
+    ) => ToJSON (ApiTxOutputGeneral n)
   where
     toJSON = genericToJSON defaultRecordTypeOptions
 

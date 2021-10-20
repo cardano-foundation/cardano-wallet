@@ -251,6 +251,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
+    , ApiTxOutputGeneral (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
@@ -2278,7 +2279,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         { id = ApiT txid
         , fee = fromMaybe (Quantity 0) (Quantity . fromIntegral . unCoin <$> feeM)
         , inputs = map toInp txinsOutsPaths
-        , outputs = map (toAddressAmount @n) outs
+        , outputs = map (ExternalOutput . toAddressAmount @n) outs
         , collateral = map toInp collsOutsPaths
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
         , metadata = ApiTxMetadata $ ApiT <$> meta
