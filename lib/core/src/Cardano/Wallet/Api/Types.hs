@@ -1142,8 +1142,7 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     , index :: !Word32
     , address :: !(ApiT Address, Proxy n)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    , amountBefore :: !(Quantity "lovelace" Natural)
-    , amountSent :: !(Quantity "lovelace" Natural)
+    , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData

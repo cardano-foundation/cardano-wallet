@@ -2290,14 +2290,13 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         case txoutPathM of
             Nothing ->
                 ExternalInput (ApiT txin, Quantity $ fromIntegral cTaken)
-            Just (TxOut addr (TokenBundle (Coin cInitial) tmap), path) ->
+            Just (TxOut addr (TokenBundle (Coin c) tmap), path) ->
                 WalletInput $ ApiWalletInput
                 { id = ApiT txid
                 , index = ix
                 , address = (ApiT addr, Proxy @n)
                 , derivationPath = NE.map ApiT path
-                , amountBefore = Quantity $ fromIntegral cInitial
-                , amountSent = Quantity $ fromIntegral cTaken
+                , amount = Quantity $ fromIntegral c
                 , assets = ApiT tmap
                 }
     toWrdl acct (rewardKey, (Coin c)) =

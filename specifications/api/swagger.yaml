@@ -1360,13 +1360,11 @@ x-transactionInputsInsideWallet: &transactionInputsInsideWallet
       - id
       - index
       - address
-      - amount_before
-      - amount_picked
+      - amount
       - derivation_path
     properties:
       address: *addressId
-      amount_before: *amount
-      amount_sent: *amount
+      amount: *amount
       assets: *walletAssets
       id: *transactionId
       derivation_path: *derivationPath

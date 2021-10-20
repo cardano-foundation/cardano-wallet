@@ -59,6 +59,7 @@ import Cardano.Wallet.Primitive.Types.Hash
     , Direction (..)
     , SealedTx
     , TxIn (..)
+    , TxScriptValidity (..)
     , TxStatus (..)
     , cardanoTx
     , getSealedTxBody
@@ -97,7 +98,7 @@ import Numeric.Natural
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotBe, shouldSatisfy )
+    ( shouldBe, shouldNotBe, shouldNotSatisfy, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -156,9 +157,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
-
-
-import qualified Debug.Trace as TR
 
 
 spec :: forall n.
@@ -387,10 +385,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
     it "TRANS_NEW_CREATE_04a - Single Output Transaction" $ \ctx -> runResourceT $ do
-<<<<<<< HEAD
-=======
 
->>>>>>> 14b12431a (unpend single output tx test)
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
@@ -411,14 +406,34 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let txCbor = getFromResponse #transaction rTx
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
-        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+        let sharedExpectationsBetweenWallets =
+                [ expectResponseCode HTTP.status202
+                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField #withdrawals (`shouldBe` [])
+                , expectField #collateral (`shouldBe` [])
+                , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
+                , expectField #scriptValidity (`shouldBe` (Just $ ApiT TxScriptValid))
+                ]
+
+        -- After constructing tx the cbor is as expected, both wallets share common information
+        -- source wallet sees inputs as his, target wallet sees them as external
+        let isInpOurs inp = case inp of
+                ExternalInput _ -> False
+                WalletInput _ -> True
+        let areOurs = all isInpOurs
+
+        rDecodedTxSource <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
-        TR.trace ("rDecodedTx"<>show rDecodedTx) $ verify rDecodedTx
-            [ expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
-            , expectField #withdrawals (`shouldBe` [])
-            , expectField #collateral (`shouldBe` [])
-            , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
+        verify rDecodedTxSource $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldSatisfy` areOurs)
+            ]
+
+        rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload
+        verify rDecodedTxTarget $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldNotSatisfy` areOurs)
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
@@ -434,10 +449,28 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
-        eventually "Target wallet balance is increased by amt" $ do
-            rWb <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wb) Default Empty
-            verify rWb
+        -- After signing tx the cbor is as before modulo added wtinesses,
+        -- and in line what was there after construction.
+        let txCbor' = getFromResponse #transaction (HTTP.status202, Right $ ApiSerialisedTransaction signedTx)
+        let decodePayload' = Json (toJSON $ ApiSerialisedTransaction txCbor')
+        rDecodedTxSource' <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload'
+        verify rDecodedTxSource' $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldSatisfy` areOurs)
+            ]
+
+        rDecodedTxTarget' <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload'
+        verify rDecodedTxTarget' $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldNotSatisfy` areOurs)
+            ]
+
+        eventually "Source wallet balance is decreased by amt + fee" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
                 [ expectSuccess
                 , expectField
                         (#balance . #available . #getQuantity)
