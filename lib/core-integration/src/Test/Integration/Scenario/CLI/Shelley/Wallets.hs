@@ -26,10 +26,10 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     , getApiT
     )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types

@@ -34,8 +34,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
     , PaymentAddress
     , Role (..)
     )
@@ -47,6 +45,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..) )
+import Cardano.Wallet.Primitive.Passphrase
+    ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
