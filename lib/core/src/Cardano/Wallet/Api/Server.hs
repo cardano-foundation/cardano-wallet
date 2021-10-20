@@ -2277,19 +2277,19 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = fromMaybe (Quantity 0) (Quantity . fromIntegral . unCoin <$> feeM)
-        , inputs = zipWith toInp txinsOutsPaths inps
+        , inputs = map toInp txinsOutsPaths
         , outputs = map (toAddressAmount @n) outs
-        , collateral = zipWith toInp collsOutsPaths colls
+        , collateral = map toInp collsOutsPaths
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
   where
     tl = ctx ^. W.transactionLayer @k
-    toInp (txin@(TxIn txid ix), txoutPathM) (_, Coin cTaken) =
+    toInp (txin@(TxIn txid ix), txoutPathM) =
         case txoutPathM of
             Nothing ->
-                ExternalInput (ApiT txin, Quantity $ fromIntegral cTaken)
+                ExternalInput (ApiT txin)
             Just (TxOut addr (TokenBundle (Coin c) tmap), path) ->
                 WalletInput $ ApiWalletInput
                 { id = ApiT txid

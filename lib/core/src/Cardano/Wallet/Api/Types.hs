@@ -1148,7 +1148,7 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
       deriving anyclass NFData
 
 data ApiTxInputGeneral (n :: NetworkDiscriminant) =
-      ExternalInput (ApiT TxIn, Quantity "lovelace" Natural)
+      ExternalInput (ApiT TxIn)
     | WalletInput (ApiWalletInput n)
       deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData

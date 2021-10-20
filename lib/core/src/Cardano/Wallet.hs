@@ -1188,6 +1188,7 @@ lookupTxIns ctx wid txins xpub = db & \DBLayer{..} -> do
           $ withExceptT ErrDecodeTxNoSuchWallet
           $ withNoSuchWallet wid
           $ readCheckpoint wid
+    -- NOTE it is working properly for base address.
     let f (addr, addrState, ix) =
             ( liftDelegationAddress @n @k ((\(Right finger) -> finger) $
                   paymentKeyFingerprint @k addr) (liftRawKey @k xpub)

@@ -1178,7 +1178,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #collateral (`shouldBe` [])
             , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
             , expectField #inputs
-                  (`shouldBe` [ExternalInput (ApiT (TxIn theTxHash 0), Quantity 0)])
+                  (`shouldBe` [ExternalInput (ApiT (TxIn theTxHash 0))])
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do

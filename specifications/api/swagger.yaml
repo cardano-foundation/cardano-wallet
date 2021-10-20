@@ -1342,13 +1342,11 @@ x-transactionInputsOutsideWallet: &transactionInputsOutsideWallet
     required:
       - id
       - index
-      - amount
     properties:
       id: *transactionId
       index:
         type: integer
         minimum: 0
-      amount: *amount
 
 x-transactionInputsInsideWallet: &transactionInputsInsideWallet
   description: |
