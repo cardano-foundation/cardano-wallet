@@ -18,6 +18,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
+    , SelectionOutputInvalidError (..)
     , SelectionParams (..)
     , VerifySelectionErrorResult (..)
     , VerifySelectionResult (..)
@@ -76,7 +77,7 @@ import Control.Monad
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Data.Either
-    ( isLeft, isRight )
+    ( isRight )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -95,6 +96,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Property
+    , Testable (..)
     , arbitraryBoundedEnum
     , checkCoverage
     , choose
@@ -120,6 +122,8 @@ import Test.QuickCheck.Extra
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
 
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
+import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
 
@@ -175,42 +179,107 @@ prop_performSelection_inner
     -> Property
 prop_performSelection_inner constraints params result =
     checkCoverage $
-    cover 10 (isLeft result)
-        "failure" $
-    cover 10 (isRight result)
-        "success" $
-    cover 10 (selectionCollateralRequired params)
-        "collateral required: yes" $
-    cover 10 (not $ selectionCollateralRequired params)
-        "collateral required: no" $
+    prop_performSelection_coverage params result $
     case result of
-        Left e ->
-            cover 2.0 (isBalanceError e)
-                "failure: balance" $
-            cover 2.0 (isCollateralError e)
-                "failure: collateral" $
-            cover 0.5 (isOutputError e)
-                "failure: output" $
-            report e "selection error" $
-            Pretty (verifySelectionError constraints params e) ===
-            Pretty VerifySelectionErrorSuccess
         Right selection ->
             report selection "selection" $
             Pretty (verifySelection constraints params selection) ===
             Pretty VerifySelectionSuccess
+        Left e ->
+            report e "selection error" $
+            Pretty (verifySelectionError constraints params e) ===
+            Pretty VerifySelectionErrorSuccess
+
+prop_performSelection_coverage
+    :: Testable property
+    => SelectionParams
+    -> Either SelectionError Selection
+    -> property
+    -> Property
+prop_performSelection_coverage params r innerProperty =
+    cover 20
+        (selectionCollateralRequired params)
+        "selectionCollateralRequired params" $
+    cover 20
+        (not $ selectionCollateralRequired params)
+        "not $ selectionCollateralRequired params" $
+    cover 20
+        (isSelection r)
+        "isSelection r" $
+    cover 0.4
+        (isSelectionBalanceError_BalanceInsufficient r)
+        "isSelectionBalanceError_BalanceInsufficient" $
+    cover 0.4
+        (isSelectionBalanceError_SelectionLimitReached r)
+        "isSelectionBalanceError_SelectionLimitReached" $
+    cover 0.4
+        (isSelectionBalanceError_InsufficientMinCoinValues r)
+        "isSelectionBalanceError_InsufficientMinCoinValues" $
+    cover 0.4
+        (isSelectionBalanceError_UnableToConstructChange r)
+        "isSelectionBalanceError_UnableToConstructChange" $
+    cover 0.4
+        (isSelectionBalanceError_EmptyUTxO r)
+        "isSelectionBalanceError_EmptyUTxO" $
+    cover 0.4
+        (isSelectionCollateralError r)
+        "isSelectionCollateralError" $
+    cover 0.4
+        (isSelectionOutputError_SelectionOutputSizeExceedsLimit r)
+        "isSelectionOutputError_SelectionOutputSizeExceedsLimit" $
+    cover 0.0
+        -- TODO: [ADP-1037]
+        -- Increase the coverage of this case:
+        (isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit r)
+        "isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit" $
+    property innerProperty
   where
-    isBalanceError :: SelectionError -> Bool
-    isBalanceError = \case
-        SelectionBalanceError _ -> True
-        _ -> False
-    isCollateralError :: SelectionError -> Bool
-    isCollateralError = \case
-        SelectionCollateralError _ -> True
-        _ -> False
-    isOutputError :: SelectionError -> Bool
-    isOutputError = \case
-        SelectionOutputError _ -> True
-        _ -> False
+    isSelection = isRight
+    isSelectionBalanceError_BalanceInsufficient = \case
+        Left (SelectionBalanceError Balance.BalanceInsufficient {})
+            -> True; _ -> False
+    isSelectionBalanceError_SelectionLimitReached = \case
+        Left (SelectionBalanceError Balance.SelectionLimitReached {})
+            -> True; _ -> False
+    isSelectionBalanceError_InsufficientMinCoinValues = \case
+        Left (SelectionBalanceError Balance.InsufficientMinCoinValues {})
+            -> True; _ -> False
+    isSelectionBalanceError_UnableToConstructChange = \case
+        Left (SelectionBalanceError Balance.UnableToConstructChange {})
+            -> True; _ -> False
+    isSelectionBalanceError_EmptyUTxO = \case
+        Left (SelectionBalanceError Balance.EmptyUTxO {})
+            -> True; _ -> False
+    isSelectionCollateralError = \case
+        Left (SelectionCollateralError _)
+            -> True; _ -> False
+    isSelectionOutputError_SelectionOutputSizeExceedsLimit = \case
+        Left (SelectionOutputError SelectionOutputSizeExceedsLimit {})
+            -> True; _ -> False
+    isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit = \case
+        Left (SelectionOutputError SelectionOutputTokenQuantityExceedsLimit {})
+            -> True; _ -> False
+
+    -- Provides an exhaustiveness check for all possible constructors of
+    -- the 'SelectionError' type.
+    --
+    -- If the compiler indicates that the pattern match is non-exhaustive,
+    -- please update the pattern match and then revise the coverage checks
+    -- above to make sure that they are also exhaustive.
+    --
+    _checkExhaustivenessForSelectionError :: ()
+    _checkExhaustivenessForSelectionError = case undefined of
+        SelectionBalanceError e -> case e of
+            Balance.BalanceInsufficient {} -> ()
+            Balance.SelectionLimitReached {} -> ()
+            Balance.InsufficientMinCoinValues {} -> ()
+            Balance.UnableToConstructChange {} -> ()
+            Balance.EmptyUTxO {} -> ()
+        SelectionCollateralError e -> case e of
+            Collateral.SelectionError {} -> ()
+        SelectionOutputError e -> case e of
+            SelectionOutputSizeExceedsLimit {} -> ()
+            SelectionOutputTokenQuantityExceedsLimit {} -> ()
 
 --------------------------------------------------------------------------------
 -- Construction of balance constraints and parameters
