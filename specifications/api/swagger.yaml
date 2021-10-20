@@ -1378,6 +1378,34 @@ x-transactionInputsGeneral: &transactionInputsGeneral
     - <<: *transactionInputsInsideWallet
       title: tx inputs belonging to a given wallet
 
+x-transactionOutputsInsideWallet: &transactionOutputsInsideWallet
+  description: |
+     A list of target outputs with amount specified belonging to wallet
+  type: array
+  minItems: 0
+  items:
+    type: object
+    required:
+      - address
+      - amount_incoming
+      - amount_current
+      - derivation_path
+    properties:
+      address: *addressId
+      amount_incoming: *amount
+      assets_incoming: *walletAssets
+      amount_current: *amount
+      assets_current: *walletAssets
+      derivation_path: *derivationPath
+
+x-transactionOutputsGeneral: &transactionOutputsGeneral
+  nullable: false
+  oneOf:
+    - <<: *transactionOutputs
+      title: tx outputs not belonging to a given wallet
+    - <<: *transactionOutputsInsideWallet
+      title: tx outputs belonging to a given wallet
+
 x-transactionResolvedCollateral: &transactionResolvedCollateral
   description: A list of transaction inputs used for collateral
   type: array
@@ -2337,7 +2365,7 @@ components:
         id: *transactionId
         fee: *amount
         inputs: *transactionInputsGeneral
-        outputs: *transactionOutputs
+        outputs: *transactionOutputsGeneral
         collateral: *transactionInputsGeneral
         withdrawals: *transactionWithdrawalsGeneral
         metadata: *transactionMetadata
