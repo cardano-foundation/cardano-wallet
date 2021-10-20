@@ -1579,8 +1579,9 @@ selectCoins ctx genChange (ApiT wid) body = do
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         utx <- liftHandler
-            $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
                 , txContext = txCtx
@@ -1630,8 +1631,9 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         utx <- liftHandler
-            $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
                 , txContext = txCtx
@@ -1675,8 +1677,9 @@ selectCoinsForQuit ctx (ApiT wid) = do
                 & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         utx <- liftHandler
-            $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
                 , txContext = txCtx
@@ -1918,8 +1921,9 @@ postTransactionOld ctx genChange (ApiT wid) body = do
       atomicallyWithHandler (ctx ^. walletLocks) (PostTransactionOld wid) $ do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         sel <- liftHandler
-            $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
                 , txContext = txCtx
@@ -2057,7 +2061,8 @@ postTransactionFeeOld ctx (ApiT wid) body = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         let outs = addressAmountToTxOut <$> body ^. #payments
-        let runSelection = W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        let runSelection = W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
                 , txContext = txCtx
@@ -2119,10 +2124,11 @@ constructTransaction ctx genChange (ApiT wid) body = do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         let getFee = const (selectionDelta TokenBundle.getCoin)
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         (sel, sel', fee) <- case (body ^. #payments) of
             Nothing -> do
                 utx <- liftHandler
-                    $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = []
                         , pendingTxs
                         , txContext = txCtx
@@ -2134,7 +2140,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         }
                         (const Prelude.id)
                 (FeeEstimation estMin _) <- liftHandler $
-                    W.estimateFee $ W.selectAssets @_ @s @k wrk
+                    W.estimateFee $ W.selectAssets @_ @_ @s @k wrk pp
                         W.SelectAssetsParams
                             { outputs = []
                             , pendingTxs
@@ -2149,7 +2155,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                 sel <- liftHandler $
                     W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
                 sel' <- liftHandler
-                    $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = []
                         , pendingTxs
                         , txContext = txCtx
@@ -2165,7 +2171,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
             Just (ApiPaymentAddresses content) -> do
                 let outs = addressAmountToTxOut <$> content
                 utx <- liftHandler
-                    $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = F.toList outs
                         , pendingTxs
                         , txContext = txCtx
@@ -2178,7 +2184,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         (const Prelude.id)
                 (FeeEstimation estMin _) <- liftHandler
                     $ W.estimateFee
-                    $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = F.toList outs
                         , pendingTxs
                         , txContext = txCtx
@@ -2192,7 +2198,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                 sel <- liftHandler $
                     W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
                 sel' <- liftHandler
-                    $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = F.toList outs
                         , pendingTxs
                         , txContext = txCtx
@@ -2289,7 +2295,7 @@ balanceTransaction ctx genChange (ApiT wid) body = do
                     , fst <$> (sel' ^. #collateral)
                     , sel' ^. #change
                     )
-        liftHandler $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+        liftHandler $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
             { outputs
             , pendingTxs
             , txContext
@@ -2463,8 +2469,9 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 }
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         sel <- liftHandler
-            $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
                 , txContext = txCtx
@@ -2518,14 +2525,15 @@ delegationFee ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         w <- withExceptT ErrSelectAssetsNoSuchWallet $
             W.readWalletUTxOIndex @_ @s @k wrk wid
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
-        mkApiFee (Just deposit) [] <$> W.estimateFee (runSelection wrk deposit w)
+        mkApiFee (Just deposit) [] <$> W.estimateFee (runSelection wrk pp deposit w)
   where
     txCtx :: TransactionCtx
     txCtx = defaultTransactionCtx
 
-    runSelection wrk _deposit (utxoAvailable, wallet, pendingTxs) =
-        W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+    runSelection wrk pp _deposit (utxoAvailable, wallet, pendingTxs) =
+        W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
             { outputs = []
             , pendingTxs
             , txContext = txCtx
@@ -2573,8 +2581,9 @@ quitStakePool ctx (ApiT wid) body = do
 
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         sel <- liftHandler
-            $ W.selectAssets @_ @s @k wrk W.SelectAssetsParams
+            $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
                 , txContext = txCtx

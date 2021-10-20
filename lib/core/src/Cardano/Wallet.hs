@@ -1435,17 +1435,16 @@ data SelectAssetsParams s result = SelectAssetsParams
 selectAssets
     :: forall ctx m s k result.
         ( HasTransactionLayer k ctx
-        , HasNetworkLayer IO ctx
         , HasLogger m WalletWorkerLog ctx
         , MonadRandom m
         )
     => ctx
+    -> ProtocolParameters
     -> SelectAssetsParams s result
     -> (s -> Selection -> result)
     -> ExceptT ErrSelectAssets m result
-selectAssets ctx params transform = do
+selectAssets ctx pp params transform = do
     guardPendingWithdrawal
-    pp <- liftIO $ currentProtocolParameters nl
     lift $ traceWith tr $ MsgSelectionStart
         (UTxOSelection.availableUTxO $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
@@ -1504,7 +1503,6 @@ selectAssets ctx params transform = do
     withExceptT ErrSelectAssetsSelectionError $ except $
         transform (getState $ params ^. #wallet) <$> mSel
   where
-    nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
     tr = contramap MsgWallet $ ctx ^. logger @m
 

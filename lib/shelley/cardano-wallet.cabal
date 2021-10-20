@@ -321,6 +321,7 @@ benchmark restore
     , deepseq
     , filepath
     , fmt
+    , generic-lens
     , iohk-monitoring
     , say
     , text
