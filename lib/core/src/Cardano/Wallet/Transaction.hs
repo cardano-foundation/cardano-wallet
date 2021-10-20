@@ -77,8 +77,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata
     , TxOut
     )
-import Control.Monad.Trans.Except
-    ( ExceptT )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Text
@@ -213,7 +211,7 @@ data TransactionLayer k tx = TransactionLayer
     , assignScriptRedeemers
         :: Node.ProtocolParameters
             -- Current protocol parameters
-        -> TimeInterpreter (ExceptT PastHorizonException IO)
+        -> TimeInterpreter (Either PastHorizonException)
             -- Time interpreter in the Monad m
         -> (TxIn -> Maybe (TxOut, Maybe (Hash "Datum")))
             -- A input resolver for transactions' inputs containing scripts.
@@ -221,7 +219,7 @@ data TransactionLayer k tx = TransactionLayer
             -- A list of redeemers to set on the transaction.
         -> tx
             -- Transaction containing scripts
-        -> IO (Either ErrAssignRedeemers tx)
+        -> (Either ErrAssignRedeemers tx)
     }
     deriving Generic
 
