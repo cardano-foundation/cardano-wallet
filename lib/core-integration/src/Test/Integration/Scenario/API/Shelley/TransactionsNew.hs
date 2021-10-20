@@ -218,7 +218,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
             ]
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -268,7 +268,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -305,7 +305,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -353,7 +353,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -407,7 +407,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getFromResponse (#coinSelection . #inputs) rTx
         length coinSelInputs `shouldBe` 1
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -527,7 +527,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -583,7 +583,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -666,7 +666,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -850,7 +850,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -879,7 +879,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -1177,6 +1177,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
+        -- let apiTx = getFromResponse #transaction rTx
+        --
+        -- signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        --
+        -- void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
     it "TRANS_NEW_BALANCE_01e - plutus with missing covering inputs wallet enough funds" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
@@ -1302,9 +1308,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage "FeeTooSmallUTxO"
             ]
 
-    -- it "TRANS_NEW_BALANCE" $ do
-
-
     describe "Plutus scenarios" $ do
         let scenarios =
                 [ ( "ping-pong"
@@ -1397,12 +1400,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             foldM_ runStep txid steps
   where
-    unsafeGetTx
-        :: MonadIO m
-        => (HTTP.Status, Either RequestException (ApiConstructTransaction n))
-        -> m (ApiConstructTransaction n)
-    unsafeGetTx (_, Left e)   = throwIO e
-    unsafeGetTx (_, Right tx) = pure tx
 
     -- | Just one million Ada, in Lovelace.
     oneMillionAda :: Integer
