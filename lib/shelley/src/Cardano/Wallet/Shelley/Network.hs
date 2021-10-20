@@ -954,9 +954,21 @@ serialisedCodecs nodeToClientVersion cfg =
 -------------------------------------------------------------------------------}
 -- | Construct a network client with the given protocols.
 --
--- FIXME: This functions overlaps with 'connectClient'.
--- However, it is more modern in that is uses 'Cardano.Api'.
--- We may or may not want to switch 'Cardano.Api' in the future.
+-- TODO: This functions overlaps with 'connectClient'.
+-- However, it is more modern in that it uses "Cardano.Api".
+--
+-- Do we want to switch to "Cardano.Api" for the NodeToClient protocols?
+--
+-- Cons:
+--
+-- * "Cardano.Api" is not polymorphic in the underlying monad.
+-- But in order to use /checked exception/ in the client monad,
+-- we would need the 'connectToLocalNode' function to be polymorphic
+-- in the monad (and therefore also in the exceptions).
+--
+-- Pro:
+--
+-- * "Cardano.Api" is simpler in that it does not require so much plumbing.
 connectCardanoApiClient
     :: Tracer IO NetworkLayerLog
         -- ^ Base trace for underlying protocols

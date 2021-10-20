@@ -63,8 +63,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta
     , TxStatus
     )
-import Control.Exception
-    ( Exception )
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
@@ -330,8 +328,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
     deriving (Eq, Show)
-
-instance Exception ErrNoSuchWallet
 
 -- | Can't add a transaction to the local tx submission pool.
 data ErrPutLocalTxSubmission

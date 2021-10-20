@@ -531,7 +531,7 @@ import Statistics.Quantile
 import Type.Reflection
     ( Typeable, typeRep )
 import UnliftIO.Exception
-    ( Exception, throwIO )
+    ( Exception, catch, throwIO )
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
@@ -896,7 +896,7 @@ restoreWallet
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
-    liftIO $ chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
+    catchFromIO $ chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
         { readLocalTip = liftIO $ atomically $
             map (toChainPoint block0) <$> listCheckpoints wid
         , rollForward = \blocks tip -> throwInIO $
@@ -911,10 +911,49 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
     tr = ctx ^. logger @WalletWorkerLog
     (block0, _, _) = ctx ^. genesisData
 
+    -- See Note [CheckedExceptionsAndCallbacks]
     throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
     throwInIO x = runExceptT x >>= \case
         Right a -> pure a
-        Left e -> throwIO e
+        Left  e -> throwIO $ UncheckErrNoSuchWallet e
+
+    catchFromIO :: IO a -> ExceptT ErrNoSuchWallet IO a
+    catchFromIO m = ExceptT $
+        (Right <$> m) `catch` (\(UncheckErrNoSuchWallet e) -> pure $ Left e)
+
+newtype UncheckErrNoSuchWallet = UncheckErrNoSuchWallet ErrNoSuchWallet
+    deriving (Eq, Show)
+instance Exception UncheckErrNoSuchWallet
+
+{- NOTE [CheckedExceptionsAndCallbacks]
+
+Callback functions (such as the fields of 'ChainFollower')
+may throw exceptions. Such exceptions typically cause the thread
+(such as 'chainSync') which calls the callbacks to exit and
+to return control to its parent.
+
+Ideally, we would like these exceptions to be \"checked exceptions\",
+which means that they are visible on the type level.
+In our codebase, we (should) make sure that exceptions which are checked
+cannot be instances of the 'Exception' class -- in this way,
+it is statically guaranteed that they cannot be thrown in the 'IO' monad.
+
+On the flip side, visibility on the type level does imply that
+the calling thread (here 'chainSync') needs to be either polymorphic
+in the checked exceptions or aware of them.
+Making 'chainSync' aware of the checked exception is currently
+not a good idea, because this function is used in different contexts,
+which have different checked exceptions.
+So, it would need to be polymorophic in the the undelrying monad,
+but at present, 'chainSync' is restricted to 'IO' beause some
+of its constituents are also restricted to 'IO'.
+
+As a workaround / solution, we wrap the checked exception into a new type
+which can be thrown in the 'IO' monad.
+When the calling thread exits, we catch the exception again
+and present it as a checked exception.
+
+-}
 
 -- | Rewind the UTxO snapshots, transaction history and other information to a
 -- the earliest point in the past that is before or is the point of rollback.
