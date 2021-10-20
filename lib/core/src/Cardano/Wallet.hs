@@ -425,6 +425,8 @@ import Control.Monad.Class.MonadTime
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
+import Control.Monad.Random
+    ( MonadRandom )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -1431,19 +1433,20 @@ data SelectAssetsParams s result = SelectAssetsParams
 -- and its associated cost. That is, the cost is equal to the difference between
 -- inputs and outputs.
 selectAssets
-    :: forall ctx s k result.
+    :: forall ctx m s k result.
         ( HasTransactionLayer k ctx
         , HasNetworkLayer IO ctx
-        , HasLogger IO WalletWorkerLog ctx
+        , HasLogger m WalletWorkerLog ctx
+        , MonadRandom m
         )
     => ctx
     -> SelectAssetsParams s result
     -> (s -> Selection -> result)
-    -> ExceptT ErrSelectAssets IO result
+    -> ExceptT ErrSelectAssets m result
 selectAssets ctx params transform = do
     guardPendingWithdrawal
     pp <- liftIO $ currentProtocolParameters nl
-    liftIO $ traceWith tr $ MsgSelectionStart
+    lift $ traceWith tr $ MsgSelectionStart
         (UTxOSelection.availableUTxO $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
     mSel <- runExceptT $ performSelection
@@ -1491,9 +1494,9 @@ selectAssets ctx params transform = do
                 params ^. #utxoAvailableForInputs
             }
     case mSel of
-        Left e -> liftIO $
+        Left e -> lift $
             traceWith tr $ MsgSelectionError e
-        Right sel -> liftIO $ do
+        Right sel -> lift $ do
             traceWith tr $ MsgSelectionReportSummarized
                 $ makeSelectionReportSummarized sel
             traceWith tr $ MsgSelectionReportDetailed
@@ -1503,14 +1506,14 @@ selectAssets ctx params transform = do
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
-    tr = contramap MsgWallet $ ctx ^. logger
+    tr = contramap MsgWallet $ ctx ^. logger @m
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
     -- withdrawal is executed, the reward pot is empty. So, to prevent two
     -- transactions with withdrawals to go through (which will inevitably cause
     -- one of them to never be inserted), we warn users early on about it.
-    guardPendingWithdrawal :: ExceptT ErrSelectAssets IO ()
+    guardPendingWithdrawal :: ExceptT ErrSelectAssets m ()
     guardPendingWithdrawal =
         case Set.lookupMin $ Set.filter hasWithdrawal $ params ^. #pendingTxs of
             Just pendingWithdrawal
