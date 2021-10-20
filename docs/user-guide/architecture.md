@@ -7,13 +7,19 @@ title: Architecture
 
 {{< mermaid >}}
 erDiagram
-  CARDANO-NODE ||--o{ CARDANO-WALLET : sends-blocks-and-receives-txs
-  CARDANO-NODE ||--o{ CARDANO-DB-SYNC : sends-blocks
-  CARDANO-NODE ||--o{ CARDANO-SUBMIT-API : receives-txs
+  CARDANO-NODE ||--|{ CARDANO-SUBMIT-API : depends-on
+  CARDANO-NODE ||--|{ CARDANO-WALLET : depends-on
+  CARDANO-NODE ||--|{ CARDANO-DB-SYNC : depends-on
 
   CARDANO-DB-SYNC ||--|| POSTGRESQL : dumps-into
-
+  POSTGRESQL ||--|| SMASH : is-queried
   POSTGRESQL ||--|| CARDANO-GRAPHQL : is-queried
+  POSTGRESQL ||--|| CARDANO-ROSETTA : is-queried
+
+  CARDANO-GRAPHQL ||--|{ EXPLORER : depends-on
+
+  SMASH ||--|{ CARDANO-WALLET: connects-to
+  CARDANO-WALLET ||--|{ DAEDALUS : depends-on
 
 {{< /mermaid >}}
 
@@ -43,7 +49,7 @@ This application stores blockchain data fetched from [cardano-node][cardano-node
 Supported environments: Linux (64-bits), MacOS (64-bits), Docker
 {{< /hint >}}
 
-### [cardano-graphql][cardano-graphql] 
+### [cardano-graphql][cardano-graphql]
 
 A GraphQL API for Cardano, which also serves as the backend of
 [Cardano Explorer](https://explorer.cardano.org/).
@@ -58,38 +64,9 @@ A small HTTP API for submitting transactions to a local [cardano-node][].
 
 The transaction must be fully signed and CBOR-encoded. This could be done by [cardano-cli][], for example.
 
-### [cardano-rest][cardano-rest]
+### [cardano-rosetta][cardano-rosetta]
 
-[cardano-rest][] is DEPRECATED. The [explorer-api][cardano-rest] and [submit-api][cardano-rest] will cease to function at the time of Alonzo hard-fork.
-
-The following tools replace [cardano-rest][]:
- - [cardano-graphql][]
- - [cardano-rosetta][]
- - [cardano-submit-api][] (part of the [cardano-node][] repository)
- - [cardano-wallet][]
-
-Users with an existing integration to [cardano-rest][] are encouraged to look at the [Migration-Guide](https://input-output-hk.github.io/cardano-rest/migration-guide/).
-
-## Choosing the right component
-
-{{<mermaid>}}
-graph TD
-QMakeTx{Do you need to <br/> make transactions?} 
-QManageUTxO{Do you want to <br/>implement your own wallet?}
-QAlreadyIntegrated{Do you already have<br/>an integration with<br/>cardano-sl?}
-
-GraphQL{cardano-graphql}
-Rest{cardano-rest}
-SDK{SDK}
-Wallet{cardano-wallet}
-
-QMakeTx-->|yes| QManageUTxO
-QMakeTx-->|no| QAlreadyIntegrated
-QAlreadyIntegrated-->|yes| Rest
-QAlreadyIntegrated-->|no| GraphQL
-QManageUTxO-->|yes| SDK
-QManageUTxO-->|no| Wallet
-{{</mermaid>}}
+[Cardano-rosetta][] is an implementation of the [Rosetta](https://www.rosetta-api.org/docs/1.4.4/welcome.html) specification for Cardano. Rosetta is an open-source specification and set of tools that makes integrating with blockchains simpler, faster, and more reliable.
 
 ## Notes
 
