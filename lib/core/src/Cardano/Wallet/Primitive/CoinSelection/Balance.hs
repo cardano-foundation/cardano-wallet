@@ -673,6 +673,8 @@ data SelectionLimitReachedError = SelectionLimitReachedError
         :: ![(TxIn, TxOut)]
       -- ^ The inputs that could be selected while satisfying the
       -- 'selectionLimit'.
+    , outputsToCover
+        :: !(NonEmpty TxOut)
     } deriving (Generic, Eq, Show)
 
 -- | Indicates that the balance of available UTxO entries is insufficient to
@@ -873,6 +875,7 @@ performSelectionNonEmpty constraints params
         pure $ Left $ SelectionLimitReached $ SelectionLimitReachedError
             { inputsSelected
             , utxoBalanceRequired
+            , outputsToCover
             }
 
     selectionLimit :: SelectionLimit

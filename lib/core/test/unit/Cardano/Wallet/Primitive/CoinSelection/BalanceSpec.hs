@@ -731,7 +731,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
         outputTokens = mconcat
             . F.toList
             . fmap (view #tokens)
-            $ outputsToCover params
+            $ view #outputsToCover params
 
     constraints :: SelectionConstraints
     constraints = unMockSelectionConstraints mockConstraints
@@ -761,7 +761,7 @@ prop_performSelection_small mockConstraints (Blind (Small params)) =
 
     assetsSpentByUserSpecifiedOutputs :: TokenMap
     assetsSpentByUserSpecifiedOutputs =
-        F.foldMap (view (#tokens . #tokens)) (outputsToCover params)
+        F.foldMap (view (#tokens . #tokens)) (view #outputsToCover params)
 
     allMintedAssetsEitherBurnedOrSpent :: Bool
     allMintedAssetsEitherBurnedOrSpent =
@@ -985,7 +985,7 @@ prop_performSelection mockConstraints params coverage =
         property True
       where
         SelectionLimitReachedError
-            errorBalanceRequired errorInputsSelected = e
+            errorBalanceRequired errorInputsSelected _ = e
         errorBalanceSelected =
             F.foldMap (view #tokens . snd) errorInputsSelected
 
