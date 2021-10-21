@@ -234,7 +234,7 @@ setupBuildDirectory dryRun buildDir = do
 -- Remove certain files which get cached but could cause problems for subsequent
 -- builds.
 cleanBuildDirectory :: FilePath -> IO ()
-cleanBuildDirectory buildDir = mapM_ rm =<< findTix buildDir <> findHie buildDir
+cleanBuildDirectory buildDir = mapM_ rm =<< findTix buildDir
 
 -- | Check for the presence of new or modified test data files which someone
 -- forgot to check in.
@@ -326,10 +326,7 @@ titled heading action = do
 -- Weeder - uses .hie files in .stack-work to determine unused dependencies
 
 weederStep :: DryRun -> IO ExitCode
-weederStep dryRun = run dryRun "weeder" []
-
-findHie :: FilePath -> IO [FilePath]
-findHie dir = fold (find (suffix ".hie") dir) Fold.list
+weederStep dryRun = run dryRun "weeder" ["--require-hs-files"]
 
 ----------------------------------------------------------------------------
 -- Stack Haskell Program Coverage and upload to Coveralls
