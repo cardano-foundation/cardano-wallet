@@ -81,12 +81,10 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromShelleyPParams
     , fromAlonzoPParams
     , fromLedgerExUnits
-    , toLedgerExUnits
     , fromLedgerPParams
     , fromLedgerAlonzoPParams
     , toAlonzoPParams
     , fromCardanoAddress
-    , toSystemStart
     , toScriptPurpose
     , fromShelleyTxIn
     , toCostModelsAsArray
@@ -181,8 +179,6 @@ import Cardano.Ledger.Serialization
     ( ToCBORGroup )
 import Cardano.Slotting.Slot
     ( EpochNo (..), EpochSize (..) )
-import Cardano.Slotting.Time
-    ( SystemStart (..) )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..)
     , DecodeStakeAddress (..)
@@ -728,15 +724,6 @@ fromLedgerExUnits (Alonzo.ExUnits mem steps) =
     W.ExecutionUnits
     { executionSteps = steps
     , executionMemory = mem
-    }
-
-toLedgerExUnits
-    :: W.ExecutionUnits
-    -> Alonzo.ExUnits
-toLedgerExUnits W.ExecutionUnits{executionSteps,executionMemory} =
-    Alonzo.ExUnits
-    { Alonzo.exUnitsMem = executionMemory
-    , Alonzo.exUnitsSteps = executionSteps
     }
 
 txParametersFromPParams
@@ -1629,9 +1616,6 @@ fromUnitInterval x =
   where
     bomb = internalError $
         "fromUnitInterval: encountered invalid parameter value: "+||x||+""
-
-toSystemStart :: W.StartTime -> SystemStart
-toSystemStart (W.StartTime t) = SystemStart t
 
 toScriptPurpose :: W.Redeemer -> Alonzo.ScriptPurpose StandardCrypto
 toScriptPurpose = \case
