@@ -768,7 +768,10 @@ genUTxOAvailableForCollateral :: Gen UTxO
 genUTxOAvailableForCollateral = genUTxO
 
 genUTxOAvailableForInputs :: Gen UTxOSelection
-genUTxOAvailableForInputs = genUTxOSelection
+genUTxOAvailableForInputs = frequency
+    [ (49, genUTxOSelection)
+    , (01, pure UTxOSelection.empty)
+    ]
 
 shrinkUTxOAvailableForCollateral :: UTxO -> [UTxO]
 shrinkUTxOAvailableForCollateral = shrinkUTxO
