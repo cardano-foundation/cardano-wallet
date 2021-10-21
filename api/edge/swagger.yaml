@@ -1247,7 +1247,10 @@ x-multiDelegationAction: &multiDelegationAction
             stake_key_index: *derivationSegment
 
 x-transactionDelegations: &transactionDelegations
-  description: A list of staking actions (joining, rejoining or leaving from stake pools).
+  description: |
+    <p>status: <strong>⚠ under development</strong></p>
+
+    A list of staking actions (joining, rejoining or leaving from stake pools).
   type: array
   minItems: 0
   items:
@@ -2971,6 +2974,8 @@ components:
         address_index: *addressIndex
 
     ApiValidityInterval: &ApiValidityInterval
+      description: |
+        <p>status: <strong>⚠ under development</strong></p>
       type: object
       required:
         - invalid_before
@@ -5144,7 +5149,6 @@ x-tagGroups:
     - Byron Addresses
     - Byron Coin Selections
     - Byron Transactions
-    - Byron Transactions New
     - Byron Migrations
 
   - name: Miscellaneous
@@ -5487,7 +5491,7 @@ paths:
       tags: ["Transactions New"]
       summary: Construct
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>under development</strong></p>
 
         Create a transaction to be signed from the wallet.
       parameters:
