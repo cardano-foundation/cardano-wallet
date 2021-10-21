@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "3.0";
-      identifier = { name = "weeder"; version = "2.1.3"; };
+      identifier = { name = "weeder"; version = "2.2.0"; };
       license = "BSD-3-Clause";
       copyright = "Neil Mitchell 2017-2020, Oliver Charles 2020";
       maintainer = "Ollie Charles <ollie@ocharles.org.uk>";
