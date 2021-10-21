@@ -27,8 +27,7 @@
 #
 ######################################################################
 
-let
-  index-state = "2021-10-05T00:00:00Z";
+pkgs: super: let
   tools = {
     cabal-cache.version             = "1.0.2.1";
     cabal-install.exe               = "cabal";
@@ -41,10 +40,10 @@ let
     weeder.version                  = "2.1.3";
   };
 
-  compiler-nix-name = "ghc8107";  # TODO: get it from the project
-in
+  # Use cabal.project as the source of GHC version and Hackage index-state.
+  inherit (pkgs.commonLib.cabalProjectIndexState ../../cabal.project)
+    index-state compiler-nix-name;
 
-pkgs: super: let
   hsPkgs = pkgs.lib.mapAttrs mkTool tools;
 
   mkTool = name: args: pkgs.haskell-nix.hackage-package ({

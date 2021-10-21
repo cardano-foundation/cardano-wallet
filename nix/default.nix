@@ -14,8 +14,7 @@ let
   iohkNixMain = import sources.iohk-nix {};
   haskellNix = import sources."haskell.nix" {
     inherit system;
-    # if niv sources hackage or stackage are present, pass them
-    # through to Haskell.nix.
+    # If niv sources for Hackage or Stackage are present, pass them through to Haskell.nix.
     sourcesOverride =
       (if builtins.hasAttr "hackage" sources then { inherit (sources) hackage; } else {}) //
       (if builtins.hasAttr "stackage" sources then { inherit (sources) stackage; } else {})
@@ -45,13 +44,13 @@ let
     # our own overlays:
     ++ [
       (final: prev: {
-
-        # commonLib: iohk-nix utils and our own:
+        # commonLib: iohk-nix utils
         commonLib = final.iohkNix
-          // import ./util.nix { inherit (final) lib; }
           # also expose our sources and overlays
           // { inherit overlays sources; };
       })
+      # Add our own utils to commonLib
+      (import ./overlays/common-lib.nix)
       # Haskell build tools
       (import ./overlays/build-tools.nix)
       # Cardano deployments

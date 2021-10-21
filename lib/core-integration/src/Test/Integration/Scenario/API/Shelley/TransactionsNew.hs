@@ -31,7 +31,6 @@ import Cardano.Wallet.Api.Types
     ( ApiCoinSelection (withdrawals)
     , ApiCoinSelectionInput (..)
     , ApiConstructTransaction (..)
-    , ApiFee (..)
     , ApiSerialisedTransaction
     , ApiStakePool
     , ApiT (..)
@@ -52,7 +51,8 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx
+    ( Direction (..)
+    , SealedTx
     , TxStatus (..)
     , cardanoTx
     , getSealedTxBody
@@ -98,7 +98,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , RequestException (..)
     , arbitraryStake
     , arbitraryStake
     , delegating
@@ -137,8 +136,6 @@ import Test.Integration.Framework.TestData
     , errMsg403transactionAlreadyBalanced
     , errMsg404NoSuchPool
     )
-import UnliftIO.Exception
-    ( throwIO )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
@@ -146,6 +143,7 @@ import qualified Cardano.Ledger.Crypto as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -207,19 +205,18 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_02 - Only metadata" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
-        let expectedFee = 129500
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default metadata
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
 
-        apiTx <- unsafeGetTx rTx
-
-        signedTx <- signTx ctx wa apiTx
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Check for the presence of metadata on signed transaction
         let
@@ -267,9 +264,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
-        signedTx <- signTx ctx wa apiTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -291,7 +288,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_03a - Withdrawal from self" $ \ctx -> runResourceT $ do
         (wa, _) <- rewardWallet ctx
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
-        let expectedFee = 139500
         let withdrawalAmt = 1_000_000_000_000
         let rewardInitialBalance = 100_000_000_000
 
@@ -300,13 +296,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
 
-        apiTx <- unsafeGetTx rTx
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let apiTx = getFromResponse #transaction rTx
 
-        signedTx <- signTx ctx wa apiTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
@@ -339,7 +336,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         (wr, mw) <- rewardWallet ctx
         wa <- fixtureWallet ctx
         let withdrawal = Json [json|{ "withdrawal": #{mnemonicToText mw} }|]
-        let expectedFee = 139500
         let withdrawalAmt = 1000000000000
         let rewardInitialBalance = 100_000_000_000
 
@@ -348,13 +344,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
 
-        apiTx <- unsafeGetTx rTx
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let apiTx = getFromResponse #transaction rTx
 
-        signedTx <- signTx ctx wa apiTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
@@ -381,9 +378,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
     it "TRANS_NEW_CREATE_04a - Single Output Transaction" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
-
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
@@ -391,8 +385,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         payload <- liftIO $ mkTxPayload ctx wb amt
 
-        (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
-            (Link.getTransactionFeeOld @'Shelley wa) payload
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
@@ -401,18 +393,41 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldBe` feeMin)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
 
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let filterInitialAmt =
                 filter (\(ApiCoinSelectionInput _ _ _ _ amt' _) -> amt' == Quantity initialAmt)
         let coinSelInputs = filterInitialAmt $
                 getFromResponse (#coinSelection . #inputs) rTx
         length coinSelInputs `shouldBe` 1
 
-        -- TODO: now we should sign it and send it in two steps
-        --       make sure it is delivered
-        --       make sure balance is updated accordingly on src and dst wallets
+        let apiTx = getFromResponse #transaction rTx
+
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        eventually "Target wallet balance is increased by amt" $ do
+            rWb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWb
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` amt)
+                ]
+
+        eventually "Source wallet balance is decreased by (amt + expectedFee)" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` (initialAmt - amt - expectedFee))
+                ]
 
     it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -470,12 +485,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_CREATE_04e- Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
-
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
+        initialAmt <- getFromResponse (#balance . #available . #getQuantity) <$>
+                          request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
 
         let amt = minUTxOValue (_mainEra ctx) :: Natural
         let destination1 = (addrs !! 1) ^. #id
@@ -497,8 +511,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }]
             }|]
 
-        (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
-            (Link.getTransactionFeeOld @'Shelley wa) payload
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
@@ -507,23 +519,44 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldBe` feeMin)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
-        -- TODO: now we should sign it and send it in two steps,
-        --       make sure it is delivered
-        --       make sure balance is updated accordingly on src and dst wallets
+
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let apiTx = getFromResponse #transaction rTx
+
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        eventually "Target wallet balance is increased by 2*amt" $ do
+            rWb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWb
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` 2*amt)
+                ]
+
+        eventually "Source wallet balance is decreased by (2*amt + expectedFee)" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` (initialAmt - 2*amt - expectedFee))
+                ]
 
     it "TRANS_NEW_ASSETS_CREATE_01a - Multi-asset tx with Ada" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
-
         wa <- fixtureMultiAssetWallet ctx
         wb <- emptyWallet ctx
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
-        let (_, Right wal) = ra
+        initialAmt <- getFromResponse (#balance . #available . #getQuantity) <$>
+                          request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
 
         -- pick out an asset to send
-        let assetsSrc = wal ^. #assets . #total . #getApiT
+        let assetsSrc = wa ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -542,10 +575,37 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
-        -- TODO: now we should sign it and send it in two steps
-        --       make sure it is delivered
-        --       make sure balance is updated accordingly on src and dst wallets
+
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let apiTx = getFromResponse #transaction rTx
+
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        eventually "Target wallet balance is increased by amt and assets" $ do
+            rWb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWb
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` amt)
+                , expectField (#assets . #available . #getApiT) (`shouldNotBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
+                ]
+
+        eventually "Source wallet balance is decreased by (amt + expectedFee)" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` (initialAmt - amt - expectedFee))
+                ]
 
     it "TRANS_NEW_ASSETS_CREATE_01b - Multi-asset tx with not enough Ada" $ \ctx -> runResourceT $ do
         wa <- fixtureMultiAssetWallet ctx
@@ -573,16 +633,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_ASSETS_CREATE_01c - Multi-asset tx without Ada" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "Missing outputs on response - to be fixed in ADP-985"
-
         wa <- fixtureMultiAssetWallet ctx
         wb <- emptyWallet ctx
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
-        let (_, Right wal) = ra
+        initialAmt <- getFromResponse (#balance . #available . #getQuantity) <$>
+                          request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
 
         -- pick out an asset to send
-        let assetsSrc = wal ^. #assets . #total . #getApiT
+        let assetsSrc = wa ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue (_mainEra ctx) <$ pickAnAsset assetsSrc
 
@@ -601,10 +658,48 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
             ]
-        -- TODO: now we should sign it and send it in two steps
-        --       make sure it is delivered
-        --       make sure balance is updated accordingly on src and dst wallets
+
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let apiTx = getFromResponse #transaction rTx
+
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        outTxAmt <- eventually "Transactions is in ledger" $ do
+            let linkSrc = Link.getTransaction @'Shelley wa txId
+            r1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify r1
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+            pure $ getFromResponse (#amount . #getQuantity) r1
+
+        let inTxAmt = outTxAmt - expectedFee
+        eventually "Target wallet balance is increased by inTxAmt and assets" $ do
+            rWb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wb) Default Empty
+            verify rWb
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` inTxAmt)
+                , expectField (#assets . #available . #getApiT) (`shouldNotBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
+                ]
+
+        eventually "Source wallet balance is decreased by outTxAmt" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` (initialAmt - outTxAmt))
+                ]
 
     it "TRANS_NEW_ASSETS_CREATE_01d - Multi-asset tx with not enough assets" $ \ctx -> runResourceT $ do
         wa <- fixtureMultiAssetWallet ctx
@@ -635,7 +730,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_01a - Can join stakepool" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "Deposit is empty but should not - to be fixed in ADP-985"
+        liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
 
         wa <- fixtureWallet ctx
         pool:_ <- map (view #id) . snd <$> unsafeRequest
@@ -680,7 +775,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_01b - Absent pool id" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "No errMsg404NoSuchPool is returned - to be fixed in ADP-985"
+        liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
 
         wa <- fixtureWallet ctx
         let absentPoolId = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k"
@@ -701,7 +796,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "No errMsg403NotDelegating is returned - to be fixed in ADP-985"
+        liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
 
         wa <- fixtureWallet ctx
         let delegation = Json [json|{
@@ -751,9 +846,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
-        signedTx <- signTx ctx wa apiTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
@@ -780,15 +875,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-        apiTx <- unsafeGetTx rTx
+        let apiTx = getFromResponse #transaction rTx
 
-        signedTx <- signTx ctx wa apiTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval second should be >= 0" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "Accepted but should be 403 - to be fixed in ADP-985"
+        liftIO $ pendingWith "Accepted but should be 403 - to be fixed in ADP-1189"
 
         wa <- fixtureWallet ctx
 
@@ -814,7 +909,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval slot should be >= 0" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "Returns 400, I think it should be 403 - to be fixed in ADP-985"
+        liftIO $ pendingWith "Returns 400, I think it should be 403 - to be fixed in ADP-1189"
 
         wa <- fixtureWallet ctx
 
@@ -844,7 +939,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
           "Currently throws: \
           \parsing ApiValidityBound object failed, \
           \expected Object, but encountered String \
-          \- to be fixed in ADP-985"
+          \- to be fixed in ADP-1189"
 
         wa <- fixtureWallet ctx
 
@@ -876,7 +971,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         pool:_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
-        let expectedFee = 148800
 
         let payload = Json [json|{
                 "payments": [{
@@ -922,26 +1016,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             -- , expectField (#coinSelection . #deposit) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
             ]
 
-        -- TODO: make sure delegation cerificates are inserted
-        --       make sure metadata is on chain
-        apiTx <- case (rTx :: (HTTP.Status, Either RequestException (ApiConstructTransaction n))) of
-            (_, Left e) -> throwIO e
-            (_, Right tx) -> pure tx
-
-        let sealedTx = apiTx ^. #transaction
+        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
 
         -- Sign tx
-        let toSign = Json [json|
-                               { "transaction": #{sealedTx}
-                               , "passphrase": #{fixturePassphrase}
-                               }|]
-        let signEndpoint = Link.signTransaction @'Shelley wa
-        signedTx <- getFromResponse #transaction <$>
-            request @ApiSerialisedTransaction ctx signEndpoint Default toSign
-
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
         -- Submit tx
         txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
@@ -995,7 +1077,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_BALANCE_01a - multiple-output transaction with all covering inputs present" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "No errMsg403transactionAlreadyBalanced is returned - to be fixed in ADP-656"
+        liftIO $ pendingWith "ADP-1179: Behavior needs to be clarified"
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1077,6 +1159,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
+
+        -- let apiTx = getFromResponse #transaction rTx
+        --
+        -- signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        --
+        -- void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
     it "TRANS_NEW_BALANCE_01e - plutus with missing covering inputs wallet enough funds" $ \ctx -> runResourceT $ do
 
@@ -1295,12 +1383,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             foldM_ runStep txid steps
   where
-    unsafeGetTx
-        :: MonadIO m
-        => (HTTP.Status, Either RequestException (ApiConstructTransaction n))
-        -> m (ApiConstructTransaction n)
-    unsafeGetTx (_, Left e)   = throwIO e
-    unsafeGetTx (_, Right tx) = pure tx
 
     -- | Just one million Ada, in Lovelace.
     oneMillionAda :: Integer

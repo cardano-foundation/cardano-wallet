@@ -16,14 +16,14 @@
 *.eventlog
 
 ### Cabal ###
-dist
-dist-*
+/dist
+/dist-*
 .ghc.environment.*
-cabal*.project.local*
+/cabal*.project.local*
 
 ### Stack ###
 .stack-work/
-stack.yaml.lock
+/stack.yaml.lock
 .HTF/
 
 ### Local configs ###
@@ -31,9 +31,9 @@ stack.yaml.lock
 hie.yaml
 
 ### Nix ###
-result*
-.stack-to-nix.cache
-.nix-shell-cabal.project*
+/result*
+/.stack-to-nix.cache
+/.nix-shell-cabal.project*
 
 ### Direnv ###
 .envrc-local

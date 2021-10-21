@@ -1,9 +1,18 @@
 env:
+  LC_ALL: "en_US.UTF-8"
+  NIX_PATH: "channel:nixos-21.05"
+
+  # Per-container variables
+  SCRATCH_DIR: "/scratch/cardano-wallet"
   BUILD_DIR: "/build/cardano-wallet"
   STACK_ROOT: "/build/cardano-wallet.stack"
+  CABAL_DIR: "/build/cardano-wallet.cabal"
+  XDG_STATE_HOME: "/build/cardano-wallet/.state"
+  XDG_CACHE_HOME: "/build/cardano-wallet/.cache"
+  TESTS_LOGDIR: "/build/cardano-wallet/integration-test-logs"
+
+  # Per-host variables - shared across containers on host
   CACHE_DIR: "/cache/cardano-wallet"
-  LC_ALL: "en_US.UTF-8"
-  TESTS_LOGDIR: "/tmp/wallet-integration-logs"
 
 steps:
   - label: 'Prevent merging to wrong branch'
@@ -16,7 +25,7 @@ steps:
 
   - label: 'Stack Rebuild'
     command:
-      - "rm -rf $TESTS_LOGDIR && mkdir $TESTS_LOGDIR"
+      - "rm -rf $TESTS_LOGDIR && mkdir -p $TESTS_LOGDIR"
       - "nix-build .buildkite/default.nix -o sr"
       - "./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
     timeout_in_minutes: 120
@@ -27,7 +36,7 @@ steps:
       system: x86_64-linux
 
   - label: 'Check Cabal Configure'
-    command: 'nix-shell nix/cabal-shell.nix --run "scripts/buildkite/cabal-ci.sh configure"'
+    command: 'nix-shell --pure nix/cabal-shell.nix --run "scripts/buildkite/cabal-ci.sh configure"'
     agents:
       system: x86_64-linux
 

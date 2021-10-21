@@ -235,7 +235,6 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet
     , ApiCoinSelection
-    , ApiConstructTransaction (transaction)
     , ApiEpochInfo
     , ApiEra (..)
     , ApiFee
@@ -2258,17 +2257,18 @@ signTx
     :: MonadUnliftIO m
     => Context
     -> ApiWallet
-    -> ApiConstructTransaction n
+    -> ApiT SealedTx
+    -> [(HTTP.Status, Either RequestException ApiSerialisedTransaction) -> m ()]
     -> m (ApiT SealedTx)
-signTx ctx w apiTx = do
-    let sealedTx = transaction apiTx
+signTx ctx w sealedTx expectations = do
     let toSign = Json [aesonQQ|
                            { "transaction": #{sealedTx}
                            , "passphrase": #{fixturePassphrase}
                            }|]
     let signEndpoint = Link.signTransaction @'Shelley w
-    getFromResponse (#transaction) <$>
-        request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+    r <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+    verify r expectations
+    pure $ getFromResponse #transaction r
 
 submitTx
     :: MonadUnliftIO m
