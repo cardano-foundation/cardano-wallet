@@ -19,7 +19,7 @@
   , "^UnliftIO\\.Compat\\.mkRetryHandler\$"
   , "^Spec\\.main\$"
   , "^Test\\..*\\.spec\$"
-  , "^Test\\.QuickCheck\\.Extra\\.liftShrink\$"
+  , "^Test\\.QuickCheck\\.Extra\\.liftShrink.*\$"
   , "^Test\\.Utils\\.Paths\\.getTestData"
   , "^Cardano\\.Wallet\\.Api\\.Malformed\\."
   , "^Cardano\\.Wallet\\.DB\\.StateMachine\\.showLabelledExamples\$"
@@ -34,6 +34,8 @@
   , "^Cardano\\.Wallet\\.Shelley\\.Compatibility\\.toCardanoHash\$"
   , "^Cardano\\.Wallet\\.Shelley\\.Launch\\.Cluster\\.singleNodeParams\$"
   , "^Cardano\\.Wallet\\.Shelley\\.Launch\\.Cluster\\.tokenMetadataServerFromEnv\$"
+  -- TODO: [ADP-1037] Remove weeds
+  , "^Cardano\\.Wallet\\.Primitive\\.CoinSelection\\.(selectionDeltaCoin|selectionHasSufficientCollateral)\$"
   -- TODO: [ADP-919] Temporary weeder roots
   , "signTransaction"
   , "getSealedTxWitnesses"
