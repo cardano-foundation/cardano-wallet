@@ -251,6 +251,8 @@ import GHC.TypeLits
     ( KnownNat, natVal )
 import Network.URI
     ( URI (..), uriToString )
+import NoThunks.Class
+    ( NoThunks )
 import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
@@ -787,6 +789,8 @@ data ChainPoint
     deriving (Eq, Show, Generic)
 
 instance NFData ChainPoint
+
+instance NoThunks ChainPoint
 
 instance Buildable ChainPoint where
     build ChainPointAtGenesis    = "[point genesis]"

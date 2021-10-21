@@ -75,7 +75,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
-    ( FollowLog (..), NetworkLayer (..) )
+    ( ChainFollowLog (..), ChainSyncLog (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
@@ -695,7 +695,7 @@ dummySeedFromName = SomeMnemonic @24
 
 traceProgressForPlotting :: Tracer IO Text -> Tracer IO WalletWorkerLog
 traceProgressForPlotting tr = Tracer $ \case
-    MsgFollow (MsgApplyBlocks _nodeTip bs) -> do
+    MsgChainFollow (MsgChainSync (MsgChainRollForward bs _nodeTip)) -> do
         let tip = pretty . getQuantity . blockHeight . NE.last $ bs
         time <- pretty . utcTimeToPOSIXSeconds <$> getCurrentTime
         traceWith tr (time <> " " <> tip)

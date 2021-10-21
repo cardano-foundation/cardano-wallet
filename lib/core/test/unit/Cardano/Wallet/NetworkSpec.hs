@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -10,9 +11,9 @@ import Prelude
 import Cardano.Wallet.Gen
     ( genBlockHeader, genChainPoint, genSlotNo )
 import Cardano.Wallet.Network
-    ( ErrPostTx (..), FollowLog (..), emptyStats, updateStats )
+    ( ChainSyncLog (..), ErrPostTx (..), emptyStats, updateStats )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..) )
+    ( BlockHeader (..), ChainPoint (..) )
 import Data.Time.Clock
     ( getCurrentTime )
 import NoThunks.Class
@@ -30,7 +31,8 @@ spec = do
         testShow $ ErrPostTxValidationError mempty
 
     describe "updateStats" $ do
-        it "results in no unexpected thunks" $ property $ \(msg :: FollowLog ()) -> do
+        it "results in no unexpected thunks" $ property $
+          \(msg :: ChainSyncLog () ChainPoint) -> do
             -- This test is not /fully/ fool-proof. Adding lots of nested types to
             -- LogState and logic in updateStats not covered by the generator
             -- might cause us to miss a thunk.
@@ -43,19 +45,15 @@ spec = do
                 Nothing -> return ()
                 Just x -> expectationFailure $ show x
 
-instance Arbitrary (FollowLog msg) where
+instance Arbitrary block => Arbitrary (ChainSyncLog block ChainPoint) where
     arbitrary = oneof
-      [ MsgApplyBlocks
-          <$> arbitrary
-          <*> ((NE.fromList . getNonEmpty) <$> arbitrary)
-      , MsgDidRollback
-          <$> genChainPoint
-          <*> genChainPoint
-      , MsgFollowerTip . Just
-          <$> arbitrary
-      , pure $ MsgFollowerTip Nothing
-      , pure MsgHaltMonitoring
-      ]
+        [ MsgChainRollForward <$> genNonEmpty <*> genChainPoint
+        , MsgChainRollBackward <$> genChainPoint <*> arbitrary
+        , MsgChainTip <$> genChainPoint
+        , MsgLocalTip <$> genChainPoint
+        ]
+      where
+        genNonEmpty = (NE.fromList . getNonEmpty) <$> arbitrary
   -- Shrinking not that important here
 
 instance Arbitrary BlockHeader where

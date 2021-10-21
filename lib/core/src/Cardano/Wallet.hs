@@ -231,7 +231,11 @@ import Cardano.Wallet.Logging
     , unliftIOTracer
     )
 import Cardano.Wallet.Network
-    ( ChainFollower (..), ErrPostTx (..), FollowLog (..), NetworkLayer (..) )
+    ( ChainFollowLog (..)
+    , ChainFollower (..)
+    , ErrPostTx (..)
+    , NetworkLayer (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -891,20 +895,19 @@ restoreWallet
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
-    liftIO $ chainSync nw tr' $ ChainFollower
+    liftIO $ chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
         { readLocalTip =
             liftIO $ atomically $ map toChainPoint <$> listCheckpoints wid
-        , rollForward = \tip blocks -> throwInIO $
+        , rollForward = \blocks tip -> throwInIO $
             restoreBlocks @ctx @s @k
-                ctx (contramap MsgFollowLog tr') wid blocks tip
+                ctx (contramap MsgWalletFollow tr) wid blocks tip
         , rollBackward =
             throwInIO . rollbackBlocks @ctx @s @k ctx wid
         }
-    --liftIO $ follow nw tr readCps forward backward RetryOnExceptions (view #header)
   where
     db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer @IO
-    tr' = contramap MsgFollow (ctx ^. logger @WalletWorkerLog)
+    tr = ctx ^. logger @WalletWorkerLog
 
     throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
     throwInIO x = runExceptT x >>= \case
@@ -1033,7 +1036,6 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs
-        traceWith tr $ MsgBlocks blocks
         traceWith tr $ MsgDiscoveredTxsContent txs
   where
     nl = ctx ^. networkLayer
@@ -3029,20 +3031,23 @@ guardQuit WalletDelegation{active,next} rewards = do
 -- | Log messages for actions running within a wallet worker context.
 data WalletWorkerLog
     = MsgWallet WalletLog
-    | MsgFollow (FollowLog WalletFollowLog)
+    | MsgWalletFollow WalletFollowLog
+    | MsgChainFollow ChainFollowLog
     deriving (Show, Eq)
 
 instance ToText WalletWorkerLog where
     toText = \case
         MsgWallet msg -> toText msg
-        MsgFollow msg -> toText msg
+        MsgWalletFollow msg -> toText msg
+        MsgChainFollow msg -> toText msg
 
 instance HasPrivacyAnnotation WalletWorkerLog
 
 instance HasSeverityAnnotation WalletWorkerLog where
     getSeverityAnnotation = \case
         MsgWallet msg -> getSeverityAnnotation msg
-        MsgFollow msg -> getSeverityAnnotation msg
+        MsgWalletFollow msg -> getSeverityAnnotation msg
+        MsgChainFollow msg -> getSeverityAnnotation msg
 
 -- | Log messages arising from the restore and follow process.
 data WalletFollowLog
@@ -3050,7 +3055,6 @@ data WalletFollowLog
     | MsgCheckpoint BlockHeader
     | MsgDiscoveredTxs [(Tx, TxMeta)]
     | MsgDiscoveredTxsContent [(Tx, TxMeta)]
-    | MsgBlocks (NonEmpty Block)
     deriving (Show, Eq)
 
 -- | Log messages from API server actions running in a wallet worker context.
@@ -3093,8 +3097,6 @@ instance ToText WalletFollowLog where
             "discovered " <> pretty (length txs) <> " new transaction(s)"
         MsgDiscoveredTxsContent txs ->
             "transactions: " <> pretty (blockListF (snd <$> txs))
-        MsgBlocks blocks ->
-            "blocks: " <> pretty (NE.toList blocks)
 
 instance ToText WalletLog where
     toText = \case
@@ -3139,7 +3141,6 @@ instance HasSeverityAnnotation WalletFollowLog where
         MsgDiscoveredTxs [] -> Debug
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
-        MsgBlocks _ -> Debug -- Ideally move to FollowLog or remove
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where

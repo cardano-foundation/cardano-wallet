@@ -64,11 +64,11 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer, produceTimings )
 import Cardano.Wallet.Network
-    ( ChainFollower (..)
+    ( ChainFollowLog (..)
+    , ChainFollower (..)
+    , ChainSyncLog (..)
     , ErrPostTx (..)
-    , FollowLog (..)
     , NetworkLayer (..)
-    , addFollowerLogging
     , mapChainFollower
     , mapChainSyncLog
     , withFollowStatsMonitoring
@@ -86,7 +86,6 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAlonzoPParams
-    , fromCardanoHash
     , fromLedgerPParams
     , fromNonMyopicMemberRewards
     , fromPoint
@@ -166,8 +165,6 @@ import Data.Quantity
     ( Percentage )
 import Data.Set
     ( Set )
-import Data.Text
-    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
@@ -207,7 +204,7 @@ import Ouroboros.Consensus.Node.NetworkProtocolVersion
 import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..), getCompactGenesis )
 import Ouroboros.Network.Block
-    ( Point, Tip (..), blockPoint, getPoint )
+    ( Point, Tip (..) )
 import Ouroboros.Network.Client.Wallet
     ( LSQ (..)
     , LocalStateQueryCmd (..)
@@ -238,8 +235,6 @@ import Ouroboros.Network.NodeToClient
     , nodeToClientProtocols
     , withIOManager
     )
-import Ouroboros.Network.Point
-    ( WithOrigin (..) )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( chainSyncClientPeer )
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
@@ -271,7 +266,6 @@ import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Wallet.Primitive.SyncProgress as SyncProgress
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Codec.CBOR.Term as CBOR
@@ -280,7 +274,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
-import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.API as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 
@@ -346,22 +339,23 @@ withNetworkLayerBase tr net np conn versionData tol action = do
     let readCurrentNodeEra = atomically $ readTMVar eraVar
 
     action $ NetworkLayer
-        { chainSync = \followTr' follower -> do
+        { chainSync = \trFollowLog follower -> do
             let withStats = withFollowStatsMonitoring
-                    followTr'
+                    trFollowLog
                     (_syncProgress interpreterVar)
-            withStats $ \followTr -> do
-                let addLogging =
-                        addFollowerLogging followTr (toCardanoBlockHeader gp)
-                client <- mkWalletClient
-                    followTr
-                    (mapChainFollower
-                        toPoint
-                        fromPoint
-                        (fromTip' gp)
-                        id
-                        (addLogging follower))
-                    cfg
+            withStats $ \trChainSyncLog -> do
+                let mapB = toCardanoBlockHeader gp
+                    mapP = fromPoint
+                let client = mkWalletClient
+                        (contramap (mapChainSyncLog mapB mapP) trChainSyncLog)
+                        (mapChainFollower
+                            toPoint
+                            fromPoint
+                            (fromTip' gp)
+                            id
+                            follower)
+                        cfg
+                traceWith trFollowLog MsgStartFollowing
                 connectClient tr handlers client versionData conn
 
         , currentNodeTip =
@@ -593,23 +587,20 @@ type NetworkClient m = NodeToClientVersion -> OuroborosApplication
 -- | Construct a network client with the given communication channel, for the
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
-    :: forall m msg. (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
-    => Tracer m (FollowLog msg)
-    -> ChainFollower m
-        (Point (CardanoBlock StandardCrypto))
-        (Tip (CardanoBlock StandardCrypto))
-        (CardanoBlock StandardCrypto)
-    -> CodecConfig (CardanoBlock StandardCrypto)
-    -> m (NetworkClient m)
-mkWalletClient tr follower cfg = do
-    pure $ \v -> nodeToClientProtocols (const $ return $ NodeToClientProtocols
+    :: forall m block
+    . ( block ~ CardanoBlock (StandardCrypto)
+      , MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
+    => Tracer m (ChainSyncLog block (Point block))
+    -> ChainFollower m (Point block) (Tip block) block
+    -> CodecConfig block
+    -> NetworkClient m
+mkWalletClient tr follower cfg v =
+    nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             InitiatorProtocolOnly $ MuxPeerRaw $ \channel ->
                 runPipelinedPeer nullTracer (cChainSyncCodec $ codecs v cfg) channel
                 $ chainSyncClientPeerPipelined
-                $ chainSyncWithBlocks
-                    (contramap (MsgChainSync . mapChainSyncLog showB showP) tr)
-                    follower
+                $ chainSyncWithBlocks tr follower
 
         , localTxSubmissionProtocol =
             doNothingProtocol
@@ -617,20 +608,6 @@ mkWalletClient tr follower cfg = do
         , localStateQueryProtocol =
             doNothingProtocol
         }) v
-  where
-    showB :: CardanoBlock StandardCrypto -> Text
-    showB = showP . blockPoint
-
-    showP :: Point (CardanoBlock StandardCrypto) -> Text
-    showP p = case (getPoint p) of
-        Origin -> "Origin"
-        At blk -> mconcat
-            [ "(slotNo "
-            , T.pack $ show $ unSlotNo $ Point.blockPointSlot blk
-            , ", "
-            , pretty $ fromCardanoHash $ Point.blockPointHash blk
-            , ")"
-            ]
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of querying delegations and rewards.
@@ -1011,9 +988,8 @@ connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
     let socket = localSnocket iocp (nodeSocketFile conn)
-    flip withException (print @SomeException) $
-        recoveringNodeConnection tr handlers $
-            connectTo socket tracers versions (nodeSocketFile conn)
+    recoveringNodeConnection tr handlers $
+        connectTo socket tracers versions (nodeSocketFile conn)
 
 recoveringNodeConnection
     :: Tracer IO NetworkLayerLog
@@ -1170,9 +1146,6 @@ data NetworkLayerLog where
         -> NetworkLayerLog
     MsgHandshakeTracer ::
       (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace) -> NetworkLayerLog
-    MsgFindIntersection :: [W.BlockHeader] -> NetworkLayerLog
-    MsgIntersectionFound :: (W.Hash "BlockHeader") -> NetworkLayerLog
-    MsgFindIntersectionTimeout :: NetworkLayerLog
     MsgPostTx :: W.SealedTx -> NetworkLayerLog
     MsgNodeTip :: W.BlockHeader -> NetworkLayerLog
     MsgProtocolParameters :: W.ProtocolParameters -> W.SlottingParameters -> NetworkLayerLog
@@ -1224,14 +1197,6 @@ instance ToText NetworkLayerLog where
             T.pack (show msg)
         MsgHandshakeTracer (WithMuxBearer conn h) ->
             pretty conn <> " " <> T.pack (show h)
-        MsgFindIntersectionTimeout ->
-            "Couldn't find an intersection in a timely manner. Retrying..."
-        MsgFindIntersection points -> T.unwords
-            [ "Looking for an intersection with the node's local chain with:"
-            , T.intercalate ", " (pretty <$> points)
-            ]
-        MsgIntersectionFound point -> T.unwords
-            [ "Intersection found:", pretty point ]
         MsgPostTx tx ->
             "Posting transaction, serialized as:\n"+|hexF (serialisedTx tx)|+""
         MsgLocalStateQuery client msg ->
@@ -1300,10 +1265,6 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgConnectionLost{}                -> Warning
         MsgTxSubmission{}                  -> Info
         MsgHandshakeTracer{}               -> Debug
-        MsgFindIntersectionTimeout         -> Warning
-        MsgFindIntersection{}              -> Debug
-        -- MsgFindIntersection is duplicated by MsgStartFollowing
-        MsgIntersectionFound{}             -> Debug
         MsgPostTx{}                        -> Debug
         MsgLocalStateQuery{}               -> Debug
         MsgNodeTip{}                       -> Debug
