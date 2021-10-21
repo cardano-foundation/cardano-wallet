@@ -217,30 +217,28 @@ prop_performSelection_coverage params r innerProperty =
     cover 20
         (isSelection r)
         "isSelection r" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_BalanceInsufficient r)
         "isSelectionBalanceError_BalanceInsufficient" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_SelectionLimitReached r)
         "isSelectionBalanceError_SelectionLimitReached" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_InsufficientMinCoinValues r)
         "isSelectionBalanceError_InsufficientMinCoinValues" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_UnableToConstructChange r)
         "isSelectionBalanceError_UnableToConstructChange" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_EmptyUTxO r)
         "isSelectionBalanceError_EmptyUTxO" $
-    cover 0.4
+    cover 0.1
         (isSelectionCollateralError r)
         "isSelectionCollateralError" $
-    cover 0.4
+    cover 0.1
         (isSelectionOutputError_SelectionOutputSizeExceedsLimit r)
         "isSelectionOutputError_SelectionOutputSizeExceedsLimit" $
-    cover 0.0
-        -- TODO: [ADP-1037]
-        -- Increase the coverage of this case:
+    cover 0.1
         (isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit r)
         "isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit" $
     property innerProperty
