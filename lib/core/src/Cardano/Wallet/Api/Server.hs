@@ -2275,7 +2275,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
           (acct, xpub, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
           txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> inps) xpub
           collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> colls) xpub
-          outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
+          outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k @n wrk wid outs xpub
           pure (txinsOutsPaths, collsOutsPaths, outsPath, acct)
     pure $ ApiDecodedTransaction
         { id = ApiT txid

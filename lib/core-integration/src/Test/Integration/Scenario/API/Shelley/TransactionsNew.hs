@@ -28,18 +28,20 @@ import Cardano.Crypto.DSIGN.Class
 import Cardano.Mnemonic
     ( SomeMnemonic (..), mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiCoinSelection (withdrawals)
+    ( ApiAddress (..)
+    , ApiCoinSelection (withdrawals)
     , ApiCoinSelectionInput (..)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
-    , ApiFee (..)
     , ApiSerialisedTransaction (..)
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
     , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
+    , ApiTxOutputGeneral (..)
     , ApiWallet
+    , ApiWalletOutput (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -47,7 +49,12 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( HardDerivation (..), PaymentAddress (..), Role (..), WalletKey (..) )
+    ( DerivationIndex (..)
+    , HardDerivation (..)
+    , PaymentAddress (..)
+    , Role (..)
+    , WalletKey (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Address
@@ -56,7 +63,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-    , Direction (..)
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
     , SealedTx
     , TxIn (..)
     , TxScriptValidity (..)
@@ -151,13 +159,13 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
-
 
 spec :: forall n.
     ( DecodeAddress n
@@ -421,12 +429,32 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ExternalInput _ -> False
                 WalletInput _ -> True
         let areOurs = all isInpOurs
+        addrs <- listAddresses @n ctx wb
+        let addrIx = 1
+        let addrDest = (addrs !! addrIx) ^. #id
+        let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
+                { address = addrDest
+                , amount = Quantity 0
+                , assets = ApiT $ TokenMap.empty
+                , derivationPath = NE.fromList
+                    [ ApiT (DerivationIndex 2147485500)
+                    , ApiT (DerivationIndex 2147485463)
+                    , ApiT (DerivationIndex 2147483648)
+                    , ApiT (DerivationIndex 0)
+                    , ApiT (DerivationIndex $ fromIntegral addrIx)
+                    ]
+                , amountIncoming = Quantity amt
+                , assetsIncoming = ApiT $ TokenMap.empty
+                }
+        let isOurTxOut :: ApiTxOutputGeneral n -> [ApiTxOutputGeneral n] -> Bool
+            isOurTxOut expectedTxOut = (expectedTxOut `elem`)
 
         rDecodedTxSource <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rDecodedTxSource $
             sharedExpectationsBetweenWallets ++
             [ expectField #inputs (`shouldSatisfy` areOurs)
+            , expectField #outputs (`shouldNotSatisfy` isOurTxOut expectedTxOutTarget)
             ]
 
         rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
@@ -434,9 +462,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTxTarget $
             sharedExpectationsBetweenWallets ++
             [ expectField #inputs (`shouldNotSatisfy` areOurs)
+            , expectField #outputs (`shouldSatisfy` isOurTxOut expectedTxOutTarget)
             ]
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
         let filterInitialAmt =
                 filter (\(ApiCoinSelectionInput _ _ _ _ amt' _) -> amt' == Quantity initialAmt)
         let coinSelInputs = filterInitialAmt $
@@ -449,27 +477,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
-        -- After signing tx the cbor is as before modulo added wtinesses,
-        -- and in line what was there after construction.
-        let txCbor' = getFromResponse #transaction (HTTP.status202, Right $ ApiSerialisedTransaction signedTx)
-        let decodePayload' = Json (toJSON $ ApiSerialisedTransaction txCbor')
-        rDecodedTxSource' <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wa) Default decodePayload'
-        verify rDecodedTxSource' $
-            sharedExpectationsBetweenWallets ++
-            [ expectField #inputs (`shouldSatisfy` areOurs)
-            ]
-
-        rDecodedTxTarget' <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wb) Default decodePayload'
-        verify rDecodedTxTarget' $
-            sharedExpectationsBetweenWallets ++
-            [ expectField #inputs (`shouldNotSatisfy` areOurs)
-            ]
-
-        eventually "Source wallet balance is decreased by amt + fee" $ do
+        eventually "Target wallet balance is decreased by amt + fee" $ do
             rWa <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wa) Default Empty
+                (Link.getWallet @'Shelley wb) Default Empty
             verify rWa
                 [ expectSuccess
                 , expectField
@@ -486,6 +496,63 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (#balance . #available . #getQuantity)
                         (`shouldBe` (initialAmt - amt - expectedFee))
                 ]
+
+        -- After signing tx the cbor is as before modulo added wtinesses,
+        -- and in line what was there after construction. Also as we tx was
+        -- accommodated in ledger output change in amount for target wallet
+        let expectedTxOutTarget' = WalletOutput $ ApiWalletOutput
+                { address = addrDest
+                , amount = Quantity amt -- now we have this
+                , assets = ApiT $ TokenMap.empty
+                , derivationPath = NE.fromList
+                    [ ApiT (DerivationIndex 2147485500)
+                    , ApiT (DerivationIndex 2147485463)
+                    , ApiT (DerivationIndex 2147483648)
+                    , ApiT (DerivationIndex 0)
+                    , ApiT (DerivationIndex $ fromIntegral addrIx)
+                    ]
+                , amountIncoming = Quantity amt
+                , assetsIncoming = ApiT $ TokenMap.empty
+                }
+        addrsSourceAll <- listAddresses @n ctx wa
+        --we expect change address here with x=0 as this wallet does not participated in outcoming tx before this one
+        let derPath = NE.fromList
+                [ ApiT (DerivationIndex 2147485500)
+                , ApiT (DerivationIndex 2147485463)
+                , ApiT (DerivationIndex 2147483648)
+                , ApiT (DerivationIndex 1)
+                , ApiT (DerivationIndex 0)
+                ]
+        let addrSourceChange:_ =
+                filter (\(ApiAddress _ _ derPath') -> derPath == derPath') addrsSourceAll
+        let addrSrc =  addrSourceChange ^. #id
+        let expectedTxOutSource = WalletOutput $ ApiWalletOutput
+                { address = addrSrc
+                , amount = Quantity $ initialAmt - (amt + fromIntegral expectedFee)
+                , assets = ApiT $ TokenMap.empty
+                , derivationPath = derPath
+                , amountIncoming = Quantity $ initialAmt - (amt + fromIntegral expectedFee)
+                , assetsIncoming = ApiT $ TokenMap.empty
+                }
+        let txCbor' = getFromResponse #transaction (HTTP.status202, Right $ ApiSerialisedTransaction signedTx)
+        let decodePayload' = Json (toJSON $ ApiSerialisedTransaction txCbor')
+        rDecodedTxSource' <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload'
+        verify rDecodedTxSource' $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldNotSatisfy` areOurs) -- the input is not anymore belonging to wallet
+            , expectField #outputs (`shouldNotSatisfy` isOurTxOut expectedTxOutTarget')
+            , expectField #outputs (`shouldSatisfy` isOurTxOut expectedTxOutSource)
+            ]
+
+        rDecodedTxTarget' <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload'
+        verify rDecodedTxTarget' $
+            sharedExpectationsBetweenWallets ++
+            [ expectField #inputs (`shouldNotSatisfy` areOurs)
+            , expectField #outputs (`shouldSatisfy` isOurTxOut expectedTxOutTarget')
+            , expectField #outputs (`shouldNotSatisfy` isOurTxOut expectedTxOutSource)
+            ]
 
     it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx

@@ -1192,8 +1192,7 @@ lookupTxIns ctx wid txins xpub = db & \DBLayer{..} -> do
           $ readCheckpoint wid
     -- NOTE it is working properly for base address.
     let f (addr, addrState, ix) =
-            ( liftDelegationAddress @n @k ((\(Right finger) -> finger) $
-                  paymentKeyFingerprint @k addr) (liftRawKey @k xpub)
+            ( extAddr @k @n addr xpub
             , addrState
             , ix )
     let walletAddrs = map f $ knownAddresses (getState cp)
@@ -1210,22 +1209,42 @@ lookupTxIns ctx wid txins xpub = db & \DBLayer{..} -> do
                     [] -> (txin, Nothing) -- will probably use error here
                     path':_ -> (txin, Just (txout, path'))
 
+extAddr
+    :: forall k (n :: NetworkDiscriminant).
+        ( WalletKey k
+        , DelegationAddress n k
+        )
+    => Address
+    -> XPub
+    -> Address
+extAddr addr xpub =
+    liftDelegationAddress @n @k ((\(Right finger) -> finger) $
+    paymentKeyFingerprint @k addr) (liftRawKey @k xpub)
+
 lookupTxOuts
-    :: forall ctx s k.
+    :: forall ctx s k (n :: NetworkDiscriminant).
         ( HasDBLayer IO s k ctx
         , KnownAddresses s
         , IsOurs s Address
+        , WalletKey k
+        , DelegationAddress n k
         )
     => ctx
     -> WalletId
     -> [TxOut]
+    -> XPub
     -> ExceptT ErrDecodeTx IO [(TxOut, Maybe (TxOut, NonEmpty DerivationIndex))]
-lookupTxOuts ctx wid txouts = db & \DBLayer{..} -> do
+lookupTxOuts ctx wid txouts xpub = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
           $ withExceptT ErrDecodeTxNoSuchWallet
           $ withNoSuchWallet wid
           $ readCheckpoint wid
-    let walletAddrs = knownAddresses (getState cp)
+    let f (addr, addrState, ix) =
+            ( extAddr @k @n addr xpub
+            , addrState
+            , ix )
+    -- TO DO I need to understand why I do not see change addresses after construction here
+    let walletAddrs = map f $ knownAddresses (getState cp)
     pure $ map (tryGetTxOutPath cp walletAddrs) txouts
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -1237,7 +1256,7 @@ lookupTxOuts ctx wid txouts = db & \DBLayer{..} -> do
                 let bundles =
                         foldr (<>) TokenBundle.empty $
                         map tokens $
-                        filter (\(TxOut addr' _) -> addr == addr') allTxOuts
+                        filter (\(TxOut addr' _) -> addr == extAddr @k @n addr' xpub) allTxOuts
                 in (txout, Just (TxOut addr bundles, path))
 
 -- | List all addresses of a wallet with their metadata. Addresses
