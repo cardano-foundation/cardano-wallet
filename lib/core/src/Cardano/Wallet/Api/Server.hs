@@ -264,6 +264,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
+    , ApiWalletOutput (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ApiWalletSignData (..)
@@ -2269,17 +2270,18 @@ decodeTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     let (Tx txid feeM colls inps outs wdrlMap meta vldt, _toMint, _toBurn) = decodeTx tl sealed
-    (txinsOutsPaths, collsOutsPaths, acct)  <-
+    (txinsOutsPaths, collsOutsPaths, outsPath, acct)  <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
           (acct, xpub, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
           txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> inps) xpub
           collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> colls) xpub
-          pure (txinsOutsPaths, collsOutsPaths, acct)
+          outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
+          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct)
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = fromMaybe (Quantity 0) (Quantity . fromIntegral . unCoin <$> feeM)
         , inputs = map toInp txinsOutsPaths
-        , outputs = map (ExternalOutput . toAddressAmount @n) outs
+        , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
         , metadata = ApiTxMetadata $ ApiT <$> meta
@@ -2287,19 +2289,33 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         }
   where
     tl = ctx ^. W.transactionLayer @k
+    toOut (txoutIncoming, txoutPathM) =
+        case txoutPathM of
+            Nothing ->
+                ExternalOutput $ toAddressAmount @n txoutIncoming
+            Just (TxOut addr (TokenBundle (Coin c) tmap), path) ->
+                let (AddressAmount _ c' tmap') = toAddressAmount @n txoutIncoming
+                in WalletOutput $ ApiWalletOutput
+                    { address = (ApiT addr, Proxy @n)
+                    , amount = Quantity $ fromIntegral c
+                    , assets = ApiT tmap
+                    , derivationPath = NE.map ApiT path
+                    , amountIncoming = c'
+                    , assetsIncoming = tmap'
+                    }
     toInp (txin@(TxIn txid ix), txoutPathM) =
         case txoutPathM of
             Nothing ->
                 ExternalInput (ApiT txin)
             Just (TxOut addr (TokenBundle (Coin c) tmap), path) ->
                 WalletInput $ ApiWalletInput
-                { id = ApiT txid
-                , index = ix
-                , address = (ApiT addr, Proxy @n)
-                , derivationPath = NE.map ApiT path
-                , amount = Quantity $ fromIntegral c
-                , assets = ApiT tmap
-                }
+                    { id = ApiT txid
+                    , index = ix
+                    , address = (ApiT addr, Proxy @n)
+                    , derivationPath = NE.map ApiT path
+                    , amount = Quantity $ fromIntegral c
+                    , assets = ApiT tmap
+                    }
     toWrdl acct (rewardKey, (Coin c)) =
         if rewardKey == acct then
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our

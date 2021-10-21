@@ -102,6 +102,7 @@ module Cardano.Wallet
     , listAddresses
     , normalizeDelegationAddress
     , lookupTxIns
+    , lookupTxOuts
     , ErrCreateRandomAddress(..)
     , ErrImportRandomAddress(..)
     , ErrImportAddress(..)
@@ -557,6 +558,7 @@ import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -1207,6 +1209,36 @@ lookupTxIns ctx wid txins xpub = db & \DBLayer{..} -> do
                 in case path of
                     [] -> (txin, Nothing) -- will probably use error here
                     path':_ -> (txin, Just (txout, path'))
+
+lookupTxOuts
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , KnownAddresses s
+        , IsOurs s Address
+        )
+    => ctx
+    -> WalletId
+    -> [TxOut]
+    -> ExceptT ErrDecodeTx IO [(TxOut, Maybe (TxOut, NonEmpty DerivationIndex))]
+lookupTxOuts ctx wid txouts = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically
+          $ withExceptT ErrDecodeTxNoSuchWallet
+          $ withNoSuchWallet wid
+          $ readCheckpoint wid
+    let walletAddrs = knownAddresses (getState cp)
+    pure $ map (tryGetTxOutPath cp walletAddrs) txouts
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    tryGetTxOutPath cp walletAddrs txout@(TxOut addr _) =
+        let allTxOuts = Map.elems $ unUTxO $ totalUTxO mempty cp
+        in case map (\(_, _,p) -> p) (filter (\(addr', _,_) -> addr' == addr) walletAddrs) of
+            [] -> (txout, Nothing)
+            path:_ ->
+                let bundles =
+                        foldr (<>) TokenBundle.empty $
+                        map tokens $
+                        filter (\(TxOut addr' _) -> addr == addr') allTxOuts
+                in (txout, Just (TxOut addr bundles, path))
 
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
