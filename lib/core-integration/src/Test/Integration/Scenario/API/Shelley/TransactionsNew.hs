@@ -1362,6 +1362,70 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
+    it "TRANS_NEW_BALANCE_04a - I get proper error message when payload is not hex or base64 encoded" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        -- transaction is invalid hex / base64
+        let payload = Json [json|{
+            "transaction": "!!!!#",
+            "redeemers": [],
+            "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "Parse error. Expecting CBOR-encoded transaction represented in either hex or base64 encoding."
+            -- returns: Parse error. Expecting Base64-encoded format.
+            ]
+
+    it "TRANS_NEW_BALANCE_04b - I get proper error message when payload cannot be decoded" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        -- transaction is a VALID hex, but invalid transaction format
+        let payload = Json [json|{
+            "transaction": "11",
+            "redeemers": [],
+            "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "Parse error. Cannot deserialize transaction. Make sure it is valid CBOR-encoded transaction represented in either hex or base64 encoding."
+            -- returns: Parse error. Expecting Base64-encoded format.
+            ]
+
+    it "TRANS_NEW_BALANCE_04c - I get proper error message when payload cannot be decoded" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        -- transaction is a VALID hex, but invalid transaction format
+        let payload = Json [json|{
+            "transaction": "11111",
+            "redeemers": [],
+            "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "Parse error. Cannot deserialize transaction. Make sure it is valid CBOR-encoded transaction represented in either hex or base64 encoding."
+            -- returns: Parse error. Expecting Base64-encoded format.
+            ]
+
+    it "TRANS_NEW_BALANCE_04d - I get proper error message when payload cannot be decoded" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        -- transaction is a VALID base64, but invalid transaction format
+        let payload = Json [json|{
+            "transaction": "EQ==",
+            "redeemers": [],
+            "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "Parse error. Cannot deserialize transaction. Make sure it is valid CBOR-encoded transaction represented in either hex or base64 encoding."
+            -- returns: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'
+            ]
+
     it "TRANS_NEW_SIGN_01 - Sign single-output transaction" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
 
