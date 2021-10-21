@@ -256,9 +256,7 @@ library
         -- TODO:
         --
         -- Use cardano-api:gen to import these generators from cardano-api
-      Cardano.Api.Typed.Gen
-      Cardano.Api.Typed.Gen.QuickCheck
-      Cardano.Api.Metadata.Gen
+      Cardano.Api.Gen
   other-modules:
       Paths_cardano_wallet_core
 
@@ -379,7 +377,7 @@ test-suite unit
   main-is:
       Main.hs
   other-modules:
-      Cardano.Api.Typed.GenSpec
+      Cardano.Api.GenSpec
       Cardano.Byron.Codec.CborSpec
       Cardano.DB.Sqlite.DeleteSpec
       Cardano.Pool.DB.Arbitrary

@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Cardano.Api.Typed.GenSpec (spec) where
+module Cardano.Api.GenSpec (spec) where
 
 import Prelude
 
@@ -40,6 +40,8 @@ import Cardano.Api
     , TxIn (..)
     , TxInsCollateral (..)
     , TxIx (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
     , TxMintValue (..)
     , TxOut (..)
     , TxOutDatumHash (..)
@@ -58,9 +60,9 @@ import Cardano.Api
     )
 import Cardano.Api.Byron
     ( WitnessNetworkIdOrByronAddress (..) )
+import Cardano.Api.Gen
 import Cardano.Api.Shelley
     ( StakeCredential (..) )
-import Cardano.Api.Typed.Gen.QuickCheck
 import Cardano.Ledger.Credential
     ( Ix (..), Ptr (..) )
 import Data.ByteString
@@ -131,12 +133,13 @@ import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 
 import qualified Cardano.Api as Cardano
+import qualified Data.Map as Map
 import qualified Hedgehog as H
 import qualified Test.Hspec.Hedgehog as Hspec
 
 spec :: Spec
 spec =
-    describe "Cardano.Api.Typed.Gen" $
+    describe "Cardano.Api.Gen" $
         describe "Generator coverage" $ do
             it "genLovelace" $
                 property genLovelaceCoverage
@@ -334,8 +337,8 @@ spec =
                     $ genTxValidityRangeAlonzoCoverage
             it "genScriptDataCoverage" $
                 property genScriptDataCoverage
-            it "genScriptExecutionUnits" $
-                property genScriptExecutionUnitsCoverage
+            it "genExecutionUnits" $
+                property genExecutionUnitsCoverage
             it "genScriptValidity" $
                 property genScriptValidityCoverage
             describe "genTxScriptValidity" $ do
@@ -408,6 +411,8 @@ spec =
                     $ genExtraKeyWitnessesCoverage AlonzoEra
             it "genTxMetadataValue" $
                 property genTxMetadataValueCoverage
+            it "genTxMetadata" $
+                property genTxMetadataCoverage
 
             -- describe "genWitnessStake" $ do
             --     it "genWitnessStake ByronEra" $
@@ -1216,8 +1221,8 @@ genScriptDataCoverage dat = conjoin
 instance Arbitrary ScriptData where
     arbitrary = genScriptData
 
-genScriptExecutionUnitsCoverage :: ExecutionUnits -> Property
-genScriptExecutionUnitsCoverage (ExecutionUnits steps mem) = conjoin
+genExecutionUnitsCoverage :: ExecutionUnits -> Property
+genExecutionUnitsCoverage (ExecutionUnits steps mem) = conjoin
     [ checkCoverage
       $ cover 1 (steps == 0)
         "execution steps is zero"
@@ -1242,7 +1247,7 @@ genScriptExecutionUnitsCoverage (ExecutionUnits steps mem) = conjoin
         veryLargeNumber = fromIntegral (maxBound :: Word32)
 
 instance Arbitrary ExecutionUnits where
-    arbitrary = genScriptExecutionUnits
+    arbitrary = genExecutionUnits
 
 -- genWitnessStakeCoverage :: CardanoEra era -> Witness WitCtxStake era -> Property
 -- genWitnessStakeCoverage era wit =
@@ -1417,3 +1422,86 @@ genExtraKeyWitnessesCoverage era ws =
         witnesses = \case
             TxExtraKeyWitnessesNone -> False
             TxExtraKeyWitnesses _ _ -> True
+
+genTxMetadataValueCoverage :: TxMetadataValue -> Property
+genTxMetadataValueCoverage meta =
+    checkCoverage
+        $ cover 10 (isMetaNumber meta)
+          "is TxMetaNumber"
+        $ cover 10 (isMetaBytes meta)
+          "is TxMetaBytes"
+        $ cover 10 (isMetaText meta)
+          "is TxMetaText"
+        $ cover 10 (isMetaList meta)
+          "is TxMetaList"
+        $ cover 10 (isMetaMap meta)
+          "is TxMetaMap"
+        $ True
+
+    where
+        isMetaNumber = \case
+            TxMetaNumber _ -> True
+            _              -> False
+
+        isMetaBytes = \case
+            TxMetaBytes _ -> True
+            _             -> False
+
+        isMetaText = \case
+            TxMetaText _ -> True
+            _            -> False
+
+        isMetaList = \case
+            TxMetaList _ -> True
+            _            -> False
+
+        isMetaMap = \case
+            TxMetaMap _  -> True
+            _            -> False
+
+instance Arbitrary TxMetadataValue where
+    arbitrary = genTxMetadataValue
+
+genTxMetadataCoverage :: TxMetadata -> Property
+genTxMetadataCoverage (TxMetadata meta) =
+    let
+        metaMap = Map.toList meta
+    in
+        checkCoverage
+            $ cover 1 (length metaMap == 0)
+              "no metadata entries"
+            $ cover 10 (length metaMap > 0)
+              "some metadata entries"
+            $ cover 10 (length metaMap > 10)
+              "lots of metadata entries"
+            $ conjoin $ fmap (metaNumberCoverage . fst) metaMap
+
+    where
+        metaNumberCoverage n = checkCoverage
+            $ cover 1 (n == 0)
+              "meta index == 0"
+            $ cover 10 (n > 0)
+              "meta index > 0"
+            $ cover 10 (n >= veryLargeMetaIndex)
+              "meta index is large"
+            $ cover 10 (n > 0 && n < veryLargeMetaIndex)
+              "meta index is between smallest and large"
+            $ property (n >= 0)
+              & counterexample "meta index was negative"
+
+        veryLargeMetaIndex = fromIntegral (maxBound :: Word32)
+
+instance Arbitrary TxMetadata where
+    arbitrary = genTxMetadata
+
+-- genPositiveNumberCoverage :: (Integral a, Bounded b) => Proxy b -> a -> Property
+-- genPositiveNumberCoverage n = checkCoverage
+--     $ cover 1 (n == 0)
+--       "some are zero"
+--     $
+--     $ n >= 0
+--       & counterexample "positive number was negative"
+
+--     where
+--         veryLargePositiveNumber :: a
+--         veryLargePositiveNumber = fromIntegral (maxBound :: b)
