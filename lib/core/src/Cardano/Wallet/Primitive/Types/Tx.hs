@@ -782,8 +782,8 @@ data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
 --    * Enlarging a bundle that exceeds the limit should also result in a
 --      bundle that exceeds the limit:
 --      @
---              f  b1           == OutputTokenBundleSizeExceedsLimit
---          ==> f (b1 `add` b2) == OutputTokenBundleSizeExceedsLimit
+--              f  b1           == TokenBundleSizeExceedsLimit
+--          ==> f (b1 `add` b2) == TokenBundleSizeExceedsLimit
 --      @
 --
 --    * Shrinking a bundle that's within the limit should also result in a
@@ -805,7 +805,7 @@ data TokenBundleSizeAssessment
     = TokenBundleSizeWithinLimit
     -- ^ Indicates that the size of a token bundle does not exceed the maximum
     -- size that can be included in a transaction output.
-    | OutputTokenBundleSizeExceedsLimit
+    | TokenBundleSizeExceedsLimit
     -- ^ Indicates that the size of a token bundle exceeds the maximum size
     -- that can be included in a transaction output.
     deriving (Eq, Generic, Show)

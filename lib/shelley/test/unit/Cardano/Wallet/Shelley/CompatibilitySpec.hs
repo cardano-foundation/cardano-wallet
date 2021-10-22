@@ -416,11 +416,11 @@ prop_assessTokenBundleSize_enlarge
     -> Blind (VariableSize16 TokenBundle)
     -> Property
 prop_assessTokenBundleSize_enlarge b1' b2' =
-    assess b1 == OutputTokenBundleSizeExceedsLimit ==> conjoin
+    assess b1 == TokenBundleSizeExceedsLimit ==> conjoin
         [ assess (b1 `TokenBundle.add` b2)
-            === OutputTokenBundleSizeExceedsLimit
+            === TokenBundleSizeExceedsLimit
         , assess (b1 `TokenBundle.setCoin` maxBound)
-            === OutputTokenBundleSizeExceedsLimit
+            === TokenBundleSizeExceedsLimit
         ]
   where
     assess = assessTokenBundleSize
@@ -516,7 +516,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_64
     :: Blind (FixedSize64 TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_64 (Blind (FixedSize64 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
-        OutputTokenBundleSizeExceedsLimit
+        TokenBundleSizeExceedsLimit
         maryTokenBundleMaxSize
         (TxSize 4228) (TxSize 4748)
 
@@ -524,7 +524,7 @@ unit_assessTokenBundleSize_fixedSizeBundle_128
     :: Blind (FixedSize128 TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_128 (Blind (FixedSize128 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
-        OutputTokenBundleSizeExceedsLimit
+        TokenBundleSizeExceedsLimit
         maryTokenBundleMaxSize
         (TxSize 8452) (TxSize 9484)
 

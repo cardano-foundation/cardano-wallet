@@ -860,7 +860,7 @@ verifySelectionOutputSizeExceedsLimitError cs _ps e
   where
     isWithinLimit = case (cs ^. #assessTokenBundleSize) bundle of
         TokenBundleSizeWithinLimit -> True
-        OutputTokenBundleSizeExceedsLimit -> False
+        TokenBundleSizeExceedsLimit -> False
       where
         bundle = outputReportedAsExceedingLimit ^. #tokens
 
@@ -1294,7 +1294,7 @@ verifyOutputSize cs out
     withinLimit =
         case (cs ^. #assessTokenBundleSize) (out ^. #tokens) of
             TokenBundleSizeWithinLimit -> True
-            OutputTokenBundleSizeExceedsLimit -> False
+            TokenBundleSizeExceedsLimit -> False
 
 -- | Indicates that a token quantity exceeds the maximum quantity that can
 --   appear in a transaction output's token bundle.

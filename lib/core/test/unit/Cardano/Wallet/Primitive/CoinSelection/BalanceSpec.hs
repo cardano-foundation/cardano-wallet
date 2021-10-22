@@ -2218,7 +2218,7 @@ unMockAssessTokenBundleSize = \case
             case assetCount `compare` upperLimit of
                 LT -> TokenBundleSizeWithinLimit
                 EQ -> TokenBundleSizeWithinLimit
-                GT -> OutputTokenBundleSizeExceedsLimit
+                GT -> TokenBundleSizeExceedsLimit
 
 mkTokenBundleSizeAssessor
     :: MockAssessTokenBundleSize -> TokenBundleSizeAssessor
