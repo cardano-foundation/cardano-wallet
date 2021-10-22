@@ -636,6 +636,8 @@ data VerifySelectionErrorFailureInfo
       VerifySelectionCollateralErrorFailureInfo
     | VerifySelectionLimitReachedErrorFailure
       VerifySelectionLimitReachedErrorFailureInfo
+    | VerifySelectionOutputSizeExceedsLimitErrorFailure
+      VerifySelectionOutputSizeExceedsLimitErrorFailureInfo
     deriving (Eq, Show)
 
 -- | The type of all 'SelectionError' verification functions.
@@ -841,13 +843,28 @@ verifySelectionOutputError cs ps = \case
     SelectionOutputTokenQuantityExceedsLimit e ->
         verifySelectionOutputTokenQuantityExceedsLimitError cs ps e
 
+newtype VerifySelectionOutputSizeExceedsLimitErrorFailureInfo =
+    VerifySelectionOutputSizeExceedsLimitErrorFailureInfo
+        { outputReportedAsExceedingLimit :: TxOut }
+    deriving (Eq, Show)
+
 verifySelectionOutputSizeExceedsLimitError
     :: VerifySelectionError SelectionOutputSizeExceedsLimitError
-verifySelectionOutputSizeExceedsLimitError _cs _ps _e =
-    -- TODO: [ADP-1037]
-    --
-    -- Verify that the indicated output size is above the limit.
-    VerifySelectionErrorSuccess
+verifySelectionOutputSizeExceedsLimitError cs _ps e
+    | isWithinLimit =
+        VerifySelectionErrorFailure $
+        VerifySelectionOutputSizeExceedsLimitErrorFailure
+        VerifySelectionOutputSizeExceedsLimitErrorFailureInfo {..}
+    | otherwise =
+        VerifySelectionErrorSuccess
+  where
+    isWithinLimit = case (cs ^. #assessTokenBundleSize) bundle of
+        TokenBundleSizeWithinLimit -> True
+        OutputTokenBundleSizeExceedsLimit -> False
+      where
+        bundle = outputReportedAsExceedingLimit ^. #tokens
+
+    outputReportedAsExceedingLimit = e ^. #outputThatExceedsLimit
 
 verifySelectionOutputTokenQuantityExceedsLimitError
     :: VerifySelectionError SelectionOutputTokenQuantityExceedsLimitError
