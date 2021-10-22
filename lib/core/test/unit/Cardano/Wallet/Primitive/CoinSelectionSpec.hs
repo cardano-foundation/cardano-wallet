@@ -52,16 +52,22 @@ import Cardano.Wallet.Primitive.CoinSelection.BalanceSpec
     , unMockComputeMinimumCost
     , unMockComputeSelectionLimit
     )
+import Cardano.Wallet.Primitive.Types.Address.Gen
+    ( genAddress )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genTokenMap, shrinkTokenMap )
+    ( genAssetId, genTokenMap, shrinkTokenMap )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..), txOutCoin )
+    ( TxIn, TxOut (..), txOutCoin, txOutMaxTokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOut, shrinkTxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -102,6 +108,8 @@ import Test.QuickCheck
     , choose
     , conjoin
     , cover
+    , elements
+    , frequency
     , genericShrink
     , listOf
     , property
@@ -109,6 +117,7 @@ import Test.QuickCheck
     , shrink
     , shrinkList
     , shrinkMapBy
+    , vectorOf
     , (===)
     )
 import Test.QuickCheck.Extra
@@ -125,6 +134,8 @@ import Test.QuickCheck.Monadic
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 
 spec :: Spec
@@ -206,30 +217,28 @@ prop_performSelection_coverage params r innerProperty =
     cover 20
         (isSelection r)
         "isSelection r" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_BalanceInsufficient r)
         "isSelectionBalanceError_BalanceInsufficient" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_SelectionLimitReached r)
         "isSelectionBalanceError_SelectionLimitReached" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_InsufficientMinCoinValues r)
         "isSelectionBalanceError_InsufficientMinCoinValues" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_UnableToConstructChange r)
         "isSelectionBalanceError_UnableToConstructChange" $
-    cover 0.4
+    cover 0.1
         (isSelectionBalanceError_EmptyUTxO r)
         "isSelectionBalanceError_EmptyUTxO" $
-    cover 0.4
+    cover 0.1
         (isSelectionCollateralError r)
         "isSelectionCollateralError" $
-    cover 0.4
+    cover 0.1
         (isSelectionOutputError_SelectionOutputSizeExceedsLimit r)
         "isSelectionOutputError_SelectionOutputSizeExceedsLimit" $
-    cover 0.0
-        -- TODO: [ADP-1037]
-        -- Increase the coverage of this case:
+    cover 0.1
         (isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit r)
         "isSelectionOutputError_SelectionOutputTokenQuantityExceedsLimit" $
     property innerProperty
@@ -667,7 +676,47 @@ shrinkAssetsToBurn = shrinkTokenMap
 --------------------------------------------------------------------------------
 
 genOutputsToCover :: Gen [TxOut]
-genOutputsToCover = scale (`mod` 4) $ listOf (scale (* 8) genTxOut)
+genOutputsToCover = do
+    count <- choose (1, 4)
+    vectorOf count genOutputToCover
+  where
+    genOutputToCover :: Gen TxOut
+    genOutputToCover = frequency
+        [ (49, scale (`mod` 8) genTxOut)
+        , (01, genTxOutWith genTokenQuantityThatMayExceedLimit)
+        ]
+
+    genTxOutWith :: Gen TokenQuantity -> Gen TxOut
+    genTxOutWith genTokenQuantityFn = TxOut
+        <$> genAddress
+        <*> genTokenBundleWith genTokenQuantityFn
+
+    genTokenBundleWith :: Gen TokenQuantity -> Gen TokenBundle
+    genTokenBundleWith genTokenQuantityFn = TokenBundle
+        <$> genCoinPositive
+        <*> genTokenMapWith genTokenQuantityFn
+
+    genTokenMapWith :: Gen TokenQuantity -> Gen TokenMap
+    genTokenMapWith genTokenQuantityFn = do
+        assetIds <- listOf genAssetId
+        quantities <- vectorOf (length assetIds) genTokenQuantityFn
+        pure $ TokenMap.fromFlatList (assetIds `zip` quantities)
+
+    genTokenQuantityThatMayExceedLimit :: Gen TokenQuantity
+    genTokenQuantityThatMayExceedLimit = TokenQuantity <$>
+        elements
+            [ 1
+            , limit `div` 4
+            , limit `div` 2
+            , limit - 2
+            , limit - 1
+            , limit
+            , limit + 1
+            , limit + 2
+            ]
+      where
+        limit :: Natural
+        limit = unTokenQuantity txOutMaxTokenQuantity
 
 shrinkOutputsToCover :: [TxOut] -> [[TxOut]]
 shrinkOutputsToCover = shrinkList shrinkTxOut
@@ -717,7 +766,10 @@ genUTxOAvailableForCollateral :: Gen UTxO
 genUTxOAvailableForCollateral = genUTxO
 
 genUTxOAvailableForInputs :: Gen UTxOSelection
-genUTxOAvailableForInputs = genUTxOSelection
+genUTxOAvailableForInputs = frequency
+    [ (49, genUTxOSelection)
+    , (01, pure UTxOSelection.empty)
+    ]
 
 shrinkUTxOAvailableForCollateral :: UTxO -> [UTxO]
 shrinkUTxOAvailableForCollateral = shrinkUTxO
