@@ -7,7 +7,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{- HLINT ignore "Use newtype instead of data" -}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -116,6 +115,8 @@ import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( isNothing, mapMaybe )
 import Data.Ratio
@@ -631,7 +632,9 @@ data VerifySelectionErrorResult
     deriving (Eq, Show)
 
 data VerifySelectionErrorFailureInfo
-    = VerifySelectionLimitReachedErrorFailure
+    = VerifySelectionCollateralErrorFailure
+      VerifySelectionCollateralErrorFailureInfo
+    | VerifySelectionLimitReachedErrorFailure
       VerifySelectionLimitReachedErrorFailureInfo
     deriving (Eq, Show)
 
@@ -745,19 +748,86 @@ verifySelectionLimitReachedError cs ps e
 -- Selection error verification: collateral errors
 --------------------------------------------------------------------------------
 
+data VerifySelectionCollateralErrorFailureInfo =
+    VerifySelectionCollateralErrorFailureInfo
+        { largestCombination
+            :: Map TxIn Coin
+            -- ^ The largest available UTxO combination reported.
+        , largestCombinationValue
+            :: Coin
+            -- ^ The total balance of the largest available UTxO combination.
+        , largestCombinationSize
+            :: Int
+            -- ^ The size of the largest available UTxO combination.
+        , largestCombinationUnsuitableSubset
+            :: Map TxIn Coin
+            -- ^ The subset of UTxOs in the largest available combination that
+            -- are not suitable for use as collateral.
+            --
+            -- UTxOs that are not suitable for collateral should never be made
+            -- available to the collateral selection algorithm, and should
+            -- therefore never be included in any error reported by the
+            -- collateral selection algorithm.
+        , maximumSelectionSize
+            :: Int
+            -- ^ The maximum number of entries permitted in the largest
+            -- combination, determined by the maximum allowable number of
+            -- collateral inputs.
+        , minimumSelectionAmount
+            :: Coin
+            -- ^ The reported minimum selection amount.
+        }
+        deriving (Eq, Show)
+
 verifySelectionCollateralError
     :: VerifySelectionError Collateral.SelectionError
-verifySelectionCollateralError _cs _ps _e =
-    -- TODO: [ADP-1037]
-    --
-    -- Verify that:
-    --
-    --   - the largest available combination of UTxOs consists of UTxOs that
-    --     are all suitable for use as collateral.
-    --   - the largest available combination of UTxOs has a balance that is
-    --     smaller than the minimum selection amount.
-    --
-    VerifySelectionErrorSuccess
+verifySelectionCollateralError cs ps e
+    | not (Map.null largestCombinationUnsuitableSubset) =
+        reportFailure
+    | largestCombinationSize > maximumSelectionSize =
+        reportFailure
+    | largestCombinationValue >= minimumSelectionAmount =
+        reportFailure
+    | otherwise =
+        VerifySelectionErrorSuccess
+  where
+    reportFailure
+        = VerifySelectionErrorFailure
+        $ VerifySelectionCollateralErrorFailure
+        $ VerifySelectionCollateralErrorFailureInfo {..}
+
+    largestCombination :: Map TxIn Coin
+    largestCombination = e ^. #largestCombinationAvailable
+    largestCombinationSize :: Int
+    largestCombinationSize = Map.size largestCombination
+    largestCombinationValue :: Coin
+    largestCombinationValue = F.fold largestCombination
+
+    largestCombinationUnsuitableSubset :: Map TxIn Coin
+    largestCombinationUnsuitableSubset = Map.withoutKeys
+        (largestCombination)
+        (Map.keysSet largestCombinationSuitableSubset)
+      where
+        -- The largest reported combination of UTxOs, but with outputs fully
+        -- resolved according to the set of UTxOs originally made available
+        -- to the selection algorithm.
+        largestCombinationResolved :: Map TxIn TxOut
+        largestCombinationResolved = Map.restrictKeys
+            (unUTxO (ps ^. #utxoAvailableForCollateral))
+            (Map.keysSet largestCombination)
+
+        -- The subset of the largest reported combination that is suitable for
+        -- use as collateral. This set should be exactly the same size as the
+        -- reported largest combination.
+        largestCombinationSuitableSubset :: Map TxIn Coin
+        largestCombinationSuitableSubset = Map.mapMaybeWithKey
+            (curry (cs ^. #utxoSuitableForCollateral))
+            (largestCombinationResolved)
+
+    maximumSelectionSize :: Int
+    maximumSelectionSize = cs ^. #maximumCollateralInputCount
+    minimumSelectionAmount :: Coin
+    minimumSelectionAmount = e ^. #minimumSelectionAmount
 
 --------------------------------------------------------------------------------
 -- Selection error verification: output errors
