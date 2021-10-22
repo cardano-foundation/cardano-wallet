@@ -1252,12 +1252,9 @@ data SelectionOutputInvalidError
         SelectionOutputTokenQuantityExceedsLimitError
     deriving (Eq, Generic, Show)
 
-data SelectionOutputSizeExceedsLimitError =
+newtype SelectionOutputSizeExceedsLimitError =
     SelectionOutputSizeExceedsLimitError
-    { address :: !Address
-      -- ^ The address to which this token bundle was to be sent.
-    , assetCount :: !Int
-      -- ^ The number of assets within the token bundle.
+    { outputThatExceedsLimit :: TxOut
     }
     deriving (Eq, Generic, Show)
 
@@ -1274,10 +1271,7 @@ verifyOutputSize cs out
     | withinLimit =
         Nothing
     | otherwise =
-        Just SelectionOutputSizeExceedsLimitError
-            { address = out ^. #address
-            , assetCount = TokenMap.size (out ^. (#tokens . #tokens))
-            }
+        Just $ SelectionOutputSizeExceedsLimitError out
   where
     withinLimit :: Bool
     withinLimit =
