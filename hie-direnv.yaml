@@ -1,0 +1,28 @@
+########################################################################
+# Custom configuration for haskell-language-server.
+#
+# Use this instead of the default Stack cradle if you want faster
+# reloads and cross-package jump-to-definition.
+#
+# It requires nix-direnv and your editor must have direnv integration.
+#
+# To use it, symlink hie-direnv.yaml to hie.yaml.
+# Then prepare your environment:
+# 1. $ direnv allow
+#    (this will build and cache the nix-shell)
+# 2. $ cabal configure --enable-tests --enable-benchmarks -O0
+#    (this will provide the build plan which is the basis of the cradle)
+# 3. $ cabal build all
+#    (this will build the Cabal autogen Paths_ modules)
+#
+# Test your configuration with commands such as:
+# $ hie-bios check lib/core/src/Cardano/Wallet.hs
+# $ haskell-language-server lib/shelley/exe/cardano-wallet.hs
+#
+# See https://github.com/haskell/hie-bios for information about the
+# cradle yaml config format.
+########################################################################
+
+cradle:
+  bios:
+    program: "./scripts/hie-bios.sh"
