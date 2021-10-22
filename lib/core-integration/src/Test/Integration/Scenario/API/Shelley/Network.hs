@@ -73,8 +73,8 @@ spec = describe "SHELLEY_NETWORK" $ do
         let unknownEras = [minBound .. maxBound] \\ knownEras
         -- exec prices values from alonzo-genesis.yml
         let execUnitPrices = Just (ExecutionUnitPrices
-                                      {priceExecutionSteps = 577 % 10000,
-                                       priceExecutionMemory = 721 % 10000000})
+                                      {priceExecutionSteps = 721 % 10000000,
+                                       priceExecutionMemory = 577 % 10000 })
         let checkExecutionUnitPricesPresence
                 :: ApiEra
                 -> ((HTTP.Status, Either RequestException ApiNetworkParameters) -> IO ())
