@@ -834,20 +834,19 @@ _maxScriptExecutionCost
     :: ProtocolParameters
     -> [Redeemer]
     -> Coin
-_maxScriptExecutionCost pp (length -> numberOfScripts)  =
-    case view #executionUnitPrices pp of
-        Just prices -> totalCost $ executionCost prices maxExecutionUnits
+_maxScriptExecutionCost pp redeemers
+    | not (null redeemers) = case view #executionUnitPrices pp of
+        Just prices -> executionCost prices maxExecutionUnits
         Nothing     -> Coin 0
+    | otherwise            = Coin 0
   where
     maxExecutionUnits :: ExecutionUnits
     maxExecutionUnits = view (#txParameters . #getMaxExecutionUnits) pp
 
-    totalCost :: Rational -> Coin
-    totalCost = Coin.unsafeNaturalToCoin . ceiling . (* (fromIntegral numberOfScripts) )
-
-    executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Rational
+    executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Coin
     executionCost (ExecutionUnitPrices perStep perMem) (W.ExecutionUnits steps mem) =
-        perStep * (toRational steps) + perMem * (toRational mem)
+        Coin.unsafeNaturalToCoin . ceiling $
+            perStep * (toRational steps) + perMem * (toRational mem)
 
 type AlonzoTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
