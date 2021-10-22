@@ -2263,6 +2263,9 @@ decodeTransaction
         , Typeable n
         , DelegationAddress n k
         , WalletKey k
+        , SoftDerivation k
+        , GetAccount s k
+        , GetPurpose k
         )
     => ctx
     -> ApiT WalletId

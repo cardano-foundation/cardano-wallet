@@ -281,6 +281,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
+    , coinTypeAda
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
@@ -1228,6 +1229,9 @@ lookupTxOuts
         , IsOurs s Address
         , WalletKey k
         , DelegationAddress n k
+        , GetPurpose k
+        , GetAccount s k
+        , SoftDerivation k
         )
     => ctx
     -> WalletId
@@ -1243,9 +1247,16 @@ lookupTxOuts ctx wid txouts xpub = db & \DBLayer{..} -> do
             ( extAddr @k @n addr xpub
             , addrState
             , ix )
-    -- TO DO I need to understand why I do not see change addresses after construction here
     let walletAddrs = map f $ knownAddresses (getState cp)
-    pure $ map (tryGetTxOutPath cp walletAddrs) txouts
+
+    --We are adding next 5 change addresses
+    let acctK = getAccount $ getState cp
+    let startIx = nextChangeIx walletAddrs
+    let changeAddrs = map (decoratechangeAddr acctK) [startIx .. startIx + 4]
+
+    let walletAddrs' = walletAddrs ++ changeAddrs
+
+    pure $ map (tryGetTxOutPath cp walletAddrs') txouts
   where
     db = ctx ^. dbLayer @IO @s @k
     tryGetTxOutPath cp walletAddrs txout@(TxOut addr _) =
@@ -1258,6 +1269,30 @@ lookupTxOuts ctx wid txouts xpub = db & \DBLayer{..} -> do
                         map tokens $
                         filter (\(TxOut addr' _) -> addr == extAddr @k @n addr' xpub) allTxOuts
                 in (txout, Just (TxOut addr bundles, path))
+    getChainType (_ :| [_,_,DerivationIndex i,_]) = i
+    getChainType _ = error "expect 5 segment derivation path"
+    changeIxs =
+        reverse .
+        L.sort .
+        map (\(_, _,path) -> getChainType path) .
+        filter (\(_, _,path) -> getChainType path == fromIntegral (fromEnum UtxoInternal))
+    nextChangeIx walletAddrs = case changeIxs walletAddrs of
+        [] -> 0
+        ix:_ -> ix + 1
+    changeAddrK acctK = deriveAddressPublicKey acctK UtxoInternal
+    constructDelegationAddr pAddr =
+        delegationAddress @n pAddr (liftRawKey @k xpub)
+    decoratechangeAddr acctK ix =
+        ( constructDelegationAddr $ changeAddrK acctK $ Index ix
+        , Unused
+        , NE.fromList $ map DerivationIndex
+            [ getIndex (getPurpose @k)
+            , getIndex coinTypeAda
+            , 0 -- when multi-account support is introduce this could change
+            , fromIntegral (fromEnum UtxoInternal)
+            , ix
+            ]
+        )
 
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
