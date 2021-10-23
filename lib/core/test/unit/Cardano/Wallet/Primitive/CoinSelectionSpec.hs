@@ -20,8 +20,7 @@ import Cardano.Wallet.Primitive.CoinSelection
     , SelectionError (..)
     , SelectionOutputInvalidError (..)
     , SelectionParams (..)
-    , VerifySelectionErrorResult (..)
-    , VerifySelectionResult (..)
+    , VerificationResult (..)
     , computeMinimumCollateral
     , performSelection
     , prepareOutputsWith
@@ -195,11 +194,11 @@ prop_performSelection_inner constraints params result =
         Right selection ->
             report selection "selection" $
             Pretty (verifySelection constraints params selection) ===
-            Pretty VerifySelectionSuccess
+            Pretty VerificationSuccess
         Left e ->
             report e "selection error" $
             Pretty (verifySelectionError constraints params e) ===
-            Pretty VerifySelectionErrorSuccess
+            Pretty VerificationSuccess
 
 prop_performSelection_coverage
     :: Testable property

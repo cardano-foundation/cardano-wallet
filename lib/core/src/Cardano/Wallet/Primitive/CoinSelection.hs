@@ -1,11 +1,13 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
@@ -39,12 +41,11 @@ module Cardano.Wallet.Primitive.CoinSelection
     , SelectionOutputSizeExceedsLimitError (..)
     , SelectionOutputTokenQuantityExceedsLimitError (..)
 
-    -- * Selection verification
-    , VerifySelectionResult (..)
-    , verifySelection
+    -- * Verification of post conditions
+    , VerificationResult (..)
 
-    -- * Selection error verification
-    , VerifySelectionErrorResult (..)
+    -- * Verification of selections and selection errors
+    , verifySelection
     , verifySelectionError
 
     -- * Selection deltas
@@ -103,8 +104,6 @@ import Control.Monad.Random.Class
     ( MonadRandom )
 import Control.Monad.Trans.Except
     ( ExceptT (..), withExceptT )
-import Data.Either
-    ( lefts )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -164,12 +163,12 @@ type PerformSelection m a =
 --  - if creation of a selection succeeds, a value @s@ of type 'Selection'
 --    will be returned for which the following property holds:
 --
---      >>> verifySelection cs ps s == VerifySelectionSuccess
+--      >>> verifySelection cs ps s == VerificationSuccess
 --
 --  - if creation of a selection fails, a value @e@ of type 'SelectionError'
 --    will be returned for which the following property holds:
 --
---      >>> verifySelectionError cs ps e == VerifySelectionErrorSuccess
+--      >>> verifySelectionError cs ps e == VerificationSuccess
 --
 performSelection
     :: (HasCallStack, MonadRandom m) => PerformSelection m Selection
@@ -363,42 +362,64 @@ toBalanceResult selection = Balance.SelectionResult
     }
 
 --------------------------------------------------------------------------------
+-- Verification of post conditions
+--------------------------------------------------------------------------------
+
+-- | The result of verifying a post condition.
+--
+data VerificationResult
+    = VerificationSuccess
+    | VerificationFailure (NonEmpty VerificationFailureReason)
+    deriving Show
+
+-- | Represents a reason for verification failure.
+--
+data VerificationFailureReason =
+    forall a. Show a => VerificationFailureReason a
+deriving instance Show VerificationFailureReason
+
+instance Eq VerificationResult where
+    r1 == r2 = show r1 == show r2
+
+instance Monoid VerificationResult where
+    mempty = VerificationSuccess
+
+instance Semigroup VerificationResult where
+    r1 <> r2 = verificationResultFromFailureReasons $ (<>)
+        (verificationResultToFailureReasons r1)
+        (verificationResultToFailureReasons r2)
+
+-- | Constructs a singleton verification failure.
+--
+verificationFailure :: forall a. Show a => a -> VerificationResult
+verificationFailure a = VerificationFailure (VerificationFailureReason a :| [])
+
+-- | Constructs a 'VerificationResult' from a list of failure reasons.
+--
+verificationResultFromFailureReasons
+    :: [VerificationFailureReason] -> VerificationResult
+verificationResultFromFailureReasons =
+    maybe VerificationSuccess VerificationFailure . NE.nonEmpty
+
+-- | Deconstructs a 'VerificationResult' into a list of failure reasons.
+--
+verificationResultToFailureReasons
+    :: VerificationResult -> [VerificationFailureReason]
+verificationResultToFailureReasons = \case
+    VerificationSuccess -> []
+    VerificationFailure reasons -> NE.toList reasons
+
+--------------------------------------------------------------------------------
 -- Selection verification
 --------------------------------------------------------------------------------
 
--- | The result of verifying a 'Selection' with 'verifySelection'.
---
-data VerifySelectionResult
-    = VerifySelectionSuccess
-    | VerifySelectionFailure (NonEmpty VerifySelectionFailureInfo)
-    deriving (Eq, Show)
-
--- | Indicates that verification of a 'Selection' has failed.
---
-data VerifySelectionFailureInfo
-    = VerifySelectionCollateralSufficientFailure
-      VerifySelectionCollateralSufficientFailureInfo
-    | VerifySelectionCollateralSuitableFailure
-      VerifySelectionCollateralSuitableFailureInfo
-    | VerifySelectionDeltaValidFailure
-      VerifySelectionDeltaValidFailureInfo
-    | VerifySelectionInputCountWithinLimitFailure
-      VerifySelectionInputCountWithinLimitFailureInfo
-    | VerifySelectionOutputCoinsSufficientFailure
-      VerifySelectionOutputCoinsSufficientFailureInfo
-    | VerifySelectionOutputSizesWithinLimitFailure
-      VerifySelectionOutputSizesWithinLimitFailureInfo
-    | VerifySelectionOutputTokenQuantitiesWithinLimitFailure
-      VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
-    deriving (Eq, Show)
-
 -- | The type of all 'Selection' verification functions.
 --
-type VerifySelection error =
+type VerifySelection =
     SelectionConstraints ->
     SelectionParams ->
     Selection ->
-    Maybe error
+    VerificationResult
 
 -- | Verifies a 'Selection' for correctness.
 --
@@ -406,56 +427,35 @@ type VerifySelection error =
 -- it's not usually necessary to call this function from ordinary application
 -- code, unless you suspect that a 'Selection' is incorrect in some way.
 --
-verifySelection
-    :: SelectionConstraints
-    -> SelectionParams
-    -> Selection
-    -> VerifySelectionResult
-verifySelection cs ps selection
-    | Just errorsNonEmpty <- NE.nonEmpty errors =
-        VerifySelectionFailure errorsNonEmpty
-    | otherwise =
-        VerifySelectionSuccess
-  where
-    errors :: [VerifySelectionFailureInfo]
-    errors = lefts
-        [ verifySelectionCollateralSufficient cs ps selection
-            `failWith` VerifySelectionCollateralSufficientFailure
-        , verifySelectionCollateralSuitable cs ps selection
-            `failWith` VerifySelectionCollateralSuitableFailure
-        , verifySelectionDeltaValid cs ps selection
-            `failWith` VerifySelectionDeltaValidFailure
-        , verifySelectionInputCountWithinLimit cs ps selection
-            `failWith` VerifySelectionInputCountWithinLimitFailure
-        , verifySelectionOutputCoinsSufficient cs ps selection
-            `failWith` VerifySelectionOutputCoinsSufficientFailure
-        , verifySelectionOutputSizesWithinLimit cs ps selection
-            `failWith` VerifySelectionOutputSizesWithinLimitFailure
-        , verifySelectionOutputTokenQuantitiesWithinLimit cs ps selection
-            `failWith` VerifySelectionOutputTokenQuantitiesWithinLimitFailure
-        ]
-
-    failWith :: Maybe e1 -> (e1 -> e2) -> Either e2 ()
-    onError `failWith` thisError = maybe (Right ()) (Left . thisError) onError
+verifySelection :: VerifySelection
+verifySelection = mconcat
+    [ verifySelectionCollateralSufficient
+    , verifySelectionCollateralSuitable
+    , verifySelectionDeltaValid
+    , verifySelectionInputCountWithinLimit
+    , verifySelectionOutputCoinsSufficient
+    , verifySelectionOutputSizesWithinLimit
+    , verifySelectionOutputTokenQuantitiesWithinLimit
+    ]
 
 --------------------------------------------------------------------------------
 -- Selection verification: collateral sufficiency
 --------------------------------------------------------------------------------
 
-data VerifySelectionCollateralSufficientFailureInfo =
-    VerifySelectionCollateralSufficientFailureInfo
+data FailureToVerifySelectionCollateralSufficient =
+    FailureToVerifySelectionCollateralSufficient
     { collateralSelected :: Coin
     , collateralRequired :: Coin
     }
     deriving (Eq, Show)
 
-verifySelectionCollateralSufficient
-    :: VerifySelection VerifySelectionCollateralSufficientFailureInfo
+verifySelectionCollateralSufficient :: VerifySelection
 verifySelectionCollateralSufficient cs ps selection
     | collateralSelected >= collateralRequired =
-        Nothing
+        VerificationSuccess
     | otherwise =
-        Just VerifySelectionCollateralSufficientFailureInfo
+        verificationFailure
+        FailureToVerifySelectionCollateralSufficient
             {collateralSelected, collateralRequired}
   where
     collateralSelected = selectionCollateral selection
@@ -465,8 +465,8 @@ verifySelectionCollateralSufficient cs ps selection
 -- Selection verification: collateral suitability
 --------------------------------------------------------------------------------
 
-data VerifySelectionCollateralSuitableFailureInfo =
-    VerifySelectionCollateralSuitableFailureInfo
+data FailureToVerifySelectionCollateralSuitable =
+    FailureToVerifySelectionCollateralSuitable
     { collateralSelected
         :: [(TxIn, TxOut)]
     , collateralSelectedButUnsuitable
@@ -474,13 +474,13 @@ data VerifySelectionCollateralSuitableFailureInfo =
     }
     deriving (Eq, Show)
 
-verifySelectionCollateralSuitable
-    :: VerifySelection VerifySelectionCollateralSuitableFailureInfo
+verifySelectionCollateralSuitable :: VerifySelection
 verifySelectionCollateralSuitable cs _ps selection
     | null collateralSelectedButUnsuitable =
-        Nothing
+        VerificationSuccess
     | otherwise =
-        Just VerifySelectionCollateralSuitableFailureInfo
+        verificationFailure
+        FailureToVerifySelectionCollateralSuitable
             {collateralSelected, collateralSelectedButUnsuitable}
   where
     collateralSelected =
@@ -495,7 +495,7 @@ verifySelectionCollateralSuitable cs _ps selection
 -- Selection verification: delta validity
 --------------------------------------------------------------------------------
 
-data VerifySelectionDeltaValidFailureInfo = VerifySelectionDeltaValidFailureInfo
+data FailureToVerifySelectionDeltaValid = FailureToVerifySelectionDeltaValid
     { delta
         :: SelectionDelta TokenBundle
     , minimumCost
@@ -505,13 +505,13 @@ data VerifySelectionDeltaValidFailureInfo = VerifySelectionDeltaValidFailureInfo
     }
     deriving (Eq, Show)
 
-verifySelectionDeltaValid
-    :: VerifySelection VerifySelectionDeltaValidFailureInfo
+verifySelectionDeltaValid :: VerifySelection
 verifySelectionDeltaValid cs ps selection
     | selectionHasValidSurplus cs ps selection =
-        Nothing
+        VerificationSuccess
     | otherwise =
-        Just VerifySelectionDeltaValidFailureInfo {..}
+        verificationFailure
+        FailureToVerifySelectionDeltaValid {..}
   where
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
@@ -521,8 +521,8 @@ verifySelectionDeltaValid cs ps selection
 -- Selection verification: selection limit
 --------------------------------------------------------------------------------
 
-data VerifySelectionInputCountWithinLimitFailureInfo =
-    VerifySelectionInputCountWithinLimitFailureInfo
+data FailureToVerifySelectionInputCountWithinLimit =
+    FailureToVerifySelectionInputCountWithinLimit
     { collateralInputCount
         :: Int
     , ordinaryInputCount
@@ -534,13 +534,13 @@ data VerifySelectionInputCountWithinLimitFailureInfo =
     }
     deriving (Eq, Show)
 
-verifySelectionInputCountWithinLimit
-    :: VerifySelection VerifySelectionInputCountWithinLimitFailureInfo
+verifySelectionInputCountWithinLimit :: VerifySelection
 verifySelectionInputCountWithinLimit cs _ps selection
     | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
-        Nothing
+        VerificationSuccess
     | otherwise =
-        Just VerifySelectionInputCountWithinLimitFailureInfo {..}
+        verificationFailure
+        FailureToVerifySelectionInputCountWithinLimit {..}
   where
     collateralInputCount = length (selection ^. #collateral)
     ordinaryInputCount = length (selection ^. #inputs)
@@ -551,8 +551,8 @@ verifySelectionInputCountWithinLimit cs _ps selection
 -- Selection verification: minimum ada quantities
 --------------------------------------------------------------------------------
 
-newtype VerifySelectionOutputCoinsSufficientFailureInfo =
-    VerifySelectionOutputCoinsSufficientFailureInfo
+newtype FailureToVerifySelectionOutputCoinsSufficient =
+    FailureToVerifySelectionOutputCoinsSufficient
     (NonEmpty SelectionOutputCoinInsufficientError)
     deriving (Eq, Show)
 
@@ -564,9 +564,11 @@ data SelectionOutputCoinInsufficientError =
     deriving (Eq, Show)
 
 verifySelectionOutputCoinsSufficient
-    :: VerifySelection VerifySelectionOutputCoinsSufficientFailureInfo
-verifySelectionOutputCoinsSufficient cs _ps selection =
-    VerifySelectionOutputCoinsSufficientFailureInfo <$> NE.nonEmpty errors
+    :: VerifySelection
+verifySelectionOutputCoinsSufficient cs _ps selection = maybe
+    (VerificationSuccess)
+    (verificationFailure . FailureToVerifySelectionOutputCoinsSufficient)
+    (NE.nonEmpty errors)
   where
     errors :: [SelectionOutputCoinInsufficientError]
     errors = mapMaybe maybeError (selectionAllOutputs selection)
@@ -588,15 +590,16 @@ verifySelectionOutputCoinsSufficient cs _ps selection =
 -- Selection verification: output sizes
 --------------------------------------------------------------------------------
 
-newtype VerifySelectionOutputSizesWithinLimitFailureInfo =
-    VerifySelectionOutputSizesWithinLimitFailureInfo
+newtype FailureToVerifySelectionOutputSizesWithinLimit =
+    FailureToVerifySelectionOutputSizesWithinLimit
     (NonEmpty SelectionOutputSizeExceedsLimitError)
     deriving (Eq, Show)
 
-verifySelectionOutputSizesWithinLimit
-    :: VerifySelection VerifySelectionOutputSizesWithinLimitFailureInfo
-verifySelectionOutputSizesWithinLimit cs _ps selection =
-    VerifySelectionOutputSizesWithinLimitFailureInfo <$> NE.nonEmpty errors
+verifySelectionOutputSizesWithinLimit :: VerifySelection
+verifySelectionOutputSizesWithinLimit cs _ps selection = maybe
+    (VerificationSuccess)
+    (verificationFailure . FailureToVerifySelectionOutputSizesWithinLimit)
+    (NE.nonEmpty errors)
   where
     errors :: [SelectionOutputSizeExceedsLimitError]
     errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs selection)
@@ -605,17 +608,17 @@ verifySelectionOutputSizesWithinLimit cs _ps selection =
 -- Selection verification: output token quantities
 --------------------------------------------------------------------------------
 
-newtype VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo =
-    VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
+newtype FailureToVerifySelectionOutputTokenQuantitiesWithinLimit =
+    FailureToVerifySelectionOutputTokenQuantitiesWithinLimit
     (NonEmpty SelectionOutputTokenQuantityExceedsLimitError)
     deriving (Eq, Show)
 
-verifySelectionOutputTokenQuantitiesWithinLimit ::
-    VerifySelection
-    VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
-verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection =
-    VerifySelectionOutputTokenQuantitiesWithinLimitFailureInfo
-        <$> NE.nonEmpty errors
+verifySelectionOutputTokenQuantitiesWithinLimit :: VerifySelection
+verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection = maybe
+    (VerificationSuccess)
+    (verificationFailure
+        . FailureToVerifySelectionOutputTokenQuantitiesWithinLimit)
+    (NE.nonEmpty errors)
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError]
     errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
@@ -624,29 +627,13 @@ verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection =
 -- Selection error verification
 --------------------------------------------------------------------------------
 
--- | The result of verifying a 'SelectionError' with 'verifySelectionError'.
---
-data VerifySelectionErrorResult
-    = VerifySelectionErrorSuccess
-    | VerifySelectionErrorFailure VerifySelectionErrorFailureInfo
-    deriving (Eq, Show)
-
-data VerifySelectionErrorFailureInfo
-    = VerifySelectionCollateralErrorFailure
-      VerifySelectionCollateralErrorFailureInfo
-    | VerifySelectionLimitReachedErrorFailure
-      VerifySelectionLimitReachedErrorFailureInfo
-    | VerifySelectionOutputSizeExceedsLimitErrorFailure
-      VerifySelectionOutputSizeExceedsLimitErrorFailureInfo
-    deriving (Eq, Show)
-
 -- | The type of all 'SelectionError' verification functions.
 --
 type VerifySelectionError e =
     SelectionConstraints ->
     SelectionParams ->
     e ->
-    VerifySelectionErrorResult
+    VerificationResult
 
 -- | Verifies a 'SelectionError' for correctness.
 --
@@ -654,8 +641,7 @@ type VerifySelectionError e =
 -- it's not usually necessary to call this function from ordinary application
 -- code, unless you suspect that a 'SelectionError' is incorrect in some way.
 --
-verifySelectionError
-    :: VerifySelectionError SelectionError
+verifySelectionError :: VerifySelectionError SelectionError
 verifySelectionError cs ps = \case
     SelectionBalanceError e ->
         verifySelectionBalanceError cs ps e
@@ -668,8 +654,7 @@ verifySelectionError cs ps = \case
 -- Selection error verification: balance errors
 --------------------------------------------------------------------------------
 
-verifySelectionBalanceError
-    :: VerifySelectionError Balance.SelectionError
+verifySelectionBalanceError :: VerifySelectionError Balance.SelectionError
 verifySelectionBalanceError cs ps = \case
     Balance.BalanceInsufficient _e ->
         temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
@@ -690,10 +675,10 @@ verifySelectionBalanceError cs ps = \case
     -- can reassert that these properties still hold.
     --
     temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule =
-        VerifySelectionErrorSuccess
+        VerificationSuccess
 
-data VerifySelectionLimitReachedErrorFailureInfo =
-    VerifySelectionLimitReachedErrorFailureInfo
+data FailureToVerifySelectionLimitReachedError =
+    FailureToVerifySelectionLimitReachedError
         { selectedInputs
             :: [(TxIn, TxOut)]
             -- ^ The inputs that were actually selected.
@@ -718,11 +703,10 @@ verifySelectionLimitReachedError
     :: VerifySelectionError Balance.SelectionLimitReachedError
 verifySelectionLimitReachedError cs ps e
     | Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted =
-        VerifySelectionErrorSuccess
+        VerificationSuccess
     | otherwise =
-        VerifySelectionErrorFailure $
-        VerifySelectionLimitReachedErrorFailure $
-        VerifySelectionLimitReachedErrorFailureInfo
+        verificationFailure
+        FailureToVerifySelectionLimitReachedError
             { selectedInputs
             , selectedInputCount
             , selectionLimitAdjusted
@@ -750,8 +734,8 @@ verifySelectionLimitReachedError cs ps e
 -- Selection error verification: collateral errors
 --------------------------------------------------------------------------------
 
-data VerifySelectionCollateralErrorFailureInfo =
-    VerifySelectionCollateralErrorFailureInfo
+data FailureToVerifySelectionCollateralError =
+    FailureToVerifySelectionCollateralError
         { largestCombination
             :: Map TxIn Coin
             -- ^ The largest available UTxO combination reported.
@@ -781,8 +765,7 @@ data VerifySelectionCollateralErrorFailureInfo =
         }
         deriving (Eq, Show)
 
-verifySelectionCollateralError
-    :: VerifySelectionError Collateral.SelectionError
+verifySelectionCollateralError :: VerifySelectionError Collateral.SelectionError
 verifySelectionCollateralError cs ps e
     | not (Map.null largestCombinationUnsuitableSubset) =
         reportFailure
@@ -791,12 +774,11 @@ verifySelectionCollateralError cs ps e
     | largestCombinationValue >= minimumSelectionAmount =
         reportFailure
     | otherwise =
-        VerifySelectionErrorSuccess
+        VerificationSuccess
   where
-    reportFailure
-        = VerifySelectionErrorFailure
-        $ VerifySelectionCollateralErrorFailure
-        $ VerifySelectionCollateralErrorFailureInfo {..}
+    reportFailure =
+        verificationFailure
+        FailureToVerifySelectionCollateralError {..}
 
     largestCombination :: Map TxIn Coin
     largestCombination = e ^. #largestCombinationAvailable
@@ -843,8 +825,8 @@ verifySelectionOutputError cs ps = \case
     SelectionOutputTokenQuantityExceedsLimit e ->
         verifySelectionOutputTokenQuantityExceedsLimitError cs ps e
 
-newtype VerifySelectionOutputSizeExceedsLimitErrorFailureInfo =
-    VerifySelectionOutputSizeExceedsLimitErrorFailureInfo
+newtype FailureToVerifySelectionOutputSizeExceedsLimitError =
+    FailureToVerifySelectionOutputSizeExceedsLimitError
         { outputReportedAsExceedingLimit :: TxOut }
     deriving (Eq, Show)
 
@@ -852,11 +834,10 @@ verifySelectionOutputSizeExceedsLimitError
     :: VerifySelectionError SelectionOutputSizeExceedsLimitError
 verifySelectionOutputSizeExceedsLimitError cs _ps e
     | isWithinLimit =
-        VerifySelectionErrorFailure $
-        VerifySelectionOutputSizeExceedsLimitErrorFailure
-        VerifySelectionOutputSizeExceedsLimitErrorFailureInfo {..}
+        verificationFailure $
+        FailureToVerifySelectionOutputSizeExceedsLimitError {..}
     | otherwise =
-        VerifySelectionErrorSuccess
+        VerificationSuccess
   where
     isWithinLimit = case (cs ^. #assessTokenBundleSize) bundle of
         TokenBundleSizeWithinLimit -> True
@@ -872,7 +853,7 @@ verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps _e =
     -- TODO: [ADP-1037]
     --
     -- Verify that the indicated output token quantity is above the limit.
-    VerifySelectionErrorSuccess
+    VerificationSuccess
 
 --------------------------------------------------------------------------------
 -- Selection deltas
