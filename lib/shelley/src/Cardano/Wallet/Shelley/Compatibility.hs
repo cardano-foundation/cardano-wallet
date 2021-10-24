@@ -363,6 +363,7 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.PParams as Shelley
+import qualified Cardano.Ledger.BaseTypes as BT
 import qualified Shelley.Spec.Ledger.UTxO as SL
 
 --------------------------------------------------------------------------------
@@ -804,7 +805,7 @@ fromLedgerShelleyPParams
     , Shelley._minUTxOValue
     , Shelley._minPoolCost
     } = Cardano.ProtocolParameters {
-      protocolParamProtocolVersion     = (\(Shelley.ProtVer a b) -> (a,b))
+      protocolParamProtocolVersion     = (\(BT.ProtVer a b) -> (a,b))
                                            _protocolVersion
     , protocolParamDecentralization    = SL.unboundRational _d
     , protocolParamExtraPraosEntropy   = fromLedgerNonce _extraEntropy
@@ -862,7 +863,7 @@ fromLedgerAlonzoPParams
     , Alonzo._collateralPercentage
     , Alonzo._maxCollateralInputs
     } = Cardano.ProtocolParameters {
-      protocolParamProtocolVersion     = (\(Shelley.ProtVer a b) -> (a,b))
+      protocolParamProtocolVersion     = (\(BT.ProtVer a b) -> (a,b))
                                            _protocolVersion
     , protocolParamDecentralization    = SL.unboundRational _d
     , protocolParamExtraPraosEntropy   = fromLedgerNonce _extraEntropy
@@ -950,7 +951,7 @@ toAlonzoPParams
     Alonzo.PParams
         { Alonzo._protocolVersion =
             let (maj, minor) = protocolParamProtocolVersion
-             in Alonzo.ProtVer maj minor
+             in BT.ProtVer maj minor
         , Alonzo._d =
             fromMaybe
                 (error "toAlonzoPParams: invalid Decentralization value")
@@ -1687,7 +1688,7 @@ toCardanoTxOut era = case era of
         Cardano.TxOut
             addrInEra
             (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
-            Cardano.TxOutDatumHashNone
+            Cardano.TxOutDatumNone
       where
         adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
         addrInEra = tina "toCardanoTxOut: malformed address"
@@ -1704,7 +1705,7 @@ toCardanoTxOut era = case era of
         Cardano.TxOut
             addrInEra
             (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
-            Cardano.TxOutDatumHashNone
+            Cardano.TxOutDatumNone
       where
         adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
         addrInEra = tina "toCardanoTxOut: malformed address"
@@ -1721,7 +1722,7 @@ toCardanoTxOut era = case era of
         Cardano.TxOut
             addrInEra
             (Cardano.TxOutValue Cardano.MultiAssetInMaryEra $ toCardanoValue tokens)
-            Cardano.TxOutDatumHashNone
+            Cardano.TxOutDatumNone
       where
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
@@ -1738,7 +1739,7 @@ toCardanoTxOut era = case era of
             (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra $ toCardanoValue tokens)
             datumHash
       where
-        datumHash = Cardano.TxOutDatumHashNone
+        datumHash = Cardano.TxOutDatumNone
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
                 <$> deserialiseFromRawBytes AsShelleyAddress addr
