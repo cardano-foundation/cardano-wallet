@@ -727,8 +727,8 @@ fromLedgerExUnits
     -> W.ExecutionUnits
 fromLedgerExUnits (Alonzo.ExUnits mem steps) =
     W.ExecutionUnits
-    { executionSteps = steps
-    , executionMemory = mem
+    { executionSteps = fromIntegral steps
+    , executionMemory = fromIntegral mem
     }
 
 toLedgerExUnits
@@ -736,8 +736,8 @@ toLedgerExUnits
     -> Alonzo.ExUnits
 toLedgerExUnits W.ExecutionUnits{executionSteps,executionMemory} =
     Alonzo.ExUnits
-    { Alonzo.exUnitsMem = executionMemory
-    , Alonzo.exUnitsSteps = executionSteps
+    { Alonzo.exUnitsMem = fromIntegral executionMemory
+    , Alonzo.exUnitsSteps = fromIntegral executionSteps
     }
 
 txParametersFromPParams
@@ -1654,7 +1654,7 @@ toTxIn :: SL.Crypto crypto => W.TxIn -> SL.TxIn crypto
 toTxIn (W.TxIn tid ix) =
     SL.TxIn (toTxId tid) (fromIntegral ix)
 
-toTxId :: W.Hash "Tx" -> SL.TxId crypto
+toTxId :: Crypto.HashAlgorithm (SL.HASH crypto) => W.Hash "Tx" -> SL.TxId crypto
 toTxId (W.Hash h) =
     (SL.TxId (SafeHash.unsafeMakeSafeHash $ UnsafeHash $ toShort h))
 
@@ -1676,14 +1676,14 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
     safeCast :: Word64 -> Integer
     safeCast = fromIntegral
 
-toCardanoTxOut :: ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut era
+toCardanoTxOut :: ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut Cardano.CtxTx era
 toCardanoTxOut era = case era of
     ShelleyBasedEraShelley -> toShelleyTxOut
     ShelleyBasedEraAllegra -> toAllegraTxOut
     ShelleyBasedEraMary    -> toMaryTxOut
     ShelleyBasedEraAlonzo  -> toAlonzoTxOut
   where
-    toShelleyTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ShelleyEra
+    toShelleyTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut Cardano.CtxTx ShelleyEra
     toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
@@ -1700,7 +1700,7 @@ toCardanoTxOut era = case era of
                 <$> deserialiseFromRawBytes AsByronAddress addr
             ]
 
-    toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AllegraEra
+    toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut Cardano.CtxTx AllegraEra
     toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
@@ -1717,7 +1717,7 @@ toCardanoTxOut era = case era of
                 <$> deserialiseFromRawBytes AsByronAddress addr
             ]
 
-    toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut MaryEra
+    toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut Cardano.CtxTx MaryEra
     toMaryTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
@@ -1732,7 +1732,7 @@ toCardanoTxOut era = case era of
                 <$> deserialiseFromRawBytes AsByronAddress addr
             ]
 
-    toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AlonzoEra
+    toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut Cardano.CtxTx AlonzoEra
     toAlonzoTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
