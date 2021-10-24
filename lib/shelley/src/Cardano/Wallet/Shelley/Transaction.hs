@@ -240,7 +240,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 import qualified Shelley.Spec.Ledger.Tx as Shelley
-import qualified Shelley.Spec.Ledger.UTxO as Ledger
+import qualified Cardano.Ledger.Shelley.UTxO as Ledger
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.

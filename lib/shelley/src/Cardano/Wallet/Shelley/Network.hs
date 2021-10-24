@@ -1180,7 +1180,7 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxBearerClosed -> do
         traceWith tr Nothing
         pure onResourceVanished
-    MuxBlockedOnCompletionVar _ -> pure False -- TODO: Is this correct?
+    -- MuxBlockedOnCompletionVar _ -> pure False -- TODO: Is this correct?
 
 {-------------------------------------------------------------------------------
                                     Logging

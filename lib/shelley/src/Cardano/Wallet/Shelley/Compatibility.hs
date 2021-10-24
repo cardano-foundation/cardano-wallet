@@ -361,10 +361,11 @@ import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
-import qualified Shelley.Spec.Ledger.BlockChain as SL
-import qualified Shelley.Spec.Ledger.PParams as Shelley
+import qualified Cardano.Ledger.Shelley.BlockChain as SL
+import qualified Cardano.Ledger.Shelley.PParams as Shelley
 import qualified Cardano.Ledger.BaseTypes as BT
-import qualified Shelley.Spec.Ledger.UTxO as SL
+import qualified Cardano.Ledger.Shelley.UTxO as SL
+import qualified Cardano.Ledger.TxIn as TxIn
 
 --------------------------------------------------------------------------------
 --
@@ -906,6 +907,7 @@ fromLedgerAlonzoPParams
       fromAlonzoScriptLanguage :: Alonzo.Language -> Cardano.AnyPlutusScriptVersion
       fromAlonzoScriptLanguage Alonzo.PlutusV1 =
           Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1
+      fromAlonzoScriptLanguage Alonzo.PlutusV2 = error "FIXME: fromAlonzoScriptLanguage Alonzo.PlutusV2"
 
       fromAlonzoCostModel :: Alonzo.CostModel -> Cardano.CostModel
       fromAlonzoCostModel (Alonzo.CostModel m) = Cardano.CostModel m
@@ -1028,6 +1030,8 @@ toAlonzoPParams
         toAlonzoScriptLanguage :: Cardano.AnyPlutusScriptVersion -> Alonzo.Language
         toAlonzoScriptLanguage (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1) =
             Alonzo.PlutusV1
+        toAlonzoScriptLanguage (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV2) =
+            error "FIXME: toAlonzoScriptLanguage (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV2)"
 
     toAlonzoPrices :: Cardano.ExecutionUnitPrices -> Maybe Alonzo.Prices
     toAlonzoPrices Cardano.ExecutionUnitPrices
@@ -1300,7 +1304,7 @@ fromShelleyTx
 fromShelleyTx tx =
     ( W.Tx
         { txId =
-            fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod
+            fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedCollateral =
@@ -1335,7 +1339,7 @@ fromAllegraTx
 fromAllegraTx tx =
     ( W.Tx
         { txId =
-            fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod
+            fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedCollateral =
@@ -1376,7 +1380,7 @@ fromMaryTx
 fromMaryTx tx =
     ( W.Tx
         { txId
-            = fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra MaryEra) bod
+            = fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra MaryEra) bod
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedCollateral =
@@ -1426,7 +1430,7 @@ fromAlonzoTxBodyAndAux
 fromAlonzoTxBodyAndAux bod mad =
     ( W.Tx
         { txId =
-            fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
+            fromShelleyTxId $ TxIn.txid @(Cardano.ShelleyLedgerEra AlonzoEra) bod
         , fee =
             Just $ fromShelleyCoin fee
         , resolvedCollateral =
