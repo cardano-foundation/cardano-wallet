@@ -95,7 +95,6 @@ module Cardano.Api.Gen
   , genStakePoolParameters
   , genProtocolParametersUpdate
   , genUpdateProposal
-  , genExtraScriptData
   , genWitness
   ) where
 
@@ -539,9 +538,9 @@ genScriptData =
 
 genExecutionUnits :: Gen ExecutionUnits
 genExecutionUnits = do
-    (Large steps) <- arbitrary
-    (Large mem) <- arbitrary
-    pure $ ExecutionUnits steps mem
+    (Large (steps :: Int)) <- arbitrary
+    (Large (mem :: Int)) <- arbitrary
+    pure $ ExecutionUnits (fromIntegral $ abs steps) (fromIntegral $ abs mem)
 
 genTxWithdrawals :: CardanoEra era -> Gen (TxWithdrawals BuildTx era)
 genTxWithdrawals era =
@@ -740,18 +739,18 @@ genTxOutValue era =
     Left adaOnlyInEra     -> TxOutAdaOnly adaOnlyInEra <$> genLovelace
     Right multiAssetInEra -> TxOutValue multiAssetInEra <$> genValueForTxOut
 
-genTxOut :: CardanoEra era -> Gen (TxOut era)
+genTxOut :: CardanoEra era -> Gen (TxOut ctx era)
 genTxOut era =
   TxOut <$> genAddressInEra era
         <*> genTxOutValue era
         <*> genTxOutDatumHash era
 
-genTxOutDatumHash :: CardanoEra era -> Gen (TxOutDatumHash era)
+genTxOutDatumHash :: CardanoEra era -> Gen (TxOutDatum ctx era)
 genTxOutDatumHash era =
     case scriptDataSupportedInEra era of
-        Nothing -> pure TxOutDatumHashNone
+        Nothing -> pure TxOutDatumNone
         Just supported -> oneof
-            [ pure TxOutDatumHashNone
+            [ pure TxOutDatumNone
             , TxOutDatumHash supported <$> genHashScriptData
             ]
 
@@ -1171,18 +1170,6 @@ genUpdateProposal era =
                       )
                 ]
 
-genExtraScriptData :: CardanoEra era -> Gen (TxExtraScriptData era)
-genExtraScriptData era =
-    case scriptDataSupportedInEra era of
-        Nothing ->
-            pure TxExtraScriptDataNone
-        Just supported ->
-            oneof
-                [ pure TxExtraScriptDataNone
-                , TxExtraScriptData supported
-                  <$> scale (`div` 3) (listOf genScriptData)
-                ]
-
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = do
     txIns <- map (, BuildTxWith (KeyWitness KeyWitnessForSpending))
@@ -1197,7 +1184,6 @@ genTxBodyContent era = do
     txUpdateProposal <- genUpdateProposal era
     txMintValue <- genTxMintValue era
     txScriptValidity <- genTxScriptValidity era
-    txExtraScriptData <- BuildTxWith <$> genExtraScriptData era
     txExtraKeyWits <- genExtraKeyWitnesses era
 
     let
@@ -1209,7 +1195,6 @@ genTxBodyContent era = do
             , Api.txValidityRange
             , Api.txMetadata
             , Api.txAuxScripts
-            , Api.txExtraScriptData
             , Api.txExtraKeyWits
             , Api.txProtocolParams = BuildTxWith Nothing
             , Api.txWithdrawals

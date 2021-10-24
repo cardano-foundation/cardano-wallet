@@ -207,7 +207,7 @@ import GHC.Generics
     ( Generic )
 import Ouroboros.Network.Block
     ( SlotNo )
-import Shelley.Spec.Ledger.API
+import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
 
 import qualified Cardano.Api as Cardano
@@ -244,7 +244,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 import qualified Shelley.Spec.Ledger.Tx as Shelley
-import qualified Shelley.Spec.Ledger.UTxO as Ledger
+import qualified Cardano.Ledger.Shelley.UTxO as Ledger
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -642,7 +642,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
         adjustBody (TxUpdate extraInputs extraCollateral extraOutputs feeUpdate) era body = case era of
             ShelleyBasedEraAlonzo -> body
                     { Alonzo.outputs = Alonzo.outputs body
-                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
+                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut <$> extraOutputs')
                     , Alonzo.inputs = Alonzo.inputs body
                         <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
                     , Alonzo.collateral = Alonzo.collateral body
@@ -658,7 +658,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                         (inputs
                             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
                         (outputs
-                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
+                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut <$> extraOutputs'))
                         certs
                         wdrls
                         (modifyFee txfee)
@@ -674,7 +674,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                         (inputs
                             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
                         (outputs
-                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
+                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut <$> extraOutputs'))
                         certs
                         wdrls
                         (modifyFee txfee)
@@ -690,7 +690,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                         (inputs
                             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
                         (outputs
-                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
+                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut <$> extraOutputs'))
                         certs
                         wdrls
                         (modifyFee txfee)
@@ -1683,8 +1683,6 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
 
     , txScriptValidity =
         Cardano.TxScriptValidityNone
-
-    , txExtraScriptData = Cardano.BuildTxWith Cardano.TxExtraScriptDataNone
 
     , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
 
