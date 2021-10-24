@@ -203,7 +203,7 @@ import GHC.Generics
     ( Generic )
 import Ouroboros.Network.Block
     ( SlotNo )
-import Shelley.Spec.Ledger.API
+import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
 
 import qualified Cardano.Api as Cardano

@@ -359,8 +359,8 @@ import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
-import qualified Shelley.Spec.Ledger.API as SL
-import qualified Shelley.Spec.Ledger.API as SLAPI
+import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.PParams as Shelley
 import qualified Shelley.Spec.Ledger.UTxO as SL

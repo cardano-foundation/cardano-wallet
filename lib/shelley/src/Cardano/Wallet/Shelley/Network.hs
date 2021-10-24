@@ -283,7 +283,7 @@ import qualified Data.Text as T
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 import qualified Ouroboros.Network.Point as Point
-import qualified Shelley.Spec.Ledger.API as SL
+import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 
 -- | Network layer cursor for Shelley. Mostly useless since the protocol itself is
