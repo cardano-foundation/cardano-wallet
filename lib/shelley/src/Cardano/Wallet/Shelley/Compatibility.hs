@@ -364,7 +364,6 @@ import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
 import qualified Cardano.Ledger.Shelley.PParams as Shelley
 import qualified Cardano.Ledger.BaseTypes as BT
-import qualified Cardano.Ledger.Shelley.UTxO as SL
 import qualified Cardano.Ledger.TxIn as TxIn
 
 --------------------------------------------------------------------------------

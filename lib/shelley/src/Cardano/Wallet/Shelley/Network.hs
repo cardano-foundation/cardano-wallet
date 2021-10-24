@@ -1092,7 +1092,7 @@ connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
             { nctMuxTracer = nullTracer
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
-    let socket = localSnocket iocp (nodeSocketFile conn)
+    let socket = localSnocket iocp
     recoveringNodeConnection tr handlers $
         connectTo socket tracers versions (nodeSocketFile conn)
 
