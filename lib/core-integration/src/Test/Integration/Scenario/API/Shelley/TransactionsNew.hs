@@ -46,6 +46,7 @@ import Cardano.Wallet.Api.Types
     , DecodeStakeAddress
     , EncodeAddress (..)
     , EncodeStakeAddress
+    , ResourceContext (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -295,6 +296,15 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
+        let txCbor = getFromResponse #transaction (HTTP.status202, Right $ ApiSerialisedTransaction signedTx)
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #withdrawals (`shouldBe` [])
+            ]
+
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
@@ -332,6 +342,21 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
+        let txCbor = getFromResponse #transaction (HTTP.status202, Right $ ApiSerialisedTransaction signedTx)
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let withdrawalWith ownership wdrls = case wdrls of
+                wdrl:[] ->
+                    wdrl ^. #amount == Quantity withdrawalAmt &&
+                    wdrl ^. #context == ownership
+                _ -> False
+
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #withdrawals (`shouldSatisfy` (withdrawalWith Our))
+            ]
+
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
@@ -355,6 +380,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (#balance . #reward . #getQuantity)
                         (`shouldBe` 0)
                 ]
+
+        wb <- fixtureWallet ctx
+        rDecodedTx' <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wb) Default decodePayload
+        verify rDecodedTx'
+            [ expectResponseCode HTTP.status202
+            , expectField #withdrawals (`shouldSatisfy` (withdrawalWith External))
+            ]
 
     it "TRANS_NEW_CREATE_03b - Withdrawal from external wallet" $ \ctx -> runResourceT $ do
 
