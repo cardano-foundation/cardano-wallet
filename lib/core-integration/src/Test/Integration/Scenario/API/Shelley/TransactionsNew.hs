@@ -67,6 +67,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx
     , TxIn (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
     , TxScriptValidity (..)
     , TxStatus (..)
     , cardanoTx
@@ -251,6 +253,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 Just (Cardano.TxMetaText "hello") -> pure ()
                 Just _ -> error "Tx metadata incorrect"
 
+        let txCbor = getFromResponse #transaction (HTTP.status202, Right $ ApiSerialisedTransaction signedTx)
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        let expMetadata = ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata (`shouldBe` (ApiTxMetadata (Just expMetadata)))
+            ]
+
         -- Submit tx
         void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
 
@@ -392,7 +404,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` rewardInitialBalance)
                 ]
 
-    it "TRANS_NEW_CREATE_04a - Single Output Transaction" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_04a - Single Output Transaction with decode transaction" $ \ctx -> runResourceT $ do
 
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
