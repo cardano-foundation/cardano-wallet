@@ -201,7 +201,7 @@ register
         ( Ord key
         , key ~ WorkerKey ctx
         , msg ~ WorkerMsg ctx
-        , HasLogger (WorkerLog key msg) ctx
+        , HasLogger IO (WorkerLog key msg) ctx
         , HasWorkerCtx resource ctx
         )
     => WorkerRegistry key resource
@@ -219,7 +219,7 @@ register registry ctx k (MkWorker before main after acquire) = do
     threadId <- work `forkFinally` cleanup resourceVar
     takeMVar resourceVar >>= traverse (create threadId)
   where
-    tr = ctx ^. logger @(WorkerLog key msg)
+    tr = ctx ^. logger @IO @(WorkerLog key msg)
     create threadId resource = do
         let worker = Worker
                 { workerId = k
