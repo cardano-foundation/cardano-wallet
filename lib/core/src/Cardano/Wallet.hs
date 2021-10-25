@@ -289,6 +289,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( ParentContext (..)
     , SeqState
     , defaultAddressPoolGap
+    , getAddressPoolGap
     , mkSeqStateFromRootXPrv
     , purposeBIP44
     )
@@ -1249,10 +1250,11 @@ lookupTxOuts ctx wid txouts xpub = db & \DBLayer{..} -> do
             , ix )
     let walletAddrs = map f $ knownAddresses (getState cp)
 
-    --We are adding next 5 change addresses
+    --We are analyzing the next gapPool change addresses
     let acctK = getAccount $ getState cp
+    let g  = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
     let startIx = nextChangeIx walletAddrs
-    let changeAddrs = map (decoratechangeAddr acctK) [startIx .. startIx + 4]
+    let changeAddrs = map (decoratechangeAddr acctK) [startIx .. startIx + g]
 
     let walletAddrs' = walletAddrs ++ changeAddrs
 
