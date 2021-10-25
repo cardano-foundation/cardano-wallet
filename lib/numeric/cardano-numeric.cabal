@@ -59,6 +59,6 @@ test-suite unit
   hs-source-dirs:
       test/unit
   main-is:
-      Main.hs
+      numeric-unit-test.hs
   other-modules:
       Cardano.Numeric.UtilSpec

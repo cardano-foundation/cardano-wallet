@@ -93,7 +93,7 @@ test-suite unit
   hs-source-dirs:
       test/unit
   main-is:
-      Main.hs
+      launcher-unit-test.hs
   other-modules:
       Cardano.LauncherSpec
     , Cardano.StartupSpec
