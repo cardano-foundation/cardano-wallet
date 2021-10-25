@@ -172,6 +172,7 @@
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."hspec-core" or (errorHandler.buildDepError "hspec-core"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
+            (hsPkgs."MonadRandom" or (errorHandler.buildDepError "MonadRandom"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
             (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
