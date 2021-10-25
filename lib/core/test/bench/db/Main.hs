@@ -39,6 +39,8 @@
 -- there are database statements with more parameters than that, the DBLayer
 -- will throw exceptions.
 
+module Main where
+
 import Prelude
 
 import Cardano.Address.Derivation
