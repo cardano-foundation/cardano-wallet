@@ -83,6 +83,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiCredential (..)
+    , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiEpochInfo (..)
     , ApiEra (..)
@@ -137,7 +138,9 @@ import Cardano.Wallet.Api.Types
     , ApiTxCollateral (..)
     , ApiTxId (..)
     , ApiTxInput (..)
+    , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
+    , ApiTxOutputGeneral (..)
     , ApiUtxoStatistics (..)
     , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
@@ -148,16 +151,19 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletDiscovery (..)
+    , ApiWalletInput (..)
     , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
+    , ApiWalletOutput (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ApiWalletSignData (..)
     , ApiWalletUtxoSnapshot (..)
     , ApiWalletUtxoSnapshotEntry (..)
     , ApiWithdrawal (..)
+    , ApiWithdrawalGeneral (..)
     , ApiWithdrawalPostData (..)
     , Base (Base16, Base64)
     , ByronWalletFromXPrvPostData (..)
@@ -174,6 +180,7 @@ import Cardano.Wallet.Api.Types
     , PostMintBurnAssetData (..)
     , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
+    , ResourceContext (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
     , VerificationKeyHashing (..)
@@ -544,6 +551,10 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
             jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
             jsonRoundtripAndGolden $ Proxy @ApiTxMetadata
+            jsonRoundtripAndGolden $ Proxy @(ApiDecodedTransaction ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiTxInputGeneral ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiTxOutputGeneral ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiWithdrawalGeneral ('Testnet 0))
 
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceAction
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceActionPostData
@@ -1154,6 +1165,20 @@ spec = parallel $ do
                     , mint = mint (x :: ApiConstructTransactionData ('Testnet 0))
                     , delegations = delegations (x :: ApiConstructTransactionData ('Testnet 0))
                     , validityInterval = validityInterval (x :: ApiConstructTransactionData ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiDecodedTransaction" $ property $ \x ->
+            let
+                x' = ApiDecodedTransaction
+                    { id = id (x :: ApiDecodedTransaction ('Testnet 0))
+                    , fee = fee (x :: ApiDecodedTransaction ('Testnet 0))
+                    , inputs = inputs (x :: ApiDecodedTransaction ('Testnet 0))
+                    , outputs = outputs (x :: ApiDecodedTransaction ('Testnet 0))
+                    , collateral = collateral (x :: ApiDecodedTransaction ('Testnet 0))
+                    , withdrawals = withdrawals (x :: ApiDecodedTransaction ('Testnet 0))
+                    , metadata = metadata (x :: ApiDecodedTransaction ('Testnet 0))
+                    , scriptValidity = scriptValidity (x :: ApiDecodedTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -2091,6 +2116,53 @@ instance Arbitrary (ApiRedeemer n) where
         , ApiRedeemerRewarding <$> arbitrary <*> arbitrary
         ]
 
+instance Arbitrary (ApiTxInputGeneral n) where
+    arbitrary = oneof
+        [ ExternalInput <$> arbitrary
+        , WalletInput <$> arbitrary
+        ]
+
+instance Arbitrary (ApiWithdrawalGeneral (t :: NetworkDiscriminant)) where
+    arbitrary = ApiWithdrawalGeneral
+        <$> fmap (, Proxy @t) arbitrary
+        <*> arbitrary
+        <*> oneof [pure External, pure Our]
+
+instance Arbitrary (ApiWalletInput n) where
+    arbitrary = ApiWalletInput
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary (ApiWalletOutput n) where
+    arbitrary = ApiWalletOutput
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary (ApiTxOutputGeneral n) where
+    arbitrary = oneof
+        [ ExternalOutput <$> arbitrary
+        , WalletOutput <$> arbitrary
+        ]
+
+instance Arbitrary (ApiDecodedTransaction n) where
+    arbitrary = ApiDecodedTransaction
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
 instance Arbitrary StakeAddress where
     arbitrary = do
         header  <- elements [ BS.singleton 241, BS.singleton 224 ]
@@ -2825,6 +2897,11 @@ instance Typeable n => ToSchema (ApiConstructTransaction n) where
 
 instance ToSchema ApiMultiDelegationAction where
     declareNamedSchema _ = declareSchemaForDefinition "ApiMultiDelegationAction"
+
+instance Typeable n => ToSchema (ApiDecodedTransaction n) where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        declareSchemaForDefinition "ApiDecodedTransaction"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
