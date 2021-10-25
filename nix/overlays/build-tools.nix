@@ -70,8 +70,15 @@ pkgs: super: let
 in {
   haskell-build-tools = pkgs.recurseIntoAttrs
     ((super.haskell-build-tools or {})
-      // { inherit regenerateMaterialized; }
-      // mapExes hsPkgs);
+      // mapExes hsPkgs
+      // {
+        inherit regenerateMaterialized;
+        haskell-language-server-wrapper = pkgs.runCommandNoCC "haskell-language-server-wrapper" {} ''
+          mkdir -p $out/bin
+          hls=${hsPkgs.haskell-language-server.components.exes.haskell-language-server}
+          ln -s $hls/bin/haskell-language-server $out/bin/haskell-language-server-wrapper
+        '';
+      });
 
   # These overrides are picked up by cabalWrapped in iohk-nix
   cabal = pkgs.haskell-build-tools.cabal-install;
