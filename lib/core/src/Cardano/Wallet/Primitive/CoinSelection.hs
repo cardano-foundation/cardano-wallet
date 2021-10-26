@@ -454,9 +454,7 @@ verifySelectionCollateralSufficient cs ps selection
     | collateralSelected >= collateralRequired =
         VerificationSuccess
     | otherwise =
-        verificationFailure
-        FailureToVerifySelectionCollateralSufficient
-            {collateralSelected, collateralRequired}
+        verificationFailure FailureToVerifySelectionCollateralSufficient {..}
   where
     collateralSelected = selectionCollateral selection
     collateralRequired = selectionMinimumCollateral cs ps selection
@@ -479,9 +477,7 @@ verifySelectionCollateralSuitable cs _ps selection
     | null collateralSelectedButUnsuitable =
         VerificationSuccess
     | otherwise =
-        verificationFailure
-        FailureToVerifySelectionCollateralSuitable
-            {collateralSelected, collateralSelectedButUnsuitable}
+        verificationFailure FailureToVerifySelectionCollateralSuitable {..}
   where
     collateralSelected =
         selection ^. #collateral
@@ -510,8 +506,7 @@ verifySelectionDeltaValid cs ps selection
     | selectionHasValidSurplus cs ps selection =
         VerificationSuccess
     | otherwise =
-        verificationFailure
-        FailureToVerifySelectionDeltaValid {..}
+        verificationFailure FailureToVerifySelectionDeltaValid {..}
   where
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
@@ -539,8 +534,7 @@ verifySelectionInputCountWithinLimit cs _ps selection
     | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
         VerificationSuccess
     | otherwise =
-        verificationFailure
-        FailureToVerifySelectionInputCountWithinLimit {..}
+        verificationFailure FailureToVerifySelectionInputCountWithinLimit {..}
   where
     collateralInputCount = length (selection ^. #collateral)
     ordinaryInputCount = length (selection ^. #inputs)
@@ -705,13 +699,7 @@ verifySelectionLimitReachedError cs ps e
     | Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted =
         VerificationSuccess
     | otherwise =
-        verificationFailure
-        FailureToVerifySelectionLimitReachedError
-            { selectedInputs
-            , selectedInputCount
-            , selectionLimitAdjusted
-            , selectionLimitOriginal
-            }
+        verificationFailure FailureToVerifySelectionLimitReachedError {..}
   where
     selectedInputs :: [(TxIn, TxOut)]
     selectedInputs = e ^. #inputsSelected
@@ -777,8 +765,7 @@ verifySelectionCollateralError cs ps e
         VerificationSuccess
   where
     reportFailure =
-        verificationFailure
-        FailureToVerifySelectionCollateralError {..}
+        verificationFailure FailureToVerifySelectionCollateralError {..}
 
     largestCombination :: Map TxIn Coin
     largestCombination = e ^. #largestCombinationAvailable
@@ -834,7 +821,7 @@ verifySelectionOutputSizeExceedsLimitError
     :: VerifySelectionError SelectionOutputSizeExceedsLimitError
 verifySelectionOutputSizeExceedsLimitError cs _ps e
     | isWithinLimit =
-        verificationFailure $
+        verificationFailure
         FailureToVerifySelectionOutputSizeExceedsLimitError {..}
     | otherwise =
         VerificationSuccess
