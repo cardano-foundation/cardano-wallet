@@ -362,10 +362,10 @@ test-suite unit
   type:
       exitcode-stdio-1.0
   hs-source-dirs:
+      test-common
       test/unit
-      test/shared
   main-is:
-      Main.hs
+      core-unit-test.hs
   other-modules:
       Cardano.Byron.Codec.CborSpec
       Cardano.DB.Sqlite.DeleteSpec
@@ -472,9 +472,9 @@ benchmark db
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
-      test/bench/db
-      test/shared
+      bench
+      test-common
   main-is:
-      Main.hs
+      db-bench.hs
   other-modules:
       Cardano.Wallet.DummyTarget.Primitive.Types

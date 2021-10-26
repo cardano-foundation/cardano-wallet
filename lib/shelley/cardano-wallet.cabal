@@ -245,7 +245,7 @@ test-suite unit
   hs-source-dirs:
       test/unit
   main-is:
-      Main.hs
+      shelley-unit-test.hs
   other-modules:
       Cardano.Wallet.Shelley.CompatibilitySpec
       Cardano.Wallet.Shelley.Compatibility.LedgerSpec
@@ -293,7 +293,7 @@ test-suite integration
   hs-source-dirs:
       test/integration
   main-is:
-      Main.hs
+      shelley-integration-test.hs
   other-modules:
       Cardano.Wallet.Shelley.Faucet
 
@@ -332,7 +332,7 @@ benchmark restore
   hs-source-dirs:
       bench
   main-is:
-      Restore.hs
+      restore-bench.hs
 
 benchmark latency
   default-language:
@@ -368,6 +368,6 @@ benchmark latency
       bench
       test/integration
   main-is:
-      Latency.hs
+      latency-bench.hs
   other-modules:
       Cardano.Wallet.Shelley.Faucet
