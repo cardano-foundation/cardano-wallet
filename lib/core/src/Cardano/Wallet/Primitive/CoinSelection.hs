@@ -834,13 +834,19 @@ verifySelectionOutputSizeExceedsLimitError cs _ps e
 
     outputReportedAsExceedingLimit = e ^. #outputThatExceedsLimit
 
+newtype FailureToVerifySelectionOutputTokenQuantityExceedsLimitError =
+    FailureToVerifySelectionOutputTokenQuantityExceedsLimitError
+        { reportedError :: SelectionOutputTokenQuantityExceedsLimitError }
+    deriving (Eq, Show)
+
 verifySelectionOutputTokenQuantityExceedsLimitError
     :: VerifySelectionError SelectionOutputTokenQuantityExceedsLimitError
-verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps _e =
-    -- TODO: [ADP-1037]
-    --
-    -- Verify that the indicated output token quantity is above the limit.
-    VerificationSuccess
+verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps e
+    | e ^. #quantity <= e ^. #quantityMaxBound =
+        verificationFailure $
+        FailureToVerifySelectionOutputTokenQuantityExceedsLimitError e
+    | otherwise =
+        VerificationSuccess
 
 --------------------------------------------------------------------------------
 -- Selection deltas
