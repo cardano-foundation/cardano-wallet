@@ -136,6 +136,7 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -651,7 +652,7 @@ verifySelectionBalanceError cs ps = \case
     Balance.BalanceInsufficient _e ->
         temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
     Balance.EmptyUTxO ->
-        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+        verifyEmptyUTxOError cs ps ()
     Balance.InsufficientMinCoinValues _e ->
         temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
     Balance.UnableToConstructChange _e ->
@@ -668,6 +669,18 @@ verifySelectionBalanceError cs ps = \case
     --
     temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule =
         VerificationSuccess
+
+newtype FailureToVerifyEmptyUTxOError = FailureToVerifyEmptyUTxOError
+    { utxoAvailableForInputs :: UTxOSelection }
+    deriving (Eq, Show)
+
+verifyEmptyUTxOError :: VerifySelectionError ()
+verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e
+    | utxoAvailableForInputs == UTxOSelection.empty =
+        VerificationSuccess
+    | otherwise =
+        verificationFailure
+        FailureToVerifyEmptyUTxOError {utxoAvailableForInputs}
 
 data FailureToVerifySelectionLimitReachedError =
     FailureToVerifySelectionLimitReachedError
