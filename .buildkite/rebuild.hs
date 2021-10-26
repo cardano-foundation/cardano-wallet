@@ -259,6 +259,9 @@ listLocalPackages =
     isBuild = contains "./.stack-work" <|> contains "./dist"
     textLines shell = fold (format fp <$> shell) Fold.list
 
+findStackWork :: FilePath -> Shell FilePath
+findStackWork = find (ends "/.stack-work")
+
 ----------------------------------------------------------------------------
 -- Buildkite
 -- https://buildkite.com/docs/pipelines/environment-variables
@@ -326,7 +329,11 @@ titled heading action = do
 -- Weeder - uses .hie files in .stack-work to determine unused dependencies
 
 weederStep :: DryRun -> IO ExitCode
-weederStep dryRun = run dryRun "weeder" ["--require-hs-files"]
+weederStep dryRun = do
+    workDirs <- fold (findStackWork ".") Fold.list
+    run dryRun "weeder" ("--require-hs-files":map hieDirArg workDirs)
+  where
+    hieDirArg = format ("--hie-directory="%fp)
 
 ----------------------------------------------------------------------------
 -- Stack Haskell Program Coverage and upload to Coveralls
@@ -472,7 +479,7 @@ restoreStackRoot cfg@CICacheConfig{..} = do
 restoreStackWork :: CICacheConfig -> IO ()
 restoreStackWork cfg = do
     restoreZippedCache stackWorkCache cfg (TB.procs "tar" ["-x"])
-    sh (find (ends ".stack-work") "." >>= makeCacheLive)
+    sh (findStackWork "." >>= makeCacheLive)
 
 restoreZippedCache
     :: FilePath
