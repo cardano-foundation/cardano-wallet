@@ -638,7 +638,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
         adjustBody (TxUpdate extraInputs extraCollateral extraOutputs modifyFee) era body = case era of
             ShelleyBasedEraAlonzo -> body
                     { Alonzo.outputs = Alonzo.outputs body
-                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
+                        <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut <$> extraOutputs')
                     , Alonzo.inputs = Alonzo.inputs body
                         <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs')
                     , Alonzo.collateral = Alonzo.collateral body
@@ -654,7 +654,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                         (inputs
                             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
                         (outputs
-                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
+                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut <$> extraOutputs'))
                         certs
                         wdrls
                         (modifyFee' txfee)
@@ -670,7 +670,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                         (inputs
                             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
                         (outputs
-                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
+                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut <$> extraOutputs'))
                         certs
                         wdrls
                         (modifyFee' txfee)
@@ -686,7 +686,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                         (inputs
                             <> Set.fromList (Cardano.toShelleyTxIn <$> extraInputs'))
                         (outputs
-                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
+                            <> StrictSeq.fromList (Cardano.toShelleyTxOut era . Cardano.toCtxUTxOTxOut <$> extraOutputs'))
                         certs
                         wdrls
                         (modifyFee' txfee)
