@@ -1365,7 +1365,7 @@ balanceTransaction
                     , inputs
                     , fst <$> (sel' ^. #collateral)
                     , sel' ^. #change
-                )
+                    )
         withExceptT ErrBalanceTxSelectAssets $
             selectAssets @_ @m @s @k ctx pp SelectAssetsParams
                 { outputs
@@ -1381,18 +1381,18 @@ balanceTransaction
     -- Once the coin-selection is done, we need to
     --
     -- (a) Add selected inputs, collateral and change outputs to the transaction
-    -- (b) Assign correct execution units to every redeemers
+    -- (b) Assign correct execution units to every redeemer
     -- (c) Correctly reference redeemed entities with redeemer pointers
     -- (d) Adjust fees and change output(s) to the new fees.
     --
     -- There's a strong assumption that modifying the fee value AND increasing
-    -- the coin value of change outputs does not modify transaction fees; or
+    -- the coin values of change outputs does not modify transaction fees; or
     -- more exactly, does not modify the execution units of scripts. This is in
-    -- principle a fair assumption because scripts validators ought to be
-    -- unaware of change outputs. If their execution cost increases when change
-    -- output increases, then it becomes impossible to guarantee that the fee
+    -- principle a fair assumption because script validators ought to be
+    -- unaware of change outputs. If their execution costs increase when change
+    -- output values increase, then it becomes impossible to guarantee that fee
     -- balancing will ever converge towards a fixed point. A script validator
-    -- doing such thing is considered bonkers and this is not a behavior we
+    -- doing such a thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
     candidateTx <- assembleTransaction $ TxUpdate
@@ -1429,24 +1429,29 @@ balanceTransaction
             (\(_,o) -> (o, Nothing)) <$> L.find (\(i',_) -> i == i') (extraInputs update)
 
     extractFromTx tx =
-        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt, toMint, toBurn) = decodeTx tl tx
+        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt, toMint, toBurn)
+                = decodeTx tl tx
             -- TODO: Find a better abstraction that can cover this case.
             wdrl = WithdrawalSelf
-                (error $ "WithdrawalSelf: reward-account should never been use "
-                      <> "when balancing transactions but it was!"
+                (error $ unwords
+                    [ "WithdrawalSelf: reward account should never have been used"
+                    , "when balancing a transaction, but it was!"
+                    ]
                 )
-                (error $ "WithdrawalSelf: derivation path should never been use "
-                      <> "when balancing transactions but it was!"
+                (error $ unwords
+                    [ "WithdrawalSelf: derivation path should never have been used"
+                    , "when balancing a transaction, but it was!"
+                    ]
                 )
                 (sumCoins wdrlMap)
          in (outs, wdrl, meta, toMint, toBurn)
 
     -- | Wallet coin selection is unaware of many kinds of transaction content
     -- (e.g. datums, redeemers), which could be included in the input to
-    -- `balanceTransaction`. As a workaround we add some padding using
-    -- `evaluateMinimumFee`.
+    -- 'balanceTransaction'. As a workaround we add some padding using
+    -- 'evaluateMinimumFee'.
     --
-    -- TODO: This logic needs to be consistent with how we call `selectAssets`,
+    -- TODO: This logic needs to be consistent with how we call 'selectAssets',
     -- so it would be good to join them into some single helper.
     padFeeEstimation
         :: SealedTx
@@ -1466,8 +1471,10 @@ balanceTransaction
             -- redeemers ex units increased from 0 to their actual values.
             extraMargin = Coin $ ceiling $ (*) b $ fromIntegral
                 $ sizeOfScriptIntegrityHash
-                + sum ((+sizeOfRedeemerCommon) . BS.length . redeemerData <$> redeemers)
+                + sum (map sizeOfRedeemer redeemers)
               where
+                sizeOfRedeemer
+                    = (+ sizeOfRedeemerCommon) . BS.length . redeemerData
                 sizeOfScriptIntegrityHash = 35
                 sizeOfRedeemerCommon = 17
 

@@ -931,8 +931,10 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
     evaluateExecutionUnits
         :: Map Alonzo.RdmrPtr Redeemer
         -> AlonzoTx
-        -> Either ErrAssignRedeemers (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnits indexedRedeemers alonzoTx = left ErrAssignRedeemersPastHorizon $ do
+        -> Either ErrAssignRedeemers
+            (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
+    evaluateExecutionUnits indexedRedeemers alonzoTx =
+        left ErrAssignRedeemersPastHorizon $ do
         let utxo = utxoFromAlonzoTx alonzoTx
         let costs = toCostModelsAsArray (Alonzo._costmdls pparams)
         let systemStart = getSystemStart ti

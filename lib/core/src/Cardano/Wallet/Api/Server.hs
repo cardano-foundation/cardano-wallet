@@ -2350,7 +2350,8 @@ delegationFee ctx (ApiT wid) = do
             W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
-        mkApiFee (Just deposit) [] <$> W.estimateFee (runSelection wrk pp deposit w)
+        mkApiFee (Just deposit) [] <$>
+            W.estimateFee (runSelection wrk pp deposit w)
   where
     txCtx :: TransactionCtx
     txCtx = defaultTransactionCtx
