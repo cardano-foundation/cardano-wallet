@@ -80,6 +80,8 @@ module Cardano.Wallet.Primitive.CoinSelection
 
 import Prelude
 
+import Algebra.PartialOrd
+    ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionDelta (..), SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types.Address
@@ -689,8 +691,8 @@ verifySelectionError cs ps = \case
 
 verifySelectionBalanceError :: VerifySelectionError Balance.SelectionError
 verifySelectionBalanceError cs ps = \case
-    Balance.BalanceInsufficient _e ->
-        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+    Balance.BalanceInsufficient e ->
+        verifyBalanceInsufficientError cs ps e
     Balance.EmptyUTxO ->
         verifyEmptyUTxOError cs ps ()
     Balance.InsufficientMinCoinValues _e ->
@@ -709,6 +711,26 @@ verifySelectionBalanceError cs ps = \case
     --
     temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule =
         VerificationSuccess
+
+data FailureToVerifyBalanceInsufficientError =
+    FailureToVerifyBalanceInsufficientError
+    { utxoBalanceAvailable :: TokenBundle
+    , utxoBalanceRequired :: TokenBundle
+    }
+    deriving (Eq, Show)
+
+verifyBalanceInsufficientError
+    :: VerifySelectionError Balance.BalanceInsufficientError
+verifyBalanceInsufficientError cs ps e =
+    verifyAll
+        [ not (utxoBalanceRequired `leq` utxoBalanceAvailable)
+        , not (Balance.isUTxOBalanceSufficient balanceParams)
+        ]
+        FailureToVerifyBalanceInsufficientError {..}
+  where
+    balanceParams = snd $ toBalanceConstraintsParams (cs, ps)
+    utxoBalanceAvailable = e ^. #utxoBalanceAvailable
+    utxoBalanceRequired = e ^. #utxoBalanceRequired
 
 newtype FailureToVerifyEmptyUTxOError = FailureToVerifyEmptyUTxOError
     { utxoAvailableForInputs :: UTxOSelection }
