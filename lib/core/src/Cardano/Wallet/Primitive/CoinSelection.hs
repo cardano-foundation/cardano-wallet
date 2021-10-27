@@ -550,15 +550,13 @@ newtype FailureToVerifySelectionOutputCoinsSufficient =
     (NonEmpty SelectionOutputCoinInsufficientError)
     deriving (Eq, Show)
 
-data SelectionOutputCoinInsufficientError =
-    SelectionOutputCoinInsufficientError
+data SelectionOutputCoinInsufficientError = SelectionOutputCoinInsufficientError
     { minimumExpectedCoin :: Coin
     , output :: TxOut
     }
     deriving (Eq, Show)
 
-verifySelectionOutputCoinsSufficient
-    :: VerifySelection
+verifySelectionOutputCoinsSufficient :: VerifySelection
 verifySelectionOutputCoinsSufficient cs _ps selection = maybe
     (VerificationSuccess)
     (verificationFailure . FailureToVerifySelectionOutputCoinsSufficient)
@@ -804,8 +802,7 @@ verifySelectionCollateralError cs ps e
 -- Selection error verification: output errors
 --------------------------------------------------------------------------------
 
-verifySelectionOutputError
-    :: VerifySelectionError SelectionOutputInvalidError
+verifySelectionOutputError :: VerifySelectionError SelectionOutputInvalidError
 verifySelectionOutputError cs ps = \case
     SelectionOutputSizeExceedsLimit e ->
         verifySelectionOutputSizeExceedsLimitError cs ps e
