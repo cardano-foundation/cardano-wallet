@@ -1404,7 +1404,7 @@ balanceTransaction
     let candidateMinFee = fromMaybe (Coin 0) $
             evaluateMinimumFee tl nodePParams candidateTx
 
-    let surplus = delta `Coin.distance` candidateMinFee
+    let surplus = delta `Coin.difference` candidateMinFee
     assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
