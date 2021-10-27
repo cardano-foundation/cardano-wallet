@@ -376,7 +376,8 @@ data VerificationResult
 -- | Represents a reason for verification failure.
 --
 data VerificationFailureReason =
-    forall a. Show a => VerificationFailureReason a
+    forall failureReason. Show failureReason =>
+    VerificationFailureReason failureReason
 deriving instance Show VerificationFailureReason
 
 instance Eq VerificationResult where
@@ -392,7 +393,10 @@ instance Semigroup VerificationResult where
 
 -- | Constructs a singleton verification failure.
 --
-verificationFailure :: forall a. Show a => a -> VerificationResult
+verificationFailure
+    :: forall failureReason. Show failureReason
+    => failureReason
+    -> VerificationResult
 verificationFailure a = VerificationFailure (VerificationFailureReason a :| [])
 
 -- | Constructs a 'VerificationResult' from a list of failure reasons.
@@ -416,9 +420,15 @@ verificationResultToFailureReasons = \case
 --
 -- Otherwise, returns 'VerificationFailure' with the given reason.
 --
-verify :: forall a. Show a => Bool -> a -> VerificationResult
-verify condition failure =
-    if condition then VerificationSuccess else verificationFailure failure
+verify
+    :: forall failureReason. Show failureReason
+    => Bool
+    -> failureReason
+    -> VerificationResult
+verify condition failureReason =
+    if condition
+    then VerificationSuccess
+    else verificationFailure failureReason
 
 -- | Verifies all of the given conditions.
 --
@@ -427,9 +437,9 @@ verify condition failure =
 -- Otherwise, returns 'VerificationFailure' with the given reason.
 --
 verifyAll
-    :: forall f a. (Foldable f, Show a)
+    :: forall f failureReason. (Foldable f, Show failureReason)
     => f Bool
-    -> a
+    -> failureReason
     -> VerificationResult
 verifyAll conditions = verify (getAll $ F.foldMap All conditions)
 
@@ -441,12 +451,15 @@ verifyAll conditions = verify (getAll $ F.foldMap All conditions)
 -- applied to the non-empty list.
 --
 verifyEmpty
-    :: forall a x. Show a
-    => [x]
-    -> (NonEmpty x -> a)
+    :: forall failureReason a. Show failureReason
+    => [a]
+    -> (NonEmpty a -> failureReason)
     -> VerificationResult
-verifyEmpty xs failure =
-    maybe (VerificationSuccess) (verificationFailure . failure) (NE.nonEmpty xs)
+verifyEmpty xs failureReason =
+    maybe
+        (VerificationSuccess)
+        (verificationFailure . failureReason)
+        (NE.nonEmpty xs)
 
 --------------------------------------------------------------------------------
 -- Selection verification
