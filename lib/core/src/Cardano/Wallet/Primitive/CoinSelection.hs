@@ -102,10 +102,14 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad
     ( (<=<) )
+import Control.Monad.Identity
+    ( Identity (..) )
 import Control.Monad.Random.Class
-    ( MonadRandom )
+    ( MonadRandom (..) )
+import Control.Monad.Random.Lazy
+    ( Random (..), StdGen, mkStdGen )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), withExceptT )
+    ( ExceptT (..), runExceptT, withExceptT )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -697,20 +701,10 @@ verifySelectionBalanceError cs ps = \case
         verifyEmptyUTxOError cs ps ()
     Balance.InsufficientMinCoinValues es ->
         F.foldMap (verifyInsufficientMinCoinValueError cs ps) es
-    Balance.UnableToConstructChange _e ->
-        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+    Balance.UnableToConstructChange e->
+        verifyUnableToConstructChangeError cs ps e
     Balance.SelectionLimitReached e ->
         verifySelectionLimitReachedError cs ps e
-  where
-    -- Indicates that we are temporarily assuming correctness based on test
-    -- coverage for the 'Balance' module.
-    --
-    -- TODO: [ADP-1037]
-    -- Reuse properties exported from the module 'Balance' here, so that we
-    -- can reassert that these properties still hold.
-    --
-    temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule =
-        VerificationSuccess
 
 data FailureToVerifyBalanceInsufficientError =
     FailureToVerifyBalanceInsufficientError
@@ -810,6 +804,69 @@ verifySelectionLimitReachedError cs ps e =
     selectionLimitOriginal = cs
         & view #computeSelectionLimit
         & ($ F.toList $ e ^. #outputsToCover)
+
+data FailureToVerifyUnableToConstructChangeError =
+    FailureToVerifyUnableToConstructChangeError
+        { errorOriginal
+            :: Balance.UnableToConstructChangeError
+            -- ^ The original error.
+        , errorWithMinimalConstraints
+            :: SelectionError
+            -- ^ An error encountered when attempting to re-run the selection
+            -- process with minimal constraints.
+        }
+    deriving (Eq, Show)
+
+-- | Verifies a 'Balance.UnableToConstructChangeError'.
+--
+-- This function verifies that it's possible to successfully re-run the
+-- selection process with exactly the same parameters if we modify the
+-- constraints to be minimal, where we have:
+--
+--   - a minimum cost function that always returns zero.
+--   - a minimum ada quantity function that always returns zero.
+--
+-- Such an attempt should always succeed, since 'UnableToConstructChangeError'
+-- should be returned if (and only if) the available UTxO balance:
+--
+--  - is sufficient to cover the desired total output balance; but
+--
+--  - is NOT sufficient to cover:
+--
+--      a. the minimum cost of the transaction;
+--      b. the minimum ada quantities of generated change outputs.
+--
+-- If the available UTxO balance is not sufficient to cover the desired total
+-- output balance, then 'performSelection' should explicitly indicate that the
+-- balance is insufficient by returning a 'BalanceInsufficientError' instead.
+--
+verifyUnableToConstructChangeError
+    :: VerifySelectionError Balance.UnableToConstructChangeError
+verifyUnableToConstructChangeError cs ps errorOriginal =
+    case resultWithMinimalConstraints of
+        Left errorWithMinimalConstraints ->
+            verificationFailure
+            FailureToVerifyUnableToConstructChangeError {..}
+        Right _ ->
+            VerificationSuccess
+  where
+    -- The result of attempting to re-run the selection process with minimal
+    -- constraints, where we have:
+    --
+    --   - a minimum cost function that always returns zero.
+    --   - a minimum ada quantity function that always returns zero.
+    --
+    resultWithMinimalConstraints :: Either SelectionError Selection
+    resultWithMinimalConstraints =
+        runIdentity $ runExceptT $ performSelection cs' ps
+      where
+        -- A modified set of constraints that should always allow the
+        -- successful creation of a selection:
+        cs' = cs
+            { computeMinimumAdaQuantity = const $ Coin 0
+            , computeMinimumCost = const $ Coin 0
+            , computeSelectionLimit = const Balance.NoLimit
+            }
 
 --------------------------------------------------------------------------------
 -- Selection error verification: collateral errors
@@ -1499,3 +1556,23 @@ instance Buildable (SelectionOf TxOut) where
     build = build
         . makeSelectionReport
         . over #change (fmap $ view #tokens)
+
+--------------------------------------------------------------------------------
+-- Internal class instances
+--------------------------------------------------------------------------------
+
+-- | A convenience instance of 'MonadRandom' for 'Identity'.
+--
+-- All member functions return results that are constant w.r.t. to their inputs.
+--
+-- This instance should only be used in circumstances where randomness is not
+-- important.
+--
+instance MonadRandom Identity where
+    getRandom = pure $ fst $ random defaultStdGen
+    getRandoms = pure $ randoms defaultStdGen
+    getRandomR r = pure $ fst $ randomR r defaultStdGen
+    getRandomRs r = pure $ randomRs r defaultStdGen
+
+defaultStdGen :: StdGen
+defaultStdGen = mkStdGen 0
