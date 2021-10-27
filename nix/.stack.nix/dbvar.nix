@@ -29,6 +29,7 @@
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."conduit" or (errorHandler.buildDepError "conduit"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
           (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
           (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
           (hsPkgs."monad-logger" or (errorHandler.buildDepError "monad-logger"))

@@ -50,6 +50,7 @@
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
+          (hsPkgs."dbvar" or (errorHandler.buildDepError "dbvar"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."digest" or (errorHandler.buildDepError "digest"))
           (hsPkgs."directory" or (errorHandler.buildDepError "directory"))

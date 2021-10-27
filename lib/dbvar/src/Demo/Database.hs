@@ -27,6 +27,9 @@ import Conduit
     ( ResourceT )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM (..) )
+import Control.Monad.Class.MonadThrow
+    ( MonadCatch (..), MonadEvaluate (..), MonadThrow (..), MonadMask (..)
+    , ExitCase (..))
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Logger
@@ -65,6 +68,7 @@ import Say
 import qualified Data.Chain as Chain
 import qualified Database.Persist.Sqlite as Persist
 import qualified Database.Schema as Sql
+import qualified Control.Monad.Catch as ResourceT
 
 import Data.DBVar
 import Data.Delta
@@ -138,6 +142,27 @@ newStoreAddress = embedStore addressChainIntoTable =<< newEntityStore
 instance MonadSTM (NoLoggingT (ResourceT IO)) where
     type STM (NoLoggingT (ResourceT IO)) = STM IO
     atomically = liftIO . atomically
+
+-- "Exceptional monads" instances for the 'SqlPersistM' monad.
+instance MonadEvaluate (NoLoggingT (ResourceT IO)) where
+    evaluate = liftIO . evaluate
+
+instance MonadThrow (NoLoggingT (ResourceT IO)) where
+    throwIO = ResourceT.throwM
+
+instance MonadCatch (NoLoggingT (ResourceT IO)) where
+    catch = ResourceT.catch
+    generalBracket before after action =
+        ResourceT.generalBracket before (\a -> after a . contra) action
+      where
+        contra (ResourceT.ExitCaseSuccess a) = ExitCaseSuccess a
+        contra (ResourceT.ExitCaseException e) = ExitCaseException e
+        contra (ResourceT.ExitCaseAbort) = ExitCaseAbort
+
+instance MonadMask (NoLoggingT (ResourceT IO)) where
+    mask = ResourceT.mask
+    uninterruptibleMask = ResourceT.uninterruptibleMask
+
 
 newStoreAddressSql :: SqlPersistM StoreAddress
 newStoreAddressSql = do

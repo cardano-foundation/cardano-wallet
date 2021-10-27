@@ -245,7 +245,7 @@ properties:
 
 -- | Specification of an embedding of a type @a@ with delta encoding @da@
 -- into the type @b@ with delta encoding @db@.
--- See 'Embedding' for a more detailed description.
+-- See [the discussion of @Embedding@](#g:3) for a more detailed description.
 data Embedding' da db where
     Embedding'
         :: (Delta da, Delta db, a ~ Base da, b ~ Base db) =>
