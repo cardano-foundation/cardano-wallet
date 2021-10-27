@@ -695,8 +695,8 @@ verifySelectionBalanceError cs ps = \case
         verifyBalanceInsufficientError cs ps e
     Balance.EmptyUTxO ->
         verifyEmptyUTxOError cs ps ()
-    Balance.InsufficientMinCoinValues _e ->
-        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+    Balance.InsufficientMinCoinValues es ->
+        F.foldMap (verifyInsufficientMinCoinValueError cs ps) es
     Balance.UnableToConstructChange _e ->
         temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
     Balance.SelectionLimitReached e ->
@@ -741,6 +741,29 @@ verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e =
     verify
         (utxoAvailableForInputs == UTxOSelection.empty)
         (FailureToVerifyEmptyUTxOError {utxoAvailableForInputs})
+
+data FailureToVerifyInsufficientMinCoinValueError =
+    FailureToVerifyInsufficientMinCoinValueError
+    { reportedOutput :: TxOut
+    , reportedMinCoinValue :: Coin
+    , verifiedMinCoinValue :: Coin
+    }
+    deriving (Eq, Show)
+
+verifyInsufficientMinCoinValueError
+    :: VerifySelectionError Balance.InsufficientMinCoinValueError
+verifyInsufficientMinCoinValueError cs _ps e =
+    verifyAll
+        [ reportedMinCoinValue == verifiedMinCoinValue
+        , reportedMinCoinValue > reportedOutput ^. (#tokens . #coin)
+        ]
+        FailureToVerifyInsufficientMinCoinValueError {..}
+  where
+    reportedOutput = e ^. #outputWithInsufficientAda
+    reportedMinCoinValue = e ^. #expectedMinCoinValue
+    verifiedMinCoinValue =
+        (cs ^. #computeMinimumAdaQuantity)
+        (reportedOutput ^. (#tokens . #tokens))
 
 data FailureToVerifySelectionLimitReachedError =
     FailureToVerifySelectionLimitReachedError
