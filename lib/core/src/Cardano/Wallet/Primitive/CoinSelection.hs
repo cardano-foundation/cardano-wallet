@@ -433,6 +433,21 @@ verifyAll
     -> VerificationResult
 verifyAll conditions = verify (getAll $ F.foldMap All conditions)
 
+-- | Verifies that the given list is empty.
+--
+-- If the given list is empty, returns 'VerificationSuccess'.
+--
+-- Otherwise, returns 'VerificationFailure', with given reason constructor
+-- applied to the non-empty list.
+--
+verifyEmpty
+    :: forall a x. Show a
+    => [x]
+    -> (NonEmpty x -> a)
+    -> VerificationResult
+verifyEmpty xs failure =
+    maybe (VerificationSuccess) (verificationFailure . failure) (NE.nonEmpty xs)
+
 --------------------------------------------------------------------------------
 -- Selection verification
 --------------------------------------------------------------------------------
@@ -577,10 +592,8 @@ data SelectionOutputCoinInsufficientError = SelectionOutputCoinInsufficientError
     deriving (Eq, Show)
 
 verifySelectionOutputCoinsSufficient :: VerifySelection
-verifySelectionOutputCoinsSufficient cs _ps selection = maybe
-    (VerificationSuccess)
-    (verificationFailure . FailureToVerifySelectionOutputCoinsSufficient)
-    (NE.nonEmpty errors)
+verifySelectionOutputCoinsSufficient cs _ps selection =
+    verifyEmpty errors FailureToVerifySelectionOutputCoinsSufficient
   where
     errors :: [SelectionOutputCoinInsufficientError]
     errors = mapMaybe maybeError (selectionAllOutputs selection)
@@ -608,10 +621,8 @@ newtype FailureToVerifySelectionOutputSizesWithinLimit =
     deriving (Eq, Show)
 
 verifySelectionOutputSizesWithinLimit :: VerifySelection
-verifySelectionOutputSizesWithinLimit cs _ps selection = maybe
-    (VerificationSuccess)
-    (verificationFailure . FailureToVerifySelectionOutputSizesWithinLimit)
-    (NE.nonEmpty errors)
+verifySelectionOutputSizesWithinLimit cs _ps selection =
+    verifyEmpty errors FailureToVerifySelectionOutputSizesWithinLimit
   where
     errors :: [SelectionOutputSizeExceedsLimitError]
     errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs selection)
@@ -626,11 +637,8 @@ newtype FailureToVerifySelectionOutputTokenQuantitiesWithinLimit =
     deriving (Eq, Show)
 
 verifySelectionOutputTokenQuantitiesWithinLimit :: VerifySelection
-verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection = maybe
-    (VerificationSuccess)
-    (verificationFailure
-        . FailureToVerifySelectionOutputTokenQuantitiesWithinLimit)
-    (NE.nonEmpty errors)
+verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection =
+    verifyEmpty errors FailureToVerifySelectionOutputTokenQuantitiesWithinLimit
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError]
     errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
