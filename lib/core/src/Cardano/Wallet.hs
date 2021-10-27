@@ -1424,9 +1424,11 @@ balanceTransaction
       where
         resolveInput :: TxIn -> Maybe (TxOut, Maybe (Hash "Datum"))
         resolveInput i =
-            (\(_,o,d) -> (o,d)) <$> L.find (\(i',_,_) -> i == i') externalInputs
+            (\(_,o,d) -> (o,d))
+                <$> L.find (\(i',_,_) -> i == i') externalInputs
             <|>
-            (\(_,o) -> (o, Nothing)) <$> L.find (\(i',_) -> i == i') (extraInputs update)
+            (\(_,o) -> (o, Nothing))
+                <$> L.find (\(i',_) -> i == i') (extraInputs update)
 
     extractFromTx tx =
         let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt, toMint, toBurn)
