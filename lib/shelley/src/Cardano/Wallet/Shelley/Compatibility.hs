@@ -1922,7 +1922,7 @@ tokenBundleSizeAssessor maxSize = W.TokenBundleSizeAssessor {..}
         | serializedLengthBytes <= maxSize' =
             W.TokenBundleSizeWithinLimit
         | otherwise =
-            W.OutputTokenBundleSizeExceedsLimit
+            W.TokenBundleSizeExceedsLimit
       where
         serializedLengthBytes :: W.TxSize
         serializedLengthBytes = computeTokenBundleSerializedLengthBytes tb

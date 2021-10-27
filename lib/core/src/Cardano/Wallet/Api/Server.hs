@@ -603,6 +603,7 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
@@ -4140,11 +4141,13 @@ instance IsServerError SelectionOutputSizeExceedsLimitError where
         [ "One of the outputs you've specified contains too many assets. "
         , "Try splitting these assets across two or more outputs. "
         , "Destination address: "
-        , pretty (view #address e)
+        , pretty (output ^. #address)
         , ". Asset count: "
-        , pretty (view #assetCount e)
+        , pretty (TokenMap.size $ output ^. (#tokens . #tokens))
         , "."
         ]
+      where
+        output = view #outputThatExceedsLimit e
 
 instance IsServerError SelectionOutputTokenQuantityExceedsLimitError where
     toServerError e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
