@@ -16,6 +16,7 @@ module Data.Chain (
     , DeltaChain (..)
     , appendTip, collapseNode, rollbackTo
     , chainIntoTable
+    , ErrMalformedChainTable (..)
 
     -- * Edge
     , Edge (..), flattenEdge
@@ -27,6 +28,8 @@ module Data.Chain (
 import Prelude hiding
     ( lookup )
 
+import Control.Exception
+    ( Exception, toException )
 import Control.Monad
     ( guard, join, (<=<) )
 import Data.Bifunctor
@@ -248,7 +251,11 @@ chainIntoTable
     -> Embedding (DeltaChain node edge) [DeltaTable (Edge node e)]
 chainIntoTable toPile fromPile = mkEmbedding Embedding'{load,write,update}
   where
-    load = fmap (fmap $ fromPile . Pile) . fromEdges . getPile . Table.toPile
+    load = toEither . fmap (fmap $ fromPile . Pile)
+        . fromEdges . getPile . Table.toPile
+      where
+        toEither = maybe (Left $ toException ErrMalformedChainTable) Right
+
     write = Table.fromList
         . concatMap (flattenEdge . fmap (getPile . toPile)) . toEdges
 
@@ -273,6 +280,9 @@ chainIntoTable toPile fromPile = mkEmbedding Embedding'{load,write,update}
             , DeleteWhere (\Edge{to,from} -> to == now || from == now)
             ]
         _ -> []
+
+data ErrMalformedChainTable = ErrMalformedChainTable deriving (Eq, Show)
+instance Exception ErrMalformedChainTable
 
 {-------------------------------------------------------------------------------
     Tests

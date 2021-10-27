@@ -143,10 +143,10 @@ newDatabaseStore db = do
             table <- Table.fromRows <$> selectAll db
             -- but use our own unique ID supply
             liftIO (readIORef ref) >>= \case
-                Just supply  -> pure $ Just table{uids = supply}
+                Just supply  -> pure $ Right table{uids = supply}
                 Nothing      -> do
                     rememberSupply table
-                    pure $ Just table
+                    pure $ Right table
         , writeS  = \table -> void $ do
             deleteAll db -- delete any old data in the table first
             repsertMany db $ getPile $ Table.toRows table

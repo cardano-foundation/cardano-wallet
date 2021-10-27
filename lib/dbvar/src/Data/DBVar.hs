@@ -22,7 +22,10 @@ module Data.DBVar (
     , initDBVar, loadDBVar
 
     -- * Store
-    , Store (..), newStore
+    , Store (..)
+    , newStore
+    , NotInitialized (..)
+    -- $EitherSomeException
     , embedStore, pairStores
 
     -- * Testing
@@ -33,8 +36,8 @@ import Prelude
 
 import Control.Applicative
     ( liftA2 )
-import Control.Monad.Class.MonadThrow
-    ( MonadEvaluate, MonadMask, MonadThrow, bracket, mask, evaluate )
+import Control.Exception
+    ( Exception, SomeException, toException )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , atomically
@@ -45,6 +48,8 @@ import Control.Monad.Class.MonadSTM
     , retry
     , writeTVar
     )
+import Control.Monad.Class.MonadThrow
+    ( MonadEvaluate, MonadMask, MonadThrow, bracket, evaluate, mask, throwIO )
 import Data.Delta
     ( Delta (..), Embedding, Embedding' (..), Machine (..), inject, project )
 
@@ -111,17 +116,17 @@ initDBVar store v = do
     newWithCache (updateS store) v
 
 -- | Create a 'DBVar' by loading its value from an existing 'Store'
--- (if successful).
+-- Throws an exception if the value cannot be loaded.
 loadDBVar
     ::  ( MonadSTM m, MonadThrow m, MonadEvaluate m, MonadMask m
         , Delta da
         )
     => Store m da -- ^ 'Store' for writing and for reading the initial value.
-    -> m (Maybe (DBVar m da))
+    -> m (DBVar m da)
 loadDBVar store =
     loadS store >>= \case
-        Nothing -> pure Nothing
-        Just a  -> Just <$> newWithCache (updateS store) a
+        Left  e -> throwIO e
+        Right a -> newWithCache (updateS store) a
 
 -- | Create 'DBVar' from an initial value and an update function
 -- using a 'TVar' as in-memory cache.
@@ -189,13 +194,18 @@ A 'Store' is characterized by the following properties:
 
 * The store __need not contain__ a properly formatted __value__:
     Loading a value from the store may fail, and this is why 'loadS'
-    has a 'Maybe' result. For example, if the 'Store' represents
+    has an 'Either' result.
+    For example, if the 'Store' represents
     a file on disk, then the file may corrupted or in an incompatible
     file format when first opened.
+    In such a case of failure, the result 'Left'@ (e :: @'SomeException'@)@
+    is returned, where the exception @e@ gives more information
+    about the failure.
+
     However, loading a value after writing it should always suceed,
     we have
 
-        > writeS s a >> loadS s  =  pure (Just a)
+        > writeS s a >> loadS s  =  pure (Right a)
 
 * The store is __redundant__:
     Two stores with different contents may describe
@@ -230,7 +240,7 @@ A 'Store' is characterized by the following properties:
     normal operation.
 -}
 data Store m da = Store
-    { loadS   :: m (Maybe (Base da))
+    { loadS   :: m (Either SomeException (Base da))
     , writeS  :: Base da -> m ()
     , updateS
         :: Base da -- old value
@@ -243,12 +253,53 @@ data Store m da = Store
 -- Useful for testing.
 newStore :: (Delta da, MonadSTM m) => m (Store m da)
 newStore = do
-    ref <- newTVarIO Nothing
+    ref <- newTVarIO $ Left $ toException NotInitialized
     pure $ Store
         { loadS   = atomically $ readTVar ref
-        , writeS  = atomically . writeTVar ref . Just
+        , writeS  = atomically . writeTVar ref . Right
         , updateS = \_ -> atomically . modifyTVar' ref . fmap . apply
         }
+
+{- | $EitherSomeException
+
+NOTE: [EitherSomeException]
+
+In this version of the library, the error case returned by 'loadS' and 'load'
+is the general 'SomeException' type, which is a disjoint sum of all possible
+error types (that is, members of the 'Exception' class).
+
+In a future version of this library, this may be replaced by a more specific
+error type, but at the price of introducing a new type parameter @e@ in the
+'Store' type.
+
+For now, I have opted to explore a region of the design space
+where the number of type parameters is kept to a minimum.
+I would argue that making errors visible on the type level is not as
+useful as one might hope for, because in exchange for making the types noisier,
+the amount of type-safety we gain is very small.
+Specifically, if we encounter an element of the 'SomeException' type that
+we did not expect, it is entirely ok to 'throw' it.
+For example, consider the following code:
+@
+let ea :: Either SomeException ()
+    ea = [..]
+in
+    case ea of
+        Right _ -> "everything is ok"
+        Left e -> case fromException e of
+            Just (AssertionFailed _) -> "bad things happened"
+            Nothing -> throw e
+@
+In this example, using the more specific type @ea :: Either AssertionFailed ()@
+would have eliminated the need to handle the 'Nothing' case.
+But as we are dealing with exceptions, this case does have a default handler,
+and there is less need to exclude it at compile as opposed to, say,
+the case of an empty list.
+-}
+
+-- | Failure that occurs when calling 'loadS' on a 'newStore' that is empty.
+data NotInitialized = NotInitialized deriving (Eq, Show)
+instance Exception NotInitialized
 
 {-
 -- | Add a caching layer to a 'Store'.
@@ -316,11 +367,13 @@ embedStore embed bstore = do
         writeMachine = atomically . writeTVar machine . Just
 
     -- Operations of the result 'Store'.
-    let load = loadS bstore >>= \mb -> case project embed =<< mb of
-                Nothing      -> pure Nothing
-                Just (a,mab) -> do
+    let load = loadS bstore >>= \case
+            Left  e -> pure $ Left e
+            Right b -> case project embed b of
+                Left  e       -> pure $ Left e
+                Right (a,mab) -> do
                     writeMachine mab
-                    pure $ Just a
+                    pure $ Right a
         write a = do
             let mab = inject embed a
             mask $ \restore -> do
@@ -344,16 +397,14 @@ embedStore embed bstore = do
 -- Note: This function is exported for testing and documentation only,
 -- use the more efficient 'embedStore' instead.
 embedStore'
-    :: (Monad m)
+    :: (Monad m, MonadThrow m)
     => Embedding' da db -> Store m db -> Store m da
 embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} = Store
     { loadS   = (load =<<) <$> loadS
     , writeS  = writeS . write
-    , updateS = \a da -> do
-        mb <- loadS
-        case mb of
-            Nothing -> pure ()
-            Just b  -> updateS b (update a b da)
+    , updateS = \a da -> loadS >>= \case
+            Left  _ -> pure ()
+            Right b -> updateS b (update a b da)
     }
 
 -- | Combine two 'Stores' into a store for pairs.

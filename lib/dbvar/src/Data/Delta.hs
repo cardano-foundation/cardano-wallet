@@ -34,10 +34,12 @@ module Data.Delta (
 
 import Prelude
 
+import Control.Exception
+    ( SomeException )
+import Data.Either
+    ( fromRight )
 import Data.Kind
     ( Type )
-import Data.Maybe
-    ( fromMaybe )
 import Data.Semigroupoid
     ( Semigroupoid (..) )
 import Data.Set
@@ -218,10 +220,11 @@ properties:
 
 * The embedding need __not__ be __surjective__:
     The type @b@ may contain many values that do not correspond to
-    a value of type @a@. Hence, 'load' has a 'Maybe' result.
+    a value of type @a@. Hence, 'load' has an 'Either' result.
+    (See Note [EitherSomeException] for the choice of exception type.)
     However, retrieving a written value always succeeds, we have
 
-        > load . write = Just
+        > load . write = Right
 
 * The embedding is __redundant__:
     The type @b@ may contain multiple values that correspond to
@@ -230,13 +233,13 @@ properties:
     so that the right delta encoding can be computed.
     Put differently, we often have
 
-        > write a ≠ b   where Just a = load b
+        > write a ≠ b   where Right a = load b
 
 * The embedding of delta encoding __commutes with 'apply'__.
     We have
 
         > Just (apply da a) = load (apply (update a b da) b)
-        >     where Just a = load b
+        >     where Right a = load b
 
     However, since the embedding is redundant, we often have
 
@@ -249,7 +252,7 @@ properties:
 data Embedding' da db where
     Embedding'
         :: (Delta da, Delta db, a ~ Base da, b ~ Base db) =>
-        { load   :: b -> Maybe a
+        { load   :: b -> Either SomeException a
         , write  :: a -> b
         , update :: a -> b -> da -> db
         } -> Embedding' da db
@@ -258,7 +261,7 @@ data Embedding' da db where
 -- To construct an embedding, use 'mkEmbedding'.
 data Embedding da db = Embedding
     { inject  :: Base da -> Machine da db
-    , project :: Base db -> Maybe (Base da, Machine da db)
+    , project :: Base db -> Either SomeException (Base da, Machine da db)
     }
 
 -- | Construct 'Embedding' with efficient composition
@@ -283,7 +286,7 @@ fromEmbedding Embedding{inject,project} = Embedding'
         in  db
     }
   where
-    from = fromMaybe (error "Embedding: 'load' violates expected laws")
+    from = fromRight (error "Embedding: 'load' violates expected laws")
 
 -- | Efficient composition of 'Embedding'
 instance Semigroupoid Embedding where
@@ -332,7 +335,7 @@ liftUpdates Embedding{inject} das0 a0 =
 -- of a canonical embedding into the trivial 'Replace' delta encoding.
 replaceFromApply :: (Delta da, a ~ Base da) => Embedding' da (Replace a)
 replaceFromApply = Embedding'
-    { load = Just
+    { load = Right
     , write = id
     , update = \_ a da -> Replace (apply da a)
     }

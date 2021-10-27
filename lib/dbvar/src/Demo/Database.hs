@@ -28,8 +28,12 @@ import Conduit
 import Control.Monad.Class.MonadSTM
     ( MonadSTM (..) )
 import Control.Monad.Class.MonadThrow
-    ( MonadCatch (..), MonadEvaluate (..), MonadThrow (..), MonadMask (..)
-    , ExitCase (..))
+    ( ExitCase (..)
+    , MonadCatch (..)
+    , MonadEvaluate (..)
+    , MonadMask (..)
+    , MonadThrow (..)
+    )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Logger
@@ -65,10 +69,10 @@ import GHC.Generics
 import Say
     ( sayShow )
 
+import qualified Control.Monad.Catch as ResourceT
 import qualified Data.Chain as Chain
 import qualified Database.Persist.Sqlite as Persist
 import qualified Database.Schema as Sql
-import qualified Control.Monad.Catch as ResourceT
 
 import Data.DBVar
 import Data.Delta
@@ -87,7 +91,7 @@ data AddressInPool = AddressInPool
 -- | Construnct an 'Embedding' of delta encodings from an isomorphism.
 embedIso :: Iso' a b -> Embedding [DeltaDB Int a] [DeltaDB Int b]
 embedIso i = withIso i $ \ab ba -> mkEmbedding Embedding'
-    { load = Just . fmap ba
+    { load = Right . fmap ba
     , write = fmap ab
     , update = \_ _ -> fmap (fmap ab)
     }

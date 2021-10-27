@@ -167,7 +167,7 @@ tableIntoDatabase :: Embedding [DeltaTable row] [DeltaDB Int row]
 tableIntoDatabase = mkEmbedding Embedding'
     { load, write, update = \_ b -> map (update1 b) }
   where
-    load = Just . id
+    load = Right . id
     write = id
     update1 Table{uids} (InsertMany rs) = InsertManyDB (zip keys rs)
       where
