@@ -706,6 +706,10 @@ verifySelectionBalanceError cs ps = \case
     Balance.SelectionLimitReached e ->
         verifySelectionLimitReachedError cs ps e
 
+--------------------------------------------------------------------------------
+-- Selection error verification: balance insufficient errors
+--------------------------------------------------------------------------------
+
 data FailureToVerifyBalanceInsufficientError =
     FailureToVerifyBalanceInsufficientError
     { utxoBalanceAvailable :: TokenBundle
@@ -726,6 +730,10 @@ verifyBalanceInsufficientError cs ps e =
     utxoBalanceAvailable = e ^. #utxoBalanceAvailable
     utxoBalanceRequired = e ^. #utxoBalanceRequired
 
+--------------------------------------------------------------------------------
+-- Selection error verification: empty UTxO errors
+--------------------------------------------------------------------------------
+
 newtype FailureToVerifyEmptyUTxOError = FailureToVerifyEmptyUTxOError
     { utxoAvailableForInputs :: UTxOSelection }
     deriving (Eq, Show)
@@ -735,6 +743,10 @@ verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e =
     verify
         (utxoAvailableForInputs == UTxOSelection.empty)
         (FailureToVerifyEmptyUTxOError {utxoAvailableForInputs})
+
+--------------------------------------------------------------------------------
+-- Selection error verification: insufficient minimum ada quantity errors
+--------------------------------------------------------------------------------
 
 data FailureToVerifyInsufficientMinCoinValueError =
     FailureToVerifyInsufficientMinCoinValueError
@@ -758,6 +770,10 @@ verifyInsufficientMinCoinValueError cs _ps e =
     verifiedMinCoinValue =
         (cs ^. #computeMinimumAdaQuantity)
         (reportedOutput ^. (#tokens . #tokens))
+
+--------------------------------------------------------------------------------
+-- Selection error verification: selection limit errors
+--------------------------------------------------------------------------------
 
 data FailureToVerifySelectionLimitReachedError =
     FailureToVerifySelectionLimitReachedError
@@ -804,6 +820,10 @@ verifySelectionLimitReachedError cs ps e =
     selectionLimitOriginal = cs
         & view #computeSelectionLimit
         & ($ F.toList $ e ^. #outputsToCover)
+
+--------------------------------------------------------------------------------
+-- Selection error verification: change construction errors
+--------------------------------------------------------------------------------
 
 data FailureToVerifyUnableToConstructChangeError =
     FailureToVerifyUnableToConstructChangeError
@@ -956,6 +976,10 @@ verifySelectionOutputError cs ps = \case
     SelectionOutputTokenQuantityExceedsLimit e ->
         verifySelectionOutputTokenQuantityExceedsLimitError cs ps e
 
+--------------------------------------------------------------------------------
+-- Selection error verification: output size errors
+--------------------------------------------------------------------------------
+
 newtype FailureToVerifySelectionOutputSizeExceedsLimitError =
     FailureToVerifySelectionOutputSizeExceedsLimitError
         { outputReportedAsExceedingLimit :: TxOut }
@@ -975,6 +999,10 @@ verifySelectionOutputSizeExceedsLimitError cs _ps e =
         bundle = outputReportedAsExceedingLimit ^. #tokens
 
     outputReportedAsExceedingLimit = e ^. #outputThatExceedsLimit
+
+--------------------------------------------------------------------------------
+-- Selection error verification: output token quantity errors
+--------------------------------------------------------------------------------
 
 newtype FailureToVerifySelectionOutputTokenQuantityExceedsLimitError =
     FailureToVerifySelectionOutputTokenQuantityExceedsLimitError
