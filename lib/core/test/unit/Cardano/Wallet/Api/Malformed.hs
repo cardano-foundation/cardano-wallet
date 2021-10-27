@@ -1288,7 +1288,7 @@ instance Malformed (BodyParam ApiSerialisedTransaction) where
             , ("{\"transaction\": { \"body\": 1020344 }}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
-            [ -- passphrase
+            [
               ( [aesonQQ|
                 { "transaction": "!!!"
                 }|]
@@ -1298,12 +1298,6 @@ instance Malformed (BodyParam ApiSerialisedTransaction) where
                { "transaction": "cafecafe"
                }|]
                , "Error in $.transaction: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'"
-              )
-            , ( [aesonQQ|
-               { "transaction": #{validSealedTxBase64},
-                  "extra": "hello"
-               }|]
-               , "Error in $: parsing Cardano.Wallet.Api.Types.ApiSerialisedTransaction(ApiSerialisedTransaction) failed, unknown fields: ['extra']"
               )
             ]
 

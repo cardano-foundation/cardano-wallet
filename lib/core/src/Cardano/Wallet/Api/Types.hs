@@ -3031,26 +3031,48 @@ instance
     , DecodeStakeAddress n
     ) => FromJSON (ApiTxOutputGeneral n)
   where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON obj = do
+        derPathM <-
+            (withObject "ApiTxOutputGeneral" $
+             \o -> o .:? "derivation_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
+        case derPathM of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser (AddressAmount (ApiT Address, Proxy n))
+                pure $ ExternalOutput xs
+            Just _ -> do
+                xs <- parseJSON obj :: Aeson.Parser (ApiWalletOutput n)
+                pure $ WalletOutput xs
 instance
     ( EncodeAddress n
     , EncodeStakeAddress n
     ) => ToJSON (ApiTxOutputGeneral n)
   where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ExternalOutput content) = toJSON content
+    toJSON (WalletOutput content) = toJSON content
 
 instance
     ( DecodeAddress n
     , DecodeStakeAddress n
     ) => FromJSON (ApiTxInputGeneral n)
   where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON obj = do
+        derPathM <-
+            (withObject "ApiTxInputGeneral" $
+             \o -> o .:? "derivation_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
+        case derPathM of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser (ApiT TxIn)
+                pure $ ExternalInput xs
+            Just _ -> do
+                xs <- parseJSON obj :: Aeson.Parser (ApiWalletInput n)
+                pure $ WalletInput xs
 instance
     ( EncodeAddress n
     , EncodeStakeAddress n
     ) => ToJSON (ApiTxInputGeneral n)
   where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ExternalInput content) = toJSON content
+    toJSON (WalletInput content) = toJSON content
 
 instance FromJSON (ApiT TxMetadata) where
     parseJSON = fmap ApiT

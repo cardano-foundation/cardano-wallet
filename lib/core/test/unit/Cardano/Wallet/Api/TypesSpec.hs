@@ -2898,6 +2898,21 @@ instance Typeable n => ToSchema (ApiConstructTransaction n) where
 instance ToSchema ApiMultiDelegationAction where
     declareNamedSchema _ = declareSchemaForDefinition "ApiMultiDelegationAction"
 
+type ApiTxInputsGeneral (n :: NetworkDiscriminant) = [ApiTxInputGeneral n]
+
+type ApiTxOutputsGeneral (n :: NetworkDiscriminant) = [ApiTxOutputGeneral n]
+
+type ApiWithdrawalsGeneral (n :: NetworkDiscriminant) = [ApiWithdrawalGeneral n]
+
+instance Typeable n => ToSchema (ApiTxInputsGeneral n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiInputsGeneral"
+
+instance Typeable n => ToSchema (ApiTxOutputsGeneral n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiOutputsGeneral"
+
+instance Typeable n => ToSchema (ApiWithdrawalsGeneral n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWithdrawalsGeneral"
+
 instance Typeable n => ToSchema (ApiDecodedTransaction n) where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"

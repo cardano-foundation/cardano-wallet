@@ -1213,7 +1213,7 @@ x-transactionWithdrawals: &transactionWithdrawals
 
 x-ours: &ours
   type: string
-  enum: ["our"]
+  enum: ["ours"]
   description: |
     Used when withdrawal or output is ours.
 
@@ -1334,77 +1334,85 @@ x-transactionResolvedInputs: &transactionResolvedInputs
 
 x-transactionInputsOutsideWallet: &transactionInputsOutsideWallet
   description: |
-    A list of transaction inputs not belonging to a given wallet.
-  type: array
-  minItems: 0
-  items:
-    type: object
-    required:
-      - id
-      - index
-    properties:
-      id: *transactionId
-      index:
-        type: integer
-        minimum: 0
+    A transaction input not belonging to a given wallet.
+  type: object
+  required:
+    - id
+    - index
+  properties:
+    id: *transactionId
+    index:
+      type: integer
+      minimum: 0
 
 x-transactionInputsInsideWallet: &transactionInputsInsideWallet
   description: |
-    A list of transaction inputs belonging to a given wallet.
-  type: array
-  items:
-    type: object
-    required:
-      - id
-      - index
-      - address
-      - amount
-      - derivation_path
-    properties:
-      address: *addressId
-      amount: *amount
-      assets: *walletAssets
-      id: *transactionId
-      derivation_path: *derivationPath
-      index:
-        type: integer
-        minimum: 0
+    A transaction input belonging to a given wallet.
+  type: object
+  required:
+    - id
+    - index
+    - address
+    - amount
+    - derivation_path
+  properties:
+    address: *addressId
+    amount: *amount
+    assets: *walletAssets
+    id: *transactionId
+    derivation_path: *derivationPath
+    index:
+      type: integer
+      minimum: 0
 
 x-transactionInputsGeneral: &transactionInputsGeneral
-  nullable: false
-  oneOf:
-    - <<: *transactionInputsOutsideWallet
-      title: tx inputs without source not belonging to a given wallet
-    - <<: *transactionInputsInsideWallet
-      title: tx inputs belonging to a given wallet
-
-x-transactionOutputsInsideWallet: &transactionOutputsInsideWallet
-  description: |
-     A list of target outputs with amount specified belonging to wallet
   type: array
   minItems: 0
   items:
-    type: object
-    required:
-      - address
-      - amount_incoming
-      - amount
-      - derivation_path
-    properties:
-      address: *addressId
-      amount_incoming: *amount
-      assets_incoming: *walletAssets
-      amount: *amount
-      assets: *walletAssets
-      derivation_path: *derivationPath
+    oneOf:
+      - <<: *transactionInputsOutsideWallet
+        title: tx inputs without source not belonging to a given wallet
+      - <<: *transactionInputsInsideWallet
+        title: tx inputs belonging to a given wallet
+
+x-transactionOutputsOutsideWallet: &transactionOutputsOutsideWallet
+  description: |
+     A transaction output not belonging to the wallet
+  type: object
+  required:
+    - address
+    - amount
+  properties:
+    address: *addressId
+    amount: *amount
+    assets: *walletAssets
+
+x-transactionOutputsInsideWallet: &transactionOutputsInsideWallet
+  description: |
+     A transaction output not belonging to the wallet
+  type: object
+  required:
+    - address
+    - amount_incoming
+    - amount
+    - derivation_path
+  properties:
+    address: *addressId
+    amount_incoming: *amount
+    assets_incoming: *walletAssets
+    amount: *amount
+    assets: *walletAssets
+    derivation_path: *derivationPath
 
 x-transactionOutputsGeneral: &transactionOutputsGeneral
-  nullable: false
-  oneOf:
-    - <<: *transactionOutputs
-      title: tx outputs not belonging to a given wallet
-    - <<: *transactionOutputsInsideWallet
-      title: tx outputs belonging to a given wallet
+  type: array
+  minItems: 0
+  items:
+    oneOf:
+      - <<: *transactionOutputsOutsideWallet
+        title: tx outputs not belonging to a given wallet
+      - <<: *transactionOutputsInsideWallet
+        title: tx outputs belonging to a given wallet
 
 x-transactionResolvedCollateral: &transactionResolvedCollateral
   description: A list of transaction inputs used for collateral
@@ -2353,6 +2361,21 @@ components:
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 
+    ApiInputsGeneral: &ApiInputsGeneral
+      <<: *transactionInputsGeneral
+      description: |
+        Inputs that could be external or belong to the wallet.
+
+    ApiOutputsGeneral: &ApiOutputsGeneral
+      <<: *transactionOutputsGeneral
+      description: |
+        Outputs that could be external or belong to the wallet.
+
+    ApiWithdrawalsGeneral: &ApiWithdrawalsGeneral
+      <<: *transactionWithdrawalsGeneral
+      description: |
+        Withdrawals that could be external or belong to the wallet.
+
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
       required:
@@ -2364,10 +2387,10 @@ components:
       properties:
         id: *transactionId
         fee: *amount
-        inputs: *transactionInputsGeneral
-        outputs: *transactionOutputsGeneral
-        collateral: *transactionInputsGeneral
-        withdrawals: *transactionWithdrawalsGeneral
+        inputs: *ApiInputsGeneral
+        outputs: *ApiOutputsGeneral
+        collateral: *ApiInputsGeneral
+        withdrawals: *ApiWithdrawalsGeneral
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 
