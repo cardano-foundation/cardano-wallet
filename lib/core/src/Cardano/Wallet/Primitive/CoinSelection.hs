@@ -121,7 +121,7 @@ import Data.Maybe
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
-    ( mtimesDefault )
+    ( All (..), mtimesDefault )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -410,6 +410,29 @@ verificationResultToFailureReasons = \case
     VerificationSuccess -> []
     VerificationFailure reasons -> NE.toList reasons
 
+-- | Verifies the given condition.
+--
+-- If the given condition is 'True', returns 'VerificationSuccess'.
+--
+-- Otherwise, returns 'VerificationFailure' with the given reason.
+--
+verify :: forall a. Show a => Bool -> a -> VerificationResult
+verify condition failure =
+    if condition then VerificationSuccess else verificationFailure failure
+
+-- | Verifies all of the given conditions.
+--
+-- If the given conditions are all 'True', returns 'VerificationSuccess'.
+--
+-- Otherwise, returns 'VerificationFailure' with the given reason.
+--
+verifyAll
+    :: forall f a. (Foldable f, Show a)
+    => f Bool
+    -> a
+    -> VerificationResult
+verifyAll conditions = verify (getAll $ F.foldMap All conditions)
+
 --------------------------------------------------------------------------------
 -- Selection verification
 --------------------------------------------------------------------------------
@@ -451,11 +474,10 @@ data FailureToVerifySelectionCollateralSufficient =
     deriving (Eq, Show)
 
 verifySelectionCollateralSufficient :: VerifySelection
-verifySelectionCollateralSufficient cs ps selection
-    | collateralSelected >= collateralRequired =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionCollateralSufficient {..}
+verifySelectionCollateralSufficient cs ps selection =
+    verify
+        (collateralSelected >= collateralRequired)
+        (FailureToVerifySelectionCollateralSufficient {..})
   where
     collateralSelected = selectionCollateral selection
     collateralRequired = selectionMinimumCollateral cs ps selection
@@ -474,11 +496,10 @@ data FailureToVerifySelectionCollateralSuitable =
     deriving (Eq, Show)
 
 verifySelectionCollateralSuitable :: VerifySelection
-verifySelectionCollateralSuitable cs _ps selection
-    | null collateralSelectedButUnsuitable =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionCollateralSuitable {..}
+verifySelectionCollateralSuitable cs _ps selection =
+    verify
+        (null collateralSelectedButUnsuitable)
+        (FailureToVerifySelectionCollateralSuitable {..})
   where
     collateralSelected =
         selection ^. #collateral
@@ -503,11 +524,10 @@ data FailureToVerifySelectionDeltaValid = FailureToVerifySelectionDeltaValid
     deriving (Eq, Show)
 
 verifySelectionDeltaValid :: VerifySelection
-verifySelectionDeltaValid cs ps selection
-    | selectionHasValidSurplus cs ps selection =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionDeltaValid {..}
+verifySelectionDeltaValid cs ps selection =
+    verify
+        (selectionHasValidSurplus cs ps selection)
+        (FailureToVerifySelectionDeltaValid {..})
   where
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
@@ -531,11 +551,10 @@ data FailureToVerifySelectionInputCountWithinLimit =
     deriving (Eq, Show)
 
 verifySelectionInputCountWithinLimit :: VerifySelection
-verifySelectionInputCountWithinLimit cs _ps selection
-    | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionInputCountWithinLimit {..}
+verifySelectionInputCountWithinLimit cs _ps selection =
+    verify
+        (Balance.MaximumInputLimit totalInputCount <= selectionLimit)
+        (FailureToVerifySelectionInputCountWithinLimit {..})
   where
     collateralInputCount = length (selection ^. #collateral)
     ordinaryInputCount = length (selection ^. #inputs)
@@ -675,12 +694,10 @@ newtype FailureToVerifyEmptyUTxOError = FailureToVerifyEmptyUTxOError
     deriving (Eq, Show)
 
 verifyEmptyUTxOError :: VerifySelectionError ()
-verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e
-    | utxoAvailableForInputs == UTxOSelection.empty =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure
-        FailureToVerifyEmptyUTxOError {utxoAvailableForInputs}
+verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e =
+    verify
+        (utxoAvailableForInputs == UTxOSelection.empty)
+        (FailureToVerifyEmptyUTxOError {utxoAvailableForInputs})
 
 data FailureToVerifySelectionLimitReachedError =
     FailureToVerifySelectionLimitReachedError
@@ -706,11 +723,10 @@ data FailureToVerifySelectionLimitReachedError =
 --
 verifySelectionLimitReachedError
     :: VerifySelectionError Balance.SelectionLimitReachedError
-verifySelectionLimitReachedError cs ps e
-    | Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionLimitReachedError {..}
+verifySelectionLimitReachedError cs ps e =
+    verify
+        (Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted)
+        (FailureToVerifySelectionLimitReachedError {..})
   where
     selectedInputs :: [(TxIn, TxOut)]
     selectedInputs = e ^. #inputsSelected
@@ -765,19 +781,14 @@ data FailureToVerifySelectionCollateralError =
         deriving (Eq, Show)
 
 verifySelectionCollateralError :: VerifySelectionError Collateral.SelectionError
-verifySelectionCollateralError cs ps e
-    | not (Map.null largestCombinationUnsuitableSubset) =
-        reportFailure
-    | largestCombinationSize > maximumSelectionSize =
-        reportFailure
-    | largestCombinationValue >= minimumSelectionAmount =
-        reportFailure
-    | otherwise =
-        VerificationSuccess
+verifySelectionCollateralError cs ps e =
+    verifyAll
+        [ Map.null largestCombinationUnsuitableSubset
+        , largestCombinationSize <= maximumSelectionSize
+        , largestCombinationValue < minimumSelectionAmount
+        ]
+        (FailureToVerifySelectionCollateralError {..})
   where
-    reportFailure =
-        verificationFailure FailureToVerifySelectionCollateralError {..}
-
     largestCombination :: Map TxIn Coin
     largestCombination = e ^. #largestCombinationAvailable
     largestCombinationSize :: Int
@@ -829,12 +840,10 @@ newtype FailureToVerifySelectionOutputSizeExceedsLimitError =
 
 verifySelectionOutputSizeExceedsLimitError
     :: VerifySelectionError SelectionOutputSizeExceedsLimitError
-verifySelectionOutputSizeExceedsLimitError cs _ps e
-    | isWithinLimit =
-        verificationFailure
-        FailureToVerifySelectionOutputSizeExceedsLimitError {..}
-    | otherwise =
-        VerificationSuccess
+verifySelectionOutputSizeExceedsLimitError cs _ps e =
+    verify
+        (not isWithinLimit)
+        (FailureToVerifySelectionOutputSizeExceedsLimitError {..})
   where
     isWithinLimit = case (cs ^. #assessTokenBundleSize) bundle of
         TokenBundleSizeWithinLimit -> True
@@ -851,12 +860,10 @@ newtype FailureToVerifySelectionOutputTokenQuantityExceedsLimitError =
 
 verifySelectionOutputTokenQuantityExceedsLimitError
     :: VerifySelectionError SelectionOutputTokenQuantityExceedsLimitError
-verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps e
-    | e ^. #quantity <= e ^. #quantityMaxBound =
-        verificationFailure $
-        FailureToVerifySelectionOutputTokenQuantityExceedsLimitError e
-    | otherwise =
-        VerificationSuccess
+verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps e =
+    verify
+        (e ^. #quantity > e ^. #quantityMaxBound)
+        (FailureToVerifySelectionOutputTokenQuantityExceedsLimitError e)
 
 --------------------------------------------------------------------------------
 -- Selection deltas
