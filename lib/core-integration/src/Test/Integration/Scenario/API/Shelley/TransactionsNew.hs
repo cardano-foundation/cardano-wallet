@@ -345,7 +345,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let txCbor = getFromResponse #transaction (HTTP.status202, Right $ ApiSerialisedTransaction signedTx)
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
         let withdrawalWith ownership wdrls = case wdrls of
-                wdrl:[] ->
+                [wdrl] ->
                     wdrl ^. #amount == Quantity withdrawalAmt &&
                     wdrl ^. #context == ownership
                 _ -> False
@@ -480,7 +480,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
                 { address = addrDest
                 , amount = Quantity 0
-                , assets = ApiT $ TokenMap.empty
+                , assets = ApiT TokenMap.empty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2147485500)
                     , ApiT (DerivationIndex 2147485463)
@@ -489,7 +489,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , ApiT (DerivationIndex $ fromIntegral addrIx)
                     ]
                 , amountIncoming = Quantity amt
-                , assetsIncoming = ApiT $ TokenMap.empty
+                , assetsIncoming = ApiT TokenMap.empty
                 }
         let isOurTxOut :: ApiTxOutputGeneral n -> [ApiTxOutputGeneral n] -> Bool
             isOurTxOut expectedTxOut = (expectedTxOut `elem`)
@@ -548,7 +548,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedTxOutTarget' = WalletOutput $ ApiWalletOutput
                 { address = addrDest
                 , amount = Quantity amt -- now we have this
-                , assets = ApiT $ TokenMap.empty
+                , assets = ApiT TokenMap.empty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2147485500)
                     , ApiT (DerivationIndex 2147485463)
@@ -557,7 +557,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , ApiT (DerivationIndex $ fromIntegral addrIx)
                     ]
                 , amountIncoming = Quantity amt
-                , assetsIncoming = ApiT $ TokenMap.empty
+                , assetsIncoming = ApiT TokenMap.empty
                 }
         addrsSourceAll <- listAddresses @n ctx wa
         --we expect change address here with x=0 as this wallet does not participated in outcoming tx before this one
@@ -574,10 +574,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedTxOutSource = WalletOutput $ ApiWalletOutput
                 { address = addrSrc
                 , amount = Quantity $ initialAmt - (amt + fromIntegral expectedFee)
-                , assets = ApiT $ TokenMap.empty
+                , assets = ApiT TokenMap.empty
                 , derivationPath = derPath
                 , amountIncoming = Quantity $ initialAmt - (amt + fromIntegral expectedFee)
-                , assetsIncoming = ApiT $ TokenMap.empty
+                , assetsIncoming = ApiT TokenMap.empty
                 }
         let txCbor' = getFromResponse #transaction (HTTP.status202, Right $ ApiSerialisedTransaction signedTx)
         let decodePayload' = Json (toJSON $ ApiSerialisedTransaction txCbor')

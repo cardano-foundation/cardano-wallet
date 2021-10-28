@@ -1179,25 +1179,27 @@ lookupTxIns
         ( HasDBLayer IO s k ctx
         , KnownAddresses s
         , IsOurs s Address
-        , WalletKey k
         , DelegationAddress n k
+        , s ~ SeqState n k
         )
     => ctx
     -> WalletId
     -> [TxIn]
-    -> XPub
     -> ExceptT ErrDecodeTx IO [(TxIn, Maybe (TxOut, NonEmpty DerivationIndex))]
-lookupTxIns ctx wid txins xpub = db & \DBLayer{..} -> do
+lookupTxIns ctx wid txins = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
           $ withExceptT ErrDecodeTxNoSuchWallet
           $ withNoSuchWallet wid
           $ readCheckpoint wid
-    -- NOTE it is working properly for base address.
+    let st = getState cp
+    let extendAddr addr = case normalizeDelegationAddress @s @k @n st addr of
+            Just addr' -> addr'
+            Nothing -> error "knownAddresses should have valid fingerprints"
     let f (addr, addrState, ix) =
-            ( extAddr @k @n addr xpub
+            ( extendAddr addr
             , addrState
             , ix )
-    let walletAddrs = map f $ knownAddresses (getState cp)
+    let walletAddrs = map f $ knownAddresses st
     pure $ map (tryGetTxOutPath cp walletAddrs) txins
   where
     db = ctx ^. dbLayer @IO @s @k
@@ -1208,31 +1210,20 @@ lookupTxIns ctx wid txins xpub = db & \DBLayer{..} -> do
                 let path = map (\(_, _,p) -> p) $
                         filter (\(addr', _,_) -> addr' == addr) walletAddrs
                 in case path of
-                    [] -> (txin, Nothing) -- will probably use error here
+                    [] -> (txin, Nothing)
                     path':_ -> (txin, Just (txout, path'))
-
-extAddr
-    :: forall k (n :: NetworkDiscriminant).
-        ( WalletKey k
-        , DelegationAddress n k
-        )
-    => Address
-    -> XPub
-    -> Address
-extAddr addr xpub =
-    liftDelegationAddress @n @k ((\(Right finger) -> finger) $
-    paymentKeyFingerprint @k addr) (liftRawKey @k xpub)
 
 lookupTxOuts
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( HasDBLayer IO s k ctx
         , KnownAddresses s
         , IsOurs s Address
-        , WalletKey k
         , DelegationAddress n k
         , GetPurpose k
+        , WalletKey k
         , GetAccount s k
         , SoftDerivation k
+        , s ~ SeqState n k
         )
     => ctx
     -> WalletId
@@ -1245,7 +1236,7 @@ lookupTxOuts ctx wid txouts xpub = db & \DBLayer{..} -> do
           $ withNoSuchWallet wid
           $ readCheckpoint wid
     let f (addr, addrState, ix) =
-            ( extAddr @k @n addr xpub
+            ( extendAddr cp addr
             , addrState
             , ix )
     let walletAddrs = map f $ knownAddresses (getState cp)
@@ -1261,15 +1252,17 @@ lookupTxOuts ctx wid txouts xpub = db & \DBLayer{..} -> do
     pure $ map (tryGetTxOutPath cp walletAddrs') txouts
   where
     db = ctx ^. dbLayer @IO @s @k
+    extendAddr cp addr = case normalizeDelegationAddress @s @k @n (getState cp) addr of
+        Just addr' -> addr'
+        Nothing -> error "knownAddresses should have valid fingerprints"
     tryGetTxOutPath cp walletAddrs txout@(TxOut addr _) =
         let allTxOuts = Map.elems $ unUTxO $ totalUTxO mempty cp
         in case map (\(_, _,p) -> p) (filter (\(addr', _,_) -> addr' == addr) walletAddrs) of
             [] -> (txout, Nothing)
             path:_ ->
                 let bundles =
-                        foldr (<>) TokenBundle.empty $
-                        map tokens $
-                        filter (\(TxOut addr' _) -> addr == extAddr @k @n addr' xpub) allTxOuts
+                        foldr ((<>) . tokens) TokenBundle.empty
+                        (filter (\(TxOut addr' _) -> addr == extendAddr cp addr') allTxOuts)
                 in (txout, Just (TxOut addr bundles, path))
     getChainType (_ :| [_,_,DerivationIndex i,_]) = i
     getChainType _ = error "expect 5 segment derivation path"

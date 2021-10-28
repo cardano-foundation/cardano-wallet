@@ -2266,6 +2266,7 @@ decodeTransaction
         , SoftDerivation k
         , GetAccount s k
         , GetPurpose k
+        , s ~ SeqState n k
         )
     => ctx
     -> ApiT WalletId
@@ -2276,13 +2277,13 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     (txinsOutsPaths, collsOutsPaths, outsPath, acct)  <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
           (acct, xpub, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-          txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> inps) xpub
-          collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> colls) xpub
+          txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> inps)
+          collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> colls)
           outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k @n wrk wid outs xpub
           pure (txinsOutsPaths, collsOutsPaths, outsPath, acct)
     pure $ ApiDecodedTransaction
         { id = ApiT txid
-        , fee = fromMaybe (Quantity 0) (Quantity . fromIntegral . unCoin <$> feeM)
+        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
         , inputs = map toInp txinsOutsPaths
         , outputs = map toOut outsPath
         , collateral = map toInp collsOutsPaths
