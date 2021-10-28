@@ -33,6 +33,7 @@ library
       aeson
     , async
     , base
+    , base16-bytestring
     , bech32
     , bech32-th
     , binary
@@ -41,8 +42,12 @@ library
     , cardano-api
     , cardano-binary
     , cardano-crypto
+    , cardano-crypto-class
+    , cardano-crypto-test
     , cardano-numeric
     , cardano-ledger-core
+    , cardano-ledger-byron-test
+    , cardano-ledger-alonzo
     , cardano-slotting
     , cborg
     , containers
@@ -65,6 +70,8 @@ library
     , generic-lens
     , generic-arbitrary
     , hashable
+    , hedgehog
+    , hedgehog-quickcheck
     , http-api-data
     , http-client
     , http-client-tls
@@ -90,6 +97,7 @@ library
     , persistent >=2.13 && <2.14
     , persistent-sqlite >=2.13 && <2.14
     , persistent-template >=2.12 && <2.13
+    , plutus-ledger-api
     , pretty-simple
     , profunctors
     , quiet
@@ -103,10 +111,13 @@ library
     , servant
     , servant-client
     , servant-server
+    , shelley-spec-ledger
+    , shelley-spec-ledger-test
     , split
     , splitmix
     , statistics
     , streaming-commons
+    , strict-containers
     , strict-non-empty-containers
     , string-interpolate
     , template-haskell
@@ -249,6 +260,10 @@ library
       Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
       Cardano.Wallet.Primitive.Types.UTxOSelection.Gen
       Cardano.Wallet.Gen
+        -- TODO:
+        --
+        -- Use cardano-api:gen to import these generators from cardano-api
+      Cardano.Api.Gen
   other-modules:
       Paths_cardano_wallet_core
 
@@ -301,9 +316,11 @@ test-suite unit
     , foldl
     , generic-arbitrary
     , generic-lens
+    , hedgehog
     , hedgehog-quickcheck
     , hspec >= 2.8.2
     , hspec-core >= 2.8.2
+    , hspec-hedgehog
     , http-api-data
     , http-client
     , http-client-tls
@@ -320,8 +337,10 @@ test-suite unit
     , network-uri
     , nothunks
     , persistent
+    , plutus-ledger-api
     , pretty-simple
     , regex-pcre-builtin
+    , shelley-spec-ledger
     , OddWord
     , ouroboros-consensus
     , QuickCheck
@@ -367,6 +386,7 @@ test-suite unit
   main-is:
       core-unit-test.hs
   other-modules:
+      Cardano.Api.GenSpec
       Cardano.Byron.Codec.CborSpec
       Cardano.DB.Sqlite.DeleteSpec
       Cardano.Pool.DB.Arbitrary
