@@ -148,12 +148,156 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+--------------------------------------------------------------------------------
+-- Types
+--------------------------------------------------------------------------------
+
+-- | Specifies all constraints required for coin selection.
+--
+-- Selection constraints:
+--
+--    - are dependent on the current set of protocol parameters.
+--
+--    - are not specific to a given selection.
+--
+--    - place limits on the coin selection algorithm, enabling it to produce
+--      selections that are acceptable to the ledger.
+--
+data SelectionConstraints = SelectionConstraints
+    { assessTokenBundleSize
+        :: TokenBundle -> TokenBundleSizeAssessment
+        -- ^ Assesses the size of a token bundle relative to the upper limit of
+        -- what can be included in a transaction output. See documentation for
+        -- the 'TokenBundleSizeAssessor' type to learn about the expected
+        -- properties of this field.
+    , certificateDepositAmount
+        :: Coin
+        -- ^ Amount that should be taken from/returned back to the wallet for
+        -- each stake key registration/de-registration in the transaction.
+    , computeMinimumAdaQuantity
+        :: TokenMap -> Coin
+        -- ^ Computes the minimum ada quantity required for a given output.
+    , computeMinimumCost
+        :: SelectionSkeleton -> Coin
+        -- ^ Computes the minimum cost of a given selection skeleton.
+    , computeSelectionLimit
+        :: [TxOut] -> SelectionLimit
+        -- ^ Computes an upper bound for the number of ordinary inputs to
+        -- select, given a current set of outputs.
+    , maximumCollateralInputCount
+        :: Int
+        -- ^ Specifies an inclusive upper bound on the number of unique inputs
+        -- that can be selected as collateral.
+    , minimumCollateralPercentage
+        :: Natural
+        -- ^ Specifies the minimum required amount of collateral as a
+        -- percentage of the total transaction fee.
+    , utxoSuitableForCollateral
+        :: (TxIn, TxOut) -> Maybe Coin
+        -- ^ Indicates whether an individual UTxO entry is suitable for use as
+        -- a collateral input. This function should return a 'Coin' value if
+        -- (and only if) the given UTxO is suitable for use as collateral.
+    }
+    deriving Generic
+
+-- | Specifies all parameters that are specific to a given selection.
+--
+data SelectionParams = SelectionParams
+    { assetsToBurn
+        :: !TokenMap
+        -- ^ Specifies a set of assets to burn.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Specifies a set of assets to mint.
+    , outputsToCover
+        :: ![TxOut]
+        -- ^ Specifies a set of outputs that must be paid for.
+    , rewardWithdrawal
+        :: !Coin
+        -- ^ Specifies the value of a withdrawal from a reward account.
+    , certificateDepositsTaken
+        :: !Natural
+        -- ^ Number of deposits for stake key registrations.
+    , certificateDepositsReturned
+        :: !Natural
+        -- ^ Number of deposits from stake key de-registrations.
+    , collateralRequirement
+        :: !SelectionCollateralRequirement
+        -- ^ Specifies the collateral requirement for this selection.
+    , utxoAvailableForCollateral
+        :: !UTxO
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- collateral inputs.
+        --
+        -- This set is allowed to intersect with 'utxoAvailableForInputs',
+        -- since the ledger does not require that these sets are disjoint.
+    , utxoAvailableForInputs
+        :: !UTxOSelection
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- ordinary inputs and optionally, a subset that has already been
+        -- selected.
+        --
+        -- Further entries from this set will be selected to cover any deficit.
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Indicates that an error occurred while performing a coin selection.
+--
+data SelectionError
+    = SelectionBalanceError
+        Balance.SelectionError
+    | SelectionCollateralError
+        Collateral.SelectionError
+    | SelectionOutputError
+        SelectionOutputInvalidError
+    deriving (Eq, Show)
+
+-- | Represents a balanced selection.
+--
+data SelectionOf change = Selection
+    { inputs
+        :: !(NonEmpty (TxIn, TxOut))
+        -- ^ Selected inputs.
+    , collateral
+        :: ![(TxIn, TxOut)]
+        -- ^ Selected collateral inputs.
+    , outputs
+        :: ![TxOut]
+        -- ^ User-specified outputs
+    , change
+        :: ![change]
+        -- ^ Generated change outputs.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Assets to mint.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ Assets to burn.
+    , extraCoinSource
+        :: !Coin
+        -- ^ An extra source of ada.
+    , extraCoinSink
+        :: !Coin
+        -- ^ An extra sink for ada.
+    }
+    deriving (Generic, Eq, Show)
+
+-- | The default type of selection.
+--
+-- In this type of selection, change values do not have addresses assigned.
+--
+type Selection = SelectionOf TokenBundle
+
 -- | Provides a context for functions related to 'performSelection'.
 
 type PerformSelection m a =
     SelectionConstraints ->
     SelectionParams ->
     ExceptT SelectionError m a
+
+--------------------------------------------------------------------------------
+-- Performing a selection
+--------------------------------------------------------------------------------
 
 -- | Performs a coin selection.
 --
@@ -214,6 +358,19 @@ performSelectionCollateral balanceResult cs ps
         toCollateralConstraintsParams balanceResult (cs, ps)
     | otherwise =
         ExceptT $ pure $ Right Collateral.selectionResultEmpty
+
+-- | Returns a selection's ordinary outputs and change outputs in a single list.
+--
+-- Since change outputs do not have addresses at the point of generation,
+-- this function assigns all change outputs with a dummy change address.
+--
+selectionAllOutputs :: Selection -> [TxOut]
+selectionAllOutputs selection = (<>)
+    (selection ^. #outputs)
+    (selection ^. #change <&> TxOut dummyChangeAddress)
+  where
+    dummyChangeAddress :: Address
+    dummyChangeAddress = Address "<change>"
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --
@@ -1206,155 +1363,6 @@ computeMinimumCollateral params =
     mtimesDefault
         (view #minimumCollateralPercentage params)
         (view #transactionFee params)
-
--- | Specifies all constraints required for coin selection.
---
--- Selection constraints:
---
---    - place limits on the coin selection algorithm, enabling it to produce
---      selections that are acceptable to the ledger.
---
---    - are dependent on the current set of protocol parameters.
---
---    - are not specific to a given selection.
---
-data SelectionConstraints = SelectionConstraints
-    { assessTokenBundleSize
-        :: TokenBundle -> TokenBundleSizeAssessment
-        -- ^ Assesses the size of a token bundle relative to the upper limit of
-        -- what can be included in a transaction output. See documentation for
-        -- the 'TokenBundleSizeAssessor' type to learn about the expected
-        -- properties of this field.
-    , certificateDepositAmount
-        :: Coin
-        -- ^ Amount that should be taken from/returned back to the wallet for
-        -- each stake key registration/de-registration in the transaction.
-    , computeMinimumAdaQuantity
-        :: TokenMap -> Coin
-        -- ^ Computes the minimum ada quantity required for a given output.
-    , computeMinimumCost
-        :: SelectionSkeleton -> Coin
-        -- ^ Computes the minimum cost of a given selection skeleton.
-    , computeSelectionLimit
-        :: [TxOut] -> SelectionLimit
-        -- ^ Computes an upper bound for the number of ordinary inputs to
-        -- select, given a current set of outputs.
-    , maximumCollateralInputCount
-        :: Int
-        -- ^ Specifies an inclusive upper bound on the number of unique inputs
-        -- that can be selected as collateral.
-    , minimumCollateralPercentage
-        :: Natural
-        -- ^ Specifies the minimum required amount of collateral as a
-        -- percentage of the total transaction fee.
-    , utxoSuitableForCollateral
-        :: (TxIn, TxOut) -> Maybe Coin
-        -- ^ Indicates whether an individual UTxO entry is suitable for use as
-        -- a collateral input. This function should return a 'Coin' value if
-        -- (and only if) the given UTxO is suitable for use as collateral.
-    }
-    deriving Generic
-
--- | Specifies all parameters that are specific to a given selection.
---
-data SelectionParams = SelectionParams
-    { assetsToBurn
-        :: !TokenMap
-        -- ^ Specifies a set of assets to burn.
-    , assetsToMint
-        :: !TokenMap
-        -- ^ Specifies a set of assets to mint.
-    , outputsToCover
-        :: ![TxOut]
-        -- ^ Specifies a set of outputs that must be paid for.
-    , rewardWithdrawal
-        :: !Coin
-        -- ^ Specifies the value of a withdrawal from a reward account.
-    , certificateDepositsTaken
-        :: !Natural
-        -- ^ Number of deposits for stake key registrations.
-    , certificateDepositsReturned
-        :: !Natural
-        -- ^ Number of deposits from stake key de-registrations.
-    , collateralRequirement
-        :: !SelectionCollateralRequirement
-        -- ^ Specifies the collateral requirement for this selection.
-    , utxoAvailableForCollateral
-        :: !UTxO
-        -- ^ Specifies a set of UTxOs that are available for selection as
-        -- collateral inputs.
-        --
-        -- This set is allowed to intersect with 'utxoAvailableForInputs',
-        -- since the ledger does not require that these sets are disjoint.
-    , utxoAvailableForInputs
-        :: !UTxOSelection
-        -- ^ Specifies a set of UTxOs that are available for selection as
-        -- ordinary inputs and optionally, a subset that has already been
-        -- selected.
-        --
-        -- Further entries from this set will be selected to cover any deficit.
-    }
-    deriving (Eq, Generic, Show)
-
--- | Indicates that an error occurred while performing a coin selection.
---
-data SelectionError
-    = SelectionBalanceError
-        Balance.SelectionError
-    | SelectionCollateralError
-        Collateral.SelectionError
-    | SelectionOutputError
-        SelectionOutputInvalidError
-    deriving (Eq, Show)
-
--- | Represents a balanced selection.
---
-data SelectionOf change = Selection
-    { inputs
-        :: !(NonEmpty (TxIn, TxOut))
-        -- ^ Selected inputs.
-    , collateral
-        :: ![(TxIn, TxOut)]
-        -- ^ Selected collateral inputs.
-    , outputs
-        :: ![TxOut]
-        -- ^ User-specified outputs
-    , change
-        :: ![change]
-        -- ^ Generated change outputs.
-    , assetsToMint
-        :: !TokenMap
-        -- ^ Assets to mint.
-    , assetsToBurn
-        :: !TokenMap
-        -- ^ Assets to burn.
-    , extraCoinSource
-        :: !Coin
-        -- ^ An extra source of ada.
-    , extraCoinSink
-        :: !Coin
-        -- ^ An extra sink for ada.
-    }
-    deriving (Generic, Eq, Show)
-
--- | The default type of selection.
---
--- In this type of selection, change values do not have addresses assigned.
---
-type Selection = SelectionOf TokenBundle
-
--- | Returns a selection's ordinary outputs and change outputs in a single list.
---
--- Since change outputs do not have addresses at the point of generation,
--- this function assigns all change outputs with a dummy change address.
---
-selectionAllOutputs :: Selection -> [TxOut]
-selectionAllOutputs selection = (<>)
-    (selection ^. #outputs)
-    (selection ^. #change <&> TxOut dummyChangeAddress)
-  where
-    dummyChangeAddress :: Address
-    dummyChangeAddress = Address "<change>"
 
 --------------------------------------------------------------------------------
 -- Preparing outputs
