@@ -840,7 +840,7 @@ data FailureToVerifyUnableToConstructChangeError =
 -- | Verifies a 'Balance.UnableToConstructChangeError'.
 --
 -- This function verifies that it's possible to successfully re-run the
--- selection process with exactly the same parameters if we modify the
+-- selection process with exactly the same parameters /if/ we modify the
 -- constraints to be minimal, where we have:
 --
 --   - a minimum cost function that always returns zero.
@@ -878,6 +878,26 @@ verifyUnableToConstructChangeError cs ps errorOriginal =
     --
     resultWithMinimalConstraints :: Either SelectionError Selection
     resultWithMinimalConstraints =
+        -- The 'performSelection' function requires a 'MonadRandom' context so
+        -- that it can select entries at random from the available UTxO set.
+        --
+        -- However, for this verification step, we don't actually require UTxO
+        -- selection to be random. We only require that the 'performSelection'
+        -- function is able to select some sequence of UTxOs that collectively
+        -- covers the desired output amount.
+        --
+        -- To satisfy the requirement to provide a 'MonadRandom' context, we use
+        -- the 'Identity' type, for which a 'MonadRandom' instance is provided.
+        -- This instance, when asked to provide a random value from within a
+        -- range of values, will always provide the same value.
+        --
+        -- This means that each internal step of 'performSelection' will select
+        -- a value from the same relative position of the leftover available
+        -- UTxO set. However, since selecting a UTxO entry removes it from the
+        -- leftover set, every subsequent step will select a different entry,
+        -- and thus the selection algorithm will always be able to make forward
+        -- progress.
+        --
         runIdentity $ runExceptT $ performSelection cs' ps
       where
         -- A modified set of constraints that should always allow the
