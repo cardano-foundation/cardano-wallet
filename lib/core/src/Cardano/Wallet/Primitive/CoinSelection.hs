@@ -80,6 +80,8 @@ module Cardano.Wallet.Primitive.CoinSelection
 
 import Prelude
 
+import Algebra.PartialOrd
+    ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
     ( SelectionDelta (..), SelectionLimit, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types.Address
@@ -100,10 +102,14 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad
     ( (<=<) )
+import Control.Monad.Identity
+    ( Identity (..) )
 import Control.Monad.Random.Class
-    ( MonadRandom )
+    ( MonadRandom (..) )
+import Control.Monad.Random.Lazy
+    ( Random (..), StdGen, mkStdGen )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), withExceptT )
+    ( ExceptT (..), runExceptT, withExceptT )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -121,7 +127,7 @@ import Data.Maybe
 import Data.Ratio
     ( (%) )
 import Data.Semigroup
-    ( mtimesDefault )
+    ( All (..), mtimesDefault )
 import Fmt
     ( Buildable (..), genericF )
 import GHC.Generics
@@ -136,10 +142,151 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+
+--------------------------------------------------------------------------------
+-- Types
+--------------------------------------------------------------------------------
+
+-- | Specifies all constraints required for coin selection.
+--
+-- Selection constraints:
+--
+--    - are dependent on the current set of protocol parameters.
+--
+--    - are not specific to a given selection.
+--
+--    - place limits on the coin selection algorithm, enabling it to produce
+--      selections that are acceptable to the ledger.
+--
+data SelectionConstraints = SelectionConstraints
+    { assessTokenBundleSize
+        :: TokenBundle -> TokenBundleSizeAssessment
+        -- ^ Assesses the size of a token bundle relative to the upper limit of
+        -- what can be included in a transaction output. See documentation for
+        -- the 'TokenBundleSizeAssessor' type to learn about the expected
+        -- properties of this field.
+    , certificateDepositAmount
+        :: Coin
+        -- ^ Amount that should be taken from/returned back to the wallet for
+        -- each stake key registration/de-registration in the transaction.
+    , computeMinimumAdaQuantity
+        :: TokenMap -> Coin
+        -- ^ Computes the minimum ada quantity required for a given output.
+    , computeMinimumCost
+        :: SelectionSkeleton -> Coin
+        -- ^ Computes the minimum cost of a given selection skeleton.
+    , computeSelectionLimit
+        :: [TxOut] -> SelectionLimit
+        -- ^ Computes an upper bound for the number of ordinary inputs to
+        -- select, given a current set of outputs.
+    , maximumCollateralInputCount
+        :: Int
+        -- ^ Specifies an inclusive upper bound on the number of unique inputs
+        -- that can be selected as collateral.
+    , minimumCollateralPercentage
+        :: Natural
+        -- ^ Specifies the minimum required amount of collateral as a
+        -- percentage of the total transaction fee.
+    , utxoSuitableForCollateral
+        :: (TxIn, TxOut) -> Maybe Coin
+        -- ^ Indicates whether an individual UTxO entry is suitable for use as
+        -- a collateral input. This function should return a 'Coin' value if
+        -- (and only if) the given UTxO is suitable for use as collateral.
+    }
+    deriving Generic
+
+-- | Specifies all parameters that are specific to a given selection.
+--
+data SelectionParams = SelectionParams
+    { assetsToBurn
+        :: !TokenMap
+        -- ^ Specifies a set of assets to burn.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Specifies a set of assets to mint.
+    , outputsToCover
+        :: ![TxOut]
+        -- ^ Specifies a set of outputs that must be paid for.
+    , rewardWithdrawal
+        :: !Coin
+        -- ^ Specifies the value of a withdrawal from a reward account.
+    , certificateDepositsTaken
+        :: !Natural
+        -- ^ Number of deposits for stake key registrations.
+    , certificateDepositsReturned
+        :: !Natural
+        -- ^ Number of deposits from stake key de-registrations.
+    , collateralRequirement
+        :: !SelectionCollateralRequirement
+        -- ^ Specifies the collateral requirement for this selection.
+    , utxoAvailableForCollateral
+        :: !UTxO
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- collateral inputs.
+        --
+        -- This set is allowed to intersect with 'utxoAvailableForInputs',
+        -- since the ledger does not require that these sets are disjoint.
+    , utxoAvailableForInputs
+        :: !UTxOSelection
+        -- ^ Specifies a set of UTxOs that are available for selection as
+        -- ordinary inputs and optionally, a subset that has already been
+        -- selected.
+        --
+        -- Further entries from this set will be selected to cover any deficit.
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Indicates that an error occurred while performing a coin selection.
+--
+data SelectionError
+    = SelectionBalanceError
+        Balance.SelectionError
+    | SelectionCollateralError
+        Collateral.SelectionError
+    | SelectionOutputError
+        SelectionOutputInvalidError
+    deriving (Eq, Show)
+
+-- | Represents a balanced selection.
+--
+data SelectionOf change = Selection
+    { inputs
+        :: !(NonEmpty (TxIn, TxOut))
+        -- ^ Selected inputs.
+    , collateral
+        :: ![(TxIn, TxOut)]
+        -- ^ Selected collateral inputs.
+    , outputs
+        :: ![TxOut]
+        -- ^ User-specified outputs
+    , change
+        :: ![change]
+        -- ^ Generated change outputs.
+    , assetsToMint
+        :: !TokenMap
+        -- ^ Assets to mint.
+    , assetsToBurn
+        :: !TokenMap
+        -- ^ Assets to burn.
+    , extraCoinSource
+        :: !Coin
+        -- ^ An extra source of ada.
+    , extraCoinSink
+        :: !Coin
+        -- ^ An extra sink for ada.
+    }
+    deriving (Generic, Eq, Show)
+
+-- | The default type of selection.
+--
+-- In this type of selection, change values do not have addresses assigned.
+--
+type Selection = SelectionOf TokenBundle
 
 -- | Provides a context for functions related to 'performSelection'.
 
@@ -147,6 +294,10 @@ type PerformSelection m a =
     SelectionConstraints ->
     SelectionParams ->
     ExceptT SelectionError m a
+
+--------------------------------------------------------------------------------
+-- Performing a selection
+--------------------------------------------------------------------------------
 
 -- | Performs a coin selection.
 --
@@ -207,6 +358,19 @@ performSelectionCollateral balanceResult cs ps
         toCollateralConstraintsParams balanceResult (cs, ps)
     | otherwise =
         ExceptT $ pure $ Right Collateral.selectionResultEmpty
+
+-- | Returns a selection's ordinary outputs and change outputs in a single list.
+--
+-- Since change outputs do not have addresses at the point of generation,
+-- this function assigns all change outputs with a dummy change address.
+--
+selectionAllOutputs :: Selection -> [TxOut]
+selectionAllOutputs selection = (<>)
+    (selection ^. #outputs)
+    (selection ^. #change <&> TxOut dummyChangeAddress)
+  where
+    dummyChangeAddress :: Address
+    dummyChangeAddress = Address "<change>"
 
 -- | Creates constraints and parameters for 'Balance.performSelection'.
 --
@@ -375,7 +539,8 @@ data VerificationResult
 -- | Represents a reason for verification failure.
 --
 data VerificationFailureReason =
-    forall a. Show a => VerificationFailureReason a
+    forall failureReason. Show failureReason =>
+    VerificationFailureReason failureReason
 deriving instance Show VerificationFailureReason
 
 instance Eq VerificationResult where
@@ -391,7 +556,10 @@ instance Semigroup VerificationResult where
 
 -- | Constructs a singleton verification failure.
 --
-verificationFailure :: forall a. Show a => a -> VerificationResult
+verificationFailure
+    :: forall failureReason. Show failureReason
+    => failureReason
+    -> VerificationResult
 verificationFailure a = VerificationFailure (VerificationFailureReason a :| [])
 
 -- | Constructs a 'VerificationResult' from a list of failure reasons.
@@ -408,6 +576,53 @@ verificationResultToFailureReasons
 verificationResultToFailureReasons = \case
     VerificationSuccess -> []
     VerificationFailure reasons -> NE.toList reasons
+
+-- | Verifies the given condition.
+--
+-- If the given condition is 'True', returns 'VerificationSuccess'.
+--
+-- Otherwise, returns 'VerificationFailure' with the given reason.
+--
+verify
+    :: forall failureReason. Show failureReason
+    => Bool
+    -> failureReason
+    -> VerificationResult
+verify condition failureReason =
+    if condition
+    then VerificationSuccess
+    else verificationFailure failureReason
+
+-- | Verifies all of the given conditions.
+--
+-- If the given conditions are all 'True', returns 'VerificationSuccess'.
+--
+-- Otherwise, returns 'VerificationFailure' with the given reason.
+--
+verifyAll
+    :: forall f failureReason. (Foldable f, Show failureReason)
+    => f Bool
+    -> failureReason
+    -> VerificationResult
+verifyAll conditions = verify (getAll $ F.foldMap All conditions)
+
+-- | Verifies that the given list is empty.
+--
+-- If the given list is empty, returns 'VerificationSuccess'.
+--
+-- Otherwise, returns 'VerificationFailure', with given reason constructor
+-- applied to the non-empty list.
+--
+verifyEmpty
+    :: forall failureReason a. Show failureReason
+    => [a]
+    -> (NonEmpty a -> failureReason)
+    -> VerificationResult
+verifyEmpty xs failureReason =
+    maybe
+        (VerificationSuccess)
+        (verificationFailure . failureReason)
+        (NE.nonEmpty xs)
 
 --------------------------------------------------------------------------------
 -- Selection verification
@@ -450,11 +665,10 @@ data FailureToVerifySelectionCollateralSufficient =
     deriving (Eq, Show)
 
 verifySelectionCollateralSufficient :: VerifySelection
-verifySelectionCollateralSufficient cs ps selection
-    | collateralSelected >= collateralRequired =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionCollateralSufficient {..}
+verifySelectionCollateralSufficient cs ps selection =
+    verify
+        (collateralSelected >= collateralRequired)
+        (FailureToVerifySelectionCollateralSufficient {..})
   where
     collateralSelected = selectionCollateral selection
     collateralRequired = selectionMinimumCollateral cs ps selection
@@ -473,11 +687,10 @@ data FailureToVerifySelectionCollateralSuitable =
     deriving (Eq, Show)
 
 verifySelectionCollateralSuitable :: VerifySelection
-verifySelectionCollateralSuitable cs _ps selection
-    | null collateralSelectedButUnsuitable =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionCollateralSuitable {..}
+verifySelectionCollateralSuitable cs _ps selection =
+    verify
+        (null collateralSelectedButUnsuitable)
+        (FailureToVerifySelectionCollateralSuitable {..})
   where
     collateralSelected =
         selection ^. #collateral
@@ -502,11 +715,10 @@ data FailureToVerifySelectionDeltaValid = FailureToVerifySelectionDeltaValid
     deriving (Eq, Show)
 
 verifySelectionDeltaValid :: VerifySelection
-verifySelectionDeltaValid cs ps selection
-    | selectionHasValidSurplus cs ps selection =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionDeltaValid {..}
+verifySelectionDeltaValid cs ps selection =
+    verify
+        (selectionHasValidSurplus cs ps selection)
+        (FailureToVerifySelectionDeltaValid {..})
   where
     delta = selectionDeltaAllAssets selection
     minimumCost = selectionMinimumCost cs ps selection
@@ -530,11 +742,10 @@ data FailureToVerifySelectionInputCountWithinLimit =
     deriving (Eq, Show)
 
 verifySelectionInputCountWithinLimit :: VerifySelection
-verifySelectionInputCountWithinLimit cs _ps selection
-    | Balance.MaximumInputLimit totalInputCount <= selectionLimit =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionInputCountWithinLimit {..}
+verifySelectionInputCountWithinLimit cs _ps selection =
+    verify
+        (Balance.MaximumInputLimit totalInputCount <= selectionLimit)
+        (FailureToVerifySelectionInputCountWithinLimit {..})
   where
     collateralInputCount = length (selection ^. #collateral)
     ordinaryInputCount = length (selection ^. #inputs)
@@ -550,19 +761,15 @@ newtype FailureToVerifySelectionOutputCoinsSufficient =
     (NonEmpty SelectionOutputCoinInsufficientError)
     deriving (Eq, Show)
 
-data SelectionOutputCoinInsufficientError =
-    SelectionOutputCoinInsufficientError
+data SelectionOutputCoinInsufficientError = SelectionOutputCoinInsufficientError
     { minimumExpectedCoin :: Coin
     , output :: TxOut
     }
     deriving (Eq, Show)
 
-verifySelectionOutputCoinsSufficient
-    :: VerifySelection
-verifySelectionOutputCoinsSufficient cs _ps selection = maybe
-    (VerificationSuccess)
-    (verificationFailure . FailureToVerifySelectionOutputCoinsSufficient)
-    (NE.nonEmpty errors)
+verifySelectionOutputCoinsSufficient :: VerifySelection
+verifySelectionOutputCoinsSufficient cs _ps selection =
+    verifyEmpty errors FailureToVerifySelectionOutputCoinsSufficient
   where
     errors :: [SelectionOutputCoinInsufficientError]
     errors = mapMaybe maybeError (selectionAllOutputs selection)
@@ -590,10 +797,8 @@ newtype FailureToVerifySelectionOutputSizesWithinLimit =
     deriving (Eq, Show)
 
 verifySelectionOutputSizesWithinLimit :: VerifySelection
-verifySelectionOutputSizesWithinLimit cs _ps selection = maybe
-    (VerificationSuccess)
-    (verificationFailure . FailureToVerifySelectionOutputSizesWithinLimit)
-    (NE.nonEmpty errors)
+verifySelectionOutputSizesWithinLimit cs _ps selection =
+    verifyEmpty errors FailureToVerifySelectionOutputSizesWithinLimit
   where
     errors :: [SelectionOutputSizeExceedsLimitError]
     errors = mapMaybe (verifyOutputSize cs) (selectionAllOutputs selection)
@@ -608,11 +813,8 @@ newtype FailureToVerifySelectionOutputTokenQuantitiesWithinLimit =
     deriving (Eq, Show)
 
 verifySelectionOutputTokenQuantitiesWithinLimit :: VerifySelection
-verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection = maybe
-    (VerificationSuccess)
-    (verificationFailure
-        . FailureToVerifySelectionOutputTokenQuantitiesWithinLimit)
-    (NE.nonEmpty errors)
+verifySelectionOutputTokenQuantitiesWithinLimit _cs _ps selection =
+    verifyEmpty errors FailureToVerifySelectionOutputTokenQuantitiesWithinLimit
   where
     errors :: [SelectionOutputTokenQuantityExceedsLimitError]
     errors = verifyOutputTokenQuantities =<< selectionAllOutputs selection
@@ -650,26 +852,85 @@ verifySelectionError cs ps = \case
 
 verifySelectionBalanceError :: VerifySelectionError Balance.SelectionError
 verifySelectionBalanceError cs ps = \case
-    Balance.BalanceInsufficient _e ->
-        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+    Balance.BalanceInsufficient e ->
+        verifyBalanceInsufficientError cs ps e
     Balance.EmptyUTxO ->
-        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
-    Balance.InsufficientMinCoinValues _e ->
-        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
-    Balance.UnableToConstructChange _e ->
-        temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule
+        verifyEmptyUTxOError cs ps ()
+    Balance.InsufficientMinCoinValues es ->
+        F.foldMap (verifyInsufficientMinCoinValueError cs ps) es
+    Balance.UnableToConstructChange e->
+        verifyUnableToConstructChangeError cs ps e
     Balance.SelectionLimitReached e ->
         verifySelectionLimitReachedError cs ps e
+
+--------------------------------------------------------------------------------
+-- Selection error verification: balance insufficient errors
+--------------------------------------------------------------------------------
+
+data FailureToVerifyBalanceInsufficientError =
+    FailureToVerifyBalanceInsufficientError
+    { utxoBalanceAvailable :: TokenBundle
+    , utxoBalanceRequired :: TokenBundle
+    }
+    deriving (Eq, Show)
+
+verifyBalanceInsufficientError
+    :: VerifySelectionError Balance.BalanceInsufficientError
+verifyBalanceInsufficientError cs ps e =
+    verifyAll
+        [ not (utxoBalanceRequired `leq` utxoBalanceAvailable)
+        , not (Balance.isUTxOBalanceSufficient balanceParams)
+        ]
+        FailureToVerifyBalanceInsufficientError {..}
   where
-    -- Indicates that we are temporarily assuming correctness based on test
-    -- coverage for the 'Balance' module.
-    --
-    -- TODO: [ADP-1037]
-    -- Reuse properties exported from the module 'Balance' here, so that we
-    -- can reassert that these properties still hold.
-    --
-    temporarilyAssumeCorrectnessBasedOnTestCoverageForBalanceModule =
-        VerificationSuccess
+    balanceParams = snd $ toBalanceConstraintsParams (cs, ps)
+    utxoBalanceAvailable = e ^. #utxoBalanceAvailable
+    utxoBalanceRequired = e ^. #utxoBalanceRequired
+
+--------------------------------------------------------------------------------
+-- Selection error verification: empty UTxO errors
+--------------------------------------------------------------------------------
+
+newtype FailureToVerifyEmptyUTxOError = FailureToVerifyEmptyUTxOError
+    { utxoAvailableForInputs :: UTxOSelection }
+    deriving (Eq, Show)
+
+verifyEmptyUTxOError :: VerifySelectionError ()
+verifyEmptyUTxOError _cs SelectionParams {utxoAvailableForInputs} _e =
+    verify
+        (utxoAvailableForInputs == UTxOSelection.empty)
+        (FailureToVerifyEmptyUTxOError {utxoAvailableForInputs})
+
+--------------------------------------------------------------------------------
+-- Selection error verification: insufficient minimum ada quantity errors
+--------------------------------------------------------------------------------
+
+data FailureToVerifyInsufficientMinCoinValueError =
+    FailureToVerifyInsufficientMinCoinValueError
+    { reportedOutput :: TxOut
+    , reportedMinCoinValue :: Coin
+    , verifiedMinCoinValue :: Coin
+    }
+    deriving (Eq, Show)
+
+verifyInsufficientMinCoinValueError
+    :: VerifySelectionError Balance.InsufficientMinCoinValueError
+verifyInsufficientMinCoinValueError cs _ps e =
+    verifyAll
+        [ reportedMinCoinValue == verifiedMinCoinValue
+        , reportedMinCoinValue > reportedOutput ^. (#tokens . #coin)
+        ]
+        FailureToVerifyInsufficientMinCoinValueError {..}
+  where
+    reportedOutput = e ^. #outputWithInsufficientAda
+    reportedMinCoinValue = e ^. #expectedMinCoinValue
+    verifiedMinCoinValue =
+        (cs ^. #computeMinimumAdaQuantity)
+        (reportedOutput ^. (#tokens . #tokens))
+
+--------------------------------------------------------------------------------
+-- Selection error verification: selection limit errors
+--------------------------------------------------------------------------------
 
 data FailureToVerifySelectionLimitReachedError =
     FailureToVerifySelectionLimitReachedError
@@ -695,11 +956,10 @@ data FailureToVerifySelectionLimitReachedError =
 --
 verifySelectionLimitReachedError
     :: VerifySelectionError Balance.SelectionLimitReachedError
-verifySelectionLimitReachedError cs ps e
-    | Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted =
-        VerificationSuccess
-    | otherwise =
-        verificationFailure FailureToVerifySelectionLimitReachedError {..}
+verifySelectionLimitReachedError cs ps e =
+    verify
+        (Balance.MaximumInputLimit selectedInputCount >= selectionLimitAdjusted)
+        (FailureToVerifySelectionLimitReachedError {..})
   where
     selectedInputs :: [(TxIn, TxOut)]
     selectedInputs = e ^. #inputsSelected
@@ -717,6 +977,93 @@ verifySelectionLimitReachedError cs ps e
     selectionLimitOriginal = cs
         & view #computeSelectionLimit
         & ($ F.toList $ e ^. #outputsToCover)
+
+--------------------------------------------------------------------------------
+-- Selection error verification: change construction errors
+--------------------------------------------------------------------------------
+
+data FailureToVerifyUnableToConstructChangeError =
+    FailureToVerifyUnableToConstructChangeError
+        { errorOriginal
+            :: Balance.UnableToConstructChangeError
+            -- ^ The original error.
+        , errorWithMinimalConstraints
+            :: SelectionError
+            -- ^ An error encountered when attempting to re-run the selection
+            -- process with minimal constraints.
+        }
+    deriving (Eq, Show)
+
+-- | Verifies a 'Balance.UnableToConstructChangeError'.
+--
+-- This function verifies that it's possible to successfully re-run the
+-- selection process with exactly the same parameters /if/ we modify the
+-- constraints to be minimal, where we have:
+--
+--   - a minimum cost function that always returns zero.
+--   - a minimum ada quantity function that always returns zero.
+--
+-- Such an attempt should always succeed, since 'UnableToConstructChangeError'
+-- should be returned if (and only if) the available UTxO balance:
+--
+--  - is sufficient to cover the desired total output balance; but
+--
+--  - is NOT sufficient to cover:
+--
+--      a. the minimum cost of the transaction;
+--      b. the minimum ada quantities of generated change outputs.
+--
+-- If the available UTxO balance is not sufficient to cover the desired total
+-- output balance, then 'performSelection' should explicitly indicate that the
+-- balance is insufficient by returning a 'BalanceInsufficientError' instead.
+--
+verifyUnableToConstructChangeError
+    :: VerifySelectionError Balance.UnableToConstructChangeError
+verifyUnableToConstructChangeError cs ps errorOriginal =
+    case resultWithMinimalConstraints of
+        Left errorWithMinimalConstraints ->
+            verificationFailure
+            FailureToVerifyUnableToConstructChangeError {..}
+        Right _ ->
+            VerificationSuccess
+  where
+    -- The result of attempting to re-run the selection process with minimal
+    -- constraints, where we have:
+    --
+    --   - a minimum cost function that always returns zero.
+    --   - a minimum ada quantity function that always returns zero.
+    --
+    resultWithMinimalConstraints :: Either SelectionError Selection
+    resultWithMinimalConstraints =
+        -- The 'performSelection' function requires a 'MonadRandom' context so
+        -- that it can select entries at random from the available UTxO set.
+        --
+        -- However, for this verification step, we don't actually require UTxO
+        -- selection to be random. We only require that the 'performSelection'
+        -- function is able to select some sequence of UTxOs that collectively
+        -- covers the desired output amount.
+        --
+        -- To satisfy the requirement to provide a 'MonadRandom' context, we use
+        -- the 'Identity' type, for which a 'MonadRandom' instance is provided.
+        -- This instance, when asked to provide a random value from within a
+        -- range of values, will always provide the same value.
+        --
+        -- This means that each internal step of 'performSelection' will select
+        -- a value from the same relative position of the leftover available
+        -- UTxO set. However, since selecting a UTxO entry removes it from the
+        -- leftover set, every subsequent step will select a different entry,
+        -- and thus the selection algorithm will always be able to make forward
+        -- progress.
+        --
+        runIdentity $ runExceptT $ performSelection cs' ps
+      where
+        -- A modified set of constraints that should always allow the
+        -- successful creation of a selection:
+        cs' = cs
+            { computeMinimumAdaQuantity = const $ Coin 0
+            , computeMinimumCost = const $ Coin 0
+            , computeSelectionLimit = const Balance.NoLimit
+            }
 
 --------------------------------------------------------------------------------
 -- Selection error verification: collateral errors
@@ -754,19 +1101,14 @@ data FailureToVerifySelectionCollateralError =
         deriving (Eq, Show)
 
 verifySelectionCollateralError :: VerifySelectionError Collateral.SelectionError
-verifySelectionCollateralError cs ps e
-    | not (Map.null largestCombinationUnsuitableSubset) =
-        reportFailure
-    | largestCombinationSize > maximumSelectionSize =
-        reportFailure
-    | largestCombinationValue >= minimumSelectionAmount =
-        reportFailure
-    | otherwise =
-        VerificationSuccess
+verifySelectionCollateralError cs ps e =
+    verifyAll
+        [ Map.null largestCombinationUnsuitableSubset
+        , largestCombinationSize <= maximumSelectionSize
+        , largestCombinationValue < minimumSelectionAmount
+        ]
+        (FailureToVerifySelectionCollateralError {..})
   where
-    reportFailure =
-        verificationFailure FailureToVerifySelectionCollateralError {..}
-
     largestCombination :: Map TxIn Coin
     largestCombination = e ^. #largestCombinationAvailable
     largestCombinationSize :: Int
@@ -804,13 +1146,16 @@ verifySelectionCollateralError cs ps e
 -- Selection error verification: output errors
 --------------------------------------------------------------------------------
 
-verifySelectionOutputError
-    :: VerifySelectionError SelectionOutputInvalidError
+verifySelectionOutputError :: VerifySelectionError SelectionOutputInvalidError
 verifySelectionOutputError cs ps = \case
     SelectionOutputSizeExceedsLimit e ->
         verifySelectionOutputSizeExceedsLimitError cs ps e
     SelectionOutputTokenQuantityExceedsLimit e ->
         verifySelectionOutputTokenQuantityExceedsLimitError cs ps e
+
+--------------------------------------------------------------------------------
+-- Selection error verification: output size errors
+--------------------------------------------------------------------------------
 
 newtype FailureToVerifySelectionOutputSizeExceedsLimitError =
     FailureToVerifySelectionOutputSizeExceedsLimitError
@@ -819,12 +1164,10 @@ newtype FailureToVerifySelectionOutputSizeExceedsLimitError =
 
 verifySelectionOutputSizeExceedsLimitError
     :: VerifySelectionError SelectionOutputSizeExceedsLimitError
-verifySelectionOutputSizeExceedsLimitError cs _ps e
-    | isWithinLimit =
-        verificationFailure
-        FailureToVerifySelectionOutputSizeExceedsLimitError {..}
-    | otherwise =
-        VerificationSuccess
+verifySelectionOutputSizeExceedsLimitError cs _ps e =
+    verify
+        (not isWithinLimit)
+        (FailureToVerifySelectionOutputSizeExceedsLimitError {..})
   where
     isWithinLimit = case (cs ^. #assessTokenBundleSize) bundle of
         TokenBundleSizeWithinLimit -> True
@@ -834,6 +1177,10 @@ verifySelectionOutputSizeExceedsLimitError cs _ps e
 
     outputReportedAsExceedingLimit = e ^. #outputThatExceedsLimit
 
+--------------------------------------------------------------------------------
+-- Selection error verification: output token quantity errors
+--------------------------------------------------------------------------------
+
 newtype FailureToVerifySelectionOutputTokenQuantityExceedsLimitError =
     FailureToVerifySelectionOutputTokenQuantityExceedsLimitError
         { reportedError :: SelectionOutputTokenQuantityExceedsLimitError }
@@ -841,12 +1188,10 @@ newtype FailureToVerifySelectionOutputTokenQuantityExceedsLimitError =
 
 verifySelectionOutputTokenQuantityExceedsLimitError
     :: VerifySelectionError SelectionOutputTokenQuantityExceedsLimitError
-verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps e
-    | e ^. #quantity <= e ^. #quantityMaxBound =
-        verificationFailure $
-        FailureToVerifySelectionOutputTokenQuantityExceedsLimitError e
-    | otherwise =
-        VerificationSuccess
+verifySelectionOutputTokenQuantityExceedsLimitError _cs _ps e =
+    verify
+        (e ^. #quantity > e ^. #quantityMaxBound)
+        (FailureToVerifySelectionOutputTokenQuantityExceedsLimitError e)
 
 --------------------------------------------------------------------------------
 -- Selection deltas
@@ -1018,155 +1363,6 @@ computeMinimumCollateral params =
     mtimesDefault
         (view #minimumCollateralPercentage params)
         (view #transactionFee params)
-
--- | Specifies all constraints required for coin selection.
---
--- Selection constraints:
---
---    - place limits on the coin selection algorithm, enabling it to produce
---      selections that are acceptable to the ledger.
---
---    - are dependent on the current set of protocol parameters.
---
---    - are not specific to a given selection.
---
-data SelectionConstraints = SelectionConstraints
-    { assessTokenBundleSize
-        :: TokenBundle -> TokenBundleSizeAssessment
-        -- ^ Assesses the size of a token bundle relative to the upper limit of
-        -- what can be included in a transaction output. See documentation for
-        -- the 'TokenBundleSizeAssessor' type to learn about the expected
-        -- properties of this field.
-    , certificateDepositAmount
-        :: Coin
-        -- ^ Amount that should be taken from/returned back to the wallet for
-        -- each stake key registration/de-registration in the transaction.
-    , computeMinimumAdaQuantity
-        :: TokenMap -> Coin
-        -- ^ Computes the minimum ada quantity required for a given output.
-    , computeMinimumCost
-        :: SelectionSkeleton -> Coin
-        -- ^ Computes the minimum cost of a given selection skeleton.
-    , computeSelectionLimit
-        :: [TxOut] -> SelectionLimit
-        -- ^ Computes an upper bound for the number of ordinary inputs to
-        -- select, given a current set of outputs.
-    , maximumCollateralInputCount
-        :: Int
-        -- ^ Specifies an inclusive upper bound on the number of unique inputs
-        -- that can be selected as collateral.
-    , minimumCollateralPercentage
-        :: Natural
-        -- ^ Specifies the minimum required amount of collateral as a
-        -- percentage of the total transaction fee.
-    , utxoSuitableForCollateral
-        :: (TxIn, TxOut) -> Maybe Coin
-        -- ^ Indicates whether an individual UTxO entry is suitable for use as
-        -- a collateral input. This function should return a 'Coin' value if
-        -- (and only if) the given UTxO is suitable for use as collateral.
-    }
-    deriving Generic
-
--- | Specifies all parameters that are specific to a given selection.
---
-data SelectionParams = SelectionParams
-    { assetsToBurn
-        :: !TokenMap
-        -- ^ Specifies a set of assets to burn.
-    , assetsToMint
-        :: !TokenMap
-        -- ^ Specifies a set of assets to mint.
-    , outputsToCover
-        :: ![TxOut]
-        -- ^ Specifies a set of outputs that must be paid for.
-    , rewardWithdrawal
-        :: !Coin
-        -- ^ Specifies the value of a withdrawal from a reward account.
-    , certificateDepositsTaken
-        :: !Natural
-        -- ^ Number of deposits for stake key registrations.
-    , certificateDepositsReturned
-        :: !Natural
-        -- ^ Number of deposits from stake key de-registrations.
-    , collateralRequirement
-        :: !SelectionCollateralRequirement
-        -- ^ Specifies the collateral requirement for this selection.
-    , utxoAvailableForCollateral
-        :: !UTxO
-        -- ^ Specifies a set of UTxOs that are available for selection as
-        -- collateral inputs.
-        --
-        -- This set is allowed to intersect with 'utxoAvailableForInputs',
-        -- since the ledger does not require that these sets are disjoint.
-    , utxoAvailableForInputs
-        :: !UTxOSelection
-        -- ^ Specifies a set of UTxOs that are available for selection as
-        -- ordinary inputs and optionally, a subset that has already been
-        -- selected.
-        --
-        -- Further entries from this set will be selected to cover any deficit.
-    }
-    deriving (Eq, Generic, Show)
-
--- | Indicates that an error occurred while performing a coin selection.
---
-data SelectionError
-    = SelectionBalanceError
-        Balance.SelectionError
-    | SelectionCollateralError
-        Collateral.SelectionError
-    | SelectionOutputError
-        SelectionOutputInvalidError
-    deriving (Eq, Show)
-
--- | Represents a balanced selection.
---
-data SelectionOf change = Selection
-    { inputs
-        :: !(NonEmpty (TxIn, TxOut))
-        -- ^ Selected inputs.
-    , collateral
-        :: ![(TxIn, TxOut)]
-        -- ^ Selected collateral inputs.
-    , outputs
-        :: ![TxOut]
-        -- ^ User-specified outputs
-    , change
-        :: ![change]
-        -- ^ Generated change outputs.
-    , assetsToMint
-        :: !TokenMap
-        -- ^ Assets to mint.
-    , assetsToBurn
-        :: !TokenMap
-        -- ^ Assets to burn.
-    , extraCoinSource
-        :: !Coin
-        -- ^ An extra source of ada.
-    , extraCoinSink
-        :: !Coin
-        -- ^ An extra sink for ada.
-    }
-    deriving (Generic, Eq, Show)
-
--- | The default type of selection.
---
--- In this type of selection, change values do not have addresses assigned.
---
-type Selection = SelectionOf TokenBundle
-
--- | Returns a selection's ordinary outputs and change outputs in a single list.
---
--- Since change outputs do not have addresses at the point of generation,
--- this function assigns all change outputs with a dummy change address.
---
-selectionAllOutputs :: Selection -> [TxOut]
-selectionAllOutputs selection = (<>)
-    (selection ^. #outputs)
-    (selection ^. #change <&> TxOut dummyChangeAddress)
-  where
-    dummyChangeAddress :: Address
-    dummyChangeAddress = Address "<change>"
 
 --------------------------------------------------------------------------------
 -- Preparing outputs
@@ -1416,3 +1612,23 @@ instance Buildable (SelectionOf TxOut) where
     build = build
         . makeSelectionReport
         . over #change (fmap $ view #tokens)
+
+--------------------------------------------------------------------------------
+-- Internal class instances
+--------------------------------------------------------------------------------
+
+-- | A convenience instance of 'MonadRandom' for 'Identity'.
+--
+-- All member functions return results that are constant w.r.t. to their inputs.
+--
+-- This instance should only be used in circumstances where randomness is not
+-- important.
+--
+instance MonadRandom Identity where
+    getRandom = pure $ fst $ random defaultStdGen
+    getRandoms = pure $ randoms defaultStdGen
+    getRandomR r = pure $ fst $ randomR r defaultStdGen
+    getRandomRs r = pure $ randomRs r defaultStdGen
+
+defaultStdGen :: StdGen
+defaultStdGen = mkStdGen 0
