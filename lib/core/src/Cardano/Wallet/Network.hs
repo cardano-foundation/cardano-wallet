@@ -90,7 +90,7 @@ import NoThunks.Class
 import Numeric.Natural
     ( Natural )
 import Safe
-    ( lastMay )
+    ( headMay )
 import UnliftIO.Async
     ( race_ )
 import UnliftIO.Concurrent
@@ -294,7 +294,7 @@ instance ToText (ChainSyncLog BlockHeader ChainPoint) where
             [ "Requesting intersection using "
             , toText (length cps)
             , " points"
-            , maybe "" ((", the latest being " <>) . pretty) (lastMay cps)
+            , maybe "" ((", the latest being " <>) . pretty) (headMay cps)
             ]
         MsgChainRollForward headers tip ->
             let buildRange (x :| []) = x

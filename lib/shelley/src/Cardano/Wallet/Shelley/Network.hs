@@ -256,7 +256,7 @@ import UnliftIO.Compat
 import UnliftIO.Concurrent
     ( ThreadId )
 import UnliftIO.Exception
-    ( Handler (..), IOException, SomeException, withException )
+    ( Handler (..), IOException )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano

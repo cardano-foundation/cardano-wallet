@@ -68,8 +68,12 @@ import Data.Functor
     ( (<&>) )
 import Data.Kind
     ( Type )
+import Data.List
+    ( sortBy )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Ord
+    ( comparing )
 import Data.Void
     ( Void )
 import Network.TypedProtocol.Pipelined
@@ -92,6 +96,8 @@ import Ouroboros.Network.Block
     , getTipPoint
     , pointSlot
     )
+import Ouroboros.Network.Point
+    ( blockPointSlot )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( ChainSyncClient (..)
     , ClientStIdle (..)
@@ -294,7 +300,9 @@ chainSyncWithBlocks tr chainFollower =
     clientStNegotiateIntersection = do
         points <- readLocalTip chainFollower
         -- Cave: An empty list is interpreted as requesting the genesis point.
-        let points' = if null points then [Point Origin] else points
+        let points' = if null points
+                then [Point Origin]
+                else sortBy (flip compareSlot) points -- older points last
         traceWith tr $ MsgChainFindIntersect points'
         pure $ P.SendMsgFindIntersect points' clientStIntersect
 
@@ -453,6 +461,12 @@ chainSyncWithBlocks tr chainFollower =
             , P.recvMsgRollBackward = \_point _tip ->
                 clientStNegotiateIntersection
             }
+
+compareSlot :: Point block -> Point block -> Ordering
+compareSlot (Point Origin) (Point Origin) = EQ
+compareSlot (Point Origin) _ = LT
+compareSlot _ (Point Origin) = GT
+compareSlot (Point (At b1)) (Point (At b2)) = comparing blockPointSlot b1 b2
 
 --------------------------------------------------------------------------------
 --

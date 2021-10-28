@@ -36,6 +36,7 @@ module Cardano.Wallet.Primitive.Types
       Block(..)
     , BlockHeader(..)
     , ChainPoint (..)
+    , compareSlot
 
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
@@ -786,7 +787,18 @@ instance Buildable (Block) where
 data ChainPoint
     = ChainPointAtGenesis
     | ChainPoint !SlotNo !(Hash "BlockHeader")
-    deriving (Eq, Show, Generic)
+    deriving (Eq, Ord, Show, Generic)
+
+-- | Compare the slot numbers of two 'ChainPoint's,
+-- but where the 'ChainPointAtGenesis' comes before all natural slot numbers.
+--
+-- Note: The 'Ord' instance of 'ChainPoint' is more fine-grained and
+-- also compares block hashes.
+compareSlot :: ChainPoint -> ChainPoint -> Ordering
+compareSlot ChainPointAtGenesis ChainPointAtGenesis = EQ
+compareSlot ChainPointAtGenesis _ = LT
+compareSlot _ ChainPointAtGenesis = GT
+compareSlot (ChainPoint sl1 _) (ChainPoint sl2 _) = compare sl1 sl2
 
 instance NFData ChainPoint
 
