@@ -1,0 +1,11 @@
+{
+    "transaction": "84A600800D80018002000E8005A1581DF0{{scriptHash}}00A10381590853{{script}}F5F6",
+    "inputs": [],
+    "redeemers": [
+        {
+            "purpose": "rewarding",
+            "stake_address": "stake_test17qdcxaxsk222fgeenle97p4qwpa3vg20r6dk0nufhgj9ffsytg3a0",
+            "data": "D87980"
+        }
+    ]
+}

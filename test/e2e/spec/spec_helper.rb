@@ -1,6 +1,8 @@
 require "bundler/setup"
 require "cardano_wallet"
 require "base64"
+require "blake2b"
+require "mustache"
 require_relative "../env"
 require_relative "../helpers/utils"
 require_relative "../helpers/matchers"
@@ -24,7 +26,7 @@ end
 
 ##
 # timeout in seconds for custom verifications
-TIMEOUT = 180
+TIMEOUT = 600
 
 ##
 # Intit cardano-wallet wrapper with timeout for getting the response back
@@ -309,4 +311,43 @@ def get_shelley_balances(wid)
    'assets_available' => assets_available,
    'assets_total' => assets_total
   }
+end
+
+## Plutus helpers
+PLUTUS_DIR = "fixtures/plutus"
+
+##
+# Balance -> Sign -> Submit
+def balance_sign_submit(wid, payload)
+  tx_balanced = SHELLEY.transactions.balance(wid, payload)
+  expect(tx_balanced).to be_correct_and_respond 202
+
+  tx_signed = SHELLEY.transactions.sign(wid, PASS, tx_balanced['transaction'])
+  expect(tx_signed).to be_correct_and_respond 202
+
+  tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+  expect(tx_submitted).to be_correct_and_respond 202
+
+  [tx_balanced, tx_signed, tx_submitted]
+end
+
+def get_plutus_tx(file)
+  JSON.parse(File.read(File.join(PLUTUS_DIR, file)))
+end
+
+def read_mustached_file(file, ctx = {})
+  Mustache.render(File.read(File.join(PLUTUS_DIR, file)), ctx).strip
+end
+
+def get_templated_plutus_tx(file, ctx = {})
+  JSON.parse(read_mustached_file(file, ctx))
+end
+
+##
+# Get policyId of base16-encoded minting policy
+# which is Blake2b (28 byte long) hash of (script tag = 0x01 + policy)
+def get_policy_id(policy)
+  key = Blake2b::Key.none
+  policy_id = Blake2b.hex(hex_to_bytes("01#{policy}"), key, 28)
+  policy_id
 end

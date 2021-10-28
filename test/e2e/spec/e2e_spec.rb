@@ -42,8 +42,11 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
     # @wid_rnd = "94c0af1034914f4455b7eb795ebea74392deafe9"
     # @wid_ic = "a468e96ab85ad2043e48cf2e5f3437b4356769f4"
-    # @wid = "1f82e83772b7579fc0854bd13db6a9cce21ccd95"
-    # @target_id = "79f76c99c2b98d4a37d6600c9fbcc07076a4ea50"
+    # @wid = "2269611a3c10b219b0d38d74b004c298b76d16a9"
+    # @target_id = "2269611a3c10b219b0d38d74b004c298b76d16a9"
+    # 1f82e83772b7579fc0854bd13db6a9cce21ccd95
+    # 2269611a3c10b219b0d38d74b004c298b76d16a9
+    # a042bafdaf98844cfa8f6d4b1dc47519b21a4d95
   end
 
   after(:all) do
@@ -56,6 +59,116 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     @nightly_shared_wallets.each do |wid|
       SHARED.wallets.delete wid
     end
+  end
+
+  describe "E2E Balance -> Sign -> Submit" do
+
+    def run_script(script, payload)
+      tx_balanced, tx_signed, tx_submitted = balance_sign_submit(@wid, payload)
+
+      tx_id = tx_submitted['id']
+      eventually "#{script} is in ledger" do
+        tx = SHELLEY.transactions.get(@wid, tx_id)
+        tx.code == 200 && tx['status'] == 'in_ledger'
+      end
+      tx_id
+    end
+
+    def run_contract(contract_setup, scripts)
+      # Contract setup
+      payload = get_plutus_tx(contract_setup)
+      tx_id = run_script(contract_setup, payload)
+
+      # Run Plutus contract
+      scripts.each do |s|
+        payload = get_templated_plutus_tx(s, {transactionId: tx_id})
+        tx_id = run_script(s, payload)
+      end
+    end
+
+    it "cannot balance on empty wallet" do
+      wid = create_shelley_wallet
+      payload = get_plutus_tx "ping-pong_1.json"
+      tx_balanced = SHELLEY.transactions.balance(wid, payload)
+      expect(tx_balanced).to be_correct_and_respond 403
+      expect(tx_balanced.to_s).to include "not_enough_money"
+    end
+
+    it "ping-pong" do
+      contract_setup = "ping-pong_1.json"
+      scripts = [ "ping-pong_2.json" ]
+
+      run_contract(contract_setup, scripts)
+    end
+
+    it "game" do
+      contract_setup = "game_1.json"
+      scripts = [ "game_2.json", "game_3.json" ]
+
+      run_contract(contract_setup, scripts)
+    end
+
+    it "mint-burn" do
+      vk = SHELLEY.keys.get_public_key(@wid, 'utxo_external', 0, {hash: true})
+      vkHash = bech32_to_base16(vk)
+      policy = read_mustached_file("mintBurn_policy", {vkHash: vkHash})
+      policy_id = get_policy_id(policy)
+
+      scripts = [ "mintBurn_1.json", "mintBurn_2.json" ]
+      scripts.each do |s|
+        payload = get_templated_plutus_tx(s,{vkHash: vkHash,
+                                             policyId: policy_id,
+                                             policy: policy})
+        run_script(s, payload)
+      end
+
+    end
+
+    it "withdrawal" do
+      ##
+      # This test is withdrawing 0 rewards from stake account that has... 0 rewards.
+      # Such tx is silly but allowed by the node.
+      # Producing rewards on testnet is not practical due to long epoch length,
+      # however there is full e2e test version of this script redeemding 42 A rewards on local cluster.
+      #
+      # NOTE:
+      # The script cert had to be registered on-chain such that withdrawing is permitted.
+      # It was done once, manually:
+      #
+      # 1. Create cert from Plutus script:
+      #
+      # $ cat fixtures/plutus/withdrawal_validator_cardano_cli.script
+      # {"cborHex":"590853590850[...]cc0080080041","type":"PlutusScriptV1","description":""}
+      # $ cardano-cli stake-address registration-certificate --stake-script-file fixtures/plutus/withdrawal_validator_cardano_cli.script --out-file stake.cert
+      #
+      # 2. Register cert on-chain
+      #
+      # $ cardano-cli query utxo --address $(cat payment.addr) --testnet-magic 1097911063
+      # $ cardano-cli transaction build  \
+      # 	--alonzo-era  \
+      # 	--testnet-magic 1097911063 \
+      # 	--change-address "addr_test1qrfqc909vvxfq7903kaz09cuh5q2un8zw7j9ys4uh3k7j3qpgncz6fapajjvkyqka2sldfpk250nml40sf67am68wd2shl9fth" \
+      # 	--tx-in "8e9dd939a6096ce0d033a8a1ad61a83f0b7188f22516c45e1a69ff8cd4ad6f4f#0"  \
+      # 	--certificate-file stake.cert \
+      # 	--protocol-params-file protocol.json  \
+      # 	--out-file body.tx
+      #
+      # $ cardano-cli transaction sign \
+      #    --tx-body-file body.tx \
+      #    --testnet-magic 1097911063 \
+      #    --signing-key-file payment.skey \
+      #    --out-file signed.tx
+      #
+      # $ cardano-cli transaction submit --tx-file signed.tx --testnet-magic 1097911063
+      validator = read_mustached_file("withdrawal_validator")
+      validator_hash = get_policy_id(validator)
+      withdrawal_script = "withdrawal.json"
+      payload = get_templated_plutus_tx(withdrawal_script, {script: validator,
+                                                            scriptHash: validator_hash})
+
+      run_script(withdrawal_script, payload)
+    end
+
   end
 
   describe "E2E Construct -> Sign -> Submit" do

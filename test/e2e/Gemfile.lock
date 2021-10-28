@@ -2,7 +2,8 @@ GEM
   remote: https://rubygems.org/
   specs:
     bip_mnemonic (0.0.4)
-    cardano_wallet (0.3.15)
+    blake2b (0.10.0)
+    cardano_wallet (0.3.16)
       httparty (~> 0.18.0)
     diff-lcs (1.4.4)
     httparty (0.18.1)
@@ -12,6 +13,7 @@ GEM
       mime-types-data (~> 3.2015)
     mime-types-data (3.2021.0901)
     multi_xml (0.6.0)
+    mustache (1.1.1)
     rake (12.3.3)
     rspec (3.10.0)
       rspec-core (~> 3.10.0)
@@ -32,7 +34,9 @@ PLATFORMS
 
 DEPENDENCIES
   bip_mnemonic (= 0.0.4)
-  cardano_wallet (~> 0.3.15)
+  blake2b (= 0.10.0)
+  cardano_wallet (~> 0.3.16)
+  mustache (= 1.1.1)
   rake (= 12.3.3)
   rspec (= 3.10.0)
 

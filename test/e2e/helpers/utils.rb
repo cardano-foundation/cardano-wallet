@@ -5,9 +5,8 @@ require 'fileutils'
 module Helpers
   module Utils
     def cmd(cmd)
-      puts cmd.gsub(/\s+/, ' ')
+      cmd.gsub(/\s+/, ' ')
       res = `#{cmd}`
-      puts res
       res
     end
 
@@ -38,6 +37,14 @@ module Helpers
          | cardano-address key from-recovery-phrase #{wallet_type} \
          | cardano-address key child #{derivation_path} \
          | cardano-address key public #{chain_code} #{" | bech32" if hex})).gsub("\n", '')
+    end
+
+    def bech32_to_base16(key)
+      cmd(%(echo #{key} | bech32)).gsub("\n", '')
+    end
+
+    def hex_to_bytes(s)
+      s.scan(/../).map { |x| x.hex.chr }.join
     end
 
     def absolute_path(path)
