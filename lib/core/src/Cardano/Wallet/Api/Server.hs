@@ -2257,16 +2257,9 @@ balanceTransaction ctx genChange (ApiT wid) body = do
 decodeTransaction
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
-        , KnownAddresses s
         , IsOurs s Address
         , Typeable s
         , Typeable n
-        , DelegationAddress n k
-        , WalletKey k
-        , SoftDerivation k
-        , GetAccount s k
-        , GetPurpose k
-        , s ~ SeqState n k
         )
     => ctx
     -> ApiT WalletId
@@ -2276,10 +2269,10 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     let (Tx txid feeM colls inps outs wdrlMap meta vldt, _toMint, _toBurn) = decodeTx tl sealed
     (txinsOutsPaths, collsOutsPaths, outsPath, acct)  <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-          (acct, xpub, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-          txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> inps)
-          collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k @n wrk wid (fst <$> colls)
-          outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k @n wrk wid outs xpub
+          (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+          txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
+          collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
+          outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
           pure (txinsOutsPaths, collsOutsPaths, outsPath, acct)
     pure $ ApiDecodedTransaction
         { id = ApiT txid
@@ -2293,20 +2286,18 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         }
   where
     tl = ctx ^. W.transactionLayer @k
-    toOut (txoutIncoming, txoutPathM) =
-        case txoutPathM of
-            Nothing ->
-                ExternalOutput $ toAddressAmount @n txoutIncoming
-            Just (TxOut addr (TokenBundle (Coin c) tmap), path) ->
-                let (AddressAmount _ c' tmap') = toAddressAmount @n txoutIncoming
-                in WalletOutput $ ApiWalletOutput
-                    { address = (ApiT addr, Proxy @n)
-                    , amount = Quantity $ fromIntegral c
-                    , assets = ApiT tmap
-                    , derivationPath = NE.map ApiT path
-                    , amountIncoming = c'
-                    , assetsIncoming = tmap'
-                    }
+    toOut (txoutIncoming, Nothing) =
+        ExternalOutput $ toAddressAmount @n txoutIncoming
+    toOut (out@(TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
+            let (AddressAmount _ c' tmap') = toAddressAmount @n out
+            in WalletOutput $ ApiWalletOutput
+                { address = (ApiT addr, Proxy @n)
+                , amount = Quantity $ fromIntegral c
+                , assets = ApiT tmap
+                , derivationPath = NE.map ApiT path
+                , amountIncoming = c'
+                , assetsIncoming = tmap'
+                }
     toInp (txin@(TxIn txid ix), txoutPathM) =
         case txoutPathM of
             Nothing ->

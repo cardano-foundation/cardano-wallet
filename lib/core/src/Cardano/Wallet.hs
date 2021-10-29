@@ -281,7 +281,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
-    , coinTypeAda
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
@@ -289,7 +288,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( ParentContext (..)
     , SeqState
     , defaultAddressPoolGap
-    , getAddressPoolGap
     , mkSeqStateFromRootXPrv
     , purposeBIP44
     )
@@ -462,7 +460,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
-    ( runState, state )
+    ( evalState, runState, state )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Crypto.Hash
@@ -560,7 +558,6 @@ import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -1175,12 +1172,9 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
 -------------------------------------------------------------------------------}
 
 lookupTxIns
-    :: forall ctx s k (n :: NetworkDiscriminant).
+    :: forall ctx s k .
         ( HasDBLayer IO s k ctx
-        , KnownAddresses s
         , IsOurs s Address
-        , DelegationAddress n k
-        , s ~ SeqState n k
         )
     => ctx
     -> WalletId
@@ -1191,103 +1185,37 @@ lookupTxIns ctx wid txins = db & \DBLayer{..} -> do
           $ withExceptT ErrDecodeTxNoSuchWallet
           $ withNoSuchWallet wid
           $ readCheckpoint wid
-    let st = getState cp
-    let extendAddr addr = case normalizeDelegationAddress @s @k @n st addr of
-            Just addr' -> addr'
-            Nothing -> error "knownAddresses should have valid fingerprints"
-    let f (addr, addrState, ix) =
-            ( extendAddr addr
-            , addrState
-            , ix )
-    let walletAddrs = map f $ knownAddresses st
-    pure $ map (tryGetTxOutPath cp walletAddrs) txins
+    pure $ map (\i -> (i, lookupTxIn cp i)) txins
   where
     db = ctx ^. dbLayer @IO @s @k
-    tryGetTxOutPath cp walletAddrs txin =
-        case UTxO.lookup txin (totalUTxO mempty cp) of
-            Nothing -> (txin, Nothing)
-            Just (txout@(TxOut addr _)) ->
-                let path = map (\(_, _,p) -> p) $
-                        filter (\(addr', _,_) -> addr' == addr) walletAddrs
-                in case path of
-                    [] -> (txin, Nothing)
-                    path':_ -> (txin, Just (txout, path'))
+    lookupTxIn :: Wallet s -> TxIn -> Maybe (TxOut, NonEmpty DerivationIndex)
+    lookupTxIn cp txIn = do
+        out@(TxOut addr _) <- UTxO.lookup txIn (totalUTxO mempty cp)
+        path <- fst $ isOurs addr (getState cp)
+        return (out, path)
 
 lookupTxOuts
-    :: forall ctx s k (n :: NetworkDiscriminant).
+    :: forall ctx s k .
         ( HasDBLayer IO s k ctx
-        , KnownAddresses s
         , IsOurs s Address
-        , DelegationAddress n k
-        , GetPurpose k
-        , WalletKey k
-        , GetAccount s k
-        , SoftDerivation k
-        , s ~ SeqState n k
         )
     => ctx
     -> WalletId
     -> [TxOut]
-    -> XPub
-    -> ExceptT ErrDecodeTx IO [(TxOut, Maybe (TxOut, NonEmpty DerivationIndex))]
-lookupTxOuts ctx wid txouts xpub = db & \DBLayer{..} -> do
+    -> ExceptT ErrDecodeTx IO [(TxOut, Maybe (NonEmpty DerivationIndex))]
+lookupTxOuts ctx wid txouts = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
           $ withExceptT ErrDecodeTxNoSuchWallet
           $ withNoSuchWallet wid
           $ readCheckpoint wid
-    let f (addr, addrState, ix) =
-            ( extendAddr cp addr
-            , addrState
-            , ix )
-    let walletAddrs = map f $ knownAddresses (getState cp)
-
-    --We are analyzing the next gapPool change addresses
-    let acctK = getAccount $ getState cp
-    let g  = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-    let startIx = nextChangeIx walletAddrs
-    let changeAddrs = map (decoratechangeAddr acctK) [startIx .. startIx + g]
-
-    let walletAddrs' = walletAddrs ++ changeAddrs
-
-    pure $ map (tryGetTxOutPath cp walletAddrs') txouts
+    -- NOTE: We evolve the state (in practice an address pool) as we loop
+    -- through the outputs, but we don't consider pending transactions.
+    -- /Theoretically/ the outputs might only be discoverable after discovering
+    -- outputs other pending transactions.
+    pure $ flip evalState (getState cp) $ forM txouts $ \out@(TxOut addr _) -> do
+        (out,) <$> state (isOurs addr)
   where
     db = ctx ^. dbLayer @IO @s @k
-    extendAddr cp addr = case normalizeDelegationAddress @s @k @n (getState cp) addr of
-        Just addr' -> addr'
-        Nothing -> error "knownAddresses should have valid fingerprints"
-    tryGetTxOutPath cp walletAddrs txout@(TxOut addr _) =
-        let allTxOuts = Map.elems $ unUTxO $ totalUTxO mempty cp
-        in case map (\(_, _,p) -> p) (filter (\(addr', _,_) -> addr' == addr) walletAddrs) of
-            [] -> (txout, Nothing)
-            path:_ ->
-                let bundles =
-                        foldr ((<>) . tokens) TokenBundle.empty
-                        (filter (\(TxOut addr' _) -> addr == extendAddr cp addr') allTxOuts)
-                in (txout, Just (TxOut addr bundles, path))
-    getChainType (_ :| [_,_,DerivationIndex i,_]) = i
-    getChainType _ = error "expect 5 segment derivation path"
-    changeIxs =
-        reverse .
-        L.sort .
-        map (\(_, _,path) -> getChainType path) .
-        filter (\(_, _,path) -> getChainType path == fromIntegral (fromEnum UtxoInternal))
-    nextChangeIx walletAddrs = case changeIxs walletAddrs of
-        [] -> 0
-        ix:_ -> ix + 1
-    changeAddrK acctK = deriveAddressPublicKey acctK UtxoInternal
-    constructDelegationAddr pAddr =
-        delegationAddress @n pAddr (liftRawKey @k xpub)
-    decoratechangeAddr acctK ix =
-        ( constructDelegationAddr $ changeAddrK acctK $ Index ix
-        , Unused
-        , NE.fromList $ map DerivationIndex
-            [ getIndex (getPurpose @k)
-            , getIndex coinTypeAda
-            , 0 -- when multi-account support is introduce this could change
-            , fromIntegral (fromEnum UtxoInternal)
-            , ix
-            ]
-        )
 
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
