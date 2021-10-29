@@ -614,16 +614,13 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams =
-    shrinkMapBy tupleToParams paramsToTuple $ liftShrink6
+    liftShrink6 SelectionParams
         (shrinkList shrinkTxOut)
         (shrinkUTxOSelection)
         (shrinkCoin)
         (shrinkCoin)
         (shrinkTokenMap)
         (shrinkTokenMap)
-  where
-    paramsToTuple (SelectionParams a b c d e f) = (a, b, c, d, e, f)
-    tupleToParams (a, b, c, d, e, f) = (SelectionParams a b c d e f)
 
 prop_performSelection_small
     :: MockSelectionConstraints
@@ -2044,14 +2041,11 @@ genMockSelectionConstraints = MockSelectionConstraints
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
 shrinkMockSelectionConstraints =
-    shrinkMapBy tupleToMock mockToTuple $ liftShrink4
+    liftShrink4 MockSelectionConstraints
         shrinkMockAssessTokenBundleSize
         shrinkMockComputeMinimumAdaQuantity
         shrinkMockComputeMinimumCost
         shrinkMockComputeSelectionLimit
-  where
-    mockToTuple (MockSelectionConstraints a b c d) = (a, b, c, d)
-    tupleToMock (a, b, c, d) = (MockSelectionConstraints a b c d)
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
 unMockSelectionConstraints m = SelectionConstraints

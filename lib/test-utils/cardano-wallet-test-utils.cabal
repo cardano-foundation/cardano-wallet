@@ -40,6 +40,7 @@ library
     , directory
     , either
     , fmt
+    , generic-lens
     , hspec-core
     , hspec-expectations
     , hspec-golden-aeson
