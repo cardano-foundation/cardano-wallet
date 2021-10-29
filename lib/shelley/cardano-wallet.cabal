@@ -229,6 +229,7 @@ test-suite unit
     , hspec
     , hspec-core
     , memory
+    , MonadRandom
     , optparse-applicative
     , ouroboros-consensus-shelley
     , ouroboros-network
@@ -320,6 +321,7 @@ benchmark restore
     , deepseq
     , filepath
     , fmt
+    , generic-lens
     , iohk-monitoring
     , say
     , text

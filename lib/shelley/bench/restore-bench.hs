@@ -56,7 +56,7 @@ import Cardano.BM.Trace
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
 import Cardano.Wallet
-    ( WalletLayer (..), WalletWorkerLog (..) )
+    ( WalletLayer (..), WalletWorkerLog (..), networkLayer )
 import Cardano.Wallet.Api.Types
     ( toApiUtxoStatistics )
 import Cardano.Wallet.BenchShared
@@ -164,6 +164,8 @@ import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
     ( ToJSON (..), genericToJSON, (.=) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.List
     ( foldl' )
 import Data.Proxy
@@ -460,7 +462,8 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         let getFee = const (selectionDelta TokenBundle.getCoin)
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
-        let runSelection = W.selectAssets @_ @s @k w W.SelectAssetsParams
+        pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
+        let runSelection = W.selectAssets @_ @_ @s @k w pp W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
                 , txContext = txCtx
@@ -561,7 +564,8 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         let getFee = const (selectionDelta TokenBundle.getCoin)
         (utxoAvailable, wallet, pendingTxs) <-
             unsafeRunExceptT $ W.readWalletUTxOIndex w wid
-        let runSelection = W.selectAssets @_ @s @k w W.SelectAssetsParams
+        pp <- liftIO $ currentProtocolParameters (w ^. networkLayer)
+        let runSelection = W.selectAssets @_ @_ @s @k w pp W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
                 , txContext = txCtx

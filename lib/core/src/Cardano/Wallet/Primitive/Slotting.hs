@@ -61,6 +61,7 @@ module Cardano.Wallet.Primitive.Slotting
       -- ** Combinators for running queries
     , unsafeExtendSafeZone
     , neverFails
+    , snapshot
     , hoistTimeInterpreter
     , expectAndThrowFailures
     ) where
@@ -548,6 +549,22 @@ expectAndThrowFailures = hoistTimeInterpreter (runExceptT >=> eitherToIO)
   where
     eitherToIO (Right x) = pure x
     eitherToIO (Left e) = throwIO e
+
+-- | Pre-fetches a snapshot of the epoch history from the node, such that the
+-- resulting 'TimeInterpreter' doesn't require 'IO'.
+--
+-- Please consider /not/ using this function, as it disables all logging.
+snapshot
+    :: TimeInterpreter (ExceptT PastHorizonException IO)
+    -> IO (TimeInterpreter (Either PastHorizonException))
+snapshot (TimeInterpreter getI ss _tr _h) = do
+    i <- runExceptT getI
+    return TimeInterpreter
+        { interpreter = i
+        , blockchainStartTime = ss
+        , tracer = nullTracer
+        , handleResult = id
+        }
 
 -- | Change the underlying monad of the TimeInterpreter with a natural
 -- transformation.

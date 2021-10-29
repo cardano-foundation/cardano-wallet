@@ -154,6 +154,8 @@ module Cardano.Wallet
     , getTransaction
     , submitExternalTx
     , submitTx
+    , balanceTransaction
+    , PartialTx (..)
     , LocalTxSubmissionConfig (..)
     , defaultLocalTxSubmissionConfig
     , runLocalTxSubmissionPool
@@ -297,6 +299,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( Selection
+    , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
     , SelectionOf (..)
@@ -307,9 +310,10 @@ import Cardano.Wallet.Primitive.CoinSelection
     , makeSelectionReportDetailed
     , makeSelectionReportSummarized
     , performSelection
+    , selectionDelta
     )
 import Cardano.Wallet.Primitive.CoinSelection.Balance
-    ( emptySkeleton )
+    ( SelectionSkeleton (..), emptySkeleton )
 import Cardano.Wallet.Primitive.Collateral
     ( asCollateral )
 import Cardano.Wallet.Primitive.Migration
@@ -343,6 +347,7 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , DelegationCertificate (..)
+    , FeePolicy (LinearFee)
     , GenesisParameters (..)
     , IsDelegatingTo (..)
     , NetworkParameters (..)
@@ -369,6 +374,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin, coinToInteger, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Redeemer
+    ( Redeemer (..), redeemerData )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -380,7 +387,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , LocalTxSubmissionStatus
     , SealedTx (..)
     , TransactionInfo (..)
-    , Tx
+    , Tx (..)
     , TxChange (..)
     , TxIn (..)
     , TxMeta (..)
@@ -389,6 +396,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , UnsignedTx (..)
     , fromTransactionInfo
+    , txOutAddCoin
     , txOutCoin
     , withdrawals
     )
@@ -400,6 +408,7 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , ErrAssignRedeemers
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrMkTransaction (..)
@@ -407,10 +416,17 @@ import Cardano.Wallet.Transaction
     , ErrUpdateSealedTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxUpdate (..)
     , Withdrawal (..)
     , defaultTransactionCtx
     , withdrawalToCoin
     )
+import Cardano.Wallet.Util
+    ( mapFirst )
+import Control.Applicative
+    ( (<|>) )
+import Control.Arrow
+    ( left )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -425,6 +441,8 @@ import Control.Monad.Class.MonadTime
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
+import Control.Monad.Random
+    ( MonadRandom )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -518,6 +536,7 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
@@ -532,6 +551,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Primitive.Types.UTxOSelection as UTxOSelection
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -624,7 +644,7 @@ type HasDBLayer m s k = HasType (DBLayer m s k)
 
 type HasGenesisData = HasType (Block, NetworkParameters, SyncTolerance)
 
-type HasLogger msg = HasType (Tracer IO msg)
+type HasLogger m msg = HasType (Tracer m msg)
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
@@ -645,10 +665,10 @@ genesisData =
     typed @(Block, NetworkParameters, SyncTolerance)
 
 logger
-    :: forall msg ctx. HasLogger msg ctx
-    => Lens' ctx (Tracer IO msg)
+    :: forall m msg ctx. HasLogger m msg ctx
+    => Lens' ctx (Tracer m msg)
 logger =
-    typed @(Tracer IO msg)
+    typed @(Tracer m msg)
 
 networkLayer
     :: forall m ctx. (HasNetworkLayer m ctx)
@@ -868,7 +888,7 @@ restoreWallet
     :: forall ctx s k.
         ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
-        , HasLogger WalletWorkerLog ctx
+        , HasLogger IO WalletWorkerLog ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )
@@ -884,7 +904,7 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer
-    tr = contramap MsgFollow (ctx ^. logger @WalletWorkerLog)
+    tr = contramap MsgFollow (ctx ^. logger @_ @WalletWorkerLog)
 
     run :: ExceptT ErrNoSuchWallet IO () -> IO (FollowAction ErrNoSuchWallet)
     run = fmap (either ExitWith (const Continue)) . runExceptT
@@ -1106,7 +1126,7 @@ queryRewardBalance ctx acct = do
 
 manageRewardBalance
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasLogger WalletWorkerLog ctx
+        ( HasLogger IO WalletWorkerLog ctx
         , HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
         , Typeable s
@@ -1143,7 +1163,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
     NetworkLayer{watchNodeTip} = ctx ^. networkLayer
-    tr = contramap MsgWallet $ ctx ^. logger @WalletWorkerLog
+    tr = contramap MsgWallet $ ctx ^. logger @_ @WalletWorkerLog
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -1263,6 +1283,208 @@ normalizeDelegationAddress s addr = do
 {-------------------------------------------------------------------------------
                                   Transaction
 -------------------------------------------------------------------------------}
+
+-- | A 'PartialTx' is an an unbalanced 'SealedTx' along with the necessary
+-- information to balance it.
+--
+-- The 'inputs' and 'redeemers' must match the binary transaction contained in
+-- the 'sealedTx'.
+data PartialTx = PartialTx
+    { sealedTx :: SealedTx
+    , inputs :: [(TxIn, TxOut, Maybe (Hash "Datum"))]
+    , redeemers :: [Redeemer]
+    } deriving (Show, Generic, Eq)
+
+balanceTransaction
+    :: forall m s k ctx.
+        ( HasTransactionLayer k ctx
+        , HasLogger m WalletWorkerLog ctx
+        , GenChange s
+        , MonadRandom m
+        )
+    => ctx
+    -> ArgGenChange s
+    -> (W.ProtocolParameters, Cardano.ProtocolParameters)
+    -> TimeInterpreter (Either PastHorizonException)
+    -> (UTxOIndex, Wallet s, Set Tx)
+    -> PartialTx
+    -> ExceptT ErrBalanceTx m SealedTx
+balanceTransaction
+    ctx
+    generateChange
+    (pp, nodePParams)
+    ti
+    (internalUtxoAvailable, wallet, pendingTxs)
+    (PartialTx partialTx externalInputs redeemers)
+    = do
+    let (outputs, txWithdrawal, txMetadata, txAssetsToMint, txAssetsToBurn)
+            = extractFromTx partialTx
+
+    (delta, extraInputs, extraCollateral, extraOutputs) <- do
+        let externalSelectedUtxo = UTxOIndex.fromSequence $
+                map (\(i,o,_datumHash) -> (i, o)) externalInputs
+
+        let utxoAvailableForInputs = UTxOSelection.fromIndexPair
+                (internalUtxoAvailable, externalSelectedUtxo)
+
+        let utxoAvailableForCollateral =
+                UTxOIndex.toUTxO internalUtxoAvailable
+
+        -- NOTE: It is not possible to know the script execution cost in
+        -- advance because it actually depends on the final transaction. Inputs
+        -- selected as part of the fee balancing might have an influence on the
+        -- execution cost.
+        -- However, they are bounded so it is possible to balance the
+        -- transaction considering only the maximum cost, and only after, try to
+        -- adjust the change and ExUnits of each redeemer to something more
+        -- sensible than the max execution cost.
+        let txPlutusScriptExecutionCost = maxScriptExecutionCost tl pp redeemers
+        let txContext = defaultTransactionCtx
+                { txPlutusScriptExecutionCost
+                , txMetadata
+                , txWithdrawal
+                , txAssetsToMint
+                , txAssetsToBurn
+                , txCollateralRequirement =
+                    if txPlutusScriptExecutionCost > Coin 0 then
+                        SelectionCollateralRequired
+                    else
+                        SelectionCollateralNotRequired
+                } & padFeeEstimation partialTx
+
+        -- FIXME: The coin selection and reported fees will likely be wrong in
+        -- the presence of certificates (and deposits / refunds). An immediate
+        -- "fix" is to return a proper error from the handler when any key or
+        -- pool registration (resp. deregistration) certificate is found in the
+        -- transaction. A long-term fix is to handle this case properly during
+        -- balancing.
+        let transform s sel =
+                let (sel', _) = assignChangeAddresses generateChange sel s
+                    inputs = F.toList (sel' ^. #inputs)
+                 in ( selectionDelta txOutCoin sel'
+                    , inputs
+                    , fst <$> (sel' ^. #collateral)
+                    , sel' ^. #change
+                    )
+        withExceptT ErrBalanceTxSelectAssets $
+            selectAssets @_ @m @s @k ctx pp SelectAssetsParams
+                { outputs
+                , pendingTxs
+                , txContext
+                , utxoAvailableForInputs
+                , utxoAvailableForCollateral
+                , wallet
+                }
+                transform
+
+    -- NOTE:
+    -- Once the coin-selection is done, we need to
+    --
+    -- (a) Add selected inputs, collateral and change outputs to the transaction
+    -- (b) Assign correct execution units to every redeemer
+    -- (c) Correctly reference redeemed entities with redeemer pointers
+    -- (d) Adjust fees and change output(s) to the new fees.
+    --
+    -- There's a strong assumption that modifying the fee value AND increasing
+    -- the coin values of change outputs does not modify transaction fees; or
+    -- more exactly, does not modify the execution units of scripts. This is in
+    -- principle a fair assumption because script validators ought to be
+    -- unaware of change outputs. If their execution costs increase when change
+    -- output values increase, then it becomes impossible to guarantee that fee
+    -- balancing will ever converge towards a fixed point. A script validator
+    -- doing such a thing is considered bonkers and this is not a behavior we
+    -- ought to support.
+
+    candidateTx <- assembleTransaction $ TxUpdate
+        { extraInputs
+        , extraCollateral
+        , extraOutputs
+        , newFee = const delta
+        }
+    let candidateMinFee = fromMaybe (Coin 0) $
+            evaluateMinimumFee tl nodePParams candidateTx
+
+    let surplus = delta `Coin.difference` candidateMinFee
+    assembleTransaction $ TxUpdate
+        { extraInputs
+        , extraCollateral
+        , extraOutputs = mapFirst (txOutAddCoin surplus) extraOutputs
+        , newFee = const candidateMinFee
+        }
+  where
+    tl = ctx ^. transactionLayer @k
+
+    assembleTransaction
+        :: TxUpdate
+        -> ExceptT ErrBalanceTx m SealedTx
+    assembleTransaction update = ExceptT . pure $ do
+        tx' <- left ErrBalanceTxUpdateError $ updateTx tl partialTx update
+        left ErrBalanceTxAssignRedeemers $ assignScriptRedeemers
+            tl nodePParams ti resolveInput redeemers tx'
+      where
+        resolveInput :: TxIn -> Maybe (TxOut, Maybe (Hash "Datum"))
+        resolveInput i =
+            (\(_,o,d) -> (o,d))
+                <$> L.find (\(i',_,_) -> i == i') externalInputs
+            <|>
+            (\(_,o) -> (o, Nothing))
+                <$> L.find (\(i',_) -> i == i') (extraInputs update)
+
+    extractFromTx tx =
+        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt, toMint, toBurn)
+                = decodeTx tl tx
+            -- TODO: Find a better abstraction that can cover this case.
+            wdrl = WithdrawalSelf
+                (error $ unwords
+                    [ "WithdrawalSelf: reward account should never have been used"
+                    , "when balancing a transaction, but it was!"
+                    ]
+                )
+                (error $ unwords
+                    [ "WithdrawalSelf: derivation path should never have been used"
+                    , "when balancing a transaction, but it was!"
+                    ]
+                )
+                (sumCoins wdrlMap)
+         in (outs, wdrl, meta, toMint, toBurn)
+
+    -- | Wallet coin selection is unaware of many kinds of transaction content
+    -- (e.g. datums, redeemers), which could be included in the input to
+    -- 'balanceTransaction'. As a workaround we add some padding using
+    -- 'evaluateMinimumFee'.
+    --
+    -- TODO: This logic needs to be consistent with how we call 'selectAssets',
+    -- so it would be good to join them into some single helper.
+    padFeeEstimation
+        :: SealedTx
+        -> TransactionCtx
+        -> TransactionCtx
+    padFeeEstimation sealedTx txCtx =
+        let
+            (walletTx, _, _) = decodeTx tl sealedTx
+            worseEstimate = calcMinimumCost tl pp txCtx skeleton
+            skeleton = SelectionSkeleton
+                { skeletonInputCount = length (view #resolvedInputs walletTx)
+                , skeletonOutputs = view #outputs walletTx
+                , skeletonChange = mempty
+                }
+            LinearFee _ (Quantity b) = pp ^. #txParameters . #getFeePolicy
+            -- NOTE: Coping with the later additions of script integrity hash and
+            -- redeemers ex units increased from 0 to their actual values.
+            extraMargin = Coin $ ceiling $ (*) b $ fromIntegral
+                $ sizeOfScriptIntegrityHash
+                + sum (map sizeOfRedeemer redeemers)
+              where
+                sizeOfRedeemer
+                    = (+ sizeOfRedeemerCommon) . BS.length . redeemerData
+                sizeOfScriptIntegrityHash = 35
+                sizeOfRedeemerCommon = 17
+
+            txFeePadding = (<> extraMargin) $ fromMaybe (Coin 0) $ do
+                betterEstimate <- evaluateMinimumFee tl nodePParams sealedTx
+                betterEstimate `Coin.subtractCoin` worseEstimate
+        in
+            txCtx { txFeePadding }
 
 -- | Augments the given outputs with new outputs. These new outputs correspond
 -- to change outputs to which new addresses have been assigned. This updates
@@ -1431,19 +1653,19 @@ data SelectAssetsParams s result = SelectAssetsParams
 -- and its associated cost. That is, the cost is equal to the difference between
 -- inputs and outputs.
 selectAssets
-    :: forall ctx s k result.
+    :: forall ctx m s k result.
         ( HasTransactionLayer k ctx
-        , HasLogger WalletWorkerLog ctx
-        , HasNetworkLayer IO ctx
+        , HasLogger m WalletWorkerLog ctx
+        , MonadRandom m
         )
     => ctx
+    -> ProtocolParameters
     -> SelectAssetsParams s result
     -> (s -> Selection -> result)
-    -> ExceptT ErrSelectAssets IO result
-selectAssets ctx params transform = do
+    -> ExceptT ErrSelectAssets m result
+selectAssets ctx pp params transform = do
     guardPendingWithdrawal
-    pp <- liftIO $ currentProtocolParameters nl
-    liftIO $ traceWith tr $ MsgSelectionStart
+    lift $ traceWith tr $ MsgSelectionStart
         (UTxOSelection.availableUTxO $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
     mSel <- runExceptT $ performSelection
@@ -1491,9 +1713,9 @@ selectAssets ctx params transform = do
                 params ^. #utxoAvailableForInputs
             }
     case mSel of
-        Left e -> liftIO $
+        Left e -> lift $
             traceWith tr $ MsgSelectionError e
-        Right sel -> liftIO $ do
+        Right sel -> lift $ do
             traceWith tr $ MsgSelectionReportSummarized
                 $ makeSelectionReportSummarized sel
             traceWith tr $ MsgSelectionReportDetailed
@@ -1501,16 +1723,15 @@ selectAssets ctx params transform = do
     withExceptT ErrSelectAssetsSelectionError $ except $
         transform (getState $ params ^. #wallet) <$> mSel
   where
-    nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
-    tr = contramap MsgWallet $ ctx ^. logger
+    tr = contramap MsgWallet $ ctx ^. logger @m
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
     -- withdrawal is executed, the reward pot is empty. So, to prevent two
     -- transactions with withdrawals to go through (which will inevitably cause
     -- one of them to never be inserted), we warn users early on about it.
-    guardPendingWithdrawal :: ExceptT ErrSelectAssets IO ()
+    guardPendingWithdrawal :: ExceptT ErrSelectAssets m ()
     guardPendingWithdrawal =
         case Set.lookupMin $ Set.filter hasWithdrawal $ params ^. #pendingTxs of
             Just pendingWithdrawal
@@ -1718,7 +1939,7 @@ submitTx
     :: forall ctx s k.
         ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
-        , HasLogger WalletWorkerLog ctx
+        , HasLogger IO WalletWorkerLog ctx
         )
     => ctx
     -> WalletId
@@ -1751,7 +1972,7 @@ submitExternalTx
     :: forall ctx k.
         ( HasNetworkLayer IO ctx
         , HasTransactionLayer k ctx
-        , HasLogger TxSubmitLog ctx
+        , HasLogger IO TxSubmitLog ctx
         )
     => ctx
     -> SealedTx
@@ -1824,7 +2045,7 @@ runLocalTxSubmissionPool
     :: forall ctx s k m.
         ( MonadUnliftIO m
         , MonadMonotonicTime m
-        , HasLogger WalletWorkerLog ctx
+        , HasLogger IO WalletWorkerLog ctx
         , HasNetworkLayer m ctx
         , HasDBLayer m s k ctx
         )
@@ -1857,7 +2078,7 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
     rateLimited = throttle (rateLimit cfg) . const
 
     tr = unliftIOTracer $ contramap (MsgWallet . MsgTxSubmit) $
-        ctx ^. logger @WalletWorkerLog
+        ctx ^. logger @_ @WalletWorkerLog
     trBracket = contramap MsgProcessPendingPool tr
     trRetry i = contramap (MsgRetryPostTx i) tr
 
@@ -2043,7 +2264,7 @@ joinStakePool
     :: forall ctx s k n.
         ( HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
-        , HasLogger WalletWorkerLog ctx
+        , HasLogger IO WalletWorkerLog ctx
         , s ~ SeqState n k
         )
     => ctx
@@ -2575,6 +2796,8 @@ data ErrSignPayment
 data ErrBalanceTx
     = ErrBalanceTxTxAlreadyBalanced
     | ErrBalanceTxUpdateError ErrUpdateSealedTx
+    | ErrBalanceTxSelectAssets ErrSelectAssets
+    | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxNotImplemented
     deriving (Show, Eq)
 

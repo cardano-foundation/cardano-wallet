@@ -172,7 +172,7 @@ import Control.Monad
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, except, mapExceptT, runExceptT, throwE, withExceptT )
+    ( runExceptT )
 import Control.Monad.Trans.State.Strict
     ( StateT (..), execStateT, get, modify' )
 import Data.Function
@@ -853,15 +853,14 @@ type AlonzoTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)
 
 _assignScriptRedeemers
-    :: forall m.  ( Monad m )
-    => Cardano.ProtocolParameters
-    -> TimeInterpreter (ExceptT PastHorizonException m)
+    :: Cardano.ProtocolParameters
+    -> TimeInterpreter (Either PastHorizonException)
     -> (TxIn -> Maybe (TxOut, Maybe (Hash "Datum")))
     -> [Redeemer]
     -> SealedTx
-    -> m (Either ErrAssignRedeemers SealedTx)
+    -> Either ErrAssignRedeemers SealedTx
 _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx =
-    runExceptT $ case cardanoTx tx of
+    case cardanoTx tx of
         InAnyCardanoEra ByronEra _ ->
             pure tx
         InAnyCardanoEra ShelleyEra _ ->
@@ -884,18 +883,18 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
     -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
     assignNullRedeemers
         :: AlonzoTx
-        -> ExceptT ErrAssignRedeemers m (Map Alonzo.RdmrPtr Redeemer, AlonzoTx)
+        -> Either ErrAssignRedeemers (Map Alonzo.RdmrPtr Redeemer, AlonzoTx)
     assignNullRedeemers alonzoTx = do
         (indexedRedeemers, nullRedeemers) <- fmap unzip $ forM redeemers $ \rd -> do
             ptr <- case Alonzo.rdptr (Alonzo.body alonzoTx) (toScriptPurpose rd) of
                 SNothing ->
-                    throwE $ ErrAssignRedeemersTargetNotFound rd
+                    Left $ ErrAssignRedeemersTargetNotFound rd
                 SJust ptr ->
                     pure ptr
 
             rData <- case deserialiseOrFail (BL.fromStrict $ redeemerData rd) of
                 Left e ->
-                    throwE $ ErrAssignRedeemersInvalidData rd (show e)
+                    Left $ ErrAssignRedeemersInvalidData rd (show e)
                 Right d ->
                     pure (Alonzo.Data d)
 
@@ -932,15 +931,16 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
     evaluateExecutionUnits
         :: Map Alonzo.RdmrPtr Redeemer
         -> AlonzoTx
-        -> ExceptT ErrAssignRedeemers m (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnits indexedRedeemers alonzoTx = withExceptT ErrAssignRedeemersPastHorizon $ do
+        -> Either ErrAssignRedeemers
+            (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
+    evaluateExecutionUnits indexedRedeemers alonzoTx =
+        left ErrAssignRedeemersPastHorizon $ do
         let utxo = utxoFromAlonzoTx alonzoTx
         let costs = toCostModelsAsArray (Alonzo._costmdls pparams)
         let systemStart = getSystemStart ti
-
         epochInfo <- toEpochInfo ti
 
-        mapExceptT (pure . hoistScriptFailure . runIdentity) $ do
+        hoistScriptFailure $ runIdentity $ runExceptT $ do
             evaluateTransactionExecutionUnits
                 pparams
                 alonzoTx
@@ -964,11 +964,11 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
     assignExecutionUnits
         :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
         -> AlonzoTx
-        -> ExceptT ErrAssignRedeemers m AlonzoTx
+        -> Either ErrAssignRedeemers AlonzoTx
     assignExecutionUnits exUnits alonzoTx = do
         let wits = Alonzo.wits alonzoTx
         let Alonzo.Redeemers rdmrs = Alonzo.txrdmrs wits
-        rdmrs' <- except $ Map.mergeA
+        rdmrs' <- Map.mergeA
             Map.preserveMissing
             Map.dropMissing
             (Map.zipWithAMatched (const assignUnits))
