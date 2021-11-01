@@ -889,7 +889,7 @@ restoreWallet
         ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
         , HasGenesisData ctx
-        , HasLogger WalletWorkerLog ctx
+        , HasLogger IO WalletWorkerLog ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )
@@ -909,7 +909,7 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer @IO
-    tr = ctx ^. logger @WalletWorkerLog
+    tr = ctx ^. logger @_ @WalletWorkerLog
     (block0, _, _) = ctx ^. genesisData
 
     -- See Note [CheckedExceptionsAndCallbacks]
