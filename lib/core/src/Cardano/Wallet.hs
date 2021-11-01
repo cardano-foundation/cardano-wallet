@@ -878,11 +878,12 @@ listUtxoStatistics ctx wid = do
     let utxo = availableUTxO @s pending wal
     pure $ computeUtxoStatistics log10 utxo
 
--- | Restore a wallet from its current tip up to the network tip.
+-- | Restore a wallet from its current tip.
 --
--- This function returns immediately, starting a worker thread in the
--- background that will fetch and apply remaining blocks until the
--- network tip is reached or until failure.
+-- After the wallet has been restored,
+-- this action will continue to fetch newly created blocks
+-- and apply them, or roll back to a previous point whenever
+-- the chain switches.
 restoreWallet
     :: forall ctx s k.
         ( HasNetworkLayer IO ctx
