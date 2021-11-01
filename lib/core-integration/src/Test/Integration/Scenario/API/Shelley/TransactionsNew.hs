@@ -1414,6 +1414,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx'
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403Collateral
+            , expectErrorMessage $ unwords
+                -- TODO: [ADP-1227] Adjust this amount:
+                [ "I need an ada amount of at least:"
+                , "865.807382"
+                ]
+            , expectErrorMessage $ unwords
+                -- TODO: [ADP-1227] Adjust these amounts:
+                [ "The largest combination of pure ada UTxOs I could find is:"
+                , "[297.866700, 300.000000]"
+                ]
             ]
 
     it "TRANS_NEW_BALANCE_03 - I can balance base-64 encoded tx" $
