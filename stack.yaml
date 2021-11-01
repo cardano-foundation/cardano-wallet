@@ -17,6 +17,7 @@ resolver: lts-18.13
 compiler: ghc-8.10.7
 
 packages:
+- lib/dbvar
 - lib/core
 - lib/core-integration
 - lib/cli

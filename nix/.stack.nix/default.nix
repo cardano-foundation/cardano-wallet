@@ -49,6 +49,7 @@
         "Unique" = (((hackage.Unique)."0.4.7.6").revisions).default;
         "binary" = (((hackage.binary)."0.8.8.0").revisions).default;
         "parsec" = (((hackage.parsec)."3.1.14.0").revisions).default;
+        dbvar = ./dbvar.nix;
         cardano-wallet-core = ./cardano-wallet-core.nix;
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;

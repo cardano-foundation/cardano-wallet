@@ -54,6 +54,7 @@ library
     , contra-tracer
     , cryptonite
     , data-default
+    , dbvar
     , deepseq
     , digest
     , directory
