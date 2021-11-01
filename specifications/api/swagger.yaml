@@ -1393,13 +1393,10 @@ x-transactionOutputsInsideWallet: &transactionOutputsInsideWallet
   type: object
   required:
     - address
-    - amount_incoming
     - amount
     - derivation_path
   properties:
     address: *addressId
-    amount_incoming: *amount
-    assets_incoming: *walletAssets
     amount: *amount
     assets: *walletAssets
     derivation_path: *derivationPath

@@ -1171,8 +1171,6 @@ data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    , amountIncoming :: !(Quantity "lovelace" Natural)
-    , assetsIncoming :: !(ApiT W.TokenMap)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 

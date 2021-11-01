@@ -2143,8 +2143,6 @@ instance Arbitrary (ApiWalletOutput n) where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
 
 instance Arbitrary (ApiTxOutputGeneral n) where
     arbitrary = oneof
