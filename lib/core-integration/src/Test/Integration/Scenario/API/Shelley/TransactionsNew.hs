@@ -1374,7 +1374,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
 
-    it "TRANS_NEW_BALANCE_02b - Cannot balance on when I cannot afford fee" $
+    it "TRANS_NEW_BALANCE_02b - Cannot balance when I cannot afford fee" $
         \ctx -> runResourceT $ do
         wa <- fixtureWalletWith @n ctx [2 * 1_000_000]
         let balancePayload = Json PlutusScenario.pingPong_1
@@ -1386,7 +1386,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_BALANCE_02c - \
-        \Cannot balance on when I cannot afford collateral" $
+        \Cannot balance when I cannot afford collateral" $
         \ctx -> runResourceT $ do
         -- TODO: adjust when ADP-1227 is fixed
         wa <- fixtureWalletWith @n ctx [600 * 1_000_000]
