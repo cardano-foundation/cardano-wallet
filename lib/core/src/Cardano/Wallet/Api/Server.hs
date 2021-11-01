@@ -532,7 +532,7 @@ import Data.Type.Equality
 import Data.Word
     ( Word32 )
 import Fmt
-    ( blockListF, indentF, pretty )
+    ( blockListF, indentF, listF, pretty )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -609,6 +609,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -4152,7 +4153,8 @@ instance IsServerError (Collateral.SelectionError) where
             , "I need an ada amount of at least:"
             , pretty (view #minimumSelectionAmount e)
             , "The largest combination of pure ada UTxOs I could find is:"
-            , pretty (F.toList $ view #largestCombinationAvailable e)
+            , pretty $ listF $ L.sort $ F.toList $
+                view #largestCombinationAvailable e
             , "To fix this, you'll need to add one or more pure ada UTxOs"
             , "to your wallet that can cover the minimum amount required."
             ]
