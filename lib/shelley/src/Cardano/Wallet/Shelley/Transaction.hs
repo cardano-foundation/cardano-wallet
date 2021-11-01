@@ -182,7 +182,7 @@ import Data.Functor
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Kind
@@ -223,7 +223,6 @@ import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.ShelleyMA.TxBody as ShelleyMA
-import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -834,20 +833,19 @@ _maxScriptExecutionCost
     :: ProtocolParameters
     -> [Redeemer]
     -> Coin
-_maxScriptExecutionCost pp (length -> numberOfScripts)  =
-    case view #executionUnitPrices pp of
-        Just prices -> totalCost $ executionCost prices maxExecutionUnits
+_maxScriptExecutionCost pp redeemers
+    | not (null redeemers) = case view #executionUnitPrices pp of
+        Just prices -> executionCost prices maxExecutionUnits
         Nothing     -> Coin 0
+    | otherwise = Coin 0
   where
     maxExecutionUnits :: ExecutionUnits
     maxExecutionUnits = view (#txParameters . #getMaxExecutionUnits) pp
 
-    totalCost :: Rational -> Coin
-    totalCost = Coin.unsafeNaturalToCoin . ceiling . (* (fromIntegral numberOfScripts) )
-
-    executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Rational
-    executionCost (ExecutionUnitPrices perStep perMem) (W.ExecutionUnits steps mem) =
-        perStep * (toRational steps) + perMem * (toRational mem)
+    executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Coin
+    executionCost ps us = Coin.unsafeNaturalToCoin . ceiling
+        $ (ps ^. #pricePerStep)       * toRational (us ^. #executionSteps)
+        + (ps ^. #pricePerMemoryUnit) * toRational (us ^. #executionMemory)
 
 type AlonzoTx =
     Ledger.Tx (Cardano.ShelleyLedgerEra Cardano.AlonzoEra)

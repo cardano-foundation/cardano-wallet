@@ -715,10 +715,10 @@ executionUnitPricesFromPParams pp =
     fromAlonzoPrices prices
   where
     prices = getField @"_prices" pp
-    fromAlonzoPrices (Alonzo.Prices prSteps prMem) =
+    fromAlonzoPrices Alonzo.Prices{prMem, prSteps} =
         W.ExecutionUnitPrices
-        { W.priceExecutionSteps  = Ledger.unboundRational prSteps
-        , W.priceExecutionMemory = Ledger.unboundRational prMem
+        { W.pricePerStep = Ledger.unboundRational prSteps
+        , W.pricePerMemoryUnit = Ledger.unboundRational prMem
         }
 
 fromLedgerExUnits
