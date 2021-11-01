@@ -1083,21 +1083,29 @@ instance Buildable ExecutionUnits where
         build $ "max steps: " <> show steps <> ", max memory: " <> show mem
 
 data ExecutionUnitPrices = ExecutionUnitPrices
-    { priceExecutionSteps  :: Rational
-    , priceExecutionMemory :: Rational
+    { pricePerStep :: Rational
+    , pricePerMemoryUnit :: Rational
     } deriving (Eq, Generic, Show)
 
 instance NFData ExecutionUnitPrices
 
 instance Buildable ExecutionUnitPrices where
-    build (ExecutionUnitPrices perStep perMem) =
-        build $ show perStep <> " per step, " <> show perMem <> " per memory unit"
+    build ExecutionUnitPrices {pricePerStep, pricePerMemoryUnit} =
+        build $ mconcat
+            [ show pricePerStep
+            , " per step, "
+            , show pricePerMemoryUnit
+            , " per memory unit"
+            ]
 
 instance ToJSON ExecutionUnitPrices where
-    toJSON ExecutionUnitPrices{priceExecutionSteps, priceExecutionMemory} =
-        object [ "step_price"  .= toRationalJSON priceExecutionSteps
-               , "memory_unit_price" .= toRationalJSON priceExecutionMemory
-               ]
+    toJSON ExecutionUnitPrices {pricePerStep, pricePerMemoryUnit} =
+        object
+            [ "step_price"
+                .= toRationalJSON pricePerStep
+            , "memory_unit_price"
+                .= toRationalJSON pricePerMemoryUnit
+            ]
      where
          toRationalJSON :: Rational -> Value
          toRationalJSON r = case fromRationalRepetendLimited 20 r of
