@@ -1389,7 +1389,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         \Cannot balance when I cannot afford collateral" $
         \ctx -> runResourceT $ do
         -- TODO: adjust when ADP-1227 is fixed
-        wa <- fixtureWalletWith @n ctx [600 * 1_000_000]
+        wa <- fixtureWalletWith @n ctx
+            [ 300 * 1_000_000
+            , 300 * 1_000_000
+            ]
         let toBalance = Json PlutusScenario.pingPong_1
         rTx <- request @ApiSerialisedTransaction ctx
             (Link.balanceTransaction @'Shelley wa) Default toBalance
