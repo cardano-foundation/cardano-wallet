@@ -162,6 +162,13 @@ module Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostData (..)
     , ApiExternalInput (..)
     , ApiRedeemer (..)
+    , ApiDecodedTransaction (..)
+    , ApiWalletInput (..)
+    , ApiTxInputGeneral (..)
+    , ResourceContext (..)
+    , ApiWithdrawalGeneral (..)
+    , ApiWalletOutput (..)
+    , ApiTxOutputGeneral (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -217,6 +224,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostDataT
     , PostMintBurnAssetDataT
     , ApiBalanceTransactionPostDataT
+    , ApiDecodedTransactionT
 
     -- * API Type Conversions
     , coinToQuantity
@@ -1126,6 +1134,59 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , withdrawals :: ![ApiWithdrawal n]
     , mint :: !(ApiT W.TokenMap)
     , status :: !(ApiT TxStatus)
+    , metadata :: !ApiTxMetadata
+    , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
+    } deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
+data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
+    { id :: !(ApiT (Hash "Tx"))
+    , index :: !Word32
+    , address :: !(ApiT Address, Proxy n)
+    , derivationPath :: NonEmpty (ApiT DerivationIndex)
+    , amount :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
+    } deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
+data ApiTxInputGeneral (n :: NetworkDiscriminant) =
+      ExternalInput (ApiT TxIn)
+    | WalletInput (ApiWalletInput n)
+      deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
+data ResourceContext = External | Our
+      deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
+data ApiWithdrawalGeneral n = ApiWithdrawalGeneral
+    { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
+    , amount :: !(Quantity "lovelace" Natural)
+    , context :: !ResourceContext
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
+    { address :: !(ApiT Address, Proxy n)
+    , amount :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
+    , derivationPath :: NonEmpty (ApiT DerivationIndex)
+    } deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
+data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
+      ExternalOutput (AddressAmount (ApiT Address, Proxy n))
+    | WalletOutput (ApiWalletOutput n)
+      deriving (Eq, Generic, Show, Typeable)
+      deriving anyclass NFData
+
+data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
+    { id :: !(ApiT (Hash "Tx"))
+    , fee :: !(Quantity "lovelace" Natural)
+    , inputs :: ![ApiTxInputGeneral n]
+    , outputs :: ![ApiTxOutputGeneral n]
+    , collateral :: ![ApiTxInputGeneral n]
+    , withdrawals :: ![ApiWithdrawalGeneral n]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
@@ -2940,6 +3001,77 @@ instance
   where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance DecodeAddress n => FromJSON (ApiWalletInput n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiWalletInput n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiWalletOutput n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiWalletOutput n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance
+    ( DecodeAddress n
+    , DecodeStakeAddress n
+    ) => FromJSON (ApiDecodedTransaction n)
+  where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance
+    ( EncodeAddress n
+    , EncodeStakeAddress n
+    ) => ToJSON (ApiDecodedTransaction n)
+  where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance
+    ( DecodeAddress n
+    , DecodeStakeAddress n
+    ) => FromJSON (ApiTxOutputGeneral n)
+  where
+    parseJSON obj = do
+        derPathM <-
+            (withObject "ApiTxOutputGeneral" $
+             \o -> o .:? "derivation_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
+        case derPathM of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser (AddressAmount (ApiT Address, Proxy n))
+                pure $ ExternalOutput xs
+            Just _ -> do
+                xs <- parseJSON obj :: Aeson.Parser (ApiWalletOutput n)
+                pure $ WalletOutput xs
+instance
+    ( EncodeAddress n
+    , EncodeStakeAddress n
+    ) => ToJSON (ApiTxOutputGeneral n)
+  where
+    toJSON (ExternalOutput content) = toJSON content
+    toJSON (WalletOutput content) = toJSON content
+
+instance
+    ( DecodeAddress n
+    , DecodeStakeAddress n
+    ) => FromJSON (ApiTxInputGeneral n)
+  where
+    parseJSON obj = do
+        derPathM <-
+            (withObject "ApiTxInputGeneral" $
+             \o -> o .:? "derivation_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
+        case derPathM of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser (ApiT TxIn)
+                pure $ ExternalInput xs
+            Just _ -> do
+                xs <- parseJSON obj :: Aeson.Parser (ApiWalletInput n)
+                pure $ WalletInput xs
+instance
+    ( EncodeAddress n
+    , EncodeStakeAddress n
+    ) => ToJSON (ApiTxInputGeneral n)
+  where
+    toJSON (ExternalInput content) = toJSON content
+    toJSON (WalletInput content) = toJSON content
+
 instance FromJSON (ApiT TxMetadata) where
     parseJSON = fmap ApiT
         . either (fail . displayError) pure
@@ -3096,6 +3228,26 @@ instance DecodeStakeAddress n => FromJSON (ApiWithdrawal n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeStakeAddress n => ToJSON (ApiWithdrawal n) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeStakeAddress n => FromJSON (ApiWithdrawalGeneral n) where
+    parseJSON obj = do
+        myResource <-
+            (withObject "ApiWithdrawalGeneral" $
+             \o -> o .:? "context" :: Aeson.Parser (Maybe Text)) obj
+        case myResource of
+            Nothing -> do
+                (ApiWithdrawal addr amt)  <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
+                pure $ ApiWithdrawalGeneral addr amt External
+            _ -> do
+                (ApiWithdrawal addr amt)  <- parseJSON obj :: Aeson.Parser (ApiWithdrawal n)
+                pure $ ApiWithdrawalGeneral addr amt Our
+instance EncodeStakeAddress n => ToJSON (ApiWithdrawalGeneral n) where
+    toJSON (ApiWithdrawalGeneral addr amt ctx) = do
+        let obj = [ "stake_address" .= toJSON addr
+                  , "amount" .= toJSON amt]
+        case ctx of
+            External -> object obj
+            Our -> object $ obj ++ ["context" .= String "ours"]
 
 instance {-# OVERLAPS #-} (DecodeStakeAddress n)
     => FromJSON (ApiT W.RewardAccount, Proxy n)
@@ -3548,6 +3700,7 @@ type family ApiWalletMigrationPlanPostDataT (n :: k) :: Type
 type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
 type family ApiPutAddressesDataT (n :: k) :: Type
 type family ApiBalanceTransactionPostDataT (n :: k) :: Type
+type family ApiDecodedTransactionT (n :: k) :: Type
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
@@ -3595,6 +3748,9 @@ type instance ApiMintedBurnedTransactionT (n :: NetworkDiscriminant) =
 
 type instance ApiBalanceTransactionPostDataT (n :: NetworkDiscriminant) =
     ApiBalanceTransactionPostData n
+
+type instance ApiDecodedTransactionT (n :: NetworkDiscriminant) =
+    ApiDecodedTransaction n
 
 {-------------------------------------------------------------------------------
                          SMASH interfacing types

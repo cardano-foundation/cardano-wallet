@@ -67,6 +67,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiConstructTransactionDataT
     , ApiConstructTransactionT
+    , ApiDecodedTransactionT
     , ApiFee
     , ApiNetworkClock
     , ApiNetworkInformation (..)
@@ -194,6 +195,10 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiBalanceTransactionPostDataT Aeson.Value
         -> ClientM ApiSerialisedTransaction
+    , decodeTransaction
+        :: ApiT WalletId
+        -> ApiSerialisedTransaction
+        -> ClientM (ApiDecodedTransactionT Aeson.Value)
     }
 
 data AddressClient = AddressClient
@@ -310,6 +315,7 @@ transactionClient =
             :<|> _postTransaction
             :<|> _postTransactionFee
             :<|> _balanceTransaction
+            :<|> _decodeTransaction
             = client (Proxy @("v2" :> (ShelleyTransactions Aeson.Value)))
 
         _postExternalTransaction
@@ -325,6 +331,7 @@ transactionClient =
             , getTransaction = _getTransaction
             , constructTransaction = _constructTransaction
             , balanceTransaction = _balanceTransaction
+            , decodeTransaction = _decodeTransaction
             }
 
 fromSerialisedTx :: ApiBytesT base SerialisedTx -> ApiT SealedTx
@@ -357,6 +364,7 @@ byronTransactionClient =
         , getTransaction = _getTransaction
         , constructTransaction = _constructTransaction
         , balanceTransaction = error "balance transaction endpoint not supported for byron"
+        , decodeTransaction = error "decode transaction endpoint not supported for byron"
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API
@@ -458,3 +466,4 @@ type instance PostTransactionOldDataT Aeson.Value = Aeson.Value
 type instance PostTransactionFeeOldDataT Aeson.Value = Aeson.Value
 type instance ApiPutAddressesDataT Aeson.Value = Aeson.Value
 type instance ApiBalanceTransactionPostDataT Aeson.Value = Aeson.Value
+type instance ApiDecodedTransactionT Aeson.Value = Aeson.Value

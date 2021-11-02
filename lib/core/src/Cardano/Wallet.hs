@@ -101,9 +101,12 @@ module Cardano.Wallet
     , importRandomAddresses
     , listAddresses
     , normalizeDelegationAddress
+    , lookupTxIns
+    , lookupTxOuts
     , ErrCreateRandomAddress(..)
     , ErrImportRandomAddress(..)
     , ErrImportAddress(..)
+    , ErrDecodeTx (..)
 
     -- ** Payment
     , getTxExpiry
@@ -457,7 +460,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
-    ( runState, state )
+    ( evalState, runState, state )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Crypto.Hash
@@ -558,7 +561,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
-
 
 -- $Development
 -- __Naming Conventions__
@@ -1168,6 +1170,52 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
 {-------------------------------------------------------------------------------
                                     Address
 -------------------------------------------------------------------------------}
+
+lookupTxIns
+    :: forall ctx s k .
+        ( HasDBLayer IO s k ctx
+        , IsOurs s Address
+        )
+    => ctx
+    -> WalletId
+    -> [TxIn]
+    -> ExceptT ErrDecodeTx IO [(TxIn, Maybe (TxOut, NonEmpty DerivationIndex))]
+lookupTxIns ctx wid txins = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically
+          $ withExceptT ErrDecodeTxNoSuchWallet
+          $ withNoSuchWallet wid
+          $ readCheckpoint wid
+    pure $ map (\i -> (i, lookupTxIn cp i)) txins
+  where
+    db = ctx ^. dbLayer @IO @s @k
+    lookupTxIn :: Wallet s -> TxIn -> Maybe (TxOut, NonEmpty DerivationIndex)
+    lookupTxIn cp txIn = do
+        out@(TxOut addr _) <- UTxO.lookup txIn (totalUTxO mempty cp)
+        path <- fst $ isOurs addr (getState cp)
+        return (out, path)
+
+lookupTxOuts
+    :: forall ctx s k .
+        ( HasDBLayer IO s k ctx
+        , IsOurs s Address
+        )
+    => ctx
+    -> WalletId
+    -> [TxOut]
+    -> ExceptT ErrDecodeTx IO [(TxOut, Maybe (NonEmpty DerivationIndex))]
+lookupTxOuts ctx wid txouts = db & \DBLayer{..} -> do
+    cp <- mapExceptT atomically
+          $ withExceptT ErrDecodeTxNoSuchWallet
+          $ withNoSuchWallet wid
+          $ readCheckpoint wid
+    -- NOTE: We evolve the state (in practice an address pool) as we loop
+    -- through the outputs, but we don't consider pending transactions.
+    -- /Theoretically/ the outputs might only be discoverable after discovering
+    -- outputs other pending transactions.
+    pure $ flip evalState (getState cp) $ forM txouts $ \out@(TxOut addr _) -> do
+        (out,) <$> state (isOurs addr)
+  where
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | List all addresses of a wallet with their metadata. Addresses
 -- are ordered from the most-recently-discovered to the oldest known.
@@ -2794,11 +2842,9 @@ data ErrSignPayment
 
 -- | Errors that can occur when balancing transaction.
 data ErrBalanceTx
-    = ErrBalanceTxTxAlreadyBalanced
-    | ErrBalanceTxUpdateError ErrUpdateSealedTx
+    = ErrBalanceTxUpdateError ErrUpdateSealedTx
     | ErrBalanceTxSelectAssets ErrSelectAssets
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
-    | ErrBalanceTxNotImplemented
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.
@@ -2823,6 +2869,11 @@ data ErrWitnessTx
     | ErrWitnessTxNoSuchWallet ErrNoSuchWallet
     | ErrWitnessTxWithRootKey ErrWithRootKey
     | ErrWitnessTxIncorrectTTL PastHorizonException
+    deriving (Show, Eq)
+
+-- | Errors that can occur when decoding a transaction.
+newtype ErrDecodeTx
+    = ErrDecodeTxNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a signed transaction to the network.

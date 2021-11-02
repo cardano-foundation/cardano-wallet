@@ -92,6 +92,7 @@ module Cardano.Wallet.Api.Server
     , mkSharedWallet
     , mintBurnAssets
     , balanceTransaction
+    , decodeTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -136,6 +137,7 @@ import Cardano.Wallet
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
     , ErrCreateRandomAddress (..)
+    , ErrDecodeTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
     , ErrGetTransaction (..)
@@ -209,6 +211,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiDecodedTransaction (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiEra (..)
     , ApiErrorCode (..)
@@ -246,7 +249,9 @@ import Cardano.Wallet.Api.Types
     , ApiTxCollateral (..)
     , ApiTxId (..)
     , ApiTxInput (..)
+    , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
+    , ApiTxOutputGeneral (..)
     , ApiUtxoStatistics (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
@@ -254,16 +259,19 @@ import Cardano.Wallet.Api.Types
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
+    , ApiWalletInput (..)
     , ApiWalletMigrationBalance (..)
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
+    , ApiWalletOutput (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
     , ApiWalletSignData (..)
     , ApiWalletUtxoSnapshot (..)
     , ApiWalletUtxoSnapshotEntry (..)
     , ApiWithdrawal (..)
+    , ApiWithdrawalGeneral (..)
     , ApiWithdrawalPostData (..)
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
@@ -274,6 +282,7 @@ import Cardano.Wallet.Api.Types
     , MinWithdrawal (..)
     , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
+    , ResourceContext (..)
     , VerificationKeyHashing (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -337,7 +346,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , ParentContext (..)
     , SeqState (..)
-    , context
     , defaultAddressPoolGap
     , gap
     , mkSeqStateFromAccountXPub
@@ -1060,7 +1068,7 @@ mkSharedWallet ctx wid cp meta pending progress = case getState cp of
             cp
         let available = availableBalance pending cp
         let total = totalBalance pending reward cp
-        let (ParentContextShared _ pTemplate dTemplateM) = context pool
+        let (ParentContextShared _ pTemplate dTemplateM) = pool ^. #context
         pure $ ApiSharedWallet $ Right $ ApiActiveSharedWallet
             { id = ApiT wid
             , name = ApiT $ meta ^. #name
@@ -2246,6 +2254,66 @@ balanceTransaction ctx genChange (ApiT wid) body = do
   where
     nl = ctx ^. networkLayer
 
+decodeTransaction
+    :: forall ctx s k n.
+        ( ctx ~ ApiLayer s k
+        , IsOurs s Address
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiSerialisedTransaction
+    -> Handler (ApiDecodedTransaction n)
+decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
+    let (Tx txid feeM colls inps outs wdrlMap meta vldt, _toMint, _toBurn) = decodeTx tl sealed
+    (txinsOutsPaths, collsOutsPaths, outsPath, acct)  <-
+        withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+          (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+          txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
+          collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
+          outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
+          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct)
+    pure $ ApiDecodedTransaction
+        { id = ApiT txid
+        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
+        , inputs = map toInp txinsOutsPaths
+        , outputs = map toOut outsPath
+        , collateral = map toInp collsOutsPaths
+        , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
+        , metadata = ApiTxMetadata $ ApiT <$> meta
+        , scriptValidity = ApiT <$> vldt
+        }
+  where
+    tl = ctx ^. W.transactionLayer @k
+    toOut (txoutIncoming, Nothing) =
+        ExternalOutput $ toAddressAmount @n txoutIncoming
+    toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
+            WalletOutput $ ApiWalletOutput
+                { address = (ApiT addr, Proxy @n)
+                , amount = Quantity $ fromIntegral c
+                , assets = ApiT tmap
+                , derivationPath = NE.map ApiT path
+                }
+    toInp (txin@(TxIn txid ix), txoutPathM) =
+        case txoutPathM of
+            Nothing ->
+                ExternalInput (ApiT txin)
+            Just (TxOut addr (TokenBundle (Coin c) tmap), path) ->
+                WalletInput $ ApiWalletInput
+                    { id = ApiT txid
+                    , index = ix
+                    , address = (ApiT addr, Proxy @n)
+                    , derivationPath = NE.map ApiT path
+                    , amount = Quantity $ fromIntegral c
+                    , assets = ApiT tmap
+                    }
+    toWrdl acct (rewardKey, (Coin c)) =
+        if rewardKey == acct then
+           ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
+        else
+           ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) External
+
 joinStakePool
     :: forall ctx s n k.
         ( ctx ~ ApiLayer s k
@@ -3132,14 +3200,14 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         , depth = Nothing
         , direction = ApiT (tx ^. (#txMeta . #direction))
         , inputs =
-            [ ApiTxInput (fmap toAddressAmount o) (ApiT i)
+            [ ApiTxInput (fmap (toAddressAmount @n) o) (ApiT i)
             | (i, o) <- tx ^. #txInputs
             ]
         , collateral =
             [ ApiTxCollateral (fmap toAddressAmountNoAssets o) (ApiT i)
             | (i, o) <- tx ^. #txCollateral
             ]
-        , outputs = toAddressAmount <$> tx ^. #txOutputs
+        , outputs = toAddressAmount @n <$> tx ^. #txOutputs
         , withdrawals = mkApiWithdrawal @n <$> Map.toList (tx ^. #txWithdrawals)
         , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (tx ^. (#txMeta . #status))
@@ -3202,15 +3270,18 @@ mkApiTransaction timeInterpreter setTimeReference tx = do
         txOutValue :: TxOut -> Natural
         txOutValue = fromIntegral . unCoin . txOutCoin
 
-    toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
-    toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
-        AddressAmount (ApiT addr, Proxy @n) (mkApiCoin coin) (ApiT assets)
-
     toAddressAmountNoAssets
         :: TxOut
         -> AddressAmountNoAssets (ApiT Address, Proxy n)
     toAddressAmountNoAssets (TxOut addr (TokenBundle.TokenBundle coin _)) =
         AddressAmountNoAssets (ApiT addr, Proxy @n) (mkApiCoin coin)
+
+toAddressAmount
+    :: forall (n :: NetworkDiscriminant). ()
+    => TxOut
+    -> AddressAmount (ApiT Address, Proxy n)
+toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
+    AddressAmount (ApiT addr, Proxy @n) (mkApiCoin coin) (ApiT assets)
 
 mkApiCoin
     :: Coin
@@ -3678,13 +3749,15 @@ instance IsServerError ErrConstructTx where
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
 
+instance IsServerError ErrDecodeTx where
+    toServerError = \case
+        ErrDecodeTxNoSuchWallet e -> (toServerError e)
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
+            }
+
 instance IsServerError ErrBalanceTx where
     toServerError = \case
-        ErrBalanceTxTxAlreadyBalanced ->
-            apiError err403 TransactionAlreadyBalanced $ mconcat
-                [ "The transaction is already balanced. "
-                , "Please send a transaction that requires more inputs/outputs to be picked to be balanced."
-                ]
         ErrBalanceTxUpdateError ErrByronTxNotSupported ->
             apiError err403 CreatedInvalidTransaction
                 "Balancing Byron transactions is not supported."
@@ -3698,9 +3771,6 @@ instance IsServerError ErrBalanceTx where
                 ]
         ErrBalanceTxSelectAssets err -> toServerError err
         ErrBalanceTxAssignRedeemers err -> toServerError err
-        ErrBalanceTxNotImplemented ->
-            apiError err501 NotImplemented
-                "This feature is not yet implemented."
 
 instance IsServerError ErrMintBurnAssets where
     toServerError = \case

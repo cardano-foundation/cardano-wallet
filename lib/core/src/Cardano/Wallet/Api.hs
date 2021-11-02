@@ -61,6 +61,7 @@ module Cardano.Wallet.Api
         , CreateTransactionOld
         , PostTransactionFeeOld
         , BalanceTransaction
+        , DecodeTransaction
 
     , StakePools
         , ListStakePools
@@ -177,6 +178,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiConstructTransactionDataT
     , ApiConstructTransactionT
+    , ApiDecodedTransactionT
     , ApiFee
     , ApiHealthCheck
     , ApiMaintenanceAction
@@ -528,6 +530,7 @@ type ShelleyTransactions n =
     :<|> CreateTransactionOld n
     :<|> PostTransactionFeeOld n
     :<|> BalanceTransaction n
+    :<|> DecodeTransaction n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/constructTransaction
 type ConstructTransaction n = "wallets"
@@ -587,6 +590,13 @@ type BalanceTransaction n = "wallets"
     :> "transactions-balance"
     :> ReqBody '[JSON] (ApiBalanceTransactionPostDataT n)
     :> PostAccepted '[JSON] ApiSerialisedTransaction
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/decodeTransaction
+type DecodeTransaction n = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "transactions-decode"
+    :> ReqBody '[JSON] ApiSerialisedTransaction
+    :> PostAccepted '[JSON] (ApiDecodedTransactionT n)
 
 {-------------------------------------------------------------------------------
                                  Shelley Migrations
