@@ -1388,10 +1388,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_BALANCE_02c - \
         \Cannot balance when I cannot afford collateral" $
         \ctx -> runResourceT $ do
-        -- TODO: adjust when ADP-1227 is fixed
         wa <- fixtureWalletWith @n ctx
-            [ 300 * 1_000_000
-            , 300 * 1_000_000
+            [ 2_000_000
+            , 2_000_000
             ]
         let toBalance = Json PlutusScenario.pingPong_1
         rTx <- request @ApiSerialisedTransaction ctx
@@ -1415,14 +1414,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403Collateral
             , expectErrorMessage $ unwords
-                -- TODO: [ADP-1227] Adjust this amount:
                 [ "I need an ada amount of at least:"
-                , "865.807382"
+                , "2.779500"
                 ]
             , expectErrorMessage $ unwords
-                -- TODO: [ADP-1227] Adjust these amounts:
                 [ "The largest combination of pure ada UTxOs I could find is:"
-                , "[297.866700, 300.000000]"
+                , "[1.853000]"
                 ]
             ]
 
