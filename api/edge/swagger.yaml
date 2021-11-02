@@ -1211,6 +1211,29 @@ x-transactionWithdrawals: &transactionWithdrawals
       stake_address: *stakeAddress
       amount: *amount
 
+x-ours: &ours
+  type: string
+  enum: ["ours"]
+  description: |
+    Used when withdrawal or output is ours.
+
+x-transactionWithdrawalsGeneral: &transactionWithdrawalsGeneral
+  description: |
+     A list of withdrawals from stake addresses. Withdrawal belonging to the wallet
+     is underlined.
+  type: array
+  minItems: 0
+  items:
+    type: object
+    additionalProperties: false
+    required:
+      - stake_address
+      - amount
+    properties:
+      stake_address: *stakeAddress
+      amount: *amount
+      context: *ours
+
 x-softIndex: &softIndex
   type: integer
   minimum: 0
@@ -1308,6 +1331,85 @@ x-transactionResolvedInputs: &transactionResolvedInputs
       index:
         type: integer
         minimum: 0
+
+x-transactionInputsOutsideWallet: &transactionInputsOutsideWallet
+  description: |
+    A transaction input not belonging to a given wallet.
+  type: object
+  required:
+    - id
+    - index
+  properties:
+    id: *transactionId
+    index:
+      type: integer
+      minimum: 0
+
+x-transactionInputsInsideWallet: &transactionInputsInsideWallet
+  description: |
+    A transaction input belonging to a given wallet.
+  type: object
+  required:
+    - id
+    - index
+    - address
+    - amount
+    - derivation_path
+  properties:
+    address: *addressId
+    amount: *amount
+    assets: *walletAssets
+    id: *transactionId
+    derivation_path: *derivationPath
+    index:
+      type: integer
+      minimum: 0
+
+x-transactionInputsGeneral: &transactionInputsGeneral
+  type: array
+  minItems: 0
+  items:
+    oneOf:
+      - <<: *transactionInputsOutsideWallet
+        title: tx inputs without source not belonging to a given wallet
+      - <<: *transactionInputsInsideWallet
+        title: tx inputs belonging to a given wallet
+
+x-transactionOutputsOutsideWallet: &transactionOutputsOutsideWallet
+  description: |
+     A transaction output not belonging to the wallet
+  type: object
+  required:
+    - address
+    - amount
+  properties:
+    address: *addressId
+    amount: *amount
+    assets: *walletAssets
+
+x-transactionOutputsInsideWallet: &transactionOutputsInsideWallet
+  description: |
+     A transaction output not belonging to the wallet
+  type: object
+  required:
+    - address
+    - amount
+    - derivation_path
+  properties:
+    address: *addressId
+    amount: *amount
+    assets: *walletAssets
+    derivation_path: *derivationPath
+
+x-transactionOutputsGeneral: &transactionOutputsGeneral
+  type: array
+  minItems: 0
+  items:
+    oneOf:
+      - <<: *transactionOutputsOutsideWallet
+        title: tx outputs not belonging to a given wallet
+      - <<: *transactionOutputsInsideWallet
+        title: tx outputs belonging to a given wallet
 
 x-transactionResolvedCollateral: &transactionResolvedCollateral
   description: A list of transaction inputs used for collateral
@@ -2253,6 +2355,39 @@ components:
         withdrawals: *transactionWithdrawals
         mint: *transactionMint
         status: *transactionStatus
+        metadata: *transactionMetadata
+        script_validity: *txScriptValidity
+
+    ApiInputsGeneral: &ApiInputsGeneral
+      <<: *transactionInputsGeneral
+      description: |
+        Inputs that could be external or belong to the wallet.
+
+    ApiOutputsGeneral: &ApiOutputsGeneral
+      <<: *transactionOutputsGeneral
+      description: |
+        Outputs that could be external or belong to the wallet.
+
+    ApiWithdrawalsGeneral: &ApiWithdrawalsGeneral
+      <<: *transactionWithdrawalsGeneral
+      description: |
+        Withdrawals that could be external or belong to the wallet.
+
+    ApiDecodedTransaction: &ApiDecodedTransaction
+      type: object
+      required:
+        - id
+        - fee
+        - inputs
+        - outputs
+        - withdrawals
+      properties:
+        id: *transactionId
+        fee: *amount
+        inputs: *ApiInputsGeneral
+        outputs: *ApiOutputsGeneral
+        collateral: *ApiInputsGeneral
+        withdrawals: *ApiWithdrawalsGeneral
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 
@@ -4758,6 +4893,17 @@ x-responsesSignTransaction: &responsesSignTransaction
       application/json:
         schema: *ApiSignedTransaction
 
+x-responsesDecodedTransaction: &responsesDecodedTransaction
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiDecodedTransaction
+
 x-responsesSubmitTransaction: &responsesSubmitTransaction
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
@@ -5525,6 +5671,24 @@ paths:
           application/json:
             schema: *ApiSignTransactionPostData
       responses: *responsesSignTransaction
+
+  /wallets/{walletId}/transactions-decode:
+    post:
+      operationId: decodeTransaction
+      tags: ["Transactions New"]
+      summary: Decode
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Decode a serialized transaction.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSerialisedTransaction
+      responses: *responsesDecodedTransaction
 
   /wallets/{walletId}/addresses:
     get:
