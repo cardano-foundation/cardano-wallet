@@ -107,7 +107,7 @@ import Data.Text
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith )
+    ( SpecWith, describe, pendingWith, shouldContain, shouldNotContain )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldNotBe, shouldNotSatisfy, shouldSatisfy )
 import Test.Hspec.Extra
@@ -489,15 +489,19 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     , ApiT (DerivationIndex $ fromIntegral addrIx)
                     ]
                 }
-        let isOurTxOut :: ApiTxOutputGeneral n -> [ApiTxOutputGeneral n] -> Bool
-            isOurTxOut expectedTxOut = (expectedTxOut `elem`)
+        let isOutOurs out = case out of
+                WalletOutput _ -> False
+                ExternalOutput _ -> True
 
         rDecodedTxSource <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rDecodedTxSource $
             sharedExpectationsBetweenWallets ++
             [ expectField #inputs (`shouldSatisfy` areOurs)
-            , expectField #outputs (`shouldNotSatisfy` isOurTxOut expectedTxOutTarget)
+            , expectField #outputs (`shouldNotContain` [expectedTxOutTarget])
+
+            -- Check that the change output is there:
+            , expectField (#outputs) ((`shouldBe` 1) . length . filter isOutOurs)
             ]
 
         rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
@@ -505,7 +509,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTxTarget $
             sharedExpectationsBetweenWallets ++
             [ expectField #inputs (`shouldNotSatisfy` areOurs)
-            , expectField #outputs (`shouldSatisfy` isOurTxOut expectedTxOutTarget)
+            , expectField #outputs (`shouldContain` [expectedTxOutTarget])
             ]
 
         let filterInitialAmt =
@@ -580,8 +584,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTxSource' $
             sharedExpectationsBetweenWallets ++
             [ expectField #inputs (`shouldNotSatisfy` areOurs) -- the input is not anymore belonging to wallet
-            , expectField #outputs (`shouldNotSatisfy` isOurTxOut expectedTxOutTarget')
-            , expectField #outputs (`shouldSatisfy` isOurTxOut expectedTxOutSource)
+            , expectField #outputs (`shouldNotContain` [expectedTxOutTarget'])
+            , expectField #outputs (`shouldContain` [expectedTxOutSource])
             ]
 
         rDecodedTxTarget' <- request @(ApiDecodedTransaction n) ctx
@@ -589,8 +593,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTxTarget' $
             sharedExpectationsBetweenWallets ++
             [ expectField #inputs (`shouldNotSatisfy` areOurs)
-            , expectField #outputs (`shouldSatisfy` isOurTxOut expectedTxOutTarget')
-            , expectField #outputs (`shouldNotSatisfy` isOurTxOut expectedTxOutSource)
+            , expectField #outputs (`shouldContain` [expectedTxOutTarget'])
+            , expectField #outputs (`shouldNotContain` [expectedTxOutSource])
             ]
 
     it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
