@@ -64,6 +64,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Data.Generic.Fields
       Test.Hspec.Extra
       Test.Hspec.Goldens
       Test.QuickCheck.Extra
