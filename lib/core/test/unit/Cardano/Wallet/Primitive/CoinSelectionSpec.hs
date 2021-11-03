@@ -171,10 +171,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
 
         unitTests_computeMinimumCollateral
 
-    parallel $ do
-        it "Round robin shrink equality" $
-            property prop_shrinkSelectionParams_equality
-
 --------------------------------------------------------------------------------
 -- Performing selections
 --------------------------------------------------------------------------------
@@ -645,21 +641,6 @@ genSelectionParams = SelectionParams
     <*> genUTxOAvailableForCollateral
     <*> genUTxOAvailableForInputs
 
-shrinkSelectionParamsOld :: SelectionParams -> [SelectionParams]
-shrinkSelectionParamsOld =
-    genericRoundRobinShrink
-        (  liftShrinker (shrinkAssetsToBurn)
-        :* liftShrinker (shrinkAssetsToMint)
-        :* liftShrinker (shrinkOutputsToCover)
-        :* liftShrinker (shrinkRewardWithdrawal)
-        :* liftShrinker (shrinkCerticateDepositsTaken)
-        :* liftShrinker (shrinkCerticateDepositsReturned)
-        :* liftShrinker (shrinkCollateralRequirement)
-        :* liftShrinker (shrinkUTxOAvailableForCollateral)
-        :* liftShrinker (shrinkUTxOAvailableForInputs)
-        :* Nil
-        )
-
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams =
     genericRoundRobinShrink
@@ -674,10 +655,6 @@ shrinkSelectionParams =
         :* liftShrinker shrinkUTxOAvailableForInputs
         :* Nil
         )
-
-prop_shrinkSelectionParams_equality :: SelectionParams -> Property
-prop_shrinkSelectionParams_equality params =
-    property $ shrinkSelectionParams params == shrinkSelectionParamsOld params
 
 --------------------------------------------------------------------------------
 -- Assets to mint and burn
