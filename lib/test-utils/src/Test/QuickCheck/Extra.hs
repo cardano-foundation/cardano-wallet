@@ -87,7 +87,6 @@ import Test.Utils.Pretty
 import Text.Pretty.Simple
     ( pShow )
 
-import qualified Data.Generic.Fields as Fields
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Lazy as TL
