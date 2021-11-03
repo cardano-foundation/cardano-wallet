@@ -40,7 +40,7 @@
           (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
           (hsPkgs."either" or (errorHandler.buildDepError "either"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
-          (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
+          (hsPkgs."generics-sop" or (errorHandler.buildDepError "generics-sop"))
           (hsPkgs."hspec-core" or (errorHandler.buildDepError "hspec-core"))
           (hsPkgs."hspec-expectations" or (errorHandler.buildDepError "hspec-expectations"))
           (hsPkgs."hspec-golden-aeson" or (errorHandler.buildDepError "hspec-golden-aeson"))
