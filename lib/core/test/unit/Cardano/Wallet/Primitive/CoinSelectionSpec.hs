@@ -127,8 +127,6 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
     , genericRoundRobinShrink
-    , liftShrink8
-    , liftShrink9
     , liftShrinker
     , report
     , shrinkNatural
@@ -543,15 +541,17 @@ genMockSelectionConstraints = MockSelectionConstraints
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
 shrinkMockSelectionConstraints =
-    liftShrink8 MockSelectionConstraints
-        shrinkMockAssessTokenBundleSize
-        shrinkCertificateDepositAmount
-        shrinkMockComputeMinimumAdaQuantity
-        shrinkMockComputeMinimumCost
-        shrinkMockComputeSelectionLimit
-        shrinkMaximumCollateralInputCount
-        shrinkMinimumCollateralPercentage
-        shrinkMockUTxOSuitableForCollateral
+    genericRoundRobinShrink
+        (  liftShrinker (shrinkMockAssessTokenBundleSize)
+        :* liftShrinker (shrinkCertificateDepositAmount)
+        :* liftShrinker (shrinkMockComputeMinimumAdaQuantity)
+        :* liftShrinker (shrinkMockComputeMinimumCost)
+        :* liftShrinker (shrinkMockComputeSelectionLimit)
+        :* liftShrinker (shrinkMaximumCollateralInputCount)
+        :* liftShrinker (shrinkMinimumCollateralPercentage)
+        :* liftShrinker (shrinkMockUTxOSuitableForCollateral)
+        :* Nil
+        )
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
 unMockSelectionConstraints m = SelectionConstraints
@@ -647,16 +647,18 @@ genSelectionParams = SelectionParams
 
 shrinkSelectionParamsOld :: SelectionParams -> [SelectionParams]
 shrinkSelectionParamsOld =
-    shrinkMapBy ofTuple toTuple $ liftShrink9
-        shrinkAssetsToBurn
-        shrinkAssetsToMint
-        shrinkOutputsToCover
-        shrinkRewardWithdrawal
-        shrinkCerticateDepositsTaken
-        shrinkCerticateDepositsReturned
-        shrinkCollateralRequirement
-        shrinkUTxOAvailableForCollateral
-        shrinkUTxOAvailableForInputs
+    genericRoundRobinShrink
+        (  liftShrinker (shrinkAssetsToBurn)
+        :* liftShrinker (shrinkAssetsToMint)
+        :* liftShrinker (shrinkOutputsToCover)
+        :* liftShrinker (shrinkRewardWithdrawal)
+        :* liftShrinker (shrinkCerticateDepositsTaken)
+        :* liftShrinker (shrinkCerticateDepositsReturned)
+        :* liftShrinker (shrinkCollateralRequirement)
+        :* liftShrinker (shrinkUTxOAvailableForCollateral)
+        :* liftShrinker (shrinkUTxOAvailableForInputs)
+        :* Nil
+        )
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams =

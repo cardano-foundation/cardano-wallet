@@ -21,19 +21,13 @@ module Test.QuickCheck.Extra
     , reasonablySized
 
       -- * Shrinking
-    , liftShrink3
-    , liftShrink4
-    , liftShrink5
-    , liftShrink6
-    , liftShrink7
-    , liftShrink8
-    , liftShrink9
     , liftShrinker
     , shrinkInterleaved
     , shrinkMapWith
     , groundRobinShrink
     , groundRobinShrink'
     , genericRoundRobinShrink
+    , genericRoundRobinShrink'
 
       -- * Generating and shrinking natural numbers
     , chooseNatural
@@ -158,181 +152,6 @@ genSized2 genA genB = (,)
 --
 genSized2With :: (a -> b -> c) -> Gen a -> Gen b -> Gen c
 genSized2With f genA genB = uncurry f <$> genSized2 genA genB
-
--- | Similar to 'liftShrink2', but applicable to values with 3 fields.
---
-liftShrink3
-    :: Fields.HasFields3 r a1 a2 a3
-    => (a1 -> a2 -> a3 -> r)
-    -> (a1 -> [a1])
-    -> (a2 -> [a2])
-    -> (a3 -> [a3])
-    -> r
-    -> [r]
-liftShrink3 f s1 s2 s3 r =
-    interleaveRoundRobin
-    [ [ f a1' a2  a3  | a1' <- s1 a1 ]
-    , [ f a1  a2' a3  | a2' <- s2 a2 ]
-    , [ f a1  a2  a3' | a3' <- s3 a3 ]
-    ]
-  where
-    (a1, a2, a3) = Fields.toTuple3 r
-
--- | Similar to 'liftShrink2', but applicable to values with 4 fields.
---
-liftShrink4
-    :: Fields.HasFields4 r a1 a2 a3 a4
-    => (a1 -> a2 -> a3 -> a4 -> r)
-    -> (a1 -> [a1])
-    -> (a2 -> [a2])
-    -> (a3 -> [a3])
-    -> (a4 -> [a4])
-    -> r
-    -> [r]
-liftShrink4 f s1 s2 s3 s4 r =
-    interleaveRoundRobin
-    [ [ f a1' a2  a3  a4  | a1' <- s1 a1 ]
-    , [ f a1  a2' a3  a4  | a2' <- s2 a2 ]
-    , [ f a1  a2  a3' a4  | a3' <- s3 a3 ]
-    , [ f a1  a2  a3  a4' | a4' <- s4 a4 ]
-    ]
-  where
-    (a1, a2, a3, a4) = Fields.toTuple4 r
-
--- | Similar to 'liftShrink2', but applicable to values with 5 fields.
---
-liftShrink5
-    :: Fields.HasFields5 r a1 a2 a3 a4 a5
-    => (a1 -> a2 -> a3 -> a4 -> a5 -> r)
-    -> (a1 -> [a1])
-    -> (a2 -> [a2])
-    -> (a3 -> [a3])
-    -> (a4 -> [a4])
-    -> (a5 -> [a5])
-    -> r
-    -> [r]
-liftShrink5 f s1 s2 s3 s4 s5 r =
-    interleaveRoundRobin
-    [ [ f a1' a2  a3  a4  a5  | a1' <- s1 a1 ]
-    , [ f a1  a2' a3  a4  a5  | a2' <- s2 a2 ]
-    , [ f a1  a2  a3' a4  a5  | a3' <- s3 a3 ]
-    , [ f a1  a2  a3  a4' a5  | a4' <- s4 a4 ]
-    , [ f a1  a2  a3  a4  a5' | a5' <- s5 a5 ]
-    ]
-  where
-    (a1, a2, a3, a4, a5) = Fields.toTuple5 r
-
--- | Similar to 'liftShrink2', but applicable to values with 6 fields.
---
-liftShrink6
-    :: Fields.HasFields6 r a1 a2 a3 a4 a5 a6
-    => (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> r)
-    -> (a1 -> [a1])
-    -> (a2 -> [a2])
-    -> (a3 -> [a3])
-    -> (a4 -> [a4])
-    -> (a5 -> [a5])
-    -> (a6 -> [a6])
-    -> r
-    -> [r]
-liftShrink6 f s1 s2 s3 s4 s5 s6 r =
-    interleaveRoundRobin
-    [ [ f a1' a2  a3  a4  a5  a6  | a1' <- s1 a1 ]
-    , [ f a1  a2' a3  a4  a5  a6  | a2' <- s2 a2 ]
-    , [ f a1  a2  a3' a4  a5  a6  | a3' <- s3 a3 ]
-    , [ f a1  a2  a3  a4' a5  a6  | a4' <- s4 a4 ]
-    , [ f a1  a2  a3  a4  a5' a6  | a5' <- s5 a5 ]
-    , [ f a1  a2  a3  a4  a5  a6' | a6' <- s6 a6 ]
-    ]
-  where
-    (a1, a2, a3, a4, a5, a6) = Fields.toTuple6 r
-
--- | Similar to 'liftShrink2', but applicable to values with 7 fields.
---
-liftShrink7
-    :: Fields.HasFields7 r a1 a2 a3 a4 a5 a6 a7
-    => (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> r)
-    -> (a1 -> [a1])
-    -> (a2 -> [a2])
-    -> (a3 -> [a3])
-    -> (a4 -> [a4])
-    -> (a5 -> [a5])
-    -> (a6 -> [a6])
-    -> (a7 -> [a7])
-    -> r
-    -> [r]
-liftShrink7 f s1 s2 s3 s4 s5 s6 s7 r =
-    interleaveRoundRobin
-    [ [ f a1' a2  a3  a4  a5  a6  a7  | a1' <- s1 a1 ]
-    , [ f a1  a2' a3  a4  a5  a6  a7  | a2' <- s2 a2 ]
-    , [ f a1  a2  a3' a4  a5  a6  a7  | a3' <- s3 a3 ]
-    , [ f a1  a2  a3  a4' a5  a6  a7  | a4' <- s4 a4 ]
-    , [ f a1  a2  a3  a4  a5' a6  a7  | a5' <- s5 a5 ]
-    , [ f a1  a2  a3  a4  a5  a6' a7  | a6' <- s6 a6 ]
-    , [ f a1  a2  a3  a4  a5  a6  a7' | a7' <- s7 a7 ]
-    ]
-  where
-    (a1, a2, a3, a4, a5, a6, a7) = Fields.toTuple7 r
-
--- | Similar to 'liftShrink2', but applicable to values with 8 fields.
---
-liftShrink8
-    :: Fields.HasFields8 r a1 a2 a3 a4 a5 a6 a7 a8
-    => (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> r)
-    -> (a1 -> [a1])
-    -> (a2 -> [a2])
-    -> (a3 -> [a3])
-    -> (a4 -> [a4])
-    -> (a5 -> [a5])
-    -> (a6 -> [a6])
-    -> (a7 -> [a7])
-    -> (a8 -> [a8])
-    -> r
-    -> [r]
-liftShrink8 f s1 s2 s3 s4 s5 s6 s7 s8 r =
-    interleaveRoundRobin
-    [ [ f a1' a2  a3  a4  a5  a6  a7  a8  | a1' <- s1 a1 ]
-    , [ f a1  a2' a3  a4  a5  a6  a7  a8  | a2' <- s2 a2 ]
-    , [ f a1  a2  a3' a4  a5  a6  a7  a8  | a3' <- s3 a3 ]
-    , [ f a1  a2  a3  a4' a5  a6  a7  a8  | a4' <- s4 a4 ]
-    , [ f a1  a2  a3  a4  a5' a6  a7  a8  | a5' <- s5 a5 ]
-    , [ f a1  a2  a3  a4  a5  a6' a7  a8  | a6' <- s6 a6 ]
-    , [ f a1  a2  a3  a4  a5  a6  a7' a8  | a7' <- s7 a7 ]
-    , [ f a1  a2  a3  a4  a5  a6  a7  a8' | a8' <- s8 a8 ]
-    ]
-  where
-    (a1, a2, a3, a4, a5, a6, a7, a8) = Fields.toTuple8 r
-
--- | Similar to 'liftShrink2', but applicable to values with 9 fields.
---
-liftShrink9
-    :: Fields.HasFields9 r a1 a2 a3 a4 a5 a6 a7 a8 a9
-    => (a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> r)
-    -> (a1 -> [a1])
-    -> (a2 -> [a2])
-    -> (a3 -> [a3])
-    -> (a4 -> [a4])
-    -> (a5 -> [a5])
-    -> (a6 -> [a6])
-    -> (a7 -> [a7])
-    -> (a8 -> [a8])
-    -> (a9 -> [a9])
-    -> r
-    -> [r]
-liftShrink9 f s1 s2 s3 s4 s5 s6 s7 s8 s9 r =
-    interleaveRoundRobin
-    [ [ f a1' a2  a3  a4  a5  a6  a7  a8  a9  | a1' <- s1 a1 ]
-    , [ f a1  a2' a3  a4  a5  a6  a7  a8  a9  | a2' <- s2 a2 ]
-    , [ f a1  a2  a3' a4  a5  a6  a7  a8  a9  | a3' <- s3 a3 ]
-    , [ f a1  a2  a3  a4' a5  a6  a7  a8  a9  | a4' <- s4 a4 ]
-    , [ f a1  a2  a3  a4  a5' a6  a7  a8  a9  | a5' <- s5 a5 ]
-    , [ f a1  a2  a3  a4  a5  a6' a7  a8  a9  | a6' <- s6 a6 ]
-    , [ f a1  a2  a3  a4  a5  a6  a7' a8  a9  | a7' <- s7 a7 ]
-    , [ f a1  a2  a3  a4  a5  a6  a7  a8' a9  | a8' <- s8 a8 ]
-    , [ f a1  a2  a3  a4  a5  a6  a7  a8  a9' | a9' <- s9 a9 ]
-    ]
-  where
-    (a1, a2, a3, a4, a5, a6, a7, a8, a9) = Fields.toTuple9 r
 
 -- Interleaves the given lists together in round-robin order.
 --
@@ -462,6 +281,29 @@ instance (Arbitrary a, Eq a, Monoid a) => Arbitrary (NotNull a) where
 
 --------------------------------------------------------------------------------
 -- Generic shrinking
+--
+-- Uses generic-sop library. Excellent explanation here:
+-- https://raw.githubusercontent.com/kosmikus/cufp-tutorial-2016/master/LectureNotes.pdf
+-- https://www.youtube.com/watch?v=sQxH349HOik
+-- Please ask questions to @sevanspowell.
+--
+-- At a high-level, we can represent a simple product type with n arguments as a
+-- type-level, heterogeneous list:
+--     data BoolChar = BoolChar Bool Char = '[Bool, Char]
+-- A simple sum type can be represented as a type-level list of lists, and an
+-- index, where the index indicates which constructor was chosen, and the list
+-- at the index represents the arguments of the constructor:
+--    Either Int BoolChar = '[ '[Int]
+--                           , '[Bool, Char]
+--                           ]
+-- Any data type can be represented in this style as a "sum of products".
+--
+-- generics-sop call this the "Code" of the type:
+--     Code (Either Int BoolChar) ~ '[ '[Int]
+--                                   , '[Bool, Char]
+--                                   ]
+--
+-- For further details, please refer to the lecture notes linked above.
 --------------------------------------------------------------------------------
 
 -- | Lift a shrinking function into a type more convenient for use with
@@ -620,3 +462,19 @@ genericRoundRobinShrink
     -> [a]
 genericRoundRobinShrink f x =
   GGP.gto <$> groundRobinShrinkS f (GGP.gfrom x)
+
+-- | Same as @genericRoundRobinShrink@ but uses available Arbitrary instance for
+-- shrinking.
+genericRoundRobinShrink'
+    :: ( GHC.Generic a
+       , GGP.GFrom a
+       , GGP.GTo a
+       , GGP.GCode a ~ '[xs]
+       , All Arbitrary xs
+       )
+    => a
+    -> [a]
+genericRoundRobinShrink' x =
+  fmap GGP.gto
+  $ groundRobinShrinkS (hcpure (Proxy @Arbitrary) (liftShrinker shrink))
+  $ GGP.gfrom x

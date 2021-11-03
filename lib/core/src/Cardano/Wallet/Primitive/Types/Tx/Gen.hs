@@ -56,6 +56,8 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Word
     ( Word32 )
+import Generics.SOP
+    ( NP (..) )
 import GHC.Generics
     ( Generic )
 import Test.QuickCheck
@@ -80,7 +82,8 @@ import Test.QuickCheck.Extra
     ( genFunction
     , genMapWith
     , genSized2With
-    , liftShrink7
+    , genericRoundRobinShrink
+    , liftShrinker
     , shrinkInterleaved
     , shrinkMapWith
     )
@@ -122,14 +125,16 @@ genTxWithoutId = TxWithoutId
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
 shrinkTxWithoutId =
-    liftShrink7 TxWithoutId
-        (liftShrink shrinkCoinPositive)
-        (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
-        (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
-        (shrinkList shrinkTxOut)
-        (liftShrink shrinkTxMetadata)
-        (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
-        (liftShrink shrinkTxScriptValidity)
+    genericRoundRobinShrink
+        ( liftShrinker (liftShrink shrinkCoinPositive)
+        :* liftShrinker (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
+        :* liftShrinker (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
+        :* liftShrinker (shrinkList shrinkTxOut)
+        :* liftShrinker (liftShrink shrinkTxMetadata)
+        :* liftShrinker (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
+        :* liftShrinker (liftShrink shrinkTxScriptValidity)
+        :* Nil
+        )
 
 txWithoutIdToTx :: TxWithoutId -> Tx
 txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}

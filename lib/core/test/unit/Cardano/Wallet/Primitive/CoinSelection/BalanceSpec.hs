@@ -176,6 +176,8 @@ import Data.Word
     ( Word64, Word8 )
 import Fmt
     ( blockListF, pretty )
+import Generics.SOP
+    ( NP (..) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -225,7 +227,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( liftShrink4, liftShrink6, report, verify )
+    ( genericRoundRobinShrink, liftShrinker, report, verify )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -614,13 +616,15 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams =
-    liftShrink6 SelectionParams
-        (shrinkList shrinkTxOut)
-        (shrinkUTxOSelection)
-        (shrinkCoin)
-        (shrinkCoin)
-        (shrinkTokenMap)
-        (shrinkTokenMap)
+    genericRoundRobinShrink
+        ( liftShrinker (shrinkList shrinkTxOut)
+        :* liftShrinker (shrinkUTxOSelection)
+        :* liftShrinker (shrinkCoin)
+        :* liftShrinker (shrinkCoin)
+        :* liftShrinker (shrinkTokenMap)
+        :* liftShrinker (shrinkTokenMap)
+        :* Nil
+        )
 
 prop_performSelection_small
     :: MockSelectionConstraints
@@ -2041,11 +2045,13 @@ genMockSelectionConstraints = MockSelectionConstraints
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
 shrinkMockSelectionConstraints =
-    liftShrink4 MockSelectionConstraints
-        shrinkMockAssessTokenBundleSize
-        shrinkMockComputeMinimumAdaQuantity
-        shrinkMockComputeMinimumCost
-        shrinkMockComputeSelectionLimit
+    genericRoundRobinShrink
+        ( liftShrinker shrinkMockAssessTokenBundleSize
+        :* liftShrinker shrinkMockComputeMinimumAdaQuantity
+        :* liftShrinker shrinkMockComputeMinimumCost
+        :* liftShrinker shrinkMockComputeSelectionLimit
+        :* Nil
+        )
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
 unMockSelectionConstraints m = SelectionConstraints
