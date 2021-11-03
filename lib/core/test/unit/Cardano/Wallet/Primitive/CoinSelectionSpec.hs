@@ -1,5 +1,8 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -89,6 +92,8 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
+import Generics.SOP
+    ( NP (..) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -121,8 +126,10 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
+    , genericRoundRobinShrink
     , liftShrink8
     , liftShrink9
+    , liftShrinker
     , report
     , shrinkNatural
     )
@@ -165,6 +172,10 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelectionSpec" $ do
     parallel $ describe "Computing minimum collateral amounts" $ do
 
         unitTests_computeMinimumCollateral
+
+    parallel $ do
+        it "Round robin shrink equality" $
+            property prop_shrinkSelectionParams_equality
 
 --------------------------------------------------------------------------------
 -- Performing selections
@@ -634,9 +645,9 @@ genSelectionParams = SelectionParams
     <*> genUTxOAvailableForCollateral
     <*> genUTxOAvailableForInputs
 
-shrinkSelectionParams :: SelectionParams -> [SelectionParams]
-shrinkSelectionParams =
-    liftShrink9 SelectionParams
+shrinkSelectionParamsOld :: SelectionParams -> [SelectionParams]
+shrinkSelectionParamsOld =
+    shrinkMapBy ofTuple toTuple $ liftShrink9
         shrinkAssetsToBurn
         shrinkAssetsToMint
         shrinkOutputsToCover
@@ -646,6 +657,25 @@ shrinkSelectionParams =
         shrinkCollateralRequirement
         shrinkUTxOAvailableForCollateral
         shrinkUTxOAvailableForInputs
+
+shrinkSelectionParams :: SelectionParams -> [SelectionParams]
+shrinkSelectionParams =
+    genericRoundRobinShrink
+        (  liftShrinker shrinkAssetsToBurn
+        :* liftShrinker shrinkAssetsToMint
+        :* liftShrinker shrinkOutputsToCover
+        :* liftShrinker shrinkRewardWithdrawal
+        :* liftShrinker shrinkCerticateDepositsTaken
+        :* liftShrinker shrinkCerticateDepositsReturned
+        :* liftShrinker shrinkCollateralRequirement
+        :* liftShrinker shrinkUTxOAvailableForCollateral
+        :* liftShrinker shrinkUTxOAvailableForInputs
+        :* Nil
+        )
+
+prop_shrinkSelectionParams_equality :: SelectionParams -> Property
+prop_shrinkSelectionParams_equality params =
+    property $ shrinkSelectionParams params == shrinkSelectionParamsOld params
 
 --------------------------------------------------------------------------------
 -- Assets to mint and burn

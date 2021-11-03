@@ -70,6 +70,7 @@ library
     , foldl
     , generic-lens
     , generic-arbitrary
+    , generics-sop
     , hashable
     , hedgehog
     , hedgehog-quickcheck
@@ -317,6 +318,7 @@ test-suite unit
     , foldl
     , generic-arbitrary
     , generic-lens
+    , generics-sop
     , hedgehog
     , hedgehog-quickcheck
     , hspec >= 2.8.2

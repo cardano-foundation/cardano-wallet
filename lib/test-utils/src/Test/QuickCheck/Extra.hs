@@ -1,6 +1,8 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -26,8 +28,12 @@ module Test.QuickCheck.Extra
     , liftShrink7
     , liftShrink8
     , liftShrink9
+    , liftShrinker
     , shrinkInterleaved
     , shrinkMapWith
+    , groundRobinShrink
+    , groundRobinShrink'
+    , genericRoundRobinShrink
 
       -- * Generating and shrinking natural numbers
     , chooseNatural
@@ -58,6 +64,7 @@ import Data.Maybe
     ( mapMaybe )
 import Fmt
     ( indentF, (+|), (|+) )
+import Generics.SOP
 import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
@@ -90,6 +97,8 @@ import qualified Data.Generic.Fields as Fields
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Lazy as TL
+import qualified Generics.SOP.GGP as GGP
+import qualified GHC.Generics as GHC
 
 -- | Resize a generator to grow with the size parameter, but remains reasonably
 -- sized. That is handy when testing on data-structures that can be arbitrarily
@@ -450,3 +459,164 @@ newtype NotNull a = NotNull { unNotNull :: a }
 instance (Arbitrary a, Eq a, Monoid a) => Arbitrary (NotNull a) where
     arbitrary = NotNull <$> arbitrary `suchThat` (/= mempty)
     shrink (NotNull u) = NotNull <$> filter (/= mempty) (shrink u)
+
+--------------------------------------------------------------------------------
+-- Generic shrinking
+--------------------------------------------------------------------------------
+
+-- | Lift a shrinking function into a type more convenient for use with
+-- Generics.SOP.
+--
+-- __Examples:__
+--
+-- @
+-- shrinkBool :: Bool -> [Bool]
+-- shrinkChar :: Char -> [Char]
+--
+-- data BoolChar = BoolChar Bool Char
+--
+-- instance Generic BoolChar
+--
+-- shrinkBoolChar :: BoolChar -> [BoolChar]
+-- shrinkBoolChar =
+--     groundRobinShrink (  liftShrinker shrinkBool
+--                       :* liftShrinker shrinkChar
+--                       :* Nil
+--                       )
+-- @
+liftShrinker :: (a -> [a]) -> (I -.-> []) a
+liftShrinker shrinker = fn (shrinker . unI)
+
+-- | Using a round-robin algorithm, apply a list of shrinkers to their
+-- corresponding types in a n-ary product.
+--
+-- __Examples:__
+--
+-- @
+-- shrinkBoolChar :: BoolChar -> [NP I '[Bool, Char]]
+-- shrinkBoolChar (BoolChar b c) =
+--     groundRobinShrinkP (  liftShrinker shrinkBool
+--                        :* liftShrinker shrinkChar
+--                        :* Nil
+--                        )
+--                        (I b :* I c :* Nil)
+-- @
+groundRobinShrinkP :: NP (I -.-> []) xs -> NP I xs -> [NP I xs]
+groundRobinShrinkP fns = interleaveRoundRobin . groundRobinShrinkP' fns
+    where
+        groundRobinShrinkP' :: NP (I -.-> []) xs -> NP I xs -> [[NP I xs]]
+        groundRobinShrinkP' Nil Nil =
+            -- In the case of no argument constructors, there is no need to
+            -- shrink
+            []
+        groundRobinShrinkP' (s :* ss) (x1 :* xs) =
+            -- Best explained with example:
+            --   BoolChar b c
+            --     1. shrink b = [b1, b2, b3]
+            --     -- shrink the first argument
+            --     2. [ BoolChar b1 c, BoolChar b2 c, BoolChar b3 c ]
+            --     -- create a list of values with only first value shrunk
+            --     3. shrink c = [c1, c2, c3]
+            --     -- shrink the second argument
+            --     4. [ BoolChar b c1, BoolChar b c2, BoolChar b c3 ]
+            --     -- create a list of values with only second value shrunk
+            --     -- append and return the lists in 2. and 4.
+            [ [ ( I x1' :* xs ) | x1' <- apFn s x1 ] ]
+            <> (fmap (x1 :*) <$> groundRobinShrinkP' ss xs)
+
+-- | Using a round-robin algorithm, apply a list of shrinkers to their
+-- corresponding types in a Generics.SOP type. Only defined for types with a
+-- single constructor (product types).
+--
+-- __Examples:__
+--
+-- @
+-- shrinkBoolChar :: BoolChar -> [SOP I '[Bool, Char]]
+-- shrinkBoolChar bc =
+--     groundRobinShrinkS (  liftShrinker shrinkBool
+--                        :* liftShrinker shrinkChar
+--                        :* Nil
+--                        )
+--                        (from bc)
+-- @
+groundRobinShrinkS
+    :: NP (I -.-> []) xs
+    -- ^ Given a list of shrinkers for each element in a product type
+    -> SOP I (xs ': '[])
+    -- ^ And a type with only one constructor
+    -> [SOP I (xs ': '[])]
+    -- ^ Return a shrunk list of that product type, using the round-robin
+    -- algorithm.
+groundRobinShrinkS fs (SOP (Z xs)) = (SOP . Z) <$> groundRobinShrinkP fs xs
+groundRobinShrinkS _ (SOP (S _))   = error "only defined for product types."
+
+-- | Given a list of shrinkers for each element of a product type (NOTE: this
+-- function is not defined for sum types), and a value of that product type,
+-- shrink the value using a round-robin algorithm.
+--
+-- __Examples:__
+--
+-- @
+-- shrinkBoolChar :: BoolChar -> [BoolChar]
+-- shrinkBoolChar =
+--     groundRobinShrink (  liftShrinker shrinkBool
+--                       :* liftShrinker shrinkChar
+--                       :* Nil
+--                       )
+-- @
+groundRobinShrink
+    :: ( Generic a
+       -- Given a generic type
+       , Code a ~ '[xs]
+       -- whose generic representation matches the structure of the list of
+       -- functions
+       )
+    => NP (I -.-> []) xs
+    -- ^ and a list of shrinking functions, one for each argument of the product
+    -> a
+    -- ^ and a value of that type
+    -> [a]
+    -- ^ provide a list of shrunk values.
+groundRobinShrink f x = to <$> groundRobinShrinkS f (from x)
+
+-- | Same as groundRobinShrink, but use the available shrinkers via Arbitrary
+-- instance.
+--
+-- __Examples:__
+--
+-- @
+-- shrinkBoolChar :: BoolChar -> [BoolChar]
+-- shrinkBoolChar = groundRobinShrink'
+-- @
+groundRobinShrink'
+    :: ( Generic a
+       -- The type is an instance of SOP.Generic
+       , Code a ~ '[xs]
+       , All Arbitrary xs
+       -- and each element of the constructor has an instance of arbitrary
+       )
+    => a
+    -- ^ Given such a type
+    -> [a]
+    -- ^ return a shrunk list of that product type, using the round-robin
+    -- algorithm.
+groundRobinShrink' x =
+    fmap to
+    $ groundRobinShrinkS (hcpure (Proxy @Arbitrary) (liftShrinker shrink))
+    $ from x
+
+-- | This function exists to provide a GHC.Generics version of
+-- @groundRobinShrink@, so that users of this code don't have to derive an
+-- instance of Generics.SOP.Generic; an instance of GHC.Generics.Generic will
+-- do.
+genericRoundRobinShrink
+    :: ( GHC.Generic a
+       , GGP.GFrom a
+       , GGP.GTo a
+       , GGP.GCode a ~ '[xs]
+       )
+    => NP (I -.-> []) xs
+    -> a
+    -> [a]
+genericRoundRobinShrink f x =
+  GGP.gto <$> groundRobinShrinkS f (GGP.gfrom x)
