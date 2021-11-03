@@ -68,7 +68,7 @@ genSelectionSkeleton = SelectionSkeleton
 
 shrinkSelectionSkeleton :: SelectionSkeleton -> [SelectionSkeleton]
 shrinkSelectionSkeleton =
-    shrinkMapBy tupleToSkeleton skeletonToTuple $ liftShrink3
+    liftShrink3 SelectionSkeleton
         shrinkSkeletonInputCount
         shrinkSkeletonOutputs
         shrinkSkeletonChange
@@ -80,6 +80,3 @@ shrinkSelectionSkeleton =
     shrinkSkeletonChange =
         shrinkList $
         shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
-
-    skeletonToTuple (SelectionSkeleton a b c) = (a, b, c)
-    tupleToSkeleton (a, b, c) = (SelectionSkeleton a b c)

@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -55,6 +56,8 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Word
     ( Word32 )
+import GHC.Generics
+    ( Generic )
 import Test.QuickCheck
     ( Gen
     , arbitrary
@@ -105,7 +108,7 @@ data TxWithoutId = TxWithoutId
     , withdrawals :: !(Map RewardAccount Coin)
     , scriptValidity :: !(Maybe TxScriptValidity)
     }
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Generic, Ord, Show)
 
 genTxWithoutId :: Gen TxWithoutId
 genTxWithoutId = TxWithoutId
@@ -119,7 +122,7 @@ genTxWithoutId = TxWithoutId
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
 shrinkTxWithoutId =
-    shrinkMapBy tupleToTxWithoutId txWithoutIdToTuple $ liftShrink7
+    liftShrink7 TxWithoutId
         (liftShrink shrinkCoinPositive)
         (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
         (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
@@ -133,14 +136,6 @@ txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}
 
 txToTxWithoutId :: Tx -> TxWithoutId
 txToTxWithoutId Tx {..} = TxWithoutId {..}
-
-txWithoutIdToTuple :: TxWithoutId -> _
-txWithoutIdToTuple (TxWithoutId a1 a2 a3 a4 a5 a6 a7) =
-    (a1, a2, a3, a4, a5, a6, a7)
-
-tupleToTxWithoutId :: _ -> TxWithoutId
-tupleToTxWithoutId (a1, a2, a3, a4, a5, a6, a7) =
-    (TxWithoutId a1 a2 a3 a4 a5 a6 a7)
 
 genTxScriptValidity :: Gen TxScriptValidity
 genTxScriptValidity = genericArbitrary

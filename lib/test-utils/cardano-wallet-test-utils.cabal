@@ -40,6 +40,7 @@ library
     , directory
     , either
     , fmt
+    , generic-lens
     , hspec-core
     , hspec-expectations
     , hspec-golden-aeson
@@ -64,6 +65,7 @@ library
   hs-source-dirs:
       src
   exposed-modules:
+      Data.Generic.Fields
       Test.Hspec.Extra
       Test.Hspec.Goldens
       Test.QuickCheck.Extra
