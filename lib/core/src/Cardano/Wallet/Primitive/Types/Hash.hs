@@ -48,6 +48,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
+import NoThunks.Class
+    ( NoThunks (..) )
 import Quiet
     ( Quiet (..) )
 
@@ -62,6 +64,8 @@ newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
     deriving newtype (ByteArrayAccess)
     deriving (Read, Show) via (Quiet (Hash tag))
     deriving anyclass (NFData, Hashable)
+
+instance NoThunks (Hash tag)
 
 instance Buildable (Hash tag) where
     build h = mempty

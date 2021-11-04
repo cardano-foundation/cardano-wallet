@@ -99,27 +99,16 @@ instance FromText SyncTolerance where
 
 -- | Estimate restoration progress based on:
 --
--- - The current local tip
--- - The last slot
+-- - The slot of the latest block consumed (our progress)
+-- - The slot corresponding to the latest wall-clock time (our target)
 --
--- For the sake of this calculation, we are somewhat conflating the definitions
--- of slots and block height. Because we can't reliably _trust_ that the current
--- node is actually itself synced with the network. So, we compute the progress
--- as:
+-- The estimated progress is the quotient of these two quantities.
 --
--- @
--- p = h / (h + X)
--- @
---
--- Where:
---
--- - @h@: the number of blocks we have ingested so far.
--- - @X@: the estimatd remaining slots to reach the network tip.
---
--- Initially, `X` gives a relatively poor estimation of the network height, as
--- it assumes that every next slot will be a block. But, as we ingest blocks,
--- `h` becomes bigger and `X` becomes smaller making the progress estimation
--- better and better. At some point, `X` is null, and we have `p = h / h`
+-- In the Cardano consensus protocol, only a fraction of slots contains blocks.
+-- Hence, the progress percentage will often be < 100%,
+-- as the slot corresponding to the current wall-clock time
+-- may not be filled with a block.
+-- The sync tolerance should be large enough to accomodate this issue.
 syncProgress
     :: (HasCallStack, Monad m)
     => SyncTolerance
@@ -127,12 +116,12 @@ syncProgress
     -> TimeInterpreter m
         -- ^ Converts slots to actual time.
     -> SlotNo
-        -- ^ Slot of local tip
+        -- ^ Slot of latest block consumed
     -> RelativeTime
-        -- ^ Current Time
+        -- ^ Current wall clock time
     -> m SyncProgress
-syncProgress (SyncTolerance tolerance) ti tip now = do
-    timeCovered <- interpretQuery ti $ slotToRelTime tip
+syncProgress (SyncTolerance tolerance) ti slot now = do
+    timeCovered <- interpretQuery ti $ slotToRelTime slot
     let progress
             | now == start = 0
             | otherwise = convert timeCovered % convert now

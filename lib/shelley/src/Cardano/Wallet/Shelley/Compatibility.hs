@@ -59,6 +59,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoHash
     , unsealShelleyTx
     , toPoint
+    , fromPoint
     , toCardanoTxId
     , toCardanoTxIn
     , fromCardanoTxIn
@@ -115,6 +116,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromGenesisData
     , fromTip
     , fromTip'
+    , toTip
     , fromCardanoTx
     , fromShelleyTx
     , fromAllegraTx
@@ -194,7 +196,8 @@ import Cardano.Wallet.Byron.Compatibility
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( MinimumUTxOValue (..)
+    ( ChainPoint (..)
+    , MinimumUTxOValue (..)
     , PoolCertificate (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
@@ -414,13 +417,13 @@ toCardanoHash :: W.Hash "BlockHeader" -> OneEraHash (CardanoEras sc)
 toCardanoHash (W.Hash bytes) =
     OneEraHash $ toShort bytes
 
-toPoint
-    :: W.Hash "Genesis"
-    -> W.BlockHeader
-    -> Point (CardanoBlock sc)
-toPoint genesisH (W.BlockHeader sl _ (W.Hash h) _)
-  | h == (coerce genesisH) = O.GenesisPoint
-  | otherwise = O.BlockPoint sl (OneEraHash $ toShort h)
+toPoint :: W.ChainPoint -> O.Point (CardanoBlock sc)
+toPoint ChainPointAtGenesis = O.GenesisPoint
+toPoint (ChainPoint slot h) = O.BlockPoint slot (toCardanoHash h)
+
+fromPoint :: O.Point (CardanoBlock sc) -> W.ChainPoint
+fromPoint O.GenesisPoint = ChainPointAtGenesis
+fromPoint (O.BlockPoint slot h) = ChainPoint slot (fromCardanoHash h)
 
 toCardanoBlockHeader
     :: forall c. Era (SL.ShelleyEra c)
@@ -617,6 +620,13 @@ fromTip genesisHash tip = case getPoint (getTipPoint tip) of
     getLegacyTipBlockNo t = case O.getTipBlockNo t of
         Origin -> BlockNo 0
         At x -> x
+
+toTip :: W.Hash "Genesis" -> W.BlockHeader -> Tip (CardanoBlock sc)
+toTip genesisHash (W.BlockHeader sl bl h _)
+    | h == (coerce genesisHash) = O.TipGenesis
+    | otherwise = O.Tip sl
+        (toCardanoHash h)
+        (BlockNo $ fromIntegral $ getQuantity bl)
 
 -- NOTE: Unsafe conversion from Natural -> Word16
 fromMaxSize :: Natural -> Quantity "byte" Word16

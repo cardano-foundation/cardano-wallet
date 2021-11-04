@@ -234,12 +234,10 @@ import Cardano.Wallet.Logging
     , unliftIOTracer
     )
 import Cardano.Wallet.Network
-    ( ErrPostTx (..)
-    , FollowAction (..)
-    , FollowExceptionRecovery (..)
-    , FollowLog (..)
+    ( ChainFollowLog (..)
+    , ChainFollower (..)
+    , ErrPostTx (..)
     , NetworkLayer (..)
-    , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
@@ -349,6 +347,7 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
+    , ChainPoint (..)
     , DelegationCertificate (..)
     , FeePolicy (LinearFee)
     , GenesisParameters (..)
@@ -535,7 +534,7 @@ import Statistics.Quantile
 import Type.Reflection
     ( Typeable, typeRep )
 import UnliftIO.Exception
-    ( Exception )
+    ( Exception, catch, throwIO )
 import UnliftIO.MVar
     ( modifyMVar_, newMVar )
 
@@ -881,15 +880,17 @@ listUtxoStatistics ctx wid = do
     let utxo = availableUTxO @s pending wal
     pure $ computeUtxoStatistics log10 utxo
 
--- | Restore a wallet from its current tip up to the network tip.
+-- | Restore a wallet from its current tip.
 --
--- This function returns immediately, starting a worker thread in the
--- background that will fetch and apply remaining blocks until the
--- network tip is reached or until failure.
+-- After the wallet has been restored,
+-- this action will continue to fetch newly created blocks
+-- and apply them, or roll back to a previous point whenever
+-- the chain switches.
 restoreWallet
     :: forall ctx s k.
         ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
+        , HasGenesisData ctx
         , HasLogger IO WalletWorkerLog ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
@@ -898,31 +899,121 @@ restoreWallet
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
-    let readCps = liftIO $ atomically $ listCheckpoints wid
-    let forward bs h innerTr = run $ do
-            restoreBlocks @ctx @s @k ctx innerTr wid bs h
-    let backward = runExceptT . rollbackBlocks @ctx @s @k ctx wid
-    liftIO $ follow nw tr readCps forward backward RetryOnExceptions (view #header)
+    catchFromIO $ chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
+        { readLocalTip = liftIO $ atomically $
+            map (toChainPoint block0) <$> listCheckpoints wid
+        , rollForward = \blocks tip -> throwInIO $
+            restoreBlocks @ctx @s @k
+                ctx (contramap MsgWalletFollow tr) wid blocks tip
+        , rollBackward =
+            throwInIO . rollbackBlocks @ctx @s @k ctx wid
+        }
   where
     db = ctx ^. dbLayer @IO @s @k
-    nw = ctx ^. networkLayer
-    tr = contramap MsgFollow (ctx ^. logger @_ @WalletWorkerLog)
+    nw = ctx ^. networkLayer @IO
+    tr = ctx ^. logger @_ @WalletWorkerLog
+    (block0, _, _) = ctx ^. genesisData
 
-    run :: ExceptT ErrNoSuchWallet IO () -> IO (FollowAction ErrNoSuchWallet)
-    run = fmap (either ExitWith (const Continue)) . runExceptT
+    -- See Note [CheckedExceptionsAndCallbacks]
+    throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
+    throwInIO x = runExceptT x >>= \case
+        Right a -> pure a
+        Left  e -> throwIO $ UncheckErrNoSuchWallet e
+
+    catchFromIO :: IO a -> ExceptT ErrNoSuchWallet IO a
+    catchFromIO m = ExceptT $
+        (Right <$> m) `catch` (\(UncheckErrNoSuchWallet e) -> pure $ Left e)
+
+newtype UncheckErrNoSuchWallet = UncheckErrNoSuchWallet ErrNoSuchWallet
+    deriving (Eq, Show)
+instance Exception UncheckErrNoSuchWallet
+
+{- NOTE [CheckedExceptionsAndCallbacks]
+
+Callback functions (such as the fields of 'ChainFollower')
+may throw exceptions. Such exceptions typically cause the thread
+(such as 'chainSync') which calls the callbacks to exit and
+to return control to its parent.
+
+Ideally, we would like these exceptions to be \"checked exceptions\",
+which means that they are visible on the type level.
+In our codebase, we (should) make sure that exceptions which are checked
+cannot be instances of the 'Exception' class -- in this way,
+it is statically guaranteed that they cannot be thrown in the 'IO' monad.
+
+On the flip side, visibility on the type level does imply that
+the calling thread (here 'chainSync') needs to be either polymorphic
+in the checked exceptions or aware of them.
+Making 'chainSync' aware of the checked exception is currently
+not a good idea, because this function is used in different contexts,
+which have different checked exceptions.
+So, it would need to be polymorophic in the the undelrying monad,
+but at present, 'chainSync' is restricted to 'IO' beause some
+of its constituents are also restricted to 'IO'.
+
+As a workaround / solution, we wrap the checked exception into a new type
+which can be thrown in the 'IO' monad.
+When the calling thread exits, we catch the exception again
+and present it as a checked exception.
+
+-}
 
 -- | Rewind the UTxO snapshots, transaction history and other information to a
 -- the earliest point in the past that is before or is the point of rollback.
 rollbackBlocks
-    :: forall ctx s k. (HasDBLayer IO s k ctx)
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , HasGenesisData ctx
+        )
     => ctx
     -> WalletId
-    -> SlotNo
-    -> ExceptT ErrNoSuchWallet IO SlotNo
+    -> ChainPoint
+    -> ExceptT ErrNoSuchWallet IO ChainPoint
 rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
-    mapExceptT atomically $ rollbackTo wid point
+    mapExceptT atomically $ (toChainPoint block0)
+        <$> rollbackTo wid (pseudoPointSlot point)
   where
     db = ctx ^. dbLayer @IO @s @k
+    (block0, _, _) = ctx ^. genesisData
+
+    -- See NOTE [PointSlotNo]
+    pseudoPointSlot :: ChainPoint -> SlotNo
+    pseudoPointSlot ChainPointAtGenesis = W.SlotNo 0
+    pseudoPointSlot (ChainPoint slot _) = slot
+
+toChainPoint :: W.Block -> W.BlockHeader -> ChainPoint
+toChainPoint genesisBlock (BlockHeader slot _ h _)
+    | slot == 0 && h == genesisHash = ChainPointAtGenesis
+    | otherwise                     = ChainPoint slot h
+  where
+    genesisHash = genesisBlock ^. (#header . #headerHash)
+
+{- NOTE [PointSlotNo] 
+
+`SlotNo` cannot represent the genesis point `Origin`.
+
+Historical hack. Our DB layers can't represent `Origin` when rolling
+back, so we map `Origin` to `SlotNo 0`, which is wrong.
+
+Rolling back to SlotNo 0 instead of Origin is fine for followers starting
+from genesis (which should be the majority of cases). Other, non-trivial
+rollbacks to genesis cannot occur on mainnet (genesis is years within
+stable part, and there were no rollbacks in byron).
+
+Could possibly be problematic in the beginning of a testnet without a
+byron era. /Perhaps/ this is what is happening in the
+>>> [cardano-wallet.pools-engine:Error:1293] [2020-11-24 10:02:04.00 UTC]
+>>> Couldn't store production for given block before it conflicts with
+>>> another block. Conflicting block header is:
+>>> 5bde7e7b<-[f1b35b98-4290#2008]
+errors observed in the integration tests.
+
+FIXME: Fix should be relatively straight-forward, so we should probably
+do it.
+Heinrich: I have introduced the 'ChainPoint' type to represent points
+on the chain. This type is already used in chain sync protocol,
+but it still needs to be propagated to the database layer.
+-}
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
@@ -998,7 +1089,6 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
 
     liftIO $ do
         traceWith tr $ MsgDiscoveredTxs txs
-        traceWith tr $ MsgBlocks blocks
         traceWith tr $ MsgDiscoveredTxsContent txs
   where
     nl = ctx ^. networkLayer
@@ -3043,20 +3133,23 @@ guardQuit WalletDelegation{active,next} rewards = do
 -- | Log messages for actions running within a wallet worker context.
 data WalletWorkerLog
     = MsgWallet WalletLog
-    | MsgFollow (FollowLog WalletFollowLog)
+    | MsgWalletFollow WalletFollowLog
+    | MsgChainFollow ChainFollowLog
     deriving (Show, Eq)
 
 instance ToText WalletWorkerLog where
     toText = \case
         MsgWallet msg -> toText msg
-        MsgFollow msg -> toText msg
+        MsgWalletFollow msg -> toText msg
+        MsgChainFollow msg -> toText msg
 
 instance HasPrivacyAnnotation WalletWorkerLog
 
 instance HasSeverityAnnotation WalletWorkerLog where
     getSeverityAnnotation = \case
         MsgWallet msg -> getSeverityAnnotation msg
-        MsgFollow msg -> getSeverityAnnotation msg
+        MsgWalletFollow msg -> getSeverityAnnotation msg
+        MsgChainFollow msg -> getSeverityAnnotation msg
 
 -- | Log messages arising from the restore and follow process.
 data WalletFollowLog
@@ -3064,7 +3157,6 @@ data WalletFollowLog
     | MsgCheckpoint BlockHeader
     | MsgDiscoveredTxs [(Tx, TxMeta)]
     | MsgDiscoveredTxsContent [(Tx, TxMeta)]
-    | MsgBlocks (NonEmpty Block)
     deriving (Show, Eq)
 
 -- | Log messages from API server actions running in a wallet worker context.
@@ -3107,8 +3199,6 @@ instance ToText WalletFollowLog where
             "discovered " <> pretty (length txs) <> " new transaction(s)"
         MsgDiscoveredTxsContent txs ->
             "transactions: " <> pretty (blockListF (snd <$> txs))
-        MsgBlocks blocks ->
-            "blocks: " <> pretty (NE.toList blocks)
 
 instance ToText WalletLog where
     toText = \case
@@ -3153,7 +3243,6 @@ instance HasSeverityAnnotation WalletFollowLog where
         MsgDiscoveredTxs [] -> Debug
         MsgDiscoveredTxs _ -> Info
         MsgDiscoveredTxsContent _ -> Debug
-        MsgBlocks _ -> Debug -- Ideally move to FollowLog or remove
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where

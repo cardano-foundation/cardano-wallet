@@ -23,7 +23,6 @@ module Ouroboros.Network.Client.Wallet
       chainSyncFollowTip
 
       -- * ChainSyncWithBlocks
-    , ChainSyncCmd (..)
     , chainSyncWithBlocks
 
       -- * LocalTxSubmission
@@ -37,30 +36,24 @@ module Ouroboros.Network.Client.Wallet
 
       -- * Helpers
     , send
-
-      -- * Logs
-    , ChainSyncLog (..)
-    , mapChainSyncLog
     ) where
 
 import Prelude
 
-import Cardano.BM.Data.Severity
-    ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( Tracer, traceWith )
 import Cardano.Slotting.Slot
     ( WithOrigin (..) )
 import Cardano.Wallet.Network
-    ( NextBlocksResult (..) )
+    ( ChainFollower (..), ChainSyncLog (..) )
 import Control.Monad
-    ( ap, liftM, unless )
+    ( ap, liftM )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
     , atomically
-    , isEmptyTQueue
     , newEmptyTMVarIO
+    , peekTQueue
     , putTMVar
     , readTQueue
     , takeTMVar
@@ -68,19 +61,19 @@ import Control.Monad.Class.MonadSTM
     , writeTQueue
     )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow )
+    ( Exception, MonadThrow, throwIO )
 import Control.Monad.IO.Class
     ( MonadIO )
-import Control.Tracer
-    ( Tracer, traceWith )
 import Data.Functor
     ( (<&>) )
 import Data.Kind
     ( Type )
-import Data.Maybe
-    ( isNothing )
-import Data.Text.Class
-    ( ToText (..) )
+import Data.List
+    ( sortBy )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
+import Data.Ord
+    ( comparing )
 import Data.Void
     ( Void )
 import Network.TypedProtocol.Pipelined
@@ -103,6 +96,8 @@ import Ouroboros.Network.Block
     , getTipPoint
     , pointSlot
     )
+import Ouroboros.Network.Point
+    ( blockPointSlot )
 import Ouroboros.Network.Protocol.ChainSync.Client
     ( ChainSyncClient (..)
     , ClientStIdle (..)
@@ -118,7 +113,7 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Client
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( SubmitResult (..) )
 
-import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Data.List.NonEmpty as NE
 import qualified Ouroboros.Network.Protocol.ChainSync.ClientPipelined as P
 import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 
@@ -225,17 +220,24 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
 -- callback.
 --
 -- See also 'send' for invoking commands.
-data ChainSyncCmd block (m :: Type -> Type)
-    = CmdFindIntersection
-        [Point block]
-        (Maybe (Point block) -> m ())
-    | CmdNextBlocks
-        (NextBlocksResult (Point block) block -> m ())
 
 -- | A little type-alias to ease signatures in 'chainSyncWithBlocks'
 type RequestNextStrategy m n block
-    =  (NextBlocksResult (Point block) block -> m ())
-    -> P.ClientPipelinedStIdle n block (Point block) (Tip block) m Void
+    = P.ClientPipelinedStIdle n block (Point block) (Tip block) m Void
+
+-- | Helper type for the different ways we handle rollbacks.
+--
+-- Helps remove some boilerplate.
+data LocalRollbackResult block
+    = Buffer [block]
+    -- ^ The rollback could be handled by filtering the buffer. (The `[block]`
+    -- corresponds to the new, filtered buffer.)
+    | FollowerExact
+    -- ^ `ChainFollower` was asked to rollback, and rolled back to the requested
+    -- point exactly.
+    | FollowerNeedToReNegotiate
+    -- ^ The `ChainFollower` was asked to rollback, but rolled back further than
+    -- requested. We must re-negotiate the intersection with the node.
 
 -- | Client for the 'Chain Sync' mini-protocol.
 --
@@ -274,28 +276,12 @@ type RequestNextStrategy m n block
 --      *------*
 --
 chainSyncWithBlocks
-    :: forall m block. (Monad m, MonadSTM m, HasHeader block)
+    :: forall m block. (Monad m, MonadSTM m, MonadThrow m, HasHeader block)
     => Tracer m (ChainSyncLog block (Point block))
-    -> (Tip block -> W.BlockHeader)
-        -- ^ Convert an abstract tip to a concrete 'BlockHeader'
-        --
-        -- TODO: We probably need a better type for representing Tip as well!
-
-    -> TQueue m (ChainSyncCmd block m)
-        -- ^ We use a 'TQueue' as a communication channel to drive queries from
-        -- outside of the network client to the client itself.
-        -- Requests are pushed to the queue which are then transformed into
-        -- messages to keep the state-machine moving.
-
-    -> TQueue m (NextBlocksResult (Point block) block)
-        -- ^ An internal queue used for buffering responses collected while
-        -- pipelining. As argument to simplify code below. Responses are first
-        -- poped from this buffer if not empty, otherwise they'll simply trigger
-        -- an exchange with the node.
-
+    -> ChainFollower m (Point block) (Tip block) block
     -> ChainSyncClientPipelined block (Point block) (Tip block) m Void
-chainSyncWithBlocks tr fromTip queue responseBuffer =
-    ChainSyncClientPipelined $ clientStIdle oneByOne
+chainSyncWithBlocks tr chainFollower =
+    ChainSyncClientPipelined clientStNegotiateIntersection
   where
     -- Return the _number of slots between two tips.
     tipDistance :: BlockNo -> Tip block -> Natural
@@ -306,51 +292,67 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
 
     -- | Keep only blocks from the list that are before or exactly at the given
     -- point.
-    rollback :: Point block -> [block] -> [block]
-    rollback pt = filter (\b -> At (blockSlot b) <= pointSlot pt)
+    rollbackBuffer :: Point block -> [block] -> [block]
+    rollbackBuffer pt = filter (\b -> At (blockSlot b) <= pointSlot pt)
 
-    -- Client in the state 'Idle'. We wait for requests / commands on an
-    -- 'TQueue'. Commands start a chain of messages and state transitions
-    -- before finally returning to 'Idle', waiting for the next command.
+    clientStNegotiateIntersection
+        :: m (P.ClientPipelinedStIdle 'Z block (Point block) (Tip block) m Void)
+    clientStNegotiateIntersection = do
+        points <- readLocalTip chainFollower
+        -- Cave: An empty list is interpreted as requesting the genesis point.
+        let points' = if null points
+                then [Point Origin]
+                else sortBy (flip compareSlot) points -- older points last
+        traceWith tr $ MsgChainFindIntersect points'
+        pure $ P.SendMsgFindIntersect points' clientStIntersect
+
+    -- Receive the result of the MsgFindIntersection request
+    clientStIntersect
+        :: P.ClientPipelinedStIntersect block (Point block) (Tip block) m Void
+    clientStIntersect = P.ClientPipelinedStIntersect
+        { P.recvMsgIntersectFound = \_point tip -> do
+            -- Here, the node tells us which  point  from the possible
+            -- intersections is the latest point on the chain.
+            -- However, we do not have to roll back to this point here;
+            -- when we send a MsgRequestNext message, the node will reply
+            -- with a MsgRollBackward message to this point first.
+            --
+            -- This behavior is not in the network specification yet, but see
+            -- https://input-output-rnd.slack.com/archives/CDA6LUXAQ/p1623322238039900
+            traceWith tr $ MsgChainTip (getTipPoint tip)
+            clientStIdle oneByOne
+        , P.recvMsgIntersectNotFound = \_tip -> do
+            -- No intersection was found.
+            -- As the read-pointer on the node could be unknown to us,
+            -- we now explicitly request the genesis point.
+            --
+            -- See also
+            -- https://input-output-rnd.slack.com/archives/CDA6LUXAQ/p1634644689103100
+            clientStNegotiateGenesis
+            }
+
+    -- Explictly negotiate the genesis point
+    clientStNegotiateGenesis
+        :: m (P.ClientPipelinedStIdle 'Z block (Point block) (Tip block) m Void)
+    clientStNegotiateGenesis = do
+        let genesis = [Point Origin]
+        traceWith tr $ MsgChainFindIntersect genesis
+        pure $ P.SendMsgFindIntersect genesis $
+            clientStIntersect
+                { P.recvMsgIntersectNotFound = \_tip ->
+                    throwIO ErrChainSyncNoIntersectGenesis
+                }
+
     clientStIdle
         :: RequestNextStrategy m 'Z block
         -> m (P.ClientPipelinedStIdle 'Z block (Point block) (Tip block) m Void)
-    clientStIdle strategy = atomically (readTQueue queue) >>= \case
-        CmdFindIntersection points respond -> pure $
-            P.SendMsgFindIntersect points (clientStIntersect respond)
-        CmdNextBlocks respond ->
-            -- We are the only consumer & producer of this queue, so it's fine
-            -- to run 'isEmpty' and 'read' in two separate atomatic operations.
-            atomically (isEmptyTQueue responseBuffer) >>= \case
-                True  ->
-                    pure $ strategy respond
-                False -> do
-                    atomically (readTQueue responseBuffer) >>= respond
-                    clientStIdle strategy
-
-    -- When the client intersect, we are effectively starting "a new session",
-    -- so any buffered responses no longer apply and must be discarded.
-    clientStIntersect
-        :: (Maybe (Point block) -> m ())
-        -> P.ClientPipelinedStIntersect block (Point block) (Tip block) m Void
-    clientStIntersect respond = P.ClientPipelinedStIntersect
-        { recvMsgIntersectFound = \intersection _tip -> do
-            respond (Just intersection)
-            flush responseBuffer
-            clientStIdle oneByOne
-
-        , recvMsgIntersectNotFound = \_tip -> do
-            respond Nothing
-            flush responseBuffer
-            clientStIdle oneByOne
-        }
+    clientStIdle strategy = pure strategy
 
     -- Simple strategy that sends a request and waits for an answer.
-    oneByOne
-        :: RequestNextStrategy m 'Z block
-    oneByOne respond = P.SendMsgRequestNext
-        (collectResponses respond [] Zero)
-        (pure $ collectResponses respond [] Zero)
+    oneByOne :: RequestNextStrategy m 'Z block
+    oneByOne = P.SendMsgRequestNext
+        (collectResponses [] Zero)
+        (pure $ collectResponses [] Zero)
 
     -- We only pipeline requests when we are far from the tip. As soon as we
     -- reach the tip however, there's no point pipelining anymore, so we start
@@ -363,23 +365,23 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
         :: Int
         -> Nat n
         -> RequestNextStrategy m n block
-    pipeline goal (Succ n) respond | natToInt (Succ n) == goal =
-        P.CollectResponse Nothing $ collectResponses respond [] n
-    pipeline goal n respond =
-        P.SendMsgRequestNextPipelined $ pipeline goal (Succ n) respond
+    pipeline goal (Succ n) | natToInt (Succ n) == goal =
+        P.CollectResponse Nothing $ collectResponses [] n
+    pipeline goal n =
+        P.SendMsgRequestNextPipelined $ pipeline goal (Succ n)
 
     collectResponses
-        :: (NextBlocksResult (Point block) block -> m ())
-        -> [block]
+        :: [block]
         -> Nat n
         -> P.ClientStNext n block (Point block) (Tip block) m Void
-    collectResponses respond blocks Zero = P.ClientStNext
+    collectResponses blocks Zero = P.ClientStNext
         { P.recvMsgRollForward = \block tip -> do
-            traceWith tr $ MsgChainRollForward block (getTipPoint tip)
-            let cursor' = blockPoint block
-            let blocks' = reverse (block:blocks)
-            let tip'    = fromTip tip
-            respond (RollForward cursor' tip' blocks')
+            traceWith tr $ MsgChainTip (getTipPoint tip)
+
+            let blocks' = NE.reverse (block :| blocks)
+            traceWith tr $ MsgChainRollForward blocks' (getTipPoint tip)
+            handleRollforward blocks' tip
+
             let distance = tipDistance (blockNo block) tip
             traceWith tr $ MsgTipDistance distance
             let strategy = if distance <= 1
@@ -387,63 +389,90 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
                     else pipeline (fromIntegral $ min distance 1000) Zero
             clientStIdle strategy
 
-        -- When the last message we receive is a request to rollback, we have
-        -- two possibilities:
-        --
-        -- a) Either, we are asked to rollback to a point that is within the
-        -- blocks we have just collected. So it suffices to remove blocks from
-        -- the list, and apply the remaining portion.
-        --
-        -- b) We are asked to rollback even further and discard all the blocks
-        -- we just collected. In which case, we simply discard all blocks and
-        -- rollback to that point as if nothing happened.
         , P.recvMsgRollBackward = \point tip -> do
-            case rollback point blocks of
-                [] -> do -- b)
-                    traceWith tr $ MsgChainRollBackward point 0
-                    respond (RollBackward point)
+            traceWith tr $ MsgChainTip (getTipPoint tip)
+            r <- handleRollback blocks point tip
+            case r of
+                Buffer xs -> do
+                    case reverse xs of
+                        []          -> pure ()
+                        (b:blocks') -> handleRollforward (b :| blocks') tip
                     clientStIdle oneByOne
-
-                xs -> do -- a)
-                    traceWith tr $ MsgChainRollBackward point (length xs)
-                    let cursor' = blockPoint $ head xs
-                    let blocks' = reverse xs
-                    let tip'    = fromTip tip
-                    respond (RollForward cursor' tip' blocks')
+                FollowerExact ->
                     clientStIdle oneByOne
+                FollowerNeedToReNegotiate ->
+                    clientStNegotiateIntersection
         }
 
-    collectResponses respond blocks (Succ n) = P.ClientStNext
+    collectResponses blocks (Succ n) = P.ClientStNext
         { P.recvMsgRollForward = \block _tip ->
-        pure $ P.CollectResponse Nothing $ collectResponses respond (block:blocks) n
+            pure $ P.CollectResponse Nothing $ collectResponses (block:blocks) n
 
-        -- This scenario is slightly more complicated than for the 'Zero' case.
-        -- Again, there are two possibilities:
-        --
-        -- a) Either we rollback to a point we have just collected, so it
-        -- suffices to discard blocks from the list and continue.
-        --
-        -- b) Or, we need to reply immediately, but we still have to collect the
-        -- remaining responses. BUT, we can only reply once to a given command.
-        -- So instead, we buffer all the remaining responses in a queue and, upon
-        -- receiving future requests, we'll simply read them from the buffer!
-        , P.recvMsgRollBackward = \point _tip ->
-            case rollback point blocks of
-                [] -> do -- b)
-                    let save = atomically . writeTQueue responseBuffer
-                    respond (RollBackward point)
-                    pure $ P.CollectResponse Nothing $ collectResponses save [] n
-                xs -> do -- a)
-                    pure $ P.CollectResponse Nothing $ collectResponses respond xs n
+        , P.recvMsgRollBackward = \point tip -> do
+            traceWith tr $ MsgChainTip (getTipPoint tip)
+            r <- handleRollback blocks point tip
+            pure $ P.CollectResponse Nothing $ case r of
+                Buffer xs -> collectResponses xs n
+                FollowerExact -> collectResponses [] n
+                FollowerNeedToReNegotiate -> dropResponsesAndRenegotiate n
         }
 
+    handleRollforward :: NonEmpty block -> Tip block -> m ()
+    handleRollforward blocks tip = do
+        rollForward chainFollower blocks tip
+        traceWith tr $ MsgLocalTip (blockPoint $ NE.last blocks)
 
+    handleRollback
+        :: [block]
+        -> Point block
+        -> Tip block
+        -> m (LocalRollbackResult block)
+    handleRollback buffer point _tip = do
+        let buffer' = rollbackBuffer point buffer
+        traceWith tr $ MsgChainRollBackward point (length buffer')
+        case buffer' of
+            [] -> do
+                actual <- rollBackward chainFollower point
+                if actual == point
+                    then do
+                        traceWith tr $ MsgLocalTip point
+                        pure FollowerExact
+                    else do
+                        pure FollowerNeedToReNegotiate
+            xs -> do
+                pure $ Buffer xs
+
+    -- | Discards the in-flight requests, and re-negotiates the intersection
+    -- afterwards.
+    dropResponsesAndRenegotiate
+        :: Nat n
+        -> P.ClientStNext n block (Point block) (Tip block) m Void
+    dropResponsesAndRenegotiate (Succ n) =
+        P.ClientStNext
+            { P.recvMsgRollForward = \_block _tip ->
+                pure $ P.CollectResponse Nothing $ dropResponsesAndRenegotiate n
+            , P.recvMsgRollBackward = \_point _tip ->
+                pure $ P.CollectResponse Nothing $ dropResponsesAndRenegotiate n
+            }
+    dropResponsesAndRenegotiate Zero =
+        P.ClientStNext
+            { P.recvMsgRollForward = \_block _tip ->
+                clientStNegotiateIntersection
+            , P.recvMsgRollBackward = \_point _tip ->
+                clientStNegotiateIntersection
+            }
+
+compareSlot :: Point block -> Point block -> Ordering
+compareSlot (Point Origin) (Point Origin) = EQ
+compareSlot (Point Origin) _ = LT
+compareSlot _ (Point Origin) = GT
+compareSlot (Point (At b1)) (Point (At b2)) = comparing blockPointSlot b1 b2
 
 --------------------------------------------------------------------------------
 --
 -- LocalStateQuery
 
----- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
+-- | Type of commands that are stored in a queue for local state queries.
 data LocalStateQueryCmd block m = forall a. SomeLSQ
     (LSQ block m a)
     (a -> m ())
@@ -504,12 +533,28 @@ localStateQuery queue =
     clientStAcquired
         :: LocalStateQueryCmd block m
         -> m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
-    clientStAcquired (SomeLSQ cmd respond) = pure $ go cmd $ \res -> do
-        LSQ.SendMsgRelease (respond res >> clientStIdle)
-            -- We /could/ read all LocalStateQueryCmds from the TQueue, and run
-            -- them against the same tip, if re-acquiring takes a long time. As
-            -- of Jan 2021, it seems like queries themselves take significantly
-            -- longer than the acquiring.
+    clientStAcquired (SomeLSQ cmd respond) = pure $ go cmd $ \res ->
+        -- We currently release the handle to the node state after
+        -- each query in the queue. This allows the node to release
+        -- resources (such as a stake distribution snapshot) after
+        -- each query.
+        -- 
+        -- However, we /could/ read all LocalStateQueryCmds from the TQueue,
+        -- and run them against the same tip, if re-acquiring takes a long time.
+        -- As of Jan 2021, it seems like queries themselves take significantly
+        -- longer than the acquiring.
+        LSQ.SendMsgRelease $ do
+            -- In order to remove the query from the queue as soon as possible,
+            -- @respond@ should return quickly and not throw any synchronous
+            -- exception.
+            -- In practice, we only use the 'send' helper here, so that works.
+            --
+            -- (Asynchronous exceptions are fine, as the connection to the node
+            -- will not attempt to recover from that, and it doesn't matter
+            -- whether a command is left in the queue or not.)
+            respond res
+            finalizeCmd
+            clientStIdle
       where
           go
               :: forall a. LSQ block m a
@@ -517,18 +562,34 @@ localStateQuery queue =
               -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
           go (LSQPure a) cont = cont a
           go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry)
-            -- NOTE: We only need to support queries of the type `BlockQuery`
-            -- type.
+            -- We only need to support queries of the type `BlockQuery`.
             $ LSQ.ClientStQuerying $ \res -> do
                   pure $ cont res
                   -- It would be nice to trace the time it takes to run the
                   -- queries. We don't have a good opportunity to run IO after a
                   -- point is acquired, but before the query is send, however.
+                  -- Heinrich: Actually, this can be done by adding a 'Tracer m'
+                  -- to the scope and using it here. However, I believe that we
+                  -- already have sufficiently good logging of execution times
+                  -- in Cardano.Wallet.Shelley.Network .
           go (LSQBind ma f) cont = go ma $ \a -> do
               go (f a) $ \b -> cont b
 
+    -- | Note that we for LSQ and TxSubmission use peekTQueue when starting the
+    -- request, and only remove the command from the queue after we have
+    -- processed the response from the node.
+    --
+    -- If the connection to the node drops, this makes cancelled commands
+    -- automatically retry on reconnection.
+    --
+    -- IMPORTANT: callers must also `finalizeCmd`, because of the above.
     awaitNextCmd :: m (LocalStateQueryCmd block m)
-    awaitNextCmd = atomically $ readTQueue queue
+    awaitNextCmd = atomically $ peekTQueue queue
+
+    finalizeCmd :: m ()
+    finalizeCmd = atomically $ tryReadTQueue queue >>= \case
+        Just _ -> return ()
+        Nothing -> error "finalizeCmd: queue is not empty"
 
 -- | Monad for composing local state queries for the node /tip/.
 --
@@ -557,7 +618,7 @@ instance Monad (LSQ block m) where
 -- LocalTxSubmission
 
 
--- | Sending command to the localTxSubmission client. See also 'ChainSyncCmd'.
+-- | Type of commands that are stored in a queue for localTxSubmission.
 data LocalTxSubmissionCmd tx err (m :: Type -> Type)
     = CmdSubmitTx tx (SubmitResult err -> m ())
 
@@ -592,30 +653,28 @@ localTxSubmission queue = LocalTxSubmissionClient clientStIdle
   where
     clientStIdle
         :: m (LocalTxClientStIdle tx err m ())
-    clientStIdle = atomically (readTQueue queue) <&> \case
+    clientStIdle = atomically (peekTQueue queue) <&> \case
         CmdSubmitTx tx respond ->
-            SendMsgSubmitTx tx (\e -> respond e >> clientStIdle)
+            SendMsgSubmitTx tx $ \res -> do
+                respond res
+                -- Same note about peekTQueue from `localStateQuery` applies
+                -- here.
+                _processedCmd <- atomically (readTQueue queue)
+                clientStIdle
 
---------------------------------------------------------------------------------
---
--- Helpers
+{-------------------------------------------------------------------------------
+    Helpers
+-------------------------------------------------------------------------------}
 
-flush :: (MonadSTM m) => TQueue m a -> m ()
-flush queue =
-    atomically $ dropUntil isNothing queue
-  where
-    dropUntil predicate q = do
-        done <- predicate <$> tryReadTQueue q
-        unless done $ dropUntil predicate q
-
--- | Helper function to easily send commands to the node's client and read
--- responses back.
+-- | Helper function to send commands to the node via a 'TQueue'
+-- and receive results.
 --
--- >>> queue `send` CmdNextBlocks
--- RollForward cursor nodeTip blocks
---
--- >>> queue `send` CmdNextBlocks
--- AwaitReply
+-- One of the main purposes of this functions is to handle an existentially
+-- quantified type.
+-- In typical use, the @cmd m@ involves existential quantification over
+-- the type @a@, so that the 'TQueue' has elements with a monomorphic type.
+-- However, the type signature of `send` allows us to retrive this particular
+-- type @a@ for later use again.
 send
     :: MonadSTM m
     => TQueue m (cmd m)
@@ -626,42 +685,14 @@ send queue cmd = do
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
     atomically $ takeTMVar tvar
 
--- Tracing
+{-------------------------------------------------------------------------------
+    Errors
+-------------------------------------------------------------------------------}
+data ErrChainSync
+    = ErrChainSyncNoIntersectGenesis
+    -- ^ The node does not give us genesis when we request it with a
+    -- 'MsgFindIntersect' message in the ChainSync protocol.
+    -- This should not happen.
+    deriving (Eq, Show)
 
-data ChainSyncLog block point
-    = MsgChainRollForward block point
-    | MsgChainRollBackward point Int
-    | MsgTipDistance Natural
-
-mapChainSyncLog
-    :: (b1 -> b2)
-    -> (p1 -> p2)
-    -> ChainSyncLog b1 p1
-    -> ChainSyncLog b2 p2
-mapChainSyncLog f g = \case
-    MsgChainRollForward block point -> MsgChainRollForward (f block) (g point)
-    MsgChainRollBackward point n -> MsgChainRollBackward (g point) n
-    MsgTipDistance d -> MsgTipDistance d
-
-instance (ToText block, ToText point)
-    => ToText (ChainSyncLog block point) where
-    toText = \case
-        MsgChainRollForward b tip ->
-            "ChainSync roll forward: " <> toText b <> " tip is " <> toText tip
-        MsgChainRollBackward b 0 ->
-            "ChainSync roll backward: " <> toText b
-        MsgChainRollBackward b bufferSize -> mconcat
-            [ "ChainSync roll backward: "
-            , toText b
-            , ", handled inside buffer with remaining length "
-            , toText bufferSize
-            ]
-        MsgTipDistance d -> "Tip distance: " <> toText d
-
-instance HasPrivacyAnnotation (ChainSyncLog block point)
-
-instance HasSeverityAnnotation (ChainSyncLog block point) where
-    getSeverityAnnotation = \case
-        MsgChainRollForward{} -> Debug
-        MsgChainRollBackward{} -> Debug
-        MsgTipDistance{} -> Debug
+instance Exception ErrChainSync

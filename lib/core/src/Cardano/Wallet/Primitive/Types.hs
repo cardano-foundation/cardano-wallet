@@ -35,6 +35,8 @@ module Cardano.Wallet.Primitive.Types
     -- * Block
       Block(..)
     , BlockHeader(..)
+    , ChainPoint (..)
+    , compareSlot
 
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
@@ -250,6 +252,8 @@ import GHC.TypeLits
     ( KnownNat, natVal )
 import Network.URI
     ( URI (..), uriToString )
+import NoThunks.Class
+    ( NoThunks )
 import Numeric.Natural
     ( Natural )
 import Test.QuickCheck
@@ -773,6 +777,39 @@ instance Buildable (Block) where
     build (Block h txs _) = mempty
         <> build h
         <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
+
+-- | A point on the blockchain
+-- is either the genesis block, or a block with a hash that was
+-- created at a particular 'SlotNo'.
+--
+-- TODO: This type is essentially a copy of the 'Cardano.Api.Block.ChainPoint'
+-- type. We want to import it from there when overhauling our types.
+data ChainPoint
+    = ChainPointAtGenesis
+    | ChainPoint !SlotNo !(Hash "BlockHeader")
+    deriving (Eq, Ord, Show, Generic)
+
+-- | Compare the slot numbers of two 'ChainPoint's,
+-- but where the 'ChainPointAtGenesis' comes before all natural slot numbers.
+--
+-- Note: The 'Ord' instance of 'ChainPoint' is more fine-grained and
+-- also compares block hashes.
+compareSlot :: ChainPoint -> ChainPoint -> Ordering
+compareSlot ChainPointAtGenesis ChainPointAtGenesis = EQ
+compareSlot ChainPointAtGenesis _ = LT
+compareSlot _ ChainPointAtGenesis = GT
+compareSlot (ChainPoint sl1 _) (ChainPoint sl2 _) = compare sl1 sl2
+
+instance NFData ChainPoint
+
+instance NoThunks ChainPoint
+
+instance Buildable ChainPoint where
+    build ChainPointAtGenesis    = "[point genesis]"
+    build (ChainPoint slot hash) =
+        "[point " <> hashF <> " at slot " <> pretty slot <> "]"
+      where
+        hashF = prefixF 8 $ T.decodeUtf8 $ convertToBase Base16 $ getHash hash
 
 data BlockHeader = BlockHeader
     { slotNo
