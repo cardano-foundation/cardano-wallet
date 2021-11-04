@@ -30,7 +30,7 @@ EOF
 
 cd "$(dirname "$0")"/.. || exit
 
-source_file=${HIE_BIOS_ARG//$(pwd)/}
+source_file=${HIE_BIOS_ARG//$(pwd)\//}
 
 if [[ "$source_file" =~ ^lib/.*\.hs$ || -z "$source_file" ]]; then
   echo "$0: Generating hie-bios for source file $source_file."
