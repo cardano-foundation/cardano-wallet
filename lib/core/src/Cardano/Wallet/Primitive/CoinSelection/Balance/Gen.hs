@@ -76,11 +76,11 @@ shrinkSelectionSkeleton =
         :* liftShrinker shrinkSkeletonChange
         :* Nil
         )
-    where
-        shrinkSkeletonInputCount =
-            shrink @Int
-        shrinkSkeletonOutputs =
-            shrinkList shrinkTxOut
-        shrinkSkeletonChange =
-            shrinkList $
-            shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
+  where
+    shrinkSkeletonInputCount =
+        shrink @Int
+    shrinkSkeletonOutputs =
+        shrinkList shrinkTxOut
+    shrinkSkeletonChange =
+        shrinkList $
+        shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)

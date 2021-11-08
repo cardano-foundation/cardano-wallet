@@ -344,26 +344,26 @@ liftShrinker shrinker = fn (shrinker . unI)
 -- @
 groundRobinShrinkP :: NP (I -.-> []) xs -> NP I xs -> [NP I xs]
 groundRobinShrinkP fns = interleaveRoundRobin . groundRobinShrinkP' fns
-    where
-        groundRobinShrinkP' :: NP (I -.-> []) xs -> NP I xs -> [[NP I xs]]
-        groundRobinShrinkP' Nil Nil =
-            -- In the case of no argument constructors, there is no need to
-            -- shrink
-            []
-        groundRobinShrinkP' (s :* ss) (x1 :* xs) =
-            -- Best explained with example:
-            --   BoolChar b c
-            --     1. shrink b = [b1, b2, b3]
-            --     -- shrink the first argument
-            --     2. [ BoolChar b1 c, BoolChar b2 c, BoolChar b3 c ]
-            --     -- create a list of values with only first value shrunk
-            --     3. shrink c = [c1, c2, c3]
-            --     -- shrink the second argument
-            --     4. [ BoolChar b c1, BoolChar b c2, BoolChar b c3 ]
-            --     -- create a list of values with only second value shrunk
-            --     -- append and return the lists in 2. and 4.
-            [ [ ( I x1' :* xs ) | x1' <- apFn s x1 ] ]
-            <> (fmap (x1 :*) <$> groundRobinShrinkP' ss xs)
+  where
+    groundRobinShrinkP' :: NP (I -.-> []) xs -> NP I xs -> [[NP I xs]]
+    groundRobinShrinkP' Nil Nil =
+        -- In the case of no argument constructors, there is no need to
+        -- shrink
+        []
+    groundRobinShrinkP' (s :* ss) (x1 :* xs) =
+        -- Best explained with example:
+        --   BoolChar b c
+        --     1. shrink b = [b1, b2, b3]
+        --     -- shrink the first argument
+        --     2. [ BoolChar b1 c, BoolChar b2 c, BoolChar b3 c ]
+        --     -- create a list of values with only first value shrunk
+        --     3. shrink c = [c1, c2, c3]
+        --     -- shrink the second argument
+        --     4. [ BoolChar b c1, BoolChar b c2, BoolChar b c3 ]
+        --     -- create a list of values with only second value shrunk
+        --     -- append and return the lists in 2. and 4.
+        [ [ ( I x1' :* xs ) | x1' <- apFn s x1 ] ]
+        <> (fmap (x1 :*) <$> groundRobinShrinkP' ss xs)
 
 -- | Using a round-robin algorithm, apply a list of shrinkers to their
 -- corresponding types in a Generics.SOP type. Only defined for types with a
@@ -460,7 +460,7 @@ genericRoundRobinShrink
     -> a
     -> [a]
 genericRoundRobinShrink f x =
-  GGP.gto <$> groundRobinShrinkS f (GGP.gfrom x)
+    GGP.gto <$> groundRobinShrinkS f (GGP.gfrom x)
 
 -- | Same as @genericRoundRobinShrink@ but uses available Arbitrary instance for
 -- shrinking.
@@ -474,6 +474,6 @@ genericRoundRobinShrink'
     => a
     -> [a]
 genericRoundRobinShrink' x =
-  fmap GGP.gto
-  $ groundRobinShrinkS (hcpure (Proxy @Arbitrary) (liftShrinker shrink))
-  $ GGP.gfrom x
+    fmap GGP.gto
+    $ groundRobinShrinkS (hcpure (Proxy @Arbitrary) (liftShrinker shrink))
+    $ GGP.gfrom x
