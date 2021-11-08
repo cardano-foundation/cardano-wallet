@@ -42,6 +42,7 @@ module Test.Integration.Framework.TestData
     , errMsg400WalletIdEncoding
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
+    , errMsg403Collateral
     , errMsg403NotAByronWallet
     , errMsg403NotAnIcarusWallet
     , errMsg403NotEnoughMoney
@@ -307,6 +308,12 @@ errMsg403Fee =
     "I am unable to finalize the transaction, as there is not enough ada \
     \available to pay for the fee and also pay for the minimum ada quantities \
     \of all change outputs."
+
+errMsg403Collateral :: String
+errMsg403Collateral =
+    "I'm unable to create this transaction because the balance of pure ada \
+    \UTxOs in your wallet is insufficient to cover the minimum amount of \
+    \collateral required."
 
 errMsg403NotAByronWallet :: String
 errMsg403NotAByronWallet =

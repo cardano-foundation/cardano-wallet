@@ -146,7 +146,8 @@ import Test.Integration.Framework.DSL
     , waitForTxImmutability
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403Fee
+    ( errMsg403Collateral
+    , errMsg403Fee
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403NotDelegating
@@ -1360,6 +1361,167 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
+            ]
+
+    it "TRANS_NEW_BALANCE_02a - Cannot balance on empty wallet" $
+        \ctx -> runResourceT $ do
+        wa <- emptyWallet ctx
+        let balancePayload = Json PlutusScenario.pingPong_1
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default balancePayload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403NotEnoughMoney
+            ]
+
+    it "TRANS_NEW_BALANCE_02b - Cannot balance when I cannot afford fee" $
+        \ctx -> runResourceT $ do
+        wa <- fixtureWalletWith @n ctx [2 * 1_000_000]
+        let balancePayload = Json PlutusScenario.pingPong_1
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default balancePayload
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403Fee
+            ]
+
+    it "TRANS_NEW_BALANCE_02c - \
+        \Cannot balance when I cannot afford collateral" $
+        \ctx -> runResourceT $ do
+        wa <- fixtureWalletWith @n ctx
+            [ 2_000_000
+            , 2_000_000
+            ]
+        let toBalance = Json PlutusScenario.pingPong_1
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default toBalance
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            ]
+
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        waitForTxImmutability ctx
+        partialTx' <- PlutusScenario.pingPong_2 $ Aeson.object
+            [ "transactionId" .= view #id txId ]
+        let toBalance' = Json (toJSON partialTx')
+
+        rTx' <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default toBalance'
+        verify rTx'
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403Collateral
+            , expectErrorMessage $ unwords
+                [ "I need an ada amount of at least:"
+                , "2.779500"
+                ]
+            , expectErrorMessage $ unwords
+                [ "The largest combination of pure ada UTxOs I could find is:"
+                , "[1.853000]"
+                ]
+            ]
+
+    it "TRANS_NEW_BALANCE_03 - I can balance base-64 encoded tx" $
+        \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        let pingPong1Base64 = Json [json|{
+            "transaction": "hKUAgA2AAYGDWB1xTXLPVpozmhin2TAjE5g/VuDZbNRb3LHWUS3KahoAHoSAWCCSORjkA79Dw0tO9rSOsu4Eur7RcyDY0bn/mtCG6G9E7AIADoChBIHYeYD19g==",
+            "redeemers": [],
+            "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default pingPong1Base64
+        verify rTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        let apiTx = getFromResponse #transaction rTx
+
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+    it "TRANS_NEW_BALANCE_04a - \
+        \I get proper error message when payload is not hex or base64 encoded" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith
+            "ADP-1225: revise error messages to reflect supported formats"
+        wa <- fixtureWallet ctx
+        -- transaction is invalid hex / base64
+        let payload = Json [json|{
+            "transaction": "!!!!#",
+            "redeemers": [],
+            "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "Parse error. Expecting CBOR-encoded transaction represented in either hex or base64 encoding."
+            -- returns: Parse error. Expecting Base64-encoded format.
+            ]
+
+    it "TRANS_NEW_BALANCE_04b - \
+        \I get proper error message when payload cannot be decoded" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith
+            "ADP-1225: revise error messages to reflect supported formats"
+        wa <- fixtureWallet ctx
+        -- transaction is a VALID hex, but invalid transaction format
+        let payload = Json [json|{
+            "transaction": "11",
+            "redeemers": [],
+            "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "Parse error. Cannot deserialize transaction. Make sure it is valid CBOR-encoded transaction represented in either hex or base64 encoding."
+            -- returns: Parse error. Expecting Base64-encoded format.
+            ]
+
+    it "TRANS_NEW_BALANCE_04c - \
+        \I get proper error message when payload cannot be decoded" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith
+            "ADP-1225: revise error messages to reflect supported formats"
+        wa <- fixtureWallet ctx
+        -- transaction is a VALID hex, but invalid transaction format
+        let payload = Json [json|{
+            "transaction": "11111",
+            "redeemers": [],
+            "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "Parse error. Cannot deserialize transaction. Make sure it is valid CBOR-encoded transaction represented in either hex or base64 encoding."
+            -- returns: Parse error. Expecting Base64-encoded format.
+            ]
+
+    it "TRANS_NEW_BALANCE_04d - \
+        \I get proper error message when payload cannot be decoded" $
+        \ctx -> runResourceT $ do
+        liftIO $ pendingWith
+            "ADP-1225: revise error messages to reflect supported formats"
+        wa <- fixtureWallet ctx
+        -- transaction is a VALID base64, but invalid transaction format
+        let payload = Json [json|{
+            "transaction": "EQ==",
+            "redeemers": [],
+            "inputs": []
+        }|]
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default payload
+        verify rTx
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage "Parse error. Cannot deserialize transaction. Make sure it is valid CBOR-encoded transaction represented in either hex or base64 encoding."
+            -- returns: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'
             ]
 
     it "TRANS_NEW_SIGN_01 - Sign single-output transaction" $ \ctx -> runResourceT $ do
