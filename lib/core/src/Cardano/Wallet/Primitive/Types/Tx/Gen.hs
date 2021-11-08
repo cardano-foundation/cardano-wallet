@@ -83,9 +83,10 @@ import Test.QuickCheck.Extra
     , genMapWith
     , genSized2With
     , genericRoundRobinShrink
-    , liftShrinker
     , shrinkInterleaved
     , shrinkMapWith
+    , (<:>)
+    , (<@>)
     )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -124,17 +125,15 @@ genTxWithoutId = TxWithoutId
     <*> liftArbitrary genTxScriptValidity
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
-shrinkTxWithoutId =
-    genericRoundRobinShrink
-        ( liftShrinker (liftShrink shrinkCoinPositive)
-        :* liftShrinker (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
-        :* liftShrinker (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
-        :* liftShrinker (shrinkList shrinkTxOut)
-        :* liftShrinker (liftShrink shrinkTxMetadata)
-        :* liftShrinker (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
-        :* liftShrinker (liftShrink shrinkTxScriptValidity)
-        :* Nil
-        )
+shrinkTxWithoutId = genericRoundRobinShrink
+    <@> liftShrink shrinkCoinPositive
+    <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
+    <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
+    <:> shrinkList shrinkTxOut
+    <:> liftShrink shrinkTxMetadata
+    <:> shrinkMapWith shrinkRewardAccount shrinkCoinPositive
+    <:> liftShrink shrinkTxScriptValidity
+    <:> Nil
 
 txWithoutIdToTx :: TxWithoutId -> Tx
 txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}
