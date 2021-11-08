@@ -127,9 +127,10 @@ import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
     , genericRoundRobinShrink
-    , liftShrinker
     , report
     , shrinkNatural
+    , (<:>)
+    , (<@>)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
@@ -536,18 +537,16 @@ genMockSelectionConstraints = MockSelectionConstraints
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
-shrinkMockSelectionConstraints =
-    genericRoundRobinShrink
-        (  liftShrinker (shrinkMockAssessTokenBundleSize)
-        :* liftShrinker (shrinkCertificateDepositAmount)
-        :* liftShrinker (shrinkMockComputeMinimumAdaQuantity)
-        :* liftShrinker (shrinkMockComputeMinimumCost)
-        :* liftShrinker (shrinkMockComputeSelectionLimit)
-        :* liftShrinker (shrinkMaximumCollateralInputCount)
-        :* liftShrinker (shrinkMinimumCollateralPercentage)
-        :* liftShrinker (shrinkMockUTxOSuitableForCollateral)
-        :* Nil
-        )
+shrinkMockSelectionConstraints = genericRoundRobinShrink
+    <@> shrinkMockAssessTokenBundleSize
+    <:> shrinkCertificateDepositAmount
+    <:> shrinkMockComputeMinimumAdaQuantity
+    <:> shrinkMockComputeMinimumCost
+    <:> shrinkMockComputeSelectionLimit
+    <:> shrinkMaximumCollateralInputCount
+    <:> shrinkMinimumCollateralPercentage
+    <:> shrinkMockUTxOSuitableForCollateral
+    <:> Nil
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
 unMockSelectionConstraints m = SelectionConstraints
@@ -642,19 +641,17 @@ genSelectionParams = SelectionParams
     <*> genUTxOAvailableForInputs
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
-shrinkSelectionParams =
-    genericRoundRobinShrink
-        (  liftShrinker shrinkAssetsToBurn
-        :* liftShrinker shrinkAssetsToMint
-        :* liftShrinker shrinkOutputsToCover
-        :* liftShrinker shrinkRewardWithdrawal
-        :* liftShrinker shrinkCerticateDepositsTaken
-        :* liftShrinker shrinkCerticateDepositsReturned
-        :* liftShrinker shrinkCollateralRequirement
-        :* liftShrinker shrinkUTxOAvailableForCollateral
-        :* liftShrinker shrinkUTxOAvailableForInputs
-        :* Nil
-        )
+shrinkSelectionParams = genericRoundRobinShrink
+    <@> shrinkAssetsToBurn
+    <:> shrinkAssetsToMint
+    <:> shrinkOutputsToCover
+    <:> shrinkRewardWithdrawal
+    <:> shrinkCerticateDepositsTaken
+    <:> shrinkCerticateDepositsReturned
+    <:> shrinkCollateralRequirement
+    <:> shrinkUTxOAvailableForCollateral
+    <:> shrinkUTxOAvailableForInputs
+    <:> Nil
 
 --------------------------------------------------------------------------------
 -- Assets to mint and burn

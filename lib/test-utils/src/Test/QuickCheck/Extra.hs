@@ -28,6 +28,8 @@ module Test.QuickCheck.Extra
     , groundRobinShrink'
     , genericRoundRobinShrink
     , genericRoundRobinShrink'
+    , (<@>)
+    , (<:>)
 
       -- * Generating and shrinking natural numbers
     , chooseNatural
@@ -477,3 +479,42 @@ genericRoundRobinShrink' x =
     fmap GGP.gto
     $ groundRobinShrinkS (hcpure (Proxy @Arbitrary) (liftShrinker shrink))
     $ GGP.gfrom x
+
+--------------------------------------------------------------------------------
+-- Generic shrinking operators
+--------------------------------------------------------------------------------
+
+-- The '<@>' and '<:>' operators can be used in conjunction with the
+-- 'genericRoundRobinShrink' function to build a shrinker from other shrinkers.
+--
+-- For example, suppose we have a record type 'MyRecord', defined as:
+--
+-- >>> data MyRecord = MyRecord
+-- >>>     { foo :: Foo
+-- >>>     , bar :: Bar
+-- >>>     , baz :: Baz
+-- >>>     }
+--
+-- Furthermore, suppose we have shrinker functions for each of the fields of
+-- 'MyRecord':
+--
+-- >>> shrinkFoo :: Foo -> [Foo]
+-- >>> shrinkBar :: Bar -> [Bar]
+-- >>> shrinkBaz :: Baz -> [Baz]
+--
+-- Then we can build a shrinker for 'MyRecord' with:
+--
+-- >>> shrinkMyRecord :: MyRecord -> [MyRecord]
+-- >>> shrinkMyRecord = genericRoundRobinShrink
+-- >>>     <@> shrinkFoo
+-- >>>     <:> shrinkBar
+-- >>>     <:> shrinkBaz
+-- >>>     <:> Nil
+
+(<@>) :: (a -> b) -> a -> b
+a <@> b = a b
+infixl 6 <@>
+
+(<:>) :: (x -> [x]) -> NP (I -.-> []) xs -> NP (I -.-> []) (x : xs)
+a <:> b = liftShrinker a :* b
+infixr 7 <:>
