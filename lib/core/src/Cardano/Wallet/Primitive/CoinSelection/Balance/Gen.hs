@@ -30,7 +30,7 @@ import Test.QuickCheck
     , shrinkMapBy
     )
 import Test.QuickCheck.Extra
-    ( genericRoundRobinShrink, liftShrinker )
+    ( genericRoundRobinShrink, (<:>), (<@>) )
 
 import qualified Data.Set as Set
 
@@ -69,18 +69,16 @@ genSelectionSkeleton = SelectionSkeleton
         listOf (Set.fromList <$> listOf genAssetId)
 
 shrinkSelectionSkeleton :: SelectionSkeleton -> [SelectionSkeleton]
-shrinkSelectionSkeleton =
-    genericRoundRobinShrink
-        (  liftShrinker shrinkSkeletonInputCount
-        :* liftShrinker shrinkSkeletonOutputs
-        :* liftShrinker shrinkSkeletonChange
-        :* Nil
-        )
-    where
-        shrinkSkeletonInputCount =
-            shrink @Int
-        shrinkSkeletonOutputs =
-            shrinkList shrinkTxOut
-        shrinkSkeletonChange =
-            shrinkList $
-            shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
+shrinkSelectionSkeleton = genericRoundRobinShrink
+    <@> shrinkSkeletonInputCount
+    <:> shrinkSkeletonOutputs
+    <:> shrinkSkeletonChange
+    <:> Nil
+  where
+    shrinkSkeletonInputCount =
+        shrink @Int
+    shrinkSkeletonOutputs =
+        shrinkList shrinkTxOut
+    shrinkSkeletonChange =
+        shrinkList $
+        shrinkMapBy Set.fromList Set.toList (shrinkList shrinkAssetId)
