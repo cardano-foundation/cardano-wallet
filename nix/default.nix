@@ -56,7 +56,7 @@ let
       # Cardano deployments
       (import ./overlays/cardano-deployments.nix)
       # Other packages overlay
-      (import ./overlays/pkgs.nix)
+      (import ./overlays/pkgs.nix { inherit sources; })
     ];
 
   pkgs = import nixpkgs {

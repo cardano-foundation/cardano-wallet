@@ -1,4 +1,16 @@
 {
+    "emanote": {
+        "branch": "master",
+        "description": "Spiritual successor to neuron, based on Ema.",
+        "homepage": "https://note.ema.srid.ca",
+        "owner": "srid",
+        "repo": "emanote",
+        "rev": "fd2d1cf401d04ac51adb4fbdb6248c89057fc133",
+        "sha256": "0lk2jgdrxpngbdgzc399px8li37rkgzak03jp8l68mdcda84b4p4",
+        "type": "tarball",
+        "url": "https://github.com/srid/emanote/archive/fd2d1cf401d04ac51adb4fbdb6248c89057fc133.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "haskell.nix": {
         "branch": "master",
         "description": "Alternative Haskell Infrastructure for Nixpkgs",
