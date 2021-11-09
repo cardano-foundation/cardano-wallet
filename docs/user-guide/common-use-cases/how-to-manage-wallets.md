@@ -1,5 +1,5 @@
 ---
-weight: 2
+order: 2
 title: How to manage wallets
 ---
 

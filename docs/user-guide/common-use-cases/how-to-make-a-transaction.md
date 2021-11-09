@@ -1,5 +1,5 @@
 ---
-weight: 4
+order: 4
 title: How to make a transaction
 ---
 {{<tabs>}}
@@ -26,7 +26,7 @@ Which returns a list of all transactions for this particular wallet. Optional ra
 
 [`DELETE /v2/byron-wallets/{walletId}/transactions/{transactionId}`](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/deleteByronTransaction)
 
-For more information about transactions lifecycle, have a look at this [wiki page](https://github.com/input-output-hk/cardano-wallet/wiki/About-Transactions-Lifecycle).
+For more information about transactions lifecycle, have a look at [[About-Transactions-Lifecycle]].
 {{</tab>}}
 
 

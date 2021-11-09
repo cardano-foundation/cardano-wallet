@@ -1,5 +1,5 @@
 ---
-weight: 3
+order: 1
 title: Installation Instructions
 ---
 
@@ -10,10 +10,7 @@ Docker images are continuously built and deployed on [dockerhub](https://hub.doc
 | Repository                                                           | Tags                                  | Documentation               |
 | :---                                                                 | :---:                                 | :---:                       |
 | [inputoutput/cardano-node][inputoutput-cardano-node]                 | `master`, `MAJ.MIN.PATCH`, `latest`   | [link][doc-cardano-node]    |
-| [inputoutput/cardano-db-sync][inputoutput-cardano-db-sync]           | `master`, `MAJ.MIN.PATCH`, `latest`   | [link][doc-cardano-db-sync] |
-| [inputoutput/cardano-graphql][inputoutput-cardano-graphql]           | `master`, `MAJ.MIN.PATCH`, `latest`   | [link][doc-cardano-graphql] |
-| [inputoutput/cardano-rosetta][inputoutput-cardano-rosetta]           | `master`, `MAJ.MIN.PATCH`, `latest`   | [link][doc-cardano-rosetta] |
-| [inputoutput/cardano-wallet][inputoutput-cardano-wallet]             | `byron`, `YYYY.MM.DD-byron`, `latest` | [link][doc-cardano-wallet]  |
+| [inputoutput/cardano-wallet][inputoutput-cardano-wallet]             | `byron`, `YYYY.MM.DD-byron`, `latest` | [[Docker|link]]  |
 
 ### Semantic
 
@@ -41,7 +38,7 @@ docker pull inputoutput/cardano-wallet:2021.8.11
 {{<hint info>}}
 ℹ️  _About version compatibility_
 
-For version compatibility between components, please refer to compatibility matrix on each component main page (e.g. [cardano-wallet#latest-releases](https://github.com/input-output-hk/cardano-wallet#latest-releases)).
+For version compatibility between components, please refer to compatibility matrix on each component main page (e.g. [cardano-wallet](https://github.com/input-output-hk/cardano-wallet#latest-releases)).
 {{</hint>}}
 
 ### Docker compose
@@ -89,7 +86,6 @@ Repository                           | Releases                            | Lin
 [doc-cardano-db-sync]: https://github.com/input-output-hk/cardano-db-sync/blob/master/nix/docker.nix#L1-L35
 [doc-cardano-rest]: https://github.com/input-output-hk/cardano-rest/wiki/Docker
 [doc-cardano-graphql]: https://github.com/input-output-hk/cardano-graphql/wiki/Docker
-[doc-cardano-wallet]: https://github.com/input-output-hk/cardano-wallet/wiki/Docker
 [doc-cardano-rosetta]: https://github.com/input-output-hk/cardano-rosetta
 
 [inputoutput-cardano-node]: https://hub.docker.com/r/inputoutput/cardano-node
