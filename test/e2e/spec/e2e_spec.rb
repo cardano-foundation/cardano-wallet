@@ -1,88 +1,93 @@
 RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
   before(:all) do
-    # shelley tests
-    @wid = create_fixture_shelley_wallet
-    @target_id = create_shelley_wallet("Target tx wallet")
-    @target_id_assets = create_shelley_wallet("Target asset tx wallet")
-    @target_id_withdrawal = create_shelley_wallet("Target tx withdrawal wallet")
-    @target_id_meta = create_shelley_wallet("Target tx metadata wallet")
-    @target_id_ttl = create_shelley_wallet("Target tx ttl wallet")
-    @target_id_pools = create_shelley_wallet("Target tx pool join/quit wallet")
-
-    # byron tests
-    @wid_rnd = create_fixture_byron_wallet "random"
-    @wid_ic = create_fixture_byron_wallet "icarus"
-    @target_id_rnd = create_shelley_wallet("Target tx wallet")
-    @target_id_ic = create_shelley_wallet("Target tx wallet")
-    @target_id_rnd_assets = create_shelley_wallet("Target asset tx wallet")
-    @target_id_ic_assets = create_shelley_wallet("Target asset tx wallet")
-
-    # shared tests
-    @wid_sha = create_active_shared_wallet(mnemonic_sentence(24), '0H', 'self')
-
-    @nightly_shared_wallets = [ @wid_sha ]
-    @nighly_byron_wallets = [ @wid_rnd, @wid_ic ]
-    @nightly_shelley_wallets = [
-                                  @wid,
-                                  @target_id,
-                                  @target_id_assets,
-                                  @target_id_withdrawal,
-                                  @target_id_meta,
-                                  @target_id_ttl,
-                                  @target_id_rnd,
-                                  @target_id_ic,
-                                  @target_id_rnd_assets,
-                                  @target_id_ic_assets,
-                                  @target_id_pools
-                                ]
-    wait_for_all_byron_wallets(@nighly_byron_wallets)
-    wait_for_all_shelley_wallets(@nightly_shelley_wallets)
-    wait_for_all_shared_wallets(@nightly_shared_wallets)
+    # # shelley tests
+    # @wid = create_fixture_shelley_wallet
+    # @target_id = create_shelley_wallet("Target tx wallet")
+    # @target_id_assets = create_shelley_wallet("Target asset tx wallet")
+    # @target_id_withdrawal = create_shelley_wallet("Target tx withdrawal wallet")
+    # @target_id_meta = create_shelley_wallet("Target tx metadata wallet")
+    # @target_id_ttl = create_shelley_wallet("Target tx ttl wallet")
+    # @target_id_pools = create_shelley_wallet("Target tx pool join/quit wallet")
+    #
+    # # byron tests
+    # @wid_rnd = create_fixture_byron_wallet "random"
+    # @wid_ic = create_fixture_byron_wallet "icarus"
+    # @target_id_rnd = create_shelley_wallet("Target tx wallet")
+    # @target_id_ic = create_shelley_wallet("Target tx wallet")
+    # @target_id_rnd_assets = create_shelley_wallet("Target asset tx wallet")
+    # @target_id_ic_assets = create_shelley_wallet("Target asset tx wallet")
+    #
+    # # shared tests
+    # @wid_sha = create_active_shared_wallet(mnemonic_sentence(24), '0H', 'self')
+    #
+    # @nightly_shared_wallets = [ @wid_sha ]
+    # @nighly_byron_wallets = [ @wid_rnd, @wid_ic ]
+    # @nightly_shelley_wallets = [
+    #                               @wid,
+    #                               @target_id,
+    #                               @target_id_assets,
+    #                               @target_id_withdrawal,
+    #                               @target_id_meta,
+    #                               @target_id_ttl,
+    #                               @target_id_rnd,
+    #                               @target_id_ic,
+    #                               @target_id_rnd_assets,
+    #                               @target_id_ic_assets,
+    #                               @target_id_pools
+    #                             ]
+    # wait_for_all_byron_wallets(@nighly_byron_wallets)
+    # wait_for_all_shelley_wallets(@nightly_shelley_wallets)
+    # wait_for_all_shared_wallets(@nightly_shared_wallets)
 
     # @wid_rnd = "94c0af1034914f4455b7eb795ebea74392deafe9"
     # @wid_ic = "a468e96ab85ad2043e48cf2e5f3437b4356769f4"
-    # @wid = "2269611a3c10b219b0d38d74b004c298b76d16a9"
+    @wid = "2269611a3c10b219b0d38d74b004c298b76d16a9"
     # @target_id = "2269611a3c10b219b0d38d74b004c298b76d16a9"
     # 1f82e83772b7579fc0854bd13db6a9cce21ccd95
     # 2269611a3c10b219b0d38d74b004c298b76d16a9
     # a042bafdaf98844cfa8f6d4b1dc47519b21a4d95
   end
 
-  after(:all) do
-    @nighly_byron_wallets.each do |wid|
-      BYRON.wallets.delete wid
-    end
-    @nightly_shelley_wallets.each do |wid|
-      SHELLEY.wallets.delete wid
-    end
-    @nightly_shared_wallets.each do |wid|
-      SHARED.wallets.delete wid
-    end
-  end
+  # after(:all) do
+  #   @nighly_byron_wallets.each do |wid|
+  #     BYRON.wallets.delete wid
+  #   end
+  #   @nightly_shelley_wallets.each do |wid|
+  #     SHELLEY.wallets.delete wid
+  #   end
+  #   @nightly_shared_wallets.each do |wid|
+  #     SHARED.wallets.delete wid
+  #   end
+  # end
 
   describe "E2E Balance -> Sign -> Submit" do
 
     def run_script(script, payload)
       tx_balanced, tx_signed, tx_submitted = balance_sign_submit(@wid, payload)
-
       tx_id = tx_submitted['id']
+
       eventually "#{script} is in ledger" do
         tx = SHELLEY.transactions.get(@wid, tx_id)
         tx.code == 200 && tx['status'] == 'in_ledger'
       end
-      tx_id
+
+      { tx_id: tx_id,
+        tx_balanced: SHELLEY.transactions.decode(@wid, tx_balanced["transaction"]),
+        tx_signed: SHELLEY.transactions.decode(@wid, tx_signed["transaction"])}
     end
 
     def run_contract(contract_setup, scripts)
       # Contract setup
       payload = get_plutus_tx(contract_setup)
-      tx_id = run_script(contract_setup, payload)
+      r = run_script(contract_setup, payload)
+      tx_id = r[:tx_id]
 
       # Run Plutus contract
       scripts.each do |s|
         payload = get_templated_plutus_tx(s, {transactionId: tx_id})
-        tx_id = run_script(s, payload)
+        r = run_script(s, payload)
+        tx_id = r[:tx_id]
       end
     end
 
@@ -95,10 +100,35 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
 
     it "ping-pong" do
+      init_src = get_shelley_balances(@wid)
       contract_setup = "ping-pong_1.json"
-      scripts = [ "ping-pong_2.json" ]
+      script = "ping-pong_2.json"
 
-      run_contract(contract_setup, scripts)
+      # run contract setup
+      payload = get_plutus_tx(contract_setup)
+      r = run_script(contract_setup, payload)
+      # verify that decoded balanced tx is the same as signed tx
+      expect(r[:tx_balanced].parsed_response).to eq r[:tx_signed].parsed_response
+
+      # verify wallet balance decreases as expected after transaction (by fee + amt)
+      fee = r[:tx_balanced]["fee"]["quantity"]
+      amt = get_sent_amt(r[:tx_balanced]["outputs"])
+      src_after = get_shelley_balances(@wid)
+      expect(src_after['total']).to eq (init_src['total'] - fee - amt)
+
+      # run ping-pong_2
+      src_before2 = get_shelley_balances(@wid)
+      payload2 = get_templated_plutus_tx(script, {transactionId: r[:tx_id]})
+      r2 = run_script(script, payload2)
+
+      # verify that decoded balanced tx is the same as signed tx
+      expect(r2[:tx_balanced].parsed_response).to eq r2[:tx_signed].parsed_response
+      fee2 = r2[:tx_balanced]["fee"]["quantity"]
+
+      # verify balance decreases as expected after transaction
+      # ping-pong_2 spends from external utxo, so wallet balance decreases only by fee2
+      src_after2 = get_shelley_balances(@wid)
+      expect(src_after2['total']).to eq (src_before2['total'] - fee2)
     end
 
     it "game" do
@@ -166,7 +196,14 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       payload = get_templated_plutus_tx(withdrawal_script, {script: validator,
                                                             scriptHash: validator_hash})
 
-      run_script(withdrawal_script, payload)
+      init_src = get_shelley_balances(@wid)
+
+      r = run_script(withdrawal_script, payload)
+
+      # verify wallet balance decreases as expected by fee
+      fee = r[:tx_balanced]["fee"]["quantity"]
+      src_after = get_shelley_balances(@wid)
+      expect(src_after['total']).to eq (init_src['total'] - fee)
     end
 
   end

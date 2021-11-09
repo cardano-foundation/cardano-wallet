@@ -351,3 +351,15 @@ def get_policy_id(policy)
   policy_id = Blake2b.hex(hex_to_bytes("01#{policy}"), key, 28)
   policy_id
 end
+
+##
+# Get all sent ADA amounts from the wallet from decoded tx outputs
+# We assume multi output transaction
+def get_sent_amts(outputs)
+  outputs.map{|o| o["amount"]["quantity"] if o["derivation_path"] == nil }
+end
+##
+# The same as get_sent_amts, but we assume single output tx
+def get_sent_amt(outputs)
+  get_sent_amts(outputs).first
+end
