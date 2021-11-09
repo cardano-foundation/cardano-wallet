@@ -619,17 +619,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let decodedInputs = getFromResponse #inputs rDecodedTxSource
 
         let testEquality
-                (ApiCoinSelectionInput id' index' address' path' amt' assets')
-                (WalletInput (ApiWalletInput id'' index'' address'' path'' amt'' assets'')) =
+                [ApiCoinSelectionInput id' index' address' path' amt' assets']
+                [WalletInput (ApiWalletInput id'' index'' address'' path'' amt'' assets'')] =
                 id' == id'' &&
                 index' == index'' &&
                 address' == address'' &&
                 path' == path'' &&
                 amt' == amt'' &&
                 assets' == assets''
-            testEquality _ _ = error "expecting the above pair"
+            testEquality _ _ = False
 
-        testEquality (head expectedInputs) (head decodedInputs) `shouldBe` True
+        testEquality expectedInputs decodedInputs `shouldBe` True
 
     it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
