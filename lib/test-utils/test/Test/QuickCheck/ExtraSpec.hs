@@ -33,6 +33,7 @@ import Test.QuickCheck
     , chooseInteger
     , cover
     , forAll
+    , oneof
     , property
     , shrinkIntegral
     , (===)
@@ -94,7 +95,10 @@ genTestRecord = TestRecord
     <*> genInteger
   where
     genInteger :: Gen Integer
-    genInteger = chooseInteger (0, 1_000_000_000_000)
+    genInteger = oneof
+        [ pure 0
+        , chooseInteger (1, 1_000_000_000_000)
+        ]
 
 shrinkTestRecordGenerically :: TestRecord -> [TestRecord]
 shrinkTestRecordGenerically = genericRoundRobinShrink
