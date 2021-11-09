@@ -97,11 +97,14 @@ test-suite unit
       base
     , cardano-wallet-test-utils
     , containers
+    , extra
     , fmt
     , hspec
     , hspec-core
     , hspec-expectations-lifted
     , generic-lens
+    , generics-sop
+    , lattices
     , silently
     , QuickCheck
     , unliftio
