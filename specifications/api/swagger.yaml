@@ -2305,6 +2305,14 @@ components:
       properties:
         transaction: *serialisedTransactionBase64
 
+    ApiSerialisedTransactionEncoded: &ApiSerialisedTransactionEncoded
+      description: |
+        An encoded transaction.
+      required:
+        - transaction
+      properties:
+        transaction: *serialisedTransactionEncoded
+
     ApiConstructTransaction: &ApiConstructTransaction
       type: object
       required:
@@ -5687,7 +5695,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiSerialisedTransaction
+            schema: *ApiSerialisedTransactionEncoded
       responses: *responsesDecodedTransaction
 
   /wallets/{walletId}/addresses:
