@@ -1,0 +1,21 @@
+name: Auto-Approve Docs
+on: pull_request_target
+
+jobs:
+  review:
+    if: '${{ github.ref_protected }}'
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: 'Check scope of PR'
+        run: './scripts/gh/check-scope.sh scope'
+        id: check
+
+      # Note that GitHub actions do not run from forked repos, so this
+      # will only approve PRs from branches in the main repo.
+      - name: 'Approve Docs'
+        if: "${{ steps.check.outputs.scope == 'docs' }}"
+        uses: hmarr/auto-approve-action@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
