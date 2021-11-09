@@ -56,6 +56,8 @@ import Data.Text.Class
     ( FromText (..) )
 import Data.Word
     ( Word32 )
+import Generics.SOP
+    ( NP (..) )
 import GHC.Generics
     ( Generic )
 import Test.QuickCheck
@@ -80,9 +82,11 @@ import Test.QuickCheck.Extra
     ( genFunction
     , genMapWith
     , genSized2With
-    , liftShrink7
+    , genericRoundRobinShrink
     , shrinkInterleaved
     , shrinkMapWith
+    , (<:>)
+    , (<@>)
     )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -121,15 +125,15 @@ genTxWithoutId = TxWithoutId
     <*> liftArbitrary genTxScriptValidity
 
 shrinkTxWithoutId :: TxWithoutId -> [TxWithoutId]
-shrinkTxWithoutId =
-    liftShrink7 TxWithoutId
-        (liftShrink shrinkCoinPositive)
-        (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
-        (shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive))
-        (shrinkList shrinkTxOut)
-        (liftShrink shrinkTxMetadata)
-        (shrinkMapWith shrinkRewardAccount shrinkCoinPositive)
-        (liftShrink shrinkTxScriptValidity)
+shrinkTxWithoutId = genericRoundRobinShrink
+    <@> liftShrink shrinkCoinPositive
+    <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
+    <:> shrinkList (liftShrink2 shrinkTxIn shrinkCoinPositive)
+    <:> shrinkList shrinkTxOut
+    <:> liftShrink shrinkTxMetadata
+    <:> shrinkMapWith shrinkRewardAccount shrinkCoinPositive
+    <:> liftShrink shrinkTxScriptValidity
+    <:> Nil
 
 txWithoutIdToTx :: TxWithoutId -> Tx
 txWithoutIdToTx tx@TxWithoutId {..} = Tx {txId = mockHash tx, ..}

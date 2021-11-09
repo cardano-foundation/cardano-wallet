@@ -17,6 +17,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetId, shrinkAssetId )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOut, shrinkTxOut )
+import Generics.SOP
+    ( NP (..) )
 import Test.QuickCheck
     ( Gen
     , NonNegative (..)
@@ -28,7 +30,7 @@ import Test.QuickCheck
     , shrinkMapBy
     )
 import Test.QuickCheck.Extra
-    ( liftShrink3 )
+    ( genericRoundRobinShrink, (<:>), (<@>) )
 
 import qualified Data.Set as Set
 
@@ -67,11 +69,11 @@ genSelectionSkeleton = SelectionSkeleton
         listOf (Set.fromList <$> listOf genAssetId)
 
 shrinkSelectionSkeleton :: SelectionSkeleton -> [SelectionSkeleton]
-shrinkSelectionSkeleton =
-    liftShrink3 SelectionSkeleton
-        shrinkSkeletonInputCount
-        shrinkSkeletonOutputs
-        shrinkSkeletonChange
+shrinkSelectionSkeleton = genericRoundRobinShrink
+    <@> shrinkSkeletonInputCount
+    <:> shrinkSkeletonOutputs
+    <:> shrinkSkeletonChange
+    <:> Nil
   where
     shrinkSkeletonInputCount =
         shrink @Int

@@ -1,5 +1,8 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -89,6 +92,8 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( over, view, (^.) )
+import Generics.SOP
+    ( NP (..) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -121,10 +126,11 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( Pretty (..)
     , chooseNatural
-    , liftShrink8
-    , liftShrink9
+    , genericRoundRobinShrink
     , report
     , shrinkNatural
+    , (<:>)
+    , (<@>)
     )
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
@@ -531,16 +537,16 @@ genMockSelectionConstraints = MockSelectionConstraints
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
-shrinkMockSelectionConstraints =
-    liftShrink8 MockSelectionConstraints
-        shrinkMockAssessTokenBundleSize
-        shrinkCertificateDepositAmount
-        shrinkMockComputeMinimumAdaQuantity
-        shrinkMockComputeMinimumCost
-        shrinkMockComputeSelectionLimit
-        shrinkMaximumCollateralInputCount
-        shrinkMinimumCollateralPercentage
-        shrinkMockUTxOSuitableForCollateral
+shrinkMockSelectionConstraints = genericRoundRobinShrink
+    <@> shrinkMockAssessTokenBundleSize
+    <:> shrinkCertificateDepositAmount
+    <:> shrinkMockComputeMinimumAdaQuantity
+    <:> shrinkMockComputeMinimumCost
+    <:> shrinkMockComputeSelectionLimit
+    <:> shrinkMaximumCollateralInputCount
+    <:> shrinkMinimumCollateralPercentage
+    <:> shrinkMockUTxOSuitableForCollateral
+    <:> Nil
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
 unMockSelectionConstraints m = SelectionConstraints
@@ -635,17 +641,17 @@ genSelectionParams = SelectionParams
     <*> genUTxOAvailableForInputs
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
-shrinkSelectionParams =
-    liftShrink9 SelectionParams
-        shrinkAssetsToBurn
-        shrinkAssetsToMint
-        shrinkOutputsToCover
-        shrinkRewardWithdrawal
-        shrinkCerticateDepositsTaken
-        shrinkCerticateDepositsReturned
-        shrinkCollateralRequirement
-        shrinkUTxOAvailableForCollateral
-        shrinkUTxOAvailableForInputs
+shrinkSelectionParams = genericRoundRobinShrink
+    <@> shrinkAssetsToBurn
+    <:> shrinkAssetsToMint
+    <:> shrinkOutputsToCover
+    <:> shrinkRewardWithdrawal
+    <:> shrinkCerticateDepositsTaken
+    <:> shrinkCerticateDepositsReturned
+    <:> shrinkCollateralRequirement
+    <:> shrinkUTxOAvailableForCollateral
+    <:> shrinkUTxOAvailableForInputs
+    <:> Nil
 
 --------------------------------------------------------------------------------
 -- Assets to mint and burn

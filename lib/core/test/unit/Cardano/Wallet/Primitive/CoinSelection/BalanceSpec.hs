@@ -176,6 +176,8 @@ import Data.Word
     ( Word64, Word8 )
 import Fmt
     ( blockListF, pretty )
+import Generics.SOP
+    ( NP (..) )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -225,7 +227,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
 import Test.QuickCheck.Extra
-    ( liftShrink4, liftShrink6, report, verify )
+    ( genericRoundRobinShrink, report, verify, (<:>), (<@>) )
 import Test.QuickCheck.Monadic
     ( PropertyM (..), assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -613,14 +615,14 @@ genSelectionParams genPreselectedInputs genUTxOIndex' = do
     genPreselectedInputsNone = pure $ const False
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
-shrinkSelectionParams =
-    liftShrink6 SelectionParams
-        (shrinkList shrinkTxOut)
-        (shrinkUTxOSelection)
-        (shrinkCoin)
-        (shrinkCoin)
-        (shrinkTokenMap)
-        (shrinkTokenMap)
+shrinkSelectionParams = genericRoundRobinShrink
+    <@> shrinkList shrinkTxOut
+    <:> shrinkUTxOSelection
+    <:> shrinkCoin
+    <:> shrinkCoin
+    <:> shrinkTokenMap
+    <:> shrinkTokenMap
+    <:> Nil
 
 prop_performSelection_small
     :: MockSelectionConstraints
@@ -2040,12 +2042,12 @@ genMockSelectionConstraints = MockSelectionConstraints
 
 shrinkMockSelectionConstraints
     :: MockSelectionConstraints -> [MockSelectionConstraints]
-shrinkMockSelectionConstraints =
-    liftShrink4 MockSelectionConstraints
-        shrinkMockAssessTokenBundleSize
-        shrinkMockComputeMinimumAdaQuantity
-        shrinkMockComputeMinimumCost
-        shrinkMockComputeSelectionLimit
+shrinkMockSelectionConstraints = genericRoundRobinShrink
+    <@> shrinkMockAssessTokenBundleSize
+    <:> shrinkMockComputeMinimumAdaQuantity
+    <:> shrinkMockComputeMinimumCost
+    <:> shrinkMockComputeSelectionLimit
+    <:> Nil
 
 unMockSelectionConstraints :: MockSelectionConstraints -> SelectionConstraints
 unMockSelectionConstraints m = SelectionConstraints
