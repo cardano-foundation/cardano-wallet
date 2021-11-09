@@ -1,0 +1,11 @@
+# For documentation and available settings, see
+# https://github.com/srid/emanote/blob/master/default/index.yaml
+
+page:
+  siteTitle: Cardano Wallet
+
+template:
+  theme: red
+  sidebar:
+    collapsed: false
+  urlStrategy: pretty

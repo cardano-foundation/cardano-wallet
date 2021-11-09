@@ -40,6 +40,14 @@ jobs:
       - name: '📥 Checkout repository'
         uses: actions/checkout@v2
 
+      - name: '🔧 Build emanote site'
+        run: |
+          cd docs
+          mkdir -p output.docker
+          docker run -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -v $PWD:/data sridca/emanote emanote --layers "/data;/data/.deploy/github" gen /data/output.docker
+          cp -r output.docker ../_build  # Ditch docker created root-owned files
+          bash ../_build/_emanote-bin/compile-css
+
       - name: '📸 Build Documentation'
         id: build
         run: |
