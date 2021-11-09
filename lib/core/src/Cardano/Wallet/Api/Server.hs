@@ -2102,7 +2102,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
     let md = body ^? #metadata . traverse . #getApiT
-    let mTTL = Nothing --TODO: this will be tackled when transaction validity is supported
+    let mTTL = Nothing --TODO: ADP-1189
 
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
@@ -2112,7 +2112,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
             { txWithdrawal = wdrl
             , txMetadata = md
             , txTimeToLive = ttl
-            --, txDelegationAction --TODO: this will be tackled when delegations are supported
+            --, txDelegationAction --TODO: ADP-1189
             }
     let transform s sel =
             ( W.assignChangeAddresses genChange sel s
@@ -2142,7 +2142,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                 Just (ApiPaymentAddresses content) ->
                     pure $ F.toList (addressAmountToTxOut <$> content)
                 Just (ApiPaymentAll _) -> do
-                    liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-909"
+                    liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-1189"
 
             (sel', utx, fee') <- liftHandler $ runSelection outs
             sel <- liftHandler $
