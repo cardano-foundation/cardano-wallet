@@ -9,7 +9,7 @@ info:
     <p align="right"><img style="position: relative; top: -10em; margin-bottom: -12em;" width="20%" src="https://cardanodocs.com/img/cardano.png"></img></p>
 externalDocs:
   description: Need more? Click here to access our API guide and walkthrough.
-  url: https://github.com/input-output-hk/cardano-wallet/wiki
+  url: https://input-output-hk.github.io/cardano-wallet/
 
 servers:
   - url: https://localhost:8090/v2/

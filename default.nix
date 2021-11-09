@@ -33,7 +33,7 @@
 # See release.nix for more info about that.
 #
 # Other documentation:
-#   https://github.com/input-output-hk/cardano-wallet/wiki/Building#nix-build
+#   https://input-output-hk.github.io/cardano-wallet/dev/Building#nix-build
 #
 ############################################################################
 

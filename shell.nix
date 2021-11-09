@@ -5,7 +5,7 @@
 #
 # Short instructions are in ./cabal.project.
 #
-# Full instructions - https://github.com/input-output-hk/cardano-wallet/wiki/Building#cabalnix-build
+# Full instructions - https://input-output-hk.github.io/cardano-wallet/dev/Building#cabalnix-build
 #
 # If you need a nix-shell with Cabal, GHC, and system dependencies, but *without*
 # Haskell dependencies, see ./nix/cabal-shell.nix.
