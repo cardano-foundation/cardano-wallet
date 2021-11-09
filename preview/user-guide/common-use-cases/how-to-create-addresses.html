@@ -14,14 +14,14 @@
       <meta property='og:title' content='How to "create" addresses' />
     
     
-      <base href='/cardano-wallet/' />
+      <base href='/cardano-wallet/preview/' />
       <link href='favicon.svg' rel='icon' />
     
     <meta name='generator' content='Emanote' />
 
   
   <!-- CSSSTART -->
-	<link rel="stylesheet" href="emanote-compiled-b20452398430def54f9147fb23a8ee7c.css" />
+	<link rel="stylesheet" href="emanote-compiled-6bda305e7af28f9e994318f01f9d49aa.css" />
   <!-- CSSEND -->
 
   <!-- Heist error element -->
@@ -1952,7 +1952,7 @@ $ cardano-wallet address list WALLET_ID</code></pre></div>
     <p class='mb-3'>
       {{<span xmlhtmlRaw></hint></span>}}
     </p>
-  <h2 id='listing-addresses-in-sequential-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Sequential wallets (Icarus & Shelley)</h2>
+  <h2 id='sequential-wallets-icarus--shelley' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Sequential wallets (Icarus & Shelley)</h2>
     <p class='mb-3'>
       Since Icarus, wallets use sequential derivation which must satisfy very specific rules: a wallet is not allowed to use addresses beyond a certain limit before previously generated addresses have been used. This means that, at a given point in a time, a wallet has both a minimum and a maximum number of possible unused addresses. By default, the maximum number of consecutive unused addresses is set to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>20</code>.
     </p>
@@ -1990,6 +1990,28 @@ $ cardano-wallet address list WALLET_ID</code></pre></div>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
+  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
+    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
+    <ul class='space-y-1'>
+      
+        <li>
+          <a class='text-red-600 font-bold hover:bg-red-50' href='user-guide/common-use-cases/how-to-create-a-wallet'>
+            How to create a wallet
+          </a>
+          
+            <div class='mb-4 overflow-auto text-sm text-gray-500'>
+  
+    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
+      <div><p>The basic difference between them is that for a <code>random</code> wallet user needs to <a href='user-guide/common-use-cases/how-to-create-addresses' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>create new address</a> manually, whereas for sequential wallets like <code>icarus</code>, <code>trezor</code> and <code>ledger</code> addresses are <a href='user-guide/common-use-cases/how-to-create-addresses' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>generated automatically</a>) by the wallet.</p></div>
+    </div>
+  
+</div>
+          
+        </li>
+      
+    </ul>
+  </div>
+
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>

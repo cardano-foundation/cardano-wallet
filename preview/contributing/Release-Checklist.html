@@ -14,14 +14,14 @@
       <meta property='og:title' content='Release Checklist' />
     
     
-      <base href='/cardano-wallet/' />
+      <base href='/cardano-wallet/preview/' />
       <link href='favicon.svg' rel='icon' />
     
     <meta name='generator' content='Emanote' />
 
   
   <!-- CSSSTART -->
-	<link rel="stylesheet" href="emanote-compiled-b20452398430def54f9147fb23a8ee7c.css" />
+	<link rel="stylesheet" href="emanote-compiled-6bda305e7af28f9e994318f01f9d49aa.css" />
   <!-- CSSEND -->
 
   <!-- Heist error element -->
@@ -1896,14 +1896,7 @@
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Make sure <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> points to correct revisions of dependent low-level libs in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code></a> and <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/cabal.project' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal.project</code></a>.
-      </span>
-    </label>
-  
+      Make sure <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> points to correct revisions of dependent low-level libs in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code></a> and <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/cabal.project' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal.project</code></a>.
     </p>
   
     <p class='mb-3'>
@@ -1923,14 +1916,7 @@
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Fetch the tip of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code>:
-      </span>
-    </label>
-  
+      Fetch the tip of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code>:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='shell language-shell'>$ git checkout master
 $ git pull</code></pre></div>
@@ -1939,14 +1925,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Create a new branch for the release:
-      </span>
-    </label>
-  
+      Create a new branch for the release:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='shell language-shell'>$ git checkout -b your-name/bump-release/YYYY-MM-DD</code></pre></div>
         </li>
@@ -1954,14 +1933,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        From the <strong>root</strong> of the repository, run:
-      </span>
-    </label>
-  
+      From the <strong>root</strong> of the repository, run:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='shell language-shell'>$ ./scripts/make_release.sh</code></pre></div>
     <p class='mb-3'>
@@ -1981,14 +1953,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Verify that the script modified the compatibility matrix in README.md correctly.
-      </span>
-    </label>
-  
+      Verify that the script modified the compatibility matrix in README.md correctly.
     </p>
   
         </li>
@@ -1996,14 +1961,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Open a pull request to submit the modified files
-      </span>
-    </label>
-  
+      Open a pull request to submit the modified files
     </p>
   
         </li>
@@ -2011,14 +1969,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Get it merged
-      </span>
-    </label>
-  
+      Get it merged
     </p>
   
         </li>
@@ -2026,14 +1977,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Trigger a release build on CI (GitHub Actions) and wait for the build artifacts to be published on the GitHub release page.
-      </span>
-    </label>
-  
+      Trigger a release build on CI (GitHub Actions) and wait for the build artifacts to be published on the GitHub release page.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='shell language-shell'>$ git push origin refs/tags/vYYYY-MM-DD</code></pre></div>
     <p class='mb-3'>
@@ -2049,14 +1993,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Write release notes in the <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>release page</a> using the previously generated release notes. Fill in the empty sections.
-      </span>
-    </label>
-  
+      Write release notes in the <a href='https://github.com/input-output-hk/cardano-wallet/releases' class='text-red-600 hover:underline' target='_blank' rel='noopener'>release page</a> using the previously generated release notes. Fill in the empty sections.
     </p>
   
         </li>
@@ -2064,14 +2001,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Remove items that are irrelevant to users (e.g. pure refactoring, improved testing)
-      </span>
-    </label>
-  
+      Remove items that are irrelevant to users (e.g. pure refactoring, improved testing)
     </p>
   
         </li>
@@ -2079,14 +2009,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Make sure the items that the script put in the “Unclassified” section are moved to an appropriate section (or removed).
-      </span>
-    </label>
-  
+      Make sure the items that the script put in the “Unclassified” section are moved to an appropriate section (or removed).
     </p>
   
         </li>
@@ -2094,14 +2017,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        You may want to polish the language of the PR titles to make it sound like actual release notes.
-      </span>
-    </label>
-  
+      You may want to polish the language of the PR titles to make it sound like actual release notes.
     </p>
   
         </li>
@@ -2113,14 +2029,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Verify that the documentations have been correctly exported on <a href='https://github.com/input-output-hk/cardano-wallet/tree/gh-pages' class='text-red-600 hover:underline' target='_blank' rel='noopener'>gh-pages</a>
-      </span>
-    </label>
-  
+      Verify that the documentations have been correctly exported on <a href='https://github.com/input-output-hk/cardano-wallet/tree/gh-pages' class='text-red-600 hover:underline' target='_blank' rel='noopener'>gh-pages</a>
     </p>
   
         </li>
@@ -2128,14 +2037,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Make sure the <a href='user-guide/cli' class='text-red-600 font-bold hover:underline' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a> manual is up to date.
-      </span>
-    </label>
-  
+      Make sure the <a href='user-guide/cli' class='text-red-600 font-bold hover:underline' data-wikilink-type='WikiLinkNormal'>Command-Line Interface</a> manual is up to date.
     </p>
   
         </li>
@@ -2147,14 +2049,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Execute all <a href='https://github.com/input-output-hk/cardano-wallet/tree/master/test/manual' class='text-red-600 hover:underline' target='_blank' rel='noopener'>manual scenarios</a> on the binaries to be released.
-      </span>
-    </label>
-  
+      Execute all <a href='https://github.com/input-output-hk/cardano-wallet/tree/master/test/manual' class='text-red-600 hover:underline' target='_blank' rel='noopener'>manual scenarios</a> on the binaries to be released.
     </p>
   
         </li>
@@ -2162,14 +2057,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Verify that sensitive fields listed in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/lib/core/src/Cardano/Wallet/Api/Server.hs#L409' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Cardano/Wallet/Api/Server</a> are still accurate and aren’t missing any new ones.
-      </span>
-    </label>
-  
+      Verify that sensitive fields listed in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/lib/core/src/Cardano/Wallet/Api/Server.hs#L409' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Cardano/Wallet/Api/Server</a> are still accurate and aren’t missing any new ones.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>sensitive =
     [ "passphrase"
@@ -2183,14 +2071,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Verify latest <a href='https://buildkite.com/input-output-hk/cardano-wallet-nightly' class='text-red-600 hover:underline' target='_blank' rel='noopener'>buildkite nightly</a> and make sure the results are fine. <a href='http://cardano-wallet-benchmarks.herokuapp.com/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Benchmark charts</a> may be helpful in analysis.
-      </span>
-    </label>
-  
+      Verify latest <a href='https://buildkite.com/input-output-hk/cardano-wallet-nightly' class='text-red-600 hover:underline' target='_blank' rel='noopener'>buildkite nightly</a> and make sure the results are fine. <a href='http://cardano-wallet-benchmarks.herokuapp.com/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Benchmark charts</a> may be helpful in analysis.
     </p>
   
         </li>
@@ -2202,14 +2083,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Once everyone has signed off (i.e. Tech lead, QA & Release manager), publish the release draft.
-      </span>
-    </label>
-  
+      Once everyone has signed off (i.e. Tech lead, QA & Release manager), publish the release draft.
     </p>
   
         </li>
@@ -2217,14 +2091,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      
-    <label class='inline-flex items-start space-x-2'>
-      <input type='checkbox' class='flex-shrink-0 w-5 h-5' />
-      <span>
-        Add the release to the <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/migration-tests.nix#L44-L61' class='text-red-600 hover:underline' target='_blank' rel='noopener'>automated migration tests</a> (keep only the last 10 versions). See the header of the file as to how to generate the SHA256 hashes.
-      </span>
-    </label>
-  
+      Add the release to the <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/migration-tests.nix#L44-L61' class='text-red-600 hover:underline' target='_blank' rel='noopener'>automated migration tests</a> (keep only the last 10 versions). See the header of the file as to how to generate the SHA256 hashes.
     </p>
   
         </li>

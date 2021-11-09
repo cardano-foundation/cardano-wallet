@@ -14,14 +14,14 @@
       <meta property='og:title' content='Notes about BIP-44' />
     
     
-      <base href='/cardano-wallet/' />
+      <base href='/cardano-wallet/preview/' />
       <link href='favicon.svg' rel='icon' />
     
     <meta name='generator' content='Emanote' />
 
   
   <!-- CSSSTART -->
-	<link rel="stylesheet" href="emanote-compiled-b20452398430def54f9147fb23a8ee7c.css" />
+	<link rel="stylesheet" href="emanote-compiled-6bda305e7af28f9e994318f01f9d49aa.css" />
   <!-- CSSEND -->
 
   <!-- Heist error element -->
@@ -2061,7 +2061,7 @@
     <p class='mb-3'>
       For sequential discovery to work, one needs to fix some upper boundaries. Without such boundaries, it’d be impossible for a wallet software to know <em>when</em> to stop generating addresses. Because each software that follows BIP-44 also abides by these two rules, it generally works fine. Yet, there are some annoying consequences stemming from it:
     </p>
-  <h3 id='limit-1---unsuitable-for-exchanges' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Limit <span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:1' title='Tag' data-tag='1'><a href='-/tags/1' title='Tag' class='text-red-600 font-bold hover:underline'>#1</a></span> - Unsuitable for exchanges</h3>
+  <h3 id='limit-1---unsuitable-for-exchanges' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Limit 1 - Unsuitable for exchanges</h3>
     <p class='mb-3'>
       Users like exchanges do typically need to generate <em>a lot</em> of unused addresses upfront that their users can use for deposit. BIP-44 is a standard that is well tailored for personal wallets, where the address space grows with the user needs. It is however a quite poor choice for exchanges who typically use a single set of root credentials for managing assets of thousands of users.
     </p>
@@ -2081,7 +2081,7 @@
         </li>
       
     </ul>
-  <h3 id='limit-2---error-prone-with-staging-networks' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Limit <span class='font-bold bg-gray-100 py-0.5 px-2 rounded-lg emanote:inline-tag:2' title='Tag' data-tag='2'><a href='-/tags/2' title='Tag' class='text-red-600 font-bold hover:underline'>#2</a></span> - Error prone with staging networks</h3>
+  <h3 id='limit-2---error-prone-with-staging-networks' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Limit 2 - Error prone with staging networks</h3>
     <p class='mb-3'>
       A subtle issue with BIP-44 wallets would be to use a software to generate addresses on a given network, and use such generated addresses on a different albeit compatible network. This has been the case between the Cardano Mainnet and Staging networks recently. Let’s run through the following example:
     </p>
@@ -2166,18 +2166,6 @@
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>
-    
-      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-red-500' href='-/tags/1'>
-        <!-- DoNotFormat -->
-        #1
-        <!-- DoNotFormat -->
-      </a>
-    
-      <a title='Tag' class='px-1 bg-gray-100 rounded hover:bg-gray-50 hover:text-red-500' href='-/tags/2'>
-        <!-- DoNotFormat -->
-        #2
-        <!-- DoNotFormat -->
-      </a>
     
   </section>
 
