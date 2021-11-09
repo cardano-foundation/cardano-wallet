@@ -2119,13 +2119,36 @@ constructTransaction ctx genChange (ApiT wid) body = do
             W.assignChangeAddresses genChange sel s
             & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
 
+    let transform1 s sel =
+            ( W.assignChangeAddresses genChange sel s
+             & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+            , sel
+            , selectionDelta TokenBundle.getCoin sel
+            )
+
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         let getFee = const (selectionDelta TokenBundle.getCoin)
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
+        let runSelection = W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
+                { outputs = []
+                , pendingTxs
+                , txContext = txCtx
+                , utxoAvailableForInputs =
+                        UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                        UTxOIndex.toUTxO utxoAvailable
+                , wallet
+                } transform1
+
         (sel, sel', fee) <- case (body ^. #payments) of
             Nothing -> do
+                (sel', utx, fee') <- liftHandler runSelection
+                sel <- liftHandler $
+                    W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+                (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
+                {--
                 utx <- liftHandler
                     $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = []
@@ -2168,6 +2191,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         , wallet
                         }
                         transform
+--}
                 pure (sel, sel', estMin)
 
             Just (ApiPaymentAddresses content) -> do
