@@ -71,7 +71,6 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionCollateral (..)
-    , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
     , ApiBase64
@@ -679,7 +678,7 @@ data ApiDelegationAction = Join (ApiT PoolId) | Quit
     deriving anyclass NFData
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
-    { inputs :: ![ApiCoinSelectionInput n]
+    { inputs :: ![ApiWalletInput n]
     , outputs :: ![ApiCoinSelectionOutput n]
     , change :: ![ApiCoinSelectionChange n]
     , collateral :: ![ApiCoinSelectionCollateral n]
@@ -695,16 +694,6 @@ data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    } deriving (Eq, Generic, Show, Typeable)
-      deriving anyclass NFData
-
-data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
-    { id :: !(ApiT (Hash "Tx"))
-    , index :: !Word32
-    , address :: !(ApiT Address, Proxy n)
-    , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    , amount :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT W.TokenMap)
     } deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
@@ -2262,11 +2251,6 @@ instance FromJSON ApiMultiDelegationAction where
 instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiCoinSelectionChange n) where
-    toJSON = genericToJSON defaultRecordTypeOptions
-
-instance DecodeAddress n => FromJSON (ApiCoinSelectionInput n) where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiCoinSelectionInput n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionCollateral n) where

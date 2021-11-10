@@ -206,7 +206,6 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionCollateral (..)
-    , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
@@ -3100,10 +3099,10 @@ mkApiCoinSelection deps mcerts metadata unsignedTx =
       where
         apiStakePath = ApiT <$> xs
 
-    mkApiCoinSelectionInput :: input -> ApiCoinSelectionInput n
+    mkApiCoinSelectionInput :: input -> ApiWalletInput n
     mkApiCoinSelectionInput
         (TxIn txid index, TxOut addr (TokenBundle amount assets), path) =
-        ApiCoinSelectionInput
+        ApiWalletInput
             { id = ApiT txid
             , index = index
             , address = (ApiT addr, Proxy @n)
