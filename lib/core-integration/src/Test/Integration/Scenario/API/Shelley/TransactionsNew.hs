@@ -611,18 +611,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let expectedInputs = getFromResponse (#coinSelection . #inputs) rTx
         let txCbor = getFromResponse #transaction rTx
-
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+
         rDecodedTxSource <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
-
         let decodedInputs = getFromResponse #inputs rDecodedTxSource
 
-        let testEquality [apiWalletInput] [WalletInput apiWalletInput'] =
-                apiWalletInput == apiWalletInput'
-            testEquality _ _ = False
-
-        testEquality expectedInputs decodedInputs `shouldBe` True
+        WalletInput <$> expectedInputs `shouldBe` decodedInputs
 
     it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
