@@ -618,15 +618,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let decodedInputs = getFromResponse #inputs rDecodedTxSource
 
-        let testEquality
-                [ApiCoinSelectionInput id' index' address' path' amt' assets']
-                [WalletInput (ApiWalletInput id'' index'' address'' path'' amt'' assets'')] =
-                id' == id'' &&
-                index' == index'' &&
-                address' == address'' &&
-                path' == path'' &&
-                amt' == amt'' &&
-                assets' == assets''
+        let testEquality [apiWalletInput] [WalletInput apiWalletInput'] =
+                apiWalletInput == apiWalletInput'
             testEquality _ _ = False
 
         testEquality expectedInputs decodedInputs `shouldBe` True
