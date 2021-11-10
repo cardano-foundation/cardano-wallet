@@ -30,7 +30,6 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiCoinSelection (withdrawals)
-    , ApiCoinSelectionInput (..)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
     , ApiSerialisedTransaction (..)
@@ -41,6 +40,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
     , ApiWallet
+    , ApiWalletInput (..)
     , ApiWalletOutput (..)
     , DecodeAddress
     , DecodeStakeAddress
@@ -514,7 +514,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         let filterInitialAmt =
-                filter (\(ApiCoinSelectionInput _ _ _ _ amt' _) -> amt' == Quantity initialAmt)
+                filter $ \(ApiWalletInput _ _ _ _ amt' _) ->
+                    amt' == Quantity initialAmt
         let coinSelInputs = filterInitialAmt $
                 getFromResponse (#coinSelection . #inputs) rTx
         length coinSelInputs `shouldBe` 1

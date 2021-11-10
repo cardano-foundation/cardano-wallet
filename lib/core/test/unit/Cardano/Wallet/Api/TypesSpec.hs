@@ -77,7 +77,6 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionCollateral (..)
-    , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
@@ -468,7 +467,6 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionChange ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionCollateral ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionOutput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionWithdrawal ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiBase64
@@ -872,24 +870,6 @@ spec = parallel $ do
                         (x :: ApiCoinSelectionChange ('Testnet 0))
                     , derivationPath = derivationPath
                         (x :: ApiCoinSelectionChange ('Testnet 0))
-                    }
-            in
-                x' === x .&&. show x' === show x
-        it "ApiCoinSelectionInput" $ property $ \x ->
-            let
-                x' = ApiCoinSelectionInput
-                    { id = id
-                        (x :: ApiCoinSelectionInput ('Testnet 0))
-                    , index = index
-                        (x :: ApiCoinSelectionInput ('Testnet 0))
-                    , address = address
-                        (x :: ApiCoinSelectionInput ('Testnet 0))
-                    , amount = amount
-                        (x :: ApiCoinSelectionInput ('Testnet 0))
-                    , assets = assets
-                        (x :: ApiCoinSelectionInput ('Testnet 0))
-                    , derivationPath = derivationPath
-                        (x :: ApiCoinSelectionInput ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1483,16 +1463,6 @@ instance Arbitrary (ApiCoinSelection n) where
 instance Arbitrary (ApiCoinSelectionChange n) where
     arbitrary = ApiCoinSelectionChange
         <$> fmap (, Proxy @n) arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-    shrink _ = []
-
-instance Arbitrary (ApiCoinSelectionInput n) where
-    arbitrary = ApiCoinSelectionInput
-        <$> arbitrary
-        <*> arbitrary
-        <*> fmap (, Proxy @n) arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
