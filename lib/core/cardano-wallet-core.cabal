@@ -233,6 +233,7 @@ library
       Control.Concurrent.Concierge
       Control.Monad.Random.Extra
       Crypto.Hash.Utils
+      Data.Aeson.Extra
       Data.Function.Utils
       Data.Time.Text
       Data.Time.Utils
