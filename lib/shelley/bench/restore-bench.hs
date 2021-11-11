@@ -466,6 +466,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         let runSelection = W.selectAssets @_ @_ @s @k w pp W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
@@ -568,6 +569,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         let runSelection = W.selectAssets @_ @_ @s @k w pp W.SelectAssetsParams
                 { outputs = [out]
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable

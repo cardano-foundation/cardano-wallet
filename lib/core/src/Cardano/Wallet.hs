@@ -1508,6 +1508,7 @@ balanceTransaction
             selectAssets @_ @m @s @k ctx pp SelectAssetsParams
                 { outputs
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext
                 , utxoAvailableForInputs
                 , utxoAvailableForCollateral
@@ -1776,9 +1777,10 @@ calcMinimumCoinValues ctx outs = do
 
 -- | Parameters for the 'selectAssets' function.
 --
-data SelectAssetsParams s result = SelectAssetsParams
+data SelectAssetsParams m s result = SelectAssetsParams
     { outputs :: [TxOut]
     , pendingTxs :: Set Tx
+    , randomSeed :: Maybe (RandomSeed m)
     , txContext :: TransactionCtx
     , utxoAvailableForCollateral :: UTxO
     , utxoAvailableForInputs :: UTxOSelection
@@ -1798,7 +1800,7 @@ selectAssets
         )
     => ctx
     -> ProtocolParameters
-    -> SelectAssetsParams s result
+    -> SelectAssetsParams m s result
     -> (s -> Selection -> result)
     -> ExceptT ErrSelectAssets m result
 selectAssets ctx pp params transform = do
