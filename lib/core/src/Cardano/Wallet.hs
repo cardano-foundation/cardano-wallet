@@ -443,8 +443,8 @@ import Control.Monad.Class.MonadTime
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
-import Control.Monad.Random
-    ( MonadRandom )
+import Control.Monad.Random.Extra
+    ( MonadRandomState (..), RandomSeed )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -1438,7 +1438,7 @@ balanceTransaction
         ( HasTransactionLayer k ctx
         , HasLogger m WalletWorkerLog ctx
         , GenChange s
-        , MonadRandom m
+        , MonadRandomState m
         )
     => ctx
     -> ArgGenChange s
@@ -1794,7 +1794,7 @@ selectAssets
     :: forall ctx m s k result.
         ( HasTransactionLayer k ctx
         , HasLogger m WalletWorkerLog ctx
-        , MonadRandom m
+        , MonadRandomState m
         )
     => ctx
     -> ProtocolParameters
