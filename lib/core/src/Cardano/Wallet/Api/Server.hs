@@ -1578,6 +1578,7 @@ selectCoins ctx genChange (ApiT wid) body = do
             $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
@@ -1630,6 +1631,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
             $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
@@ -1676,6 +1678,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
             $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
@@ -1920,6 +1923,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
             $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
@@ -2059,6 +2063,7 @@ postTransactionFeeOld ctx (ApiT wid) body = do
         let runSelection = W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = F.toList outs
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
@@ -2125,6 +2130,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                     $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = []
                         , pendingTxs
+                        , randomSeed = Nothing
                         , txContext = txCtx
                         , utxoAvailableForInputs =
                             UTxOSelection.fromIndex utxoAvailable
@@ -2138,6 +2144,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         W.SelectAssetsParams
                             { outputs = []
                             , pendingTxs
+                            , randomSeed = Nothing
                             , txContext = txCtx
                             , utxoAvailableForInputs =
                                 UTxOSelection.fromIndex utxoAvailable
@@ -2152,6 +2159,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                     $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = []
                         , pendingTxs
+                        , randomSeed = Nothing
                         , txContext = txCtx
                         , utxoAvailableForInputs =
                             UTxOSelection.fromIndex utxoAvailable
@@ -2168,6 +2176,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                     $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = F.toList outs
                         , pendingTxs
+                        , randomSeed = Nothing
                         , txContext = txCtx
                         , utxoAvailableForInputs =
                             UTxOSelection.fromIndex utxoAvailable
@@ -2181,6 +2190,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                     $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = F.toList outs
                         , pendingTxs
+                        , randomSeed = Nothing
                         , txContext = txCtx
                         , utxoAvailableForInputs =
                             UTxOSelection.fromIndex utxoAvailable
@@ -2195,6 +2205,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                     $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = F.toList outs
                         , pendingTxs
+                        , randomSeed = Nothing
                         , txContext = txCtx
                         , utxoAvailableForInputs =
                             UTxOSelection.fromIndex utxoAvailable
@@ -2365,6 +2376,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
@@ -2428,6 +2440,7 @@ delegationFee ctx (ApiT wid) = do
         W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
             { outputs = []
             , pendingTxs
+            , randomSeed = Nothing
             , txContext = txCtx
             , utxoAvailableForInputs =
                 UTxOSelection.fromIndex utxoAvailable
@@ -2478,6 +2491,7 @@ quitStakePool ctx (ApiT wid) body = do
             $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = []
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
                     UTxOSelection.fromIndex utxoAvailable
