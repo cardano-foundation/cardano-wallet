@@ -451,6 +451,7 @@ test-suite unit
       Cardano.Wallet.RegistrySpec
       Cardano.WalletSpec
       Control.Concurrent.ConciergeSpec
+      Control.Monad.Random.ExtraSpec
       Data.Function.UtilsSpec
       Data.QuantitySpec
       Data.Time.TextSpec
