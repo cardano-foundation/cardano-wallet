@@ -988,7 +988,7 @@ toChainPoint genesisBlock (BlockHeader slot _ h _)
   where
     genesisHash = genesisBlock ^. (#header . #headerHash)
 
-{- NOTE [PointSlotNo] 
+{- NOTE [PointSlotNo]
 
 `SlotNo` cannot represent the genesis point `Origin`.
 
