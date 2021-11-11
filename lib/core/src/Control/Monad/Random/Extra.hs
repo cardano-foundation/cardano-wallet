@@ -32,6 +32,10 @@ import Control.Applicative
     ( Applicative (..) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
+import Data.Aeson
+    ( FromJSON (..), ToJSON (..), Value (Number) )
+import Data.Aeson.Extra
+    ( parseBoundedIntegral )
 import Data.Bits
     ( (.|.) )
 import Data.Coerce
@@ -97,6 +101,12 @@ newtype StdGenSeed = StdGenSeed
     deriving Show via (Quiet StdGenSeed)
 
 type Word127 = OddWord Word128 (Lit 127)
+
+instance ToJSON StdGenSeed where
+    toJSON = toJSON . Number . fromIntegral . unStdGenSeed
+
+instance FromJSON StdGenSeed where
+    parseJSON = fmap StdGenSeed . parseBoundedIntegral "StdGenSeed"
 
 -- | Converts a 'StdGenSeed' value to a 'StdGen' value.
 --
