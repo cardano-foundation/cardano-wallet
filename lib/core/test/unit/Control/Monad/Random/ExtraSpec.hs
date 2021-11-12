@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -17,8 +18,14 @@ import Control.Monad.Random.Extra
     , stdGenFromSeed
     , stdGenToSeed
     )
+import Data.Aeson
+    ( FromJSON, ToJSON )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Typeable
+    ( Typeable )
+import System.FilePath
+    ( (</>) )
 import System.Random
     ( Random (..), mkStdGen )
 import Test.Hspec
@@ -39,6 +46,10 @@ import Test.QuickCheck.Monadic
     ( assert, monadic, run )
 import Test.QuickCheck.Property
     ( ioProperty )
+import Test.Utils.Paths
+    ( getTestData )
+
+import qualified Test.Utils.Roundtrip as Roundtrip
 
 spec :: Spec
 spec = describe "Control.Monad.Random.ExtraSpec" $ do
@@ -62,10 +73,13 @@ spec = describe "Control.Monad.Random.ExtraSpec" $ do
                 prop_MonadRandomState_setRandomSeed_getRandomSeed runNonRandom
 
     describe "StdGenSeed" $ do
-        it "prop_stdGenToSeed_stdGenFromSeed" $
-            property prop_stdGenToSeed_stdGenFromSeed
-        it "prop_stdGenFromSeed_stdGenToSeed" $
-            property prop_stdGenFromSeed_stdGenToSeed
+        describe "Roundtrip conversion between StdGen and StdGenSeed" $ do
+            it "prop_stdGenToSeed_stdGenFromSeed" $
+                property prop_stdGenToSeed_stdGenFromSeed
+            it "prop_stdGenFromSeed_stdGenToSeed" $
+                property prop_stdGenFromSeed_stdGenToSeed
+        describe "Roundtrip conversion to and from JSON" $
+            testJson $ Proxy @StdGenSeed
 
 --------------------------------------------------------------------------------
 -- Random number generator states
@@ -166,3 +180,15 @@ genBoundedIntegralWithUniformPriority uniformPriority = frequency
     , (1, pure (maxBound - 1))
     , (uniformPriority, arbitraryBoundedIntegral)
     ]
+
+testJson
+    :: (Arbitrary a, ToJSON a, FromJSON a, Typeable a) => Proxy a -> Spec
+testJson = Roundtrip.jsonRoundtripAndGolden testJsonDataDirectory
+
+testJsonDataDirectory :: FilePath
+testJsonDataDirectory =
+    ($(getTestData)
+        </> "Control"
+        </> "Monad"
+        </> "Random"
+        </> "Extra")
