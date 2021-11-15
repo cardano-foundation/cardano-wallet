@@ -1792,10 +1792,25 @@ data SelectAssetsParams s result = SelectAssetsParams
     }
     deriving Generic
 
--- | Selects assets from the wallet's UTxO to satisfy the requested outputs in
--- the given transaction context. In case of success, returns the selection
--- and its associated cost. That is, the cost is equal to the difference between
--- inputs and outputs.
+-- | Selects assets from a wallet.
+--
+-- This function has the following responsibilities:
+--
+--  - selecting inputs from the UTxO set to pay for user-specified outputs;
+--  - selecting inputs from the UTxO set to pay for collateral;
+--  - producing change outputs to return excess value to the wallet;
+--  - balancing a selection to pay for the transaction fee.
+--
+-- When selecting inputs to pay for user-specified outputs, inputs are selected
+-- randomly.
+--
+-- By default, the seed used for random selection is derived automatically,
+-- from the given 'MonadRandom' context.
+--
+-- However, if a concrete value is specified for the optional 'randomSeed'
+-- parameter, then that value will be used instead as the seed for random
+-- selection.
+--
 selectAssets
     :: forall ctx m s k result.
         ( HasTransactionLayer k ctx
