@@ -109,7 +109,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
 
     it "mint-burn" do
-      vk = SHELLEY.keys.get_public_key(@wid, 'utxo_external', 0, {hash: true})
+      vk = SHELLEY.keys.get_public_key(@wid, 'utxo_external', 0, {hash: true}).gsub("\"",'')
       vkHash = bech32_to_base16(vk)
       policy = read_mustached_file("mintBurn_policy", {vkHash: vkHash})
       policy_id = get_policy_id(policy)
