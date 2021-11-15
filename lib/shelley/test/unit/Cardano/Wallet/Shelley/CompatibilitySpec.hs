@@ -102,8 +102,6 @@ import Codec.Binary.Encoding
     ( fromBase16 )
 import Control.Monad
     ( forM_ )
-import Data.ByteArray.Encoding
-    ( Base (..), convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
@@ -201,15 +199,11 @@ spec = do
                 Just _ -> property True
                 Nothing -> property False
 
-        prop "Shelley addresses from base16, bech32 and base58" $ \k -> do
+        prop "Shelley addresses from bech32" $ \k -> do
             let addr@(Address bytes) = paymentAddress @'Mainnet @ShelleyKey k
             conjoin
-                [ decodeAddress @'Mainnet (base16 bytes) === Right addr
-                    & counterexample (show $ base16 bytes)
-                , decodeAddress @'Mainnet (bech32 bytes) === Right addr
+                [ decodeAddress @'Mainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
-                , decodeAddress @'Mainnet (base58 bytes) === Right addr
-                    & counterexample (show $ base58 bytes)
                 ]
 
         prop "Shelley addresses from bech32 - testnet" $ \k ->
@@ -217,14 +211,10 @@ spec = do
             in decodeAddress @('Testnet 0) (bech32testnet raw) === Right addr
                    & counterexample (show $ bech32testnet raw)
 
-        prop "Byron addresses from base16, bech32 and base58" $ \k -> do
+        prop "Byron addresses from base58" $ \k -> do
             let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey k
             conjoin
-                [ decodeAddress @'Mainnet (base16 bytes) === Right addr
-                    & counterexample (show $ base16 bytes)
-                , decodeAddress @'Mainnet (bech32 bytes) === Right addr
-                    & counterexample (show $ bech32 bytes)
-                , decodeAddress @'Mainnet (base58 bytes) === Right addr
+                [ decodeAddress @'Mainnet (base58 bytes) === Right addr
                     & counterexample (show $ base58 bytes)
                 ]
 
@@ -827,9 +817,6 @@ instance Arbitrary (VariableSize128 TokenBundle) where
 -- Helpers
 --
 --
-
-base16 :: ByteString -> Text
-base16 = T.decodeUtf8 . convertToBase Base16
 
 bech32 :: ByteString -> Text
 bech32 = Bech32.encodeLenient hrp . Bech32.dataPartFromBytes
