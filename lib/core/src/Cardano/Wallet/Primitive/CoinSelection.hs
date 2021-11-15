@@ -8,7 +8,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -102,12 +101,10 @@ import Cardano.Wallet.Primitive.Types.UTxOSelection
     ( UTxOSelection )
 import Control.Monad
     ( (<=<) )
-import Control.Monad.Identity
-    ( Identity (..) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
-import Control.Monad.Random.Lazy
-    ( Random (..), StdGen, mkStdGen )
+import Control.Monad.Random.Extra
+    ( NonRandom (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, withExceptT )
 import Data.Function
@@ -1044,7 +1041,7 @@ verifyUnableToConstructChangeError cs ps errorOriginal =
         -- covers the desired output amount.
         --
         -- To satisfy the requirement to provide a 'MonadRandom' context, we use
-        -- the 'Identity' type, for which a 'MonadRandom' instance is provided.
+        -- the 'NonRandom' type, for which a 'MonadRandom' instance is provided.
         -- This instance, when asked to provide a random value from within a
         -- range of values, will always provide the same value.
         --
@@ -1055,7 +1052,7 @@ verifyUnableToConstructChangeError cs ps errorOriginal =
         -- and thus the selection algorithm will always be able to make forward
         -- progress.
         --
-        runIdentity $ runExceptT $ performSelection cs' ps
+        runNonRandom $ runExceptT $ performSelection cs' ps
       where
         -- A modified set of constraints that should always allow the
         -- successful creation of a selection:
@@ -1612,23 +1609,3 @@ instance Buildable (SelectionOf TxOut) where
     build = build
         . makeSelectionReport
         . over #change (fmap $ view #tokens)
-
---------------------------------------------------------------------------------
--- Internal class instances
---------------------------------------------------------------------------------
-
--- | A convenience instance of 'MonadRandom' for 'Identity'.
---
--- All member functions return results that are constant w.r.t. to their inputs.
---
--- This instance should only be used in circumstances where randomness is not
--- important.
---
-instance MonadRandom Identity where
-    getRandom = pure $ fst $ random defaultStdGen
-    getRandoms = pure $ randoms defaultStdGen
-    getRandomR r = pure $ fst $ randomR r defaultStdGen
-    getRandomRs r = pure $ randomRs r defaultStdGen
-
-defaultStdGen :: StdGen
-defaultStdGen = mkStdGen 0

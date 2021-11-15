@@ -137,6 +137,7 @@ library
     , wai
     , warp
     , warp-tls
+    , wide-word
     , x509
     , x509-store
     , x509-validation
@@ -230,7 +231,9 @@ library
       Cardano.Wallet.Version
       Cardano.Wallet.Version.TH
       Control.Concurrent.Concierge
+      Control.Monad.Random.Extra
       Crypto.Hash.Utils
+      Data.Aeson.Extra
       Data.Function.Utils
       Data.Time.Text
       Data.Time.Utils
@@ -449,6 +452,7 @@ test-suite unit
       Cardano.Wallet.RegistrySpec
       Cardano.WalletSpec
       Control.Concurrent.ConciergeSpec
+      Control.Monad.Random.ExtraSpec
       Data.Function.UtilsSpec
       Data.QuantitySpec
       Data.Time.TextSpec

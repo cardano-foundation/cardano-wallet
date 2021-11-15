@@ -443,8 +443,12 @@ import Control.Monad.Class.MonadTime
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
-import Control.Monad.Random
-    ( MonadRandom )
+import Control.Monad.Random.Class
+    ( MonadRandom (..) )
+import Control.Monad.Random.Extra
+    ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
+import Control.Monad.Random.Strict
+    ( evalRand )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -988,7 +992,7 @@ toChainPoint genesisBlock (BlockHeader slot _ h _)
   where
     genesisHash = genesisBlock ^. (#header . #headerHash)
 
-{- NOTE [PointSlotNo] 
+{- NOTE [PointSlotNo]
 
 `SlotNo` cannot represent the genesis point `Origin`.
 
@@ -1508,6 +1512,7 @@ balanceTransaction
             selectAssets @_ @m @s @k ctx pp SelectAssetsParams
                 { outputs
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext
                 , utxoAvailableForInputs
                 , utxoAvailableForCollateral
@@ -1779,6 +1784,7 @@ calcMinimumCoinValues ctx outs = do
 data SelectAssetsParams s result = SelectAssetsParams
     { outputs :: [TxOut]
     , pendingTxs :: Set Tx
+    , randomSeed :: Maybe StdGenSeed
     , txContext :: TransactionCtx
     , utxoAvailableForCollateral :: UTxO
     , utxoAvailableForInputs :: UTxOSelection
@@ -1786,10 +1792,25 @@ data SelectAssetsParams s result = SelectAssetsParams
     }
     deriving Generic
 
--- | Selects assets from the wallet's UTxO to satisfy the requested outputs in
--- the given transaction context. In case of success, returns the selection
--- and its associated cost. That is, the cost is equal to the difference between
--- inputs and outputs.
+-- | Selects assets from a wallet.
+--
+-- This function has the following responsibilities:
+--
+--  - selecting inputs from the UTxO set to pay for user-specified outputs;
+--  - selecting inputs from the UTxO set to pay for collateral;
+--  - producing change outputs to return excess value to the wallet;
+--  - balancing a selection to pay for the transaction fee.
+--
+-- When selecting inputs to pay for user-specified outputs, inputs are selected
+-- randomly.
+--
+-- By default, the seed used for random selection is derived automatically,
+-- from the given 'MonadRandom' context.
+--
+-- However, if a concrete value is specified for the optional 'randomSeed'
+-- parameter, then that value will be used instead as the seed for random
+-- selection.
+--
 selectAssets
     :: forall ctx m s k result.
         ( HasTransactionLayer k ctx
@@ -1806,8 +1827,7 @@ selectAssets ctx pp params transform = do
     lift $ traceWith tr $ MsgSelectionStart
         (UTxOSelection.availableUTxO $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
-    mSel <- runExceptT $ performSelection
-        SelectionConstraints
+    let selectionConstraints = SelectionConstraints
             { assessTokenBundleSize =
                 view #assessTokenBundleSize $
                 tokenBundleSizeAssessor tl $
@@ -1827,7 +1847,7 @@ selectAssets ctx pp params transform = do
             , utxoSuitableForCollateral =
                 asCollateral . snd
             }
-        SelectionParams
+    let selectionParams = SelectionParams
             { assetsToMint =
                 params ^. (#txContext . #txAssetsToMint)
             , assetsToBurn =
@@ -1850,6 +1870,10 @@ selectAssets ctx pp params transform = do
             , utxoAvailableForInputs =
                 params ^. #utxoAvailableForInputs
             }
+    randomSeed <- maybe stdGenSeed pure (params ^. #randomSeed)
+    let mSel = flip evalRand (stdGenFromSeed randomSeed)
+            $ runExceptT
+            $ performSelection selectionConstraints selectionParams
     case mSel of
         Left e -> lift $
             traceWith tr $ MsgSelectionError e
