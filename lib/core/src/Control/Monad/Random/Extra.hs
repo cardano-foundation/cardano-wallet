@@ -15,6 +15,7 @@ module Control.Monad.Random.Extra
     (
     -- * Random number generator seeds
       StdGenSeed (..)
+    , stdGenSeed
     , stdGenFromSeed
     , stdGenToSeed
 
@@ -83,6 +84,16 @@ instance ToJSON StdGenSeed where
 
 instance FromJSON StdGenSeed where
     parseJSON = fmap StdGenSeed . parseBoundedIntegral "StdGenSeed"
+
+-- | Creates a new 'StdGenSeed' from within a random monadic context.
+--
+stdGenSeed :: MonadRandom m => m StdGenSeed
+stdGenSeed = do
+    hi <- getRandom
+    lo <- getRandom
+    pure $ StdGenSeed $ (.|.)
+        (fromIntegral @Word64 @Word127 hi `Bits.shiftL` 63)
+        (fromIntegral @Word64 @Word127 lo)
 
 -- | Converts a 'StdGenSeed' value to a 'StdGen' value.
 --

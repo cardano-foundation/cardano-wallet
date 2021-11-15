@@ -446,7 +446,7 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Random.Extra
-    ( StdGenSeed (..), stdGenFromSeed )
+    ( StdGenSeed (..), stdGenFromSeed, stdGenSeed )
 import Control.Monad.Random.Strict
     ( evalRand )
 import Control.Monad.Trans.Class
@@ -1855,9 +1855,7 @@ selectAssets ctx pp params transform = do
             , utxoAvailableForInputs =
                 params ^. #utxoAvailableForInputs
             }
-    randomSeed <- case params ^. #randomSeed of
-        Just rs -> pure rs
-        Nothing -> StdGenSeed . fromIntegral @Word64 <$> getRandom
+    randomSeed <- maybe stdGenSeed pure (params ^. #randomSeed)
     let mSel = flip evalRand (stdGenFromSeed randomSeed)
             $ runExceptT
             $ performSelection selectionConstraints selectionParams
