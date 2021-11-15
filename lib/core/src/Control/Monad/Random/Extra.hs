@@ -13,11 +13,8 @@
 --
 module Control.Monad.Random.Extra
     (
-    -- * Random number generator states
-      MonadRandomState (..)
-
     -- * Random number generator seeds
-    , StdGenSeed (..)
+      StdGenSeed (..)
     , stdGenFromSeed
     , stdGenToSeed
 
@@ -51,34 +48,13 @@ import GHC.Generics
 import Quiet
     ( Quiet (..) )
 import System.Random
-    ( Random (..), RandomGen (..), getStdGen, setStdGen )
+    ( Random (..), RandomGen (..) )
 import System.Random.Internal
     ( StdGen (..) )
 import System.Random.SplitMix
     ( seedSMGen', unseedSMGen )
 
 import qualified Data.Bits as Bits
-
---------------------------------------------------------------------------------
--- Random number generator states
---------------------------------------------------------------------------------
-
--- | Provides support for manipulating the state of the random number generator
---   associated with a 'MonadRandom' context.
---
--- Instances of this class should satisfy the following law:
---
--- >>> (setRandomSeed s >> getRandomSeed) == pure s
---
-class MonadRandom m => MonadRandomState m where
-    type RandomSeed m
-    getRandomSeed :: m (RandomSeed m)
-    setRandomSeed :: RandomSeed m -> m ()
-
-instance MonadRandomState IO where
-    type RandomSeed IO = StdGenSeed
-    getRandomSeed = stdGenToSeed <$> getStdGen
-    setRandomSeed = setStdGen . stdGenFromSeed
 
 --------------------------------------------------------------------------------
 -- Random number generator seeds
@@ -169,11 +145,6 @@ instance MonadRandom NonRandom where
     getRandomR r = pure $ fst $ randomR r NonRandomGen
     getRandomRs r = pure $ randomRs r NonRandomGen
     getRandoms = pure $ randoms NonRandomGen
-
-instance MonadRandomState NonRandom where
-    type RandomSeed NonRandom = ()
-    getRandomSeed = pure ()
-    setRandomSeed () = pure ()
 
 -- | Provides a stateless and non-random implementation of 'RandomGen'
 --
