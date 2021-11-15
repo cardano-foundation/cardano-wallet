@@ -2116,7 +2116,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
             }
     let transform s sel =
             ( W.assignChangeAddresses genChange sel s
-             & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
             , sel
             , selectionDelta TokenBundle.getCoin sel
             )
@@ -2128,11 +2128,12 @@ constructTransaction ctx genChange (ApiT wid) body = do
         let runSelection outs = W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                 { outputs = outs
                 , pendingTxs
+                , randomSeed = Nothing
                 , txContext = txCtx
                 , utxoAvailableForInputs =
-                        UTxOSelection.fromIndex utxoAvailable
+                    UTxOSelection.fromIndex utxoAvailable
                 , utxoAvailableForCollateral =
-                        UTxOIndex.toUTxO utxoAvailable
+                    UTxOIndex.toUTxO utxoAvailable
                 , wallet
                 } transform
 
