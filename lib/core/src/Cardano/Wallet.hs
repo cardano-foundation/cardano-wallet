@@ -443,6 +443,7 @@ import Control.Monad.Class.MonadTime
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
+import Control.Monad.Random
 import Control.Monad.Random.Extra
     ( MonadRandomState (..), RandomSeed )
 import Control.Monad.Trans.Class
@@ -461,7 +462,7 @@ import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.State
     ( evalState, runState, state )
 import Control.Tracer
-    ( Tracer, contramap, traceWith )
+    ( Tracer (..), contramap, runTracer, traceWith )
 import Crypto.Hash
     ( Blake2b_256, hash )
 import Data.ByteString
@@ -483,7 +484,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
-    ( HasType, typed )
+    ( HasType (..), typed )
 import Data.IntCast
     ( intCast )
 import Data.Kind
@@ -609,6 +610,7 @@ data WalletLayer m s (k :: Depth -> Type -> Type)
         (NetworkLayer m Block)
         (TransactionLayer k SealedTx)
         (DBLayer m s k)
+        StdGen
     deriving (Generic)
 
 {-------------------------------------------------------------------------------
@@ -646,6 +648,13 @@ type HasDBLayer m s k = HasType (DBLayer m s k)
 type HasGenesisData = HasType (Block, NetworkParameters, SyncTolerance)
 
 type HasLogger m msg = HasType (Tracer m msg)
+
+-- HasType (Tracer m WalletWorkerLog) ctx
+-- HasType (Tracer (t m) WalletWorkerLog) ctx
+
+instance {-# OVERLAPS #-} (MonadIO m, Monad m, Generic ctx, HasType g ctx, HasType (Tracer m msg) ctx) => HasType (Tracer (RandT g m) msg) ctx where
+    getTyped = Tracer . (lift .) . runTracer . getTyped
+    setTyped tracerTm ctx = setTyped (Tracer $ (flip evalRandT (getTyped ctx) .) $ runTracer $ tracerTm) ctx
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
@@ -1508,7 +1517,6 @@ balanceTransaction
             selectAssets @_ @m @s @k ctx pp SelectAssetsParams
                 { outputs
                 , pendingTxs
-                , randomSeed = Nothing
                 , txContext
                 , utxoAvailableForInputs
                 , utxoAvailableForCollateral
@@ -1777,10 +1785,9 @@ calcMinimumCoinValues ctx outs = do
 
 -- | Parameters for the 'selectAssets' function.
 --
-data SelectAssetsParams m s result = SelectAssetsParams
+data SelectAssetsParams s result = SelectAssetsParams
     { outputs :: [TxOut]
     , pendingTxs :: Set Tx
-    , randomSeed :: Maybe (RandomSeed m)
     , txContext :: TransactionCtx
     , utxoAvailableForCollateral :: UTxO
     , utxoAvailableForInputs :: UTxOSelection
@@ -1796,11 +1803,11 @@ selectAssets
     :: forall ctx m s k result.
         ( HasTransactionLayer k ctx
         , HasLogger m WalletWorkerLog ctx
-        , MonadRandomState m
+        , MonadRandom m
         )
     => ctx
     -> ProtocolParameters
-    -> SelectAssetsParams m s result
+    -> SelectAssetsParams s result
     -> (s -> Selection -> result)
     -> ExceptT ErrSelectAssets m result
 selectAssets ctx pp params transform = do
@@ -1865,6 +1872,7 @@ selectAssets ctx pp params transform = do
   where
     tl = ctx ^. transactionLayer @k
     tr = contramap MsgWallet $ ctx ^. logger @m
+    -- tr = undefined
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
