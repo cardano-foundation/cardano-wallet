@@ -2840,11 +2840,11 @@ getNetworkInformation st nl = liftIO $ do
         return (tip, nextEpoch)
 
 getNetworkParameters
-    :: (Block, NetworkParameters, SyncTolerance)
+    :: (Block, NetworkParameters, SyncTolerance, Int)
     -> NetworkLayer IO Block
     -> TransactionLayer k W.SealedTx
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, genesisNp, _st) nl tl = do
+getNetworkParameters (_block0, genesisNp, _st, _) nl tl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
     let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
@@ -3396,7 +3396,7 @@ newApiLayer
         , IsOurs s Address
         )
     => Tracer IO WalletEngineLog
-    -> (Block, NetworkParameters, SyncTolerance)
+    -> (Block, NetworkParameters, SyncTolerance, Int)
     -> NetworkLayer IO Block
     -> TransactionLayer k W.SealedTx
     -> DBFactory IO s k
@@ -3430,7 +3430,7 @@ startWalletWorker ctx coworker = void . registerWorker ctx before coworker
     before ctx' wid =
         runExceptT (W.checkWalletIntegrity ctx' wid gp)
         >>= either throwIO pure
-    (_, NetworkParameters gp _ _, _) = ctx ^. genesisData
+    (_, NetworkParameters gp _ _, _, _) = ctx ^. genesisData
 
 -- | Register a wallet create and restore thread with the worker registry.
 -- See 'Cardano.Wallet#createWallet'
