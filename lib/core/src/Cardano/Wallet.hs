@@ -443,8 +443,12 @@ import Control.Monad.Class.MonadTime
     )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
+import Control.Monad.Random.Class
+    ( MonadRandom (..) )
 import Control.Monad.Random.Extra
-    ( MonadRandomState (..), RandomSeed )
+    ( StdGenSeed (..), stdGenFromSeed )
+import Control.Monad.Random.Strict
+    ( evalRand )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -1438,7 +1442,7 @@ balanceTransaction
         ( HasTransactionLayer k ctx
         , HasLogger m WalletWorkerLog ctx
         , GenChange s
-        , MonadRandomState m
+        , MonadRandom m
         )
     => ctx
     -> ArgGenChange s
@@ -1777,10 +1781,10 @@ calcMinimumCoinValues ctx outs = do
 
 -- | Parameters for the 'selectAssets' function.
 --
-data SelectAssetsParams m s result = SelectAssetsParams
+data SelectAssetsParams s result = SelectAssetsParams
     { outputs :: [TxOut]
     , pendingTxs :: Set Tx
-    , randomSeed :: Maybe (RandomSeed m)
+    , randomSeed :: Maybe StdGenSeed
     , txContext :: TransactionCtx
     , utxoAvailableForCollateral :: UTxO
     , utxoAvailableForInputs :: UTxOSelection
@@ -1796,11 +1800,11 @@ selectAssets
     :: forall ctx m s k result.
         ( HasTransactionLayer k ctx
         , HasLogger m WalletWorkerLog ctx
-        , MonadRandomState m
+        , MonadRandom m
         )
     => ctx
     -> ProtocolParameters
-    -> SelectAssetsParams m s result
+    -> SelectAssetsParams s result
     -> (s -> Selection -> result)
     -> ExceptT ErrSelectAssets m result
 selectAssets ctx pp params transform = do
@@ -1808,8 +1812,7 @@ selectAssets ctx pp params transform = do
     lift $ traceWith tr $ MsgSelectionStart
         (UTxOSelection.availableUTxO $ params ^. #utxoAvailableForInputs)
         (params ^. #outputs)
-    mSel <- runExceptT $ performSelection
-        SelectionConstraints
+    let selectionConstraints = SelectionConstraints
             { assessTokenBundleSize =
                 view #assessTokenBundleSize $
                 tokenBundleSizeAssessor tl $
@@ -1829,7 +1832,7 @@ selectAssets ctx pp params transform = do
             , utxoSuitableForCollateral =
                 asCollateral . snd
             }
-        SelectionParams
+    let selectionParams = SelectionParams
             { assetsToMint =
                 params ^. (#txContext . #txAssetsToMint)
             , assetsToBurn =
@@ -1852,6 +1855,12 @@ selectAssets ctx pp params transform = do
             , utxoAvailableForInputs =
                 params ^. #utxoAvailableForInputs
             }
+    randomSeed <- case params ^. #randomSeed of
+        Just rs -> pure rs
+        Nothing -> StdGenSeed . fromIntegral @Word64 <$> getRandom
+    let mSel = flip evalRand (stdGenFromSeed randomSeed)
+            $ runExceptT
+            $ performSelection selectionConstraints selectionParams
     case mSel of
         Left e -> lift $
             traceWith tr $ MsgSelectionError e
