@@ -609,6 +609,7 @@ data WalletLayer m s (k :: Depth -> Type -> Type)
         (NetworkLayer m Block)
         (TransactionLayer k SealedTx)
         (DBLayer m s k)
+        Int
     deriving (Generic)
 
 {-------------------------------------------------------------------------------
