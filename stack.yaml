@@ -131,6 +131,13 @@ extra-deps:
 - git: https://github.com/input-output-hk/optparse-applicative
   commit: 7497a29cb998721a9068d5725d49461f2bba0e7a
 
+  # bech32-1.1.2
+- git: https://github.com/input-output-hk/bech32
+  commit: ab61914443e5f53624d3b2995767761b3f68e576
+  subdirs:
+  - bech32
+  - bech32-th
+
 - git: https://github.com/input-output-hk/cardano-base
   commit: e8a48cf0500b03c744c7fc6f2fedb86e8bdbe055
   subdirs:
