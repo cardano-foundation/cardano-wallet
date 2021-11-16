@@ -17,6 +17,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -127,6 +128,7 @@ module Cardano.Wallet
     , ErrConstructTx (..)
     , ErrMintBurnAssets (..)
     , ErrBalanceTx (..)
+    , BalanceTxNotSupportedReason (..)
     , ErrUpdateSealedTx (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
@@ -1431,10 +1433,82 @@ balanceTransaction
     (pp, nodePParams)
     ti
     (internalUtxoAvailable, wallet, pendingTxs)
-    (PartialTx partialTx externalInputs redeemers)
+    (PartialTx partialTx@(cardanoTx -> Cardano.InAnyCardanoEra _ (Cardano.Tx (Cardano.TxBody bod) _)) externalInputs redeemers)
     = do
     let (outputs, txWithdrawal, txMetadata, txAssetsToMint, txAssetsToBurn)
             = extractFromTx partialTx
+
+    -- Coin selection does not support pre-defining collateral. In Sep 2021
+    -- consensus was that we /could/ allow for it with just a day's work or so,
+    -- but that the need for it was unclear enough that it was not in any way
+    -- a priority.
+    case Cardano.txInsCollateral bod of
+        Cardano.TxInsCollateralNone -> return ()
+        Cardano.TxInsCollateral _ [] -> return ()
+        Cardano.TxInsCollateral _ _ ->
+            throwE ErrBalanceTxExistingCollateral
+
+    -- There is currently no way of telling 'selectAssets' about all the
+    -- deposits and refunds in the transaction. Not via 'TransactionCtx'.
+    --
+    -- A promising fix would be to replace the details of 'TransactionCtx' with
+    -- a (balance, fee) based on calling the node/ledger
+    -- @evaluateTransactionBalance@ on the partial transacion.
+    let isReg (Cardano.StakePoolRegistrationCertificate _) = True
+        isReg (Cardano.StakeAddressRegistrationCertificate _) = True
+        isReg (Cardano.StakeAddressDeregistrationCertificate _) = True
+        isReg _ = False
+
+    -- Use of withdrawals with different networks breaks balancing.
+    --
+    -- For instance the partial tx might contain two withdrawals with the same
+    -- key but different networks:
+    -- [ (Mainnet, pkh1, coin1)
+    -- , (Testnet, pkh1, coin2)
+    -- ]
+    --
+    -- Even though this is absurd, the node/ledger @evaluateTransactionBalance@
+    -- will count @coin1+coin2@ towards the total balance. Because the wallet
+    -- does not concider the network tag, it will drop one of the two, leading
+    -- to a discrepancy.
+    let networkOfWdrl ((Cardano.StakeAddress nw _), _, _) = nw
+    let conflictingWdrlNetworks = case Cardano.txWithdrawals bod of
+            Cardano.TxWithdrawalsNone -> False
+            Cardano.TxWithdrawals _ wdrls -> Set.size
+                (Set.fromList $ map networkOfWdrl wdrls) > 1
+    when conflictingWdrlNetworks $
+        throwE $ ErrBalanceTxNotYetSupported ConflictingNetworks
+
+
+    -- We seem to produce imbalanced transactions if zero-ada
+    -- outputs are pre-specified. Example from
+    -- 'prop_balanceTransactionBalanced':
+    --
+    -- balanced tx:
+    --  2afeed9b
+    --  []
+    --  inputs 2nd 01f4b788
+    --  outputs address: 82d81858...6f57b300
+    --          coin: 0.000000
+    --          tokens: []
+    --  []
+    --  metadata:
+    --  scriptValidity: valid
+
+    --  Lovelace 1000000 /= Lovelace 0
+    --
+    --  This is probably due to selectAssets replacing 0 ada outputs with
+    --  minUTxOValue in the selection, which doesn't end up in the CBOR tx.
+    let zeroAdaOutputs =
+            filter (\o -> view (#tokens . #coin) o == Coin 0 ) outputs
+    unless (null zeroAdaOutputs) $
+        throwE $ ErrBalanceTxNotYetSupported ZeroAdaOutput
+
+    case Cardano.txCertificates bod of
+        Cardano.TxCertificatesNone -> return ()
+        Cardano.TxCertificates _ certs _
+            | any isReg certs -> throwE $ ErrBalanceTxNotYetSupported Deposits
+            | otherwise -> return ()
 
     (delta, extraInputs, extraCollateral, extraOutputs) <- do
         let externalSelectedUtxo = UTxOIndex.fromSequence $
@@ -1521,7 +1595,19 @@ balanceTransaction
     let candidateMinFee = fromMaybe (Coin 0) $
             evaluateMinimumFee tl nodePParams candidateTx
 
-    let surplus = delta `Coin.difference` candidateMinFee
+
+    -- Fee minimization... Ideally we should factor this out and test
+    -- separately... Although, we don't want to lose the distinction between
+    -- extra outputs and normal outputs
+
+    surplus <- ExceptT . pure $ maybe
+        (Left
+            . ErrBalanceTxNotYetSupported
+            . UnderestimatedFee
+            $ candidateMinFee `Coin.difference` delta)
+        Right
+        (delta `Coin.subtract` candidateMinFee)
+
     assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
@@ -2930,7 +3016,17 @@ data ErrSignPayment
 data ErrBalanceTx
     = ErrBalanceTxUpdateError ErrUpdateSealedTx
     | ErrBalanceTxSelectAssets ErrSelectAssets
+    | ErrBalanceTxExistingCollateral
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
+    | ErrBalanceTxNotYetSupported BalanceTxNotSupportedReason
+    deriving (Show, Eq)
+
+-- TODO: Remove once problems are fixed.
+data BalanceTxNotSupportedReason
+    = UnderestimatedFee Coin
+    | Deposits
+    | ZeroAdaOutput
+    | ConflictingNetworks
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.

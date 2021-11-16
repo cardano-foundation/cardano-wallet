@@ -129,7 +129,8 @@ import Cardano.BM.Tracing
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
-    ( ErrAddCosignerKey (..)
+    ( BalanceTxNotSupportedReason (..)
+    , ErrAddCosignerKey (..)
     , ErrBalanceTx (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
@@ -3769,6 +3770,30 @@ instance IsServerError ErrBalanceTx where
                 ]
         ErrBalanceTxSelectAssets err -> toServerError err
         ErrBalanceTxAssignRedeemers err -> toServerError err
+        ErrBalanceTxNotYetSupported ConflictingNetworks ->
+            apiError err403 CreatedInvalidTransaction $ mconcat
+                [ "There are withdrawals for multiple networks (e.g. both "
+                , "mainnet and testnet) in the provided transaction. This "
+                , "makes no sense, and I'm confused."
+                ]
+        ErrBalanceTxExistingCollateral ->
+            apiError err403 CreatedInvalidTransaction $ mconcat
+                [ "I cannot balance transactions with pre-defined collateral."
+                ]
+        ErrBalanceTxNotYetSupported ZeroAdaOutput ->
+            apiError err500 CreatedInvalidTransaction $ mconcat
+                [ "The transaction contains one or more outputs with "
+                ]
+        ErrBalanceTxNotYetSupported Deposits ->
+            apiError err500 CreatedInvalidTransaction $ mconcat
+                [ "Deposits/refunds are not yet supported for balancing."
+                ]
+        ErrBalanceTxNotYetSupported (UnderestimatedFee _) ->
+            apiError err500 CreatedInvalidTransaction $ mconcat
+                [ "What was supposed to be an initial overestimation of fees "
+                , "turned out to be an underestimation, and I cannot recover. "
+                , "This is a cardano-wallet bug."
+                ]
 
 instance IsServerError ErrMintBurnAssets where
     toServerError = \case
