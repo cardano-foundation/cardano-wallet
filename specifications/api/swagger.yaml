@@ -941,6 +941,19 @@ x-assetMint: &assetMint
         Positive values mean creation and negative values mean
         destruction.
 
+x-assetMintedBurnt: &assetMintedBurnt
+  type: object
+  required:
+    - policy_id
+    - asset_name
+    - quantity
+  properties:
+    policy_id: *assetPolicyId
+    asset_name: *assetName
+    quantity:
+      type: integer
+      minimum: 10
+
 x-walletAssetsBalance: &walletAssetsBalance
   description: |
     Current non-Ada asset holdings of the wallet.
@@ -2381,7 +2394,7 @@ components:
       description: |
         Withdrawals that could be external or belong to the wallet.
 
-    ApiMintBurntAssets: &ApiMintBurntAssets
+    ApiMintedBurntAssets: &ApiMintedBurntAssets
       description: |
         Assets minted (created) or burnt (destroyed)
         This amount contributes to the total transaction value.
@@ -2389,7 +2402,7 @@ components:
         denote the reverse.
       type: array
       minItems: 0
-      items: *assetMint
+      items: *assetMintedBurnt
 
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
@@ -2399,7 +2412,8 @@ components:
         - inputs
         - outputs
         - withdrawals
-        - mint
+        - assets_minted
+        - assets_burnt
       properties:
         id: *transactionId
         fee: *amount
@@ -2407,7 +2421,8 @@ components:
         outputs: *ApiOutputsGeneral
         collateral: *ApiInputsGeneral
         withdrawals: *ApiWithdrawalsGeneral
-        mint: *ApiMintBurntAssets
+        assets_minted: *ApiMintedBurntAssets
+        assets_burnt: *ApiMintedBurntAssets
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 
