@@ -711,7 +711,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
     modifyLedgerTx _ (Byron.ByronTxBody _)
         = Left ErrByronTxNotSupported
 
-{-# ANN updateSealedTx ("HLint: replace case with maybe" :: T.Text) #-}
+{-# ANN updateSealedTx ("HLint: ignore Replace case with maybe" :: T.Text) #-}
 
 
 -- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
