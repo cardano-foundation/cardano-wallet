@@ -6,6 +6,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -58,6 +59,8 @@ module Cardano.Wallet
     , transactionLayer
     , HasGenesisData
     , genesisData
+    , HasRandomGen
+    , randomGen
 
     -- * Interface
     -- ** Wallet
@@ -457,6 +460,7 @@ import Control.Monad.Trans.Except
     , throwE
     , withExceptT
     )
+import Control.Monad.Trans.Identity
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
@@ -647,13 +651,16 @@ type HasDBLayer m s k = HasType (DBLayer m s k)
 
 type HasGenesisData = HasType (Block, NetworkParameters, SyncTolerance)
 
+type HasRandomGen = HasType StdGen
+
 type HasLogger m msg = HasType (Tracer m msg)
 
 -- HasType (Tracer m WalletWorkerLog) ctx
 -- HasType (Tracer (t m) WalletWorkerLog) ctx
 
-instance {-# OVERLAPS #-} (MonadIO m, Monad m, Generic ctx, HasType g ctx, HasType (Tracer m msg) ctx) => HasType (Tracer (RandT g m) msg) ctx where
+instance {-# OVERLAPS #-} (Monad m, Generic ctx, HasType g ctx, HasType (Tracer m msg) ctx) => HasType (Tracer (RandT g m) msg) ctx where
     getTyped = Tracer . (lift .) . runTracer . getTyped
+
     setTyped tracerTm ctx = setTyped (Tracer $ (flip evalRandT (getTyped ctx) .) $ runTracer $ tracerTm) ctx
 
 -- | This module is only interested in one block-, and tx-type. This constraint
@@ -661,6 +668,11 @@ instance {-# OVERLAPS #-} (MonadIO m, Monad m, Generic ctx, HasType g ctx, HasTy
 type HasNetworkLayer m = HasType (NetworkLayer m Block)
 
 type HasTransactionLayer k = HasType (TransactionLayer k SealedTx)
+
+randomGen
+    :: HasRandomGen ctx
+    => Lens' ctx StdGen
+randomGen = typed @StdGen
 
 dbLayer
     :: forall m s k ctx. HasDBLayer m s k ctx
@@ -1448,6 +1460,7 @@ balanceTransaction
         , HasLogger m WalletWorkerLog ctx
         , GenChange s
         , MonadRandomState m
+        , HasType StdGen ctx
         )
     => ctx
     -> ArgGenChange s
@@ -1799,11 +1812,28 @@ data SelectAssetsParams s result = SelectAssetsParams
 -- the given transaction context. In case of success, returns the selection
 -- and its associated cost. That is, the cost is equal to the difference between
 -- inputs and outputs.
+
+-- selectAssetsWithGen
+--     :: forall gen ctx s k result.
+--         ( HasTransactionLayer k ctx
+--         , HasLogger IO WalletWorkerLog ctx
+--         , HasType gen ctx
+--         )
+--     => gen
+--     -> ctx
+--     -> ProtocolParameters
+--     -> SelectAssetsParams s result
+--     -> (s -> Selection -> result)
+--     -> ExceptT ErrSelectAssets IO result
+-- selectAssetsWithGen gen ctx pp params =
+--     mapExceptT (flip evalRandT gen) . selectAssets @_ @_ @s @k ctx pp params
+
 selectAssets
     :: forall ctx m s k result.
         ( HasTransactionLayer k ctx
         , HasLogger m WalletWorkerLog ctx
         , MonadRandom m
+        , HasType StdGen ctx
         )
     => ctx
     -> ProtocolParameters

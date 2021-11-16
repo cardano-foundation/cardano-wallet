@@ -499,6 +499,8 @@ import Data.Generics.Internal.VL.Lens
     ( Lens', view, (.~), (^.) )
 import Data.Generics.Labels
     ()
+import Data.Generics.Product.Typed
+    ( HasType (..), typed )
 import Data.List
     ( isInfixOf, isPrefixOf, isSubsequenceOf, sortOn, (\\) )
 import Data.List.NonEmpty
@@ -1103,6 +1105,7 @@ patchSharedWallet
         , MkKeyFingerprint k Address
         , WalletKey k
         , HasDBFactory s k ctx
+        , W.HasRandomGen ctx
         , Typeable n
         , k ~ SharedKey
         )
@@ -1553,6 +1556,7 @@ selectCoins
         , Typeable n
         , Typeable s
         , WalletKey k
+        , HasType StdGen ctx
         )
     => ctx
     -> ArgGenChange s
@@ -1892,6 +1896,7 @@ postTransactionOld
         , Typeable n
         , Typeable s
         , WalletKey k
+        , W.HasRandomGen ctx
         )
     => ctx
     -> ArgGenChange s
@@ -1932,7 +1937,7 @@ postTransactionOld ctx genChange (ApiT wid) body = do
                 }
                 (const Prelude.id)
         sel' <- liftHandler
-            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
+            $ W.assignChangeAddressesAndUpdateDb @_ @s wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
             $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
         liftHandler
@@ -2150,7 +2155,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                             }
                             getFee
                 sel <- liftHandler $
-                    W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+                    W.assignChangeAddressesWithoutDbUpdate @_ @s wrk wid genChange utx
                 sel' <- liftHandler
                     $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = []
@@ -2193,7 +2198,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
                         }
                         getFee
                 sel <- liftHandler $
-                    W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+                    W.assignChangeAddressesWithoutDbUpdate @_ @s wrk wid genChange utx
                 sel' <- liftHandler
                     $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
                         { outputs = F.toList outs
@@ -2377,7 +2382,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 }
                 (const Prelude.id)
         sel' <- liftHandler
-            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
+            $ W.assignChangeAddressesAndUpdateDb @_ @s wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
             $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
         liftHandler
@@ -2490,7 +2495,7 @@ quitStakePool ctx (ApiT wid) body = do
                 }
                 (const Prelude.id)
         sel' <- liftHandler
-            $ W.assignChangeAddressesAndUpdateDb wrk wid genChange sel
+            $ W.assignChangeAddressesAndUpdateDb @_ @s wrk wid genChange sel
         (tx, txMeta, txTime, sealedTx) <- liftHandler
             $ W.buildAndSignTransaction @_ @s @k wrk wid mkRwdAcct pwd txCtx sel'
         liftHandler
@@ -3413,7 +3418,7 @@ newApiLayer tr g0 nw tl df tokenMeta coworker = do
     let trW = contramap MsgWalletWorker tr
     locks <- Concierge.newConcierge
     gen <- getStdGen
-    let ctx = ApiLayer trTx trW g0 nw tl df re locks tokenMeta gen
+    let ctx = ApiLayer trTx trW g0 nw tl df re locks tokenMeta -- gen
     listDatabases df >>= mapM_ (startWalletWorker ctx coworker)
     return ctx
 

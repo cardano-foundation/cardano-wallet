@@ -1102,7 +1102,7 @@ data ApiLayer s (k :: Depth -> Type -> Type)
         (WorkerRegistry WalletId (DBLayer IO s k))
         (Concierge IO WalletLock)
         (TokenMetadataClient IO)
-        StdGen
+        -- StdGen
     deriving (Generic)
 
 -- | Locks that are held by the wallet in order to enforce
@@ -1115,8 +1115,8 @@ instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k) where
     type WorkerCtx (ApiLayer s k) = WalletLayer IO s k
     type WorkerMsg (ApiLayer s k) = WalletWorkerLog
     type WorkerKey (ApiLayer s k) = WalletId
-    hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _ g) =
-        WalletLayer (contramap transform tr) gp nw tl db g
+    hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _ _) =
+        WalletLayer (contramap transform tr) gp nw tl db undefined
 
 {-------------------------------------------------------------------------------
                                Capabilities

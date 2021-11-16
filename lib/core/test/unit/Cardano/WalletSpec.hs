@@ -1227,7 +1227,7 @@ setupFixture (wid, wname, wstate) = do
     let nl = mockNetworkLayer
     let tl = dummyTransactionLayer
     db <- MVar.newDBLayer timeInterpreter
-    let wl = WalletLayer nullTracer (block0, np, st) nl tl db
+    let wl = WalletLayer nullTracer (block0, np, st) nl tl db 1
     res <- runExceptT $ W.createWallet wl wid wname wstate
     let wal = case res of
             Left _ -> []
