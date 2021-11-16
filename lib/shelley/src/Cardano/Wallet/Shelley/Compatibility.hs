@@ -2043,10 +2043,10 @@ decodeBytes t =
         Just bytes ->
             Right bytes
         _ ->
-            Left $ TextDecodingError $ mconcat
+            Left $ TextDecodingError $ unwords
                 [ "Unrecognized address encoding: must be either bech32 or base58."
-                , " Perhaps your address is not entirely right?"
-                , " Every character has to be correct!"
+                , "Perhaps your address is not entirely correct?"
+                , "Please double-check each character within the address and try again."
                 ]
 
 -- | Attempt to decode a Shelley 'Address' using a Bech32 encoding.

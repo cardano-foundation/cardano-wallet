@@ -47,6 +47,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , WalletKey
+    , delegationAddress
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -199,24 +200,25 @@ spec = do
                 Just _ -> property True
                 Nothing -> property False
 
-        prop "Shelley addresses from bech32" $ \k -> do
+        prop "Shelley addresses from bech32" $ \k ->
             let addr@(Address bytes) = paymentAddress @'Mainnet @ShelleyKey k
-            conjoin
-                [ decodeAddress @'Mainnet (bech32 bytes) === Right addr
+            in  decodeAddress @'Mainnet (bech32 bytes) === Right addr
                     & counterexample (show $ bech32 bytes)
-                ]
+
+        prop "Shelley addresses with delegation from bech32" $ \k1 k2 ->
+            let addr@(Address bytes) = delegationAddress @'Mainnet @ShelleyKey k1 k2
+            in  decodeAddress @'Mainnet (bech32 bytes) === Right addr
+                    & counterexample (show $ bech32 bytes)
 
         prop "Shelley addresses from bech32 - testnet" $ \k ->
             let addr@(Address raw) = paymentAddress @('Testnet 0) @ShelleyKey k
-            in decodeAddress @('Testnet 0) (bech32testnet raw) === Right addr
+            in  decodeAddress @('Testnet 0) (bech32testnet raw) === Right addr
                    & counterexample (show $ bech32testnet raw)
 
-        prop "Byron addresses from base58" $ \k -> do
+        prop "Byron addresses from base58" $ \k ->
             let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey k
-            conjoin
-                [ decodeAddress @'Mainnet (base58 bytes) === Right addr
+            in  decodeAddress @'Mainnet (base58 bytes) === Right addr
                     & counterexample (show $ base58 bytes)
-                ]
 
     describe "decentralizationLevelFromPParams" $ do
 

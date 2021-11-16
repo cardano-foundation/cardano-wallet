@@ -24,6 +24,9 @@ module Test.Integration.Framework.TestData
     , russianWalletName
     , wildcardsWalletName
 
+    -- * Addresses
+    , invalidByronBase58
+
     -- * Assets
     , steveToken
 
@@ -209,6 +212,12 @@ wildcardsWalletName :: Text
 wildcardsWalletName = "`~`!@#$%^&*()_+-=<>,./?;':\"\"'{}[]\\|❤️ 💔 💌 💕 💞 \
 \💓 💗 💖 💘 💝 💟 💜 💛 💚 💙0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
 
+---
+--- Addresses
+---
+
+invalidByronBase58 :: Text
+invalidByronBase58 = "DdzFFPUkBXGf2an4Lgygm8tYUKXePj9KT4d3opFmG9nnygXRrDjQ6FQe"
 
 ---
 --- Assets
