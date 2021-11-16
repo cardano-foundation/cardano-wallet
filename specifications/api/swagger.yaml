@@ -952,7 +952,7 @@ x-assetMintedBurnt: &assetMintedBurnt
     asset_name: *assetName
     quantity:
       type: integer
-      minimum: 10
+      minimum: 0
 
 x-walletAssetsBalance: &walletAssetsBalance
   description: |
