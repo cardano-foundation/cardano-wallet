@@ -170,7 +170,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
-import qualified Shelley.Spec.Ledger.PParams as SL
+import qualified Cardano.Ledger.Shelley.PParams as SL
 
 spec :: Spec
 spec = do

@@ -372,12 +372,6 @@ spec =
                         property $ forAll
                             (genUpdateProposal era)
                             (genUpdateProposalCoverage era)
-            describe "genExtraScriptData" $
-                forAllEras $ \(AnyCardanoEra era) ->
-                    it (show era) $
-                        property $ forAll
-                            (genExtraScriptData era)
-                            (genExtraScriptDataCoverage era)
 
 genTxIxCoverage :: TxIx -> Property
 genTxIxCoverage (TxIx ix) = unsignedCoverage (maxBound @Word32) "txIx" ix
@@ -1550,31 +1544,6 @@ genUpdateProposalCoverage era proposal = checkCoverage
                         "empty protocol updates"
                     & cover 10 (not $ null m)
                         "non-empty protocol updates"
-                _ ->
-                    error "uncovered case"
-
-genExtraScriptDataCoverage
-    :: CardanoEra era -> TxExtraScriptData era -> Property
-genExtraScriptDataCoverage era scriptData = checkCoverage
-    $ case scriptDataSupportedInEra era of
-        Nothing ->
-            scriptData == TxExtraScriptDataNone
-            & label "tx extra script data not generated in unsupported era"
-            & counterexample ( "tx extra script data was generated in unsupported "
-                               <> show era
-                             )
-        Just _ ->
-            case scriptData of
-                TxExtraScriptDataNone ->
-                    cover 5 True "no extra script data" True
-                TxExtraScriptData _ sd ->
-                    True
-                    & cover 30 True
-                        "extra script data"
-                    & cover 0.4 (null sd)
-                        "empty script data"
-                    & cover 10 (not $ null sd)
-                        "non-empty script data"
                 _ ->
                     error "uncovered case"
 

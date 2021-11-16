@@ -95,7 +95,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
-import qualified Shelley.Spec.Ledger.API as Ledger
+import qualified Cardano.Ledger.Shelley.API as Ledger
 
 --------------------------------------------------------------------------------
 -- Public functions

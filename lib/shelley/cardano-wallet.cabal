@@ -46,6 +46,7 @@ library
     , cardano-wallet-launcher
     , cardano-ledger-byron
     , cardano-ledger-core
+    , cardano-ledger-shelley
     , cardano-ledger-shelley-ma
     , cardano-ledger-alonzo
     , cardano-slotting
