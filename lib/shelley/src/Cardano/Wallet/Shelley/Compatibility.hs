@@ -63,6 +63,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxId
     , toCardanoTxIn
     , fromCardanoTxIn
+    , fromCardanoTxOut
     , fromCardanoWdrls
     , toCardanoTxOut
     , toCardanoLovelace
@@ -1245,6 +1246,16 @@ fromCardanoTxIn
 fromCardanoTxIn (Cardano.TxIn txid (Cardano.TxIx ix)) =
     W.TxIn (fromShelleyTxId $ Cardano.toShelleyTxId txid) (fromIntegral ix)
 
+fromCardanoTxOut :: IsCardanoEra era => Cardano.TxOut era -> W.TxOut
+fromCardanoTxOut (Cardano.TxOut addr out _datumHash) =
+    W.TxOut
+        (W.Address $ Cardano.serialiseToRawBytes addr)
+        (fromCardanoTxOutValue out)
+  where
+    fromCardanoTxOutValue (Cardano.TxOutValue _ val) = fromCardanoValue val
+    fromCardanoTxOutValue (Cardano.TxOutAdaOnly _ lovelace) =
+        TokenBundle.fromCoin $ fromCardanoLovelace lovelace
+
 fromCardanoWdrls
     :: Cardano.TxWithdrawals build era
     -> [(W.RewardAccount, W.Coin)]
@@ -2047,8 +2058,8 @@ tryBech32 = fmap CA.unAddress . CA.fromBech32
 -- Here, the 'tryBase58' function uses 'Cardano.Address',
 -- which performs the additional check of deserializing the
 -- address from Byron CBOR format.
--- 
--- Even so, we strongly recommend the Bech32 format, 
+--
+-- Even so, we strongly recommend the Bech32 format,
 -- as it includes error detection
 -- and is more robust against typos and misspellings.
 tryBase58 :: Text -> Maybe ByteString
