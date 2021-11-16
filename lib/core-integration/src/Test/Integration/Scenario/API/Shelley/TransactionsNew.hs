@@ -599,6 +599,26 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #outputs (`shouldNotContain` [expectedTxOutSource])
             ]
 
+    it "TRANS_NEW_CREATE_04ab - Constructed inputs = Decoded inputs" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+        wb <- emptyWallet ctx
+        let amt = (minUTxOValue (_mainEra ctx) :: Natural)
+        payload <- liftIO $ mkTxPayload ctx wb amt
+
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default payload
+        verify rTx [ expectSuccess ]
+
+        let expectedInputs = getFromResponse (#coinSelection . #inputs) rTx
+        let txCbor = getFromResponse #transaction rTx
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+
+        rDecodedTxSource <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        let decodedInputs = getFromResponse #inputs rDecodedTxSource
+
+        WalletInput <$> expectedInputs `shouldBe` decodedInputs
+
     it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx

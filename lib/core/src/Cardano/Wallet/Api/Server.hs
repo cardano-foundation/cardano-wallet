@@ -2102,7 +2102,7 @@ constructTransaction ctx genChange (ApiT wid) body = do
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
     let md = body ^? #metadata . traverse . #getApiT
-    let mTTL = Nothing --TODO: this will be tackled when transaction validity is supported
+    let mTTL = Nothing --TODO: ADP-1189
 
     (wdrl, _) <-
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
@@ -2112,111 +2112,44 @@ constructTransaction ctx genChange (ApiT wid) body = do
             { txWithdrawal = wdrl
             , txMetadata = md
             , txTimeToLive = ttl
-            --, txDelegationAction --TODO: this will be tackled when delegations are supported
+            --, txDelegationAction --TODO: ADP-1189
             }
-
     let transform s sel =
-            W.assignChangeAddresses genChange sel s
-            & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+            ( W.assignChangeAddresses genChange sel s
+                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+            , sel
+            , selectionDelta TokenBundle.getCoin sel
+            )
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
-        let getFee = const (selectionDelta TokenBundle.getCoin)
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
-        (sel, sel', fee) <- case (body ^. #payments) of
-            Nothing -> do
-                utx <- liftHandler
-                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
-                        { outputs = []
-                        , pendingTxs
-                        , randomSeed = Nothing
-                        , txContext = txCtx
-                        , utxoAvailableForInputs =
-                            UTxOSelection.fromIndex utxoAvailable
-                        , utxoAvailableForCollateral =
-                            UTxOIndex.toUTxO utxoAvailable
-                        , wallet
-                        }
-                        (const Prelude.id)
-                (FeeEstimation estMin _) <- liftHandler $
-                    W.estimateFee $ W.selectAssets @_ @_ @s @k wrk pp
-                        W.SelectAssetsParams
-                            { outputs = []
-                            , pendingTxs
-                            , randomSeed = Nothing
-                            , txContext = txCtx
-                            , utxoAvailableForInputs =
-                                UTxOSelection.fromIndex utxoAvailable
-                            , utxoAvailableForCollateral =
-                                UTxOIndex.toUTxO utxoAvailable
-                            , wallet
-                            }
-                            getFee
-                sel <- liftHandler $
-                    W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
-                sel' <- liftHandler
-                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
-                        { outputs = []
-                        , pendingTxs
-                        , randomSeed = Nothing
-                        , txContext = txCtx
-                        , utxoAvailableForInputs =
-                            UTxOSelection.fromIndex utxoAvailable
-                        , utxoAvailableForCollateral =
-                            UTxOIndex.toUTxO utxoAvailable
-                        , wallet
-                        }
-                        transform
-                pure (sel, sel', estMin)
+        let runSelection outs = W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
+                { outputs = outs
+                , pendingTxs
+                , randomSeed = Nothing
+                , txContext = txCtx
+                , utxoAvailableForInputs =
+                    UTxOSelection.fromIndex utxoAvailable
+                , utxoAvailableForCollateral =
+                    UTxOIndex.toUTxO utxoAvailable
+                , wallet
+                } transform
 
-            Just (ApiPaymentAddresses content) -> do
-                let outs = addressAmountToTxOut <$> content
-                utx <- liftHandler
-                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
-                        { outputs = F.toList outs
-                        , pendingTxs
-                        , randomSeed = Nothing
-                        , txContext = txCtx
-                        , utxoAvailableForInputs =
-                            UTxOSelection.fromIndex utxoAvailable
-                        , utxoAvailableForCollateral =
-                            UTxOIndex.toUTxO utxoAvailable
-                        , wallet
-                        }
-                        (const Prelude.id)
-                (FeeEstimation estMin _) <- liftHandler
-                    $ W.estimateFee
-                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
-                        { outputs = F.toList outs
-                        , pendingTxs
-                        , randomSeed = Nothing
-                        , txContext = txCtx
-                        , utxoAvailableForInputs =
-                            UTxOSelection.fromIndex utxoAvailable
-                        , utxoAvailableForCollateral =
-                            UTxOIndex.toUTxO utxoAvailable
-                        , wallet
-                        }
-                        getFee
-                sel <- liftHandler $
-                    W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
-                sel' <- liftHandler
-                    $ W.selectAssets @_ @_ @s @k wrk pp W.SelectAssetsParams
-                        { outputs = F.toList outs
-                        , pendingTxs
-                        , randomSeed = Nothing
-                        , txContext = txCtx
-                        , utxoAvailableForInputs =
-                            UTxOSelection.fromIndex utxoAvailable
-                        , utxoAvailableForCollateral =
-                            UTxOIndex.toUTxO utxoAvailable
-                        , wallet
-                        }
-                        transform
-                pure (sel, sel', estMin)
-            Just (ApiPaymentAll _) -> do
-                liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-909"
+        (sel, sel', fee) <- do
+            outs <- case (body ^. #payments) of
+                Nothing -> pure []
+                Just (ApiPaymentAddresses content) ->
+                    pure $ F.toList (addressAmountToTxOut <$> content)
+                Just (ApiPaymentAll _) -> do
+                    liftHandler $ throwE $ ErrConstructTxNotImplemented "ADP-1189"
+
+            (sel', utx, fee') <- liftHandler $ runSelection outs
+            sel <- liftHandler $
+                   W.assignChangeAddressesWithoutDbUpdate wrk wid genChange utx
+            (FeeEstimation estMin _) <- liftHandler $ W.estimateFee (pure fee')
+            pure (sel, sel', estMin)
 
         tx <- liftHandler
             $ W.constructTransaction @_ @s @k @n wrk wid txCtx sel
