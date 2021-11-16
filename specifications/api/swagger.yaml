@@ -2381,6 +2381,16 @@ components:
       description: |
         Withdrawals that could be external or belong to the wallet.
 
+    ApiMintBurntAssets: &ApiMintBurntAssets
+      description: |
+        Assets minted (created) or burnt (destroyed)
+        This amount contributes to the total transaction value.
+        Positive values denote creation of assets and negative values
+        denote the reverse.
+      type: array
+      minItems: 0
+      items: *assetMint
+
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
       required:
@@ -2389,6 +2399,7 @@ components:
         - inputs
         - outputs
         - withdrawals
+        - mint
       properties:
         id: *transactionId
         fee: *amount
@@ -2396,6 +2407,7 @@ components:
         outputs: *ApiOutputsGeneral
         collateral: *ApiInputsGeneral
         withdrawals: *ApiWithdrawalsGeneral
+        mint: *ApiMintBurntAssets
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 
