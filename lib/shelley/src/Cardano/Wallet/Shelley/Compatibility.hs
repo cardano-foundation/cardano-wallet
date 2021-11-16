@@ -63,6 +63,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxId
     , toCardanoTxIn
     , fromCardanoTxIn
+    , fromCardanoTxOut
     , fromCardanoWdrls
     , toCardanoTxOut
     , toCardanoLovelace
@@ -1249,6 +1250,16 @@ fromCardanoTxIn
     -> W.TxIn
 fromCardanoTxIn (Cardano.TxIn txid (Cardano.TxIx ix)) =
     W.TxIn (fromShelleyTxId $ Cardano.toShelleyTxId txid) (fromIntegral ix)
+
+fromCardanoTxOut :: IsCardanoEra era => Cardano.TxOut era -> W.TxOut
+fromCardanoTxOut (Cardano.TxOut addr out _datumHash) =
+    W.TxOut
+        (W.Address $ Cardano.serialiseToRawBytes addr)
+        (fromCardanoTxOutValue out)
+  where
+    fromCardanoTxOutValue (Cardano.TxOutValue _ val) = fromCardanoValue val
+    fromCardanoTxOutValue (Cardano.TxOutAdaOnly _ lovelace) =
+        TokenBundle.fromCoin $ fromCardanoLovelace lovelace
 
 fromCardanoWdrls
     :: Cardano.TxWithdrawals build era
