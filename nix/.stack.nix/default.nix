@@ -62,6 +62,8 @@
         cardano-addresses-cli = ./cardano-addresses-cli.nix;
         cardano-addresses = ./cardano-addresses.nix;
         optparse-applicative-fork = ./optparse-applicative-fork.nix;
+        bech32 = ./bech32.nix;
+        bech32-th = ./bech32-th.nix;
         base-deriving-via = ./base-deriving-via.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;

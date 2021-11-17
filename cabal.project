@@ -74,6 +74,13 @@ source-repository-package
 
 source-repository-package
     type: git
+    location: https://github.com/input-output-hk/bech32
+    tag: ab61914443e5f53624d3b2995767761b3f68e576
+    subdir: bech32
+            bech32-th
+
+source-repository-package
+    type: git
     location: https://github.com/input-output-hk/cardano-base
     tag: e8a48cf0500b03c744c7fc6f2fedb86e8bdbe055
     subdir:
