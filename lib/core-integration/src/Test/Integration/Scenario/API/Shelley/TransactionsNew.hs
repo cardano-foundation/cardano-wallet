@@ -65,6 +65,10 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), TokenPolicyId (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
@@ -172,8 +176,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
-
-import qualified Debug.Trace as TR
 
 spec :: forall n.
     ( DecodeAddress n
@@ -1351,6 +1353,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \7066733a2f2f58585858595959595a5a5a5a646e616d656a54657374204e46\
                 \542023" :: Text
 
+        let tokenPolicyId = UnsafeTokenPolicyId (Hash "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I")
+        let tokens = TokenMap.fromNestedList
+                [(tokenPolicyId, NE.fromList [(UnsafeTokenName "HappyCoin", TokenQuantity 50000)])]
+
         let textEnvelopeMint =
                 Cardano.TextEnvelope
                 (Cardano.TextEnvelopeType "TxBodyAlonzo")
@@ -1367,6 +1373,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#fee . #getQuantity) (`shouldBe` 202725)
+            , expectField #assetsMinted (`shouldBe` ApiT tokens)
+            , expectField #assetsBurnt (`shouldBe` ApiT TokenMap.empty)
             ]
 
         -- constructing burning asset tx in cardano-cli
@@ -1403,6 +1411,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx'
             [ expectResponseCode HTTP.status202
             , expectField (#fee . #getQuantity) (`shouldBe` 202725)
+            , expectField #assetsMinted (`shouldBe` ApiT TokenMap.empty)
+            , expectField #assetsBurnt (`shouldBe` ApiT tokens)
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
