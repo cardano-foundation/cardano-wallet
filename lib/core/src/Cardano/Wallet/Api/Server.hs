@@ -1543,10 +1543,10 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
 
 selectCoins
     :: forall ctx s k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s k
+        ( ctx ~ ApiLayer s k
         , SoftDerivation k
         , IsOurs s Address
+        , GenChange s
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , Typeable n
         , Typeable s
@@ -2082,7 +2082,7 @@ constructTransaction
         , GenChange s
         , HardDerivation k
         , HasNetworkLayer IO ctx
-        , IsOwned s k
+        , IsOurs s Address
         , Typeable n
         , Typeable s
         , WalletKey k
