@@ -361,6 +361,13 @@ def verify_asset_balance(src_after, src_before, target_after, target_before, amt
   expect(assets_balance(src_after['assets_available'])).to eq assets_balance(src_before['assets_available'], (-amt))
 end
 
+def wait_for_tx_in_ledger(wid, tx_id)
+  eventually "Tx #{tx_id} is in ledger" do
+    tx = SHELLEY.transactions.get(wid, tx_id)
+    tx.code == 200 && tx['status'] == 'in_ledger'
+  end
+end
+
 ## Plutus helpers
 PLUTUS_DIR = "fixtures/plutus"
 
