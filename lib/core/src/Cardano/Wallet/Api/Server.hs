@@ -1662,7 +1662,7 @@ selectCoinsForQuit
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForQuit ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        action <- liftHandler $ W.quitStakePool @_ @s @k @n wrk wid
+        action <- liftHandler $ W.quitStakePool @_ @s @k wrk wid
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -2409,7 +2409,7 @@ quitStakePool ctx (ApiT wid) body = do
 
     (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         action <- liftHandler
-            $ W.quitStakePool @_ @s @k @n wrk wid
+            $ W.quitStakePool @_ @s @k wrk wid
 
         (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
         ttl <- liftIO $ W.getTxExpiry ti Nothing
