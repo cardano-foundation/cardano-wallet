@@ -94,7 +94,8 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter, getSystemStart, toEpochInfo )
 import Cardano.Wallet.Primitive.Types
-    ( ExecutionUnitPrices (..)
+    ( Certificates
+    , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (..)
     , ProtocolParameters (..)
@@ -354,7 +355,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) addrResolver wdrl cs fees era =
     let signed = signTransaction networkId acctResolver addrResolver inputResolver
             (unsigned, mkExtraWits unsigned)
 
-    let withResolvedInputs (tx, _, _) = tx
+    let withResolvedInputs (tx, _, _, _) = tx
             { resolvedInputs = second txOutCoin <$> F.toList (view #inputs cs)
             }
     Right ( withResolvedInputs (fromCardanoTx signed)
@@ -560,7 +561,7 @@ newTransactionLayer networkId = TransactionLayer
     , updateTx = updateSealedTx
     }
 
-_decodeSealedTx :: SealedTx -> (Tx, TokenMap, TokenMap)
+_decodeSealedTx :: SealedTx -> (Tx, TokenMap, TokenMap, Certificates)
 _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
 
 mkDelegationCertificates

@@ -51,7 +51,8 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId
+    ( Certificates
+    , PoolId
     , ProtocolParameters
     , SlotNo (..)
     , TokenBundleMaxSize (..)
@@ -199,7 +200,7 @@ data TransactionLayer k tx = TransactionLayer
         -> TxConstraints
         -- The set of constraints that apply to all transactions.
 
-    , decodeTx :: tx -> (Tx, TokenMap, TokenMap)
+    , decodeTx :: tx -> (Tx, TokenMap, TokenMap, Certificates)
     -- ^ Decode an externally-created transaction.
 
     , updateTx

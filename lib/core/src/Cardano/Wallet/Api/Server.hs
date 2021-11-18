@@ -2211,7 +2211,7 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn) = decodeTx tl sealed
+    let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn, _certs) = decodeTx tl sealed
     (txinsOutsPaths, collsOutsPaths, outsPath, acct)  <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
           (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid

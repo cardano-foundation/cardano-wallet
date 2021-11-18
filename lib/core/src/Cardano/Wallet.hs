@@ -1531,7 +1531,7 @@ balanceTransaction
                 <$> L.find (\(i',_) -> i == i') (extraInputs update)
 
     extractFromTx tx =
-        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt, toMint, toBurn)
+        let (Tx _id _fee _coll _inps outs wdrlMap meta _vldt, toMint, toBurn, _)
                 = decodeTx tl tx
             -- TODO: Find a better abstraction that can cover this case.
             wdrl = WithdrawalSelf
@@ -1561,7 +1561,7 @@ balanceTransaction
         -> TransactionCtx
     padFeeEstimation sealedTx txCtx =
         let
-            (walletTx, _, _) = decodeTx tl sealedTx
+            (walletTx, _, _, _) = decodeTx tl sealedTx
             worseEstimate = calcMinimumCost tl pp txCtx skeleton
             skeleton = SelectionSkeleton
                 { skeletonInputCount = length (view #resolvedInputs walletTx)
@@ -2103,7 +2103,7 @@ submitExternalTx ctx sealedTx = traceResult trPost $ do
     tl = ctx ^. transactionLayer @k
     nw = ctx ^. networkLayer
     trPost = contramap (MsgSubmitExternalTx (tx ^. #txId)) (ctx ^. logger)
-    (tx, _, _) = decodeTx tl sealedTx
+    (tx, _, _, _) = decodeTx tl sealedTx
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
