@@ -55,6 +55,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , Role (..)
     , WalletKey (..)
+    , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
@@ -64,9 +65,15 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( AssetId (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), TokenPolicyId (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
-    , SealedTx
+    , SealedTx (..)
     , TxIn (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
@@ -155,6 +162,7 @@ import Test.Integration.Framework.TestData
     , errMsg404NoSuchPool
     )
 
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Crypto as Ledger
@@ -1311,6 +1319,114 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
             , expectField #inputs
                   (`shouldBe` [ExternalInput (ApiT (TxIn theTxHash 0))])
+            ]
+
+    it "TRANS_DECODE_02 - transaction with minting/burning assets" $ \ctx -> runResourceT $ do
+
+        -- constructing wallet
+        let initialAmt = minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        -- constructing minting asset tx in cardano-cli
+        --- $ cardano-cli transaction build-raw --fee 202725 \
+        --- > --tx-in 637255c96ff39303573047ba4a53064c18fbdf8ce8cee71431e8cd5333e4bdfd#0 \
+        --- > --tx-out="addr1zyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84af5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7srr0dle+4623486815" \
+        --- > --tx-out="addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgph8kaew0fj7jd6s3l4ms4wnjp8s3a53qxl76wqmy60t6ssqcamq+1500000+50000 919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149.HappyCoin" \
+        --- > --mint="50000 919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149.HappyCoin" \
+        --- > --metadata-json-file metadata.json \
+        --- > --mint-script-file policy.script \
+        --- > --alonzo-era
+        --- > --out-file "txMint"
+        let cborHexWithMinting =
+                "86a70081825820637255c96ff39303573047ba4a53064c18fbdf8ce8cee714\
+                \31e8cd5333e4bdfd000d8001828258391101b9eddcb9e997a4dd423faee157\
+                \4e413c23da4406ffb4e06c9a7af5341dfd84fc5d3ae3ba3bfd956904523362\
+                \dc1c7a3b058af45d9e633d1b000000011394cf5f8258392140bbe763452d81\
+                \393294fb772f54cfee3f96992df08e267d92c3a72501b9eddcb9e997a4dd42\
+                \3faee1574e413c23da4406ffb4e06c9a7af5821a0016e360a1581c919e8a19\
+                \22aaa764b1d66407c6f62244e77081215f385b60a6209149a1494861707079\
+                \436f696e19c350021a000317e50e8009a1581c919e8a1922aaa764b1d66407\
+                \c6f62244e77081215f385b60a6209149a1494861707079436f696e19c35007\
+                \5820a377b9f8fcbffce4e869c7d02e2052fda1646b59ec534e6fc39de9b505\
+                \d565e99f82008201818200581c69303ce3536df260efddbc949ccb94e69933\
+                \02b10b778d8b4d98bfb5ff8080f5d90103a100a11902d1a178386565316365\
+                \39643735363066343861346261333836373033376462656332643866656437\
+                \3736643934646436623030613335333039303733a160a265696d6167657369\
+                \7066733a2f2f58585858595959595a5a5a5a646e616d656a54657374204e46\
+                \542023" :: Text
+
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId (Hash "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I")
+        let tokens = TokenMap.singleton
+                (AssetId tokenPolicyId' (UnsafeTokenName "HappyCoin"))
+                (TokenQuantity 50_000)
+
+        let textEnvelopeMint =
+                Cardano.TextEnvelope
+                (Cardano.TextEnvelopeType "TxBodyAlonzo")
+                ""
+                (unsafeFromHex $ T.encodeUtf8 cborHexWithMinting)
+
+        let (Right txBodyMint) =
+                Cardano.deserialiseFromTextEnvelope
+                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeMint
+
+        let toCborHexTx txbody =
+                T.decodeUtf8 $
+                hex $
+                Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txbody)
+
+        let cborHexMint = toCborHexTx txBodyMint
+        let decodeMintPayload = Json [json|{
+              "transaction": #{cborHexMint}
+          }|]
+        rTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodeMintPayload
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
+            , expectField #assetsMinted (`shouldBe` ApiT tokens)
+            , expectField #assetsBurned (`shouldBe` ApiT TokenMap.empty)
+            ]
+
+        -- constructing burning asset tx in cardano-cli
+        --- $ cardano-cli transaction build-raw --fee  202725 \
+        --- > --tx-in 72ca58d82fb9e89f91bdd546c3d84bcce92825ec1c49d2c3a180ecc8ab128a52#1 \
+        --- > --tx-out="addr1zyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84af5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7srr0dle+4623486815" \
+        --- > --mint="-50000 919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149.HappyCoin" \
+        --- > --mint-script-file policy.script \
+        --- > --out-file "txBurn" \
+        --- > --alonzo-era
+        let cborHexWithBurning =
+                "86a6008182582072ca58d82fb9e89f91bdd546c3d84bcce92825ec1c49d2c3\
+                \a180ecc8ab128a52010d8001818258391101b9eddcb9e997a4dd423faee157\
+                \4e413c23da4406ffb4e06c9a7af5341dfd84fc5d3ae3ba3bfd956904523362\
+                \dc1c7a3b058af45d9e633d1b000000011394cf5f021a000317e50e8009a158\
+                \1c919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149a149\
+                \4861707079436f696e39c34f9f82008201818200581c69303ce3536df260ef\
+                \ddbc949ccb94e6993302b10b778d8b4d98bfb5ff8080f5f6" :: Text
+
+        let textEnvelopeBurn =
+                Cardano.TextEnvelope
+                (Cardano.TextEnvelopeType "TxBodyAlonzo")
+                ""
+                (unsafeFromHex $ T.encodeUtf8 cborHexWithBurning)
+
+        let (Right txBodyBurn) =
+                Cardano.deserialiseFromTextEnvelope
+                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeBurn
+        let cborHexBurn = toCborHexTx txBodyBurn
+        let decodeBurnPayload = Json [json|{
+              "transaction": #{cborHexBurn}
+          }|]
+
+        rTx' <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodeBurnPayload
+        verify rTx'
+            [ expectResponseCode HTTP.status202
+            , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
+            , expectField #assetsMinted (`shouldBe` ApiT TokenMap.empty)
+            , expectField #assetsBurned (`shouldBe` ApiT tokens)
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do

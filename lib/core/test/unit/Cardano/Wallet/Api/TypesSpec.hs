@@ -1158,6 +1158,8 @@ spec = parallel $ do
                     , collateral = collateral (x :: ApiDecodedTransaction ('Testnet 0))
                     , withdrawals = withdrawals (x :: ApiDecodedTransaction ('Testnet 0))
                     , metadata = metadata (x :: ApiDecodedTransaction ('Testnet 0))
+                    , assetsMinted = assetsMinted (x :: ApiDecodedTransaction ('Testnet 0))
+                    , assetsBurned = assetsBurned (x :: ApiDecodedTransaction ('Testnet 0))
                     , scriptValidity = scriptValidity (x :: ApiDecodedTransaction ('Testnet 0))
                     }
             in
@@ -2123,6 +2125,8 @@ instance Arbitrary (ApiTxOutputGeneral n) where
 instance Arbitrary (ApiDecodedTransaction n) where
     arbitrary = ApiDecodedTransaction
         <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
