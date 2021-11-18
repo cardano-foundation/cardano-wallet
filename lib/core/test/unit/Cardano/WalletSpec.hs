@@ -1291,7 +1291,7 @@ dummyTransactionLayer = TransactionLayer
     , constraints =
         error "dummyTransactionLayer: constraints not implemented"
     , decodeTx = \_sealed ->
-        (Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing, mempty, mempty)
+        (Tx (Hash "") Nothing mempty mempty mempty mempty mempty Nothing, mempty, mempty, ([],[],[]))
     , updateTx = \sealed _update ->
         pure sealed
     }
