@@ -23,7 +23,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     # @wid_rnd = "12cbebfdc4521766e63a7e07c4825b24deb4176c"
     # @wid_ic = "f5da82c1eb3e391a535dd5ba2867fe9bdaf2f313"
     # @wid = "1f82e83772b7579fc0854bd13db6a9cce21ccd95"
-    # @target_id = "e7098dbcff0e7837e2c51110203bedbec1d5e9da"
+    # @target_id = "e47d780efac3ee9e3565f5996f8f357472f7b8bc"
     # 1f82e83772b7579fc0854bd13db6a9cce21ccd95
     # 2269611a3c10b219b0d38d74b004c298b76d16a9
     # a042bafdaf98844cfa8f6d4b1dc47519b21a4d95
@@ -1073,6 +1073,40 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       it "I can send native assets tx and they are received (icarus -> shelley)" do
         test_byron_assets_tx(@wid_ic, @target_id)
       end
+
+    end
+  end
+
+  describe "E2E Migration" do
+    it "I can migrate all funds back to fixture wallet" do
+      address = SHELLEY.addresses.list(@wid)[0]['id']
+      src_before = get_shelley_balances(@target_id)
+      target_before = get_shelley_balances(@wid)
+
+      migration = SHELLEY.migrations.migrate(@target_id, PASS, [address])
+      tx_ids = migration.map{|m| m['id']}
+      fees = migration.map{|m| m['fee']['quantity']}.sum
+      amounts = migration.map{|m| m['amount']['quantity']}.sum - fees
+
+      tx_ids.each do |tx_id|
+        eventually "Tx #{tx_id} is in ledger" do
+          tx = SHELLEY.transactions.get(@target_id, tx_id)
+          tx.code == 200 && tx['status'] == 'in_ledger'
+        end
+      end
+      src_after = get_shelley_balances(@target_id)
+      target_after = get_shelley_balances(@wid)
+      expected_src_balance = {'total' => 0,
+                               'available' => 0,
+                               'rewards' => 0,
+                               'assets_total' => [],
+                               'assets_available' => []}
+
+      expect(src_after).to eq expected_src_balance
+
+      verify_ada_balance(src_after, src_before,
+                         target_after, target_before,
+                         amounts, fees)
 
     end
   end
