@@ -941,7 +941,7 @@ x-assetMint: &assetMint
         Positive values mean creation and negative values mean
         destruction.
 
-x-assetMintedBurnt: &assetMintedBurnt
+x-assetMintedBurned: &assetMintedBurned
   type: object
   required:
     - policy_id
@@ -2394,15 +2394,21 @@ components:
       description: |
         Withdrawals that could be external or belong to the wallet.
 
-    ApiMintedBurntAssets: &ApiMintedBurntAssets
+    ApiMintedAssets: &ApiMintedAssets
       description: |
-        Assets minted (created) or burnt (destroyed)
+        Assets minted (created).
         This amount contributes to the total transaction value.
-        Positive values denote creation of assets and negative values
-        denote the reverse.
       type: array
       minItems: 0
-      items: *assetMintedBurnt
+      items: *assetMintedBurned
+
+    ApiBurnedAssets: &ApiBurnedAssets
+      description: |
+        Assets burned (destroyed)
+        This amount contributes to the total transaction value.
+      type: array
+      minItems: 0
+      items: *assetMintedBurned
 
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
@@ -2413,7 +2419,7 @@ components:
         - outputs
         - withdrawals
         - assets_minted
-        - assets_burnt
+        - assets_burned
       properties:
         id: *transactionId
         fee: *amount
@@ -2421,8 +2427,8 @@ components:
         outputs: *ApiOutputsGeneral
         collateral: *ApiInputsGeneral
         withdrawals: *ApiWithdrawalsGeneral
-        assets_minted: *ApiMintedBurntAssets
-        assets_burnt: *ApiMintedBurntAssets
+        assets_minted: *ApiMintedAssets
+        assets_burned: *ApiBurnedAssets
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 

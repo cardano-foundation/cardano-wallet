@@ -1159,7 +1159,7 @@ spec = parallel $ do
                     , withdrawals = withdrawals (x :: ApiDecodedTransaction ('Testnet 0))
                     , metadata = metadata (x :: ApiDecodedTransaction ('Testnet 0))
                     , assetsMinted = assetsMinted (x :: ApiDecodedTransaction ('Testnet 0))
-                    , assetsBurnt = assetsBurnt (x :: ApiDecodedTransaction ('Testnet 0))
+                    , assetsBurned = assetsBurned (x :: ApiDecodedTransaction ('Testnet 0))
                     , scriptValidity = scriptValidity (x :: ApiDecodedTransaction ('Testnet 0))
                     }
             in

@@ -1374,7 +1374,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#fee . #getQuantity) (`shouldBe` 202725)
             , expectField #assetsMinted (`shouldBe` ApiT tokens)
-            , expectField #assetsBurnt (`shouldBe` ApiT TokenMap.empty)
+            , expectField #assetsBurned (`shouldBe` ApiT TokenMap.empty)
             ]
 
         -- constructing burning asset tx in cardano-cli
@@ -1412,7 +1412,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#fee . #getQuantity) (`shouldBe` 202725)
             , expectField #assetsMinted (`shouldBe` ApiT TokenMap.empty)
-            , expectField #assetsBurnt (`shouldBe` ApiT tokens)
+            , expectField #assetsBurned (`shouldBe` ApiT tokens)
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do

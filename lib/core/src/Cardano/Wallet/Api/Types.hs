@@ -1177,7 +1177,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , collateral :: ![ApiTxInputGeneral n]
     , withdrawals :: ![ApiWithdrawalGeneral n]
     , assetsMinted :: !(ApiT W.TokenMap)
-    , assetsBurnt :: !(ApiT W.TokenMap)
+    , assetsBurned :: !(ApiT W.TokenMap)
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
