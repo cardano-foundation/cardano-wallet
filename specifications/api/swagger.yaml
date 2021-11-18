@@ -2397,15 +2397,15 @@ components:
     ApiMintedAssets: &ApiMintedAssets
       description: |
         Assets minted (created).
-        This amount contributes to the total transaction value.
+        The act of minting assets provides value to a transaction.
       type: array
       minItems: 0
       items: *assetMintedBurned
 
     ApiBurnedAssets: &ApiBurnedAssets
       description: |
-        Assets burned (destroyed)
-        This amount contributes to the total transaction value.
+        Assets burned (destroyed).
+        The act of burning assets consumes value from a transaction.
       type: array
       minItems: 0
       items: *assetMintedBurned

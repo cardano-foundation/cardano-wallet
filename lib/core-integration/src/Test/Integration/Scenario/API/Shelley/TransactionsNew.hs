@@ -65,6 +65,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -1353,9 +1355,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \7066733a2f2f58585858595959595a5a5a5a646e616d656a54657374204e46\
                 \542023" :: Text
 
-        let tokenPolicyId = UnsafeTokenPolicyId (Hash "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I")
-        let tokens = TokenMap.fromNestedList
-                [(tokenPolicyId, NE.fromList [(UnsafeTokenName "HappyCoin", TokenQuantity 50000)])]
+        let tokenPolicyId' =
+                UnsafeTokenPolicyId (Hash "\145\158\138\EM\"\170\167d\177\214d\a\198\246\"D\231p\129!_8[`\166 \145I")
+        let tokens = TokenMap.singleton
+                (AssetId tokenPolicyId' (UnsafeTokenName "HappyCoin"))
+                (TokenQuantity 50_000)
 
         let textEnvelopeMint =
                 Cardano.TextEnvelope
@@ -1363,8 +1367,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ""
                 (unsafeFromHex $ T.encodeUtf8 cborHexWithMinting)
 
-        let (Right txBodyMint) = Cardano.deserialiseFromTextEnvelope (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeMint
-        let cborHexMint = T.decodeUtf8 $ hex $ Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txBodyMint)
+        let (Right txBodyMint) =
+                Cardano.deserialiseFromTextEnvelope
+                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeMint
+
+        let toCborHexTx txbody =
+                T.decodeUtf8 $
+                hex $
+                Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txbody)
+
+        let cborHexMint = toCborHexTx txBodyMint
         let decodeMintPayload = Json [json|{
               "transaction": #{cborHexMint}
           }|]
@@ -1372,7 +1384,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wa) Default decodeMintPayload
         verify rTx
             [ expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity) (`shouldBe` 202725)
+            , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
             , expectField #assetsMinted (`shouldBe` ApiT tokens)
             , expectField #assetsBurned (`shouldBe` ApiT TokenMap.empty)
             ]
@@ -1400,8 +1412,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ""
                 (unsafeFromHex $ T.encodeUtf8 cborHexWithBurning)
 
-        let (Right txBodyBurn) = Cardano.deserialiseFromTextEnvelope (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeBurn
-        let cborHexBurn = T.decodeUtf8 $ hex $ Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txBodyBurn)
+        let (Right txBodyBurn) =
+                Cardano.deserialiseFromTextEnvelope
+                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeBurn
+        let cborHexBurn = toCborHexTx txBodyBurn
         let decodeBurnPayload = Json [json|{
               "transaction": #{cborHexBurn}
           }|]
@@ -1410,7 +1424,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wa) Default decodeBurnPayload
         verify rTx'
             [ expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity) (`shouldBe` 202725)
+            , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
             , expectField #assetsMinted (`shouldBe` ApiT TokenMap.empty)
             , expectField #assetsBurned (`shouldBe` ApiT tokens)
             ]
