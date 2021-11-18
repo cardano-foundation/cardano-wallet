@@ -2423,11 +2423,10 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
 -------------------------------------------------------------------------------}
 
 joinStakePool
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , HasLogger IO WalletWorkerLog ctx
-        , s ~ SeqState n k
         )
     => ctx
     -> W.EpochNo
