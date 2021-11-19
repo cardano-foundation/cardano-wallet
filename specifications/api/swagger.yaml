@@ -1174,7 +1174,7 @@ x-rewardAccountPath: &rewardAccountPath
 
 x-certificate: &certificate
   description: |
-    A delegation certificate
+    A delegation certificate belonging to wallet
 
     Only for 'join_pool' the 'pool' property is required.
   type: object
@@ -1189,6 +1189,24 @@ x-certificate: &certificate
       <<: *stakePoolId
     reward_account_path:
       <<: *rewardAccountPath
+
+x-certificateNotOurs: &certificateNotOurs
+  description: |
+    A delegation certificate not belonging to wallet
+
+    Only for 'join_pool' the 'pool' property is required.
+  type: object
+  required:
+    - certificate_type
+    - reward_account
+  properties:
+    certificate_type:
+      type: string
+      enum: ["join_pool", "quit_pool", "register_reward_account"]
+    pool:
+      <<: *stakePoolId
+    reward_account:
+      <<: *anyAddress
 
 x-transactionRedemptionRequest: &transactionRedemptionRequest
   <<: *walletMnemonicSentence
@@ -2269,7 +2287,6 @@ components:
         retirement: *stakePoolRetirement
         flags: *stakePoolFlags
 
-
     ApiFee: &ApiFee
       type: object
       required:
@@ -2419,6 +2436,16 @@ components:
       minItems: 0
       items: *assetMintedBurned
 
+    ApiCertificate: &ApiCertificate
+      description: |
+        Any certificate that could occur in an arbitrary transaction:
+        might be related to delegation, pool activities, genesis or MIR.
+      oneOf:
+        - <<: *certificate
+          title: delegation certificate belonging to the wallet
+        - <<: *certificateNotOurs
+          title: delegation certificate not belonging to the wallet
+
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
       required:
@@ -2429,6 +2456,7 @@ components:
         - withdrawals
         - assets_minted
         - assets_burned
+        - certificates
       properties:
         id: *transactionId
         fee: *amount
@@ -2438,6 +2466,9 @@ components:
         withdrawals: *ApiWithdrawalsGeneral
         assets_minted: *ApiMintedAssets
         assets_burned: *ApiBurnedAssets
+        certificates:
+          type: array
+          items: *ApiCertificate
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
 
