@@ -2,7 +2,7 @@ name: E2E Linux
 
 on:
   schedule:
-  - cron:  "0 21 * * *"
+  - cron:  "0 20 * * *"
   workflow_dispatch:
     inputs:
       network:
@@ -16,7 +16,6 @@ defaults:
 
 jobs:
   test:
-
     runs-on: ubuntu-latest
 
     steps:
