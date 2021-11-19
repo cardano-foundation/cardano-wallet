@@ -1,7 +1,6 @@
 require 'bip_mnemonic'
 require 'httparty'
 require 'fileutils'
-require 'tmpdir'
 
 module Helpers
   module Utils
@@ -41,17 +40,7 @@ module Helpers
     end
 
     def bech32_to_base16(key)
-      if is_win?
-        # workaround for Windows "echo" probably adding eol
-        # which bech32 doesn't like
-        t_path = File.join(Dir.tmpdir, 'vk.tmp')
-        File.open(t_path, "w") do |f|
-          f.write(key)
-        end
-        cmd(%(type "#{t_path}"| bech32)).gsub("\n", '')
-      else
-        cmd(%(echo #{key} | bech32)).gsub("\n", '')
-      end
+      cmd(%(echo #{key} | bech32)).gsub("\n", '')
     end
 
     def hex_to_bytes(s)

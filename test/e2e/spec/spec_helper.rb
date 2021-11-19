@@ -297,9 +297,10 @@ def assets_balance(assets, received = 0)
 end
 
 ##
-# return ada and asset accounts balance for shelley wallet
-def get_shelley_balances(wid)
-  w = SHELLEY.wallets.get(wid)
+# return ada and asset accounts balance for wallet
+# identified by wallet_api
+def get_wallet_balances(wid, wallet_api)
+  w = wallet_api.wallets.get(wid)
   total = w['balance']['total']['quantity']
   available = w['balance']['available']['quantity']
   reward = w['balance']['reward']['quantity']
@@ -311,6 +312,60 @@ def get_shelley_balances(wid)
    'assets_available' => assets_available,
    'assets_total' => assets_total
   }
+end
+
+def get_shelley_balances(wid)
+  get_wallet_balances(wid, SHELLEY)
+end
+
+def get_shared_balances(wid)
+  get_wallet_balances(wid, SHARED)
+end
+
+def get_byron_balances(wid)
+  w = BYRON.wallets.get(wid)
+  total = w['balance']['total']['quantity']
+  available = w['balance']['available']['quantity']
+  assets_total = w['assets']['total']
+  assets_available = w['assets']['available']
+  { 'total' => total,
+   'available' => available,
+   'assets_available' => assets_available,
+   'assets_total' => assets_total
+  }
+end
+
+##
+# verify ADA balance on src and target wallets after transaction for amt ADA
+# incurring fee ADA
+def verify_ada_balance(src_after, src_before, target_after, target_before, amt, fee)
+  expect(target_after['available']).to eq (amt + target_before['available'])
+  expect(target_after['total']).to eq (amt + target_before['total'])
+
+  expect(src_after['available']).to eq (src_before['available'] - amt - fee)
+  expect(src_after['total']).to eq (src_before['total'] - amt - fee)
+end
+
+def verify_asset_balance(src_after, src_before, target_after, target_before, amt)
+  if target_before['assets_total'] == []
+    target_balance = [{ "#{ASSETS[0]["policy_id"]}#{ASSETS[0]["asset_name"]}" => amt },
+                      { "#{ASSETS[1]["policy_id"]}#{ASSETS[1]["asset_name"]}" => amt }].to_set
+    expect(assets_balance(target_after['assets_total'])).to eq target_balance
+    expect(assets_balance(target_after['assets_available'])).to eq target_balance
+  else
+    expect(assets_balance(target_after['assets_total'])).to eq assets_balance(target_before['assets_total'], (+amt))
+    expect(assets_balance(target_after['assets_available'])).to eq assets_balance(target_before['assets_available'], (+amt))
+  end
+
+  expect(assets_balance(src_after['assets_total'])).to eq assets_balance(src_before['assets_total'], (-amt))
+  expect(assets_balance(src_after['assets_available'])).to eq assets_balance(src_before['assets_available'], (-amt))
+end
+
+def wait_for_tx_in_ledger(wid, tx_id)
+  eventually "Tx #{tx_id} is in ledger" do
+    tx = SHELLEY.transactions.get(wid, tx_id)
+    tx.code == 200 && tx['status'] == 'in_ledger'
+  end
 end
 
 ## Plutus helpers
