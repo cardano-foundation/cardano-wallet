@@ -301,6 +301,26 @@ x-dataHash: &dataHash
   maxLength: 64
   example: ca54c8836c475a77c6914b4fd598080acadb0f0067778773484d2c12ae7dc756
 
+x-stakePoolMetadataUrl: &stakePoolMetadataUrl
+  description: |
+    A URL to the stake pool's website.
+  type: string
+  format: uri
+  pattern: "^https://.+"
+  maxLength: 250
+
+x-stakePoolMetadataHash: &stakePoolMetadataHash
+  type: string
+  format: hex
+  minLength: 64
+  maxLength: 64
+  example: ca54c8836c475a77c6914b4fd598080acadb0f0067778773484d2c12ae7dc756
+
+x-stakePoolOwner: &stakePoolOwner
+  type: string
+  format: bech32
+  pattern: "^(ed25519_pk)1[0-9a-z]*$"
+
 x-adaQuantity: &adaQuantity
   type: integer
   minimum: 0
@@ -2436,6 +2456,34 @@ components:
       minItems: 0
       items: *assetMintedBurned
 
+    ApiStakePoolMetadata: &ApiStakePoolMetadata
+      type: object
+      required:
+        - url
+        - hash
+      properties:
+        url: *stakePoolMetadataUrl
+        hash: *stakePoolMetadataHash
+
+    ApiRegisterPool: &ApiRegisterPool
+      type: object
+      required:
+        - pool_id
+        - pool_owners
+        - pool_margin
+        - pool_cost
+        - pool_pledge
+      properties:
+        pool_id: *stakePoolId
+        pool_owners:
+          type: array
+          minItems: 0
+          items: *stakePoolOwner
+        pool_margin: *stakePoolMargin
+        pool_cost: *stakePoolCost
+        pool_pledge: *stakePoolPledge
+        pool_metadata: *ApiStakePoolMetadata
+
     ApiCertificate: &ApiCertificate
       description: |
         Any certificate that could occur in an arbitrary transaction:
@@ -2445,6 +2493,8 @@ components:
           title: delegation certificate belonging to the wallet
         - <<: *certificateNotOurs
           title: delegation certificate not belonging to the wallet
+        - <<: *ApiRegisterPool
+          title: pool registration certificate
 
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
@@ -2468,6 +2518,7 @@ components:
         assets_burned: *ApiBurnedAssets
         certificates:
           type: array
+          minItems: 0
           items: *ApiCertificate
         metadata: *transactionMetadata
         script_validity: *txScriptValidity
