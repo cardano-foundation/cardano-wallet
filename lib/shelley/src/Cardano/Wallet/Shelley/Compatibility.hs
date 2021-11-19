@@ -232,12 +232,10 @@ import Data.Binary.Put
     ( putByteString, putWord8, runPut )
 import Data.Bits
     ( (.&.), (.|.) )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase )
 import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
-    ( bitcoinAlphabet, decodeBase58, encodeBase58 )
+    ( bitcoinAlphabet, encodeBase58 )
 import Data.ByteString.Short
     ( fromShort, toShort )
 import Data.Coerce
@@ -302,6 +300,7 @@ import Ouroboros.Network.NodeToClient
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
+import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Cardano
@@ -2040,28 +2039,36 @@ instance DecodeAddress ('Testnet pm) where
 
 decodeBytes :: Text -> Either TextDecodingError ByteString
 decodeBytes t =
-    case tryBase16 t <|> tryBech32 t <|> tryBase58 t of
+    case tryBech32 t <|> tryBase58 t of
         Just bytes ->
             Right bytes
         _ ->
-            Left $ TextDecodingError
-                "Unrecognized address encoding: must be either bech32, base58 or base16"
+            Left $ TextDecodingError $ unwords
+                [ "Unrecognized address encoding: must be either bech32 or base58."
+                , "Perhaps your address is not entirely correct?"
+                , "Please double-check each character within the address and try again."
+                ]
 
--- | Attempt decoding an 'Address' using a Bech32 encoding.
+-- | Attempt to decode a Shelley 'Address' using a Bech32 encoding.
 tryBech32 :: Text -> Maybe ByteString
-tryBech32 text = do
-    (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
-    dataPartToBytes dp
+tryBech32 = fmap CA.unAddress . CA.fromBech32
 
--- | Attempt decoding a legacy 'Address' using a Base58 encoding.
+-- | Attempt to decode a legacy Byron 'Address' using a Base58 encoding.
+--
+-- NOTE: As of Oct 2021, the Shelley ledger does *not* check whether
+-- a Byron address is in valid Byron binary format. This implies that
+-- an invalid Base58 Byron address can be interpreted as a valid Shelly
+-- address, which results in unexpected loss of user funds.
+--
+-- Here, the 'tryBase58' function uses 'Cardano.Address',
+-- which performs the additional check of deserializing the
+-- address from Byron CBOR format.
+-- 
+-- Even so, we strongly recommend the Bech32 format, 
+-- as it includes error detection
+-- and is more robust against typos and misspellings.
 tryBase58 :: Text -> Maybe ByteString
-tryBase58 text =
-    decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)
-
--- | Attempt decoding an 'Address' using Base16 encoding
-tryBase16 :: Text -> Maybe ByteString
-tryBase16 text =
-    either (const Nothing) Just $ convertFromBase Base16 (T.encodeUtf8 text)
+tryBase58 = fmap CA.unAddress . CA.fromBase58
 
 errMalformedAddress :: TextDecodingError
 errMalformedAddress = TextDecodingError

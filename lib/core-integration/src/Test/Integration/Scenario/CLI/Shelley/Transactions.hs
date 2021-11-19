@@ -105,6 +105,7 @@ import Test.Integration.Framework.TestData
     , errMsg404CannotFindTx
     , errMsg404NoWallet
     , falseWalletIds
+    , invalidByronBase58
     , kanjiWalletName
     , polishWalletName
     , wildcardsWalletName
@@ -935,24 +936,19 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
           ]
 
       encodeErr = "Unrecognized address encoding"
-      encodeErr2 = "Unable to decode address"
       parseErr = "Parse error. Expecting format \"<amount>@<address>\""
       matrixInvalidAddrs =
--- TODO: For the haskell node, hex is valid. For jormungandr it is not.
---  longAddr = replicate 10000 '1'
---  We should optimally find a way to test this.
---          [ ( "long hex", longAddr, encodeErr )
---          , ( "short hex", "1", encodeErr )
           [ ( "-1000", "-1000", encodeErr )
-          , ( "q", "q", encodeErr2 )
-          , ( "empty", "", encodeErr2 )
+          , ( "q", "q", encodeErr )
+          , ( "empty", "", encodeErr )
           , ( "wildcards", T.unpack wildcardsWalletName, parseErr )
           , ( "arabic", T.unpack arabicWalletName, encodeErr )
           , ( "kanji", T.unpack kanjiWalletName, encodeErr )
           , ( "polish", T.unpack polishWalletName, encodeErr )
           , ( "[]", "[]", encodeErr )
-          , ( "no address", "", encodeErr2 )
+          , ( "no address", "", encodeErr )
           , ( "address is space", " ", encodeErr )
+          , ( "invalid Byron", T.unpack invalidByronBase58, encodeErr)
           ]
       errNum = "Expecting natural number"
       matrixInvalidAmt =
