@@ -53,6 +53,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       end
 
       { tx_id: tx_id,
+        tx_unbalanced: SHELLEY.transactions.decode(@wid, payload["transaction"]),
         tx_balanced: SHELLEY.transactions.decode(@wid, tx_balanced["transaction"]),
         tx_signed: SHELLEY.transactions.decode(@wid, tx_signed["transaction"])}
     end
@@ -123,15 +124,37 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       vkHash = bech32_to_base16(vk)
       policy = read_mustached_file("mintBurn_policy", {vkHash: vkHash})
       policy_id = get_policy_id(policy)
+      mint_script = "mintBurn_1.json"
+      burn_script = "mintBurn_2.json"
+      assets = [{"asset_name" => "6d696e742d6275726e",
+                 "quantity" => 1,
+                 "policy_id" => "c22560ac64be051102d6d1cfe5b9b82eb6af4f00dd3806e5cd82e837"}]
+      payload_mint = get_templated_plutus_tx(mint_script,{vkHash: vkHash,
+                                                          policyId: policy_id,
+                                                          policy: policy})
 
-      scripts = [ "mintBurn_1.json", "mintBurn_2.json" ]
-      scripts.each do |s|
-        payload = get_templated_plutus_tx(s,{vkHash: vkHash,
-                                             policyId: policy_id,
-                                             policy: policy})
-        run_script(s, payload)
-      end
+      payload_burn = get_templated_plutus_tx(burn_script,{vkHash: vkHash,
+                                                          policyId: policy_id,
+                                                          policy: policy})
 
+      mint = run_script(mint_script, payload_mint)
+      burn = run_script(burn_script, payload_burn)
+
+      # verify that decoded balanced tx is the same as signed tx
+      expect(mint[:tx_balanced].parsed_response).to eq mint[:tx_signed].parsed_response
+      expect(burn[:tx_balanced].parsed_response).to eq burn[:tx_signed].parsed_response
+
+      # verify decoded unbalanced transaction includes assets minted and burned
+      expect(mint[:tx_unbalanced]['assets_minted']).to eq assets
+      expect(mint[:tx_unbalanced]['assets_burned']).to eq []
+      expect(burn[:tx_unbalanced]['assets_minted']).to eq []
+      expect(burn[:tx_unbalanced]['assets_burned']).to eq assets
+
+      # verify decoded balanced transaction includes assets minted and burned
+      expect(mint[:tx_balanced]['assets_minted']).to eq assets
+      expect(mint[:tx_balanced]['assets_burned']).to eq []
+      expect(burn[:tx_balanced]['assets_minted']).to eq []
+      expect(burn[:tx_balanced]['assets_burned']).to eq assets
     end
 
     it "withdrawal" do
