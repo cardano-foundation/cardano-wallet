@@ -1228,6 +1228,17 @@ x-certificateNotOurs: &certificateNotOurs
     reward_account:
       <<: *anyAddress
 
+x-otherCertificate: &otherCertificate
+  type: object
+  required:
+    - certificate
+  properties:
+    certificate:
+      type: string
+      enum:
+        - genesis
+        - mir
+
 x-transactionRedemptionRequest: &transactionRedemptionRequest
   <<: *walletMnemonicSentence
   description: |
@@ -2506,6 +2517,8 @@ components:
           title: pool registration certificate
         - <<: *ApiDeregisterPool
           title: pool deregistration certificate
+        - <<: *otherCertificate
+          title: genesis or MIR certificate
 
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
