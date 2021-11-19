@@ -2484,6 +2484,15 @@ components:
         pool_pledge: *stakePoolPledge
         pool_metadata: *ApiStakePoolMetadata
 
+    ApiDeregisterPool: &ApiDeregisterPool
+      type: object
+      required:
+        - pool_id
+        - retirement_epoch
+      properties:
+        pool_id: *stakePoolId
+        retirement_epoch: *epochNumber
+
     ApiCertificate: &ApiCertificate
       description: |
         Any certificate that could occur in an arbitrary transaction:
@@ -2495,6 +2504,8 @@ components:
           title: delegation certificate not belonging to the wallet
         - <<: *ApiRegisterPool
           title: pool registration certificate
+        - <<: *ApiDeregisterPool
+          title: pool deregistration certificate
 
     ApiDecodedTransaction: &ApiDecodedTransaction
       type: object
