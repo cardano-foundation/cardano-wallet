@@ -69,8 +69,10 @@ module Cardano.Api.Gen
   , genByronKeyWitness
   , genShelleyWitnessSigningKey
   , genWitnesses
+  , genTxBody
   , genTxBodyContent
   , genTx
+  , genTxInEra
   , genNat
   , genRational
   , genRationalInt64
@@ -91,6 +93,7 @@ module Cardano.Api.Gen
   , genProtocolParametersUpdate
   , genUpdateProposal
   , genExtraScriptData
+  , genWitness
   ) where
 
 import Prelude
@@ -190,6 +193,8 @@ import qualified Shelley.Spec.Ledger.API as Ledger
     ( StakePoolRelay (..), portToWord16 )
 import qualified Shelley.Spec.Ledger.TxBody as Ledger
     ( EraIndependentTxBody )
+import Test.QuickCheck.Gen
+    ( resize )
 import qualified Test.Shelley.Spec.Ledger.Serialisation.Generators.Genesis as Ledger
     ( genStakePoolRelay )
 
@@ -214,7 +219,8 @@ genTxInsCollateral era =
       Nothing        -> pure TxInsCollateralNone
       Just supported -> oneof
                           [ pure TxInsCollateralNone
-                          , TxInsCollateral supported <$> listOf genTxIn
+                          , TxInsCollateral supported
+                            <$> resize 3 (listOf genTxIn)
                           ]
 
 genSlotNo :: Gen SlotNo
@@ -299,7 +305,7 @@ genExtraKeyWitnesses era =
         Just supported  -> oneof
             [ pure TxExtraKeyWitnessesNone
             , TxExtraKeyWitnesses supported
-              <$> listOf (genVerificationKeyHash AsPaymentKey)
+              <$> resize 3 (listOf (genVerificationKeyHash AsPaymentKey))
             ]
 
 genPlutusScript :: PlutusScriptVersion lang -> Gen (PlutusScript lang)
@@ -403,7 +409,7 @@ genAssetId = oneof
 genValue :: Gen AssetId -> Gen Quantity -> Gen Value
 genValue genAId genQuant =
   valueFromList <$>
-    listOf ((,) <$> genAId <*> genQuant)
+    resize 5 (listOf ((,) <$> genAId <*> genQuant))
 
 -- | Generate a positive or negative quantity.
 genSignedQuantity :: Gen Quantity
@@ -436,10 +442,10 @@ genTxMintValue era =
         , TxMintValue supported
           <$> genValueForMinting
           <*> ( (BuildTxWith . Map.fromList)
-                <$> listOf ( (,)
+                <$> resize 3 (listOf ( (,)
                              <$> genPolicyId
                              <*> oneof scriptWitnessGenerators
-                           )
+                           ))
               )
         ]
 
@@ -495,9 +501,12 @@ genScriptData =
 
         -- Recursive generators
         recursive n =
-            [ ScriptDataList <$> listOf (recurse n)
-            , ScriptDataMap <$> listOf ((,) <$> recurse n <*> recurse n)
-            , ScriptDataConstructor <$> arbitrary <*> listOf (recurse n)
+            [ ScriptDataList <$> resize 3 (listOf (recurse n))
+            , ScriptDataMap
+              <$> resize 3 (listOf ((,) <$> recurse n <*> recurse n))
+            , ScriptDataConstructor
+              <$> arbitrary
+              <*> (resize 3 $ listOf (recurse n))
             ]
 
         recurse n = do
@@ -518,8 +527,10 @@ genTxWithdrawals era =
     Just supported -> do
         frequency
           [ ( 1 , pure TxWithdrawalsNone )
+          , ( 1 , pure $ TxWithdrawals supported [] )
           , ( 3 , TxWithdrawals supported
-                  <$> listOf (genWithdrawalInfo era) )
+                  <$> resize 3 (listOf1 (genWithdrawalInfo era))
+            )
           ]
 
 genWithdrawalInfo
@@ -579,7 +590,7 @@ genTxAuxScripts era =
         frequency
         [ (1, pure TxAuxScriptsNone)
         , (3, TxAuxScripts supported
-          <$> listOf (genScriptInEra era))
+          <$> (resize 3 $ listOf (genScriptInEra era)))
         ]
 
 genTxMetadataInEra :: CardanoEra era -> Gen (TxMetadataInEra era)
@@ -594,24 +605,23 @@ genTxMetadataInEra era =
 
 genTxMetadata :: Gen TxMetadata
 genTxMetadata =
-    sized $ \sz ->
-      fmap (TxMetadata . Map.fromList) $ do
-          n <- chooseInt (0, fromIntegral sz)
-          vectorOf n
-               ((,) <$> (getLarge <$> arbitrary)
-                    <*> genTxMetadataValue)
+    fmap (TxMetadata . Map.fromList) $ do
+        n <- chooseInt (0, 10)
+        vectorOf n
+            ((,) <$> (getLarge <$> arbitrary)
+                 <*> genTxMetadataValue)
 
 genTxMetadataValue :: Gen TxMetadataValue
 genTxMetadataValue =
     sized $ \sz ->
         frequency
-            [ (1, TxMetaNumber <$> genTxMetaNumber)
-            , (1, TxMetaBytes  <$> genTxMetaBytes)
-            , (1, TxMetaText   <$> genTxMetaText)
+            [ (5, TxMetaNumber <$> genTxMetaNumber)
+            , (5, TxMetaBytes  <$> genTxMetaBytes)
+            , (5, TxMetaText   <$> genTxMetaText)
             , (fromIntegral (signum sz),
-                  TxMetaList <$> scale (`div` 2) genTxMetaList)
+                  TxMetaList <$> genTxMetaList)
             , (fromIntegral (signum sz),
-                  TxMetaMap <$> scale (`div` 2) genTxMetaMap)
+                  TxMetaMap <$> genTxMetaMap)
             ]
     where
         genTxMetaNumber :: Gen Integer
@@ -630,13 +640,13 @@ genTxMetadataValue =
             T.pack <$> vectorOf n genAlphaNum
 
         genTxMetaList :: Gen [TxMetadataValue]
-        genTxMetaList = sized $ \sz -> do
-            n <- chooseInt (0, sz)
+        genTxMetaList = do
+            n <- chooseInt (0, 10)
             vectorOf n genTxMetadataValue
 
         genTxMetaMap :: Gen [(TxMetadataValue, TxMetadataValue)]
-        genTxMetaMap = sized $ \sz -> do
-            n <- chooseInt (0, sz)
+        genTxMetaMap = do
+            n <- chooseInt (0, 10)
             vectorOf n
                 ((,) <$> genTxMetadataValue <*> genTxMetadataValue)
 
@@ -895,7 +905,7 @@ genMIRTarget :: Gen MIRTarget
 genMIRTarget =
     oneof
         [ StakeAddressesMIR
-          <$> listOf ((,) <$> genStakeCredential <*> genLovelace)
+          <$> resize 3 (listOf ((,) <$> genStakeCredential <*> genLovelace))
         , SendToReservesMIR <$> genLovelace
         , SendToTreasuryMIR <$> genLovelace
         ]
@@ -911,7 +921,8 @@ genStakePoolMetadata =
     where
         genName :: Gen T.Text
         genName = do
-            n <- arbitrary
+            -- There is a limit of 50 characters on the name
+            n <- chooseInt (0, 50)
             T.pack <$> vector n
 
         genDescription :: Gen T.Text
@@ -926,8 +937,18 @@ genStakePoolMetadata =
 
         genHomepage :: Gen T.Text
         genHomepage = do
-            n <- arbitrary
-            T.pack <$> vector n
+            -- There is a limit of 64 bytes on the size of the URL
+            scheme <- elements [ "http://"
+                               , "https://"
+                               ]
+            host <- T.pack <$> vectorOf 10 genAlphaNum
+            domain <- elements [ ".com"
+                               , ".net"
+                               , ".org"
+                               ]
+            elements [ ""
+                     , scheme <> host <> domain
+                     ]
 
 instance ToJSON StakePoolMetadata where
     toJSON (StakePoolMetadata name description ticker homepage) =
@@ -939,27 +960,20 @@ instance ToJSON StakePoolMetadata where
             ]
 
 genStakePoolMetadataReference :: Gen StakePoolMetadataReference
-genStakePoolMetadataReference =
-    StakePoolMetadataReference
-    <$> genText
-    <*> genHashStakePoolMetadata
+genStakePoolMetadataReference = do
+    meta@(StakePoolMetadata _name _desc _ticker homepage) <- genStakePoolMetadata
+    pure $ StakePoolMetadataReference homepage (hashStakePoolMetadata meta)
 
     where
-        genText :: Gen T.Text
-        genText = do
-            n <- arbitrary
-            T.pack <$> vector n
-
-        genHashStakePoolMetadata :: Gen (Hash StakePoolMetadata)
-        genHashStakePoolMetadata = do
-            meta <- genStakePoolMetadata
+        hashStakePoolMetadata :: StakePoolMetadata -> Hash StakePoolMetadata
+        hashStakePoolMetadata meta = do
             let json = Aeson.encode meta
             case validateAndHashStakePoolMetadata (BL.toStrict json) of
                 Left err -> error
                     $ "genStakePoolMetadata generated an invalid stake pool metadata: "
                       <> show err
                 Right (_meta, metaHash) ->
-                    pure metaHash
+                    metaHash
 
 genStakePoolRelay :: Gen StakePoolRelay
 genStakePoolRelay = do
@@ -991,8 +1005,8 @@ genStakePoolParameters =
     <*> genRational
     <*> genStakeAddress
     <*> genLovelace
-    <*> listOf (genVerificationKeyHash AsStakeKey)
-    <*> listOf genStakePoolRelay
+    <*> resize 3 (listOf (genVerificationKeyHash AsStakeKey))
+    <*> resize 3 (listOf genStakePoolRelay)
     <*> liftArbitrary genStakePoolMetadataReference
 
 genTxCertificate :: Gen Certificate
@@ -1025,12 +1039,12 @@ genTxCertificates era =
             oneof
                 [ pure TxCertificatesNone
                 , TxCertificates supported
-                  <$> listOf genTxCertificate
+                  <$> resize 3 (listOf genTxCertificate)
                   <*> ( (BuildTxWith . Map.fromList)
-                        <$> listOf ( (,)
+                        <$> (resize 3 $ listOf ( (,)
                                      <$> genStakeCredential
                                      <*> genWitnessStake era
-                                   )
+                                   ))
                       )
                 ]
 
@@ -1126,10 +1140,10 @@ genUpdateProposal era =
                 , TxUpdateProposal supported
                   <$> ( UpdateProposal
                         <$> ( Map.fromList
-                              <$> listOf ( (,)
+                              <$> resize 3 (listOf ( (,)
                                     <$> genVerificationKeyHash AsGenesisKey
                                     <*> genProtocolParametersUpdate
-                                  )
+                                  ))
                             )
                         <*> genEpochNo
                       )
@@ -1143,14 +1157,15 @@ genExtraScriptData era =
         Just supported ->
             oneof
                 [ pure TxExtraScriptDataNone
-                , TxExtraScriptData supported <$> listOf genScriptData
+                , TxExtraScriptData supported
+                  <$> resize 3 (listOf genScriptData)
                 ]
 
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = do
     txIns <- map (, BuildTxWith (KeyWitness KeyWitnessForSpending))
-             <$> listOf1 genTxIn
-    txOuts <- listOf1 $ genTxOut era
+             <$> resize 3 (listOf1 genTxIn)
+    txOuts <- resize 8 $ listOf1 $ genTxOut era
     txFee <- genTxFee era
     txValidityRange <- genTxValidityRange era
     txMetadata <- genTxMetadataInEra era
@@ -1197,7 +1212,8 @@ genTxBodyContent era = do
         collateral <-
             case collateralSupportedInEra era of
                 Nothing -> pure TxInsCollateralNone
-                Just supported -> TxInsCollateral supported <$> listOf genTxIn
+                Just supported -> TxInsCollateral supported
+                    <$> resize 3 (listOf genTxIn)
         pure $ txBody
             { Api.txProtocolParams = pparams
             , Api.txInsCollateral = collateral
@@ -1218,42 +1234,62 @@ genTxBody era = do
     Left err -> error (displayError err)
     Right txBody -> pure txBody
 
-genShelleyBootstrapWitness
-  :: IsShelleyBasedEra era
-  => CardanoEra era
-  -> Gen (KeyWitness era)
-genShelleyBootstrapWitness era =
- makeShelleyBootstrapWitness
-   <$> genWitnessNetworkIdOrByronAddress
-   <*> genTxBody era
-   <*> genSigningKey AsByronKey
-
-genShelleyKeyWitness
-  :: IsShelleyBasedEra era
-  => CardanoEra era
-  -> Gen (KeyWitness era)
-genShelleyKeyWitness era =
-  makeShelleyKeyWitness
-    <$> genTxBody era
-    <*> genShelleyWitnessSigningKey
-
-genWitnesses :: CardanoEra era -> Gen [KeyWitness era]
-genWitnesses era =
+genWitnesses :: CardanoEra era -> TxBody era -> Gen [KeyWitness era]
+genWitnesses era body =
     case cardanoEraStyle era of
-        LegacyByronEra    -> listOf1 genByronKeyWitness
+        LegacyByronEra    -> do
+            resize 3 $ listOf1 $ makeByronKeyWitness
+                <$> genNetworkId
+                <*> pure body
+                <*> genSigningKey AsByronKey
         ShelleyBasedEra _ -> do
-          bsWits  <- frequency
-              [ (3, listOf1 (genShelleyBootstrapWitness era))
-              , (1, pure [])
-              ]
-          keyWits <- frequency
-              [ (3, listOf1 (genShelleyKeyWitness era))
-              , (1, pure [])
-              ]
-          return $ bsWits ++ keyWits
+            let
+                genShelley =
+                    makeShelleyKeyWitness body <$> genShelleyWitnessSigningKey
+                genBootstrap =
+                    makeShelleyBootstrapWitness
+                    <$> genWitnessNetworkIdOrByronAddress
+                    <*> pure body
+                    <*> genSigningKey AsByronKey
 
-genTx :: forall era. IsCardanoEra era => CardanoEra era -> Gen (Tx era)
-genTx era =
+            bsWits  <- frequency
+                [ (3, resize 3 $ listOf1 genBootstrap)
+                , (1, pure [])
+                ]
+            keyWits <- frequency
+                [ (3, resize 3 $ listOf1 genShelley)
+                , (1, pure [])
+                ]
+            return $ bsWits ++ keyWits
+
+genWitness :: CardanoEra era -> TxBody era -> Gen (KeyWitness era)
+genWitness era body =
+  case cardanoEraStyle era of
+    LegacyByronEra    ->
+        makeByronKeyWitness
+            <$> genNetworkId
+            <*> pure body
+            <*> genSigningKey AsByronKey
+    ShelleyBasedEra _ ->
+      oneof [ makeShelleyBootstrapWitness
+                  <$> genWitnessNetworkIdOrByronAddress
+                  <*> pure body
+                  <*> genSigningKey AsByronKey
+            , makeShelleyKeyWitness body <$> genShelleyWitnessSigningKey
+            ]
+
+genTxInEra :: forall era. IsCardanoEra era => CardanoEra era -> Gen (Tx era)
+genTxInEra era = do
+  body <- genTxBody era
   makeSignedTransaction
-    <$> genWitnesses era
-    <*> genTxBody era
+    <$> genWitnesses era body
+    <*> pure body
+
+genTx :: Gen (InAnyCardanoEra Tx)
+genTx =
+    oneof [ InAnyCardanoEra ByronEra   <$> genTxInEra ByronEra
+          , InAnyCardanoEra ShelleyEra <$> genTxInEra ShelleyEra
+          , InAnyCardanoEra MaryEra    <$> genTxInEra MaryEra
+          , InAnyCardanoEra AllegraEra <$> genTxInEra AllegraEra
+          , InAnyCardanoEra AlonzoEra  <$> genTxInEra AlonzoEra
+          ]
