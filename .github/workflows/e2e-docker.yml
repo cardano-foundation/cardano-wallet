@@ -57,12 +57,20 @@ jobs:
         rake get_latest_configs[$NETWORK]
         rake get_latest_bins
 
+    - name: Get Date/Time
+      id: date-time
+      shell: bash
+      run: |
+        echo "::set-output name=value::$(rake datetime)"
+
     - name: Cache node db
       id: cache
       uses: actions/cache@v2.1.4
       with:
         path: ~/node-db-nightly-docker
-        key: ${{ runner.os }}-docker-node-cache-v2-${{ env.NETWORK }}
+        key: node-db-docker-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
+        restore-keys: |
+          node-db-docker-${{ env.NETWORK }}-
 
     - name: Set up cardano-wallet and cardano-node
       run: |

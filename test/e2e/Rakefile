@@ -277,3 +277,11 @@ task :run_on, [:env, :sync_strategy, :skip_configs] do |task, args|
   Rake::Task[:spec].invoke
   Rake::Task[:stop_node_and_wallet].invoke(env)
 end
+
+##
+# print datetime in format that's consistent across different OS
+# $ rake datetime
+# 20211122-94332
+task :datetime do
+  puts Time.now.strftime('%Y%m%d-%-k%M%S')
+end

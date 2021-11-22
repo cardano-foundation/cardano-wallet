@@ -21,13 +21,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Cache node db
-      id: cache
-      uses: actions/cache@v2.1.4
-      with:
-        path: test/e2e/state/node_db/${{ env.NETWORK }}
-        key: ${{ runner.os }}-node-cache-v2-${{ env.NETWORK }}
-
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
@@ -43,6 +36,21 @@ jobs:
         choco install unzip
         choco install nssm
 
+    - name: Get Date/Time
+      id: date-time
+      shell: bash
+      run: |
+        echo "::set-output name=value::$(rake datetime)"
+
+    - name: Cache node db
+      id: cache
+      uses: actions/cache@v2.1.4
+      with:
+        path: test/e2e/state/node_db/${{ env.NETWORK }}
+        key: node-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
+        restore-keys: |
+          node-db-${{ runner.os }}-${{ env.NETWORK }}-
+            
     - name: Run all tests
       run: rake run_on[%NETWORK%]
 
