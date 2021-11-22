@@ -51,8 +51,8 @@ jobs:
     - name: Install dependencies
       run: bundle install
 
-    - name: ⚙️ Setup (get configs and decode fixtures)
-      run: TESTS_E2E_BINDIR='' rake setup[$NETWORK]
+    - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
+      run: rake setup[$NETWORK]
 
     - name: 🕒 Get Date/Time
       id: date-time
@@ -64,18 +64,21 @@ jobs:
       id: cache
       uses: actions/cache@v2.1.4
       with:
-        path: ~/node-db-nightly-docker
+        path: test/e2e/state/node_db/${{ env.NETWORK }}
         key: node-db-docker-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
         restore-keys: |
           node-db-docker-${{ env.NETWORK }}-
           node-db-Linux-${{ env.NETWORK }}-
-            
+
     - name: 🚀 Start node and wallet
       run: |
         echo "Wallet: $WALLET"
         echo "Node: ${{steps.cardano-node-tag.outputs.NODE_TAG}}"
-        NODE=${{steps.cardano-node-tag.outputs.NODE_TAG}} NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml up --detach
-        ls ~/node-db-nightly-docker
+        
+        NODE=${{steps.cardano-node-tag.outputs.NODE_TAG}} \
+        NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
+        DATA=`pwd`/state/node_db/$NETWORK \
+        docker-compose -f docker-compose-test.yml up --detach
 
     - name: 🔍 Display versions
       run: |
