@@ -295,8 +295,11 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , MinimumUTxOValue (..)
     , NetworkParameters (..)
+    , NonWalletCertificate (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
+    , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , SlotInEpoch (..)
     , SlotLength (..)
     , SlotNo (..)
@@ -1171,6 +1174,37 @@ data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
       deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
+data ApiExternalCertificate
+    = RegisterRewardAccountExternal
+        { rewardAccount :: ApiT XPub
+        }
+    | JoinPoolExternal
+        { rewardAccount :: ApiT XPub
+        , pool :: ApiT PoolId
+        }
+    | QuitPoolExternal
+        { rewardAccount :: ApiT XPub
+        }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiRegisterPool = ApiRegisterPool PoolRegistrationCertificate
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiDeregisterPool = ApiDeregisterPool PoolRetirementCertificate
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiAnyCertificate =
+      WalletDelegationCertificate ApiCertificate
+    | DelegationCertificate ApiExternalCertificate
+    | StakePoolRegister ApiRegisterPool
+    | StakePoolDeregister ApiDeregisterPool
+    | OtherCertificate NonWalletCertificate
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     { id :: !(ApiT (Hash "Tx"))
     , fee :: !(Quantity "lovelace" Natural)
@@ -1180,6 +1214,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , withdrawals :: ![ApiWithdrawalGeneral n]
     , assetsMinted :: !(ApiT W.TokenMap)
     , assetsBurned :: !(ApiT W.TokenMap)
+    , certificates :: ![ApiAnyCertificate]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
