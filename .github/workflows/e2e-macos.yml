@@ -33,13 +33,13 @@ jobs:
     - name: Prepare MacOS
       run: brew install screen
 
-    - name: Get Date/Time
+    - name: 🕒 Get Date/Time
       id: date-time
       shell: bash
       run: |
         echo "::set-output name=value::$(rake datetime)"
 
-    - name: Cache node db
+    - name: 💾 Cache node db
       id: cache
       uses: actions/cache@v2.1.4
       with:
@@ -48,8 +48,23 @@ jobs:
         restore-keys: |
           node-db-${{ runner.os }}-${{ env.NETWORK }}-
 
-    - name: Run all tests
-      run: rake run_on[$NETWORK]
+    - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
+      run: rake setup[$NETWORK]
+
+    - name: 🔍 Display versions
+      run: rake display_versions
+
+    - name: 🚀 Start node and wallet
+      run: rake start_node_and_wallet[$NETWORK]
+
+    - name: ⏳ Wait until node is synced
+      run: rake wait_until_node_synced
+
+    - name: 🧪 Run all tests
+      run: rake spec
+
+    - name: 🏁 Stop node and wallet
+      run: rake stop_node_and_wallet[$NETWORK]
 
     - name: 📎 Upload logs
       uses: actions/upload-artifact@v2

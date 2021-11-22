@@ -8,7 +8,7 @@ on:
       nodeTag:
         description: 'Node tag (docker)'
         required: true
-        default: '1.30.0'
+        default: '1.30.1'
       walletTag:
         description: 'Wallet tag (docker)'
         required: true
@@ -51,19 +51,16 @@ jobs:
     - name: Install dependencies
       run: bundle install
 
-    - name: Get recent configs and decode fixture_wallets.json.gpg
-      run: |
-        rake fixture_wallets_decode
-        rake get_latest_configs[$NETWORK]
-        rake get_latest_bins
+    - name: ⚙️ Setup (get configs and decode fixtures)
+      run: TESTS_E2E_BINDIR='' rake setup[$NETWORK]
 
-    - name: Get Date/Time
+    - name: 🕒 Get Date/Time
       id: date-time
       shell: bash
       run: |
         echo "::set-output name=value::$(rake datetime)"
 
-    - name: Cache node db
+    - name: 💾 Cache node db
       id: cache
       uses: actions/cache@v2.1.4
       with:
@@ -72,25 +69,25 @@ jobs:
         restore-keys: |
           node-db-docker-${{ env.NETWORK }}-
 
-    - name: Set up cardano-wallet and cardano-node
+    - name: 🚀 Start node and wallet
       run: |
         echo "Wallet: $WALLET"
         echo "Node: ${{steps.cardano-node-tag.outputs.NODE_TAG}}"
         NODE=${{steps.cardano-node-tag.outputs.NODE_TAG}} NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml up --detach
         ls ~/node-db-nightly-docker
 
-    - name: Display versions
+    - name: 🔍 Display versions
       run: |
         docker run --rm inputoutput/cardano-wallet:$WALLET version
         docker run --rm inputoutput/cardano-node:${{steps.cardano-node-tag.outputs.NODE_TAG}} cli version
 
-    - name: Wait until node is synced
+    - name: ⏳ Wait until node is synced
       run: rake wait_until_node_synced
 
-    - name: Run all tests
+    - name: 🧪 Run all tests
       run: rake spec
 
-    - name: Get docker logs
+    - name: 📖 Get docker logs
       if: always()
       run: rake get_docker_logs
 
