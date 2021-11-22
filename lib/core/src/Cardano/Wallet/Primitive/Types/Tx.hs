@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -69,6 +70,8 @@ module Cardano.Wallet.Primitive.Types.Tx
     , failedScriptValidation
 
     -- * Constants
+    , txOutMinCoin
+    , txOutMaxCoin
     , txOutMinTokenQuantity
     , txOutMaxTokenQuantity
 
@@ -813,6 +816,18 @@ data TokenBundleSizeAssessment
 --------------------------------------------------------------------------------
 -- Constants
 --------------------------------------------------------------------------------
+
+-- | The smallest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinCoin :: Coin
+txOutMinCoin = Coin 1
+
+-- | The greatest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMaxCoin :: Coin
+txOutMaxCoin = Coin 45_000_000_000_000_000
 
 -- | The smallest token quantity that can appear in a transaction output's
 --   token bundle.
