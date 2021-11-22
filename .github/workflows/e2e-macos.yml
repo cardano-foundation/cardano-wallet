@@ -47,6 +47,7 @@ jobs:
         key: node-db-${{ runner.os }}-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
         restore-keys: |
           node-db-${{ runner.os }}-${{ env.NETWORK }}-
+          node-db-Linux-${{ env.NETWORK }}-
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       run: rake setup[$NETWORK]

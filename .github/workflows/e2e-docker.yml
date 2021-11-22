@@ -68,7 +68,8 @@ jobs:
         key: node-db-docker-${{ env.NETWORK }}-${{ steps.date-time.outputs.value }}
         restore-keys: |
           node-db-docker-${{ env.NETWORK }}-
-
+          node-db-Linux-${{ env.NETWORK }}-
+            
     - name: 🚀 Start node and wallet
       run: |
         echo "Wallet: $WALLET"
