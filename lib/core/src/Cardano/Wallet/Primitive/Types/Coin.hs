@@ -53,8 +53,6 @@ import Cardano.Numeric.Util
     ( equipartitionNatural, partitionNatural )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad
-    ( (<=<) )
 import Data.Bits
     ( Bits )
 import Data.Foldable
@@ -70,7 +68,7 @@ import Data.Maybe
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..), ToText (..) )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -108,13 +106,7 @@ instance ToText Coin where
     toText (Coin c) = T.pack $ show c
 
 instance FromText Coin where
-    fromText = validate <=< (fmap Coin . fromText @Natural)
-      where
-        validate x
-            | isValidCoin x =
-                return x
-            | otherwise =
-                Left $ TextDecodingError "Coin value is out of bounds"
+    fromText = fmap Coin . fromText @Natural
 
 instance NFData Coin
 instance Hashable Coin
