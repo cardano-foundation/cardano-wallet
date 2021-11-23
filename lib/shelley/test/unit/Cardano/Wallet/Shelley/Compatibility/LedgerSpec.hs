@@ -14,15 +14,10 @@ import Cardano.Wallet.Primitive.Types
     ( MinimumUTxOValue (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinFullRange, shrinkCoinFullRange )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genFixedSizeTokenBundle
-    , genTokenBundleSmallRange
-    , shrinkTokenBundleSmallRange
-    )
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
@@ -33,6 +28,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxOutCoin, genTxOutTokenBundle, shrinkTxOutCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..), computeMinimumAdaQuantityInternal )
 import Data.Bifunctor
@@ -271,8 +268,8 @@ newtype FixedSize256 a = FixedSize256 { unFixedSize256 :: a }
 instance Arbitrary Coin where
     -- This instance is used to test roundtrip conversions, so it's important
     -- that we generate coins across the full range available.
-    arbitrary = genCoinFullRange
-    shrink = shrinkCoinFullRange
+    arbitrary = genTxOutCoin
+    shrink = shrinkTxOutCoin
 
 instance Arbitrary MinimumUTxOValue where
     arbitrary = oneof
@@ -288,15 +285,15 @@ instance Arbitrary TokenBundle where
     shrink = shrinkTokenBundleSmallRange
 
 instance Arbitrary (FixedSize8 TokenBundle) where
-    arbitrary = FixedSize8 <$> genFixedSizeTokenBundle 8
+    arbitrary = FixedSize8 <$> genTxOutTokenBundle 8
     -- No shrinking
 
 instance Arbitrary (FixedSize64 TokenBundle) where
-    arbitrary = FixedSize64 <$> genFixedSizeTokenBundle 64
+    arbitrary = FixedSize64 <$> genTxOutTokenBundle 64
     -- No shrinking
 
 instance Arbitrary (FixedSize256 TokenBundle) where
-    arbitrary = FixedSize256 <$> genFixedSizeTokenBundle 256
+    arbitrary = FixedSize256 <$> genTxOutTokenBundle 256
     -- No shrinking
 
 instance Arbitrary TokenName where

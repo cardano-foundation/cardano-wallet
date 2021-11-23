@@ -112,8 +112,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinFullRange )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), mockHash )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -132,7 +130,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , isPending
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
-    ( genTxScriptValidity, shrinkTxScriptValidity )
+    ( genTxOutCoin, genTxScriptValidity, shrinkTxScriptValidity )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Unsafe
@@ -429,7 +427,7 @@ instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata
 
 instance Arbitrary Coin where
-    arbitrary = genCoinFullRange
+    arbitrary = genTxOutCoin
 
 instance Arbitrary UTxO where
     shrink (UTxO u) =

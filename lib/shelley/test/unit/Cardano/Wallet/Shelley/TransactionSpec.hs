@@ -94,10 +94,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId, TokenBundle, tokenName )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genFixedSizeTokenBundle
-    , genTokenBundleSmallRange
-    , shrinkTokenBundleSmallRange
-    )
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (UnsafeTokenName), TokenPolicyId, unTokenName )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
@@ -118,6 +115,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txMetadataIsNull
     , txOutCoin
     )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxOutTokenBundle )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -1355,7 +1354,7 @@ newtype Large a = Large { unLarge :: a }
     deriving (Eq, Show)
 
 instance Arbitrary (Large TokenBundle) where
-    arbitrary = fmap Large . genFixedSizeTokenBundle =<< choose (1, 128)
+    arbitrary = fmap Large . genTxOutTokenBundle =<< choose (1, 128)
 
 -- Tests that if a bundle is oversized (when serialized), then a comparison
 -- between 'txOutputSize' and 'txOutputMaximumSize' should also indicate that
