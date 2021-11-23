@@ -98,7 +98,7 @@ newtype Coin = Coin
     deriving (Read, Show) via (Quiet Coin)
 
 instance Semigroup Coin where
-    -- Word64 doesn't have a default Semigroup instance.
+    -- Natural doesn't have a default Semigroup instance.
     Coin a <> Coin b = Coin (a + b)
 
 instance Monoid Coin where
