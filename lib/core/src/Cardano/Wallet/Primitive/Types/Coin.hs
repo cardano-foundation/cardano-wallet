@@ -17,6 +17,7 @@ module Cardano.Wallet.Primitive.Types.Coin
 
       -- * Conversions (Safe)
     , fromIntegral
+    , fromNatural
     , fromWord64
     , toInteger
     , toNatural
@@ -27,9 +28,6 @@ module Cardano.Wallet.Primitive.Types.Coin
     , unsafeFromIntegral
     , unsafeToQuantity
     , unsafeToWord64
-
-      -- * Compatibility
-    , unsafeNaturalToCoin
 
       -- * Checks
     , isValidCoin
@@ -139,6 +137,11 @@ instance Buildable Coin where
 fromIntegral :: (Bits i, Integral i) => i -> Maybe Coin
 fromIntegral i = Coin <$> intCastMaybe i
 
+-- | Constructs a 'Coin' from a 'Natural' value.
+--
+fromNatural :: Natural -> Coin
+fromNatural = Coin
+
 -- | Constructs a 'Coin' from a 'Word64' value.
 --
 fromWord64 :: Word64 -> Coin
@@ -231,13 +234,6 @@ unsafeToWord64 c = fromMaybe onError (toWord64 c)
         ]
 
 {-------------------------------------------------------------------------------
-                               Compatibility
--------------------------------------------------------------------------------}
-
-unsafeNaturalToCoin :: Natural -> Coin
-unsafeNaturalToCoin = Coin
-
-{-------------------------------------------------------------------------------
                                      Checks
 -------------------------------------------------------------------------------}
 
@@ -302,9 +298,7 @@ equipartition
     -> NonEmpty Coin
     -- ^ The partitioned coins.
 equipartition c =
-    -- Note: the natural-to-coin conversion is safe, as partitioning guarantees
-    -- to produce values that are less than or equal to the original value.
-    fmap unsafeNaturalToCoin . equipartitionNatural (toNatural c)
+    fmap fromNatural . equipartitionNatural (toNatural c)
 
 -- | Partitions a coin into a number of parts, where the size of each part is
 --   proportional to the size of its corresponding element in the given list
@@ -320,9 +314,7 @@ partition
     -> Maybe (NonEmpty Coin)
     -- ^ The partitioned coins.
 partition c
-    -- Note: the natural-to-coin conversion is safe, as partitioning guarantees
-    -- to produce values that are less than or equal to the original value.
-    = fmap (fmap unsafeNaturalToCoin)
+    = fmap (fmap fromNatural)
     . partitionNatural (toNatural c)
     . fmap toNatural
 

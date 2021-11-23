@@ -847,7 +847,7 @@ _maxScriptExecutionCost pp redeemers
     maxExecutionUnits = view (#txParameters . #getMaxExecutionUnits) pp
 
     executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Coin
-    executionCost ps us = Coin.unsafeNaturalToCoin . ceiling
+    executionCost ps us = Coin.fromNatural . ceiling
         $ (ps ^. #pricePerStep)       * toRational (us ^. #executionSteps)
         + (ps ^. #pricePerMemoryUnit) * toRational (us ^. #executionMemory)
 
