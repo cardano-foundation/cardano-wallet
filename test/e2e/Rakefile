@@ -292,5 +292,5 @@ end
 # $ rake datetime
 # 20211122-94332
 task :datetime do
-  puts Time.now.strftime('%Y%m%d-%-k%M%S')
+  puts Time.now.strftime('%Y%m%d-%H%M%S')
 end
