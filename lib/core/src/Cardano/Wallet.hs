@@ -373,7 +373,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin, sumCoins )
+    ( Coin (..), addCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -1588,7 +1588,7 @@ balanceTransaction
                     , "when balancing a transaction, but it was!"
                     ]
                 )
-                (sumCoins wdrlMap)
+                (F.fold wdrlMap)
          in (outs, wdrl, meta, toMint, toBurn)
 
     -- | Wallet coin selection is unaware of many kinds of transaction content
@@ -2055,13 +2055,13 @@ mkTxMeta
     -> IO (UTCTime, TxMeta)
 mkTxMeta ti' blockHeader wState txCtx sel =
     let
-        amtOuts = sumCoins $
+        amtOuts = F.fold $
             (txOutCoin <$> view #change sel)
             ++
             mapMaybe ourCoin (view #outputs sel)
 
         amtInps
-            = sumCoins (txOutCoin . snd <$> view #inputs sel)
+            = F.fold (txOutCoin . snd <$> view #inputs sel)
             -- NOTE: In case where rewards were pulled from an external
             -- source, they aren't added to the calculation because the
             -- money is considered to come from outside of the wallet; which

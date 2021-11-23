@@ -32,7 +32,6 @@ module Cardano.Wallet.Primitive.Types.Coin
       -- * Arithmetic operations
     , addCoin
     , subtractCoin
-    , sumCoins
     , difference
     , distance
 
@@ -52,8 +51,6 @@ import Control.DeepSeq
     ( NFData (..) )
 import Data.Bits
     ( Bits )
-import Data.Foldable
-    ( foldl' )
 import Data.Hashable
     ( Hashable )
 import Data.IntCast
@@ -244,10 +241,6 @@ subtractCoin (Coin a) (Coin b)
 --
 addCoin :: Coin -> Coin -> Coin
 addCoin (Coin a) (Coin b) = Coin (a + b)
-
--- | Add a list of coins together.
-sumCoins :: Foldable t => t Coin -> Coin
-sumCoins = foldl' addCoin (Coin 0)
 
 -- | Subtracts the second coin from the first.
 --

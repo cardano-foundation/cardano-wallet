@@ -67,7 +67,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), distance, sumCoins )
+    ( Coin (..), distance )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -531,7 +531,7 @@ prefilterBlock b u0 = runState $ do
 
                 (Nothing, Outgoing) -> -- Byron
                     let
-                        totalOut = sumCoins (txOutCoin <$> outputs tx)
+                        totalOut = F.fold (txOutCoin <$> outputs tx)
 
                         totalIn = TB.getCoin spent
                     in

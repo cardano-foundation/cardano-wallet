@@ -1176,7 +1176,7 @@ mkTxSkeleton witness context skeleton = TxSkeleton
 --
 estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
 estimateTxCost pp skeleton =
-    Coin.sumCoins
+    F.fold
         [ computeFee (estimateTxSize skeleton)
         , scriptExecutionCosts
         ]
