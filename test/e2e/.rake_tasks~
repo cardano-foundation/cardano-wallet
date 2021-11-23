@@ -1,14 +1,16 @@
 clean_bins
 clean_logs
+datetime
+display_versions
 fixture_wallets_decode
 fixture_wallets_encode
 fixture_wallets_template
 get_docker_logs
 get_latest_bins
 get_latest_configs
-launch_on
 run_on
 spec
+setup
 start_node_and_wallet
 stop_node_and_wallet
 wait_until_node_synced

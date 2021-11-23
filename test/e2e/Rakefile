@@ -78,7 +78,7 @@ task :clean_logs, [:env] do |task, args|
 end
 
 task :clean_bins do
-  puts "\n  >> Removing bins"
+  puts "\n  >> Removing old bins"
   rm_files(BINS)
 end
 
@@ -94,7 +94,7 @@ task :wait_until_node_synced do
   begin
     current_time = Time.now
     while network.information["sync_progress"]["status"] == "syncing" do
-      puts "Syncing... #{network.information["sync_progress"]["progress"]["quantity"]}%"
+      puts "Syncing node... #{network.information["sync_progress"]["progress"]["quantity"]}%"
       sleep 15
     end
   rescue
@@ -155,23 +155,21 @@ task :start_node_and_wallet, [:env] do |task, args|
 
     cmd "screen -dmS NODE_#{args[:env]} -L -Logfile #{log_dir}/node.log #{start_node}"
     cmd "screen -dmS WALLET_#{args[:env]} -L -Logfile #{log_dir}/wallet.log #{start_wallet}"
-    cmd "screen -ls"
+    cmd "screen -ls", true
   end
 end
 
-##
-# Utility task for getting binaries, configs and starting wallet and node
-task :launch_on, [:env] do |task, args|
-  env = args[:env]
+task :display_versions do
+  puts "\n  >> cardano-node and cardano-wallet versions:"
 
-  if BINS == ''
-    puts "\n  >> Skipping getting latest binaries. Will launch wallet and node from $PATH."
+  bin_dir = BINS == '' ? BINS : "#{BINS}/"
+  if is_win?
+    cmd "#{bin_dir}cardano-wallet.exe version", true
+    cmd "#{bin_dir}cardano-node.exe version", true
   else
-    Rake::Task[:get_latest_bins].invoke
+    cmd "#{bin_dir}cardano-wallet version", true
+    cmd "#{bin_dir}cardano-node version", true
   end
-
-  Rake::Task[:get_latest_configs].invoke(env)
-  Rake::Task[:start_node_and_wallet].invoke(env)
 end
 
 task :stop_node_and_wallet, [:env] do |task, args|
@@ -252,20 +250,31 @@ task :get_docker_logs do
   cmd "sudo chmod a+rw #{LOGS}/wallet.log"
 end
 
-task :run_on, [:env, :sync_strategy, :skip_configs] do |task, args|
-  puts "\n>> Setting up env and running tests..."
-  puts "TESTS_E2E_STATEDIR=#{STATE}"
+##
+# Setup utility task getting node and wallet binaries, configs and decoding fixtures
+# so it is ready to start
+task :setup, [:env, :skip_configs] do |task, args|
+  puts "\n  >> Getting latest binaries and configs and decoding fixtures..."
   env = args[:env]
-  sync_strategy = args[:sync_strategy] || :sync
-
+  skip_configs = args[:skip_configs]
   if BINS == ''
     puts "\n  >> Skipping getting latest binaries. Will test wallet and node from $PATH."
   else
     Rake::Task[:get_latest_bins].invoke
   end
-
+  Rake::Task[:get_latest_configs].invoke(env) unless skip_configs
   Rake::Task[:fixture_wallets_decode].invoke
-  Rake::Task[:get_latest_configs].invoke(env) unless args[:skip_configs]
+end
+
+task :run_on, [:env, :sync_strategy, :skip_configs] do |task, args|
+  puts "\n>> Setting up env and running tests..."
+  puts "TESTS_E2E_STATEDIR=#{STATE}"
+  env = args[:env]
+  skip_configs = args[:skip_configs]
+  sync_strategy = args[:sync_strategy] || :sync
+
+  Rake::Task[:setup].invoke(env, skip_configs)
+  Rake::Task[:display_versions].invoke
   Rake::Task[:start_node_and_wallet].invoke(env)
 
   if sync_strategy == "no-sync"
@@ -276,4 +285,12 @@ task :run_on, [:env, :sync_strategy, :skip_configs] do |task, args|
 
   Rake::Task[:spec].invoke
   Rake::Task[:stop_node_and_wallet].invoke(env)
+end
+
+##
+# print datetime in format that's consistent across different OS
+# $ rake datetime
+# 20211122-94332
+task :datetime do
+  puts Time.now.strftime('%Y%m%d-%H%M%S')
 end

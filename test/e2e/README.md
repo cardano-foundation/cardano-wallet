@@ -3,6 +3,7 @@
 
 
 
+
 # E2E testing
 [![E2E Docker](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml) [![E2E Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml) [![E2E MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml) [![E2E Windows](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml)
 
@@ -61,8 +62,9 @@ One can also start tests against cardano-wallet docker. There is docker-compose-
 >NETWORK=testnet \
 >TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
 >WALLET=dev-master \
->NODE=1.26.2 \
+>NODE=1.30.1 \
 >NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
+>DATA=`pwd`/state/node_db/$NETWORK
 >docker-compose -f docker-compose-test.yml up
 >```
 > Then running tests against docker is just:

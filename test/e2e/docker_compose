@@ -3,4 +3,5 @@ TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
 WALLET=dev-master \
 NODE=1.28.0 \
 NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
+DATA=`pwd`/state/node_db/$NETWORK
 docker-compose -f docker-compose-test.yml $1

@@ -4,9 +4,10 @@ require 'fileutils'
 
 module Helpers
   module Utils
-    def cmd(cmd)
+    def cmd(cmd, display_result = false)
       cmd.gsub(/\s+/, ' ')
       res = `#{cmd}`
+      puts res if display_result
       res
     end
 
