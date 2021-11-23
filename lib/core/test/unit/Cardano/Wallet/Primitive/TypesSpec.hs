@@ -88,7 +88,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), isValidCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -226,9 +226,6 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Types" $ do
-
-    parallel $ describe "Generators are valid" $ do
-        it "Arbitrary Coin" $ property isValidCoin
 
     describe "Class instances obey laws" $ do
         testLawsMany @TxOut

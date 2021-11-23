@@ -7,7 +7,7 @@ module Cardano.Wallet.Primitive.Types.CoinSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), isValidCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
 import Test.Hspec
@@ -49,8 +49,6 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
     parallel $ describe "Generators and shrinkers" $ do
 
         describe "Coins that can be zero" $ do
-            it "genCoin" $
-                property prop_genCoin
             it "genCoin_coverage" $
                 property prop_genCoin_coverage
             it "shrinkCoin" $
@@ -117,9 +115,6 @@ prop_subtract_toNatural a b =
 -- Coins that can be zero
 --------------------------------------------------------------------------------
 
-prop_genCoin :: Property
-prop_genCoin = forAll genCoin isValidCoin
-
 prop_genCoin_coverage :: Coin -> Coin -> Property
 prop_genCoin_coverage a b =
     checkCoverageCoin a b True
@@ -138,10 +133,7 @@ checkCoverageCoin a b
 prop_shrinkCoin :: Property
 prop_shrinkCoin = forAll genCoin $ \c ->
     let shrunken = shrinkCoin c in
-    conjoin $ ($ shrunken) <$>
-        [ all (< c)
-        , all isValidCoin
-        ]
+    all (< c) shrunken
 
 --------------------------------------------------------------------------------
 -- Coins that are strictly positive

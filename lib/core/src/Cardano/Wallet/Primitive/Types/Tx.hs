@@ -85,6 +85,9 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxSize (..)
     , txSizeDistance
 
+    -- * Checks
+    , coinIsValidForTxOut
+
     -- * Conversions (Unsafe)
     , unsafeCoinToTxOutCoinValue
 
@@ -952,6 +955,15 @@ unsafeSealedTxFromBytes = either (internalError . errMsg) id . sealedTxFromBytes
 mockSealedTx :: HasCallStack => ByteString -> SealedTx
 mockSealedTx = SealedTx False
     (internalError "mockSealedTx: attempted to decode gibberish")
+
+{-------------------------------------------------------------------------------
+                          Checks
+-------------------------------------------------------------------------------}
+
+coinIsValidForTxOut :: Coin -> Bool
+coinIsValidForTxOut c = (&&)
+    (c >= txOutMinCoin)
+    (c <= txOutMaxCoin)
 
 {-------------------------------------------------------------------------------
                           Conversions (Unsafe)

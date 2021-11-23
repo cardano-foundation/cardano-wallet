@@ -29,9 +29,6 @@ module Cardano.Wallet.Primitive.Types.Coin
     , unsafeToQuantity
     , unsafeToWord64
 
-      -- * Checks
-    , isValidCoin
-
       -- * Arithmetic operations
     , addCoin
     , subtractCoin
@@ -224,14 +221,6 @@ unsafeToWord64 c = fromMaybe onError (toWord64 c)
         , show c
         , "does not fit within the bounds of a 64-bit word."
         ]
-
-{-------------------------------------------------------------------------------
-                                     Checks
--------------------------------------------------------------------------------}
-
--- | Whether the coin amount is less than the total amount of Ada.
-isValidCoin :: Coin -> Bool
-isValidCoin c = c >= minBound && c <= maxBound
 
 {-------------------------------------------------------------------------------
                                    Operations
