@@ -128,7 +128,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       burn_script = "mintBurn_2.json"
       assets = [{"asset_name" => "6d696e742d6275726e",
                  "quantity" => 1,
-                 "policy_id" => "c22560ac64be051102d6d1cfe5b9b82eb6af4f00dd3806e5cd82e837"}]
+                 "policy_id" => policy_id}]
+                 
       payload_mint = get_templated_plutus_tx(mint_script,{vkHash: vkHash,
                                                           policyId: policy_id,
                                                           policy: policy})
