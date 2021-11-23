@@ -99,7 +99,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , LocalTxSubmissionStatus (..)
     , SealedTx (..)
-    , SealedTx
     , TransactionInfo (..)
     , Tx (..)
     , TxMeta (..)
