@@ -18,6 +18,7 @@ module Cardano.Wallet.Primitive.Types.Coin
       -- * Conversions (Safe)
     , fromIntegral
     , fromWord64
+    , toInteger
     , toQuantity
     , toWord64
 
@@ -27,7 +28,6 @@ module Cardano.Wallet.Primitive.Types.Coin
     , unsafeToWord64
 
       -- * Compatibility
-    , coinToInteger
     , coinToNatural
     , unsafeNaturalToCoin
 
@@ -49,7 +49,7 @@ module Cardano.Wallet.Primitive.Types.Coin
     ) where
 
 import Prelude hiding
-    ( fromIntegral )
+    ( fromIntegral, toInteger )
 
 import Cardano.Numeric.Util
     ( equipartitionNatural, partitionNatural )
@@ -144,6 +144,11 @@ fromIntegral i = Coin <$> intCastMaybe i
 fromWord64 :: Word64 -> Coin
 fromWord64 = Coin . intCast
 
+-- | Converts a 'Coin' to an 'Integer' value.
+--
+toInteger :: Coin -> Integer
+toInteger = intCast . unCoin
+
 -- | Converts a 'Coin' to a 'Quantity'.
 --
 -- Returns 'Nothing' if the given value does not fit within the bounds of
@@ -223,9 +228,6 @@ unsafeToWord64 c = fromMaybe onError (toWord64 c)
 {-------------------------------------------------------------------------------
                                Compatibility
 -------------------------------------------------------------------------------}
-
-coinToInteger :: Coin -> Integer
-coinToInteger = Prelude.fromIntegral . unCoin
 
 coinToNatural :: Coin -> Natural
 coinToNatural = unCoin

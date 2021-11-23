@@ -373,7 +373,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin, coinToInteger, sumCoins )
+    ( Coin (..), addCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -1160,7 +1160,7 @@ readNextWithdrawal ctx (Coin withdrawal) = do
             calcMinimumCost tl pp (mkTxCtx $ Coin 0) emptySkeleton
 
     let costOfWithdrawal =
-            coinToInteger costWith - coinToInteger costWithout
+            Coin.toInteger costWith - Coin.toInteger costWithout
 
     if toInteger withdrawal < 2 * costOfWithdrawal
     then pure (Coin 0)

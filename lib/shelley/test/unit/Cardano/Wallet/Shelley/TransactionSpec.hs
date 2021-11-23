@@ -84,7 +84,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinToInteger )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -661,11 +661,11 @@ feeCalculationSpec = describe "fee calculations" $ do
     fp = LinearFee (Quantity 100_000) (Quantity 100)
 
     minFee :: TransactionCtx -> Integer
-    minFee ctx = coinToInteger $ calcMinimumCost testTxLayer pp ctx sel
+    minFee ctx = Coin.toInteger $ calcMinimumCost testTxLayer pp ctx sel
       where sel = emptySkeleton
 
     minFeeSkeleton :: TxSkeleton -> Integer
-    minFeeSkeleton = coinToInteger . estimateTxCost pp
+    minFeeSkeleton = Coin.toInteger . estimateTxCost pp
 
     estimateTxSize' :: TxSkeleton -> Integer
     estimateTxSize' = fromIntegral . unTxSize . estimateTxSize
