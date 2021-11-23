@@ -383,7 +383,7 @@ import Data.Time
 import Data.Time.Text
     ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32 )
 import Fmt
     ( indentF, (+|), (|+) )
 import Language.Haskell.TH.Quote
@@ -563,7 +563,7 @@ expectListSizeSatisfy cond (_, res) = liftIO $ case res of
 -- pre-calculated statistics.
 expectWalletUTxO
     :: (HasCallStack, MonadIO m)
-    => [Word64]
+    => [Natural]
     -> Either RequestException ApiUtxoStatistics
     -> m ()
 expectWalletUTxO coins = \case

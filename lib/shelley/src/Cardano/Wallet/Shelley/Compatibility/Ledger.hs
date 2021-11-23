@@ -73,15 +73,16 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
-import Data.Word
-    ( Word64 )
+import Data.IntCast
+    ( intCast )
 import Fmt
     ( pretty )
 import GHC.Stack
     ( HasCallStack )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto )
-
 
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
@@ -90,6 +91,7 @@ import qualified Cardano.Ledger.Alonzo.Rules.Utxo as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.ShelleyMA.Rules.Utxo as Ledger
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString as BS
@@ -152,23 +154,10 @@ instance Convert Coin Ledger.Coin where
     toWallet = toWalletCoin
 
 toLedgerCoin :: Coin -> Ledger.Coin
-toLedgerCoin (Coin c) =
-      Ledger.Coin $ fromIntegral @Word64 @Integer c
+toLedgerCoin (Coin c) = Ledger.Coin $ intCast @Natural @Integer c
 
 toWalletCoin :: Ledger.Coin -> Coin
-toWalletCoin (Ledger.Coin c)
-    | isValidCoin =
-        Coin $ fromIntegral @Integer @Word64 c
-    | otherwise =
-        error $ unwords
-            [ "Ledger.toWalletCoin:"
-            , "Unexpected invalid coin value:"
-            , pretty c
-            ]
-  where
-    isValidCoin = (&&)
-        (c >= fromIntegral @Word64 @Integer (unCoin minBound))
-        (c <= fromIntegral @Word64 @Integer (unCoin maxBound))
+toWalletCoin (Ledger.Coin c) = Coin.unsafeFromIntegral c
 
 --------------------------------------------------------------------------------
 -- Conversions for 'TokenBundle'

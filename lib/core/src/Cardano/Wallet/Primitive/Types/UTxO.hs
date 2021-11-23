@@ -297,8 +297,10 @@ log10 = Log10
 
 -- | Compute UtxoStatistics from UTxOs
 computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
-computeUtxoStatistics btype =
-    computeStatistics (pure . unCoin . txOutCoin) btype . Map.elems . unUTxO
+computeUtxoStatistics btype
+    = computeStatistics (pure . fromIntegral . unCoin . txOutCoin) btype
+    . Map.elems
+    . unUTxO
 
 -- | A more generic function for computing UTxO statistics on some other type of
 -- data that maps to UTxO's values.

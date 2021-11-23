@@ -74,7 +74,9 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32 )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
@@ -964,7 +966,9 @@ spec = describe "SHELLEY_WALLETS" $ do
         --send funds
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
-        let coins = [13_000_000::Word64, 43_000_000, 66_000_000, 101_000_000, 1339_000_000]
+        let coins :: [Natural]
+            coins =
+                [13_000_000, 43_000_000, 66_000_000, 101_000_000, 1339_000_000]
         let payments = flip map coins $ \c -> [json|{
                 "address": #{destination},
                 "amount": {

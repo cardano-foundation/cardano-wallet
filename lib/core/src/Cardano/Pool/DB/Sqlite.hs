@@ -142,7 +142,7 @@ import UnliftIO.Exception
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
@@ -304,8 +304,8 @@ newDBLayer tr ti SqliteContext{runQuery} =
                         $ getPercentage $ poolMargin cert)
                     (fromIntegral $ denominator
                         $ getPercentage $ poolMargin cert)
-                    (W.unCoin $ poolCost cert)
-                    (W.unCoin $ poolPledge cert)
+                    (Coin.unsafeToWord64 $ poolCost cert)
+                    (Coin.unsafeToWord64 $ poolPledge cert)
                     (fst <$> poolMetadata cert)
                     (snd <$> poolMetadata cert)
             _ <- repsert poolRegistrationKey poolRegistrationRow
@@ -455,8 +455,8 @@ newDBLayer tr ti SqliteContext{runQuery} =
                     <$> fromPersistValue fieldPoolId
                     <*> fromPersistValue fieldOwners
                     <*> parseMargin
-                    <*> (W.Coin <$> fromPersistValue fieldCost)
-                    <*> (W.Coin <$> fromPersistValue fieldPledge)
+                    <*> (Coin.fromWord64 <$> fromPersistValue fieldCost)
+                    <*> (Coin.fromWord64 <$> fromPersistValue fieldPledge)
                     <*> parseMetadata
 
                 parseRetirementCertificate = do
@@ -597,8 +597,8 @@ newDBLayer tr ti SqliteContext{runQuery} =
                         poolMetadataHash = entityVal meta
                 let poolMargin = unsafeMkPercentage $
                         toRational $ marginNum % marginDen
-                let poolCost = W.Coin poolCost_
-                let poolPledge = W.Coin poolPledge_
+                let poolCost = Coin.fromWord64 poolCost_
+                let poolPledge = Coin.fromWord64 poolPledge_
                 let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
                 poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
                     selectList

@@ -51,12 +51,10 @@ import Cardano.Wallet.Primitive.Types
     ( ProtocolMagic (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..) )
+    ( TxIn (..), TxOut (..), unsafeCoinToTxOutCoinValue )
 import Control.Monad
     ( replicateM, when )
 import Crypto.Error
@@ -74,6 +72,7 @@ import Data.Either.Extra
 import Data.Word
     ( Word8 )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
@@ -270,7 +269,7 @@ decodeTxOut :: CBOR.Decoder s TxOut
 decodeTxOut = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     addr <- decodeAddress
-    TxOut addr . TokenBundle.fromCoin . Coin <$> CBOR.decodeWord64
+    TxOut addr . TokenBundle.fromCoin . Coin.fromWord64 <$> CBOR.decodeWord64
 
 -- * Encoding
 
@@ -399,7 +398,7 @@ encodeTxOut :: TxOut -> CBOR.Encoding
 encodeTxOut (TxOut (Address addr) tb) = mempty
     <> CBOR.encodeListLen 2
     <> encodeAddressPayload payload
-    <> CBOR.encodeWord64 (unCoin $ TokenBundle.getCoin tb)
+    <> CBOR.encodeWord64 (unsafeCoinToTxOutCoinValue $ TokenBundle.getCoin tb)
   where
     invariant =
         error $ "encodeTxOut: unable to decode address payload: " <> show addr

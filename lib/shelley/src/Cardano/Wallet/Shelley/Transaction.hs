@@ -185,6 +185,8 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Labels
     ()
+import Data.IntCast
+    ( intCast )
 import Data.Kind
     ( Type )
 import Data.Map.Strict
@@ -699,10 +701,12 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
             extraOutputs' = toCardanoTxOut era <$> extraOutputs
             modifyFee' old = toLedgerCoin $ modifyFee $ fromLedgerCoin old
               where
+                toLedgerCoin :: Coin -> Ledger.Coin
                 toLedgerCoin (Coin c) =
-                    Ledger.word64ToCoin c
+                    Ledger.Coin (intCast c)
+                fromLedgerCoin :: Ledger.Coin -> Coin
                 fromLedgerCoin (Ledger.Coin c) =
-                    Coin.unsafeNaturalToCoin $ fromIntegral c
+                    Coin.unsafeFromIntegral c
                     -- fromIntegral will throw "Exception: arithmetic underflow"
                     -- if (c :: Integral) for some reason were to be negative.
 
@@ -1467,7 +1471,7 @@ estimateTxSize skeleton =
         . BS.length
         . CBOR.toStrictByteString
         . CBOR.encodeWord64
-        . unCoin
+        . Coin.unsafeToWord64
 
     -- withdrawals =
     --   { * reward_account => coin }

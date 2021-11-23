@@ -3831,7 +3831,7 @@ instance IsServerError ErrCannotQuit where
                 , "although you're not even delegating, nor won't be in an "
                 , "immediate future."
                 ]
-        ErrNonNullRewards (Coin rewards) ->
+        ErrNonNullRewards rewards ->
             apiError err403 NonNullRewards $ mconcat
                 [ "It seems that you're trying to retire from delegation "
                 , "although you've unspoiled rewards in your rewards "

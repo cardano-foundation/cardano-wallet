@@ -66,6 +66,7 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Set as Set
 
@@ -275,8 +276,8 @@ instance Arbitrary Coin where
 
 instance Arbitrary MinimumUTxOValue where
     arbitrary = oneof
-        [ MinimumUTxOValue . Coin . (* 1_000_000) <$> genSmallWord
-        , MinimumUTxOValueCostPerWord . Coin <$> genSmallWord
+        [ MinimumUTxOValue . Coin.fromWord64 . (* 1_000_000) <$> genSmallWord
+        , MinimumUTxOValueCostPerWord . Coin.fromWord64 <$> genSmallWord
         ]
       where
       genSmallWord = fromIntegral @Int @Word64 . getPositive <$> arbitrary

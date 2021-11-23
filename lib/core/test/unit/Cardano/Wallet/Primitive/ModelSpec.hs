@@ -153,8 +153,9 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( report )
+    ( chooseNatural, report )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.ByteString as BS
@@ -803,7 +804,7 @@ instance Arbitrary (WithPending WalletState) where
         (_, cp0) <- initWallet @_ block0 <$> arbitrary
         subChain <- flip take blockchain <$> choose (1, length blockchain)
         let wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 subChain
-        rewards <- Coin <$> oneof [pure 0, choose (1, 10000)]
+        rewards <- Coin <$> oneof [pure 0, chooseNatural (1, 10000)]
         pending <- genPendingTx (totalUTxO Set.empty wallet) rewards
         pure $ WithPending wallet pending rewards
       where
@@ -886,7 +887,7 @@ addresses = map address
     blockchain
 
 coinToBundle :: Word64 -> TokenBundle
-coinToBundle = TokenBundle.fromCoin . Coin
+coinToBundle = TokenBundle.fromCoin . Coin.fromWord64
 
 -- A excerpt of mainnet, epoch #14, first 20 blocks; plus a few previous blocks
 -- which contains transactions referred to in the former. This is useful to test

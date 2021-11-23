@@ -12,7 +12,9 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Test.QuickCheck
-    ( Gen, choose, frequency, shrink, sized )
+    ( Gen, choose, frequency, sized )
+import Test.QuickCheck.Extra
+    ( chooseNatural, shrinkNatural )
 
 --------------------------------------------------------------------------------
 -- Coins chosen according to the size parameter.
@@ -22,7 +24,7 @@ genCoin :: Gen Coin
 genCoin = sized $ \n -> Coin . fromIntegral <$> choose (0, n)
 
 shrinkCoin :: Coin -> [Coin]
-shrinkCoin (Coin c) = Coin <$> shrink c
+shrinkCoin (Coin c) = Coin <$> shrinkNatural c
 
 --------------------------------------------------------------------------------
 -- Coins chosen according to the size parameter, but strictly positive.
@@ -32,7 +34,7 @@ genCoinPositive :: Gen Coin
 genCoinPositive = sized $ \n -> Coin . fromIntegral <$> choose (1, max 1 n)
 
 shrinkCoinPositive :: Coin -> [Coin]
-shrinkCoinPositive (Coin c) = Coin <$> filter (> 0) (shrink c)
+shrinkCoinPositive (Coin c) = Coin <$> filter (> 0) (shrinkNatural c)
 
 --------------------------------------------------------------------------------
 -- Coins chosen from the full range available.
@@ -50,7 +52,7 @@ genCoinFullRange :: Gen Coin
 genCoinFullRange = frequency
     [ (1, pure (Coin 0))
     , (1, pure (maxBound :: Coin))
-    , (8, Coin <$> choose (1, unCoin (maxBound :: Coin) - 1))
+    , (8, Coin <$> chooseNatural (1, unCoin (maxBound :: Coin) - 1))
     ]
 
 shrinkCoinFullRange :: Coin -> [Coin]

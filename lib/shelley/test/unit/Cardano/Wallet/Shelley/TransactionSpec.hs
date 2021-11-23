@@ -234,6 +234,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Extra
+    ( chooseNatural )
 import Test.QuickCheck.Gen
     ( Gen (..), listOf1 )
 import Test.QuickCheck.Random
@@ -247,6 +249,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
@@ -673,18 +676,18 @@ feeCalculationSpec = describe "fee calculations" $ do
 feeEstimationRegressionSpec :: Spec
 feeEstimationRegressionSpec = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
-        let requiredCost = Coin 166029
+        let requiredCost = 166029
         let runSelection = except $ Left
                 $ ErrSelectAssetsSelectionError
                 $ SelectionBalanceError
                 $ Balance.UnableToConstructChange
                 $ Balance.UnableToConstructChangeError
-                    { requiredCost
+                    { requiredCost = Coin.fromWord64 requiredCost
                     , shortfall = Coin 100000
                     }
         result <- runExceptT (estimateFee runSelection)
         result `shouldBe`
-            Right (FeeEstimation (unCoin requiredCost) (unCoin requiredCost))
+            Right (FeeEstimation requiredCost requiredCost)
 
 binaryCalculationsSpec :: AnyCardanoEra -> Spec
 binaryCalculationsSpec (AnyCardanoEra era) =
@@ -1157,7 +1160,7 @@ dummyAddress b =
     Address $ BS.pack $ 1 : replicate 56 b
 
 coinToBundle :: Word64 -> TokenBundle
-coinToBundle = TokenBundle.fromCoin . Coin
+coinToBundle = TokenBundle.fromCoin . Coin.fromWord64
 
 dummyWit :: Word8 -> (XPrv, Passphrase "encryption")
 dummyWit b =
@@ -1246,7 +1249,7 @@ genMockSelection = do
         oneof [ pure 0, choose (1, 1000) ]
     txOutputs <- replicateM txOutputCount genTxOut
     txRewardWithdrawal <-
-        Coin <$> oneof [ pure 0, choose (1, 1_000_000) ]
+        Coin <$> oneof [ pure 0, chooseNatural (1, 1_000_000) ]
     pure MockSelection
         { txInputCount
         , txOutputs

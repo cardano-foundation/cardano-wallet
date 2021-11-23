@@ -263,6 +263,7 @@ import UnliftIO.Temporary
 
 import qualified Cardano.Wallet.DB.Sqlite.TH as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -1242,7 +1243,7 @@ testMigrationPassphraseScheme = do
 -------------------------------------------------------------------------------}
 
 coinToBundle :: Word64 -> TokenBundle
-coinToBundle = TokenBundle.fromCoin . Coin
+coinToBundle = TokenBundle.fromCoin . Coin.fromWord64
 
 testCp :: Wallet (SeqState 'Mainnet ShelleyKey)
 testCp = snd $ initWallet block0 initDummyState

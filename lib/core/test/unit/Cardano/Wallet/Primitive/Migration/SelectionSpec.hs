@@ -100,7 +100,7 @@ import Test.QuickCheck
     , withMaxSuccess
     )
 import Test.QuickCheck.Extra
-    ( report, verify )
+    ( chooseNatural, report, verify )
 
 import qualified Cardano.Wallet.Primitive.Migration.Selection as Selection
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -938,7 +938,7 @@ genCoinBelowMinimumAdaQuantity mockConstraints =
 
 genCoinRange :: Coin -> Coin -> Gen Coin
 genCoinRange (Coin minCoin) (Coin maxCoin) =
-    Coin . fromIntegral <$> choose (minCoin, maxCoin)
+    Coin <$> chooseNatural (minCoin, maxCoin)
 
 genTokenBundleMixed :: MockTxConstraints -> Gen TokenBundle
 genTokenBundleMixed mockConstraints =

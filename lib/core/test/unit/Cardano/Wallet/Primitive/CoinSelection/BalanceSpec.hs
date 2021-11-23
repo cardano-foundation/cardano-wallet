@@ -233,6 +233,7 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Laws
     ( testLawsMany )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
@@ -2701,7 +2702,9 @@ unit_makeChange =
         ]
 
     b :: Word64 -> [(AssetId, Natural)] -> TokenBundle
-    b c = TokenBundle (Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+    b c = TokenBundle (Coin.fromWord64 c)
+        . TokenMap.fromFlatList
+        . fmap (second TokenQuantity)
 
     assetA :: AssetId
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
@@ -2988,10 +2991,14 @@ unit_assignCoinsToChangeMaps =
         ]
 
     m :: Word64 -> [(AssetId, Natural)] -> (TokenMap, Coin)
-    m c = (,Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+    m c = (, Coin.fromWord64 c)
+        . TokenMap.fromFlatList
+        . fmap (second TokenQuantity)
 
     b :: Word64 -> [(AssetId, Natural)] -> TokenBundle
-    b c = TokenBundle (Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+    b c = TokenBundle (Coin.fromWord64 c)
+        . TokenMap.fromFlatList
+        . fmap (second TokenQuantity)
 
     assetA :: AssetId
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")

@@ -85,6 +85,9 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxSize (..)
     , txSizeDistance
 
+    -- * Conversions (Unsafe)
+    , unsafeCoinToTxOutCoinValue
+
     ) where
 
 import Prelude
@@ -189,6 +192,7 @@ import Text.Pretty.Simple
     ( pShowNoColor )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString.Char8 as B8
@@ -948,3 +952,35 @@ unsafeSealedTxFromBytes = either (internalError . errMsg) id . sealedTxFromBytes
 mockSealedTx :: HasCallStack => ByteString -> SealedTx
 mockSealedTx = SealedTx False
     (internalError "mockSealedTx: attempted to decode gibberish")
+
+{-------------------------------------------------------------------------------
+                          Conversions (Unsafe)
+-------------------------------------------------------------------------------}
+
+-- | Converts the given 'Coin' value to a value that can be included in a
+--   transaction output.
+--
+-- Callers of this function must take responsibility for checking that the
+-- given value is:
+--
+--   - not smaller than 'txOutMinCoin'
+--   - not greater than 'txOutMaxCoin'
+--
+-- This function throws a run-time error if the pre-condition is violated.
+--
+unsafeCoinToTxOutCoinValue :: HasCallStack => Coin -> Word64
+unsafeCoinToTxOutCoinValue c
+    | c < txOutMinCoin =
+        error $ unwords
+            [ "unsafeCoinToTxOutCoinValue: coin value"
+            , show c
+            , "too small for transaction output"
+            ]
+    | c > txOutMaxCoin =
+          error $ unwords
+            [ "unsafeCoinToTxOutCoinValue: coin value"
+            , show c
+            , "too large for transaction output"
+            ]
+    | otherwise =
+        Coin.unsafeToWord64 c

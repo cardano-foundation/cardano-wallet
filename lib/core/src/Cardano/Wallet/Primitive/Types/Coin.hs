@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -13,6 +14,17 @@
 module Cardano.Wallet.Primitive.Types.Coin
     ( -- * Type
       Coin (..)
+
+      -- * Conversions (Safe)
+    , fromIntegral
+    , fromWord64
+    , toWord64
+
+      -- * Conversions (Unsafe)
+    , unsafeFromIntegral
+    , unsafeToWord64
+
+      -- * Compatibility
     , coinQuantity
     , coinToInteger
     , coinToNatural
@@ -35,7 +47,8 @@ module Cardano.Wallet.Primitive.Types.Coin
 
     ) where
 
-import Prelude
+import Prelude hiding
+    ( fromIntegral )
 
 import Cardano.Numeric.Util
     ( equipartitionNatural, partitionNatural )
@@ -43,10 +56,14 @@ import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
     ( (<=<) )
+import Data.Bits
+    ( Bits )
 import Data.Foldable
     ( foldl' )
 import Data.Hashable
     ( Hashable )
+import Data.IntCast
+    ( intCast, intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -69,19 +86,14 @@ import Quiet
     ( Quiet (..) )
 
 import qualified Data.Text as T
+import qualified Prelude
 
 -- | A 'Coin' represents a quantity of lovelace.
 --
 -- Reminder: 1 ada = 1,000,000 lovelace.
 --
--- NOTE: The 'Coin' value is stored as a 64-bit unsigned integer. The maximum
--- supply of lovelace is less than 2^56, so there is ample space to store any
--- circulating amount of Ada.
---
--- However be careful when summing coins, for example, if calculating historical
--- volumes traded, because this may overflow.
 newtype Coin = Coin
-    { unCoin :: Word64
+    { unCoin :: Natural
     }
     deriving stock (Ord, Eq, Generic)
     deriving (Read, Show) via (Quiet Coin)
@@ -97,7 +109,7 @@ instance ToText Coin where
     toText (Coin c) = T.pack $ show c
 
 instance FromText Coin where
-    fromText = validate <=< (fmap (Coin . fromIntegral) . fromText @Natural)
+    fromText = validate <=< (fmap Coin . fromText @Natural)
       where
         validate x
             | isValidCoin x =
@@ -113,24 +125,89 @@ instance Bounded Coin where
     maxBound = Coin 45_000_000_000_000_000
 
 instance Buildable Coin where
-    build (Coin c) = fixedF @Double 6 (fromIntegral c / 1e6)
+    build (Coin c) = fixedF @Double 6 (Prelude.fromIntegral c / 1e6)
+
+--------------------------------------------------------------------------------
+-- Conversions (Safe)
+--------------------------------------------------------------------------------
+
+-- | Constructs a 'Coin' from an 'Integral' value.
+--
+-- Returns 'Nothing' if the given value is negative.
+--
+fromIntegral :: (Bits i, Integral i) => i -> Maybe Coin
+fromIntegral i = Coin <$> intCastMaybe i
+
+-- | Constructs a 'Coin' from a 'Word64' value.
+--
+fromWord64 :: Word64 -> Coin
+fromWord64 = Coin . intCast
+
+-- | Converts a 'Coin' to a 'Word64' value.
+--
+-- Returns 'Nothing' if the given value does not fit within the bounds of a
+-- 64-bit word.
+--
+toWord64 :: Coin -> Maybe Word64
+toWord64 (Coin c) = intCastMaybe c
+
+--------------------------------------------------------------------------------
+-- Conversions (Unsafe)
+-------------------------------------------------------------------------------
+
+-- | Constructs a 'Coin' from an 'Integral' value.
+--
+-- Callers of this function must take responsibility for checking that the
+-- given value is not negative.
+--
+-- Produces a run-time error if the given value is negative.
+--
+unsafeFromIntegral
+    :: HasCallStack
+    => (Bits i, Integral i, Show i)
+    => i
+    -> Coin
+unsafeFromIntegral i = fromMaybe onError (fromIntegral i)
+  where
+    onError =  error $ unwords
+        [ "Coin.unsafeFromIntegral:"
+        , show i
+        , "is not a natural number."
+        ]
+
+-- | Converts a 'Coin' to a 'Word64' value.
+--
+-- Callers of this function must take responsibility for checking that the
+-- given value will fit within the bounds of a 64-bit word.
+--
+-- Produces a run-time error if the given value is out of bounds.
+--
+unsafeToWord64 :: HasCallStack => Coin -> Word64
+unsafeToWord64 c = fromMaybe onError (toWord64 c)
+  where
+    onError = error $ unwords
+        [ "Coin.unsafeToWord64:"
+        , show c
+        , "does not fit within the bounds of a 64-bit word."
+        ]
+
+{-------------------------------------------------------------------------------
+                               Compatibility
+-------------------------------------------------------------------------------}
 
 -- | Compatibility function to use while 'Quantity' is still used in non-API
 -- parts of the code.
 coinQuantity :: Integral a => Coin -> Quantity n a
-coinQuantity (Coin n) = Quantity (fromIntegral n)
+coinQuantity (Coin n) = Quantity (Prelude.fromIntegral n)
 
 coinToInteger :: Coin -> Integer
-coinToInteger = fromIntegral . unCoin
+coinToInteger = Prelude.fromIntegral . unCoin
 
 coinToNatural :: Coin -> Natural
-coinToNatural = fromIntegral . unCoin
+coinToNatural = unCoin
 
 unsafeNaturalToCoin :: Natural -> Coin
-unsafeNaturalToCoin x | x <= maxBoundNatural = Coin $ fromIntegral x
-                      | otherwise = error "unsafeNaturalToCoin: overflow"
-  where
-    maxBoundNatural = fromIntegral . unCoin $ maxBound @Coin
+unsafeNaturalToCoin = Coin
 
 {-------------------------------------------------------------------------------
                                      Checks

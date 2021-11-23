@@ -96,6 +96,7 @@ import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -296,7 +297,7 @@ fromTxIn (TxInUtxo id_ ix) = W.TxIn
 fromTxOut :: TxOut -> W.TxOut
 fromTxOut (TxOut addr coin) = W.TxOut
     { address = W.Address (serialize' addr)
-    , tokens = TokenBundle.fromCoin $ W.Coin $ unsafeGetLovelace coin
+    , tokens = TokenBundle.fromCoin $ Coin.fromWord64 $ unsafeGetLovelace coin
     }
 
 fromByronHash :: ByronHash -> W.Hash "BlockHeader"

@@ -32,8 +32,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -63,6 +61,7 @@ import Test.QuickCheck
     , (==>)
     )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
@@ -220,7 +219,7 @@ instance Arbitrary (Index 'WholeDomain 'AccountK) where
 -------------------------------------------------------------------------------}
 
 coinToBundle :: Word64 -> TokenBundle
-coinToBundle = TokenBundle.fromCoin . Coin
+coinToBundle = TokenBundle.fromCoin . Coin.fromWord64
 
 -- A mainnet block with a transaction
 txs1 :: [([TxIn], [TxOut])]

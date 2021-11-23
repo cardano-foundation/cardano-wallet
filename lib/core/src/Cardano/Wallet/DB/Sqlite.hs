@@ -263,6 +263,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -1607,16 +1608,16 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
         -----------------------------------------------------------------------}
 
         , putDelegationRewardBalance =
-            \wid (W.Coin amt) -> ExceptT $ do
+            \wid amt -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> Right <$> repsert
                     (DelegationRewardKey wid)
-                    (DelegationReward wid amt)
+                    (DelegationReward wid (Coin.unsafeToWord64 amt))
 
         , readDelegationRewardBalance =
             \wid ->
-                W.Coin . maybe 0 (rewardAccountBalance . entityVal) <$>
+                Coin.fromWord64 . maybe 0 (rewardAccountBalance . entityVal) <$>
                 selectFirst [RewardWalletId ==. wid] []
 
         {-----------------------------------------------------------------------
