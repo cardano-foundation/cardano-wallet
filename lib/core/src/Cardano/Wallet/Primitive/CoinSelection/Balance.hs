@@ -1367,7 +1367,7 @@ makeChange criteria
         first mkUnableToConstructChangeError $ do
             adaAvailable <- maybeToEither
                 (requiredCost `Coin.difference` excessCoin)
-                (excessCoin `Coin.subtractCoin` requiredCost)
+                (excessCoin `Coin.subtract` requiredCost)
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs
   where

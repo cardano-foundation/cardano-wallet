@@ -30,7 +30,7 @@ module Cardano.Wallet.Primitive.Types.Coin
 
       -- * Arithmetic operations
     , add
-    , subtractCoin
+    , subtract
     , difference
     , distance
 
@@ -42,7 +42,7 @@ module Cardano.Wallet.Primitive.Types.Coin
     ) where
 
 import Prelude hiding
-    ( fromIntegral, toInteger )
+    ( fromIntegral, subtract, toInteger )
 
 import Cardano.Numeric.Util
     ( equipartitionNatural, partitionNatural )
@@ -214,16 +214,16 @@ unsafeToWord64 c = fromMaybe onError (toWord64 c)
         , "does not fit within the bounds of a 64-bit word."
         ]
 
-{-------------------------------------------------------------------------------
-                                   Operations
--------------------------------------------------------------------------------}
+--------------------------------------------------------------------------------
+-- Arithmetic operations
+--------------------------------------------------------------------------------
 
 -- | Subtracts the second coin from the first.
 --
 -- Returns 'Nothing' if the second coin is strictly greater than the first.
 --
-subtractCoin :: Coin -> Coin -> Maybe Coin
-subtractCoin (Coin a) (Coin b)
+subtract :: Coin -> Coin -> Maybe Coin
+subtract (Coin a) (Coin b)
     | a >= b    = Just $ Coin (a - b)
     | otherwise = Nothing
 
@@ -237,7 +237,7 @@ add (Coin a) (Coin b) = Coin (a + b)
 -- Returns 'Coin 0' if the second coin is strictly greater than the first.
 --
 difference :: Coin -> Coin -> Coin
-difference a b = fromMaybe (Coin 0) (subtractCoin a b)
+difference a b = fromMaybe (Coin 0) (subtract a b)
 
 -- | Absolute difference between two coin amounts. The result is never negative.
 distance :: Coin -> Coin -> Coin

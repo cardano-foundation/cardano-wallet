@@ -1625,7 +1625,7 @@ balanceTransaction
 
             txFeePadding = (<> extraMargin) $ fromMaybe (Coin 0) $ do
                 betterEstimate <- evaluateMinimumFee tl nodePParams sealedTx
-                betterEstimate `Coin.subtractCoin` worseEstimate
+                betterEstimate `Coin.subtract` worseEstimate
         in
             txCtx { txFeePadding }
 

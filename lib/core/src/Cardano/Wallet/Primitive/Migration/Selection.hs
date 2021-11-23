@@ -248,7 +248,7 @@ balance constraints unbalancedSelection = do
     let minimumFeeForUnbalancedSelection =
             computeMinimumFee constraints unbalancedSelection
     unbalancedFeeExcess <- maybeToEither SelectionAdaInsufficient $
-            Coin.subtractCoin unbalancedFee minimumFeeForUnbalancedSelection
+        Coin.subtract unbalancedFee minimumFeeForUnbalancedSelection
     let (minimizedFeeExcess, maximizedOutputs) = minimizeFee constraints
             (unbalancedFeeExcess, minimizedOutputs)
     let costIncrease = Coin.distance

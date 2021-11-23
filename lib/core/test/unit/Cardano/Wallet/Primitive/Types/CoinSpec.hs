@@ -68,8 +68,8 @@ prop_add_subtract :: Coin -> Coin -> Property
 prop_add_subtract a b =
     checkCoverageCoin a b $
     conjoin
-    [ (a `Coin.add` b) `Coin.subtractCoin` b === Just a
-    , (b `Coin.add` a) `Coin.subtractCoin` a === Just b
+    [ (a `Coin.add` b) `Coin.subtract` b === Just a
+    , (b `Coin.add` a) `Coin.subtract` a === Just b
     ]
 
 prop_add_toNatural :: Coin -> Coin -> Property
@@ -90,8 +90,8 @@ prop_difference_subtract :: Coin -> Coin -> Property
 prop_difference_subtract a b =
     checkCoverageCoin a b $
     if (a >= b)
-    then a `Coin.subtractCoin` b === Just (a `Coin.difference` b)
-    else a `Coin.subtractCoin` b === Nothing
+    then a `Coin.subtract` b === Just (a `Coin.difference` b)
+    else a `Coin.subtract` b === Nothing
 
 prop_distance_commutative :: Coin -> Coin -> Property
 prop_distance_commutative a b =
@@ -103,11 +103,11 @@ prop_subtract_toNatural a b =
     checkCoverageCoin a b $
     if (a >= b)
     then
-        (Coin.toNatural <$> (a `Coin.subtractCoin` b))
+        (Coin.toNatural <$> (a `Coin.subtract` b))
         ===
         (Just (Coin.toNatural a - Coin.toNatural b))
     else
-        (Coin.toNatural <$> (b `Coin.subtractCoin` a))
+        (Coin.toNatural <$> (b `Coin.subtract` a))
         ===
         (Just (Coin.toNatural b - Coin.toNatural a))
 
