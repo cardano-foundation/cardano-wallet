@@ -373,7 +373,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -2069,7 +2069,7 @@ mkTxMeta ti' blockHeader wState txCtx sel =
             -- transaction is considered 'Incoming' since it brings extra money
             -- to the wallet from elsewhere).
             & case txWithdrawal txCtx of
-                w@WithdrawalSelf{} -> addCoin (withdrawalToCoin w)
+                w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
                 WithdrawalExternal{} -> Prelude.id
                 NoWithdrawal -> Prelude.id
     in do

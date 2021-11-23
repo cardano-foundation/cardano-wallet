@@ -785,7 +785,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionParamsOf (NonEmpty TxOut)
     transformParams
         = over #extraCoinSource
-            (transform (`Coin.addCoin` minCoin) (const id))
+            (transform (`Coin.add` minCoin) (const id))
         . over #outputsToCover
             (transform (const (dummyOutput :| [])) (const . id))
 

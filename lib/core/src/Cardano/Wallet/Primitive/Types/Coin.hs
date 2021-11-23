@@ -29,7 +29,7 @@ module Cardano.Wallet.Primitive.Types.Coin
     , unsafeToWord64
 
       -- * Arithmetic operations
-    , addCoin
+    , add
     , subtractCoin
     , difference
     , distance
@@ -90,7 +90,7 @@ newtype Coin = Coin
 
 instance Semigroup Coin where
     -- Natural doesn't have a default Semigroup instance.
-    Coin a <> Coin b = Coin (a + b)
+    (<>) = add
 
 instance Monoid Coin where
     mempty = Coin 0
@@ -227,15 +227,10 @@ subtractCoin (Coin a) (Coin b)
     | a >= b    = Just $ Coin (a - b)
     | otherwise = Nothing
 
--- | Calculate the combined value of two coins.
+-- | Calculates the combined value of two coins.
 --
--- NOTE: It is generally safe to add coins and stay in the same domain because
--- the max supply is known (45B), which easily fits within a 'Word64'. So for
--- the vast majority of usages of this function within cardano-wallet, it is a
--- safe operation.
---
-addCoin :: Coin -> Coin -> Coin
-addCoin (Coin a) (Coin b) = Coin (a + b)
+add :: Coin -> Coin -> Coin
+add (Coin a) (Coin b) = Coin (a + b)
 
 -- | Subtracts the second coin from the first.
 --
