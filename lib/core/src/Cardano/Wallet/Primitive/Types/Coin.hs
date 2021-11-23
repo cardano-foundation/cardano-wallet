@@ -18,14 +18,15 @@ module Cardano.Wallet.Primitive.Types.Coin
       -- * Conversions (Safe)
     , fromIntegral
     , fromWord64
+    , toQuantity
     , toWord64
 
       -- * Conversions (Unsafe)
     , unsafeFromIntegral
+    , unsafeToQuantity
     , unsafeToWord64
 
       -- * Compatibility
-    , coinQuantity
     , coinToInteger
     , coinToNatural
     , unsafeNaturalToCoin
@@ -143,6 +144,14 @@ fromIntegral i = Coin <$> intCastMaybe i
 fromWord64 :: Word64 -> Coin
 fromWord64 = Coin . intCast
 
+-- | Converts a 'Coin' to a 'Quantity'.
+--
+-- Returns 'Nothing' if the given value does not fit within the bounds of
+-- the target type.
+--
+toQuantity :: (Bits i, Integral i) => Coin -> Maybe (Quantity n i)
+toQuantity (Coin c) = Quantity <$> intCastMaybe c
+
 -- | Converts a 'Coin' to a 'Word64' value.
 --
 -- Returns 'Nothing' if the given value does not fit within the bounds of a
@@ -175,6 +184,26 @@ unsafeFromIntegral i = fromMaybe onError (fromIntegral i)
         , "is not a natural number."
         ]
 
+-- | Converts a 'Coin' to a 'Quantity'.
+--
+-- Callers of this function must take responsibility for checking that the
+-- given value will fit within the bounds of the target type.
+--
+-- Produces a run-time error if the given value is out of bounds.
+--
+unsafeToQuantity
+    :: HasCallStack
+    => (Bits i, Integral i)
+    => Coin
+    -> Quantity n i
+unsafeToQuantity c = fromMaybe onError (toQuantity c)
+  where
+    onError = error $ unwords
+        [ "Coin.unsafeToQuantity:"
+        , show c
+        , "does not fit within the bounds of the target type."
+        ]
+
 -- | Converts a 'Coin' to a 'Word64' value.
 --
 -- Callers of this function must take responsibility for checking that the
@@ -194,11 +223,6 @@ unsafeToWord64 c = fromMaybe onError (toWord64 c)
 {-------------------------------------------------------------------------------
                                Compatibility
 -------------------------------------------------------------------------------}
-
--- | Compatibility function to use while 'Quantity' is still used in non-API
--- parts of the code.
-coinQuantity :: Integral a => Coin -> Quantity n a
-coinQuantity (Coin n) = Quantity (Prelude.fromIntegral n)
 
 coinToInteger :: Coin -> Integer
 coinToInteger = Prelude.fromIntegral . unCoin
