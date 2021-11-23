@@ -78,8 +78,8 @@ prop_add_toNatural :: Coin -> Coin -> Property
 prop_add_toNatural a b =
     checkCoverageCoin a b $
     (===)
-        (Coin.coinToNatural (a `Coin.addCoin` b))
-        (Coin.coinToNatural a + Coin.coinToNatural b)
+        (Coin.toNatural (a `Coin.addCoin` b))
+        (Coin.toNatural a + Coin.toNatural b)
 
 prop_difference_distance :: Coin -> Coin -> Property
 prop_difference_distance a b =
@@ -105,13 +105,13 @@ prop_subtract_toNatural a b =
     checkCoverageCoin a b $
     if (a >= b)
     then
-        (Coin.coinToNatural <$> (a `Coin.subtractCoin` b))
+        (Coin.toNatural <$> (a `Coin.subtractCoin` b))
         ===
-        (Just (Coin.coinToNatural a - Coin.coinToNatural b))
+        (Just (Coin.toNatural a - Coin.toNatural b))
     else
-        (Coin.coinToNatural <$> (b `Coin.subtractCoin` a))
+        (Coin.toNatural <$> (b `Coin.subtractCoin` a))
         ===
-        (Just (Coin.coinToNatural b - Coin.coinToNatural a))
+        (Just (Coin.toNatural b - Coin.toNatural a))
 
 --------------------------------------------------------------------------------
 -- Coins that can be zero

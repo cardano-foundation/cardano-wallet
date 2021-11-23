@@ -19,6 +19,7 @@ module Cardano.Wallet.Primitive.Types.Coin
     , fromIntegral
     , fromWord64
     , toInteger
+    , toNatural
     , toQuantity
     , toWord64
 
@@ -28,7 +29,6 @@ module Cardano.Wallet.Primitive.Types.Coin
     , unsafeToWord64
 
       -- * Compatibility
-    , coinToNatural
     , unsafeNaturalToCoin
 
       -- * Checks
@@ -149,6 +149,11 @@ fromWord64 = Coin . intCast
 toInteger :: Coin -> Integer
 toInteger = intCast . unCoin
 
+-- | Converts a 'Coin' to a 'Natural' value.
+--
+toNatural :: Coin -> Natural
+toNatural = unCoin
+
 -- | Converts a 'Coin' to a 'Quantity'.
 --
 -- Returns 'Nothing' if the given value does not fit within the bounds of
@@ -229,9 +234,6 @@ unsafeToWord64 c = fromMaybe onError (toWord64 c)
                                Compatibility
 -------------------------------------------------------------------------------}
 
-coinToNatural :: Coin -> Natural
-coinToNatural = unCoin
-
 unsafeNaturalToCoin :: Natural -> Coin
 unsafeNaturalToCoin = Coin
 
@@ -302,7 +304,7 @@ equipartition
 equipartition c =
     -- Note: the natural-to-coin conversion is safe, as partitioning guarantees
     -- to produce values that are less than or equal to the original value.
-    fmap unsafeNaturalToCoin . equipartitionNatural (coinToNatural c)
+    fmap unsafeNaturalToCoin . equipartitionNatural (toNatural c)
 
 -- | Partitions a coin into a number of parts, where the size of each part is
 --   proportional to the size of its corresponding element in the given list
@@ -321,8 +323,8 @@ partition c
     -- Note: the natural-to-coin conversion is safe, as partitioning guarantees
     -- to produce values that are less than or equal to the original value.
     = fmap (fmap unsafeNaturalToCoin)
-    . partitionNatural (coinToNatural c)
-    . fmap coinToNatural
+    . partitionNatural (toNatural c)
+    . fmap toNatural
 
 -- | Partitions a coin into a number of parts, where the size of each part is
 --   proportional to the size of its corresponding element in the given list
