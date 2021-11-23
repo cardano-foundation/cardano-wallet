@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE ExplicitForAll #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -104,10 +103,6 @@ instance FromText Coin where
 
 instance NFData Coin
 instance Hashable Coin
-
-instance Bounded Coin where
-    minBound = Coin 0
-    maxBound = Coin 45_000_000_000_000_000
 
 instance Buildable Coin where
     build (Coin c) = fixedF @Double 6 (Prelude.fromIntegral c / 1e6)

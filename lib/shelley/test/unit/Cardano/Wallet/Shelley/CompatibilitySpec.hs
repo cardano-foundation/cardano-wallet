@@ -72,6 +72,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
     , TxSize (..)
+    , txOutMaxCoin
+    , txOutMinCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutTokenBundle )
@@ -409,7 +411,7 @@ prop_assessTokenBundleSize_enlarge b1' b2' =
     assess b1 == TokenBundleSizeExceedsLimit ==> conjoin
         [ assess (b1 `TokenBundle.add` b2)
             === TokenBundleSizeExceedsLimit
-        , assess (b1 `TokenBundle.setCoin` maxBound)
+        , assess (b1 `TokenBundle.setCoin` txOutMaxCoin)
             === TokenBundleSizeExceedsLimit
         ]
   where
@@ -430,7 +432,7 @@ prop_assessTokenBundleSize_shrink b1' b2' maxSize =
     assess b1 == TokenBundleSizeWithinLimit ==> conjoin
         [ assess (b1 `TokenBundle.difference` b2)
             === TokenBundleSizeWithinLimit
-        , assess (b1 `TokenBundle.setCoin` minBound)
+        , assess (b1 `TokenBundle.setCoin` txOutMinCoin)
             === TokenBundleSizeWithinLimit
         ]
   where

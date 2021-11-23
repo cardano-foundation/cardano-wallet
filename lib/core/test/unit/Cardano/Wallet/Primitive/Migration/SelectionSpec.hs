@@ -41,6 +41,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..)
     , TxSize (..)
+    , txOutMaxCoin
     , txOutputCoinCost
     , txOutputCoinMinimum
     , txOutputCoinSize
@@ -380,7 +381,7 @@ prop_addValueToOutputs_inner mockConstraints outputs =
 
 txOutputHasValidSizeWithMaxAda :: TxConstraints -> TokenMap -> Bool
 txOutputHasValidSizeWithMaxAda constraints b =
-    txOutputHasValidSize constraints $ TokenBundle maxBound b
+    txOutputHasValidSize constraints $ TokenBundle txOutMaxCoin b
 
 --------------------------------------------------------------------------------
 -- Minimizing fees
@@ -628,7 +629,7 @@ prop_txOutputCost_inner mockConstraints output =
         $ multiplyCoinByTen
         $ TokenBundle.getCoin output
     outputWithMaxCoin =
-        TokenBundle.setCoin output maxBound
+        TokenBundle.setCoin output txOutMaxCoin
     multiplyCoinByTen (Coin n) = Coin $ 10 * n
 
 --------------------------------------------------------------------------------
@@ -684,7 +685,7 @@ prop_txOutputSize_inner mockConstraints output =
         $ multiplyCoinByTen
         $ TokenBundle.getCoin output
     outputWithMaxCoin =
-        TokenBundle.setCoin output maxBound
+        TokenBundle.setCoin output txOutMaxCoin
     multiplyCoinByTen (Coin n) = Coin $ 10 * n
 
 --------------------------------------------------------------------------------
@@ -977,8 +978,10 @@ genTokenBundleAboveMinimumAdaQuantity mockConstraints = do
 genTokenMap :: MockTxConstraints -> Gen TokenMap
 genTokenMap mockConstraints =
     genInner
-        `suchThat` (txOutputHasValidSize constraints . (TokenBundle maxBound))
-        `suchThat` (txOutputHasValidTokenQuantities constraints)
+        `suchThat`
+            (txOutputHasValidSize constraints . (TokenBundle txOutMaxCoin))
+        `suchThat`
+            (txOutputHasValidTokenQuantities constraints)
   where
     constraints = unMockTxConstraints mockConstraints
 

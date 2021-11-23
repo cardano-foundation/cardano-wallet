@@ -314,7 +314,13 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), TxIn (..), TxOut (..), TxStatus (..) )
+    ( SealedTx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxStatus (..)
+    , txOutMaxCoin
+    , txOutMinCoin
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( HistogramBar (..)
     , UTxO (..)
@@ -443,6 +449,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
@@ -739,8 +746,8 @@ computeApiCoinSelectionFee selection
         - balanceOfDeposits
     feeIsValid :: Bool
     feeIsValid = (&&)
-        (fee >= fromIntegral (unCoin (minBound :: Coin)))
-        (fee <= fromIntegral (unCoin (maxBound :: Coin)))
+        (fee >= Coin.toInteger txOutMinCoin)
+        (fee <= Coin.toInteger txOutMaxCoin)
     balanceOfInputs
         = selection
         & view #inputs

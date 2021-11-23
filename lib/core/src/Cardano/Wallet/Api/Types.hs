@@ -328,6 +328,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , coinIsValidForTxOut
     , sealedTxFromBytes
     , txMetadataIsNull
+    , txOutMaxCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
@@ -2943,7 +2944,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
             | coinIsValidForTxOut (coinFromQuantity q) = pure q
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "
-                <> show (unCoin maxBound) <> " lovelace."
+                <> show (unCoin txOutMaxCoin) <> " lovelace."
 
 instance ToJSON (ApiT W.TokenBundle) where
     -- TODO: consider other structures
@@ -2965,7 +2966,7 @@ instance FromJSON (ApiT W.TokenBundle) where
             | coinIsValidForTxOut c = pure c
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "
-                <> show (unCoin maxBound) <> " lovelace."
+                <> show (unCoin txOutMaxCoin) <> " lovelace."
 
 instance ToJSON a => ToJSON (AddressAmount a) where
     toJSON = genericToJSON defaultRecordTypeOptions

@@ -288,6 +288,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxScriptValidity (..)
     , TxStatus (..)
+    , txOutMaxCoin
     , unsafeSealedTxFromBytes
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
@@ -754,13 +755,13 @@ spec = parallel $ do
         it "AddressAmount (too big)" $ do
             let msg = "Error in $: parsing AddressAmount failed, \
                     \invalid coin value: value has to be lower \
-                    \than or equal to " <> show (unCoin maxBound)
+                    \than or equal to " <> show (unCoin txOutMaxCoin)
                     <> " lovelace."
             Aeson.parseEither parseJSON [aesonQQ|
                 { "address": "<addr>"
                 , "amount":
                     { "unit":"lovelace"
-                    ,"quantity":#{unCoin maxBound + 1}
+                    ,"quantity":#{unCoin txOutMaxCoin + 1}
                     }
                 }
             |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)

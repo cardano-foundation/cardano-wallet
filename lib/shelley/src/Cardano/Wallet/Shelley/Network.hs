@@ -813,7 +813,7 @@ fetchRewardAccounts tr queryRewardQ accounts = do
         return res
   where
     byronValue :: Map W.RewardAccount W.Coin
-    byronValue = Map.fromList . map (, minBound) $ Set.toList accounts
+    byronValue = Map.fromList . map (, W.Coin 0) $ Set.toList accounts
 
     shelleyQry
         :: (Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra)))

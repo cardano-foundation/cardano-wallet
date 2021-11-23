@@ -140,6 +140,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TokenBundleSizeAssessor (..)
     , TxIn
     , TxOut (..)
+    , txOutMaxCoin
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -1454,7 +1455,7 @@ makeChange criteria
             assessBundleSizeWithMaxCoin :: TokenBundleSizeAssessor
             assessBundleSizeWithMaxCoin = TokenBundleSizeAssessor
                 $ view #assessTokenBundleSize bundleSizeAssessor
-                . flip TokenBundle.setCoin (maxBound @Coin)
+                . flip TokenBundle.setCoin txOutMaxCoin
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').

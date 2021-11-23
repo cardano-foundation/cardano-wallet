@@ -151,7 +151,7 @@ prop_shrinkCoinPositive = forAll genCoinPositive $ \c ->
         ]
 
 isValidCoinPositive :: Coin -> Bool
-isValidCoinPositive c = c > Coin 0 && c <= maxBound
+isValidCoinPositive c = c > Coin 0
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances

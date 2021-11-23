@@ -65,6 +65,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxConstraints (..)
     , TxSize
+    , txOutMaxCoin
     , txOutputCoinCost
     , txOutputHasValidSize
     , txOutputHasValidTokenQuantities
@@ -417,7 +418,7 @@ splitOutputIfTokenQuantityExceedsLimit
 --
 txOutputHasValidSizeIfAdaMaximized :: TxConstraints -> TokenMap -> Bool
 txOutputHasValidSizeIfAdaMaximized constraints output =
-    txOutputHasValidSize constraints (TokenBundle maxBound output)
+    txOutputHasValidSize constraints (TokenBundle txOutMaxCoin output)
 
 --------------------------------------------------------------------------------
 -- Minimizing fees

@@ -27,7 +27,11 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityFullRange, shrinkTokenQuantityFullRange )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
+    ( txOutMaxCoin
+    , txOutMaxTokenQuantity
+    , txOutMinCoin
+    , txOutMinTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutCoin, genTxOutTokenBundle, shrinkTxOutCoin )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
@@ -130,8 +134,8 @@ prop_computeMinimumAdaQuantity_agnosticToAdaQuantity
             , bundleWithCoinMinimized =/= bundleWithCoinMaximized
             ]
   where
-    bundleWithCoinMinimized = TokenBundle.setCoin bundle minBound
-    bundleWithCoinMaximized = TokenBundle.setCoin bundle maxBound
+    bundleWithCoinMinimized = TokenBundle.setCoin bundle txOutMinCoin
+    bundleWithCoinMaximized = TokenBundle.setCoin bundle txOutMaxCoin
     compute = computeMinimumAdaQuantityInternal minParam
     counterexampleText = unlines
         [ "bundle:"
