@@ -82,12 +82,17 @@ import qualified Prelude
 --
 -- Reminder: 1 ada = 1,000,000 lovelace.
 --
+-- The 'Coin' type has 'Semigroup' and 'Monoid' instances that correspond
+-- to ordinary addition and summation.
+--
 newtype Coin = Coin
     { unCoin :: Natural
     }
     deriving stock (Ord, Eq, Generic)
     deriving (Read, Show) via (Quiet Coin)
 
+-- | The 'Semigroup' instance for 'Coin' corresponds to ordinary addition.
+--
 instance Semigroup Coin where
     -- Natural doesn't have a default Semigroup instance.
     (<>) = add
