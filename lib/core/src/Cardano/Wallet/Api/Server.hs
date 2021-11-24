@@ -3242,8 +3242,8 @@ mkApiFee :: Maybe Coin -> [Coin] -> FeeEstimation -> ApiFee
 mkApiFee mDeposit minCoins (FeeEstimation estMin estMax) = ApiFee
     { estimatedMin = qty estMin
     , estimatedMax = qty estMax
-    , minimumCoins = Coin.unsafeToQuantity <$> minCoins
-    , deposit = Coin.unsafeToQuantity $ fromMaybe (Coin 0) mDeposit
+    , minimumCoins = Quantity . Coin.toNatural <$> minCoins
+    , deposit = Quantity . Coin.toNatural $ fromMaybe (Coin 0) mDeposit
     }
   where
     qty = Quantity . fromIntegral
