@@ -404,7 +404,7 @@ instance (Arbitrary n, Integral n, Num w) => Arbitrary (TrickyInt n w) where
 -- bundle that is still over the size limit.
 --
 prop_assessTokenBundleSize_enlarge
-    :: Blind (VariableSize128 TokenBundle)
+    :: Blind (VariableSize1024 TokenBundle)
     -> Blind (VariableSize16 TokenBundle)
     -> Property
 prop_assessTokenBundleSize_enlarge b1' b2' =
@@ -417,14 +417,14 @@ prop_assessTokenBundleSize_enlarge b1' b2' =
   where
     assess = assessTokenBundleSize
         $ tokenBundleSizeAssessor maryTokenBundleMaxSize
-    b1 = unVariableSize128 $ getBlind b1'
+    b1 = unVariableSize1024 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
 -- Shrinking a token bundle that is within the size limit should yield a token
 -- bundle that is still within the size limit.
 --
 prop_assessTokenBundleSize_shrink
-    :: Blind (VariableSize128 TokenBundle)
+    :: Blind (VariableSize1024 TokenBundle)
     -> Blind (VariableSize16 TokenBundle)
     -> TokenBundleMaxSize
     -> Property
@@ -437,7 +437,7 @@ prop_assessTokenBundleSize_shrink b1' b2' maxSize =
         ]
   where
     assess = assessTokenBundleSize (tokenBundleSizeAssessor maxSize)
-    b1 = unVariableSize128 $ getBlind b1'
+    b1 = unVariableSize1024 $ getBlind b1'
     b2 = unVariableSize16 $ getBlind b2'
 
 -- | Creates a test to assess the size of a token bundle with a fixed number of
@@ -788,7 +788,7 @@ newtype FixedSize128 a = FixedSize128 { unFixedSize128 :: a }
 newtype VariableSize16 a = VariableSize16 { unVariableSize16 :: a}
     deriving (Eq, Show)
 
-newtype VariableSize128 a = VariableSize128 { unVariableSize128 :: a}
+newtype VariableSize1024 a = VariableSize1024 { unVariableSize1024 :: a}
     deriving (Eq, Show)
 
 instance Arbitrary (FixedSize32 TokenBundle) where
@@ -811,8 +811,8 @@ instance Arbitrary (VariableSize16 TokenBundle) where
     arbitrary = VariableSize16 <$> resize 16 genTokenBundle
     -- No shrinking
 
-instance Arbitrary (VariableSize128 TokenBundle) where
-    arbitrary = VariableSize128 <$> resize 128 genTokenBundle
+instance Arbitrary (VariableSize1024 TokenBundle) where
+    arbitrary = VariableSize1024 <$> resize 1024 genTokenBundle
     -- No shrinking
 
 --
