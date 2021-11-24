@@ -828,7 +828,7 @@ data TokenBundleSizeAssessment
 --   token bundle.
 --
 txOutMinCoin :: Coin
-txOutMinCoin = Coin 1
+txOutMinCoin = Coin 0
 
 -- | The greatest quantity of lovelace that can appear in a transaction output's
 --   token bundle.
