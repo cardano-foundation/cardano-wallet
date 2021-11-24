@@ -332,6 +332,7 @@ test-suite unit
     , http-client-tls
     , http-media
     , http-types
+    , int-cast
     , iohk-monitoring
     , io-classes
     , io-sim

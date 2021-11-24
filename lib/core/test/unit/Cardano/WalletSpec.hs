@@ -127,6 +127,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , isPending
     , mockSealedTx
     , txOutCoin
+    , txOutMaxCoin
     )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx, genTxInLargeRange, shrinkTx )
@@ -266,6 +267,7 @@ import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -445,7 +447,7 @@ prop_guardQuitJoin
 prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards =
     let knownPools = Set.fromList knownPoolsList in
     let noRetirementPlanned = Nothing in
-    case W.guardQuit dlg (Coin rewards) of
+    case W.guardQuit dlg (Coin.fromWord64 rewards) of
         Right () ->
             label "I can quit" $ property True
         Left W.ErrNotDelegatingOrAboutTo ->
@@ -649,9 +651,9 @@ prop_estimateFee (NonEmpty coins) =
         Right estimation@(W.FeeEstimation minFee maxFee) ->
             label ("errors: " <> if any isNothing coins then "some" else "none") $
             counterexample (show estimation) $ conjoin
-                [ property $ maxFee <= unCoin (maximum (catMaybes coins))
+                [ property $ Coin.fromWord64 maxFee <= maximum (catMaybes coins)
                 , property $ minFee <= maxFee
-                , proportionBelow minFee coins
+                , proportionBelow (Coin.fromWord64 minFee) coins
                     `closeTo` (1/10 :: Double)
                 ]
   where
@@ -671,14 +673,17 @@ prop_estimateFee (NonEmpty coins) =
             Nothing -> except $ Left genericError
             Just c  -> except $ Right c
 
+    proportionBelow :: Coin -> [Maybe Coin] -> Double
     proportionBelow minFee xs =
         fromIntegral (countBelow minFee xs) / fromIntegral (count isJust xs)
       where
+        count :: (a -> Bool) -> [a] -> Int
         count p = length . filter p
 
         -- Find the number of results below the "minimum" estimate.
+        countBelow :: Coin -> [Maybe Coin] -> Int
         countBelow sup =
-            count ((< sup) . unCoin . fromMaybe maxBound)
+            count ((< sup) . fromMaybe txOutMaxCoin)
 
     -- Two fractions are close to each other if they are within 20% either way.
     closeTo a b =

@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -13,18 +13,24 @@
 module Cardano.Wallet.Primitive.Types.Coin
     ( -- * Type
       Coin (..)
-    , coinQuantity
-    , coinToInteger
-    , coinToNatural
-    , unsafeNaturalToCoin
 
-      -- * Checks
-    , isValidCoin
+      -- * Conversions (Safe)
+    , fromIntegral
+    , fromNatural
+    , fromWord64
+    , toInteger
+    , toNatural
+    , toQuantity
+    , toWord64
+
+      -- * Conversions (Unsafe)
+    , unsafeFromIntegral
+    , unsafeToQuantity
+    , unsafeToWord64
 
       -- * Arithmetic operations
-    , addCoin
-    , subtractCoin
-    , sumCoins
+    , add
+    , subtract
     , difference
     , distance
 
@@ -35,18 +41,19 @@ module Cardano.Wallet.Primitive.Types.Coin
 
     ) where
 
-import Prelude
+import Prelude hiding
+    ( fromIntegral, subtract, toInteger )
 
 import Cardano.Numeric.Util
     ( equipartitionNatural, partitionNatural )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Monad
-    ( (<=<) )
-import Data.Foldable
-    ( foldl' )
+import Data.Bits
+    ( Bits )
 import Data.Hashable
     ( Hashable )
+import Data.IntCast
+    ( intCast, intCastMaybe )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -54,7 +61,7 @@ import Data.Maybe
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..), ToText (..) )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -69,26 +76,26 @@ import Quiet
     ( Quiet (..) )
 
 import qualified Data.Text as T
+import qualified Prelude
 
 -- | A 'Coin' represents a quantity of lovelace.
 --
 -- Reminder: 1 ada = 1,000,000 lovelace.
 --
--- NOTE: The 'Coin' value is stored as a 64-bit unsigned integer. The maximum
--- supply of lovelace is less than 2^56, so there is ample space to store any
--- circulating amount of Ada.
+-- The 'Coin' type has 'Semigroup' and 'Monoid' instances that correspond
+-- to ordinary addition and summation.
 --
--- However be careful when summing coins, for example, if calculating historical
--- volumes traded, because this may overflow.
 newtype Coin = Coin
-    { unCoin :: Word64
+    { unCoin :: Natural
     }
     deriving stock (Ord, Eq, Generic)
     deriving (Read, Show) via (Quiet Coin)
 
+-- | The 'Semigroup' instance for 'Coin' corresponds to ordinary addition.
+--
 instance Semigroup Coin where
-    -- Word64 doesn't have a default Semigroup instance.
-    Coin a <> Coin b = Coin (a + b)
+    -- Natural doesn't have a default Semigroup instance.
+    (<>) = add
 
 instance Monoid Coin where
     mempty = Coin 0
@@ -97,82 +104,145 @@ instance ToText Coin where
     toText (Coin c) = T.pack $ show c
 
 instance FromText Coin where
-    fromText = validate <=< (fmap (Coin . fromIntegral) . fromText @Natural)
-      where
-        validate x
-            | isValidCoin x =
-                return x
-            | otherwise =
-                Left $ TextDecodingError "Coin value is out of bounds"
+    fromText = fmap Coin . fromText @Natural
 
 instance NFData Coin
 instance Hashable Coin
 
-instance Bounded Coin where
-    minBound = Coin 0
-    maxBound = Coin 45_000_000_000_000_000
-
 instance Buildable Coin where
-    build (Coin c) = fixedF @Double 6 (fromIntegral c / 1e6)
+    build (Coin c) = fixedF @Double 6 (Prelude.fromIntegral c / 1e6)
 
--- | Compatibility function to use while 'Quantity' is still used in non-API
--- parts of the code.
-coinQuantity :: Integral a => Coin -> Quantity n a
-coinQuantity (Coin n) = Quantity (fromIntegral n)
+--------------------------------------------------------------------------------
+-- Conversions (Safe)
+--------------------------------------------------------------------------------
 
-coinToInteger :: Coin -> Integer
-coinToInteger = fromIntegral . unCoin
+-- | Constructs a 'Coin' from an 'Integral' value.
+--
+-- Returns 'Nothing' if the given value is negative.
+--
+fromIntegral :: (Bits i, Integral i) => i -> Maybe Coin
+fromIntegral i = Coin <$> intCastMaybe i
 
-coinToNatural :: Coin -> Natural
-coinToNatural = fromIntegral . unCoin
+-- | Constructs a 'Coin' from a 'Natural' value.
+--
+fromNatural :: Natural -> Coin
+fromNatural = Coin
 
-unsafeNaturalToCoin :: Natural -> Coin
-unsafeNaturalToCoin x | x <= maxBoundNatural = Coin $ fromIntegral x
-                      | otherwise = error "unsafeNaturalToCoin: overflow"
+-- | Constructs a 'Coin' from a 'Word64' value.
+--
+fromWord64 :: Word64 -> Coin
+fromWord64 = Coin . intCast
+
+-- | Converts a 'Coin' to an 'Integer' value.
+--
+toInteger :: Coin -> Integer
+toInteger = intCast . unCoin
+
+-- | Converts a 'Coin' to a 'Natural' value.
+--
+toNatural :: Coin -> Natural
+toNatural = unCoin
+
+-- | Converts a 'Coin' to a 'Quantity'.
+--
+-- Returns 'Nothing' if the given value does not fit within the bounds of
+-- the target type.
+--
+toQuantity :: (Bits i, Integral i) => Coin -> Maybe (Quantity n i)
+toQuantity (Coin c) = Quantity <$> intCastMaybe c
+
+-- | Converts a 'Coin' to a 'Word64' value.
+--
+-- Returns 'Nothing' if the given value does not fit within the bounds of a
+-- 64-bit word.
+--
+toWord64 :: Coin -> Maybe Word64
+toWord64 (Coin c) = intCastMaybe c
+
+--------------------------------------------------------------------------------
+-- Conversions (Unsafe)
+-------------------------------------------------------------------------------
+
+-- | Constructs a 'Coin' from an 'Integral' value.
+--
+-- Callers of this function must take responsibility for checking that the
+-- given value is not negative.
+--
+-- Produces a run-time error if the given value is negative.
+--
+unsafeFromIntegral
+    :: HasCallStack
+    => (Bits i, Integral i, Show i)
+    => i
+    -> Coin
+unsafeFromIntegral i = fromMaybe onError (fromIntegral i)
   where
-    maxBoundNatural = fromIntegral . unCoin $ maxBound @Coin
+    onError =  error $ unwords
+        [ "Coin.unsafeFromIntegral:"
+        , show i
+        , "is not a natural number."
+        ]
 
-{-------------------------------------------------------------------------------
-                                     Checks
--------------------------------------------------------------------------------}
+-- | Converts a 'Coin' to a 'Quantity'.
+--
+-- Callers of this function must take responsibility for checking that the
+-- given value will fit within the bounds of the target type.
+--
+-- Produces a run-time error if the given value is out of bounds.
+--
+unsafeToQuantity
+    :: HasCallStack
+    => (Bits i, Integral i)
+    => Coin
+    -> Quantity n i
+unsafeToQuantity c = fromMaybe onError (toQuantity c)
+  where
+    onError = error $ unwords
+        [ "Coin.unsafeToQuantity:"
+        , show c
+        , "does not fit within the bounds of the target type."
+        ]
 
--- | Whether the coin amount is less than the total amount of Ada.
-isValidCoin :: Coin -> Bool
-isValidCoin c = c >= minBound && c <= maxBound
+-- | Converts a 'Coin' to a 'Word64' value.
+--
+-- Callers of this function must take responsibility for checking that the
+-- given value will fit within the bounds of a 64-bit word.
+--
+-- Produces a run-time error if the given value is out of bounds.
+--
+unsafeToWord64 :: HasCallStack => Coin -> Word64
+unsafeToWord64 c = fromMaybe onError (toWord64 c)
+  where
+    onError = error $ unwords
+        [ "Coin.unsafeToWord64:"
+        , show c
+        , "does not fit within the bounds of a 64-bit word."
+        ]
 
-{-------------------------------------------------------------------------------
-                                   Operations
--------------------------------------------------------------------------------}
+--------------------------------------------------------------------------------
+-- Arithmetic operations
+--------------------------------------------------------------------------------
 
 -- | Subtracts the second coin from the first.
 --
 -- Returns 'Nothing' if the second coin is strictly greater than the first.
 --
-subtractCoin :: Coin -> Coin -> Maybe Coin
-subtractCoin (Coin a) (Coin b)
+subtract :: Coin -> Coin -> Maybe Coin
+subtract (Coin a) (Coin b)
     | a >= b    = Just $ Coin (a - b)
     | otherwise = Nothing
 
--- | Calculate the combined value of two coins.
+-- | Calculates the combined value of two coins.
 --
--- NOTE: It is generally safe to add coins and stay in the same domain because
--- the max supply is known (45B), which easily fits within a 'Word64'. So for
--- the vast majority of usages of this function within cardano-wallet, it is a
--- safe operation.
---
-addCoin :: Coin -> Coin -> Coin
-addCoin (Coin a) (Coin b) = Coin (a + b)
-
--- | Add a list of coins together.
-sumCoins :: Foldable t => t Coin -> Coin
-sumCoins = foldl' addCoin (Coin 0)
+add :: Coin -> Coin -> Coin
+add (Coin a) (Coin b) = Coin (a + b)
 
 -- | Subtracts the second coin from the first.
 --
 -- Returns 'Coin 0' if the second coin is strictly greater than the first.
 --
 difference :: Coin -> Coin -> Coin
-difference a b = fromMaybe (Coin 0) (subtractCoin a b)
+difference a b = fromMaybe (Coin 0) (subtract a b)
 
 -- | Absolute difference between two coin amounts. The result is never negative.
 distance :: Coin -> Coin -> Coin
@@ -197,9 +267,7 @@ equipartition
     -> NonEmpty Coin
     -- ^ The partitioned coins.
 equipartition c =
-    -- Note: the natural-to-coin conversion is safe, as partitioning guarantees
-    -- to produce values that are less than or equal to the original value.
-    fmap unsafeNaturalToCoin . equipartitionNatural (coinToNatural c)
+    fmap fromNatural . equipartitionNatural (toNatural c)
 
 -- | Partitions a coin into a number of parts, where the size of each part is
 --   proportional to the size of its corresponding element in the given list
@@ -215,11 +283,9 @@ partition
     -> Maybe (NonEmpty Coin)
     -- ^ The partitioned coins.
 partition c
-    -- Note: the natural-to-coin conversion is safe, as partitioning guarantees
-    -- to produce values that are less than or equal to the original value.
-    = fmap (fmap unsafeNaturalToCoin)
-    . partitionNatural (coinToNatural c)
-    . fmap coinToNatural
+    = fmap (fmap fromNatural)
+    . partitionNatural (toNatural c)
+    . fmap toNatural
 
 -- | Partitions a coin into a number of parts, where the size of each part is
 --   proportional to the size of its corresponding element in the given list

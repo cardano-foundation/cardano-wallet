@@ -52,8 +52,6 @@ import Prelude hiding
 
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -81,6 +79,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Control.Foldl as F
 import qualified Data.List as L
@@ -297,8 +296,10 @@ log10 = Log10
 
 -- | Compute UtxoStatistics from UTxOs
 computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
-computeUtxoStatistics btype =
-    computeStatistics (pure . unCoin . txOutCoin) btype . Map.elems . unUTxO
+computeUtxoStatistics btype
+    = computeStatistics (pure . Coin.unsafeToWord64 . txOutCoin) btype
+    . Map.elems
+    . unUTxO
 
 -- | A more generic function for computing UTxO statistics on some other type of
 -- data that maps to UTxO's values.

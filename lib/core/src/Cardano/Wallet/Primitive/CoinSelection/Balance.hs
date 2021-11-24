@@ -140,6 +140,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TokenBundleSizeAssessor (..)
     , TxIn
     , TxOut (..)
+    , txOutMaxCoin
     , txOutMaxTokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -784,7 +785,7 @@ performSelectionEmpty performSelectionFn constraints params =
         -> SelectionParamsOf (NonEmpty TxOut)
     transformParams
         = over #extraCoinSource
-            (transform (`Coin.addCoin` minCoin) (const id))
+            (transform (`Coin.add` minCoin) (const id))
         . over #outputsToCover
             (transform (const (dummyOutput :| [])) (const . id))
 
@@ -1366,7 +1367,7 @@ makeChange criteria
         first mkUnableToConstructChangeError $ do
             adaAvailable <- maybeToEither
                 (requiredCost `Coin.difference` excessCoin)
-                (excessCoin `Coin.subtractCoin` requiredCost)
+                (excessCoin `Coin.subtract` requiredCost)
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs
   where
@@ -1454,7 +1455,7 @@ makeChange criteria
             assessBundleSizeWithMaxCoin :: TokenBundleSizeAssessor
             assessBundleSizeWithMaxCoin = TokenBundleSizeAssessor
                 $ view #assessTokenBundleSize bundleSizeAssessor
-                . flip TokenBundle.setCoin (maxBound @Coin)
+                . flip TokenBundle.setCoin txOutMaxCoin
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').

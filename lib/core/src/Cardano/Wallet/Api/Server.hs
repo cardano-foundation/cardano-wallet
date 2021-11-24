@@ -420,7 +420,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinQuantity )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -596,6 +596,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.CoinSelection.Collateral as Collateral
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
@@ -3241,8 +3242,8 @@ mkApiFee :: Maybe Coin -> [Coin] -> FeeEstimation -> ApiFee
 mkApiFee mDeposit minCoins (FeeEstimation estMin estMax) = ApiFee
     { estimatedMin = qty estMin
     , estimatedMax = qty estMax
-    , minimumCoins = coinQuantity <$> minCoins
-    , deposit = coinQuantity $ fromMaybe (Coin 0) mDeposit
+    , minimumCoins = Quantity . Coin.toNatural <$> minCoins
+    , deposit = Quantity . Coin.toNatural $ fromMaybe (Coin 0) mDeposit
     }
   where
     qty = Quantity . fromIntegral
@@ -3831,7 +3832,7 @@ instance IsServerError ErrCannotQuit where
                 , "although you're not even delegating, nor won't be in an "
                 , "immediate future."
                 ]
-        ErrNonNullRewards (Coin rewards) ->
+        ErrNonNullRewards rewards ->
             apiError err403 NonNullRewards $ mconcat
                 [ "It seems that you're trying to retire from delegation "
                 , "although you've unspoiled rewards in your rewards "

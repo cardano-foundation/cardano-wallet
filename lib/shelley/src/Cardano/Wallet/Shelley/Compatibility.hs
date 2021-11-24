@@ -244,6 +244,8 @@ import Data.Foldable
     ( toList )
 import Data.Function
     ( (&) )
+import Data.IntCast
+    ( intCast )
 import Data.List
     ( unzip5 )
 import Data.Map.Strict
@@ -261,7 +263,7 @@ import Data.Text.Class
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
-    ( Word16, Word32, Word64, Word8 )
+    ( Word16, Word32, Word8 )
 import Fmt
     ( Buildable (..), Builder, (+|), (+||), (||+) )
 import GHC.Records
@@ -337,6 +339,7 @@ import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Redeemer as W
@@ -1273,17 +1276,10 @@ fromShelleyAddress = W.Address
     . SL.serialiseAddr
 
 fromShelleyCoin :: SL.Coin -> W.Coin
-fromShelleyCoin (SL.Coin c) = W.Coin $ unsafeCast c
-  where
-    -- (but probably safe)
-    unsafeCast :: Integer -> Word64
-    unsafeCast = fromIntegral
+fromShelleyCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 
 toShelleyCoin :: W.Coin -> SL.Coin
-toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
-  where
-    safeCast :: Word64 -> Integer
-    safeCast = fromIntegral
+toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
 
 fromCardanoTx :: Cardano.Tx era -> (W.Tx, TokenMap, TokenMap)
 fromCardanoTx = \case
@@ -1511,9 +1507,9 @@ fromAlonzoTx (Alonzo.ValidatedTx bod _wits (Alonzo.IsValid isValid) aux) =
             else Just W.TxScriptInvalid
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
-fromCardanoLovelace :: Cardano.Lovelace -> W.Coin
+fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
 fromCardanoLovelace =
-    W.Coin . unsafeIntToWord . unQuantity . Cardano.lovelaceToQuantity
+    Coin.unsafeFromIntegral . unQuantity . Cardano.lovelaceToQuantity
   where
     unQuantity (Cardano.Quantity q) = q
 
@@ -1597,11 +1593,7 @@ fromShelleyRegistrationCert = \case
     SL.DCertMir{}     -> Nothing
 
 toWalletCoin :: HasCallStack => SL.Coin -> W.Coin
-toWalletCoin = W.Coin . unsafeCoinToWord64
-
--- | The reverse of 'word64ToCoin', where overflow is fatal.
-unsafeCoinToWord64 :: HasCallStack => SL.Coin -> Word64
-unsafeCoinToWord64 (SL.Coin c) = unsafeIntToWord c
+toWalletCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 
 fromPoolMetadata :: SL.PoolMetadata -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
 fromPoolMetadata meta =
@@ -1679,10 +1671,7 @@ toCardanoStakeCredential = Cardano.StakeCredentialByKey
     . W.unRewardAccount
 
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
-toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
-  where
-    safeCast :: Word64 -> Integer
-    safeCast = fromIntegral
+toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ intCast c
 
 toCardanoTxOut :: ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut era
 toCardanoTxOut era = case era of

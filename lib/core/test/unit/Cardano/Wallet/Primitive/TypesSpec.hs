@@ -88,7 +88,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), isValidCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -137,6 +137,8 @@ import Data.Function
     ( (&) )
 import Data.Function.Utils
     ( applyN )
+import Data.IntCast
+    ( intCast )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust, isNothing )
 import Data.Proxy
@@ -214,6 +216,7 @@ import Test.Utils.Time
 import UnliftIO.Exception
     ( evaluate )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString as BS
 import qualified Data.Map
@@ -223,9 +226,6 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.Types" $ do
-
-    parallel $ describe "Generators are valid" $ do
-        it "Arbitrary Coin" $ property isValidCoin
 
     describe "Class instances obey laws" $ do
         testLawsMany @TxOut
@@ -1006,7 +1006,7 @@ propUtxoTotalIsBalance
     -> ShowFmt UTxO
     -> Property
 propUtxoTotalIsBalance bType (ShowFmt utxo) =
-    Coin totalStake == TokenBundle.getCoin (balance utxo)
+    Coin.fromWord64 totalStake == TokenBundle.getCoin (balance utxo)
     & cover 75 (utxo /= mempty) "UTxO /= empty"
   where
     UTxOStatistics _ totalStake _ = computeUtxoStatistics bType utxo
@@ -1019,7 +1019,8 @@ propUtxoSumDistribution
     -> ShowFmt UTxO
     -> Property
 propUtxoSumDistribution bType (ShowFmt utxo) =
-    sum (upperVal <$> bars) >= unCoin (TokenBundle.getCoin (balance utxo))
+    intCast (sum (upperVal <$> bars)) >=
+        unCoin (TokenBundle.getCoin (balance utxo))
     & cover 75 (utxo /= mempty) "UTxO /= empty"
     & counterexample ("Histogram: " <> pretty bars)
   where

@@ -61,6 +61,7 @@ library
     , filepath
     , fmt
     , generic-lens
+    , int-cast
     , io-classes
     , iohk-monitoring
     , memory

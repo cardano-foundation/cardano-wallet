@@ -225,7 +225,7 @@ mInitializeWallet wid cp meta txs0 gp db@Database{wallets,txs}
                 , txHistory = history
                 , xprv = Nothing
                 , genesisParameters = gp
-                , rewardAccountBalance = minBound
+                , rewardAccountBalance = Coin 0
                 , submittedTxs = mempty
                 }
             txs' = Map.fromList $ (\(tx, _) -> (view #txId tx, tx)) <$> txs0
@@ -517,7 +517,7 @@ mPutDelegationRewardBalance wid amt = alterModel wid $ \wal ->
 mReadDelegationRewardBalance
     :: Ord wid => wid -> ModelOp wid s xprv Coin
 mReadDelegationRewardBalance wid db@(Database wallets _) =
-    (Right (maybe minBound rewardAccountBalance $ Map.lookup wid wallets), db)
+    (Right (maybe (Coin 0) rewardAccountBalance $ Map.lookup wid wallets), db)
 
 mPutLocalTxSubmission :: Ord wid => wid -> Hash "Tx" -> SealedTx -> SlotNo -> ModelOp wid s xprv ()
 mPutLocalTxSubmission wid tid tx sl = alterModelErr wid $ \wal ->

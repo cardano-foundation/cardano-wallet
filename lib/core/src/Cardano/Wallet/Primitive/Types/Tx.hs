@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -69,6 +70,8 @@ module Cardano.Wallet.Primitive.Types.Tx
     , failedScriptValidation
 
     -- * Constants
+    , txOutMinCoin
+    , txOutMaxCoin
     , txOutMinTokenQuantity
     , txOutMaxTokenQuantity
 
@@ -81,6 +84,12 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txOutputHasValidTokenQuantities
     , TxSize (..)
     , txSizeDistance
+
+    -- * Checks
+    , coinIsValidForTxOut
+
+    -- * Conversions (Unsafe)
+    , unsafeCoinToTxOutCoinValue
 
     ) where
 
@@ -186,6 +195,7 @@ import Text.Pretty.Simple
     ( pShowNoColor )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString.Char8 as B8
@@ -814,6 +824,18 @@ data TokenBundleSizeAssessment
 -- Constants
 --------------------------------------------------------------------------------
 
+-- | The smallest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinCoin :: Coin
+txOutMinCoin = Coin 0
+
+-- | The greatest quantity of lovelace that can appear in a transaction output's
+--   token bundle.
+--
+txOutMaxCoin :: Coin
+txOutMaxCoin = Coin 45_000_000_000_000_000
+
 -- | The smallest token quantity that can appear in a transaction output's
 --   token bundle.
 --
@@ -933,3 +955,44 @@ unsafeSealedTxFromBytes = either (internalError . errMsg) id . sealedTxFromBytes
 mockSealedTx :: HasCallStack => ByteString -> SealedTx
 mockSealedTx = SealedTx False
     (internalError "mockSealedTx: attempted to decode gibberish")
+
+{-------------------------------------------------------------------------------
+                          Checks
+-------------------------------------------------------------------------------}
+
+coinIsValidForTxOut :: Coin -> Bool
+coinIsValidForTxOut c = (&&)
+    (c >= txOutMinCoin)
+    (c <= txOutMaxCoin)
+
+{-------------------------------------------------------------------------------
+                          Conversions (Unsafe)
+-------------------------------------------------------------------------------}
+
+-- | Converts the given 'Coin' value to a value that can be included in a
+--   transaction output.
+--
+-- Callers of this function must take responsibility for checking that the
+-- given value is:
+--
+--   - not smaller than 'txOutMinCoin'
+--   - not greater than 'txOutMaxCoin'
+--
+-- This function throws a run-time error if the pre-condition is violated.
+--
+unsafeCoinToTxOutCoinValue :: HasCallStack => Coin -> Word64
+unsafeCoinToTxOutCoinValue c
+    | c < txOutMinCoin =
+        error $ unwords
+            [ "unsafeCoinToTxOutCoinValue: coin value"
+            , show c
+            , "too small for transaction output"
+            ]
+    | c > txOutMaxCoin =
+          error $ unwords
+            [ "unsafeCoinToTxOutCoinValue: coin value"
+            , show c
+            , "too large for transaction output"
+            ]
+    | otherwise =
+        Coin.unsafeToWord64 c

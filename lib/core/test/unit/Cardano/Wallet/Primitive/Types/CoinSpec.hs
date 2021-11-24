@@ -7,7 +7,7 @@ module Cardano.Wallet.Primitive.Types.CoinSpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), isValidCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
 import Test.Hspec
@@ -49,8 +49,6 @@ spec = describe "Cardano.Wallet.Primitive.Types.CoinSpec" $ do
     parallel $ describe "Generators and shrinkers" $ do
 
         describe "Coins that can be zero" $ do
-            it "genCoin" $
-                property prop_genCoin
             it "genCoin_coverage" $
                 property prop_genCoin_coverage
             it "shrinkCoin" $
@@ -70,16 +68,16 @@ prop_add_subtract :: Coin -> Coin -> Property
 prop_add_subtract a b =
     checkCoverageCoin a b $
     conjoin
-    [ (a `Coin.addCoin` b) `Coin.subtractCoin` b === Just a
-    , (b `Coin.addCoin` a) `Coin.subtractCoin` a === Just b
+    [ (a `Coin.add` b) `Coin.subtract` b === Just a
+    , (b `Coin.add` a) `Coin.subtract` a === Just b
     ]
 
 prop_add_toNatural :: Coin -> Coin -> Property
 prop_add_toNatural a b =
     checkCoverageCoin a b $
     (===)
-        (Coin.coinToNatural (a `Coin.addCoin` b))
-        (Coin.coinToNatural a + Coin.coinToNatural b)
+        (Coin.toNatural (a `Coin.add` b))
+        (Coin.toNatural a + Coin.toNatural b)
 
 prop_difference_distance :: Coin -> Coin -> Property
 prop_difference_distance a b =
@@ -92,8 +90,8 @@ prop_difference_subtract :: Coin -> Coin -> Property
 prop_difference_subtract a b =
     checkCoverageCoin a b $
     if (a >= b)
-    then a `Coin.subtractCoin` b === Just (a `Coin.difference` b)
-    else a `Coin.subtractCoin` b === Nothing
+    then a `Coin.subtract` b === Just (a `Coin.difference` b)
+    else a `Coin.subtract` b === Nothing
 
 prop_distance_commutative :: Coin -> Coin -> Property
 prop_distance_commutative a b =
@@ -105,20 +103,17 @@ prop_subtract_toNatural a b =
     checkCoverageCoin a b $
     if (a >= b)
     then
-        (Coin.coinToNatural <$> (a `Coin.subtractCoin` b))
+        (Coin.toNatural <$> (a `Coin.subtract` b))
         ===
-        (Just (Coin.coinToNatural a - Coin.coinToNatural b))
+        (Just (Coin.toNatural a - Coin.toNatural b))
     else
-        (Coin.coinToNatural <$> (b `Coin.subtractCoin` a))
+        (Coin.toNatural <$> (b `Coin.subtract` a))
         ===
-        (Just (Coin.coinToNatural b - Coin.coinToNatural a))
+        (Just (Coin.toNatural b - Coin.toNatural a))
 
 --------------------------------------------------------------------------------
 -- Coins that can be zero
 --------------------------------------------------------------------------------
-
-prop_genCoin :: Property
-prop_genCoin = forAll genCoin isValidCoin
 
 prop_genCoin_coverage :: Coin -> Coin -> Property
 prop_genCoin_coverage a b =
@@ -138,10 +133,7 @@ checkCoverageCoin a b
 prop_shrinkCoin :: Property
 prop_shrinkCoin = forAll genCoin $ \c ->
     let shrunken = shrinkCoin c in
-    conjoin $ ($ shrunken) <$>
-        [ all (< c)
-        , all isValidCoin
-        ]
+    all (< c) shrunken
 
 --------------------------------------------------------------------------------
 -- Coins that are strictly positive
@@ -159,7 +151,7 @@ prop_shrinkCoinPositive = forAll genCoinPositive $ \c ->
         ]
 
 isValidCoinPositive :: Coin -> Bool
-isValidCoinPositive c = c > Coin 0 && c <= maxBound
+isValidCoinPositive c = c > Coin 0
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances

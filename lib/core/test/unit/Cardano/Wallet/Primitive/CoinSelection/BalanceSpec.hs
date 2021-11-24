@@ -100,7 +100,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance.Gen
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoin, genCoinPositive, shrinkCoin, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -233,6 +233,7 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Laws
     ( testLawsMany )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
@@ -2608,8 +2609,10 @@ prop_makeChange_fail_minValueTooBig p =
         -- coins available to generate all change outputs.
         Right change ->
             conjoin
-                [ deltaCoin < totalMinCoinDeposit `addCoin` view #requiredCost p
-                , deltaCoin >= view #requiredCost p
+                [ deltaCoin <
+                    totalMinCoinDeposit `Coin.add` view #requiredCost p
+                , deltaCoin >=
+                    view #requiredCost p
                 ]
                 & counterexample counterexampleText
           where
@@ -2626,7 +2629,7 @@ prop_makeChange_fail_minValueTooBig p =
                 totalOutputValue
             minCoinValueFor =
                 unMockComputeMinimumAdaQuantity (minCoinFor p)
-            totalMinCoinDeposit = F.foldr addCoin (Coin 0)
+            totalMinCoinDeposit = F.foldr Coin.add (Coin 0)
                 (minCoinValueFor . view #tokens <$> change)
   where
     totalInputValue =
@@ -2701,7 +2704,9 @@ unit_makeChange =
         ]
 
     b :: Word64 -> [(AssetId, Natural)] -> TokenBundle
-    b c = TokenBundle (Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+    b c = TokenBundle (Coin.fromWord64 c)
+        . TokenMap.fromFlatList
+        . fmap (second TokenQuantity)
 
     assetA :: AssetId
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
@@ -2952,7 +2957,7 @@ unit_assignCoinsToChangeMaps =
 
         -- Single Ada-only output, but not enough left to create a change
         , ( Coin 1
-          , (`addCoin` Coin 1) . computeMinimumAdaQuantityLinear
+          , (`Coin.add` Coin 1) . computeMinimumAdaQuantityLinear
           , m 42 [] :| []
           , Right []
           )
@@ -2988,10 +2993,14 @@ unit_assignCoinsToChangeMaps =
         ]
 
     m :: Word64 -> [(AssetId, Natural)] -> (TokenMap, Coin)
-    m c = (,Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+    m c = (, Coin.fromWord64 c)
+        . TokenMap.fromFlatList
+        . fmap (second TokenQuantity)
 
     b :: Word64 -> [(AssetId, Natural)] -> TokenBundle
-    b c = TokenBundle (Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+    b c = TokenBundle (Coin.fromWord64 c)
+        . TokenMap.fromFlatList
+        . fmap (second TokenQuantity)
 
     assetA :: AssetId
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
@@ -3002,7 +3011,7 @@ unit_assignCoinsToChangeMaps =
 
 prop_makeChangeForCoin_sum :: NonEmpty Coin -> Coin -> Property
 prop_makeChangeForCoin_sum weights surplus =
-    surplus === F.foldr addCoin (Coin 0) changes
+    surplus === F.foldr Coin.add (Coin 0) changes
   where
     changes = makeChangeForCoin weights surplus
 

@@ -373,7 +373,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin, coinToInteger, sumCoins )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Redeemer
@@ -1160,7 +1160,7 @@ readNextWithdrawal ctx (Coin withdrawal) = do
             calcMinimumCost tl pp (mkTxCtx $ Coin 0) emptySkeleton
 
     let costOfWithdrawal =
-            coinToInteger costWith - coinToInteger costWithout
+            Coin.toInteger costWith - Coin.toInteger costWithout
 
     if toInteger withdrawal < 2 * costOfWithdrawal
     then pure (Coin 0)
@@ -1588,7 +1588,7 @@ balanceTransaction
                     , "when balancing a transaction, but it was!"
                     ]
                 )
-                (sumCoins wdrlMap)
+                (F.fold wdrlMap)
          in (outs, wdrl, meta, toMint, toBurn)
 
     -- | Wallet coin selection is unaware of many kinds of transaction content
@@ -1625,7 +1625,7 @@ balanceTransaction
 
             txFeePadding = (<> extraMargin) $ fromMaybe (Coin 0) $ do
                 betterEstimate <- evaluateMinimumFee tl nodePParams sealedTx
-                betterEstimate `Coin.subtractCoin` worseEstimate
+                betterEstimate `Coin.subtract` worseEstimate
         in
             txCtx { txFeePadding }
 
@@ -2055,13 +2055,13 @@ mkTxMeta
     -> IO (UTCTime, TxMeta)
 mkTxMeta ti' blockHeader wState txCtx sel =
     let
-        amtOuts = sumCoins $
+        amtOuts = F.fold $
             (txOutCoin <$> view #change sel)
             ++
             mapMaybe ourCoin (view #outputs sel)
 
         amtInps
-            = sumCoins (txOutCoin . snd <$> view #inputs sel)
+            = F.fold (txOutCoin . snd <$> view #inputs sel)
             -- NOTE: In case where rewards were pulled from an external
             -- source, they aren't added to the calculation because the
             -- money is considered to come from outside of the wallet; which
@@ -2069,7 +2069,7 @@ mkTxMeta ti' blockHeader wState txCtx sel =
             -- transaction is considered 'Incoming' since it brings extra money
             -- to the wallet from elsewhere).
             & case txWithdrawal txCtx of
-                w@WithdrawalSelf{} -> addCoin (withdrawalToCoin w)
+                w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
                 WithdrawalExternal{} -> Prelude.id
                 NoWithdrawal -> Prelude.id
     in do

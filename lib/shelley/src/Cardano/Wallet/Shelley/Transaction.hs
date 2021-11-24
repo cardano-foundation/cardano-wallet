@@ -185,6 +185,8 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Labels
     ()
+import Data.IntCast
+    ( intCast )
 import Data.Kind
     ( Type )
 import Data.Map.Strict
@@ -699,10 +701,12 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
             extraOutputs' = toCardanoTxOut era <$> extraOutputs
             modifyFee' old = toLedgerCoin $ modifyFee $ fromLedgerCoin old
               where
+                toLedgerCoin :: Coin -> Ledger.Coin
                 toLedgerCoin (Coin c) =
-                    Ledger.word64ToCoin c
+                    Ledger.Coin (intCast c)
+                fromLedgerCoin :: Ledger.Coin -> Coin
                 fromLedgerCoin (Ledger.Coin c) =
-                    Coin.unsafeNaturalToCoin $ fromIntegral c
+                    Coin.unsafeFromIntegral c
                     -- fromIntegral will throw "Exception: arithmetic underflow"
                     -- if (c :: Integral) for some reason were to be negative.
 
@@ -843,7 +847,7 @@ _maxScriptExecutionCost pp redeemers
     maxExecutionUnits = view (#txParameters . #getMaxExecutionUnits) pp
 
     executionCost :: ExecutionUnitPrices -> ExecutionUnits -> Coin
-    executionCost ps us = Coin.unsafeNaturalToCoin . ceiling
+    executionCost ps us = Coin.fromNatural . ceiling
         $ (ps ^. #pricePerStep)       * toRational (us ^. #executionSteps)
         + (ps ^. #pricePerMemoryUnit) * toRational (us ^. #executionMemory)
 
@@ -1172,7 +1176,7 @@ mkTxSkeleton witness context skeleton = TxSkeleton
 --
 estimateTxCost :: ProtocolParameters -> TxSkeleton -> Coin
 estimateTxCost pp skeleton =
-    Coin.sumCoins
+    F.fold
         [ computeFee (estimateTxSize skeleton)
         , scriptExecutionCosts
         ]
@@ -1467,7 +1471,7 @@ estimateTxSize skeleton =
         . BS.length
         . CBOR.toStrictByteString
         . CBOR.encodeWord64
-        . unCoin
+        . Coin.unsafeToWord64
 
     -- withdrawals =
     --   { * reward_account => coin }

@@ -84,7 +84,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinToInteger )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive, shrinkCoinPositive )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -94,10 +94,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId, TokenBundle, tokenName )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genFixedSizeTokenBundle
-    , genTokenBundleSmallRange
-    , shrinkTokenBundleSmallRange
-    )
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (UnsafeTokenName), TokenPolicyId, unTokenName )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
@@ -118,6 +115,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txMetadataIsNull
     , txOutCoin
     )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxOutTokenBundle )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
@@ -234,6 +233,8 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Extra
+    ( chooseNatural )
 import Test.QuickCheck.Gen
     ( Gen (..), listOf1 )
 import Test.QuickCheck.Random
@@ -247,6 +248,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
@@ -658,11 +660,11 @@ feeCalculationSpec = describe "fee calculations" $ do
     fp = LinearFee (Quantity 100_000) (Quantity 100)
 
     minFee :: TransactionCtx -> Integer
-    minFee ctx = coinToInteger $ calcMinimumCost testTxLayer pp ctx sel
+    minFee ctx = Coin.toInteger $ calcMinimumCost testTxLayer pp ctx sel
       where sel = emptySkeleton
 
     minFeeSkeleton :: TxSkeleton -> Integer
-    minFeeSkeleton = coinToInteger . estimateTxCost pp
+    minFeeSkeleton = Coin.toInteger . estimateTxCost pp
 
     estimateTxSize' :: TxSkeleton -> Integer
     estimateTxSize' = fromIntegral . unTxSize . estimateTxSize
@@ -673,18 +675,18 @@ feeCalculationSpec = describe "fee calculations" $ do
 feeEstimationRegressionSpec :: Spec
 feeEstimationRegressionSpec = describe "Regression tests" $ do
     it "#1740 Fee estimation at the boundaries" $ do
-        let requiredCost = Coin 166029
+        let requiredCost = 166029
         let runSelection = except $ Left
                 $ ErrSelectAssetsSelectionError
                 $ SelectionBalanceError
                 $ Balance.UnableToConstructChange
                 $ Balance.UnableToConstructChangeError
-                    { requiredCost
+                    { requiredCost = Coin.fromWord64 requiredCost
                     , shortfall = Coin 100000
                     }
         result <- runExceptT (estimateFee runSelection)
         result `shouldBe`
-            Right (FeeEstimation (unCoin requiredCost) (unCoin requiredCost))
+            Right (FeeEstimation requiredCost requiredCost)
 
 binaryCalculationsSpec :: AnyCardanoEra -> Spec
 binaryCalculationsSpec (AnyCardanoEra era) =
@@ -1157,7 +1159,7 @@ dummyAddress b =
     Address $ BS.pack $ 1 : replicate 56 b
 
 coinToBundle :: Word64 -> TokenBundle
-coinToBundle = TokenBundle.fromCoin . Coin
+coinToBundle = TokenBundle.fromCoin . Coin.fromWord64
 
 dummyWit :: Word8 -> (XPrv, Passphrase "encryption")
 dummyWit b =
@@ -1246,7 +1248,7 @@ genMockSelection = do
         oneof [ pure 0, choose (1, 1000) ]
     txOutputs <- replicateM txOutputCount genTxOut
     txRewardWithdrawal <-
-        Coin <$> oneof [ pure 0, choose (1, 1_000_000) ]
+        Coin <$> oneof [ pure 0, chooseNatural (1, 1_000_000) ]
     pure MockSelection
         { txInputCount
         , txOutputs
@@ -1352,7 +1354,7 @@ newtype Large a = Large { unLarge :: a }
     deriving (Eq, Show)
 
 instance Arbitrary (Large TokenBundle) where
-    arbitrary = fmap Large . genFixedSizeTokenBundle =<< choose (1, 128)
+    arbitrary = fmap Large . genTxOutTokenBundle =<< choose (1, 128)
 
 -- Tests that if a bundle is oversized (when serialized), then a comparison
 -- between 'txOutputSize' and 'txOutputMaximumSize' should also indicate that

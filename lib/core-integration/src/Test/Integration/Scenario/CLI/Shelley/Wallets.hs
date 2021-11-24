@@ -53,7 +53,9 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32 )
+import Numeric.Natural
+    ( Natural )
 import System.Command
     ( Exit (..), Stderr (..), Stdout (..) )
 import System.Exit
@@ -735,7 +737,9 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         wDest <- emptyWallet ctx
 
         --send transactions to the wallet
-        let coins = [13_000_000, 43_000_000, 66_000_000, 101_000_000, 1339_000_000] :: [Word64]
+        let coins :: [Natural]
+            coins =
+                [13_000_000, 43_000_000, 66_000_000, 101_000_000, 1339_000_000]
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
 

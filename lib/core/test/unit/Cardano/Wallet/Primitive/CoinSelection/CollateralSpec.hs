@@ -55,6 +55,8 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.IntCast
+    ( intCast )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -65,6 +67,8 @@ import Data.Word
     ( Word64 )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.Hspec.Extra
@@ -704,7 +708,7 @@ instance Arbitrary SingleBitCoinMap where
     shrink = shrinkSingleBitCoinMap
 
 allSingleBitCoins :: [Coin]
-allSingleBitCoins = Coin . ((2 :: Word64) ^) <$> [0 :: Word64 .. ]
+allSingleBitCoins = Coin . ((2 :: Natural) ^) <$> [0 :: Natural .. ]
 
 genSingleBitCoinMap :: Gen SingleBitCoinMap
 genSingleBitCoinMap = sized $ \size -> do
@@ -1244,7 +1248,7 @@ genLongInputId =
 --------------------------------------------------------------------------------
 
 scaleCoin :: Coin -> Word64 -> Coin
-scaleCoin (Coin c) w = Coin (c * w)
+scaleCoin (Coin c) w = Coin (c * intCast w)
 
 instance Arbitrary Coin where
     arbitrary = genCoinPositive

@@ -62,7 +62,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), isValidCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -138,6 +138,7 @@ import Web.HttpApiData
 import Web.PathPieces
     ( PathPiece (..) )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -462,15 +463,9 @@ instance PersistFieldSql SealedTx where
 ----------------------------------------------------------------------------
 -- Coin
 
-mkCoin :: Word64 -> Either Text Coin
-mkCoin n
-    | isValidCoin c = Right c
-    | otherwise = Left . T.pack $ "not a valid coin: " <> show n
-    where c = Coin n
-
 instance PersistField Coin where
-    toPersistValue = toPersistValue . unCoin
-    fromPersistValue = fromPersistValue >=> mkCoin
+    toPersistValue = toPersistValue . Coin.unsafeToWord64
+    fromPersistValue = fmap Coin.fromWord64 . fromPersistValue
 
 instance PersistFieldSql Coin where
     sqlType _ = sqlType (Proxy @Word64)
