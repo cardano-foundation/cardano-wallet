@@ -1615,7 +1615,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (action, deposit) <- liftHandler
-            $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
+            $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -1662,7 +1662,7 @@ selectCoinsForQuit
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForQuit ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        action <- liftHandler $ W.quitStakePool @_ @s @k @n wrk wid
+        action <- liftHandler $ W.quitStakePool @_ @s @k wrk wid
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
@@ -2295,7 +2295,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
 
     (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (action, _) <- liftHandler
-            $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
+            $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
 
         (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
         ttl <- liftIO $ W.getTxExpiry ti Nothing
@@ -2409,7 +2409,7 @@ quitStakePool ctx (ApiT wid) body = do
 
     (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         action <- liftHandler
-            $ W.quitStakePool @_ @s @k @n wrk wid
+            $ W.quitStakePool @_ @s @k wrk wid
 
         (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
         ttl <- liftIO $ W.getTxExpiry ti Nothing

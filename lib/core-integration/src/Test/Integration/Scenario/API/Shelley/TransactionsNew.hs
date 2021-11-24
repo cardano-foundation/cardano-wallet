@@ -124,7 +124,6 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , arbitraryStake
-    , arbitraryStake
     , delegating
     , emptyWallet
     , eventually

@@ -22,11 +22,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
-    , MkKeyFingerprint
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , RewardAccount (..)
-    , RewardAccount
     , SoftDerivation (..)
     , ToRewardAccount (..)
     )

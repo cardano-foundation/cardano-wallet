@@ -2423,11 +2423,10 @@ migrationPlanToSelectionWithdrawals plan rewardWithdrawal outputAddressesToCycle
 -------------------------------------------------------------------------------}
 
 joinStakePool
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , HasLogger IO WalletWorkerLog ctx
-        , s ~ SeqState n k
         )
     => ctx
     -> W.EpochNo
@@ -2469,9 +2468,8 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
-    :: forall ctx s k n.
+    :: forall ctx s k.
         ( HasDBLayer IO s k ctx
-        , s ~ SeqState n k
         )
     => ctx
     -> WalletId

@@ -215,7 +215,6 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , arbitrarySizedFractional
     , checkCoverage
-    , checkCoverage
     , choose
     , conjoin
     , counterexample
