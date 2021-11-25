@@ -544,20 +544,17 @@ applyOurTxToUTxO !slotNo !blockHeight !tx !prevUTxO = do
     -- do make the assumption that if one input is ours, then all inputs are
     -- necessarily ours and therefore, known as part of our current UTxO.
     let actualFee direction = case (tx ^. #fee, direction) of
-            (Just x, Outgoing) -> -- Shelley and beyond.
+            (Just x, Outgoing) ->
+                -- Shelley and beyond:
                 Just x
-
-            (Nothing, Outgoing) -> -- Byron
-                let
-                    totalOut = F.fold (txOutCoin <$> outputs tx)
-
+            (Nothing, Outgoing) ->
+                -- Byron:
+                let totalOut = F.fold (txOutCoin <$> outputs tx)
                     totalIn = TB.getCoin spent
                 in
-                    Just $ distance totalIn totalOut
-
+                Just $ distance totalIn totalOut
             (_, Incoming) ->
                 Nothing
-
     return $ if hasKnownOutput && not hasKnownInput then
         let dir = Incoming in
         Just
@@ -567,8 +564,7 @@ applyOurTxToUTxO !slotNo !blockHeight !tx !prevUTxO = do
             , ourNextUTxO
             )
     else if hasKnownInput || hasKnownWithdrawal then
-        let
-            adaSpent = TB.getCoin spent
+        let adaSpent = TB.getCoin spent
             adaReceived = TB.getCoin received
             dir = if adaSpent > adaReceived then Outgoing else Incoming
             amount = distance adaSpent adaReceived
