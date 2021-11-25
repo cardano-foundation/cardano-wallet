@@ -469,15 +469,6 @@ prefilterBlock b u0 = runState $ do
     (transactions, ourU) <- foldM applyOurTx (mempty, u0) (b ^. #transactions)
     return (FilteredBlock {delegations, transactions}, ourU)
   where
-    mkTxMeta :: Coin -> Direction -> TxMeta
-    mkTxMeta amount dir = TxMeta
-        { status = InLedger
-        , direction = dir
-        , slotNo = b ^. #header . #slotNo
-        , blockHeight = b ^. #header . #blockHeight
-        , amount = amount
-        , expiry = Nothing
-        }
     applyOurTx
         :: (IsOurs s Address, IsOurs s RewardAccount)
         => ([(Tx, TxMeta)], UTxO)
@@ -578,6 +569,16 @@ prefilterBlock b u0 = runState $ do
                 )
         else
             Nothing
+      where
+        mkTxMeta :: Coin -> Direction -> TxMeta
+        mkTxMeta amount dir = TxMeta
+            { status = InLedger
+            , direction = dir
+            , slotNo = b ^. #header . #slotNo
+            , blockHeight = b ^. #header . #blockHeight
+            , amount = amount
+            , expiry = Nothing
+            }
 
 -- | Get the change UTxO
 --
