@@ -466,7 +466,7 @@ prefilterBlock
     -> ((FilteredBlock, UTxO), s)
 prefilterBlock b u0 = runState $ do
     delegations <- mapMaybeM ourDelegation (b ^. #delegations)
-    (transactions, ourU) <- foldM applyTx (mempty, u0) (b ^. #transactions)
+    (transactions, ourU) <- foldM applyOurTx (mempty, u0) (b ^. #transactions)
     return (FilteredBlock {delegations, transactions}, ourU)
   where
     mkTxMeta :: Coin -> Direction -> TxMeta
@@ -478,12 +478,21 @@ prefilterBlock b u0 = runState $ do
         , amount = amount
         , expiry = Nothing
         }
-    applyTx
+    applyOurTx
         :: (IsOurs s Address, IsOurs s RewardAccount)
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
-    applyTx (!txs, !prevUTxO) tx = do
+    applyOurTx (!txs, !u) !tx =
+        applyOurTxToUTxO tx u <&> \case
+            Nothing -> (txs, u)
+            Just (tx', u') -> (tx' : txs, u')
+    applyOurTxToUTxO
+        :: (IsOurs s Address, IsOurs s RewardAccount)
+        => Tx
+        -> UTxO
+        -> State s (Maybe ((Tx, TxMeta), UTxO))
+    applyOurTxToUTxO !tx !prevUTxO = do
         -- The next UTxO state (apply a state transition) (e.g. remove
         -- transaction outputs we've spent).
         ourNextUTxO <-
@@ -550,11 +559,12 @@ prefilterBlock b u0 = runState $ do
 
         return $ if hasKnownOutput && not hasKnownInput then
             let dir = Incoming in
-            ( ( tx { fee = actualFee dir }
-              , mkTxMeta (TB.getCoin received) dir
-              ) : txs
-            , ourNextUTxO
-            )
+            Just
+                ( ( tx { fee = actualFee dir }
+                  , mkTxMeta (TB.getCoin received) dir
+                  )
+                , ourNextUTxO
+                )
         else if hasKnownInput || hasKnownWithdrawal then
             let
                 adaSpent = TB.getCoin spent
@@ -562,11 +572,12 @@ prefilterBlock b u0 = runState $ do
                 dir = if adaSpent > adaReceived then Outgoing else Incoming
                 amount = distance adaSpent adaReceived
             in
-                ( (tx { fee = actualFee dir }, mkTxMeta amount dir) : txs
+            Just
+                ( (tx { fee = actualFee dir }, mkTxMeta amount dir)
                 , ourNextUTxO
                 )
         else
-            (txs, prevUTxO)
+            Nothing
 
 -- | Get the change UTxO
 --
