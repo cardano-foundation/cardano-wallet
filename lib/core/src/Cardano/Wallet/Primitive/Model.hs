@@ -408,6 +408,15 @@ isOurAddress
     -> StateT s m Bool
 isOurAddress = fmap isJust . state . isOurs
 
+ourWithdrawal
+    :: IsOurs s RewardAccount
+    => (RewardAccount, Coin)
+    -> State s (Maybe (RewardAccount, Coin))
+ourWithdrawal (acct, amt) =
+    state (isOurs acct) <&> \case
+        Nothing -> Nothing
+        Just{}  -> Just (acct, amt)
+
 {-------------------------------------------------------------------------------
                                Internals
 -------------------------------------------------------------------------------}
@@ -452,14 +461,6 @@ prefilterBlock b u0 = runState $ do
         state (isOurs $ dlgCertAccount cert) <&> \case
             Nothing -> Nothing
             Just{}  -> Just cert
-    ourWithdrawal
-        :: IsOurs s RewardAccount
-        => (RewardAccount, Coin)
-        -> State s (Maybe (RewardAccount, Coin))
-    ourWithdrawal (acct, amt) =
-        state (isOurs acct) <&> \case
-            Nothing -> Nothing
-            Just{}  -> Just (acct, amt)
     mkTxMeta :: Coin -> Direction -> TxMeta
     mkTxMeta amount dir = TxMeta
         { status = InLedger
