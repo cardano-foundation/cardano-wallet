@@ -74,7 +74,7 @@ import Cardano.Binary
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Ledger.Alonzo.Tools
-    ( evaluateTransactionExecutionUnits )
+    ( BasicFailure, ScriptFailure, evaluateTransactionExecutionUnits )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
@@ -205,7 +205,7 @@ import GHC.Generics
     ( Generic )
 import Ouroboros.Network.Block
     ( SlotNo )
-import Shelley.Spec.Ledger.API
+import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
 
 import qualified Cardano.Api as Cardano
@@ -217,8 +217,8 @@ import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.Data as Alonzo
-import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
+import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
@@ -240,9 +240,9 @@ import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
-import qualified Shelley.Spec.Ledger.Tx as Shelley
-import qualified Shelley.Spec.Ledger.UTxO as Ledger
+import qualified Cardano.Ledger.Shelley.Address.Bootstrap as SL
+import qualified Cardano.Ledger.Shelley.Tx as Shelley
+import qualified Cardano.Ledger.Shelley.UTxO as Ledger
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -698,7 +698,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
           where
             extraInputs' = toCardanoTxIn . fst <$> extraInputs
             extraCollateral' = toCardanoTxIn <$> extraCollateral
-            extraOutputs' = toCardanoTxOut era <$> extraOutputs
+            extraOutputs' = (toCardanoTxOut @Cardano.CtxUTxO era) <$> extraOutputs
             modifyFee' old = toLedgerCoin $ modifyFee $ fromLedgerCoin old
               where
                 toLedgerCoin :: Coin -> Ledger.Coin
@@ -952,14 +952,16 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
                 costs
       where
         hoistScriptFailure
-            :: Show scriptFailure
-            => Either PastHorizonException (Map Alonzo.RdmrPtr (Either scriptFailure a))
+            :: Either PastHorizonException (Either (BasicFailure c) (Map Alonzo.RdmrPtr (Either (ScriptFailure c) a)))
             -> Either PastHorizonException (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a))
         hoistScriptFailure =
-            fmap $ Map.mapWithKey
-                (\ptr -> left $
-                    \e -> ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
-                )
+            fmap $ \case
+                Left _ -> mempty -- fixme: support BasicFailure
+                Right m -> Map.mapWithKey
+                    (\ptr -> left $
+                        \e -> ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
+                    )
+                    m
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
@@ -1194,8 +1196,8 @@ estimateTxCost pp skeleton =
 -- This function uses the upper bounds of CBOR serialized objects as the basis
 -- for many of its calculations. The following document is used as a reference:
 --
--- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
--- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley-ma/shelley-ma-test/cddl-files/shelley-ma.cddl
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/test-suite/cddl-files/shelley.cddl
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley-ma/test-suite/cddl-files/shelley-ma.cddl
 --
 estimateTxSize :: TxSkeleton -> TxSize
 estimateTxSize skeleton =
@@ -1681,8 +1683,6 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
 
     , txScriptValidity =
         Cardano.TxScriptValidityNone
-
-    , txExtraScriptData = Cardano.BuildTxWith Cardano.TxExtraScriptDataNone
 
     , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
 

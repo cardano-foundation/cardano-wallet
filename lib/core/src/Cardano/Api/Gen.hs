@@ -64,7 +64,7 @@ module Cardano.Api.Gen
   , genValueForTxOut
   , genTxOutValue
   , genTxOut
-  , genTxOutDatumHash
+  , genTxOutDatum
   , genWitnessNetworkIdOrByronAddress
   , genByronKeyWitness
   , genShelleyWitnessSigningKey
@@ -90,7 +90,6 @@ module Cardano.Api.Gen
   , genStakePoolParameters
   , genProtocolParametersUpdate
   , genUpdateProposal
-  , genExtraScriptData
   ) where
 
 import Prelude
@@ -143,7 +142,7 @@ import Network.Socket
     ( PortNumber )
 import Numeric.Natural
     ( Natural )
-import Shelley.Spec.Ledger.API
+import Cardano.Ledger.Shelley.API
     ( MIRPot (..) )
 import Test.Cardano.Chain.UTxO.Gen
     ( genVKWitness )
@@ -186,11 +185,11 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Plutus.V1.Ledger.Api as Plutus
-import qualified Shelley.Spec.Ledger.API as Ledger
+import qualified Cardano.Ledger.Shelley.API as Ledger
     ( StakePoolRelay (..), portToWord16 )
-import qualified Shelley.Spec.Ledger.TxBody as Ledger
+import qualified Cardano.Ledger.Shelley.TxBody as Ledger
     ( EraIndependentTxBody )
-import qualified Test.Shelley.Spec.Ledger.Serialisation.Generators.Genesis as Ledger
+import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
     ( genStakePoolRelay )
 
 genShelleyHash
@@ -506,9 +505,9 @@ genScriptData =
 
 genExecutionUnits :: Gen ExecutionUnits
 genExecutionUnits = do
-    (Large steps) <- arbitrary
-    (Large mem) <- arbitrary
-    pure $ ExecutionUnits steps mem
+    (Large (steps :: Word64)) <- arbitrary
+    (Large (mem :: Word64)) <- arbitrary
+    pure $ ExecutionUnits (fromIntegral steps) (fromIntegral mem)
 
 genTxWithdrawals :: CardanoEra era -> Gen (TxWithdrawals BuildTx era)
 genTxWithdrawals era =
@@ -708,18 +707,18 @@ genTxOutValue era =
     Left adaOnlyInEra     -> TxOutAdaOnly adaOnlyInEra <$> genLovelace
     Right multiAssetInEra -> TxOutValue multiAssetInEra <$> genValueForTxOut
 
-genTxOut :: CardanoEra era -> Gen (TxOut era)
+genTxOut :: CardanoEra era -> Gen (TxOut ctx era)
 genTxOut era =
   TxOut <$> genAddressInEra era
         <*> genTxOutValue era
-        <*> genTxOutDatumHash era
+        <*> genTxOutDatum era
 
-genTxOutDatumHash :: CardanoEra era -> Gen (TxOutDatumHash era)
-genTxOutDatumHash era =
+genTxOutDatum :: CardanoEra era -> Gen (TxOutDatum ctx era)
+genTxOutDatum era =
     case scriptDataSupportedInEra era of
-        Nothing -> pure TxOutDatumHashNone
+        Nothing -> pure TxOutDatumNone
         Just supported -> oneof
-            [ pure TxOutDatumHashNone
+            [ pure TxOutDatumNone
             , TxOutDatumHash supported <$> genHashScriptData
             ]
 
@@ -749,7 +748,7 @@ genRational =
     ratioToRational = toRational
 
 -- TODO: consolidate this back to just genRational once this is merged:
--- https://github.com/input-output-hk/cardano-ledger-specs/pull/2330
+-- https://github.com/input-output-hk/cardano-ledger/pull/2330
 genRationalInt64 :: Gen Rational
 genRationalInt64 =
     (\d -> ratioToRational (1 % d)) <$> genDenominator
@@ -1135,17 +1134,6 @@ genUpdateProposal era =
                       )
                 ]
 
-genExtraScriptData :: CardanoEra era -> Gen (TxExtraScriptData era)
-genExtraScriptData era =
-    case scriptDataSupportedInEra era of
-        Nothing ->
-            pure TxExtraScriptDataNone
-        Just supported ->
-            oneof
-                [ pure TxExtraScriptDataNone
-                , TxExtraScriptData supported <$> listOf genScriptData
-                ]
-
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = do
     txIns <- map (, BuildTxWith (KeyWitness KeyWitnessForSpending))
@@ -1160,7 +1148,6 @@ genTxBodyContent era = do
     txUpdateProposal <- genUpdateProposal era
     txMintValue <- genTxMintValue era
     txScriptValidity <- genTxScriptValidity era
-    txExtraScriptData <- BuildTxWith <$> genExtraScriptData era
     txExtraKeyWits <- genExtraKeyWitnesses era
 
     let
@@ -1172,7 +1159,6 @@ genTxBodyContent era = do
             , Api.txValidityRange
             , Api.txMetadata
             , Api.txAuxScripts
-            , Api.txExtraScriptData
             , Api.txExtraKeyWits
             , Api.txProtocolParams = BuildTxWith Nothing
             , Api.txWithdrawals

@@ -364,11 +364,11 @@ import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
-import qualified Shelley.Spec.Ledger.API as SL
-import qualified Shelley.Spec.Ledger.API as SLAPI
-import qualified Shelley.Spec.Ledger.BlockChain as SL
-import qualified Shelley.Spec.Ledger.PParams as Shelley
-import qualified Shelley.Spec.Ledger.UTxO as SL
+import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Ledger.Shelley.API as SLAPI
+import qualified Cardano.Ledger.Shelley.BlockChain as SL
+import qualified Cardano.Ledger.Shelley.PParams as Shelley
+import qualified Cardano.Ledger.TxIn as SL
 
 --------------------------------------------------------------------------------
 --
@@ -816,7 +816,7 @@ fromLedgerShelleyPParams
     , Shelley._minUTxOValue
     , Shelley._minPoolCost
     } = Cardano.ProtocolParameters {
-      protocolParamProtocolVersion     = (\(Shelley.ProtVer a b) -> (a,b))
+      protocolParamProtocolVersion     = (\(SL.ProtVer a b) -> (a,b))
                                            _protocolVersion
     , protocolParamDecentralization    = SL.unboundRational _d
     , protocolParamExtraPraosEntropy   = fromLedgerNonce _extraEntropy
@@ -874,7 +874,7 @@ fromLedgerAlonzoPParams
     , Alonzo._collateralPercentage
     , Alonzo._maxCollateralInputs
     } = Cardano.ProtocolParameters {
-      protocolParamProtocolVersion     = (\(Shelley.ProtVer a b) -> (a,b))
+      protocolParamProtocolVersion     = (\(SL.ProtVer a b) -> (a,b))
                                            _protocolVersion
     , protocolParamDecentralization    = SL.unboundRational _d
     , protocolParamExtraPraosEntropy   = fromLedgerNonce _extraEntropy
@@ -917,6 +917,8 @@ fromLedgerAlonzoPParams
       fromAlonzoScriptLanguage :: Alonzo.Language -> Cardano.AnyPlutusScriptVersion
       fromAlonzoScriptLanguage Alonzo.PlutusV1 =
           Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1
+      fromAlonzoScriptLanguage Alonzo.PlutusV2 =
+          Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV2
 
       fromAlonzoCostModel :: Alonzo.CostModel -> Cardano.CostModel
       fromAlonzoCostModel (Alonzo.CostModel m) = Cardano.CostModel m
@@ -962,7 +964,7 @@ toAlonzoPParams
     Alonzo.PParams
         { Alonzo._protocolVersion =
             let (maj, minor) = protocolParamProtocolVersion
-             in Alonzo.ProtVer maj minor
+             in SL.ProtVer maj minor
         , Alonzo._d =
             fromMaybe
                 (error "toAlonzoPParams: invalid Decentralization value")
@@ -1039,6 +1041,8 @@ toAlonzoPParams
         toAlonzoScriptLanguage :: Cardano.AnyPlutusScriptVersion -> Alonzo.Language
         toAlonzoScriptLanguage (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV1) =
             Alonzo.PlutusV1
+        toAlonzoScriptLanguage (Cardano.AnyPlutusScriptVersion Cardano.PlutusScriptV2) =
+            Alonzo.PlutusV2
 
     toAlonzoPrices :: Cardano.ExecutionUnitPrices -> Maybe Alonzo.Prices
     toAlonzoPrices Cardano.ExecutionUnitPrices
@@ -1234,10 +1238,7 @@ fromShelleyTxId :: SL.TxId crypto -> W.Hash "Tx"
 fromShelleyTxId (SL.TxId h) =
     W.Hash $ Crypto.hashToBytes $ SafeHash.extractHash h
 
-fromShelleyTxIn
-    :: SL.Crypto crypto
-    => SL.TxIn crypto
-    -> W.TxIn
+fromShelleyTxIn :: SL.TxIn crypto -> W.TxIn
 fromShelleyTxIn (SL.TxIn txid ix) =
     W.TxIn (fromShelleyTxId txid) (unsafeCast ix)
   where
@@ -1654,7 +1655,7 @@ toTxIn :: SL.Crypto crypto => W.TxIn -> SL.TxIn crypto
 toTxIn (W.TxIn tid ix) =
     SL.TxIn (toTxId tid) (fromIntegral ix)
 
-toTxId :: W.Hash "Tx" -> SL.TxId crypto
+toTxId :: Crypto.HashAlgorithm (SL.HASH crypto) => W.Hash "Tx" -> SL.TxId crypto
 toTxId (W.Hash h) =
     (SL.TxId (SafeHash.unsafeMakeSafeHash $ UnsafeHash $ toShort h))
 
@@ -1673,19 +1674,19 @@ toCardanoStakeCredential = Cardano.StakeCredentialByKey
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
 toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ intCast c
 
-toCardanoTxOut :: ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut era
+toCardanoTxOut :: forall ctx era. ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut ctx era
 toCardanoTxOut era = case era of
     ShelleyBasedEraShelley -> toShelleyTxOut
     ShelleyBasedEraAllegra -> toAllegraTxOut
     ShelleyBasedEraMary    -> toMaryTxOut
     ShelleyBasedEraAlonzo  -> toAlonzoTxOut
   where
-    toShelleyTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ShelleyEra
+    toShelleyTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx ShelleyEra
     toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
             (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
-            Cardano.TxOutDatumHashNone
+            Cardano.TxOutDatumNone
       where
         adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
         addrInEra = tina "toCardanoTxOut: malformed address"
@@ -1697,12 +1698,12 @@ toCardanoTxOut era = case era of
                 <$> deserialiseFromRawBytes AsByronAddress addr
             ]
 
-    toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AllegraEra
+    toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx AllegraEra
     toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
             (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
-            Cardano.TxOutDatumHashNone
+            Cardano.TxOutDatumNone
       where
         adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
         addrInEra = tina "toCardanoTxOut: malformed address"
@@ -1714,12 +1715,12 @@ toCardanoTxOut era = case era of
                 <$> deserialiseFromRawBytes AsByronAddress addr
             ]
 
-    toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut MaryEra
+    toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx MaryEra
     toMaryTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
             (Cardano.TxOutValue Cardano.MultiAssetInMaryEra $ toCardanoValue tokens)
-            Cardano.TxOutDatumHashNone
+            Cardano.TxOutDatumNone
       where
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
@@ -1729,14 +1730,14 @@ toCardanoTxOut era = case era of
                 <$> deserialiseFromRawBytes AsByronAddress addr
             ]
 
-    toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut AlonzoEra
+    toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx AlonzoEra
     toAlonzoTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
             (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra $ toCardanoValue tokens)
             datumHash
       where
-        datumHash = Cardano.TxOutDatumHashNone
+        datumHash = Cardano.TxOutDatumNone
         addrInEra = tina "toCardanoTxOut: malformed address"
             [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
                 <$> deserialiseFromRawBytes AsShelleyAddress addr

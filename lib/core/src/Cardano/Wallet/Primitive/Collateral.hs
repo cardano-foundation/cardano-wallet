@@ -52,7 +52,7 @@ import qualified Data.Binary.Put as B
 import qualified Data.Bits as Bits
 import qualified Data.ByteString.Lazy as BL
 
--- In the realm of cardano-ledger-specs, we recognize the following types of
+-- In the realm of cardano-ledger, we recognize the following types of
 -- addresses:
 --   (see https://hydra.iohk.io/build/6752483/download/1/ledger-spec.pdf):
 --

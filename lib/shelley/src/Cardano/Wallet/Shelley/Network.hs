@@ -274,8 +274,8 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
-import qualified Shelley.Spec.Ledger.API as SL
-import qualified Shelley.Spec.Ledger.LedgerState as SL
+import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Ledger.Shelley.LedgerState as SL
 
 {- HLINT ignore "Use readTVarIO" -}
 {- HLINT ignore "Use newTVarIO" -}
@@ -999,7 +999,7 @@ connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
             { nctMuxTracer = nullTracer
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
-    let socket = localSnocket iocp (nodeSocketFile conn)
+    let socket = localSnocket iocp
     recoveringNodeConnection tr handlers $
         connectTo socket tracers versions (nodeSocketFile conn)
 
@@ -1078,7 +1078,7 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxBearerClosed -> do
         traceWith tr Nothing
         pure onResourceVanished
-    MuxBlockedOnCompletionVar _ -> pure False -- TODO: Is this correct?
+    MuxCleanShutdown -> pure False -- fixme: is this correct?
 
 {-------------------------------------------------------------------------------
     Helper functions of the Control.* and STM variety

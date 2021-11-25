@@ -256,7 +256,7 @@ data Tx = Tx
         -- a transaction derived from the ledger.
         --
         -- See Appendix E of
-        -- <https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
+        -- <https://hydra.iohk.io/job/Cardano/cardano-ledger/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
 
     , scriptValidity
         :: !(Maybe TxScriptValidity)

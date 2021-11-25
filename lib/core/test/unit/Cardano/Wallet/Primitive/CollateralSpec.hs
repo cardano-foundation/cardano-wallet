@@ -73,8 +73,8 @@ import qualified Data.Binary.Put as B
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Test.Cardano.Chain.Common.Gen as Byron
-import qualified Test.Shelley.Spec.Ledger.Serialisation.EraIndepGenerators as L
-import qualified Test.Shelley.Spec.Ledger.Serialisation.Generators.Genesis as L
+import qualified Test.Cardano.Ledger.Shelley.Serialisation.EraIndepGenerators as L
+import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as L
     ( genRewardAcnt )
 
 -- To begin with, we will write our generators and tests for the @AddressType@
@@ -732,7 +732,7 @@ shelleyEnterprisePaymentAddrGolden = unsafeBech32Decode
 
 -- To define these generators, we rely on explicit generators (and implicit
 -- Arbitrary instance generators) provided by
--- "Test.Shelley.Spec.Ledger.Serialisation.EraIndepGenerators". Do not try to
+-- "Test.Cardano.Ledger.Shelley.Serialisation.EraIndepGenerators". Do not try to
 -- move the generators below to any of our "*.Gen" modules. Unfortunately
 -- "EraIndepGenerators" exports Arbitrary instances that will conflict with the
 -- Arbitrary instances we define in our Specs.
