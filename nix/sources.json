@@ -24,15 +24,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "iohk-nix": {
-        "branch": "master",
+        "branch": "fix-regenerate-locale",
         "description": "nix scripts shared across projects",
         "homepage": null,
-        "owner": "input-output-hk",
+        "owner": "MELD-labs",
         "repo": "iohk-nix",
-        "rev": "df1da282f996ec46b33379407df99613a1fbafdd",
-        "sha256": "0vpcyrswxkynn2q37qsrhvf62whk2ijpcwqnamxcchcq6lwfpn0l",
+        "rev": "e13efbc391ccb61824a1dada507e75280926e91b",
+        "sha256": "1w2f8bii89sjh9g19q2nldc8kp546yfknpijc84csh0ahbxjcrr3",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/iohk-nix/archive/df1da282f996ec46b33379407df99613a1fbafdd.tar.gz",
+        "url": "https://github.com/MELD-labs/iohk-nix/archive/e13efbc391ccb61824a1dada507e75280926e91b.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "sphinxcontrib-haddock": {

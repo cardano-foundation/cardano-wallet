@@ -51,11 +51,9 @@
         "bench" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-bench" or (errorHandler.buildDepError "tasty-bench"))
             (hsPkgs."word-array" or (errorHandler.buildDepError "word-array"))
             (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
-            (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
             ];
           buildable = true;
           };
@@ -64,12 +62,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "b9e7161de67a08196167b34a6ab4679229f18769";
+      sha256 = "0p8q8s9669km27arhi2nj932nkpg3cfnxxrqqc5vz234mq4dmmw5";
       }) // {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "b9e7161de67a08196167b34a6ab4679229f18769";
+      sha256 = "0p8q8s9669km27arhi2nj932nkpg3cfnxxrqqc5vz234mq4dmmw5";
       };
     postUnpack = "sourceRoot+=/word-array; echo source root reset to \$sourceRoot";
     }

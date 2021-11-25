@@ -79,7 +79,7 @@ library
     , retry
     , serialise
     , servant-server
-    , shelley-spec-ledger
+    , cardano-ledger-shelley
     , strict-containers
     , strict-non-empty-containers
     , temporary
@@ -234,7 +234,7 @@ test-suite unit
     , optparse-applicative
     , ouroboros-consensus-shelley
     , ouroboros-network
-    , shelley-spec-ledger
+    , cardano-ledger-shelley
     , text
     , text-class
     , transformers

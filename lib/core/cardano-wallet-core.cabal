@@ -113,8 +113,8 @@ library
     , servant
     , servant-client
     , servant-server
-    , shelley-spec-ledger
-    , shelley-spec-ledger-test
+    , cardano-ledger-shelley
+    , cardano-ledger-shelley-test
     , split
     , splitmix
     , statistics
@@ -347,7 +347,7 @@ test-suite unit
     , plutus-ledger-api
     , pretty-simple
     , regex-pcre-builtin
-    , shelley-spec-ledger
+    , cardano-ledger-shelley
     , OddWord
     , ouroboros-consensus
     , QuickCheck
@@ -360,7 +360,7 @@ test-suite unit
     , scrypt
     , servant
     , servant-server
-    , shelley-spec-ledger-test
+    , cardano-ledger-shelley-test
     , should-not-typecheck
     , splitmix
     , strict-non-empty-containers

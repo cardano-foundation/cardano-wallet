@@ -27,7 +27,6 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
@@ -38,7 +37,7 @@
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
-          (hsPkgs."shelley-spec-non-integral" or (errorHandler.buildDepError "shelley-spec-non-integral"))
+          (hsPkgs."non-integral" or (errorHandler.buildDepError "non-integral"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           ];
@@ -47,13 +46,13 @@
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "ec51e4fb1b17461ab612cf427b79f1742942e8cb";
-      sha256 = "05bwy7x1asyfshqsfsyv2c70qwrxp4680xlvhwdm1hz9bi0lpq41";
+      url = "https://github.com/input-output-hk/cardano-ledger";
+      rev = "5ba0d75116575beab30368966c98a01b93d76a20";
+      sha256 = "09bx6aaidb31v5p3z6i6qvw4w4mjddkzp6zshcjqvbi321w5k1vn";
       }) // {
-      url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "ec51e4fb1b17461ab612cf427b79f1742942e8cb";
-      sha256 = "05bwy7x1asyfshqsfsyv2c70qwrxp4680xlvhwdm1hz9bi0lpq41";
+      url = "https://github.com/input-output-hk/cardano-ledger";
+      rev = "5ba0d75116575beab30368966c98a01b93d76a20";
+      sha256 = "09bx6aaidb31v5p3z6i6qvw4w4mjddkzp6zshcjqvbi321w5k1vn";
       };
-    postUnpack = "sourceRoot+=/cardano-protocol-tpraos; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/libs/cardano-protocol-tpraos; echo source root reset to \$sourceRoot";
     }

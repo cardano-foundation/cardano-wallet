@@ -8,10 +8,10 @@
   , config
   , ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
       specVersion = "2.2";
-      identifier = { name = "shelley-spec-non-integral"; version = "0.1.0.0"; };
+      identifier = { name = "non-integral"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "formal.methods@iohk.io";
@@ -29,10 +29,10 @@
         buildable = true;
         };
       tests = {
-        "shelley-spec-non-integral-test" = {
+        "non-integral-test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."shelley-spec-non-integral" or (errorHandler.buildDepError "shelley-spec-non-integral"))
+            (hsPkgs."non-integral" or (errorHandler.buildDepError "non-integral"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             ];
           buildable = true;
@@ -41,13 +41,13 @@
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
-      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
+      url = "https://github.com/input-output-hk/cardano-ledger";
+      rev = "5ba0d75116575beab30368966c98a01b93d76a20";
+      sha256 = "09bx6aaidb31v5p3z6i6qvw4w4mjddkzp6zshcjqvbi321w5k1vn";
       }) // {
-      url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
-      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
+      url = "https://github.com/input-output-hk/cardano-ledger";
+      rev = "5ba0d75116575beab30368966c98a01b93d76a20";
+      sha256 = "09bx6aaidb31v5p3z6i6qvw4w4mjddkzp6zshcjqvbi321w5k1vn";
       };
-    postUnpack = "sourceRoot+=/shelley/chain-and-ledger/dependencies/non-integer; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/libs/non-integral; echo source root reset to \$sourceRoot";
     }
