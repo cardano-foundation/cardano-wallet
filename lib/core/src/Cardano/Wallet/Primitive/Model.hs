@@ -189,7 +189,7 @@ initWallet
     -> ([(Tx, TxMeta)], Wallet s)
 initWallet block s =
     let
-        ((FilteredBlock _ txs, u), s') = prefilterBlock block mempty s
+        ((FilteredBlock _ txs, u), s') = applyBlockToUTxO block mempty s
     in
         (txs, Wallet u (header block) s')
 
@@ -241,7 +241,7 @@ applyBlock
 applyBlock !b (Wallet !u _ s) =
     (filteredBlock, Wallet u' (b ^. #header) s')
   where
-    ((filteredBlock, u'), s') = prefilterBlock b u s
+    ((filteredBlock, u'), s') = applyBlockToUTxO b u s
 
 -- | Apply multiple blocks in sequence to an existing wallet, returning a list
 --   of intermediate wallet states.
@@ -463,13 +463,13 @@ ourWithdrawalSumFromTx tx = F.foldMap snd <$>
 -- As a consequence, we do have to traverse the block, and look at transactions
 -- in order, starting from the known inputs that can be spent (from the previous
 -- UTxO) and collect resolved tx outputs that are ours as we apply transactions.
-prefilterBlock
+applyBlockToUTxO
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
     -> UTxO
     -> s
     -> ((FilteredBlock, UTxO), s)
-prefilterBlock b u0 = runState $ do
+applyBlockToUTxO b u0 = runState $ do
     delegations <- mapMaybeM ourDelegation (b ^. #delegations)
     (transactions, ourU) <- foldM applyOurTx (mempty, u0) (b ^. #transactions)
     return (FilteredBlock {delegations, transactions}, ourU)
