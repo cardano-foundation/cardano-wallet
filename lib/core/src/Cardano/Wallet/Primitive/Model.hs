@@ -483,112 +483,112 @@ prefilterBlock b u0 = runState $ do
         applyOurTxToUTxO slotNo blockHeight tx u <&> \case
             Nothing -> (txs, u)
             Just (tx', u') -> (tx' : txs, u')
-      where
-        slotNo = b ^. #header . #slotNo
-        blockHeight = b ^. #header . #blockHeight
-    applyOurTxToUTxO
-        :: (IsOurs s Address, IsOurs s RewardAccount)
-        => SlotNo
-        -> Quantity "block" Word32
-        -> Tx
-        -> UTxO
-        -> State s (Maybe ((Tx, TxMeta), UTxO))
-    applyOurTxToUTxO !slotNo !blockHeight !tx !prevUTxO = do
-        -- The next UTxO state (apply a state transition) (e.g. remove
-        -- transaction outputs we've spent).
-        ourNextUTxO <-
-            (spendTx tx prevUTxO <>)
-            <$> filterByAddressM isOurAddress (utxoFromTx tx)
+    slotNo = b ^. #header . #slotNo
+    blockHeight = b ^. #header . #blockHeight
 
-        ourWithdrawalSum <- ourWithdrawalSumFromTx tx
+applyOurTxToUTxO
+    :: (IsOurs s Address, IsOurs s RewardAccount)
+    => SlotNo
+    -> Quantity "block" Word32
+    -> Tx
+    -> UTxO
+    -> State s (Maybe ((Tx, TxMeta), UTxO))
+applyOurTxToUTxO !slotNo !blockHeight !tx !prevUTxO = do
+    -- The next UTxO state (apply a state transition) (e.g. remove
+    -- transaction outputs we've spent).
+    ourNextUTxO <-
+        (spendTx tx prevUTxO <>)
+        <$> filterByAddressM isOurAddress (utxoFromTx tx)
 
-        let received = balance (ourNextUTxO `excluding` dom prevUTxO)
-        let spent =
-                balance (prevUTxO `excluding` dom ourNextUTxO)
-                `TB.add` TB.fromCoin ourWithdrawalSum
+    ourWithdrawalSum <- ourWithdrawalSumFromTx tx
 
-        (ownedAndKnownTxIns, ownedAndKnownTxOuts) <- do
-            -- A new transaction expands the set of transaction inputs/outputs
-            -- we know about, but not all those transaction inputs/outputs
-            -- belong to us, so we filter any new inputs/outputs, presuming that
-            -- the previous UTxO has already been filtered:
-            ownedAndKnown <-
-                (prevUTxO <>) <$> filterByAddressM isOurAddress (utxoFromTx tx)
-            -- Also, the new transaction may spend some transaction
-            -- inputs/outputs. But we don't want to apply that logic yet. If we
-            -- do, any spent transaction input/output will be removed from our
-            -- knowledge base.
-            -- Therefore, because this is not technically an "Unspent TxO" set,
-            -- let's just return the TxIns and TxOuts, as the type "UTxO" will
-            -- create expectations which we explicitly aren't fulfilling:
-            let m = unUTxO ownedAndKnown
-            pure (Map.keys m, Map.elems m)
+    let received = balance (ourNextUTxO `excluding` dom prevUTxO)
+    let spent =
+            balance (prevUTxO `excluding` dom ourNextUTxO)
+            `TB.add` TB.fromCoin ourWithdrawalSum
 
-        -- A transaction has a known input if one of the transaction inputs
-        -- matches a transaction input we know about.
-        let hasKnownInput = not $ Set.disjoint
-                (Set.fromList $ inputs tx)
-                (Set.fromList ownedAndKnownTxIns)
-        -- A transaction has a known output if one of the transaction outputs
-        -- matches a transaction output we know about.
-        let hasKnownOutput = not $ Set.disjoint
-                (Set.fromList $ outputs tx)
-                (Set.fromList ownedAndKnownTxOuts)
-        let hasKnownWithdrawal = ourWithdrawalSum /= mempty
+    (ownedAndKnownTxIns, ownedAndKnownTxOuts) <- do
+        -- A new transaction expands the set of transaction inputs/outputs
+        -- we know about, but not all those transaction inputs/outputs
+        -- belong to us, so we filter any new inputs/outputs, presuming that
+        -- the previous UTxO has already been filtered:
+        ownedAndKnown <-
+            (prevUTxO <>) <$> filterByAddressM isOurAddress (utxoFromTx tx)
+        -- Also, the new transaction may spend some transaction
+        -- inputs/outputs. But we don't want to apply that logic yet. If we
+        -- do, any spent transaction input/output will be removed from our
+        -- knowledge base.
+        -- Therefore, because this is not technically an "Unspent TxO" set,
+        -- let's just return the TxIns and TxOuts, as the type "UTxO" will
+        -- create expectations which we explicitly aren't fulfilling:
+        let m = unUTxO ownedAndKnown
+        pure (Map.keys m, Map.elems m)
 
-        -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
-        -- a Byron transaction. In which case fees can actually be calculated as
-        -- the delta between inputs and outputs.
-        --
-        -- NOTE 2: We do not have in practice the actual input amounts, yet we
-        -- do make the assumption that if one input is ours, then all inputs are
-        -- necessarily ours and therefore, known as part of our current UTxO.
-        let actualFee direction = case (tx ^. #fee, direction) of
-                (Just x, Outgoing) -> -- Shelley and beyond.
-                    Just x
+    -- A transaction has a known input if one of the transaction inputs
+    -- matches a transaction input we know about.
+    let hasKnownInput = not $ Set.disjoint
+            (Set.fromList $ inputs tx)
+            (Set.fromList ownedAndKnownTxIns)
+    -- A transaction has a known output if one of the transaction outputs
+    -- matches a transaction output we know about.
+    let hasKnownOutput = not $ Set.disjoint
+            (Set.fromList $ outputs tx)
+            (Set.fromList ownedAndKnownTxOuts)
+    let hasKnownWithdrawal = ourWithdrawalSum /= mempty
 
-                (Nothing, Outgoing) -> -- Byron
-                    let
-                        totalOut = F.fold (txOutCoin <$> outputs tx)
+    -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
+    -- a Byron transaction. In which case fees can actually be calculated as
+    -- the delta between inputs and outputs.
+    --
+    -- NOTE 2: We do not have in practice the actual input amounts, yet we
+    -- do make the assumption that if one input is ours, then all inputs are
+    -- necessarily ours and therefore, known as part of our current UTxO.
+    let actualFee direction = case (tx ^. #fee, direction) of
+            (Just x, Outgoing) -> -- Shelley and beyond.
+                Just x
 
-                        totalIn = TB.getCoin spent
-                    in
-                        Just $ distance totalIn totalOut
+            (Nothing, Outgoing) -> -- Byron
+                let
+                    totalOut = F.fold (txOutCoin <$> outputs tx)
 
-                (_, Incoming) ->
-                    Nothing
+                    totalIn = TB.getCoin spent
+                in
+                    Just $ distance totalIn totalOut
 
-        return $ if hasKnownOutput && not hasKnownInput then
-            let dir = Incoming in
-            Just
-                ( ( tx { fee = actualFee dir }
-                  , mkTxMeta (TB.getCoin received) dir
-                  )
-                , ourNextUTxO
-                )
-        else if hasKnownInput || hasKnownWithdrawal then
-            let
-                adaSpent = TB.getCoin spent
-                adaReceived = TB.getCoin received
-                dir = if adaSpent > adaReceived then Outgoing else Incoming
-                amount = distance adaSpent adaReceived
-            in
-            Just
-                ( (tx { fee = actualFee dir }, mkTxMeta amount dir)
-                , ourNextUTxO
-                )
-        else
-            Nothing
-      where
-        mkTxMeta :: Coin -> Direction -> TxMeta
-        mkTxMeta amount dir = TxMeta
-            { status = InLedger
-            , direction = dir
-            , slotNo
-            , blockHeight
-            , amount = amount
-            , expiry = Nothing
-            }
+            (_, Incoming) ->
+                Nothing
+
+    return $ if hasKnownOutput && not hasKnownInput then
+        let dir = Incoming in
+        Just
+            ( ( tx { fee = actualFee dir }
+              , mkTxMeta (TB.getCoin received) dir
+              )
+            , ourNextUTxO
+            )
+    else if hasKnownInput || hasKnownWithdrawal then
+        let
+            adaSpent = TB.getCoin spent
+            adaReceived = TB.getCoin received
+            dir = if adaSpent > adaReceived then Outgoing else Incoming
+            amount = distance adaSpent adaReceived
+        in
+        Just
+            ( (tx { fee = actualFee dir }, mkTxMeta amount dir)
+            , ourNextUTxO
+            )
+    else
+        Nothing
+  where
+    mkTxMeta :: Coin -> Direction -> TxMeta
+    mkTxMeta amount dir = TxMeta
+        { status = InLedger
+        , direction = dir
+        , slotNo
+        , blockHeight
+        , amount = amount
+        , expiry = Nothing
+        }
 
 -- | Get the change UTxO
 --
