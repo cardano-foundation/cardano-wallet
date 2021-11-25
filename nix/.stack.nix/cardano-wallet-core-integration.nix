@@ -59,6 +59,7 @@
           (hsPkgs."either" or (errorHandler.buildDepError "either"))
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+          (hsPkgs."flat" or (errorHandler.buildDepError "flat"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
           (hsPkgs."generic-lens-core" or (errorHandler.buildDepError "generic-lens-core"))
