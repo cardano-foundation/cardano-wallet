@@ -62,6 +62,7 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DelegationCertificate (..)
+    , SlotNo
     , dlgCertAccount
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -103,8 +104,12 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( isJust )
+import Data.Quantity
+    ( Quantity )
 import Data.Set
     ( Set )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( Buildable (..), indentF )
 import GHC.Generics
@@ -475,15 +480,20 @@ prefilterBlock b u0 = runState $ do
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
     applyOurTx (!txs, !u) !tx =
-        applyOurTxToUTxO tx u <&> \case
+        applyOurTxToUTxO slotNo blockHeight tx u <&> \case
             Nothing -> (txs, u)
             Just (tx', u') -> (tx' : txs, u')
+      where
+        slotNo = b ^. #header . #slotNo
+        blockHeight = b ^. #header . #blockHeight
     applyOurTxToUTxO
         :: (IsOurs s Address, IsOurs s RewardAccount)
-        => Tx
+        => SlotNo
+        -> Quantity "block" Word32
+        -> Tx
         -> UTxO
         -> State s (Maybe ((Tx, TxMeta), UTxO))
-    applyOurTxToUTxO !tx !prevUTxO = do
+    applyOurTxToUTxO !slotNo !blockHeight !tx !prevUTxO = do
         -- The next UTxO state (apply a state transition) (e.g. remove
         -- transaction outputs we've spent).
         ourNextUTxO <-
@@ -574,8 +584,8 @@ prefilterBlock b u0 = runState $ do
         mkTxMeta amount dir = TxMeta
             { status = InLedger
             , direction = dir
-            , slotNo = b ^. #header . #slotNo
-            , blockHeight = b ^. #header . #blockHeight
+            , slotNo
+            , blockHeight
             , amount = amount
             , expiry = Nothing
             }
