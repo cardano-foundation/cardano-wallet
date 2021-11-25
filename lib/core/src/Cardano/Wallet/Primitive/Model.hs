@@ -481,7 +481,7 @@ prefilterBlock b u0 = runState $ do
             (spendTx tx prevUTxO <>)
             <$> filterByAddressM isOurAddress (utxoFromTx tx)
 
-        ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
+        ourWithdrawals :: Coin <- F.foldMap snd <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
 
         let received = balance (ourNextUTxO `excluding` dom prevUTxO)
