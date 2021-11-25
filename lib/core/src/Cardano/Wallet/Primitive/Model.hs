@@ -481,13 +481,13 @@ prefilterBlock b u0 = runState $ do
             (spendTx tx prevUTxO <>)
             <$> filterByAddressM isOurAddress (utxoFromTx tx)
 
-        ourWithdrawals :: Coin <- F.foldMap snd <$>
+        ourWithdrawalSum :: Coin <- F.foldMap snd <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
 
         let received = balance (ourNextUTxO `excluding` dom prevUTxO)
         let spent =
                 balance (prevUTxO `excluding` dom ourNextUTxO)
-                `TB.add` TB.fromCoin ourWithdrawals
+                `TB.add` TB.fromCoin ourWithdrawalSum
 
         (ownedAndKnownTxIns, ownedAndKnownTxOuts) <- do
             -- A new transaction expands the set of transaction inputs/outputs
@@ -516,7 +516,7 @@ prefilterBlock b u0 = runState $ do
         let hasKnownOutput = not $ Set.disjoint
                 (Set.fromList $ outputs tx)
                 (Set.fromList ownedAndKnownTxOuts)
-        let hasKnownWithdrawal = ourWithdrawals /= mempty
+        let hasKnownWithdrawal = ourWithdrawalSum /= mempty
 
         -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
         -- a Byron transaction. In which case fees can actually be calculated as
