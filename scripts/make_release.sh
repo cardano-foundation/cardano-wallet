@@ -21,7 +21,7 @@ set -euo pipefail
 # Release tags must follow format vYYYY-MM-DD.
 GIT_TAG="v2021-11-11"
 OLD_GIT_TAG="v2021-09-29"
-CARDANO_NODE_TAG="1.30.1"
+CARDANO_NODE_TAG="1.31.0"
 
 ################################################################################
 # Tag munging functions

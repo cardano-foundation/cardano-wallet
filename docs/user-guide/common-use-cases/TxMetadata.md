@@ -213,7 +213,7 @@ The full JSON schema is specified in the OpenAPI 3.0 `swagger.yaml`.
 2. [cardano-wallet OpenAPI Specification][swagger-spec], scroll to `TransactionMetadataValue`.
 
 
-[delegation-spec]: https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec
-[shelley-ledger-spec]: https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/specs.shelley-ledger/latest/download-by-type/doc-pdf/ledger-spec
+[delegation-spec]: https://hydra.iohk.io/job/Cardano/cardano-ledger/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec
+[shelley-ledger-spec]: https://hydra.iohk.io/job/Cardano/cardano-ledger/specs.shelley-ledger/latest/download-by-type/doc-pdf/ledger-spec
 [swagger-doc]: https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postTransaction
 [swagger-spec]: https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/api/swagger.yaml

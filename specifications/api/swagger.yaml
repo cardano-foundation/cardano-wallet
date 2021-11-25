@@ -1720,7 +1720,7 @@ x-stakePoolSaturation: &stakePoolSaturation
     Saturation-level of the pool based on the desired number of pools aimed by the network.
     A value above `1` indicates that the pool is saturated.
 
-    The `non_myopic_member_rewards` take oversaturation into account, as specified by the [specs](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec).
+    The `non_myopic_member_rewards` take oversaturation into account, as specified by the [specs](https://hydra.iohk.io/job/Cardano/cardano-ledger/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec).
 
     The saturation is based on the live `relative_stake`. The saturation at the end of epoch e,
     will affect the rewards paid out at the end of epoch e+3.
@@ -1734,7 +1734,7 @@ x-non-myopic-member-rewards: &nonMyopicMemberRewards
     this pool.
 
     For more details, see the
-    [Design Specification for Delegation and Incentives in Cardano](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec)
+    [Design Specification for Delegation and Incentives in Cardano](https://hydra.iohk.io/job/Cardano/cardano-ledger/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec)
     document.
 
 x-stakePoolMetrics: &stakePoolMetrics
@@ -1752,7 +1752,7 @@ x-stakePoolMetrics: &stakePoolMetrics
         The live pool stake relative to the *total* stake.
 
         For more details, see the section "Relative Stake: Active vs Total" in
-        [Design Specification for Delegation and Incentives in Cardano](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec).
+        [Design Specification for Delegation and Incentives in Cardano](https://hydra.iohk.io/job/Cardano/cardano-ledger/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec).
     saturation: *stakePoolSaturation
     produced_blocks:
       <<: *numberOfBlocks
@@ -3193,7 +3193,7 @@ components:
 
     ScriptTemplateValue: *ScriptTemplateValue
 
-    # https://github.com/input-output-hk/cardano-ledger-specs/blob/8d836e61bb88bda4a6a5c00694735928390067a1/shelley/chain-and-ledger/executable-spec/src/Shelley/Spec/Ledger/MetaData.hs#L48-L65
+    # https://github.com/input-output-hk/cardano-ledger/blob/8d836e61bb88bda4a6a5c00694735928390067a1/shelley/chain-and-ledger/executable-spec/src/Shelley/Spec/Ledger/MetaData.hs#L48-L65
     TransactionMetadataValue: &TransactionMetadataValue
       oneOf:
         - title: String

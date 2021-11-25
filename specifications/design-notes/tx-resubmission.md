@@ -56,4 +56,4 @@ endpoint are _not_ retried -- it is up to the user to retry. This
 could be changed in future if the wallet can discover transactions
 which don't belong to its own wallets.
 
-[shelley-ledger-spec]: https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/native.specs.shelley-ledger.x86_64-linux/latest/download/1
+[shelley-ledger-spec]: https://hydra.iohk.io/job/Cardano/cardano-ledger/native.specs.shelley-ledger.x86_64-linux/latest/download/1
