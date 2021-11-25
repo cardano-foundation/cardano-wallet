@@ -408,6 +408,15 @@ isOurAddress
     -> StateT s m Bool
 isOurAddress = fmap isJust . state . isOurs
 
+ourDelegation
+    :: IsOurs s RewardAccount
+    => DelegationCertificate
+    -> State s (Maybe DelegationCertificate)
+ourDelegation cert =
+    state (isOurs $ dlgCertAccount cert) <&> \case
+        Nothing -> Nothing
+        Just{}  -> Just cert
+
 ourWithdrawal
     :: IsOurs s RewardAccount
     => (RewardAccount, Coin)
@@ -453,14 +462,6 @@ prefilterBlock b u0 = runState $ do
     (transactions, ourU) <- foldM applyTx (mempty, u0) (b ^. #transactions)
     return (FilteredBlock {delegations, transactions}, ourU)
   where
-    ourDelegation
-        :: IsOurs s RewardAccount
-        => DelegationCertificate
-        -> State s (Maybe DelegationCertificate)
-    ourDelegation cert =
-        state (isOurs $ dlgCertAccount cert) <&> \case
-            Nothing -> Nothing
-            Just{}  -> Just cert
     mkTxMeta :: Coin -> Direction -> TxMeta
     mkTxMeta amount dir = TxMeta
         { status = InLedger
