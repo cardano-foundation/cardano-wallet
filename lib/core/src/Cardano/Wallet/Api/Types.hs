@@ -3034,6 +3034,11 @@ instance DecodeAddress n => FromJSON (ApiWalletOutput n) where
 instance EncodeAddress n => ToJSON (ApiWalletOutput n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON ApiAnyCertificate where
+    parseJSON = undefined
+instance ToJSON ApiAnyCertificate where
+    toJSON = undefined
+
 instance
     ( DecodeAddress n
     , DecodeStakeAddress n

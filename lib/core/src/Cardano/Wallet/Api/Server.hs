@@ -2228,6 +2228,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
         , assetsMinted = ApiT toMint
         , assetsBurned = ApiT toBurn
+        , certificates = []
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
