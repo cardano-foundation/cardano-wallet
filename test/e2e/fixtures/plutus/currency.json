@@ -1,0 +1,22 @@
+{
+    "transaction": "84a50081825820{{transactionId}}{{transactionIdxHex}}018002000d8009a1581c{{policyId}}a245617066656c1903e84662616e616e6101a20381590cd0{{policy}}0480f5f6",
+    "inputs": [
+        {
+            "id": "{{transactionId}}",
+            "index": {{transactionIdx}},
+            "address": "{{address}}",
+            "amount": {
+              "quantity": {{amount}},
+              "unit": "lovelace"
+            },
+            "assets": []
+        }
+    ],
+    "redeemers": [
+        {
+            "purpose": "minting",
+            "policy_id": "{{policyId}}",
+            "data": "D87980"
+        }
+    ]
+}
