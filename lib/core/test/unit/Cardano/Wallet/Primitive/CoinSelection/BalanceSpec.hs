@@ -1712,10 +1712,7 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    (q1, q2) =
-        ( TokenQuantity 1
-        , TokenQuantity.difference txOutMaxTokenQuantity (TokenQuantity 1)
-        )
+    (q1, q2) = (TokenQuantity 1, TokenQuantity.predZero txOutMaxTokenQuantity)
     boundaryTestBundleSizeAssessor = MockAssessTokenBundleSizeUnlimited
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]

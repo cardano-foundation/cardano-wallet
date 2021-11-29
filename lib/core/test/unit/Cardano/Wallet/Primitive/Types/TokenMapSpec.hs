@@ -57,7 +57,7 @@ import Data.Function
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Ratio
@@ -360,9 +360,7 @@ prop_setQuantity_invariant b asset quantity = property $
 
 prop_adjustQuantity_invariant :: TokenMap -> AssetId -> Property
 prop_adjustQuantity_invariant b asset = property $
-    invariantHolds $ TokenMap.adjustQuantity b asset adjust
-  where
-    adjust = fromMaybe TokenQuantity.zero . TokenQuantity.pred
+    invariantHolds $ TokenMap.adjustQuantity b asset TokenQuantity.predZero
 
 --------------------------------------------------------------------------------
 -- Construction and deconstruction properties
@@ -648,7 +646,7 @@ prop_adjustQuantity_getQuantity b asset =
         === adjust quantityOriginal
   where
     quantityOriginal = TokenMap.getQuantity b asset
-    adjust = fromMaybe TokenQuantity.zero . TokenQuantity.pred
+    adjust = TokenQuantity.predZero
 
 prop_adjustQuantity_hasQuantity
     :: TokenMap -> AssetId -> Property
@@ -657,7 +655,7 @@ prop_adjustQuantity_hasQuantity b asset =
         === TokenQuantity.isNonZero (adjust quantityOriginal)
   where
     quantityOriginal = TokenMap.getQuantity b asset
-    adjust = fromMaybe TokenQuantity.zero . TokenQuantity.pred
+    adjust = TokenQuantity.predZero
 
 prop_maximumQuantity_all
     :: TokenMap -> Property
