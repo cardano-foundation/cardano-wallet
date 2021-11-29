@@ -64,6 +64,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressData (..)
     , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
+    , ApiAnyCertificate (..)
     , ApiAsset (..)
     , ApiBalanceTransactionPostData (..)
     , ApiBase64
@@ -84,10 +85,12 @@ import Cardano.Wallet.Api.Types
     , ApiCredential (..)
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
+    , ApiDeregisterPool (..)
     , ApiEpochInfo (..)
     , ApiEra (..)
     , ApiEraInfo (..)
     , ApiErrorCode (..)
+    , ApiExternalCertificate (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey
@@ -114,6 +117,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
+    , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
@@ -191,6 +195,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
+    , genMockXPub
     , genNatural
     , genNestedTxMetadata
     , genPercentage
@@ -229,10 +234,13 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , ExecutionUnitPrices (..)
+    , NonWalletCertificate (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource
     , PoolOwner (..)
+    , PoolRegistrationCertificate (..)
+    , PoolRetirementCertificate (..)
     , Settings
     , SlotId (..)
     , SlotInEpoch (..)
@@ -1161,6 +1169,7 @@ spec = parallel $ do
                     , metadata = metadata (x :: ApiDecodedTransaction ('Testnet 0))
                     , assetsMinted = assetsMinted (x :: ApiDecodedTransaction ('Testnet 0))
                     , assetsBurned = assetsBurned (x :: ApiDecodedTransaction ('Testnet 0))
+                    , certificates = certificates (x :: ApiDecodedTransaction ('Testnet 0))
                     , scriptValidity = scriptValidity (x :: ApiDecodedTransaction ('Testnet 0))
                     }
             in
@@ -2123,9 +2132,52 @@ instance Arbitrary (ApiTxOutputGeneral n) where
         , WalletOutput <$> arbitrary
         ]
 
+instance Arbitrary NonWalletCertificate where
+    arbitrary = oneof
+        [ pure GenesisCertificate
+        , pure MIRCertificate
+        ]
+
+instance Arbitrary ApiDeregisterPool where
+    arbitrary = ApiDeregisterPool <$> genPoolRegistrationCertificate
+      where
+        genPoolRegistrationCertificate = PoolRetirementCertificate
+            <$> arbitrary
+            <*> arbitrary
+
+instance Arbitrary ApiRegisterPool where
+    arbitrary = ApiRegisterPool <$> genPoolRegistrationCertificate
+      where
+        genPoolRegistrationCertificate = PoolRegistrationCertificate
+            <$> arbitrary
+            <*> arbitrary
+            <*> genPercentage
+            <*> arbitrary
+            <*> arbitrary
+            <*> pure Nothing
+
+instance Arbitrary ApiExternalCertificate where
+    arbitrary = oneof
+        [ RegisterRewardAccountExternal <$> genXPub
+        , JoinPoolExternal <$> genXPub <*> arbitrary
+        , QuitPoolExternal <$> genXPub
+        ]
+      where
+          genXPub = ApiT <$> genMockXPub
+
+instance Arbitrary ApiAnyCertificate where
+    arbitrary = oneof
+        [ WalletDelegationCertificate <$> arbitrary
+        , DelegationCertificate <$> arbitrary
+        , StakePoolRegister <$> arbitrary
+        , StakePoolDeregister <$> arbitrary
+        , OtherCertificate <$> arbitrary
+        ]
+
 instance Arbitrary (ApiDecodedTransaction n) where
     arbitrary = ApiDecodedTransaction
         <$> arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary

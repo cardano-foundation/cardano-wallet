@@ -168,6 +168,10 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawalGeneral (..)
     , ApiWalletOutput (..)
     , ApiTxOutputGeneral (..)
+    , ApiAnyCertificate (..)
+    , ApiExternalCertificate (..)
+    , ApiRegisterPool (..)
+    , ApiDeregisterPool (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
