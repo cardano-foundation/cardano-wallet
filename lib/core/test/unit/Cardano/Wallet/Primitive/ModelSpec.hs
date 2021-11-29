@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , initWallet
+    , isOurTx
     , spendTx
     , totalBalance
     , totalUTxO
@@ -700,16 +701,21 @@ prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
         "isNothing" $
     case maybeUpdatedUTxO of
         Nothing ->
-            property True
+            shouldHaveUpdatedUTxO === False
         Just utxo' ->
             cover 10 (utxo /= utxo')
                 "utxo /= utxo'" $
-            utxo' === applyTxToUTxO tx utxo
+            conjoin
+                [ shouldHaveUpdatedUTxO === True
+                , utxo' === applyTxToUTxO tx utxo
+                ]
   where
     maybeUpdatedUTxO :: Maybe UTxO
     maybeUpdatedUTxO = snd <$> evalState
         (applyOurTxToUTxO slotNo blockHeight tx utxo)
         (AllOurs)
+    shouldHaveUpdatedUTxO :: Bool
+    shouldHaveUpdatedUTxO = evalState (isOurTx tx utxo) AllOurs
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
