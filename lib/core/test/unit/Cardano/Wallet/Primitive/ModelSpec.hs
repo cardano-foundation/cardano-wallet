@@ -19,6 +19,8 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Cardano.Api.Gen
+    ( genSlotNo )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -29,6 +31,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlock
     , applyBlocks
+    , applyOurTxToUTxO
     , applyTxToUTxO
     , availableBalance
     , availableUTxO
@@ -108,7 +111,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes, isJust )
+    ( catMaybes, isJust, isNothing )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -116,7 +119,7 @@ import Data.Set
 import Data.Traversable
     ( for )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import Fmt
     ( Buildable, blockListF, pretty )
 import GHC.Generics
@@ -132,6 +135,7 @@ import Test.QuickCheck
     , Positive (..)
     , Property
     , Testable
+    , arbitrarySizedBoundedIntegral
     , checkCoverage
     , choose
     , classify
@@ -146,7 +150,10 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
+    , shrinkIntegral
     , shrinkList
+    , shrinkMapBy
+    , shrinkNothing
     , vector
     , withMaxSuccess
     , (.&&.)
@@ -255,6 +262,10 @@ spec = do
             property prop_totalUTxO_pendingCollateralIncluded
         it "prop_totalUTxO_pendingInputsExcluded" $
             property prop_totalUTxO_pendingInputsExcluded
+
+    parallel $ describe "Applying transactions to UTxO sets" $ do
+        it "prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs" $
+            property prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -659,6 +670,47 @@ prop_totalUTxO makeProperty =
         shouldNotEvaluate fieldName = error $ unwords
             [fieldName, "was unexpectedly evaluated"]
 
+--------------------------------------------------------------------------------
+-- Applying transactions to UTxO sets
+--------------------------------------------------------------------------------
+
+-- | A simplified wallet state that marks all entities as "ours".
+--
+data AllOurs = AllOurs
+
+instance IsOurs AllOurs a where
+    isOurs _ s = (Just shouldNotEvaluate, s)
+      where
+        shouldNotEvaluate = error "AllOurs: unexpected evaluation"
+
+-- Verifies that 'applyOurTxToUTxO' updates the UTxO set in an identical
+-- way to 'applyTxToUTxO' in the case that all entities are marked as ours.
+--
+prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs
+    :: SlotNo
+    -> Quantity "block" Word32
+    -> Tx
+    -> UTxO
+    -> Property
+prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
+    checkCoverage $
+    cover 50 (isJust maybeUpdatedUTxO)
+        "isJust " $
+    cover 0.1 (isNothing maybeUpdatedUTxO)
+        "isNothing" $
+    case maybeUpdatedUTxO of
+        Nothing ->
+            property True
+        Just utxo' ->
+            cover 10 (utxo /= utxo')
+                "utxo /= utxo'" $
+            utxo' === applyTxToUTxO tx utxo
+  where
+    maybeUpdatedUTxO :: Maybe UTxO
+    maybeUpdatedUTxO = snd <$> evalState
+        (applyOurTxToUTxO slotNo blockHeight tx utxo)
+        (AllOurs)
+
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
 
@@ -762,6 +814,14 @@ instance IsOurs WalletState RewardAccount where
 instance Arbitrary Coin where
     shrink = shrinkCoin
     arbitrary = genCoin
+
+instance Arbitrary (Quantity "block" Word32) where
+    arbitrary = Quantity <$> arbitrarySizedBoundedIntegral @Word32
+    shrink = shrinkMapBy Quantity getQuantity shrinkIntegral
+
+instance Arbitrary SlotNo where
+    arbitrary = genSlotNo
+    shrink = shrinkNothing
 
 instance Arbitrary Tx where
     shrink = shrinkTx

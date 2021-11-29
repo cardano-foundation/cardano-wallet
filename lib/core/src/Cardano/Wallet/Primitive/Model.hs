@@ -42,6 +42,7 @@ module Cardano.Wallet.Primitive.Model
     , applyBlocks
     , unsafeInitWallet
     , applyTxToUTxO
+    , applyOurTxToUTxO
     , utxoFromTx
     , spendTx
 
