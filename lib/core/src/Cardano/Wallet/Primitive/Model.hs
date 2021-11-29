@@ -45,6 +45,7 @@ module Cardano.Wallet.Primitive.Model
     , applyOurTxToUTxO
     , utxoFromTx
     , spendTx
+    , isOurTx
 
     -- * Accessors
     , currentTip
@@ -119,6 +120,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
@@ -415,6 +417,12 @@ isOurAddress
     -> State s Bool
 isOurAddress = fmap isJust . state . isOurs
 
+isOurWithdrawal
+    :: IsOurs s RewardAccount
+    => (RewardAccount, Coin)
+    -> State s Bool
+isOurWithdrawal = fmap isJust . ourWithdrawal
+
 ourDelegation
     :: IsOurs s RewardAccount
     => DelegationCertificate
@@ -439,6 +447,39 @@ ourWithdrawalSumFromTx
     -> State s Coin
 ourWithdrawalSumFromTx tx = F.foldMap snd <$>
     mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
+
+-- | Indicates whether a given transaction is relevant to the wallet.
+--
+-- Returns 'True' for a given 'Tx' 't' and 'UTxO' set 'u' if (and only if) one
+-- or more of the following statements is 'True':
+--
+--  - 't' has at least one collateral input that uses an entry from 'u'.
+--  - 't' has at least one ordinary input that uses an entry from 'u'.
+--  - 't' has at least one output with an address owned by the wallet.
+--  - 't' has at least one withdrawal from a reward account owned by the wallet.
+--
+isOurTx
+    :: forall s. (IsOurs s Address, IsOurs s RewardAccount)
+    => Tx
+    -> UTxO
+    -> State s Bool
+isOurTx tx u = F.or <$> sequence
+    [ txHasRelevantCollateral
+    , txHasRelevantInput
+    , txHasRelevantOutput
+    , txHasRelevantWithdrawal
+    ]
+  where
+    txHasRelevantCollateral =
+        pure . not . UTxO.null $
+        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedCollateral)
+    txHasRelevantInput =
+        pure . not . UTxO.null $
+        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedInputs)
+    txHasRelevantOutput =
+        F.or <$> sequence (isOurAddress . (^. #address) <$> tx ^. #outputs)
+    txHasRelevantWithdrawal =
+        F.or <$> sequence (isOurWithdrawal <$> Map.toList (tx ^. #withdrawals))
 
 {-------------------------------------------------------------------------------
                                Internals
