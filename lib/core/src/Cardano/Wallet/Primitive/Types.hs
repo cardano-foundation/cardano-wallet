@@ -1480,6 +1480,16 @@ data NonWalletCertificate
     | MIRCertificate
     deriving (Generic, Show, Read, Eq)
 
+instance ToText NonWalletCertificate where
+    toText GenesisCertificate = "genesis"
+    toText MIRCertificate = "mir"
+
+instance FromText NonWalletCertificate where
+    fromText "genesis" = Right GenesisCertificate
+    fromText "mir" = Right MIRCertificate
+    fromText _ = Left $ TextDecodingError $
+        "expecting either 'genesis' or 'mir' for NonWalletCertificate text value"
+
 instance NFData NonWalletCertificate
 
 type Certificates =

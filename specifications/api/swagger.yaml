@@ -1222,11 +1222,11 @@ x-certificateNotOurs: &certificateNotOurs
   properties:
     certificate_type:
       type: string
-      enum: ["join_pool", "quit_pool", "register_reward_account"]
+      enum: ["join_pool_external", "quit_pool_external", "register_reward_account_external"]
     pool:
       <<: *stakePoolId
     reward_account:
-      <<: *anyAddress
+      <<: *stakeAddress
 
 x-otherCertificate: &otherCertificate
   type: object

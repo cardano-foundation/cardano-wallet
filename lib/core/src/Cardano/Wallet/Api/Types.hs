@@ -302,8 +302,6 @@ import Cardano.Wallet.Primitive.Types
     , NonWalletCertificate (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
     , SlotInEpoch (..)
     , SlotLength (..)
     , SlotNo (..)
@@ -1178,34 +1176,44 @@ data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
       deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
-data ApiExternalCertificate
+data ApiExternalCertificate (n :: NetworkDiscriminant)
     = RegisterRewardAccountExternal
-        { rewardAccount :: ApiT XPub
+        { rewardAccount :: !(ApiT W.RewardAccount, Proxy n)
         }
     | JoinPoolExternal
-        { rewardAccount :: ApiT XPub
+        { rewardAccount :: !(ApiT W.RewardAccount, Proxy n)
         , pool :: ApiT PoolId
         }
     | QuitPoolExternal
-        { rewardAccount :: ApiT XPub
+        { rewardAccount :: !(ApiT W.RewardAccount, Proxy n)
         }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiRegisterPool = ApiRegisterPool PoolRegistrationCertificate
+data ApiRegisterPool = ApiRegisterPool
+    { poolId :: !(ApiT PoolId)
+    , poolOwners :: ![ApiT W.PoolOwner]
+    , poolMargin :: !(Quantity "percent" Percentage)
+    , poolCost :: !(Quantity "lovelace" Natural)
+    , poolPledge :: !(Quantity "lovelace" Natural)
+    , poolMetadata :: Maybe (ApiT W.StakePoolMetadataUrl, ApiT W.StakePoolMetadataHash)
+    }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiDeregisterPool = ApiDeregisterPool PoolRetirementCertificate
+data ApiDeregisterPool = ApiDeregisterPool
+    { poolId :: !(ApiT PoolId)
+    , retirementEpoch :: !(ApiT EpochNo)
+    }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiAnyCertificate =
+data ApiAnyCertificate n =
       WalletDelegationCertificate ApiCertificate
-    | DelegationCertificate ApiExternalCertificate
+    | DelegationCertificate (ApiExternalCertificate n)
     | StakePoolRegister ApiRegisterPool
     | StakePoolDeregister ApiDeregisterPool
-    | OtherCertificate NonWalletCertificate
+    | OtherCertificate (ApiT NonWalletCertificate)
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -1218,7 +1226,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , withdrawals :: ![ApiWithdrawalGeneral n]
     , assetsMinted :: !(ApiT W.TokenMap)
     , assetsBurned :: !(ApiT W.TokenMap)
-    , certificates :: ![ApiAnyCertificate]
+    , certificates :: ![ApiAnyCertificate n]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
@@ -3038,10 +3046,49 @@ instance DecodeAddress n => FromJSON (ApiWalletOutput n) where
 instance EncodeAddress n => ToJSON (ApiWalletOutput n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiAnyCertificate where
+instance DecodeStakeAddress n => FromJSON (ApiExternalCertificate n) where
+    parseJSON = genericParseJSON apiCertificateOptions
+instance EncodeStakeAddress n => ToJSON (ApiExternalCertificate n) where
+    toJSON = genericToJSON apiCertificateOptions
+
+instance FromJSON (ApiT W.PoolOwner) where
+    parseJSON = fromTextJSON "ApiT PoolOwner"
+instance ToJSON (ApiT W.PoolOwner) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT W.StakePoolMetadataUrl) where
+    parseJSON = fromTextJSON "ApiT StakePoolMetadataUrl"
+instance ToJSON (ApiT W.StakePoolMetadataUrl) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT W.StakePoolMetadataHash) where
+    parseJSON = fromTextJSON "ApiT StakePoolMetadataHash"
+instance ToJSON (ApiT W.StakePoolMetadataHash) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT W.NonWalletCertificate) where
+    parseJSON = fromTextJSON "ApiT NonWalletCertificate"
+instance ToJSON (ApiT W.NonWalletCertificate) where
+    toJSON = toTextJSON
+
+instance FromJSON ApiRegisterPool where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiRegisterPool where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiDeregisterPool where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiDeregisterPool where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
     parseJSON = undefined
-instance ToJSON ApiAnyCertificate where
-    toJSON = undefined
+instance EncodeStakeAddress n => ToJSON (ApiAnyCertificate n) where
+    toJSON (WalletDelegationCertificate cert) = toJSON cert
+    toJSON (DelegationCertificate cert) = toJSON cert
+    toJSON (StakePoolRegister reg) = toJSON reg
+    toJSON (StakePoolDeregister dereg) = toJSON dereg
+    toJSON (OtherCertificate cert) = toJSON cert
 
 instance
     ( DecodeAddress n
