@@ -93,7 +93,7 @@ import Control.Monad
 import Control.Monad.Extra
     ( mapMaybeM )
 import Control.Monad.Trans.State.Strict
-    ( State, StateT, evalState, runState, state )
+    ( State, evalState, runState, state )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -407,10 +407,9 @@ utxoFromUnvalidatedTx Tx {txId, outputs} =
     UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 
 isOurAddress
-    :: forall s m
-     . (Monad m, IsOurs s Address)
+    :: IsOurs s Address
     => Address
-    -> StateT s m Bool
+    -> State s Bool
 isOurAddress = fmap isJust . state . isOurs
 
 ourDelegation
