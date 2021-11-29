@@ -48,6 +48,16 @@ module Helpers
       s.scan(/../).map { |x| x.hex.chr }.join
     end
 
+    def binary_to_hex(binary_as_string)
+      "%02x" % binary_as_string.to_i(2)
+    end
+
+    ##
+    # encode string asset_name to hex representation
+    def asset_name(asset_name)
+      asset_name.unpack("H*").first
+    end
+
     def absolute_path(path)
       if path.start_with? "."
         File.join(Dir.pwd, path[1..-1])
@@ -139,5 +149,13 @@ module Helpers
     def get_latest_configs_base_url
       "https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1"
     end
+  end
+end
+
+##
+# extend String class with hexdump methods
+class String
+  def cbor_to_hex
+    bytes.map{|x| "%02x" % x}.join
   end
 end
