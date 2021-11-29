@@ -114,11 +114,11 @@ spec =
 
 prop_pred_succ :: TokenQuantity -> Property
 prop_pred_succ q = q > TokenQuantity.zero ==>
-    TokenQuantity.succ (TokenQuantity.pred q) === q
+    (TokenQuantity.succ <$> TokenQuantity.pred q) === Just q
 
 prop_succ_pred :: TokenQuantity -> Property
 prop_succ_pred q =
-    TokenQuantity.pred (TokenQuantity.succ q) === q
+    TokenQuantity.pred (TokenQuantity.succ q) === Just q
 
 prop_difference_zero :: TokenQuantity -> Property
 prop_difference_zero x =
