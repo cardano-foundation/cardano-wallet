@@ -2139,33 +2139,29 @@ instance Arbitrary NonWalletCertificate where
         ]
 
 instance Arbitrary ApiDeregisterPool where
-    arbitrary = ApiDeregisterPool <$> genPoolRegistrationCertificate
-      where
-        genPoolRegistrationCertificate = PoolRetirementCertificate
-            <$> arbitrary
-            <*> arbitrary
+    arbitrary = ApiDeregisterPool
+        <$> arbitrary
+        <*> arbitrary
 
 instance Arbitrary ApiRegisterPool where
-    arbitrary = ApiRegisterPool <$> genPoolRegistrationCertificate
-      where
-        genPoolRegistrationCertificate = PoolRegistrationCertificate
-            <$> arbitrary
-            <*> arbitrary
-            <*> genPercentage
-            <*> arbitrary
-            <*> arbitrary
-            <*> pure Nothing
+    arbitrary = ApiRegisterPool
+        <$> arbitrary
+        <*> arbitrary
+        <*> fmap Quantity genPercentage
+        <*> arbitrary
+        <*> arbitrary
+        <*> pure Nothing
 
-instance Arbitrary ApiExternalCertificate where
+instance Arbitrary (ApiExternalCertificate n) where
     arbitrary = oneof
-        [ RegisterRewardAccountExternal <$> genXPub
-        , JoinPoolExternal <$> genXPub <*> arbitrary
-        , QuitPoolExternal <$> genXPub
+        [ RegisterRewardAccountExternal <$> genRewardAcct
+        , JoinPoolExternal <$> genRewardAcct <*> arbitrary
+        , QuitPoolExternal <$> genRewardAcct
         ]
       where
-          genXPub = ApiT <$> genMockXPub
+          genRewardAcct = fmap (, Proxy @n) arbitrary
 
-instance Arbitrary ApiAnyCertificate where
+instance Arbitrary (ApiAnyCertificate n) where
     arbitrary = oneof
         [ WalletDelegationCertificate <$> arbitrary
         , DelegationCertificate <$> arbitrary

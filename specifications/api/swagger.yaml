@@ -1229,15 +1229,10 @@ x-certificateNotOurs: &certificateNotOurs
       <<: *stakeAddress
 
 x-otherCertificate: &otherCertificate
-  type: object
-  required:
-    - certificate
-  properties:
-    certificate:
-      type: string
-      enum:
-        - genesis
-        - mir
+  type: string
+  enum:
+    - genesis
+    - mir
 
 x-transactionRedemptionRequest: &transactionRedemptionRequest
   <<: *walletMnemonicSentence

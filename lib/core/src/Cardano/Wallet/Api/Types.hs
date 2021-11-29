@@ -3082,7 +3082,48 @@ instance ToJSON ApiDeregisterPool where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
-    parseJSON = undefined
+    parseJSON t =
+        parseDelOur t <|> parseDelNotOur t <|> parseReg t <|> parseDereg t <|> parseOtherCert t
+      where
+        parseDelOur obj = do
+            derPathM <-
+                (withObject "WalletDelegationCertificate" $
+                 \o -> o .:? "reward_account_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
+            case derPathM of
+                Nothing -> fail "expected rewardAccountPath"
+                Just _ -> do
+                    cert <- parseJSON obj :: Aeson.Parser ApiCertificate
+                    pure $ WalletDelegationCertificate cert
+        parseDelNotOur obj = do
+            rewardAcctM <-
+                (withObject "DelegationCertificate" $
+                 \o -> o .:? "reward_account" :: Aeson.Parser (Maybe (ApiT W.RewardAccount, Proxy n))) obj
+            case rewardAcctM of
+                Nothing -> fail "expected rewardAccount"
+                Just _ -> do
+                    cert <- parseJSON obj :: Aeson.Parser (ApiExternalCertificate n)
+                    pure $ DelegationCertificate cert
+        parseReg obj = do
+            marginM <-
+                (withObject "StakePoolRegister" $
+                 \o -> o .:? "pool_margin" :: Aeson.Parser (Maybe (Quantity "percent" Percentage))) obj
+            case marginM of
+                Nothing -> fail "expected poolMargin"
+                Just _ -> do
+                    pool <- parseJSON obj :: Aeson.Parser ApiRegisterPool
+                    pure $ StakePoolRegister pool
+        parseDereg obj = do
+            epochM <-
+                (withObject "StakePoolDeregister" $
+                 \o -> o .:? "retirement_epoch" :: Aeson.Parser (Maybe (ApiT EpochNo))) obj
+            case epochM of
+                Nothing -> fail "expected retirementEpoch"
+                Just _ -> do
+                    pool <- parseJSON obj :: Aeson.Parser ApiDeregisterPool
+                    pure $ StakePoolDeregister pool
+        parseOtherCert =
+            fmap OtherCertificate . fromTextJSON "OtherCertificate"
+
 instance EncodeStakeAddress n => ToJSON (ApiAnyCertificate n) where
     toJSON (WalletDelegationCertificate cert) = toJSON cert
     toJSON (DelegationCertificate cert) = toJSON cert
