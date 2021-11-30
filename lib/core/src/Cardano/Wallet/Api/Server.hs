@@ -196,6 +196,7 @@ import Cardano.Wallet.Api.Types
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
+    , ApiAnyCertificate (..)
     , ApiAsset (..)
     , ApiBalanceTransactionPostData
     , ApiBlockInfo (..)
@@ -2211,7 +2212,9 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn, _certs) = decodeTx tl sealed
+    let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn, allCerts) =
+            decodeTx tl sealed
+    let (_delCerts, _poolCerts, otherCerts) = allCerts
     (txinsOutsPaths, collsOutsPaths, outsPath, acct)  <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
           (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -2228,7 +2231,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
         , assetsMinted = ApiT toMint
         , assetsBurned = ApiT toBurn
-        , certificates = []
+        , certificates = map toOtherCerts otherCerts
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
@@ -2261,6 +2264,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
         else
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) External
+    toOtherCerts = OtherCertificate . ApiT
 
 joinStakePool
     :: forall ctx s n k.
