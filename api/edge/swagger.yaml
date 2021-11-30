@@ -930,7 +930,7 @@ x-walletAsset: &walletAsset
     quantity: *assetQuantity
 
 x-walletAssets: &walletAssets
-  description: A flat list of assets.
+  description: A flat list of assets (possibly empty).
   type: array
   items: *walletAsset
 
@@ -3510,6 +3510,7 @@ components:
                 - index
                 - address
                 - amount
+                - assets
               properties:
                 id: *transactionId
                 index:
