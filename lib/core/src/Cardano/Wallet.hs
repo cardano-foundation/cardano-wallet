@@ -1590,7 +1590,7 @@ balanceTransaction
         { extraInputs
         , extraCollateral
         , extraOutputs
-        , newFee = const delta
+        , newFee = Just delta
         }
     let candidateMinFee = fromMaybe (Coin 0) $
             evaluateMinimumFee tl nodePParams candidateTx
@@ -1612,7 +1612,7 @@ balanceTransaction
         { extraInputs
         , extraCollateral
         , extraOutputs = mapFirst (txOutAddCoin surplus) extraOutputs
-        , newFee = const candidateMinFee
+        , newFee = Just candidateMinFee
         }
   where
     tl = ctx ^. transactionLayer @k

@@ -1477,7 +1477,7 @@ unsafeSealedTxFromHex =
 
 prop_updateSealedTx :: SealedTx -> [(TxIn, TxOut)] -> [TxIn] -> [TxOut] -> Coin -> Property
 prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
-    let extra = TxUpdate extraIns extraCol extraOuts (const newFee)
+    let extra = TxUpdate extraIns extraCol extraOuts (Just newFee)
     let tx' = either (error . show) id
             $ updateSealedTx tx extra
     conjoin

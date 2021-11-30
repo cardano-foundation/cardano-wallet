@@ -230,7 +230,7 @@ data TxUpdate = TxUpdate
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [TxOut]
-    , newFee :: Coin -> Coin
+    , newFee :: Maybe Coin
         -- ^ Set the new fee, given the old one.
         --
         -- Note that you most likely won't care about the old fee at all. But it
