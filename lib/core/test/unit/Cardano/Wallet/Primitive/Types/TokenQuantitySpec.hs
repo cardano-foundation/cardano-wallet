@@ -35,8 +35,10 @@ import Test.Hspec.Extra
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , checkCoverage
     , conjoin
     , counterexample
+    , cover
     , property
     , (===)
     , (==>)
@@ -83,6 +85,12 @@ spec =
             property prop_pred_succ
         it "prop_succ_pred" $
             property prop_succ_pred
+        it "prop_succ_predZero" $
+            property prop_succ_predZero
+        it "prop_predZero_difference" $
+            property prop_predZero_difference
+        it "prop_predZero_pred" $
+            property prop_predZero_pred
         it "prop_difference_zero (x - 0 = x)" $
             property prop_difference_zero
         it "prop_difference_zero2 (0 - x = 0)" $
@@ -114,11 +122,31 @@ spec =
 
 prop_pred_succ :: TokenQuantity -> Property
 prop_pred_succ q = q > TokenQuantity.zero ==>
-    TokenQuantity.succ (TokenQuantity.pred q) === q
+    (TokenQuantity.succ <$> TokenQuantity.pred q) === Just q
 
 prop_succ_pred :: TokenQuantity -> Property
 prop_succ_pred q =
-    TokenQuantity.pred (TokenQuantity.succ q) === q
+    TokenQuantity.pred (TokenQuantity.succ q) === Just q
+
+prop_succ_predZero :: TokenQuantity -> Property
+prop_succ_predZero q =
+    TokenQuantity.predZero (TokenQuantity.succ q) === q
+
+prop_predZero_difference :: TokenQuantity -> Property
+prop_predZero_difference q =
+    checkCoverage $
+    cover  1 (q == TokenQuantity 0) "q == 0" $
+    cover 10 (q >= TokenQuantity 1) "q >= 1" $
+    TokenQuantity.predZero q === q `TokenQuantity.difference` TokenQuantity 1
+
+prop_predZero_pred :: TokenQuantity -> Property
+prop_predZero_pred q =
+    checkCoverage $
+    cover  1 (q == TokenQuantity 0) "q == 0" $
+    cover 10 (q >= TokenQuantity 1) "q >= 1" $
+    if q == TokenQuantity.zero
+    then TokenQuantity.predZero q === TokenQuantity.zero
+    else Just (TokenQuantity.predZero q) === TokenQuantity.pred q
 
 prop_difference_zero :: TokenQuantity -> Property
 prop_difference_zero x =

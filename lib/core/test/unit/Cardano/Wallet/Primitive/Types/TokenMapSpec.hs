@@ -360,11 +360,7 @@ prop_setQuantity_invariant b asset quantity = property $
 
 prop_adjustQuantity_invariant :: TokenMap -> AssetId -> Property
 prop_adjustQuantity_invariant b asset = property $
-    invariantHolds $ TokenMap.adjustQuantity b asset adjust
-  where
-    adjust quantity
-        | quantity > TokenQuantity.zero = TokenQuantity.pred quantity
-        | otherwise = quantity
+    invariantHolds $ TokenMap.adjustQuantity b asset TokenQuantity.predZero
 
 --------------------------------------------------------------------------------
 -- Construction and deconstruction properties
@@ -650,9 +646,7 @@ prop_adjustQuantity_getQuantity b asset =
         === adjust quantityOriginal
   where
     quantityOriginal = TokenMap.getQuantity b asset
-    adjust quantity
-        | quantity > TokenQuantity.zero = TokenQuantity.pred quantity
-        | otherwise = quantity
+    adjust = TokenQuantity.predZero
 
 prop_adjustQuantity_hasQuantity
     :: TokenMap -> AssetId -> Property
@@ -661,9 +655,7 @@ prop_adjustQuantity_hasQuantity b asset =
         === TokenQuantity.isNonZero (adjust quantityOriginal)
   where
     quantityOriginal = TokenMap.getQuantity b asset
-    adjust quantity
-        | quantity > TokenQuantity.zero = TokenQuantity.pred quantity
-        | otherwise = quantity
+    adjust = TokenQuantity.predZero
 
 prop_maximumQuantity_all
     :: TokenMap -> Property

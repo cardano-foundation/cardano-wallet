@@ -15,6 +15,7 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
     , add
     , subtract
     , pred
+    , predZero
     , succ
     , difference
 
@@ -60,8 +61,6 @@ import Numeric.Natural
     ( Natural )
 import Quiet
     ( Quiet (..) )
-
-import qualified Prelude
 
 --------------------------------------------------------------------------------
 -- Type
@@ -127,11 +126,28 @@ add (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x + y
 subtract :: TokenQuantity -> TokenQuantity -> Maybe TokenQuantity
 subtract x y = guard (x >= y) $> unsafeSubtract x y
 
-pred :: TokenQuantity -> TokenQuantity
-pred (TokenQuantity q) = TokenQuantity $ Prelude.pred q
+-- | Finds the predecessor of a given token quantity.
+--
+-- Returns 'Nothing' if the given quantity is zero.
+--
+pred :: TokenQuantity -> Maybe TokenQuantity
+pred = (`subtract` TokenQuantity 1)
 
+-- | Finds the predecessor of a given token quantity.
+--
+-- Returns 'zero' if the given quantity is 'zero'.
+--
+-- Satisfies the following property:
+--
+-- >>> predZero x == x `difference` 1
+--
+predZero :: TokenQuantity -> TokenQuantity
+predZero = fromMaybe zero . pred
+
+-- | Finds the successor of a given token quantity.
+--
 succ :: TokenQuantity -> TokenQuantity
-succ (TokenQuantity q) = TokenQuantity $ Prelude.succ q
+succ = (`add` TokenQuantity 1)
 
 -- | Subtracts the second token quantity from the first.
 --
