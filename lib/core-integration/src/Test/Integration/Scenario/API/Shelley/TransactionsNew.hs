@@ -28,7 +28,8 @@ import Cardano.Crypto.DSIGN.Class
 import Cardano.Mnemonic
     ( SomeMnemonic (..), mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress (..)
+    ( AddressAmount (..)
+    , ApiAddress (..)
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
@@ -144,6 +145,7 @@ import Test.Integration.Framework.DSL
     , pickAnAsset
     , request
     , rewardWallet
+    , selectCoins
     , signTx
     , submitTx
     , unsafeRequest
@@ -160,6 +162,8 @@ import Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney
     , errMsg404NoSuchPool
     )
+import UnliftIO.Exception
+    ( fromEither )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
@@ -1801,6 +1805,24 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         waitForNextEpoch ctx
                         withdrawal <- PlutusScenario.withdrawScript_1
                         pure (withdrawal, [])
+                  )
+                , ( "currency", \ctx w -> do
+                    (addr,proxy) <- view #id . head <$> listAddresses @n ctx w
+                    let getFreshUTxO = do
+                            -- To obtain a fresh UTxO, we perform
+                            -- coin selection and just pick the first input
+                            -- that has been selected.
+                            let singleton = pure -- specialized to NonEmpty
+                            (_, result) <- selectCoins @_ @'Shelley ctx w $
+                                singleton $ AddressAmount
+                                    { address = (addr, proxy)
+                                    , amount  = Quantity 10_000_000
+                                    , assets  = ApiT TokenMap.empty
+                                    }
+                            pure $ head . view #inputs <$> result
+                    txOutRef <- fromEither =<< getFreshUTxO
+                    let mint = PlutusScenario.currencyTx txOutRef
+                    pure (mint, [])
                   )
                 ]
 
