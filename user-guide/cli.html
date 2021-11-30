@@ -21,7 +21,7 @@
 
   
   <!-- CSSSTART -->
-	<link rel="stylesheet" href="emanote-compiled-c6f8badbc76087eb856fd7267a539aa0.css" />
+	<link rel="stylesheet" href="emanote-compiled-a12b9086aeea35dc35e413bffb45ae7e.css" />
   <!-- CSSEND -->
 
   <!-- Heist error element -->
@@ -32,24 +32,21 @@
       font-family: monospace;
     }
   </style>
-  <!-- What goes in this file will appear on near the end of <head>--><link rel='preload' href='_emanote-static/fonts/Nunito/Nunito-Regular.ttf' as='font' type='font/ttf' crossorigin />
-<link rel='preload' href='_emanote-static/fonts/Nunito/Nunito-ExtraBold.ttf' as='font' type='font/ttf' crossorigin />
+  <!-- What goes in this file will appear on near the end of <head>--><link rel='preload' href='_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf' as='font' type='font/ttf' crossorigin />
 
 <style>
   @font-face {
-    font-family: 'Nunito';
-    src: url('_emanote-static/fonts/Nunito/Nunito-Regular.ttf') format("truetype");
-    font-display: swap;
-  }
-
-  @font-face {
-    font-family: 'Nunito-Bold';
-    src: url('_emanote-static/fonts/Nunito/Nunito-ExtraBold.ttf') format("truetype");
+    font-family: 'MavenPro';
+    src: url('_emanote-static/fonts/Maven_Pro/MavenPro-VariableFont_wght.ttf') format("truetype");
     font-display: swap;
   }
 
   body {
-    font-family: 'Nunito', sans-serif;
+    font-family: 'MavenPro', sans-serif;
+  }
+
+  a.mavenLinkBold {
+    font-variation-settings: 'wght'500;
   }
 
   h1,
@@ -60,7 +57,7 @@
   h6,
   header,
   .header-font {
-    font-family: 'Nunito-Bold', sans-serif;
+    font-family: 'MavenPro', sans-serif;
   }
 </style>
 
@@ -2148,7 +2145,7 @@ complete -o filenames -F _cardano-wallet cardano-wallet</code></pre></div><div x
   --node-socket CARDANO_NODE_SOCKET_PATH_OR_PIPE \
   --database ./wallets-mainnet</code></pre></div><h5 id='testnet' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Testnet</h5>
     <p class='mb-3'>
-      Note that for testnets, a <em>byron</em> genesis file is required (see <a href='#pre-requisites' class='text-red-600 font-bold hover:underline'>pre-requisites</a>), even though the network is in the shelley era. This is because the chain is synced from the beginning of the first era.
+      Note that for testnets, a <em>byron</em> genesis file is required (see <a href='#pre-requisites' class='text-red-600 mavenLinkBold hover:underline'>pre-requisites</a>), even though the network is in the shelley era. This is because the chain is synced from the beginning of the first era.
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>cardano-wallet serve \
   --testnet testnet-byron-genesis.json \
@@ -2420,7 +2417,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     </p>
   
     <p class='mb-3'>
-      For more information about the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--metadata</code> option, see <a href='user-guide/common-use-cases/TxMetadata' class='text-red-600 font-bold hover:underline' data-wikilink-type='WikiLinkNormal'>Transaction Metadata</a>.
+      For more information about the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--metadata</code> option, see <a href='user-guide/common-use-cases/TxMetadata' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Transaction Metadata</a>.
     </p>
   <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
 </div><h3 id='transaction-fees' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction fees</h3>
@@ -2710,7 +2707,7 @@ Available options:
     <ul class='space-y-1'>
       
         <li>
-          <a class='text-red-600 font-bold hover:bg-red-50' href='user-guide'>
+          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='user-guide'>
             User Guide
           </a>
           
@@ -2725,7 +2722,7 @@ Available options:
         </li>
       
         <li>
-          <a class='text-red-600 font-bold hover:bg-red-50' href='user-guide/common-use-cases/TxMetadata'>
+          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='user-guide/common-use-cases/TxMetadata'>
             Transaction Metadata
           </a>
           
@@ -2740,7 +2737,7 @@ Available options:
         </li>
       
         <li>
-          <a class='text-red-600 font-bold hover:bg-red-50' href='contributing/Release-Checklist'>
+          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='contributing/Release-Checklist'>
             Release Checklist
           </a>
           
@@ -2755,7 +2752,7 @@ Available options:
         </li>
       
         <li>
-          <a class='text-red-600 font-bold hover:bg-red-50' href='archives/jormungandr/Docker-jormungandr'>
+          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='archives/jormungandr/Docker-jormungandr'>
             Docker Image
           </a>
           
@@ -2770,7 +2767,7 @@ Available options:
         </li>
       
         <li>
-          <a class='text-red-600 font-bold hover:bg-red-50' href='user-guide/Docker'>
+          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href='user-guide/Docker'>
             Docker
           </a>
           
@@ -2785,7 +2782,7 @@ Available options:
         </li>
       
         <li>
-          <a class='text-red-600 font-bold hover:bg-red-50' href=''>
+          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href=''>
             Cardano Wallet
           </a>
           
@@ -2816,27 +2813,27 @@ Available options:
   
   <div>
     <a href='' title='Go to Home page'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-5 h-5 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'></path>
       </svg>
     </a>
   </div>
   <div>
     <a href='-/all' title='View Index'>
-      <svg class='w-5 h-5 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'>
         </path>
       </svg>
     </a>
   </div>
   <div>
-    <a href='https://note.ema.srid.ca' target='_blank' title='Generated by Emanote 0.3.13.1'>
-      <img class='w-5 h-5 hover:text-red-700' src='_emanote-static/emanote-logo.svg' />
+    <a href='https://note.ema.srid.ca' target='_blank' title='Generated by Emanote 0.3.15.2'>
+      <img class='w-6 h-6 hover:text-red-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>
   <div>
     <a href='-/tags' title='View tags'>
-      <svg class='w-5 h-5 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+      <svg class='w-6 h-6 hover:text-red-700' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z'>
         </path>
       </svg>
@@ -2844,7 +2841,7 @@ Available options:
   </div>
   <div>
     <a href='-/tasks' title='View tasks'>
-      <svg xmlns='http://www.w3.org/2000/svg' class='w-5 h-5 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-6 h-6 hover:text-red-700' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'></path>
       </svg>
     </a>
