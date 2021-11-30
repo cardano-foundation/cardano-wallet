@@ -212,6 +212,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiDecodedTransaction (..)
+    , ApiDeregisterPool (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiEra (..)
     , ApiErrorCode (..)
@@ -232,6 +233,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
+    , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsPayments
     , ApiSerialisedTransaction (..)
@@ -2214,7 +2216,7 @@ decodeTransaction
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
     let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn, allCerts) =
             decodeTx tl sealed
-    let (_delCerts, _poolCerts, otherCerts) = allCerts
+    let (_delCerts, poolCerts, otherCerts) = allCerts
     (txinsOutsPaths, collsOutsPaths, outsPath, acct)  <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
           (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -2231,7 +2233,9 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
         , assetsMinted = ApiT toMint
         , assetsBurned = ApiT toBurn
-        , certificates = map toOtherCerts otherCerts
+        , certificates =
+                map toApiOtherCerts otherCerts ++
+                map toApiPoolCerts poolCerts
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
@@ -2264,7 +2268,20 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
         else
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) External
-    toOtherCerts = OtherCertificate . ApiT
+    toApiOtherCerts = OtherCertificate . ApiT
+    toApiPoolCerts (W.Registration (W.PoolRegistrationCertificate poolId' poolOwners' poolMargin' poolCost' poolPledge' poolMetadata')) =
+        let enrich (a, b) = (ApiT a, ApiT b)
+        in StakePoolRegister $ ApiRegisterPool
+           (ApiT poolId')
+           (map ApiT poolOwners')
+           (Quantity poolMargin')
+           (Quantity $ unCoin poolCost')
+           (Quantity $ unCoin poolPledge')
+           (enrich <$> poolMetadata')
+    toApiPoolCerts (W.Retirement (W.PoolRetirementCertificate poolId' retirementEpoch')) =
+        StakePoolDeregister $ ApiDeregisterPool
+        (ApiT poolId')
+        (ApiT retirementEpoch')
 
 joinStakePool
     :: forall ctx s n k.
