@@ -30,9 +30,11 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
+    , ApiAnyCertificate (..)
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
+    , ApiExternalCertificate (..)
     , ApiSerialisedTransaction (..)
     , ApiStakePool
     , ApiT (..)
@@ -60,12 +62,16 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.Types
+    ( PoolId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -934,14 +940,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
 
         wa <- fixtureWallet ctx
-        pool:_ <- map (view #id) . snd <$> unsafeRequest
+        pool':_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
         let delegation = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{pool},
+                        "pool": #{pool'},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -1169,7 +1175,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let amt = minUTxOValue (_mainEra ctx) :: Natural
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
-        pool:_ <- map (view #id) . snd <$> unsafeRequest
+        pool':_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
@@ -1190,7 +1196,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }],
                 "delegations": [{
                     "join": {
-                        "pool": #{pool},
+                        "pool": #{pool'},
                         "stake_key_index": "0H"
                     }
                 }],
@@ -1248,7 +1254,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ expectSuccess
                 , expectField
                         #delegation
-                        (`shouldBe` delegating pool [])
+                        (`shouldBe` delegating pool' [])
                 ]
 
         eventually "Destination wallet balance is as expected" $ do
@@ -1430,6 +1436,33 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
             , expectField #assetsMinted (`shouldBe` ApiT TokenMap.empty)
             , expectField #assetsBurned (`shouldBe` ApiT tokens)
+            ]
+
+    it "TRANS_DECODE_03 - transaction with all external delegation certificates" $ \ctx -> runResourceT $ do
+
+        -- constructing source wallet
+        let initialAmt = minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        let serializedTxHexJoin =
+                "84a700818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648060d800181825839011a2f2f103b895dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcbd4d43652bf05c40c346fa794871423b65052d7614c1b0000001748656dc8021a000237f803198d19048282008200581c89fc61d21ddfcbd4d43652bf05c40c346fa794871423b65052d7614c83028200581c89fc61d21ddfcbd4d43652bf05c40c346fa794871423b65052d7614c581cec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9c2bbe6838dc60e80a10082825820a922e88e8148f1bb9b9578e2640704ae8699bdd17bb9c26ed35881343c15ec485840995587f2e29c72c7ed2eb6e2381be4745503d7d2ba8de30c6cf176f82fb9074854c39ab85cb7d8e1dcdf9fb99007de2b044ba7a05ea7712b7084b4d352aa8502825820a1a07799ec226d8f2bea80dc1a4fdb25e1b2cb0dbd312a1b004b0401e901225358403ad81b75a057c419d48e1840bdeba8338206cf3df799d04328c4208b4d7a87248e604a78447c2a7acfa4488f3df5c92b01535f756e6ae6e1f23ddb9f438de10ef5f6" :: Text
+
+        let rewardAccount' = ApiT $ RewardAccount "\137\252a\210\GS\223\203\212\212\&6R\191\ENQ\196\f4o\167\148\135\DC4#\182PR\215aL"
+        let pool' = ApiT $ PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\ts\202l\f\249\194\187\230\131\141\198"
+
+        let certsJoin =
+                [ DelegationCertificate (RegisterRewardAccountExternal (rewardAccount', Proxy))
+                , DelegationCertificate (JoinPoolExternal (rewardAccount', Proxy) pool')
+                ]
+
+        let decodePayloadJoin = Json [json|{
+              "transaction": #{serializedTxHexJoin}
+          }|]
+        rTxJoin <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadJoin
+        verify rTxJoin
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` certsJoin)
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
