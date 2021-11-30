@@ -445,8 +445,19 @@ ourWithdrawalSumFromTx
     :: IsOurs s RewardAccount
     => Tx
     -> State s Coin
-ourWithdrawalSumFromTx tx = F.foldMap snd <$>
-    mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
+ourWithdrawalSumFromTx tx
+    -- If a transaction has failed script validation, then the ledger rules
+    -- require that applying the transaction shall have no effect other than
+    -- to fully spend the collateral inputs included within that transaction.
+    --
+    -- Therefore, any reward withdrawals included in such a transaction should
+    -- also have no effect.
+    --
+    | failedScriptValidation tx =
+        pure (Coin 0)
+    | otherwise =
+        F.foldMap snd <$>
+        mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
 
 -- | Indicates whether a given transaction is relevant to the wallet.
 --
