@@ -1444,8 +1444,24 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let initialAmt = minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
 
+        -- tx within some wallet, so other that wallet wa, that contains
+        -- registration of reward account and joining to some pool using this
+        -- reward account
         let serializedTxHexJoin =
-                "84a700818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1770e07fa22ba8648060d800181825839011a2f2f103b895dbe7388acc9cc10f90dc4ada53f46c841d2ac44630789fc61d21ddfcbd4d43652bf05c40c346fa794871423b65052d7614c1b0000001748656dc8021a000237f803198d19048282008200581c89fc61d21ddfcbd4d43652bf05c40c346fa794871423b65052d7614c83028200581c89fc61d21ddfcbd4d43652bf05c40c346fa794871423b65052d7614c581cec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9c2bbe6838dc60e80a10082825820a922e88e8148f1bb9b9578e2640704ae8699bdd17bb9c26ed35881343c15ec485840995587f2e29c72c7ed2eb6e2381be4745503d7d2ba8de30c6cf176f82fb9074854c39ab85cb7d8e1dcdf9fb99007de2b044ba7a05ea7712b7084b4d352aa8502825820a1a07799ec226d8f2bea80dc1a4fdb25e1b2cb0dbd312a1b004b0401e901225358403ad81b75a057c419d48e1840bdeba8338206cf3df799d04328c4208b4d7a87248e604a78447c2a7acfa4488f3df5c92b01535f756e6ae6e1f23ddb9f438de10ef5f6" :: Text
+                "84a700818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1\
+                \770e07fa22ba8648060d800181825839011a2f2f103b895dbe7388acc9cc10\
+                \f90dc4ada53f46c841d2ac44630789fc61d21ddfcbd4d43652bf05c40c346f\
+                \a794871423b65052d7614c1b0000001748656dc8021a000237f803198d1904\
+                \8282008200581c89fc61d21ddfcbd4d43652bf05c40c346fa794871423b650\
+                \52d7614c83028200581c89fc61d21ddfcbd4d43652bf05c40c346fa7948714\
+                \23b65052d7614c581cec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9\
+                \c2bbe6838dc60e80a10082825820a922e88e8148f1bb9b9578e2640704ae86\
+                \99bdd17bb9c26ed35881343c15ec485840995587f2e29c72c7ed2eb6e2381b\
+                \e4745503d7d2ba8de30c6cf176f82fb9074854c39ab85cb7d8e1dcdf9fb990\
+                \07de2b044ba7a05ea7712b7084b4d352aa8502825820a1a07799ec226d8f2b\
+                \ea80dc1a4fdb25e1b2cb0dbd312a1b004b0401e901225358403ad81b75a057\
+                \c419d48e1840bdeba8338206cf3df799d04328c4208b4d7a87248e604a7844\
+                \7c2a7acfa4488f3df5c92b01535f756e6ae6e1f23ddb9f438de10ef5f6" :: Text
 
         let rewardAccount' = ApiT $ RewardAccount "\137\252a\210\GS\223\203\212\212\&6R\191\ENQ\196\f4o\167\148\135\DC4#\182PR\215aL"
         let pool' = ApiT $ PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\ts\202l\f\249\194\187\230\131\141\198"
@@ -1463,6 +1479,35 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTxJoin
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldBe` certsJoin)
+            ]
+
+        -- tx within other wallet than wa, containing quitting the pool
+        let serializedTxHexQuit =
+                "84a700818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1\
+                \770e07fa22ba8648000d800181825839012c6f08b29f901657f4daf134a36a\
+                \64b7b53977eb00866aadf6b8fb4d89fc61d21ddfcbd4d43652bf05c40c346f\
+                \a794871423b65052d7614c1b0000001748840b48021a00021ef803198f0304\
+                \8182018200581c89fc61d21ddfcbd4d43652bf05c40c346fa794871423b650\
+                \52d7614c0e80a10082825820a1a07799ec226d8f2bea80dc1a4fdb25e1b2cb\
+                \0dbd312a1b004b0401e901225358408fec23c16be743ee592a948a4a1c9d9a\
+                \4529a868d3217386985c30c6d1797c50c4928b6c3aea2825fc0677ea9550ef\
+                \e2270447514f1f6e189b73a0234029a802825820c15b990344122b12494a5e\
+                \dd1020d9eb32e34b0f82691f8e31645ddab712ff2b58402504005e990a2a6e\
+                \db71e6bb1dee0c59e9328e5d698a97139567db4b7754d960ddcb738b852746\
+                \c9571d7175c9263a12e40139c93929ef6ba11c1815f792b40cf5f6" :: Text
+
+        let certsQuit =
+                [ DelegationCertificate (QuitPoolExternal (rewardAccount', Proxy))
+                ]
+
+        let decodePayloadQuit = Json [json|{
+              "transaction": #{serializedTxHexQuit}
+          }|]
+        rTxQuit <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadQuit
+        verify rTxQuit
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` certsQuit)
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do

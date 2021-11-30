@@ -195,7 +195,6 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
-    , genMockXPub
     , genNatural
     , genNestedTxMetadata
     , genPercentage
@@ -239,8 +238,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource
     , PoolOwner (..)
-    , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
     , Settings
     , SlotId (..)
     , SlotInEpoch (..)
