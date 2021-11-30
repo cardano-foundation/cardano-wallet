@@ -450,25 +450,27 @@ ourWithdrawalSumFromTx tx = F.foldMap snd <$>
 
 -- | Indicates whether a given transaction is relevant to the wallet.
 --
--- Returns 'True' for a given 'Tx' 't' and 'UTxO' set 'u' if (and only if) one
--- or more of the following statements is 'True':
---
---  - 't' has at least one collateral input that uses an entry from 'u'.
---  - 't' has at least one ordinary input that uses an entry from 'u'.
---  - 't' has at least one output with an address owned by the wallet.
---  - 't' has at least one withdrawal from a reward account owned by the wallet.
---
 isOurTx
     :: forall s. (IsOurs s Address, IsOurs s RewardAccount)
     => Tx
     -> UTxO
     -> State s Bool
-isOurTx tx u = F.or <$> sequence
-    [ txHasRelevantCollateral
-    , txHasRelevantInput
-    , txHasRelevantOutput
-    , txHasRelevantWithdrawal
-    ]
+isOurTx tx u
+    -- If a transaction has failed script validation, then the ledger rules
+    -- require that applying the transaction shall have no effect other than
+    -- to fully spend the collateral inputs included within that transaction.
+    --
+    -- Therefore, such a transaction is only relevant to the wallet if it has
+    -- one more collateral inputs that belong to the wallet.
+    --
+    | failedScriptValidation tx =
+        txHasRelevantCollateral
+    | otherwise =
+        F.or <$> sequence
+            [ txHasRelevantInput
+            , txHasRelevantOutput
+            , txHasRelevantWithdrawal
+            ]
   where
     txHasRelevantCollateral =
         pure . not . UTxO.null $
