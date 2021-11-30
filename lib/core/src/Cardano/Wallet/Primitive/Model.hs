@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -6,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -554,26 +556,27 @@ applyOurTxToUTxO !slotNo !blockHeight !tx !prevUTxO = do
                 Just $ distance totalIn totalOut
             (_, Incoming) ->
                 Nothing
-    return $ if hasKnownOutput && not hasKnownInput then
-        let dir = Incoming in
-        Just
-            ( ( tx { fee = actualFee dir }
-              , mkTxMeta (TB.getCoin received) dir
-              )
-            , ourNextUTxO
-            )
-    else if hasKnownInput || hasKnownWithdrawal then
-        let adaSpent = TB.getCoin spent
-            adaReceived = TB.getCoin received
-            dir = if adaSpent > adaReceived then Outgoing else Incoming
-            amount = distance adaSpent adaReceived
-        in
-        Just
-            ( (tx { fee = actualFee dir }, mkTxMeta amount dir)
-            , ourNextUTxO
-            )
-    else
-        Nothing
+    return if
+        | hasKnownOutput && not hasKnownInput ->
+            let dir = Incoming in
+            Just
+                ( ( tx { fee = actualFee dir }
+                  , mkTxMeta (TB.getCoin received) dir
+                  )
+                , ourNextUTxO
+                )
+        | hasKnownInput || hasKnownWithdrawal ->
+            let adaSpent = TB.getCoin spent
+                adaReceived = TB.getCoin received
+                dir = if adaSpent > adaReceived then Outgoing else Incoming
+                amount = distance adaSpent adaReceived
+            in
+            Just
+                ( (tx { fee = actualFee dir }, mkTxMeta amount dir)
+                , ourNextUTxO
+                )
+        | otherwise ->
+            Nothing
   where
     mkTxMeta :: Coin -> Direction -> TxMeta
     mkTxMeta amount dir = TxMeta
