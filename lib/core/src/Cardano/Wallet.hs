@@ -359,6 +359,7 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , Range (..)
     , Signature (..)
+    , Slot
     , SlottingParameters (..)
     , SortOrder (..)
     , WalletDelegation (..)
@@ -368,6 +369,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , dlgCertPoolId
+    , toSlot
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -894,7 +896,6 @@ restoreWallet
     :: forall ctx s k.
         ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
-        , HasGenesisData ctx
         , HasLogger IO WalletWorkerLog ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
@@ -904,19 +905,17 @@ restoreWallet
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     catchFromIO $ chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
-        { readLocalTip = liftIO $ atomically $
-            map (toChainPoint block0) <$> listCheckpoints wid
+        { readLocalTip = liftIO $ atomically $ listCheckpoints wid
         , rollForward = \blocks tip -> throwInIO $
             restoreBlocks @ctx @s @k
                 ctx (contramap MsgWalletFollow tr) wid blocks tip
         , rollBackward =
-            throwInIO . rollbackBlocks @ctx @s @k ctx wid
+            throwInIO . rollbackBlocks @ctx @s @k ctx wid . toSlot
         }
   where
     db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer @IO
     tr = ctx ^. logger @_ @WalletWorkerLog
-    (block0, _, _) = ctx ^. genesisData
 
     -- See Note [CheckedExceptionsAndCallbacks]
     throwInIO :: ExceptT ErrNoSuchWallet IO a -> IO a
@@ -967,57 +966,15 @@ and present it as a checked exception.
 rollbackBlocks
     :: forall ctx s k.
         ( HasDBLayer IO s k ctx
-        , HasGenesisData ctx
         )
     => ctx
     -> WalletId
-    -> ChainPoint
+    -> Slot
     -> ExceptT ErrNoSuchWallet IO ChainPoint
 rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
-    mapExceptT atomically $ (toChainPoint block0)
-        <$> rollbackTo wid (pseudoPointSlot point)
+    mapExceptT atomically $ rollbackTo wid point
   where
     db = ctx ^. dbLayer @IO @s @k
-    (block0, _, _) = ctx ^. genesisData
-
-    -- See NOTE [PointSlotNo]
-    pseudoPointSlot :: ChainPoint -> SlotNo
-    pseudoPointSlot ChainPointAtGenesis = W.SlotNo 0
-    pseudoPointSlot (ChainPoint slot _) = slot
-
-toChainPoint :: W.Block -> W.BlockHeader -> ChainPoint
-toChainPoint genesisBlock (BlockHeader slot _ h _)
-    | slot == 0 && h == genesisHash = ChainPointAtGenesis
-    | otherwise                     = ChainPoint slot h
-  where
-    genesisHash = genesisBlock ^. (#header . #headerHash)
-
-{- NOTE [PointSlotNo]
-
-`SlotNo` cannot represent the genesis point `Origin`.
-
-Historical hack. Our DB layers can't represent `Origin` when rolling
-back, so we map `Origin` to `SlotNo 0`, which is wrong.
-
-Rolling back to SlotNo 0 instead of Origin is fine for followers starting
-from genesis (which should be the majority of cases). Other, non-trivial
-rollbacks to genesis cannot occur on mainnet (genesis is years within
-stable part, and there were no rollbacks in byron).
-
-Could possibly be problematic in the beginning of a testnet without a
-byron era. /Perhaps/ this is what is happening in the
->>> [cardano-wallet.pools-engine:Error:1293] [2020-11-24 10:02:04.00 UTC]
->>> Couldn't store production for given block before it conflicts with
->>> another block. Conflicting block header is:
->>> 5bde7e7b<-[f1b35b98-4290#2008]
-errors observed in the integration tests.
-
-FIXME: Fix should be relatively straight-forward, so we should probably
-do it.
-Heinrich: I have introduced the 'ChainPoint' type to represent points
-on the chain. This type is already used in chain sync protocol,
-but it still needs to be propagated to the database layer.
--}
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.

@@ -20,6 +20,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+-- Technically,  instance Buildable Slot
+-- in an orphan instance, but `Slot` is a type synonym
+-- and the instance is more specific than a vanilla `WithOrigin` instance.
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -35,8 +40,15 @@ module Cardano.Wallet.Primitive.Types
     -- * Block
       Block(..)
     , BlockHeader(..)
+    , isGenesisBlockHeader
+    , hashOfNoParent
+
     , ChainPoint (..)
     , compareSlot
+    , chainPointFromBlockHeader
+    , Slot
+    , WithOrigin (..)
+    , toSlot
 
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
@@ -154,7 +166,7 @@ module Cardano.Wallet.Primitive.Types
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..), WithOrigin (..) )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.Coin
@@ -761,7 +773,7 @@ instance Buildable StakePoolsSummary where
 {-------------------------------------------------------------------------------
                                     Block
 -------------------------------------------------------------------------------}
-
+-- | A block on the chain, as the wallet sees it.
 data Block = Block
     { header
         :: !BlockHeader
@@ -778,39 +790,6 @@ instance Buildable (Block) where
         <> build h
         <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
 
--- | A point on the blockchain
--- is either the genesis block, or a block with a hash that was
--- created at a particular 'SlotNo'.
---
--- TODO: This type is essentially a copy of the 'Cardano.Api.Block.ChainPoint'
--- type. We want to import it from there when overhauling our types.
-data ChainPoint
-    = ChainPointAtGenesis
-    | ChainPoint !SlotNo !(Hash "BlockHeader")
-    deriving (Eq, Ord, Show, Generic)
-
--- | Compare the slot numbers of two 'ChainPoint's,
--- but where the 'ChainPointAtGenesis' comes before all natural slot numbers.
---
--- Note: The 'Ord' instance of 'ChainPoint' is more fine-grained and
--- also compares block hashes.
-compareSlot :: ChainPoint -> ChainPoint -> Ordering
-compareSlot ChainPointAtGenesis ChainPointAtGenesis = EQ
-compareSlot ChainPointAtGenesis _ = LT
-compareSlot _ ChainPointAtGenesis = GT
-compareSlot (ChainPoint sl1 _) (ChainPoint sl2 _) = compare sl1 sl2
-
-instance NFData ChainPoint
-
-instance NoThunks ChainPoint
-
-instance Buildable ChainPoint where
-    build ChainPointAtGenesis    = "[point genesis]"
-    build (ChainPoint slot hash) =
-        "[point " <> hashF <> " at slot " <> pretty slot <> "]"
-      where
-        hashF = prefixF 8 $ T.decodeUtf8 $ convertToBase Base16 $ getHash hash
-
 data BlockHeader = BlockHeader
     { slotNo
         :: SlotNo
@@ -821,6 +800,15 @@ data BlockHeader = BlockHeader
     , parentHeaderHash
         :: !(Hash "BlockHeader")
     } deriving (Show, Eq, Ord, Generic)
+
+-- | Magic value denoting the hash of a block that \"does not exist\".
+-- Specifically, this is the hash of \"the parent block\" of the genesis block.
+hashOfNoParent :: Hash "BlockHeader"
+hashOfNoParent = Hash . BS.pack $ replicate 32 0
+
+-- | Check whether a block with a given 'BlockHeader' is the genesis block.
+isGenesisBlockHeader :: BlockHeader -> Bool
+isGenesisBlockHeader = (== hashOfNoParent) . view #parentHeaderHash
 
 instance NFData BlockHeader
 
@@ -836,6 +824,67 @@ instance Buildable BlockHeader where
       where
         hhF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash hh
         phF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash ph
+
+-- | A point on the blockchain
+-- is either the genesis block, or a block with a hash that was
+-- created at a particular 'SlotNo'.
+--
+-- TODO:
+--
+-- * This type is essentially a copy of the 'Cardano.Api.Block.ChainPoint'
+-- type. We want to import it from there when overhauling our types.
+-- * That said, using 'WithOrigin' would not be bad.
+-- * 'BlockHeader' is also a good type for rerencing points on the chain,
+-- but it's less compatible with the types in ouroboros-network.
+data ChainPoint
+    = ChainPointAtGenesis
+    | ChainPoint !SlotNo !(Hash "BlockHeader")
+    deriving (Eq, Ord, Show, Generic)
+
+-- | Compare the slot numbers of two 'ChainPoint's,
+-- but where the 'ChainPointAtGenesis' comes before all other slot numbers.
+compareSlot :: ChainPoint -> ChainPoint -> Ordering
+compareSlot pt1 pt2 = compare (toSlot pt1) (toSlot pt2)
+
+-- | Convert a 'BlockHeader' into a 'ChainPoint'.
+chainPointFromBlockHeader :: BlockHeader -> ChainPoint
+chainPointFromBlockHeader header@(BlockHeader sl _ hash _)
+    | isGenesisBlockHeader header = ChainPointAtGenesis
+    | otherwise                   = ChainPoint sl hash
+
+instance NFData ChainPoint
+
+instance NoThunks ChainPoint
+
+instance Buildable ChainPoint where
+    build ChainPointAtGenesis    = "[point genesis]"
+    build (ChainPoint slot hash) =
+        "[point " <> hashF <> " at slot " <> pretty slot <> "]"
+      where
+        hashF = prefixF 8 $ T.decodeUtf8 $ convertToBase Base16 $ getHash hash
+
+-- | A point in (slot) time, which is either genesis ('Origin')
+-- or has a slot number ('At').
+--
+-- In contrast to 'ChainPoint', the type 'Slot' does not refer
+-- to a point on an actual chain with valid block hashes,
+-- but merely to a timeslot which can hold a single block.
+-- This implies:
+--
+-- * 'Slot' has a linear ordering implemented in the 'Ord' class
+--   (where @Origin < At slot@).
+-- * Using 'Slot' in QuickCheck testing requires less context
+-- (such as an actual simulated chain.)
+type Slot = WithOrigin SlotNo
+
+-- | Retrieve the slot of a 'ChainPoint'.
+toSlot :: ChainPoint -> Slot
+toSlot ChainPointAtGenesis = Origin
+toSlot (ChainPoint slot _) = At slot
+
+instance Buildable Slot where
+    build Origin    = "[genesis]"
+    build (At slot) = "[at slot " <> pretty slot <> "]"
 
 -- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
 -- function where @x@ can be the transaction size in bytes or, a number of

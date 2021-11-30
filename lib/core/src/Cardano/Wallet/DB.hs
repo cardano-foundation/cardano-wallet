@@ -42,10 +42,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader
+    ( ChainPoint
     , DelegationCertificate
     , GenesisParameters
     , Range (..)
+    , Slot
     , SlotNo (..)
     , SortOrder (..)
     , WalletId
@@ -161,7 +162,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , listCheckpoints
         :: WalletId
-        -> stm [BlockHeader]
+        -> stm [ChainPoint]
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
@@ -301,12 +302,13 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , rollbackTo
         :: WalletId
-        -> SlotNo
-        -> ExceptT ErrNoSuchWallet stm BlockHeader
-        -- ^ Drops all checkpoints and transaction data after the given slot.
+        -> Slot
+        -> ExceptT ErrNoSuchWallet stm ChainPoint
+        -- ^ Drops all checkpoints and transaction data which
+        -- have appeared after the given 'ChainPoint'.
         --
-        -- Returns the actual slot to which the database has rolled back. This
-        -- slot is guaranteed to be earlier than (or identical to) the given
+        -- Returns the actual 'ChainPoint' to which the database has rolled back.
+        -- Its slot is guaranteed to be earlier than (or identical to) the given
         -- point of rollback but can't be guaranteed to be exactly the same
         -- because the database may only keep sparse checkpoints.
 

@@ -491,7 +491,7 @@ flushStats
     -> IO (FollowStats Rearview)
 flushStats t calcSyncProgress var = do
     s <- atomically $ takeTMVar var
-    p <- calcSyncProgress $ pseudoPointSlot $ current $ localTip s
+    p <- calcSyncProgress $ pseudoSlotNo $ current $ localTip s
     let s' = s { time = overCurrent (const t) (time s) }
                { prog = overCurrent (const p) (prog s) }
     atomically $ putTMVar var $ hoistStats forgetPast s'
@@ -500,9 +500,9 @@ flushStats t calcSyncProgress var = do
     forgetPast (Rearview _past curr) = initRearview curr
 
 -- See NOTE [PointSlotNo]
-pseudoPointSlot :: ChainPoint -> SlotNo
-pseudoPointSlot ChainPointAtGenesis = SlotNo 0
-pseudoPointSlot (ChainPoint slot _) = slot
+pseudoSlotNo :: ChainPoint -> SlotNo
+pseudoSlotNo ChainPointAtGenesis = SlotNo 0
+pseudoSlotNo (ChainPoint slot _) = slot
 
 -- | Monitors health and statistics by inspecting the messages
 -- submitted to a 'ChainSyncLog' tracer.

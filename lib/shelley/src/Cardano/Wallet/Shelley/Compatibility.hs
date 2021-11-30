@@ -394,7 +394,7 @@ emptyGenesis gp = W.Block
         , headerHash =
             coerce $ W.getGenesisBlockHash gp
         , parentHeaderHash =
-            hashOfNoParent
+            W.hashOfNoParent
         }
     }
 
@@ -409,11 +409,6 @@ nodeToClientVersions = [NodeToClientV_8, NodeToClientV_9]
 --------------------------------------------------------------------------------
 --
 -- Type Conversions
-
--- | Magic value for the absence of a block.
-hashOfNoParent :: W.Hash "BlockHeader"
-hashOfNoParent =
-    W.Hash . BS.pack $ replicate 32 0
 
 toCardanoHash :: W.Hash "BlockHeader" -> OneEraHash (CardanoEras sc)
 toCardanoHash (W.Hash bytes) =
@@ -606,7 +601,7 @@ fromTip genesisHash tip = case getPoint (getTipPoint tip) of
         { slotNo = W.SlotNo 0
         , blockHeight = Quantity 0
         , headerHash = coerce genesisHash
-        , parentHeaderHash = hashOfNoParent
+        , parentHeaderHash = W.hashOfNoParent
         }
     At blk -> W.BlockHeader
         { slotNo = Point.blockPointSlot blk
@@ -1167,7 +1162,7 @@ fromGenesisData g initialFunds =
             , headerHash =
                 dummyGenesisHash
             , parentHeaderHash =
-                W.Hash (BS.replicate 32 0)
+                W.hashOfNoParent
             }
         , transactions = mkTx <$> outs
         }

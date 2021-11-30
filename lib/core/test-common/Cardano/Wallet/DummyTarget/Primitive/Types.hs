@@ -9,7 +9,7 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     , dummyGenesisParameters
     , dummySlottingParameters
     , dummyTimeInterpreter
-    , genesisHash
+    , dummyGenesisHash
     , mkTxId
     , mkTx
 
@@ -41,6 +41,7 @@ import Cardano.Wallet.Primitive.Types
     , TokenBundleMaxSize (..)
     , TxParameters (..)
     , emptyEraInfo
+    , hashOfNoParent
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -56,8 +57,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxScriptValidity (..)
     , TxSize (..)
     )
-import Data.Coerce
-    ( coerce )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Map.Strict
@@ -69,8 +68,8 @@ import Data.Time.Clock.POSIX
 
 import qualified Data.ByteString.Char8 as B8
 
-genesisHash :: Hash "Genesis"
-genesisHash = Hash (B8.replicate 32 '0')
+dummyGenesisHash :: Hash "Genesis"
+dummyGenesisHash = Hash (B8.replicate 32 '0')
 
 block0 :: Block
 block0 = Block
@@ -78,7 +77,7 @@ block0 = Block
         { slotNo = SlotNo 0
         , blockHeight = Quantity 0
         , headerHash = mockHash $ SlotNo 0
-        , parentHeaderHash = coerce genesisHash
+        , parentHeaderHash = hashOfNoParent
         }
     , transactions = []
     , delegations = []
@@ -86,7 +85,7 @@ block0 = Block
 
 dummyGenesisParameters :: GenesisParameters
 dummyGenesisParameters = GenesisParameters
-    { getGenesisBlockHash = genesisHash
+    { getGenesisBlockHash = dummyGenesisHash
     , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
     }
 

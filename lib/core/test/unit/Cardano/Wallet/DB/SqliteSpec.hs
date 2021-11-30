@@ -136,6 +136,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , WithOrigin (At)
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -676,7 +677,7 @@ fileModeSpec =  do
                 getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
 
                 atomically . void . unsafeRunExceptT $
-                    rollbackTo testWid (SlotNo 200)
+                    rollbackTo testWid (At $ SlotNo 200)
                 Just cp <- atomically $ readCheckpoint testWid
                 view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 

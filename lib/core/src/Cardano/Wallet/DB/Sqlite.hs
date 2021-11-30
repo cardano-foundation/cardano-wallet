@@ -235,6 +235,7 @@ import Database.Persist.Sql
     , selectList
     , updateWhere
     , upsert
+    , (!=.)
     , (/<-.)
     , (<-.)
     , (<.)
@@ -1315,10 +1316,10 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
     let insertCheckpointCached wid cp = do
             liftIO $ traceWith tr $ MsgCheckpointCache wid MsgPutCheckpoint
             modifyDBMaybe checkpointsVar $ \ws ->
-                let slotNo = cp ^. #currentTip ^. #slotNo
+                let point = getPoint cp
                 in  case Map.lookup wid ws of
-                    Nothing  -> (Just $ Insert wid $ singleton slotNo cp, ())
-                    Just _   -> (Just $ Adjust wid $ PutCheckpoint slotNo cp, ())
+                    Nothing  -> (Just $ Insert wid $ singleton point cp, ())
+                    Just _   -> (Just $ Adjust wid $ PutCheckpoint point cp, ())
 
     -- Retrieve the latest checkpoint from the DBVar
     let selectLatestCheckpointCached
@@ -1395,22 +1396,30 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
             selectLatestCheckpointCached wid
 
         , listCheckpoints = \wid -> do
-            map (blockHeaderFromEntity . entityVal) <$> selectList
+            let toChainPoint = W.chainPointFromBlockHeader
+            map (toChainPoint . blockHeaderFromEntity . entityVal) <$> selectList
                 [ CheckpointWalletId ==. wid ]
                 [ Asc CheckpointSlot ]
 
         , rollbackTo = \wid requestedPoint -> ExceptT $ do
-            (Map.lookup wid <$> readDBVar checkpointsVar) >>= \case
-                Nothing  ->
-                    pure $ Left $ ErrNoSuchWallet wid
-                Just cps -> do
-                    let mPoint = findNearestPoint cps requestedPoint
-                    nearestPoint <- case mPoint of
-                        Nothing -> lift $ throwIO $
-                            ErrNoOlderCheckpoint wid requestedPoint
-                        Just x -> pure x
-                    updateDBVar checkpointsVar $
-                        Adjust wid $ RollbackTo nearestPoint
+            iomNearestCheckpoint <- modifyDBMaybe checkpointsVar $ \ws ->
+                case Map.lookup wid ws of
+                    Nothing  -> (Nothing, pure Nothing)
+                    Just cps -> case findNearestPoint cps requestedPoint of
+                        Nothing ->
+                            ( Nothing
+                            , throwIO $ ErrNoOlderCheckpoint wid requestedPoint
+                            )
+                        Just nearestPoint ->
+                            ( Just $ Adjust wid $ RollbackTo nearestPoint
+                            , pure $ Map.lookup nearestPoint $ cps ^. #checkpoints
+                            )
+            mNearestCheckpoint <- liftIO iomNearestCheckpoint
+
+            case mNearestCheckpoint of
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just cp -> do
+                    let nearestPoint = cp ^. #currentTip ^. #slotNo
                     deleteDelegationCertificates wid
                         [ CertSlot >. nearestPoint
                         ]
@@ -1428,14 +1437,9 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
                     deleteStakeKeyCerts wid
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
-                    -- FIXME:
-                    -- As we need to return the BlockHeader and not just
-                    -- the SlotNo, we read the (now updated) DBVar again.
-                    -- However, there is probably a race condition here
-                    -- if  rollbackTo  is not wrapped in  atomic .
-                    selectLatestCheckpointCached wid >>= \case
-                        Nothing -> error "Sqlite.rollbackTo: impossible code path"
-                        Just cp -> pure $ Right $ cp ^. #currentTip
+                    pure $ Right
+                        $ W.chainPointFromBlockHeader
+                        $ view #currentTip cp
 
         , prune = \wid epochStability -> ExceptT $ do
             selectLatestCheckpointCached wid >>= \case
@@ -2057,25 +2061,56 @@ instance (Ord key, Delta da) => Delta (DeltaMap key da) where
     apply (Delete key) = Map.delete key
     apply (Adjust key da) = Map.adjust (apply da) key
 
+{- NOTE [PointSlotNo]
+
+'SlotNo' cannot represent the genesis point.
+
+Historical hack. The DB layer can't represent 'Origin' in the database,
+instead we have mapped it to 'SlotNo 0', which is wrong.
+
+Rolling back to SlotNo 0 instead of Origin is fine for followers starting
+from genesis (which should be the majority of cases). Other, non-trivial
+rollbacks to genesis cannot occur on mainnet (genesis is years within
+stable part, and there were no rollbacks in byron).
+
+Could possibly be problematic in the beginning of a testnet without a
+byron era. /Perhaps/ this is what is happening in the
+>>> [cardano-wallet.pools-engine:Error:1293] [2020-11-24 10:02:04.00 UTC]
+>>> Couldn't store production for given block before it conflicts with
+>>> another block. Conflicting block header is:
+>>> 5bde7e7b<-[f1b35b98-4290#2008]
+errors observed in the integration tests.
+
+The issue has been partially fixed in that 'rollbackTo' now takes
+a 'Slotargument, which can represent the 'Origin'.
+However, the database itself mostly stores slot numbers.
+
+FIXME LATER during ADP-1043: As we move towards in-memory data,
+all slot numbers in the DB file will either be replaced by
+the 'Slot' type, or handled slightly differently when it
+is clear that the data cannot exist at the genesis point
+(e.g. for TxHistory).
+
+-}
+
+-- | Get the 'Point' of a wallet state.
+getPoint :: W.Wallet s -> W.Slot
+getPoint =
+    W.toSlot . W.chainPointFromBlockHeader . view #currentTip
+
 {- HLINT ignore Checkpoints "Use newtype instead of data" -}
 -- | Collection of checkpoints indexed by 'SlotNo'.
 data Checkpoints a = Checkpoints
-    { checkpoints :: Map W.SlotNo a
+    { checkpoints :: Map W.Slot a
     } deriving (Eq,Show,Generic)
 -- FIXME LATER during ADP-1043:
 --  Use a more sophisticated 'Checkpoints' type that stores deltas.
 
--- FIXME NOW in this pull request:
--- Unfortunately, both genesis and the block after genesis
--- have the same slot number 0. See note [PointSlotNo].
--- Hence, we cannot just use a map from 'SlotNo' to a,
--- we have to use a map from 'ChainPoint' to a.
-
-singleton :: W.SlotNo -> a -> Checkpoints a
+singleton :: W.Slot -> a -> Checkpoints a
 singleton key a = Checkpoints $ Map.singleton key a
 
 -- | Get the checkpoint with the largest 'SlotNo'.
-getLatest :: Checkpoints a -> (W.SlotNo, a)
+getLatest :: Checkpoints a -> (W.Slot, a)
 getLatest = from . Map.lookupMax . view #checkpoints 
   where
     from = fromMaybe (error "getLatest: Genesis checkpoint is missing!")
@@ -2083,24 +2118,25 @@ getLatest = from . Map.lookupMax . view #checkpoints
     --   Make sure that 'Checkpoints' always has a genesis checkpoint
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
-findNearestPoint :: Checkpoints a -> W.SlotNo -> Maybe W.SlotNo
+findNearestPoint :: Checkpoints a -> W.Slot -> Maybe W.Slot
 findNearestPoint m key = fst <$> Map.lookupLE key (view #checkpoints m)
 
 data DeltaCheckpoints a
-    = PutCheckpoint W.SlotNo a
-    | RollbackTo W.SlotNo
+    = PutCheckpoint W.Slot a
+    | RollbackTo W.Slot
         -- Rolls back to the latest checkpoint at or before this slot.
-    | RestrictTo [W.SlotNo]
+    | RestrictTo [W.Slot]
         -- ^ Restrict to the intersection of this list with
         -- the checkpoints that are already present.
+        -- The genesis checkpoint will always be present.
 
 instance Delta (DeltaCheckpoints a) where
     type Base (DeltaCheckpoints a) = Checkpoints a
-    apply (PutCheckpoint slotNo a) = over #checkpoints $ Map.insert slotNo a
-    apply (RollbackTo slotNo) = over #checkpoints $
-        Map.filterWithKey (\k _ -> k <= slotNo)
-    apply (RestrictTo slots) = over #checkpoints $ \m ->
-        Map.restrictKeys m $ Set.fromList slots
+    apply (PutCheckpoint pt a) = over #checkpoints $ Map.insert pt a
+    apply (RollbackTo pt) = over #checkpoints $
+        Map.filterWithKey (\k _ -> k <= pt)
+    apply (RestrictTo pts) = over #checkpoints $ \m ->
+        Map.restrictKeys m $ Set.fromList pts
 
 type StoreCheckpoints s
     = Store (SqlPersistT IO) (DeltaCheckpoints (W.Wallet s))
@@ -2108,20 +2144,40 @@ type StoreCheckpoints s
 mkStoreCheckpoints
     :: forall s. PersistState s
     => W.WalletId -> StoreCheckpoints s
-mkStoreCheckpoints wid = Store{loadS=load,writeS=write,updateS = \_ -> update}
+mkStoreCheckpoints wid =
+    Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
-    write Checkpoints{checkpoints} =
-        forM_ (Map.toList checkpoints) $ \(slotNo,cp) ->
-            update (PutCheckpoint slotNo cp)
-    update (PutCheckpoint _ state) =
-        insertCheckpoint wid state
-    update (RollbackTo target) =
-        deleteWhere [ CheckpointWalletId ==. wid, CheckpointSlot >. target ]
-    update (RestrictTo slots) =
-        deleteWhere [ CheckpointWalletId ==. wid, CheckpointSlot /<-. slots ]
     load = do
         cps <- selectAllCheckpoints wid
-        pure $ Right $ Checkpoints{checkpoints=Map.fromList cps}
+        pure $ Right $ Checkpoints{ checkpoints = Map.fromList cps }
+
+    write Checkpoints{checkpoints} =
+        forM_ (Map.toList checkpoints) $ \(pt,cp) ->
+            update (PutCheckpoint pt cp)
+
+    update (PutCheckpoint _ state) =
+        insertCheckpoint wid state
+    update (RollbackTo (W.At slot)) =
+        deleteWhere [ CheckpointWalletId ==. wid, CheckpointSlot >. slot ]
+    update (RollbackTo W.Origin) =
+        deleteWhere
+            [ CheckpointWalletId ==. wid
+            , CheckpointParentHash !=. BlockId W.hashOfNoParent
+            ]
+    update (RestrictTo points) = do
+        let pseudoSlot W.Origin    = W.SlotNo 0
+            pseudoSlot (W.At slot) = slot
+        let slots = map pseudoSlot points
+        deleteWhere [ CheckpointWalletId ==. wid, CheckpointSlot /<-. slots ]
+
+        -- We may have to delete the checkpoint at SlotNo 0 that is not genesis.
+        let slot0 = W.At $ W.SlotNo 0
+        unless (slot0 `elem` points) $
+            deleteWhere
+                [ CheckpointWalletId ==. wid
+                , CheckpointSlot ==. W.SlotNo 0
+                , CheckpointParentHash !=. BlockId W.hashOfNoParent
+                ]
 
 mkStoreWalletsCheckpoints
     :: forall s key. (PersistState s, key ~ W.WalletId)
@@ -2130,6 +2186,7 @@ mkStoreWalletsCheckpoints
 mkStoreWalletsCheckpoints = Store{loadS=load,writeS=write,updateS=update}
   where
     write = error "mkStoreWalletsCheckpoints: not implemented"
+
     update _ (Insert wid a) =
         writeS (mkStoreCheckpoints wid) a 
     update _ (Delete wid) = do
@@ -2144,6 +2201,7 @@ mkStoreWalletsCheckpoints = Store{loadS=load,writeS=write,updateS=update}
         --   Remove 'undefined'.
         --   Probably needs a change to 'Data.DBVar.updateS'
         --   to take a 'Maybe a' as parameter instead of an 'a'.
+
     load = do
         wids <- fmap (view #walId . entityVal) <$> selectAll
         runExceptT $ do
@@ -2164,7 +2222,7 @@ selectWallet wid =
 selectAllCheckpoints
     :: forall s. PersistState s
     => W.WalletId
-    -> SqlPersistT IO [(W.SlotNo, W.Wallet s)]
+    -> SqlPersistT IO [(W.Slot, W.Wallet s)]
 selectAllCheckpoints wid = do
     cps <- fmap entityVal <$> selectList
         [ CheckpointWalletId ==. wid ]
@@ -2173,7 +2231,7 @@ selectAllCheckpoints wid = do
         utxo <- selectUTxO cp
         st <- selectState (checkpointId cp)
         pure $
-            (\s -> (checkpointSlot cp, checkpointFromEntity @s cp utxo s))
+            (\s -> let c = checkpointFromEntity @s cp utxo s in (getPoint c, c))
             <$> st
 
 insertCheckpoint
@@ -2556,7 +2614,7 @@ selectGenesisParameters wid = do
 --
 -- If we don't find any checkpoint, it means that this invariant has been
 -- violated.
-data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.SlotNo deriving (Show)
+data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.Slot deriving (Show)
 instance Exception ErrRollbackTo
 
 {-------------------------------------------------------------------------------

@@ -76,11 +76,13 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotNo)
+    , ChainPoint
     , DelegationCertificate (..)
     , EpochNo (..)
     , GenesisParameters (..)
     , PoolId
     , Range (..)
+    , Slot
     , SlotNo (..)
     , SortOrder (..)
     , StakeKeyCertificate (..)
@@ -88,8 +90,10 @@ import Cardano.Wallet.Primitive.Types
     , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
     , WalletMetadata (..)
+    , chainPointFromBlockHeader
     , dlgCertPoolId
     , isWithinRange
+    , toSlot
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -262,11 +266,11 @@ mostRecentCheckpoint :: WalletDatabase s xprv -> Maybe (Wallet s)
 mostRecentCheckpoint = fmap snd . Map.lookupMax . checkpoints
 
 mListCheckpoints
-    :: Ord wid => wid -> ModelOp wid s xprv [BlockHeader]
+    :: Ord wid => wid -> ModelOp wid s xprv [ChainPoint]
 mListCheckpoints wid db@(Database wallets _) =
     (Right $ sort $ maybe [] tips (Map.lookup wid wallets), db)
   where
-    tips = map currentTip . Map.elems . checkpoints
+    tips = map (chainPointFromBlockHeader . currentTip) . Map.elems . checkpoints
 
 mUpdatePendingTxForExpiry :: Ord wid => wid -> SlotNo -> ModelOp wid s xprv ()
 mUpdatePendingTxForExpiry wid tipSlot = alterModel wid $ ((),) . updatePending
@@ -300,7 +304,7 @@ mRemovePendingOrExpiredTx wid tid = alterModelErr wid $ \wal ->
                 , submittedTxs = Map.delete tid (submittedTxs wal)
                 } )
 
-mRollbackTo :: Ord wid => wid -> SlotNo -> ModelOp wid s xprv BlockHeader
+mRollbackTo :: Ord wid => wid -> Slot -> ModelOp wid s xprv ChainPoint
 mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallets of
     Nothing ->
         ( Left (NoSuchWallet wid), db )
@@ -318,7 +322,10 @@ mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallet
                             Map.mapMaybe (rescheduleOrForget point) (txHistory wal)
                         }
                 in
-                    ( Right $ view #currentTip (checkpoints wal Map.! point)
+                    ( Right
+                        $ chainPointFromBlockHeader
+                        $ view #currentTip
+                        $ checkpoints wal Map.! point
                     , Database (Map.insert wid wal' wallets) txs
                     )
   where
@@ -338,7 +345,9 @@ mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallet
     findNearestPoint = safeHead . sortOn Down . mapMaybe fn
       where
         fn :: Wallet s -> Maybe SlotNo
-        fn cp = if (tip cp <= requested) then Just (tip cp) else Nothing
+        fn cp = if stip cp <= requested then Just (tip cp) else Nothing
+          where
+            stip = toSlot . chainPointFromBlockHeader . currentTip
 
     safeHead :: [a] -> Maybe a
     safeHead [] = Nothing

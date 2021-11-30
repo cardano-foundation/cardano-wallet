@@ -119,6 +119,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , ChainPoint
     , DecentralizationLevel
     , DelegationCertificate
     , EpochNo (..)
@@ -127,6 +128,7 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , PoolId (..)
     , Range (..)
+    , Slot
     , SlotNo (..)
     , SortOrder (..)
     , StakeKeyCertificate
@@ -358,7 +360,7 @@ data Cmd s wid
     | PutPrivateKey wid MPrivKey
     | ReadPrivateKey wid
     | ReadGenesisParameters wid
-    | RollbackTo wid SlotNo
+    | RollbackTo wid Slot
     | PutDelegationCertificate wid DelegationCertificate SlotNo
     | IsStakeKeyRegistered wid
     | PutDelegationRewardBalance wid Coin
@@ -376,8 +378,8 @@ data Success s wid
     | LocalTxSubmission [LocalTxSubmissionStatus (Hash "Tx")]
     | PrivateKey (Maybe MPrivKey)
     | GenesisParams (Maybe GenesisParameters)
-    | BlockHeaders [BlockHeader]
-    | Point SlotNo
+    | ChainPoints [ChainPoint]
+    | Point ChainPoint
     | DelegationRewardBalance Coin
     | StakeKeyStatus Bool
     deriving stock (Show, Generic1, Eq, Functor, Foldable, Traversable)
@@ -414,7 +416,7 @@ runMock = \case
     PutCheckpoint wid wal ->
         first (Resp . fmap Unit) . mPutCheckpoint wid wal
     ListCheckpoints wid ->
-        first (Resp . fmap BlockHeaders) . mListCheckpoints wid
+        first (Resp . fmap ChainPoints) . mListCheckpoints wid
     ReadCheckpoint wid ->
         first (Resp . fmap Checkpoint) . mReadCheckpoint wid
     PutWalletMeta wid meta ->
@@ -456,8 +458,8 @@ runMock = \case
     ReadDelegationRewardBalance wid ->
         first (Resp . fmap DelegationRewardBalance)
         . mReadDelegationRewardBalance wid
-    RollbackTo wid sl ->
-        first (Resp . fmap (Point . slotNo)) . mRollbackTo wid sl
+    RollbackTo wid point ->
+        first (Resp . fmap Point) . mRollbackTo wid point
   where
     timeInterpreter = dummyTimeInterpreter
 
@@ -490,7 +492,7 @@ runIO db@DBLayer{..} = fmap Resp . go
             mapExceptT atomically $ putCheckpoint wid wal
         ReadCheckpoint wid -> Right . Checkpoint <$>
             atomically (readCheckpoint wid)
-        ListCheckpoints wid -> Right . BlockHeaders <$>
+        ListCheckpoints wid -> Right . ChainPoints <$>
             atomically (listCheckpoints wid)
         PutWalletMeta wid meta -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putWalletMeta wid meta
@@ -535,7 +537,7 @@ runIO db@DBLayer{..} = fmap Resp . go
         ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
             atomically (readDelegationRewardBalance wid)
         RollbackTo wid sl -> catchNoSuchWallet Point $
-            mapExceptT atomically (slotNo <$> rollbackTo wid sl)
+            mapExceptT atomically $ rollbackTo wid sl
 
     catchWalletAlreadyExists f =
         fmap (bimap errWalletAlreadyExists f) . runExceptT
@@ -919,6 +921,9 @@ instance ToExpr b => ToExpr (Quantity a b) where
 
 instance ToExpr GenesisParameters where
     toExpr = defaultExprViaShow
+
+instance ToExpr Slot where
+    toExpr = genericToExpr
 
 instance ToExpr SlotNo where
     toExpr = genericToExpr
