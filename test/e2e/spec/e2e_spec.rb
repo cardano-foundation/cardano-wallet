@@ -126,10 +126,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       policy_id = get_policy_id(policy)
       mint_script = "mintBurn_1.json"
       burn_script = "mintBurn_2.json"
-      assets = [{"asset_name" => "6d696e742d6275726e",
+      assets = [{"asset_name" => asset_name("mint-burn"),
                  "quantity" => 1,
                  "policy_id" => policy_id}]
-                 
+
       payload_mint = get_templated_plutus_tx(mint_script,{vkHash: vkHash,
                                                           policyId: policy_id,
                                                           policy: policy})
@@ -208,6 +208,76 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       fee = r[:tx_balanced]["fee"]["quantity"]
       src_after = get_shelley_balances(@wid)
       expect(src_after['total']).to eq (init_src['total'] - fee)
+    end
+
+    it "currency" do
+      currency_script = "currency.json"
+      currency_policy = "currency_policy"
+
+      # Perform coin selection to select input to be used in minting contract
+      address = SHELLEY.addresses.list(@wid)[0]['id']
+      payload_cs = [{ :address => address,
+                      :amount => { :quantity => 1000000000, :unit => "lovelace" }}
+                   ]
+      coin_selection = SHELLEY.coin_selections.random(@wid, payload_cs)
+      input = coin_selection['inputs'].select{|i| i['assets'] == []}.first
+      tx_id = input['id']
+      tx_idx = input['index'].to_i
+      amount = input['amount']['quantity'].to_i
+      address = input['address']
+
+      # encode input indexes for contract payload
+      tx_idx_hex = tx_idx.to_cbor.cbor_to_hex # cbor as hex
+      encoded_tx_idx = plutus_encode_idx(tx_idx) # special Plutus bit-wise encoding
+
+      # feed payload for contract with data from coin selection
+      policy = read_mustached_file(currency_policy, {transactionId: tx_id,
+                                                     encodedTransactionIdx: encoded_tx_idx})
+      policy_id = get_policy_id(policy)
+      payload = get_templated_plutus_tx(currency_script, {policy: policy,
+                                                          policyId: policy_id,
+                                                          transactionId: tx_id,
+                                                          transactionIdx: tx_idx,
+                                                          transactionIdxHex: tx_idx_hex,
+                                                          amount: amount,
+                                                          address: address})
+
+      # run contract
+      r = run_script(currency_script, payload)
+
+      # expected minted currency
+      apfel = {"policy_id" => policy_id,
+               "asset_name" => asset_name("apfel"),
+               "quantity" => 1000}
+      banana = {"policy_id" => policy_id,
+                "asset_name" => asset_name("banana"),
+                "quantity" => 1}
+
+      # verify decoded transactions show that currency will be minted
+      expect(r[:tx_unbalanced]['assets_minted']).to eq [apfel, banana]
+      expect(r[:tx_balanced]['assets_minted']).to eq [apfel, banana]
+
+      # make sure currency is minted as expected
+      src_balance = get_shelley_balances(@wid)
+      expect(src_balance['assets_total']).to include(apfel)
+      expect(src_balance['assets_total']).to include(banana)
+
+      # send out minted currency to special address not to litter fixture wallet
+      payment = [{ :address => "addr_test1qqkgrywfhejgd67twkzqmx84rsr3v374pzujd5rlm0e8exnlxjupjgrqwk5dk9tard6zfwwjq4lc89szs2w599js35tqmaykuj",
+                   :amount => { :quantity => 0, :unit => 'lovelace' },
+                   :assets => [apfel, banana]
+               }]
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment)
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      tx_id = tx_submitted['id']
+
+      wait_for_tx_in_ledger(@wid, tx_id)
+
+      src_balance_after = get_shelley_balances(@wid)
+      expect(src_balance_after['assets_total']).not_to include(apfel)
+      expect(src_balance_after['assets_total']).not_to include(banana)
+
     end
 
   end
