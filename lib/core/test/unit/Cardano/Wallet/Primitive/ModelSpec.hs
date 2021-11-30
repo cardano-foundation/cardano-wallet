@@ -161,7 +161,7 @@ import Test.QuickCheck
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( chooseNatural, report )
+    ( chooseNatural, report, verify )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -699,21 +699,41 @@ prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
         "isJust " $
     cover 0.1 (isNothing maybeUpdatedUTxO)
         "isNothing" $
+    report
+        (utxo)
+        "utxo" $
+    report
+        (utxoFromTx tx)
+        "utxoFromTx tx" $
+    report
+        (haveUpdatedUTxO)
+        "haveUpdatedUTxO" $
+    report
+        (shouldHaveUpdatedUTxO)
+        "shouldHaveUpdatedUTxO" $
     case maybeUpdatedUTxO of
         Nothing ->
-            shouldHaveUpdatedUTxO === False
+            verify
+                (not shouldHaveUpdatedUTxO)
+                "not shouldHaveUpdatedUTxO" $
+            property True
         Just utxo' ->
             cover 10 (utxo /= utxo')
                 "utxo /= utxo'" $
-            conjoin
-                [ shouldHaveUpdatedUTxO === True
-                , utxo' === applyTxToUTxO tx utxo
-                ]
+            verify
+                (shouldHaveUpdatedUTxO)
+                "shouldHaveUpdatedUTxO" $
+            verify
+                (utxo' == applyTxToUTxO tx utxo)
+                "utxo' == applyTxToUTxO tx utxo" $
+            property True
   where
     maybeUpdatedUTxO :: Maybe UTxO
     maybeUpdatedUTxO = snd <$> evalState
         (applyOurTxToUTxO slotNo blockHeight tx utxo)
         (AllOurs)
+    haveUpdatedUTxO :: Bool
+    haveUpdatedUTxO = isJust maybeUpdatedUTxO
     shouldHaveUpdatedUTxO :: Bool
     shouldHaveUpdatedUTxO = evalState (isOurTx tx utxo) AllOurs
 
