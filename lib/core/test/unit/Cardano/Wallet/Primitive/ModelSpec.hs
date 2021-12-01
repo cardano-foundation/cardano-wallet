@@ -554,6 +554,15 @@ prop_changeUTxO_inner pendingTxs =
 -- Matching entities with 'IsOurs'
 --------------------------------------------------------------------------------
 
+-- | A simplified wallet state that marks all entities as "ours".
+--
+data AllOurs = AllOurs
+
+instance IsOurs AllOurs a where
+    isOurs _ s = (Just shouldNotEvaluate, s)
+      where
+        shouldNotEvaluate = error "AllOurs: unexpected evaluation"
+
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
 newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
@@ -707,15 +716,6 @@ prop_totalUTxO makeProperty =
 --------------------------------------------------------------------------------
 -- Applying transactions to UTxO sets
 --------------------------------------------------------------------------------
-
--- | A simplified wallet state that marks all entities as "ours".
---
-data AllOurs = AllOurs
-
-instance IsOurs AllOurs a where
-    isOurs _ s = (Just shouldNotEvaluate, s)
-      where
-        shouldNotEvaluate = error "AllOurs: unexpected evaluation"
 
 -- Verifies that 'applyOurTxToUTxO' updates the UTxO set in an identical
 -- way to 'applyTxToUTxO' in the case that all entities are marked as ours.
