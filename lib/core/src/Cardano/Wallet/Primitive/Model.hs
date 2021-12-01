@@ -542,6 +542,16 @@ applyBlockToUTxO b u0 = runState $ do
     slotNo = b ^. #header . #slotNo
     blockHeight = b ^. #header . #blockHeight
 
+-- | Applies the given transaction if it is relevant to the wallet.
+--
+-- This function returns a result if (and only if) the given transaction is
+-- relevant to the wallet.
+--
+-- It satisfies the following property:
+--
+-- >> isJust (flip evalState state (applyOurTxToUTxO slot bh tx u))
+-- >>     == (flip evalState state (   isOurTx               tx u))
+--
 applyOurTxToUTxO
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => SlotNo
