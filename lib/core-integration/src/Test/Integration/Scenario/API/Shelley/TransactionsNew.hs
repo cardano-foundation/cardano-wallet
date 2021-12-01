@@ -35,6 +35,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
     , ApiExternalCertificate (..)
+    , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
     , ApiStakePool
     , ApiT (..)
@@ -63,7 +64,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
-    ( NonWalletCertificate (..), PoolId (..) )
+    ( NonWalletCertificate (..)
+    , PoolId (..)
+    , PoolOwner (..)
+    , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -115,7 +121,9 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..), mkPercentage )
+import Data.Ratio
+    ( (%) )
 import Data.Text
     ( Text )
 import Numeric.Natural
@@ -1370,22 +1378,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (AssetId tokenPolicyId' (UnsafeTokenName "HappyCoin"))
                 (TokenQuantity 50_000)
 
-        let textEnvelopeMint =
-                Cardano.TextEnvelope
-                (Cardano.TextEnvelopeType "TxBodyAlonzo")
-                ""
-                (unsafeFromHex $ T.encodeUtf8 cborHexWithMinting)
-
-        let (Right txBodyMint) =
-                Cardano.deserialiseFromTextEnvelope
-                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeMint
-
-        let toCborHexTx txbody =
-                T.decodeUtf8 $
-                hex $
-                Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txbody)
-
-        let cborHexMint = toCborHexTx txBodyMint
+        let cborHexMint = fromTextEnvelope cborHexWithMinting
         let decodeMintPayload = Json [json|{
               "transaction": #{cborHexMint}
           }|]
@@ -1415,16 +1408,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \4861707079436f696e39c34f9f82008201818200581c69303ce3536df260ef\
                 \ddbc949ccb94e6993302b10b778d8b4d98bfb5ff8080f5f6" :: Text
 
-        let textEnvelopeBurn =
-                Cardano.TextEnvelope
-                (Cardano.TextEnvelopeType "TxBodyAlonzo")
-                ""
-                (unsafeFromHex $ T.encodeUtf8 cborHexWithBurning)
-
-        let (Right txBodyBurn) =
-                Cardano.deserialiseFromTextEnvelope
-                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeBurn
-        let cborHexBurn = toCborHexTx txBodyBurn
+        let cborHexBurn = fromTextEnvelope cborHexWithBurning
         let decodeBurnPayload = Json [json|{
               "transaction": #{cborHexBurn}
           }|]
@@ -1438,7 +1422,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #assetsBurned (`shouldBe` ApiT tokens)
             ]
 
-    it "TRANS_DECODE_03 - transaction with all external delegation certificates" $ \ctx -> runResourceT $ do
+    it "TRANS_DECODE_03 - transaction with external delegation certificates" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1510,7 +1494,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #certificates (`shouldBe` certsQuit)
             ]
 
-    it "TRANS_DECODE_03b - transaction with mir certificate" $ \ctx -> runResourceT $ do
+    it "TRANS_DECODE_04 - transaction with mir certificate" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1581,33 +1565,67 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \e02834b275885e06ed04869747cff43cec91e01b000000e8d4a51000ff9fff\
                 \f6" :: Text
 
-        let textEnvelopeMIR =
-                Cardano.TextEnvelope
-                (Cardano.TextEnvelopeType "TxBodyAlonzo")
-                ""
-                (unsafeFromHex $ T.encodeUtf8 cborHex)
-
-        let (Right txBody) =
-                Cardano.deserialiseFromTextEnvelope
-                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeMIR
-
-        let toCborHexTx txbody =
-                T.decodeUtf8 $
-                hex $
-                Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txbody)
-
-        let cborHexGenesis = toCborHexTx txBody
+        let cborHexMIR = fromTextEnvelope cborHex
 
         let containMIR certs = OtherCertificate (ApiT MIRCertificate) `elem` certs
 
         let decodePayloadJoin = Json [json|{
-              "transaction": #{cborHexGenesis}
+              "transaction": #{cborHexMIR}
           }|]
         rTxJoin <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayloadJoin
         verify rTxJoin
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldSatisfy` containMIR)
+            ]
+
+    it "TRANS_DECODE_05 - transaction with pool registration certificate" $ \ctx -> runResourceT $ do
+
+        -- constructing source wallet
+        let initialAmt = minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        -- this is tx integration cluster sends when registering one of 4 pools
+        let cborHex =
+                "83a5008182582096c660157ddca4e91b32f1099da55d38a0ba4c2a9ab0a85a\
+                \960a2c5f110ef9d2000181825839016592eff1e308a3ab9166249d1cd9c14b\
+                \d3778124b4bdbce0d55e9b23b6610de4942d1954d81e105386201c3fc2bd06\
+                \a79e08fb8c7b85cc031b000001d1a94a2000021b00038bacfb6d1dc0031901\
+                \90048382008200581cb6610de4942d1954d81e105386201c3fc2bd06a79e08\
+                \fb8c7b85cc038a03581cec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0c\
+                \f9c2bbe6838dc6582052701c04ff5604e9168fa59f26a4ad6a1f103876ca58\
+                \542b44296ba3929cad081b000001d1a94a200000d81e82010a581de1b6610d\
+                \e4942d1954d81e105386201c3fc2bd06a79e08fb8c7b85cc0381581cb6610d\
+                \e4942d1954d81e105386201c3fc2bd06a79e08fb8c7b85cc03808278246874\
+                \74703a2f2f6c6f63616c686f73743a33343933312f6d657461646174612e6a\
+                \736f6e5820af7789093aa1fbff0f6e7026ecdbbd470f04e9a0415e1e7e6b9f\
+                \1d54cd35312683028200581cb6610de4942d1954d81e105386201c3fc2bd06\
+                \a79e08fb8c7b85cc03581cec28f33dcbe6d6400a1e5e339bd0647c0973ca6c\
+                \0cf9c2bbe6838dc69ffff6" :: Text
+
+        let cborHexRegPool = fromTextEnvelope cborHex
+
+        let (Right percentage) = mkPercentage (1 % 10)
+        let containRegPool = elem
+                (StakePoolRegister ApiRegisterPool
+                 { poolId = ApiT (PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\ts\202l\f\249\194\187\230\131\141\198")
+                 , poolOwners = [ ApiT (PoolOwner "\182a\r\228\148-\EMT\216\RS\DLES\134 \FS?\194\189\ACK\167\158\b\251\140{\133\204\ETX") ]
+                 , poolMargin = Quantity percentage
+                 , poolCost = Quantity 0
+                 , poolPledge = Quantity 2000000000000
+                 , poolMetadata =
+                         Just (ApiT (StakePoolMetadataUrl "http://localhost:34931/metadata.json")
+                              ,ApiT (StakePoolMetadataHash "\175w\137\t:\161\251\255\SInp&\236\219\189G\SI\EOT\233\160A^\RS~k\159\GST\205\&51&"))
+                 })
+
+        let decodePayloadJoin = Json [json|{
+              "transaction": #{cborHexRegPool}
+          }|]
+        rTxJoin <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadJoin
+        verify rTxJoin
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldSatisfy` containRegPool)
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
@@ -2378,3 +2396,21 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             . fromJust
             . rawDeserialiseVerKeyDSIGN
             . xpubPublicKey
+
+    fromTextEnvelope cborHex =
+        let textEnvelope =
+                Cardano.TextEnvelope
+                (Cardano.TextEnvelopeType "TxBodyAlonzo")
+                ""
+                (unsafeFromHex $ T.encodeUtf8 cborHex)
+
+            (Right txBody) =
+                Cardano.deserialiseFromTextEnvelope
+                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelope
+
+            toCborHexTx txbody =
+                T.decodeUtf8 $
+                hex $
+                Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txbody)
+
+        in toCborHexTx txBody
