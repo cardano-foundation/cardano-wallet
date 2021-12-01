@@ -34,6 +34,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
+    , ApiDeregisterPool (..)
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
@@ -64,7 +65,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
-    ( NonWalletCertificate (..)
+    ( EpochNo (..)
+    , NonWalletCertificate (..)
     , PoolId (..)
     , PoolOwner (..)
     , StakePoolMetadataHash (..)
@@ -1579,7 +1581,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #certificates (`shouldSatisfy` containMIR)
             ]
 
-    it "TRANS_DECODE_05 - transaction with pool registration certificate" $ \ctx -> runResourceT $ do
+    it "TRANS_DECODE_05 - transaction with pool registration and deregistration certificates" $ \ctx -> runResourceT $ do
 
         -- constructing source wallet
         let initialAmt = minUTxOValue (_mainEra ctx)
@@ -1587,45 +1589,54 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         -- this is tx integration cluster sends when registering one of 4 pools
         let cborHex =
-                "83a5008182582096c660157ddca4e91b32f1099da55d38a0ba4c2a9ab0a85a\
-                \960a2c5f110ef9d2000181825839016592eff1e308a3ab9166249d1cd9c14b\
-                \d3778124b4bdbce0d55e9b23b6610de4942d1954d81e105386201c3fc2bd06\
-                \a79e08fb8c7b85cc031b000001d1a94a2000021b00038bacfb6d1dc0031901\
-                \90048382008200581cb6610de4942d1954d81e105386201c3fc2bd06a79e08\
-                \fb8c7b85cc038a03581cec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0c\
-                \f9c2bbe6838dc6582052701c04ff5604e9168fa59f26a4ad6a1f103876ca58\
-                \542b44296ba3929cad081b000001d1a94a200000d81e82010a581de1b6610d\
-                \e4942d1954d81e105386201c3fc2bd06a79e08fb8c7b85cc0381581cb6610d\
-                \e4942d1954d81e105386201c3fc2bd06a79e08fb8c7b85cc03808278246874\
-                \74703a2f2f6c6f63616c686f73743a33343933312f6d657461646174612e6a\
-                \736f6e5820af7789093aa1fbff0f6e7026ecdbbd470f04e9a0415e1e7e6b9f\
-                \1d54cd35312683028200581cb6610de4942d1954d81e105386201c3fc2bd06\
-                \a79e08fb8c7b85cc03581cec28f33dcbe6d6400a1e5e339bd0647c0973ca6c\
-                \0cf9c2bbe6838dc69ffff6" :: Text
+                "83a50081825820fe13857230b6db7f4d30acb043c6cd0c36595657ef79212f\
+                \6b4e0cc5d5af1c8b000181825839019ae3b4936cb9e6e6e4fb854d17ed867c\
+                \e10f3acdc19cdab52ab4a6de124827f09f6d5029a46b7d09854ac6a9ab16f3\
+                \a991c3e2b19ac029511b000000e8d4a51000021b00038c95d0122dc0031901\
+                \90048482008200581c124827f09f6d5029a46b7d09854ac6a9ab16f3a991c3\
+                \e2b19ac029518a03581cbb114cb37d75fa05260328c235a3dae295a33d0ba6\
+                \74a5eb1e3e568e5820ff097f7a12be27b1c4445b43a2d2279cc714a3c47f47\
+                \7a6eac3fc0ea54032ab21b000000e8d4a5100000d81e82010a581de1124827\
+                \f09f6d5029a46b7d09854ac6a9ab16f3a991c3e2b19ac0295181581c124827\
+                \f09f6d5029a46b7d09854ac6a9ab16f3a991c3e2b19ac02951808278246874\
+                \74703a2f2f6c6f63616c686f73743a34343130372f6d657461646174612e6a\
+                \736f6e5820f1941b06d889a1a9bd8a7dd72d2160aa294d81a4494f99353c6b\
+                \bb120746808983028200581c124827f09f6d5029a46b7d09854ac6a9ab16f3\
+                \a991c3e2b19ac02951581cbb114cb37d75fa05260328c235a3dae295a33d0b\
+                \a674a5eb1e3e568e8304581cbb114cb37d75fa05260328c235a3dae295a33d\
+                \0ba674a5eb1e3e568e1a000f42409ffff6" :: Text
 
-        let cborHexRegPool = fromTextEnvelope cborHex
+        let cborHexPool = fromTextEnvelope cborHex
 
         let (Right percentage) = mkPercentage (1 % 10)
+        let poolId' = PoolId "\187\DC1L\179}u\250\ENQ&\ETX(\194\&5\163\218\226\149\163=\v\166t\165\235\RS>V\142"
         let containRegPool = elem
                 (StakePoolRegister ApiRegisterPool
-                 { poolId = ApiT (PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\ts\202l\f\249\194\187\230\131\141\198")
-                 , poolOwners = [ ApiT (PoolOwner "\182a\r\228\148-\EMT\216\RS\DLES\134 \FS?\194\189\ACK\167\158\b\251\140{\133\204\ETX") ]
+                 { poolId = ApiT poolId'
+                 , poolOwners = [ ApiT (PoolOwner "\DC2H'\240\159mP)\164k}\t\133J\198\169\171\SYN\243\169\145\195\226\177\154\192)Q") ]
                  , poolMargin = Quantity percentage
                  , poolCost = Quantity 0
-                 , poolPledge = Quantity 2000000000000
+                 , poolPledge = Quantity 1000000000000
                  , poolMetadata =
-                         Just (ApiT (StakePoolMetadataUrl "http://localhost:34931/metadata.json")
-                              ,ApiT (StakePoolMetadataHash "\175w\137\t:\161\251\255\SInp&\236\219\189G\SI\EOT\233\160A^\RS~k\159\GST\205\&51&"))
+                         Just (ApiT (StakePoolMetadataUrl "http://localhost:44107/metadata.json")
+                              ,ApiT (StakePoolMetadataHash "\241\148\ESC\ACK\216\137\161\169\189\138}\215-!`\170)M\129\164IO\153\&5<k\187\DC2\aF\128\137"))
+                 })
+
+        let containDeregPool = elem
+                (StakePoolDeregister ApiDeregisterPool
+                 { poolId = ApiT poolId'
+                 , retirementEpoch = ApiT (EpochNo 1000000)
                  })
 
         let decodePayloadJoin = Json [json|{
-              "transaction": #{cborHexRegPool}
+              "transaction": #{cborHexPool}
           }|]
         rTxJoin <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayloadJoin
         verify rTxJoin
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldSatisfy` containRegPool)
+            , expectField #certificates (`shouldSatisfy` containDeregPool)
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
