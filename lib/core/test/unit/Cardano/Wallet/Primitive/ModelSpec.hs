@@ -546,12 +546,41 @@ prop_changeUTxO_inner pendingTxs =
     pendingTxSet :: Set Tx
     pendingTxSet = Set.fromList pendingTxs
 
+--------------------------------------------------------------------------------
+-- Matching entities with 'IsOurs'
+--------------------------------------------------------------------------------
+
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
 newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
 
 instance IsOurs (IsOursIf a) a where
     isOurs a s@IsOursIf {condition} = isOursIf condition a s
+
+-- | Encapsulates a pair of filter conditions for matching entities with
+--   'IsOurs'.
+--
+-- This is useful in contexts that require matching two different types of
+-- entity.
+--
+data IsOursIf2 a b = IsOursIf2
+    { conditionA :: a -> Bool
+    , conditionB :: b -> Bool
+    }
+
+instance Eq (IsOursIf2 a b) where
+    _ == _ = False
+
+instance Show (IsOursIf2 a b) where
+    show _ = "IsOursIf2"
+
+instance IsOurs (IsOursIf2 a b) a where
+    isOurs entity s@(IsOursIf2 {conditionA}) =
+        isOursIf conditionA entity s
+
+instance IsOurs (IsOursIf2 a b) b where
+    isOurs entity s@(IsOursIf2 {conditionB}) =
+        isOursIf conditionB entity s
 
 isOursIf :: (a -> Bool) -> a -> s -> (Maybe (NonEmpty DerivationIndex), s)
 isOursIf condition a s
@@ -834,6 +863,11 @@ instance IsOurs WalletState RewardAccount where
         ( guard (account == ourRewardAccount) $> (DerivationIndex 0 :| [])
         , s
         )
+
+instance (CoArbitrary a, CoArbitrary b) => Arbitrary (IsOursIf2 a b) where
+    arbitrary = IsOursIf2
+        <$> arbitrary
+        <*> arbitrary
 
 instance Arbitrary Coin where
     shrink = shrinkCoin
