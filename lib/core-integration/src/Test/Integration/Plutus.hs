@@ -22,7 +22,7 @@ module Test.Integration.Plutus
     , mintBurn_2
 
     , withdrawScript_1
-    
+
     , currencyTx
     ) where
 
@@ -323,13 +323,13 @@ withdrawScript_1 =
 -- * <https://github.com/input-output-hk/plutus-apps/blob/main/plutus-use-cases/test/Spec/Currency.hs>
 --
 -- The contract was serialised using the suppor code in
--- @/aux/Plutus/CurrencyContract.hs@ in this repository.
+-- @/extra/Plutus/CurrencyContract.hs@ in this repository.
 --
 -- Assets can be minted by spending a specific UTxO that is hard-wired into
 -- the smart contract. Hence, minting can happen only once, as UTxOs can be
 -- spent only once.
 --
--- The transaction is partial and needs to be sent to the 
+-- The transaction is partial and needs to be sent to the
 --  @/transactions-balance@ endpoint of the wallet in order
 -- to add change outputs and further inputs to cover fees if necessary.
 -- This endpoint also needs to make sure that the minted assets

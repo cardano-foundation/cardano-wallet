@@ -17,7 +17,7 @@ flag release
     manual: True
 
 extra-source-files:
-    aux/Plutus/*.hs
+    extra/Plutus/*.hs
 
 library
   default-language:

@@ -382,7 +382,7 @@ PLUTUS_DIR = "fixtures/plutus"
 #      > plutus_encode_idx(43)
 #      => "158c"
 #
-# @see lib/core-integration/aux/Plutus/FlatInteger.hs
+# @see lib/core-integration/extra/Plutus/FlatInteger.hs
 #      reference Haskell impl of encoding Int into sequence of bits
 # @see lib/core-integration/src/Test/Integration/Plutus.hs
 #      the way it's done in the integration tests
