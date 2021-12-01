@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..) )
+    ( NonWalletCertificate (..), PoolId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -1508,6 +1508,106 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTxQuit
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldBe` certsQuit)
+            ]
+
+    it "TRANS_DECODE_03b - transaction with mir certificate" $ \ctx -> runResourceT $ do
+
+        -- constructing source wallet
+        let initialAmt = minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        -- this is tx integration cluster sends when setting up, ie. a lot of MIRs
+        -- and reward account registrations
+        let cborHex =
+                "83a50081825820e6f53fa3a753f637c62ee198421bbaef604faee230fe4262\
+                \340eedf13a8d0bba00018182581d61161a20f92ea667c30de21e49f01cc4ba\
+                \7aadaa9b685a3dab7d4b040a1a000f4240021b00038d7ea3678c40031a3b9a\
+                \c9ff049f82008200581cfb3c13a29d3798f1b77b47f2ddb31c19326b87ed6f\
+                \71fb9a27133ad582068200a18200581cfb3c13a29d3798f1b77b47f2ddb31c\
+                \19326b87ed6f71fb9a27133ad51b000000e8d4a5100082008200581ceb220e\
+                \40c3ca1de87c448972443020d8fa08d111a699a4d7b51ba4bc82068200a182\
+                \00581ceb220e40c3ca1de87c448972443020d8fa08d111a699a4d7b51ba4bc\
+                \1b000000e8d4a5100082008200581cc72a6827138da1341c9ea1e55a04bd10\
+                \96824f0c66a0ec282d5daad382068200a18200581cc72a6827138da1341c9e\
+                \a1e55a04bd1096824f0c66a0ec282d5daad31b000000e8d4a5100082008200\
+                \581c3b525e261b6434b75f949404fbc5b3ef4acf686a31af9facea74687082\
+                \068200a18200581c3b525e261b6434b75f949404fbc5b3ef4acf686a31af9f\
+                \acea7468701b000000e8d4a5100082008200581c8bf7bb98dd01953c5754fc\
+                \f49460aaaa3368faf9476267411a38d33c82068200a18200581c8bf7bb98dd\
+                \01953c5754fcf49460aaaa3368faf9476267411a38d33c1b000000e8d4a510\
+                \0082008200581c917d3b19a2c9fe13ca2dea4c9b1555257af2f185b58ad483\
+                \7e801c1782068200a18200581c917d3b19a2c9fe13ca2dea4c9b1555257af2\
+                \f185b58ad4837e801c171b000000e8d4a5100082008200581c37457aadf2fa\
+                \6292ebca8460e01ff4e813a495466512b930eb564ec782068200a18200581c\
+                \37457aadf2fa6292ebca8460e01ff4e813a495466512b930eb564ec71b0000\
+                \00e8d4a5100082008200581cc1e7e3ea91ee7a92f0b33afceab00a41c7039b\
+                \f083636689d2de1f0482068200a18200581cc1e7e3ea91ee7a92f0b33afcea\
+                \b00a41c7039bf083636689d2de1f041b000000e8d4a5100082008200581c8a\
+                \dbd72dd6b5b46b27df79b1f8bcbcf0ac780d515f5b57cb08a2c9a782068200\
+                \a18200581c8adbd72dd6b5b46b27df79b1f8bcbcf0ac780d515f5b57cb08a2\
+                \c9a71b000000e8d4a5100082008200581c9c19c3caa333ee30c6d5d9f0ddd0\
+                \1ad09258a47dec0380519bcae7ac82068200a18200581c9c19c3caa333ee30\
+                \c6d5d9f0ddd01ad09258a47dec0380519bcae7ac1b000000e8d4a510008200\
+                \8200581c6433cd346858f15142171023c633ae0646bdc0470de5ae6f110bdf\
+                \0682068200a18200581c6433cd346858f15142171023c633ae0646bdc0470d\
+                \e5ae6f110bdf061b000000e8d4a5100082008200581c63ec6f04e6fa18e830\
+                \05a02bc57d72f7afa3a04523d016010076b40a82068200a18200581c63ec6f\
+                \04e6fa18e83005a02bc57d72f7afa3a04523d016010076b40a1b000000e8d4\
+                \a5100082008200581c990d9d698730cbc4c09f95be75f54e47c524c3e7ad48\
+                \4de626ef321482068200a18200581c990d9d698730cbc4c09f95be75f54e47\
+                \c524c3e7ad484de626ef32141b000000e8d4a5100082008200581ccc8116d5\
+                \0326ea87caa3e46597b54e56725ff1fe39d1bc08361bc20682068200a18200\
+                \581ccc8116d50326ea87caa3e46597b54e56725ff1fe39d1bc08361bc2061b\
+                \000000e8d4a5100082008200581c246a121534ab486f4e47618cb192568b77\
+                \a491cf4db613a80ced4d7682068200a18200581c246a121534ab486f4e4761\
+                \8cb192568b77a491cf4db613a80ced4d761b000000e8d4a510008200820058\
+                \1c36cf17310d216fc7a2ac6122088766bbc5761129b1155d495bf8112b8206\
+                \8200a18200581c36cf17310d216fc7a2ac6122088766bbc5761129b1155d49\
+                \5bf8112b1b000000e8d4a5100082008200581c1bb104a403de68b0c03438a1\
+                \0d9142a595f4a9ff8162b195493bf55082068200a18200581c1bb104a403de\
+                \68b0c03438a10d9142a595f4a9ff8162b195493bf5501b000000e8d4a51000\
+                \82008200581cc2a47d500058e60176c437fc61be7d0cd07f0d8c871abe6d00\
+                \2636a182068200a18200581cc2a47d500058e60176c437fc61be7d0cd07f0d\
+                \8c871abe6d002636a11b000000e8d4a5100082008200581ce8b783e08083c2\
+                \3c2682afcd4b7a5cb0851239e5f9c04beb2455979582068200a18200581ce8\
+                \b783e08083c23c2682afcd4b7a5cb0851239e5f9c04beb245597951b000000\
+                \e8d4a5100082008200581cedf156a660897651bd753aefa7af7f81d6d83dfc\
+                \9bcdc4afbd36fad382068200a18200581cedf156a660897651bd753aefa7af\
+                \7f81d6d83dfc9bcdc4afbd36fad31b000000e8d4a5100082008200581c30c6\
+                \00d4fcf006fc2067721c55fc7d3a696b93a4f382aaad75e3516682068200a1\
+                \8200581c30c600d4fcf006fc2067721c55fc7d3a696b93a4f382aaad75e351\
+                \661b000000e8d4a5100082008200581cc7d5e024d22767a891e02834b27588\
+                \5e06ed04869747cff43cec91e082068200a18200581cc7d5e024d22767a891\
+                \e02834b275885e06ed04869747cff43cec91e01b000000e8d4a51000ff9fff\
+                \f6" :: Text
+
+        let textEnvelopeMIR =
+                Cardano.TextEnvelope
+                (Cardano.TextEnvelopeType "TxBodyAlonzo")
+                ""
+                (unsafeFromHex $ T.encodeUtf8 cborHex)
+
+        let (Right txBody) =
+                Cardano.deserialiseFromTextEnvelope
+                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeMIR
+
+        let toCborHexTx txbody =
+                T.decodeUtf8 $
+                hex $
+                Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txbody)
+
+        let cborHexGenesis = toCborHexTx txBody
+
+        let containMIR certs = OtherCertificate (ApiT MIRCertificate) `elem` certs
+
+        let decodePayloadJoin = Json [json|{
+              "transaction": #{cborHexGenesis}
+          }|]
+        rTxJoin <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadJoin
+        verify rTxJoin
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldSatisfy` containMIR)
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
