@@ -112,7 +112,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes, isJust, isNothing )
+    ( catMaybes, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -695,10 +695,8 @@ prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs
     -> Property
 prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
     checkCoverage $
-    cover 50 (isJust maybeUpdatedUTxO)
-        "isJust " $
-    cover 0.1 (isNothing maybeUpdatedUTxO)
-        "isNothing" $
+    cover 50  (    haveResult)        "have result" $
+    cover 0.1 (not haveResult) "do not have result" $
     report
         (utxo)
         "utxo" $
@@ -706,36 +704,36 @@ prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
         (utxoFromTx tx)
         "utxoFromTx tx" $
     report
-        (haveUpdatedUTxO)
-        "haveUpdatedUTxO" $
+        (haveResult)
+        "haveResult" $
     report
-        (shouldHaveUpdatedUTxO)
-        "shouldHaveUpdatedUTxO" $
-    case maybeUpdatedUTxO of
+        (shouldHaveResult)
+        "shouldHaveResult" $
+    case maybeResult of
         Nothing ->
             verify
-                (not shouldHaveUpdatedUTxO)
-                "not shouldHaveUpdatedUTxO" $
+                (not shouldHaveResult)
+                "not shouldHaveResult" $
             property True
         Just utxo' ->
             cover 10 (utxo /= utxo')
                 "utxo /= utxo'" $
             verify
-                (shouldHaveUpdatedUTxO)
-                "shouldHaveUpdatedUTxO" $
+                (shouldHaveResult)
+                "shouldHaveResult" $
             verify
                 (utxo' == applyTxToUTxO tx utxo)
                 "utxo' == applyTxToUTxO tx utxo" $
             property True
   where
-    maybeUpdatedUTxO :: Maybe UTxO
-    maybeUpdatedUTxO = snd <$> evalState
+    haveResult :: Bool
+    haveResult = isJust maybeResult
+    maybeResult :: Maybe UTxO
+    maybeResult = snd <$> evalState
         (applyOurTxToUTxO slotNo blockHeight tx utxo)
         (AllOurs)
-    haveUpdatedUTxO :: Bool
-    haveUpdatedUTxO = isJust maybeUpdatedUTxO
-    shouldHaveUpdatedUTxO :: Bool
-    shouldHaveUpdatedUTxO = evalState (isOurTx tx utxo) AllOurs
+    shouldHaveResult :: Bool
+    shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
