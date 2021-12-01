@@ -19,6 +19,8 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Cardano.Api.Gen
+    ( genSlotNo )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -29,6 +31,7 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlock
     , applyBlocks
+    , applyOurTxToUTxO
     , applyTxToUTxO
     , availableBalance
     , availableUTxO
@@ -36,6 +39,7 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , initWallet
+    , isOurTx
     , spendTx
     , totalBalance
     , totalUTxO
@@ -116,7 +120,7 @@ import Data.Set
 import Data.Traversable
     ( for )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import Fmt
     ( Buildable, blockListF, pretty )
 import GHC.Generics
@@ -132,6 +136,7 @@ import Test.QuickCheck
     , Positive (..)
     , Property
     , Testable
+    , arbitrarySizedBoundedIntegral
     , checkCoverage
     , choose
     , classify
@@ -146,14 +151,17 @@ import Test.QuickCheck
     , oneof
     , property
     , scale
+    , shrinkIntegral
     , shrinkList
+    , shrinkMapBy
+    , shrinkNothing
     , vector
     , withMaxSuccess
     , (.&&.)
     , (===)
     )
 import Test.QuickCheck.Extra
-    ( chooseNatural, report )
+    ( chooseNatural, report, verify )
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -255,6 +263,10 @@ spec = do
             property prop_totalUTxO_pendingCollateralIncluded
         it "prop_totalUTxO_pendingInputsExcluded" $
             property prop_totalUTxO_pendingInputsExcluded
+
+    parallel $ describe "Applying transactions to UTxO sets" $ do
+        it "prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs" $
+            property prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -659,6 +671,70 @@ prop_totalUTxO makeProperty =
         shouldNotEvaluate fieldName = error $ unwords
             [fieldName, "was unexpectedly evaluated"]
 
+--------------------------------------------------------------------------------
+-- Applying transactions to UTxO sets
+--------------------------------------------------------------------------------
+
+-- | A simplified wallet state that marks all entities as "ours".
+--
+data AllOurs = AllOurs
+
+instance IsOurs AllOurs a where
+    isOurs _ s = (Just shouldNotEvaluate, s)
+      where
+        shouldNotEvaluate = error "AllOurs: unexpected evaluation"
+
+-- Verifies that 'applyOurTxToUTxO' updates the UTxO set in an identical
+-- way to 'applyTxToUTxO' in the case that all entities are marked as ours.
+--
+prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs
+    :: SlotNo
+    -> Quantity "block" Word32
+    -> Tx
+    -> UTxO
+    -> Property
+prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
+    checkCoverage $
+    cover 50  (    haveResult)        "have result" $
+    cover 0.1 (not haveResult) "do not have result" $
+    report
+        (utxo)
+        "utxo" $
+    report
+        (utxoFromTx tx)
+        "utxoFromTx tx" $
+    report
+        (haveResult)
+        "haveResult" $
+    report
+        (shouldHaveResult)
+        "shouldHaveResult" $
+    case maybeResult of
+        Nothing ->
+            verify
+                (not shouldHaveResult)
+                "not shouldHaveResult" $
+            property True
+        Just utxo' ->
+            cover 10 (utxo /= utxo')
+                "utxo /= utxo'" $
+            verify
+                (shouldHaveResult)
+                "shouldHaveResult" $
+            verify
+                (utxo' == applyTxToUTxO tx utxo)
+                "utxo' == applyTxToUTxO tx utxo" $
+            property True
+  where
+    haveResult :: Bool
+    haveResult = isJust maybeResult
+    maybeResult :: Maybe UTxO
+    maybeResult = snd <$> evalState
+        (applyOurTxToUTxO slotNo blockHeight tx utxo)
+        (AllOurs)
+    shouldHaveResult :: Bool
+    shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
+
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
 
@@ -762,6 +838,14 @@ instance IsOurs WalletState RewardAccount where
 instance Arbitrary Coin where
     shrink = shrinkCoin
     arbitrary = genCoin
+
+instance Arbitrary (Quantity "block" Word32) where
+    arbitrary = Quantity <$> arbitrarySizedBoundedIntegral @Word32
+    shrink = shrinkMapBy Quantity getQuantity shrinkIntegral
+
+instance Arbitrary SlotNo where
+    arbitrary = genSlotNo
+    shrink = shrinkNothing
 
 instance Arbitrary Tx where
     shrink = shrinkTx

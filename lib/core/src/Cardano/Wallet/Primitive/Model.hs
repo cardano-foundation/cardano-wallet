@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -6,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -40,8 +42,10 @@ module Cardano.Wallet.Primitive.Model
     , applyBlocks
     , unsafeInitWallet
     , applyTxToUTxO
+    , applyOurTxToUTxO
     , utxoFromTx
     , spendTx
+    , isOurTx
 
     -- * Accessors
     , currentTip
@@ -62,6 +66,7 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DelegationCertificate (..)
+    , SlotNo
     , dlgCertAccount
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -92,7 +97,7 @@ import Control.Monad
 import Control.Monad.Extra
     ( mapMaybeM )
 import Control.Monad.Trans.State.Strict
-    ( State, StateT, evalState, runState, state )
+    ( State, evalState, runState, state )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
@@ -103,14 +108,19 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( isJust )
+import Data.Quantity
+    ( Quantity )
 import Data.Set
     ( Set )
+import Data.Word
+    ( Word32 )
 import Fmt
     ( Buildable (..), indentF )
 import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
@@ -184,7 +194,7 @@ initWallet
     -> ([(Tx, TxMeta)], Wallet s)
 initWallet block s =
     let
-        ((FilteredBlock _ txs, u), s') = prefilterBlock block mempty s
+        ((FilteredBlock _ txs, u), s') = applyBlockToUTxO block mempty s
     in
         (txs, Wallet u (header block) s')
 
@@ -236,7 +246,7 @@ applyBlock
 applyBlock !b (Wallet !u _ s) =
     (filteredBlock, Wallet u' (b ^. #header) s')
   where
-    ((filteredBlock, u'), s') = prefilterBlock b u s
+    ((filteredBlock, u'), s') = applyBlockToUTxO b u s
 
 -- | Apply multiple blocks in sequence to an existing wallet, returning a list
 --   of intermediate wallet states.
@@ -402,11 +412,87 @@ utxoFromUnvalidatedTx Tx {txId, outputs} =
     UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 
 isOurAddress
-    :: forall s m
-     . (Monad m, IsOurs s Address)
+    :: IsOurs s Address
     => Address
-    -> StateT s m Bool
+    -> State s Bool
 isOurAddress = fmap isJust . state . isOurs
+
+isOurWithdrawal
+    :: IsOurs s RewardAccount
+    => (RewardAccount, Coin)
+    -> State s Bool
+isOurWithdrawal = fmap isJust . ourWithdrawal
+
+ourDelegation
+    :: IsOurs s RewardAccount
+    => DelegationCertificate
+    -> State s (Maybe DelegationCertificate)
+ourDelegation cert =
+    state (isOurs $ dlgCertAccount cert) <&> \case
+        Nothing -> Nothing
+        Just{}  -> Just cert
+
+ourWithdrawal
+    :: IsOurs s RewardAccount
+    => (RewardAccount, Coin)
+    -> State s (Maybe (RewardAccount, Coin))
+ourWithdrawal (acct, amt) =
+    state (isOurs acct) <&> \case
+        Nothing -> Nothing
+        Just{}  -> Just (acct, amt)
+
+ourWithdrawalSumFromTx
+    :: IsOurs s RewardAccount
+    => Tx
+    -> State s Coin
+ourWithdrawalSumFromTx tx
+    -- If a transaction has failed script validation, then the ledger rules
+    -- require that applying the transaction shall have no effect other than
+    -- to fully spend the collateral inputs included within that transaction.
+    --
+    -- Therefore, any reward withdrawals included in such a transaction should
+    -- also have no effect.
+    --
+    | failedScriptValidation tx =
+        pure (Coin 0)
+    | otherwise =
+        F.foldMap snd <$>
+        mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
+
+-- | Indicates whether a given transaction is relevant to the wallet.
+--
+isOurTx
+    :: forall s. (IsOurs s Address, IsOurs s RewardAccount)
+    => Tx
+    -> UTxO
+    -> State s Bool
+isOurTx tx u
+    -- If a transaction has failed script validation, then the ledger rules
+    -- require that applying the transaction shall have no effect other than
+    -- to fully spend the collateral inputs included within that transaction.
+    --
+    -- Therefore, such a transaction is only relevant to the wallet if it has
+    -- one more collateral inputs that belong to the wallet.
+    --
+    | failedScriptValidation tx =
+        txHasRelevantCollateral
+    | otherwise =
+        F.or <$> sequence
+            [ txHasRelevantInput
+            , txHasRelevantOutput
+            , txHasRelevantWithdrawal
+            ]
+  where
+    txHasRelevantCollateral =
+        pure . not . UTxO.null $
+        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedCollateral)
+    txHasRelevantInput =
+        pure . not . UTxO.null $
+        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedInputs)
+    txHasRelevantOutput =
+        F.or <$> sequence (isOurAddress . (^. #address) <$> tx ^. #outputs)
+    txHasRelevantWithdrawal =
+        F.or <$> sequence (isOurWithdrawal <$> Map.toList (tx ^. #withdrawals))
 
 {-------------------------------------------------------------------------------
                                Internals
@@ -433,132 +519,101 @@ isOurAddress = fmap isJust . state . isOurs
 -- As a consequence, we do have to traverse the block, and look at transactions
 -- in order, starting from the known inputs that can be spent (from the previous
 -- UTxO) and collect resolved tx outputs that are ours as we apply transactions.
-prefilterBlock
+applyBlockToUTxO
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
     -> UTxO
     -> s
     -> ((FilteredBlock, UTxO), s)
-prefilterBlock b u0 = runState $ do
+applyBlockToUTxO b u0 = runState $ do
     delegations <- mapMaybeM ourDelegation (b ^. #delegations)
-    (transactions, ourU) <- foldM applyTx (mempty, u0) (b ^. #transactions)
+    (transactions, ourU) <- foldM applyOurTx (mempty, u0) (b ^. #transactions)
     return (FilteredBlock {delegations, transactions}, ourU)
   where
-    ourDelegation
-        :: IsOurs s RewardAccount
-        => DelegationCertificate
-        -> State s (Maybe DelegationCertificate)
-    ourDelegation cert =
-        state (isOurs $ dlgCertAccount cert) <&> \case
-            Nothing -> Nothing
-            Just{}  -> Just cert
-    ourWithdrawal
-        :: IsOurs s RewardAccount
-        => (RewardAccount, Coin)
-        -> State s (Maybe (RewardAccount, Coin))
-    ourWithdrawal (acct, amt) =
-        state (isOurs acct) <&> \case
-            Nothing -> Nothing
-            Just{}  -> Just (acct, amt)
-    mkTxMeta :: Coin -> Direction -> TxMeta
-    mkTxMeta amount dir = TxMeta
-        { status = InLedger
-        , direction = dir
-        , slotNo = b ^. #header . #slotNo
-        , blockHeight = b ^. #header . #blockHeight
-        , amount = amount
-        , expiry = Nothing
-        }
-    applyTx
+    applyOurTx
         :: (IsOurs s Address, IsOurs s RewardAccount)
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
-    applyTx (!txs, !prevUTxO) tx = do
-        -- The next UTxO state (apply a state transition) (e.g. remove
-        -- transaction outputs we've spent).
-        ourNextUTxO <-
-            (spendTx tx prevUTxO <>)
-            <$> filterByAddressM isOurAddress (utxoFromTx tx)
+    applyOurTx (!txs, !u) !tx =
+        applyOurTxToUTxO slotNo blockHeight tx u <&> \case
+            Nothing -> (txs, u)
+            Just (tx', u') -> (tx' : txs, u')
+    slotNo = b ^. #header . #slotNo
+    blockHeight = b ^. #header . #blockHeight
 
-        ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
-            mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
+-- | Applies the given transaction if it is relevant to the wallet.
+--
+-- This function returns a result if (and only if) the given transaction is
+-- relevant to the wallet.
+--
+-- It satisfies the following property:
+--
+-- >> isJust (flip evalState state (applyOurTxToUTxO slot bh tx u))
+-- >>     == (flip evalState state (   isOurTx               tx u))
+--
+applyOurTxToUTxO
+    :: (IsOurs s Address, IsOurs s RewardAccount)
+    => SlotNo
+    -> Quantity "block" Word32
+    -> Tx
+    -> UTxO
+    -> State s (Maybe ((Tx, TxMeta), UTxO))
+applyOurTxToUTxO !slotNo !blockHeight !tx !prevUTxO = do
+    -- The next UTxO state (apply a state transition) (e.g. remove
+    -- transaction outputs we've spent).
+    ourNextUTxO <-
+        (spendTx tx prevUTxO <>)
+        <$> filterByAddressM isOurAddress (utxoFromTx tx)
 
-        let received = balance (ourNextUTxO `excluding` dom prevUTxO)
-        let spent =
-                balance (prevUTxO `excluding` dom ourNextUTxO)
-                `TB.add` TB.fromCoin ourWithdrawals
+    ourWithdrawalSum <- ourWithdrawalSumFromTx tx
 
-        (ownedAndKnownTxIns, ownedAndKnownTxOuts) <- do
-            -- A new transaction expands the set of transaction inputs/outputs
-            -- we know about, but not all those transaction inputs/outputs
-            -- belong to us, so we filter any new inputs/outputs, presuming that
-            -- the previous UTxO has already been filtered:
-            ownedAndKnown <-
-                (prevUTxO <>) <$> filterByAddressM isOurAddress (utxoFromTx tx)
-            -- Also, the new transaction may spend some transaction
-            -- inputs/outputs. But we don't want to apply that logic yet. If we
-            -- do, any spent transaction input/output will be removed from our
-            -- knowledge base.
-            -- Therefore, because this is not technically an "Unspent TxO" set,
-            -- let's just return the TxIns and TxOuts, as the type "UTxO" will
-            -- create expectations which we explicitly aren't fulfilling:
-            let m = unUTxO ownedAndKnown
-            pure (Map.keys m, Map.elems m)
+    let received = balance (ourNextUTxO `excluding` dom prevUTxO)
+    let spent =
+            balance (prevUTxO `excluding` dom ourNextUTxO)
+            `TB.add` TB.fromCoin ourWithdrawalSum
 
-        -- A transaction has a known input if one of the transaction inputs
-        -- matches a transaction input we know about.
-        let hasKnownInput = not $ Set.disjoint
-                (Set.fromList $ inputs tx)
-                (Set.fromList ownedAndKnownTxIns)
-        -- A transaction has a known output if one of the transaction outputs
-        -- matches a transaction output we know about.
-        let hasKnownOutput = not $ Set.disjoint
-                (Set.fromList $ outputs tx)
-                (Set.fromList ownedAndKnownTxOuts)
-        let hasKnownWithdrawal = ourWithdrawals /= mempty
+    let hasKnownWithdrawal = ourWithdrawalSum /= mempty
 
-        -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
-        -- a Byron transaction. In which case fees can actually be calculated as
-        -- the delta between inputs and outputs.
-        --
-        -- NOTE 2: We do not have in practice the actual input amounts, yet we
-        -- do make the assumption that if one input is ours, then all inputs are
-        -- necessarily ours and therefore, known as part of our current UTxO.
-        let actualFee direction = case (tx ^. #fee, direction) of
-                (Just x, Outgoing) -> -- Shelley and beyond.
-                    Just x
-
-                (Nothing, Outgoing) -> -- Byron
-                    let
-                        totalOut = F.fold (txOutCoin <$> outputs tx)
-
-                        totalIn = TB.getCoin spent
-                    in
-                        Just $ distance totalIn totalOut
-
-                (_, Incoming) ->
-                    Nothing
-
-        return $ if hasKnownOutput && not hasKnownInput then
-            let dir = Incoming in
-            ( ( tx { fee = actualFee dir }
-              , mkTxMeta (TB.getCoin received) dir
-              ) : txs
-            , ourNextUTxO
-            )
-        else if hasKnownInput || hasKnownWithdrawal then
-            let
-                adaSpent = TB.getCoin spent
+    -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
+    -- a Byron transaction. In which case fees can actually be calculated as
+    -- the delta between inputs and outputs.
+    --
+    -- NOTE 2: We do not have in practice the actual input amounts, yet we
+    -- do make the assumption that if one input is ours, then all inputs are
+    -- necessarily ours and therefore, known as part of our current UTxO.
+    let actualFee direction = case (tx ^. #fee, direction) of
+            (Just x, Outgoing) ->
+                -- Shelley and beyond:
+                Just x
+            (Nothing, Outgoing) ->
+                -- Byron:
+                let totalOut = F.fold (txOutCoin <$> outputs tx)
+                    totalIn = TB.getCoin spent
+                in
+                Just $ distance totalIn totalOut
+            (_, Incoming) ->
+                Nothing
+    return if
+        | hasKnownWithdrawal || prevUTxO /= ourNextUTxO ->
+            let adaSpent = TB.getCoin spent
                 adaReceived = TB.getCoin received
                 dir = if adaSpent > adaReceived then Outgoing else Incoming
                 amount = distance adaSpent adaReceived
             in
-                ( (tx { fee = actualFee dir }, mkTxMeta amount dir) : txs
-                , ourNextUTxO
-                )
-        else
-            (txs, prevUTxO)
+            Just ((tx {fee = actualFee dir}, mkTxMeta amount dir), ourNextUTxO)
+        | otherwise ->
+            Nothing
+  where
+    mkTxMeta :: Coin -> Direction -> TxMeta
+    mkTxMeta amount dir = TxMeta
+        { status = InLedger
+        , direction = dir
+        , slotNo
+        , blockHeight
+        , amount = amount
+        , expiry = Nothing
+        }
 
 -- | Get the change UTxO
 --
