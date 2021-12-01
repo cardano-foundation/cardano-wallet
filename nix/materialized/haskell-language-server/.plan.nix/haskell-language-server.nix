@@ -10,8 +10,7 @@
   {
     flags = {
       pedantic = false;
-      all-plugins = false;
-      all-formatters = false;
+      ignore-plugins-ghc-bounds = false;
       class = true;
       callhierarchy = true;
       haddockcomments = true;
@@ -33,7 +32,7 @@
       };
     package = {
       specVersion = "2.4";
-      identifier = { name = "haskell-language-server"; version = "1.4.0.0"; };
+      identifier = { name = "haskell-language-server"; version = "1.5.0.0"; };
       license = "Apache-2.0";
       copyright = "The Haskell IDE Team";
       maintainer = "alan.zimm@gmail.com";
@@ -54,8 +53,6 @@
         "test/testdata/**/*.project"
         "test/testdata/**/*.cabal"
         "test/testdata/**/*.yaml"
-        "test/testdata/hlint/ignore/.hlint.yaml"
-        "test/testdata/**/*.h"
         "test/testdata/**/*.hs"
         ];
       extraTmpFiles = [];
@@ -103,7 +100,7 @@
         };
       exes = {
         "haskell-language-server" = {
-          depends = (((((((((((((((((([
+          depends = ((((((((((((((((([
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
@@ -137,43 +134,13 @@
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
-            ] ++ (pkgs.lib).optional (flags.callhierarchy || flags.all-plugins) (hsPkgs."hls-call-hierarchy-plugin" or (errorHandler.buildDepError "hls-call-hierarchy-plugin"))) ++ (pkgs.lib).optional (flags.class || flags.all-plugins) (hsPkgs."hls-class-plugin" or (errorHandler.buildDepError "hls-class-plugin"))) ++ (pkgs.lib).optional (flags.haddockcomments || flags.all-plugins) (hsPkgs."hls-haddock-comments-plugin" or (errorHandler.buildDepError "hls-haddock-comments-plugin"))) ++ (pkgs.lib).optional (flags.eval || flags.all-plugins) (hsPkgs."hls-eval-plugin" or (errorHandler.buildDepError "hls-eval-plugin"))) ++ (pkgs.lib).optional (flags.importlens || flags.all-plugins) (hsPkgs."hls-explicit-imports-plugin" or (errorHandler.buildDepError "hls-explicit-imports-plugin"))) ++ (pkgs.lib).optional (flags.refineimports || flags.all-plugins) (hsPkgs."hls-refine-imports-plugin" or (errorHandler.buildDepError "hls-refine-imports-plugin"))) ++ (pkgs.lib).optional (flags.rename || flags.all-plugins) (hsPkgs."hls-rename-plugin" or (errorHandler.buildDepError "hls-rename-plugin"))) ++ (pkgs.lib).optional (flags.retrie || flags.all-plugins) (hsPkgs."hls-retrie-plugin" or (errorHandler.buildDepError "hls-retrie-plugin"))) ++ (pkgs.lib).optional (flags.tactic || flags.all-plugins) (hsPkgs."hls-tactics-plugin" or (errorHandler.buildDepError "hls-tactics-plugin"))) ++ (pkgs.lib).optional (flags.hlint || flags.all-plugins) (hsPkgs."hls-hlint-plugin" or (errorHandler.buildDepError "hls-hlint-plugin"))) ++ (pkgs.lib).optional (flags.modulename || flags.all-plugins) (hsPkgs."hls-module-name-plugin" or (errorHandler.buildDepError "hls-module-name-plugin"))) ++ (pkgs.lib).optional (flags.pragmas || flags.all-plugins) (hsPkgs."hls-pragmas-plugin" or (errorHandler.buildDepError "hls-pragmas-plugin"))) ++ (pkgs.lib).optional (flags.splice || flags.all-plugins) (hsPkgs."hls-splice-plugin" or (errorHandler.buildDepError "hls-splice-plugin"))) ++ (pkgs.lib).optional (flags.floskell || flags.all-formatters) (hsPkgs."hls-floskell-plugin" or (errorHandler.buildDepError "hls-floskell-plugin"))) ++ (pkgs.lib).optional (flags.fourmolu || flags.all-formatters) (hsPkgs."hls-fourmolu-plugin" or (errorHandler.buildDepError "hls-fourmolu-plugin"))) ++ (pkgs.lib).optional (flags.ormolu || flags.all-formatters) (hsPkgs."hls-ormolu-plugin" or (errorHandler.buildDepError "hls-ormolu-plugin"))) ++ (pkgs.lib).optional (flags.stylishhaskell || flags.all-formatters) (hsPkgs."hls-stylish-haskell-plugin" or (errorHandler.buildDepError "hls-stylish-haskell-plugin"))) ++ (pkgs.lib).optional (flags.brittany || flags.all-formatters) (hsPkgs."hls-brittany-plugin" or (errorHandler.buildDepError "hls-brittany-plugin"))) ++ (if compiler.isGhc && (compiler.version).lt "8.10.5"
-            then [
-              (hsPkgs."ghc-api-compat" or (errorHandler.buildDepError "ghc-api-compat"))
-              ]
-            else if compiler.isGhc && (compiler.version).eq "8.10.5"
-              then [
-                (hsPkgs."ghc-api-compat" or (errorHandler.buildDepError "ghc-api-compat"))
-                ]
-              else if compiler.isGhc && (compiler.version).eq "8.10.6"
-                then [
-                  (hsPkgs."ghc-api-compat" or (errorHandler.buildDepError "ghc-api-compat"))
-                  ]
-                else if compiler.isGhc && (compiler.version).eq "8.10.7"
-                  then [
-                    (hsPkgs."ghc-api-compat" or (errorHandler.buildDepError "ghc-api-compat"))
-                    ]
-                  else (pkgs.lib).optional (compiler.isGhc && (compiler.version).eq "9.0.1") (hsPkgs."ghc-api-compat" or (errorHandler.buildDepError "ghc-api-compat")));
+            ] ++ (pkgs.lib).optional (flags.callhierarchy && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-call-hierarchy-plugin" or (errorHandler.buildDepError "hls-call-hierarchy-plugin"))) ++ (pkgs.lib).optional (flags.class && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-class-plugin" or (errorHandler.buildDepError "hls-class-plugin"))) ++ (pkgs.lib).optional (flags.haddockcomments) (hsPkgs."hls-haddock-comments-plugin" or (errorHandler.buildDepError "hls-haddock-comments-plugin"))) ++ (pkgs.lib).optional (flags.eval) (hsPkgs."hls-eval-plugin" or (errorHandler.buildDepError "hls-eval-plugin"))) ++ (pkgs.lib).optional (flags.importlens) (hsPkgs."hls-explicit-imports-plugin" or (errorHandler.buildDepError "hls-explicit-imports-plugin"))) ++ (pkgs.lib).optional (flags.refineimports && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-refine-imports-plugin" or (errorHandler.buildDepError "hls-refine-imports-plugin"))) ++ (pkgs.lib).optional (flags.rename) (hsPkgs."hls-rename-plugin" or (errorHandler.buildDepError "hls-rename-plugin"))) ++ (pkgs.lib).optional (flags.retrie && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-retrie-plugin" or (errorHandler.buildDepError "hls-retrie-plugin"))) ++ (pkgs.lib).optional (flags.tactic && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-tactics-plugin" or (errorHandler.buildDepError "hls-tactics-plugin"))) ++ (pkgs.lib).optional (flags.hlint) (hsPkgs."hls-hlint-plugin" or (errorHandler.buildDepError "hls-hlint-plugin"))) ++ (pkgs.lib).optional (flags.modulename) (hsPkgs."hls-module-name-plugin" or (errorHandler.buildDepError "hls-module-name-plugin"))) ++ (pkgs.lib).optional (flags.pragmas) (hsPkgs."hls-pragmas-plugin" or (errorHandler.buildDepError "hls-pragmas-plugin"))) ++ (pkgs.lib).optional (flags.splice && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-splice-plugin" or (errorHandler.buildDepError "hls-splice-plugin"))) ++ (pkgs.lib).optional (flags.floskell && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-floskell-plugin" or (errorHandler.buildDepError "hls-floskell-plugin"))) ++ (pkgs.lib).optional (flags.fourmolu && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-fourmolu-plugin" or (errorHandler.buildDepError "hls-fourmolu-plugin"))) ++ (pkgs.lib).optional (flags.ormolu) (hsPkgs."hls-ormolu-plugin" or (errorHandler.buildDepError "hls-ormolu-plugin"))) ++ (pkgs.lib).optional (flags.stylishhaskell && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-stylish-haskell-plugin" or (errorHandler.buildDepError "hls-stylish-haskell-plugin"))) ++ (pkgs.lib).optional (flags.brittany && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) (hsPkgs."hls-brittany-plugin" or (errorHandler.buildDepError "hls-brittany-plugin"));
           buildable = true;
           modules = [ "Ide/Plugin/Example" "Ide/Plugin/Example2" "Plugins" ];
           hsSourceDirs = [ "plugins/default/src" "exe" ];
-          mainPath = ((((((((((((((((((([
+          mainPath = (((((((((((((((((([
             "Main.hs"
-            ] ++ (pkgs.lib).optional (flags.callhierarchy || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.class || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.haddockcomments || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.eval || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.importlens || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.refineimports || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.rename || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.retrie || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.tactic || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.hlint || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.modulename || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.pragmas || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.splice || flags.all-plugins) "") ++ (pkgs.lib).optional (flags.floskell || flags.all-formatters) "") ++ (pkgs.lib).optional (flags.fourmolu || flags.all-formatters) "") ++ (pkgs.lib).optional (flags.ormolu || flags.all-formatters) "") ++ (pkgs.lib).optional (flags.stylishhaskell || flags.all-formatters) "") ++ (pkgs.lib).optional (flags.brittany || flags.all-formatters) "") ++ (pkgs.lib).optional (flags.pedantic) "") ++ (if compiler.isGhc && (compiler.version).lt "8.10.5"
-            then [ "" ]
-            else [ "" ] ++ (if compiler.isGhc && (compiler.version).eq "8.10.5"
-              then [ "" ]
-              else [
-                ""
-                ] ++ (if compiler.isGhc && (compiler.version).eq "8.10.6"
-                then [ "" ]
-                else [
-                  ""
-                  ] ++ (if compiler.isGhc && (compiler.version).eq "8.10.7"
-                  then [ "" ]
-                  else [
-                    ""
-                    ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).eq "9.0.1") ""))));
+            ] ++ (pkgs.lib).optional (flags.callhierarchy && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.class && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.haddockcomments) "") ++ (pkgs.lib).optional (flags.eval) "") ++ (pkgs.lib).optional (flags.importlens) "") ++ (pkgs.lib).optional (flags.refineimports && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.rename) "") ++ (pkgs.lib).optional (flags.retrie && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.tactic && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.hlint) "") ++ (pkgs.lib).optional (flags.modulename) "") ++ (pkgs.lib).optional (flags.pragmas) "") ++ (pkgs.lib).optional (flags.splice && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.floskell && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.fourmolu && (compiler.isGhc && (compiler.version).lt "9.2.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.ormolu) "") ++ (pkgs.lib).optional (flags.stylishhaskell && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.brittany && (compiler.isGhc && (compiler.version).lt "9.0.1" || flags.ignore-plugins-ghc-bounds)) "") ++ (pkgs.lib).optional (flags.pedantic) "";
           };
         "haskell-language-server-wrapper" = {
           depends = [
