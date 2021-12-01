@@ -68,6 +68,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount.Gen
+    ( coarbitraryRewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -265,8 +267,10 @@ spec = do
             property prop_totalUTxO_pendingInputsExcluded
 
     parallel $ describe "Applying transactions to UTxO sets" $ do
-        it "prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs" $
-            property prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs
+        it "prop_applyOurTxToUTxO_allOurs" $
+            property prop_applyOurTxToUTxO_allOurs
+        it "prop_applyOurTxToUTxO_someOurs" $
+            property prop_applyOurTxToUTxO_someOurs
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -716,13 +720,13 @@ instance IsOurs AllOurs a where
 -- Verifies that 'applyOurTxToUTxO' updates the UTxO set in an identical
 -- way to 'applyTxToUTxO' in the case that all entities are marked as ours.
 --
-prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs
+prop_applyOurTxToUTxO_allOurs
     :: SlotNo
     -> Quantity "block" Word32
     -> Tx
     -> UTxO
     -> Property
-prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
+prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
     checkCoverage $
     cover 50  (    haveResult)        "have result" $
     cover 0.1 (not haveResult) "do not have result" $
@@ -763,6 +767,58 @@ prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
         (AllOurs)
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
+
+-- Verifies that 'applyOurTxToUTxO' returns a result only when it is
+-- appropriate to do so.
+--
+-- Within this property, only some addresses and reward accounts are marked as
+-- being "ours".
+--
+prop_applyOurTxToUTxO_someOurs
+    :: IsOursIf2 Address RewardAccount
+    -> SlotNo
+    -> Quantity "block" Word32
+    -> Tx
+    -> UTxO
+    -> Property
+prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
+    checkCoverage $
+    cover 50  (    haveResult)        "have result" $
+    cover 0.1 (not haveResult) "do not have result" $
+    report
+        (utxo)
+        "utxo" $
+    report
+        (utxoFromTx tx)
+        "utxoFromTx tx" $
+    report
+        (haveResult)
+        "haveResult" $
+    report
+        (shouldHaveResult)
+        "shouldHaveResult" $
+    case maybeResult of
+        Nothing ->
+            verify
+                (not shouldHaveResult)
+                "not shouldHaveResult" $
+            property True
+        Just utxo' ->
+            cover 10 (utxo /= utxo')
+                "utxo /= utxo'" $
+            verify
+                (shouldHaveResult)
+                "shouldHaveResult" $
+            property True
+  where
+    haveResult :: Bool
+    haveResult = isJust maybeResult
+    maybeResult :: Maybe UTxO
+    maybeResult = snd <$> evalState
+        (applyOurTxToUTxO slotNo blockHeight tx utxo)
+        (ourState)
+    shouldHaveResult :: Bool
+    shouldHaveResult = evalState (isOurTx tx utxo) ourState
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
@@ -1913,5 +1969,11 @@ prop_spendTx_filterByAddress f tx u =
 instance CoArbitrary Address where
     coarbitrary = coarbitraryAddress
 
+instance CoArbitrary RewardAccount where
+    coarbitrary = coarbitraryRewardAccount
+
 instance Show (Address -> Bool) where
     show = const "(Address -> Bool)"
+
+instance Show (RewardAccount -> Bool) where
+    show = const "(RewardAccount -> Bool)"
