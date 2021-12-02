@@ -93,6 +93,7 @@ module Cardano.Wallet.Api.Server
     , mintBurnAssets
     , balanceTransaction
     , decodeTransaction
+    , submitTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -2326,6 +2327,23 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         else
             DelegationCertificate $
             JoinPoolExternal (ApiT rewardKey, Proxy @n) (ApiT poolId')
+
+submitTransaction
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k
+        , HasNetworkLayer IO ctx
+        , IsOwned s k
+        , WalletKey k
+        , HardDerivation k
+        , Typeable s
+        , Typeable n
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiSerialisedTransaction
+    -> Handler ApiTxId
+submitTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealedTx)) = undefined
 
 joinStakePool
     :: forall ctx s n k.

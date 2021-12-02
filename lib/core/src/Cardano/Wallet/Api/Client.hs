@@ -199,6 +199,10 @@ data TransactionClient = TransactionClient
         :: ApiT WalletId
         -> ApiSerialisedTransaction
         -> ClientM (ApiDecodedTransactionT Aeson.Value)
+    , submitTransaction
+        :: ApiT WalletId
+        -> ApiSerialisedTransaction
+        -> ClientM ApiTxId
     }
 
 data AddressClient = AddressClient
@@ -316,6 +320,7 @@ transactionClient =
             :<|> _postTransactionFee
             :<|> _balanceTransaction
             :<|> _decodeTransaction
+            :<|> _submitTransaction
             = client (Proxy @("v2" :> (ShelleyTransactions Aeson.Value)))
 
         _postExternalTransaction
@@ -332,6 +337,7 @@ transactionClient =
             , constructTransaction = _constructTransaction
             , balanceTransaction = _balanceTransaction
             , decodeTransaction = _decodeTransaction
+            , submitTransaction = _submitTransaction
             }
 
 fromSerialisedTx :: ApiBytesT base SerialisedTx -> ApiT SealedTx
@@ -365,6 +371,7 @@ byronTransactionClient =
         , constructTransaction = _constructTransaction
         , balanceTransaction = error "balance transaction endpoint not supported for byron"
         , decodeTransaction = error "decode transaction endpoint not supported for byron"
+        , submitTransaction = error "submit transaction endpoint not supported for byron"
         }
 
 -- | Produces an 'AddressClient n' working against the /wallets API
