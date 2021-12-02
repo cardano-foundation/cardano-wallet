@@ -5888,6 +5888,23 @@ paths:
             schema: *ApiSerialisedTransactionEncoded
       responses: *responsesDecodedTransaction
 
+  /wallets/{walletId}/transactions-submit:
+    post:
+      operationId: submitTransaction
+      tags: ["Transactions New"]
+      summary: Submit
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Submit a transaction that was already created and signed.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSignedTransaction
+      responses: *responsesPostExternalTransaction
+
   /wallets/{walletId}/addresses:
     get:
       operationId: listAddresses
