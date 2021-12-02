@@ -68,6 +68,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount.Gen
+    ( coarbitraryRewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -265,8 +267,10 @@ spec = do
             property prop_totalUTxO_pendingInputsExcluded
 
     parallel $ describe "Applying transactions to UTxO sets" $ do
-        it "prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs" $
-            property prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs
+        it "prop_applyOurTxToUTxO_allOurs" $
+            property prop_applyOurTxToUTxO_allOurs
+        it "prop_applyOurTxToUTxO_someOurs" $
+            property prop_applyOurTxToUTxO_someOurs
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -546,12 +550,50 @@ prop_changeUTxO_inner pendingTxs =
     pendingTxSet :: Set Tx
     pendingTxSet = Set.fromList pendingTxs
 
+--------------------------------------------------------------------------------
+-- Matching entities with 'IsOurs'
+--------------------------------------------------------------------------------
+
+-- | A simplified wallet state that marks all entities as "ours".
+--
+data AllOurs = AllOurs
+
+instance IsOurs AllOurs a where
+    isOurs _ s = (Just shouldNotEvaluate, s)
+      where
+        shouldNotEvaluate = error "AllOurs: unexpected evaluation"
+
 -- | Encapsulates a filter condition for matching entities with 'IsOurs'.
 --
 newtype IsOursIf a = IsOursIf {condition :: a -> Bool}
 
 instance IsOurs (IsOursIf a) a where
     isOurs a s@IsOursIf {condition} = isOursIf condition a s
+
+-- | Encapsulates a pair of filter conditions for matching entities with
+--   'IsOurs'.
+--
+-- This is useful in contexts that require matching two different types of
+-- entity.
+--
+data IsOursIf2 a b = IsOursIf2
+    { conditionA :: a -> Bool
+    , conditionB :: b -> Bool
+    }
+
+instance Eq (IsOursIf2 a b) where
+    _ == _ = False
+
+instance Show (IsOursIf2 a b) where
+    show _ = "IsOursIf2"
+
+instance IsOurs (IsOursIf2 a b) a where
+    isOurs entity s@(IsOursIf2 {conditionA}) =
+        isOursIf conditionA entity s
+
+instance IsOurs (IsOursIf2 a b) b where
+    isOurs entity s@(IsOursIf2 {conditionB}) =
+        isOursIf conditionB entity s
 
 isOursIf :: (a -> Bool) -> a -> s -> (Maybe (NonEmpty DerivationIndex), s)
 isOursIf condition a s
@@ -675,25 +717,16 @@ prop_totalUTxO makeProperty =
 -- Applying transactions to UTxO sets
 --------------------------------------------------------------------------------
 
--- | A simplified wallet state that marks all entities as "ours".
---
-data AllOurs = AllOurs
-
-instance IsOurs AllOurs a where
-    isOurs _ s = (Just shouldNotEvaluate, s)
-      where
-        shouldNotEvaluate = error "AllOurs: unexpected evaluation"
-
 -- Verifies that 'applyOurTxToUTxO' updates the UTxO set in an identical
 -- way to 'applyTxToUTxO' in the case that all entities are marked as ours.
 --
-prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs
+prop_applyOurTxToUTxO_allOurs
     :: SlotNo
     -> Quantity "block" Word32
     -> Tx
     -> UTxO
     -> Property
-prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
+prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
     checkCoverage $
     cover 50  (    haveResult)        "have result" $
     cover 0.1 (not haveResult) "do not have result" $
@@ -734,6 +767,58 @@ prop_applyTxToUTxO_applyOurTxToUTxO_AllOurs slotNo blockHeight tx utxo =
         (AllOurs)
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
+
+-- Verifies that 'applyOurTxToUTxO' returns a result only when it is
+-- appropriate to do so.
+--
+-- Within this property, only some addresses and reward accounts are marked as
+-- being "ours".
+--
+prop_applyOurTxToUTxO_someOurs
+    :: IsOursIf2 Address RewardAccount
+    -> SlotNo
+    -> Quantity "block" Word32
+    -> Tx
+    -> UTxO
+    -> Property
+prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
+    checkCoverage $
+    cover 50  (    haveResult)        "have result" $
+    cover 0.1 (not haveResult) "do not have result" $
+    report
+        (utxo)
+        "utxo" $
+    report
+        (utxoFromTx tx)
+        "utxoFromTx tx" $
+    report
+        (haveResult)
+        "haveResult" $
+    report
+        (shouldHaveResult)
+        "shouldHaveResult" $
+    case maybeResult of
+        Nothing ->
+            verify
+                (not shouldHaveResult)
+                "not shouldHaveResult" $
+            property True
+        Just utxo' ->
+            cover 10 (utxo /= utxo')
+                "utxo /= utxo'" $
+            verify
+                (shouldHaveResult)
+                "shouldHaveResult" $
+            property True
+  where
+    haveResult :: Bool
+    haveResult = isJust maybeResult
+    maybeResult :: Maybe UTxO
+    maybeResult = snd <$> evalState
+        (applyOurTxToUTxO slotNo blockHeight tx utxo)
+        (ourState)
+    shouldHaveResult :: Bool
+    shouldHaveResult = evalState (isOurTx tx utxo) ourState
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
@@ -834,6 +919,11 @@ instance IsOurs WalletState RewardAccount where
         ( guard (account == ourRewardAccount) $> (DerivationIndex 0 :| [])
         , s
         )
+
+instance (CoArbitrary a, CoArbitrary b) => Arbitrary (IsOursIf2 a b) where
+    arbitrary = IsOursIf2
+        <$> arbitrary
+        <*> arbitrary
 
 instance Arbitrary Coin where
     shrink = shrinkCoin
@@ -1879,5 +1969,11 @@ prop_spendTx_filterByAddress f tx u =
 instance CoArbitrary Address where
     coarbitrary = coarbitraryAddress
 
+instance CoArbitrary RewardAccount where
+    coarbitrary = coarbitraryRewardAccount
+
 instance Show (Address -> Bool) where
     show = const "(Address -> Bool)"
+
+instance Show (RewardAccount -> Bool) where
+    show = const "(RewardAccount -> Bool)"
