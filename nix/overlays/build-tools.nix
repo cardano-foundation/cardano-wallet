@@ -32,7 +32,7 @@ pkgs: super: let
     cabal-cache.version             = "1.0.2.1";
     cabal-install.exe               = "cabal";
     cabal-install.version           = "3.4.0.0";
-    haskell-language-server.version = "1.4.0.0";
+    haskell-language-server.version = "1.5.0.0";
     hie-bios = {};
     hoogle.version                  = "5.0.18.1";
     hlint.version                   = "3.3.1";

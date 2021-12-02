@@ -157,11 +157,11 @@
     ({ lib, ... }:
       {
         packages = {
-          "cardano-crypto-praos" = {
-            flags = { "external-libsodium-vrf" = lib.mkOverride 900 false; };
-            };
           "cryptonite" = {
             flags = { "support_rdrand" = lib.mkOverride 900 false; };
+            };
+          "cardano-crypto-praos" = {
+            flags = { "external-libsodium-vrf" = lib.mkOverride 900 false; };
             };
           "zip" = { flags = { "disable-bzip2" = lib.mkOverride 900 true; }; };
           };
