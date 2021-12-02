@@ -39,7 +39,7 @@ The core [cardano-node][], which participates in the Cardano network, and mainta
 
 [SMASH][] is a proxy for stake pool metadata.
 
-[adrestia]: https://input-output-hk.github.io/adrestia/code/Architecture
+[adrestia]: https://input-output-hk.github.io/adrestia/code/Adrestia-Architecture
 [cardano-node]: https://github.com/input-output-hk/cardano-node
 [cardano-wallet]: https://github.com/input-output-hk/cardano-wallet
 [cardano-launcher]: https://github.com/input-output-hk/cardano-launcher
