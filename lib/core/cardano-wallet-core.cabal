@@ -175,9 +175,12 @@ library
       Cardano.Wallet.Api.Types
       Cardano.Wallet.Compat
       Cardano.Wallet.DB
+      Cardano.Wallet.DB.Checkpoints
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.DB.Model
       Cardano.Wallet.DB.Sqlite
+      Cardano.Wallet.DB.Sqlite.CheckpointsOld
+      Cardano.Wallet.DB.Sqlite.Migration
       Cardano.Wallet.DB.Sqlite.TH
       Cardano.Wallet.DB.Sqlite.Types
       Cardano.Wallet.Logging
