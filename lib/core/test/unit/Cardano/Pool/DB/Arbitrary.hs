@@ -385,7 +385,7 @@ instance Arbitrary StakePoolsFixture where
             { slotNo = s
             , blockHeight = Quantity 0
             , headerHash = Hash "00000000000000000000000000000001"
-            , parentHeaderHash = Hash "00000000000000000000000000000000"
+            , parentHeaderHash = Just $ Hash "00000000000000000000000000000000"
             }
 
         generateNextSlots :: [SlotNo] -> Int -> [SlotNo]

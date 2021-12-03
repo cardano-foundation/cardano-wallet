@@ -41,7 +41,6 @@ module Cardano.Wallet.Primitive.Types
       Block(..)
     , BlockHeader(..)
     , isGenesisBlockHeader
-    , hashOfNoParent
 
     , ChainPoint (..)
     , compareSlot
@@ -216,7 +215,7 @@ import Data.List
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust )
+    ( isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -798,32 +797,32 @@ data BlockHeader = BlockHeader
     , headerHash
         :: !(Hash "BlockHeader")
     , parentHeaderHash
-        :: !(Hash "BlockHeader")
+        :: !(Maybe (Hash "BlockHeader"))
     } deriving (Show, Eq, Ord, Generic)
-
--- | Magic value denoting the hash of a block that \"does not exist\".
--- Specifically, this is the hash of \"the parent block\" of the genesis block.
-hashOfNoParent :: Hash "BlockHeader"
-hashOfNoParent = Hash . BS.pack $ replicate 32 0
 
 -- | Check whether a block with a given 'BlockHeader' is the genesis block.
 isGenesisBlockHeader :: BlockHeader -> Bool
-isGenesisBlockHeader = (== hashOfNoParent) . view #parentHeaderHash
+isGenesisBlockHeader = isNothing . view #parentHeaderHash
 
 instance NFData BlockHeader
 
 instance Buildable BlockHeader where
     build (BlockHeader s (Quantity bh) hh ph) =
-        prefixF 8 phF
-        <> "<-["
-        <> prefixF 8 hhF
+        previous
+        <> "["
+        <> current
         <> "-"
         <> build s
         <> "#" <> build (show bh)
         <> "]"
       where
-        hhF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash hh
-        phF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash ph
+        toHex = T.decodeUtf8 . convertToBase Base16
+        current  = prefixF 8 $ build $ toHex $ getHash hh
+        previous = case ph of
+            Nothing -> ""
+            Just h  ->
+                prefixF 8 (build $ toHex $ getHash h)
+                <> "<-"
 
 -- | A point on the blockchain
 -- is either the genesis block, or a block with a hash that was

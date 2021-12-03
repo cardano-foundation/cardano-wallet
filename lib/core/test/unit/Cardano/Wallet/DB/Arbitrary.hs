@@ -302,7 +302,7 @@ instance Arbitrary MockChain where
                     slot
                     (Quantity height)
                     (mockHash slot)
-                    (mockHash slot)
+                    (Just $ mockHash slot)
             Block h
                 <$> (choose (1, 10) >>= vector)
                 <*> pure []
@@ -358,7 +358,7 @@ instance Arbitrary BlockHeader where
         let h = fromIntegral sl + fromIntegral ep * arbitraryEpochLength
         blockH <- arbitrary
         let slot = SlotNo $ fromIntegral h
-        pure $ BlockHeader slot (Quantity h) blockH (coerce blockH)
+        pure $ BlockHeader slot (Quantity h) blockH (Just blockH)
 
 instance Arbitrary SlotNo where
     arbitrary = do

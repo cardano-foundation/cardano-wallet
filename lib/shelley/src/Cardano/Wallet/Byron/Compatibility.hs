@@ -179,7 +179,7 @@ emptyGenesis gp = W.Block
         , headerHash =
             coerce $ W.getGenesisBlockHash gp
         , parentHeaderHash =
-            W.hashOfNoParent
+            Nothing
         }
     }
 
@@ -203,7 +203,7 @@ genesisBlockFromTxOuts gp outs = W.Block
         , headerHash =
             coerce $ W.getGenesisBlockHash gp
         , parentHeaderHash =
-            W.hashOfNoParent
+            Nothing
         }
     , transactions = mkTx <$> outs
     }
@@ -256,7 +256,7 @@ toByronBlockHeader gp blk = W.BlockHeader
         fromBlockNo $ O.blockNo blk
     , headerHash =
         fromByronHash $ O.blockHash blk
-    , parentHeaderHash =
+    , parentHeaderHash = Just $
         fromChainHash (W.getGenesisBlockHash gp) $
         headerPrevHash (O.getHeader blk)
     }

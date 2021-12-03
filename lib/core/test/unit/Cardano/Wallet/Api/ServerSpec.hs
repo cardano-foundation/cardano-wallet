@@ -208,7 +208,7 @@ networkInfoSpec = describe "getNetworkInformation" $ do
                     sl
                     (Quantity $ fromIntegral $ unSlotNo sl)
                     (Hash "header hash")
-                    (Hash "prevHeaderHash")
+                    (Just $ Hash "prevHeaderHash")
         , timeInterpreter = ti
         }
 

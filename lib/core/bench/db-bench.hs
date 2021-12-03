@@ -304,7 +304,7 @@ mkCheckpoints numCheckpoints utxoSize numAssets =
             (SlotNo $ fromIntegral i)
             (Quantity $ fromIntegral i)
             (Hash $ label "parentHeaderHash" i)
-            (Hash $ label "headerHash" i)
+            (Just $ Hash $ label "headerHash" i)
         )
         initDummySeqState
 

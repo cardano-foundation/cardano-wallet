@@ -125,7 +125,13 @@ import Cardano.Wallet.DB.Sqlite.TH
     , unWalletKey
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..), HDPassphrase (..), TxId (..) )
+    ( BlockId (..)
+    , HDPassphrase (..)
+    , TxId (..)
+    , fromMaybeHash
+    , hashOfNoParent
+    , toMaybeHash
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -1704,7 +1710,7 @@ blockHeaderFromEntity cp = W.BlockHeader
     { slotNo = checkpointSlot cp
     , blockHeight = Quantity (checkpointBlockHeight cp)
     , headerHash = getBlockId (checkpointHeaderHash cp)
-    , parentHeaderHash = getBlockId (checkpointParentHash cp)
+    , parentHeaderHash = toMaybeHash (checkpointParentHash cp)
     }
 
 metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
@@ -1750,7 +1756,7 @@ mkCheckpointEntity wid wal =
     cp = Checkpoint
         { checkpointWalletId = wid
         , checkpointSlot = sl
-        , checkpointParentHash = BlockId (header ^. #parentHeaderHash)
+        , checkpointParentHash = fromMaybeHash (header ^. #parentHeaderHash)
         , checkpointHeaderHash = BlockId (header ^. #headerHash)
         , checkpointBlockHeight = bh
         }
@@ -1776,14 +1782,8 @@ checkpointFromEntity
 checkpointFromEntity cp (coins, tokens) =
     W.unsafeInitWallet utxo header
   where
-    (Checkpoint
-        _walletId
-        slot
-        (BlockId headerHash)
-        (BlockId parentHeaderHash)
-        bh
-        ) = cp
-    header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
+    header = blockHeaderFromEntity cp
+
     utxo = W.UTxO $ Map.merge
         (Map.mapMissing (const mkFromCoin)) -- No assets, only coins
         (Map.dropMissing) -- Only assets, impossible.
@@ -2162,7 +2162,7 @@ mkStoreCheckpoints wid =
     update (RollbackTo W.Origin) =
         deleteWhere
             [ CheckpointWalletId ==. wid
-            , CheckpointParentHash !=. BlockId W.hashOfNoParent
+            , CheckpointParentHash !=. BlockId hashOfNoParent
             ]
     update (RestrictTo points) = do
         let pseudoSlot W.Origin    = W.SlotNo 0
@@ -2176,7 +2176,7 @@ mkStoreCheckpoints wid =
             deleteWhere
                 [ CheckpointWalletId ==. wid
                 , CheckpointSlot ==. W.SlotNo 0
-                , CheckpointParentHash !=. BlockId W.hashOfNoParent
+                , CheckpointParentHash !=. BlockId hashOfNoParent
                 ]
 
 mkStoreWalletsCheckpoints

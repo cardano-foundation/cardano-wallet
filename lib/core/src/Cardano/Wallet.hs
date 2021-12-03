@@ -1062,7 +1062,7 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
     logDelegation = traceWith tr . uncurry MsgDiscoveredDelegationCert
 
     isParentOf :: Wallet s -> Block -> Bool
-    isParentOf cp = (== parent) . parentHeaderHash . header
+    isParentOf cp = (== Just parent) . parentHeaderHash . header
       where parent = headerHash $ currentTip cp
 
 -- | Remove an existing wallet. Note that there's no particular work to

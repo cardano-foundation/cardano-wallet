@@ -189,7 +189,7 @@ genSlot = frequency
 
 genBlockHeader :: SlotNo -> Gen BlockHeader
 genBlockHeader sl = do
-        BlockHeader sl (mockBlockHeight sl) <$> genHash <*> genHash
+        BlockHeader sl (mockBlockHeight sl) <$> genHash <*> (Just <$> genHash)
       where
         mockBlockHeight :: SlotNo -> Quantity "block" Word32
         mockBlockHeight = Quantity . fromIntegral . unSlotNo

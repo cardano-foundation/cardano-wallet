@@ -394,7 +394,7 @@ emptyGenesis gp = W.Block
         , headerHash =
             coerce $ W.getGenesisBlockHash gp
         , parentHeaderHash =
-            W.hashOfNoParent
+            Nothing
         }
     }
 
@@ -455,7 +455,7 @@ toShelleyBlockHeader genesisHash blk =
                 fromBlockNo $ SL.bheaderBlockNo header
             , headerHash =
                 fromShelleyHash headerHash
-            , parentHeaderHash =
+            , parentHeaderHash = Just $
                 fromPrevHash (coerce genesisHash) $
                     SL.bheaderPrev header
             }
@@ -601,14 +601,14 @@ fromTip genesisHash tip = case getPoint (getTipPoint tip) of
         { slotNo = W.SlotNo 0
         , blockHeight = Quantity 0
         , headerHash = coerce genesisHash
-        , parentHeaderHash = W.hashOfNoParent
+        , parentHeaderHash = Nothing
         }
     At blk -> W.BlockHeader
         { slotNo = Point.blockPointSlot blk
         , blockHeight = fromBlockNo $ getLegacyTipBlockNo tip
         , headerHash = fromCardanoHash $ Point.blockPointHash blk
         -- TODO: parentHeaderHash could be removed.
-        , parentHeaderHash = W.Hash "parentHeaderHash - unused in Shelley"
+        , parentHeaderHash = Just $ W.Hash "parentHeaderHash - unused in Shelley"
         }
   where
     -- TODO: This function was marked deprecated in ouroboros-network.
@@ -1162,7 +1162,7 @@ fromGenesisData g initialFunds =
             , headerHash =
                 dummyGenesisHash
             , parentHeaderHash =
-                W.hashOfNoParent
+                Nothing
             }
         , transactions = mkTx <$> outs
         }
