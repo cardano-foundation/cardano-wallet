@@ -13,8 +13,10 @@ module Cardano.Wallet.DB.Checkpoints
     ( getPoint
 
     -- * Checkpoints  
-    , Checkpoints (..)
-    , singleton
+    , Checkpoints
+    , checkpoints
+    , loadCheckpoints
+    , fromGenesis
     , getLatest
     , findNearestPoint
     
@@ -85,21 +87,30 @@ getPoint =
 -- | Collection of checkpoints indexed by 'Slot'.
 data Checkpoints a = Checkpoints
     { checkpoints :: Map W.Slot a
+    -- ^ Map of checkpoints. Always contains the genesis checkpoint.
     } deriving (Eq,Show,Generic)
 -- FIXME LATER during ADP-1043:
 --  Use a more sophisticated 'Checkpoints' type that stores deltas.
 
--- | Make a single checkpoint.
-singleton :: W.Slot -> a -> Checkpoints a
-singleton key a = Checkpoints $ Map.singleton key a
+-- | Turn the list of checkpoints into a map of checkpoints.
+--
+-- FIXME LATER during ADP-1043:
+--   The database actually does not store the checkpoint at genesis,
+--   but the checkpoint after that.
+--   Hence, this function does not check whether the genesis checkpoint
+--   is in the list of checkpoints.
+loadCheckpoints :: [(W.Slot, a)] -> Checkpoints a
+loadCheckpoints = Checkpoints . Map.fromList
+
+-- | Begin with the genesis checkpoint.
+fromGenesis :: a -> Checkpoints a
+fromGenesis a = Checkpoints $ Map.singleton W.Origin a
 
 -- | Get the checkpoint with the largest 'SlotNo'.
 getLatest :: Checkpoints a -> (W.Slot, a)
 getLatest = from . Map.lookupMax . view #checkpoints 
   where
-    from = fromMaybe (error "getLatest: Genesis checkpoint is missing!")
-    -- FIXME LATER during ADP-1043:
-    --   Make sure that 'Checkpoints' always has a genesis checkpoint
+    from = fromMaybe (error "getLatest: there should always be at least a genesis checkpoint")
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint :: Checkpoints a -> W.Slot -> Maybe W.Slot
@@ -123,7 +134,7 @@ instance Delta (DeltaCheckpoints a) where
     apply (RollbackTo pt) = over #checkpoints $
         Map.filterWithKey (\k _ -> k <= pt)
     apply (RestrictTo pts) = over #checkpoints $ \m ->
-        Map.restrictKeys m $ Set.fromList pts
+        Map.restrictKeys m $ Set.fromList (W.Origin:pts)
 
 {-------------------------------------------------------------------------------
     A Delta type for Maps
