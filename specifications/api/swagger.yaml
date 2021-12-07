@@ -1229,10 +1229,13 @@ x-certificateNotOurs: &certificateNotOurs
       <<: *stakeAddress
 
 x-otherCertificate: &otherCertificate
-  type: string
-  enum:
-    - genesis
-    - mir
+  type: object
+  required:
+    - certificate_type
+  properties:
+    certificate_type:
+      type: string
+      enum: ["mir", "genesis"]
 
 x-transactionRedemptionRequest: &transactionRedemptionRequest
   <<: *walletMnemonicSentence
@@ -2474,12 +2477,16 @@ components:
     ApiRegisterPool: &ApiRegisterPool
       type: object
       required:
+        - certificate_type
         - pool_id
         - pool_owners
         - pool_margin
         - pool_cost
         - pool_pledge
       properties:
+        certificate_type:
+          type: string
+          enum: ["register_pool"]
         pool_id: *stakePoolId
         pool_owners:
           type: array
@@ -2493,9 +2500,13 @@ components:
     ApiDeregisterPool: &ApiDeregisterPool
       type: object
       required:
+        - certificate_type
         - pool_id
         - retirement_epoch
       properties:
+        certificate_type:
+          type: string
+          enum: ["deregister_pool"]
         pool_id: *stakePoolId
         retirement_epoch: *epochNumber
 

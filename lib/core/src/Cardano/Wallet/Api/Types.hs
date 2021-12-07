@@ -440,7 +440,7 @@ import Data.Word.Odd
 import Fmt
     ( pretty )
 import GHC.Generics
-    ( Generic )
+    ( Generic, Rep )
 import GHC.TypeLits
     ( Nat, Symbol )
 import Numeric.Natural
@@ -3067,19 +3067,47 @@ instance ToJSON (ApiT W.StakePoolMetadataHash) where
     toJSON = toTextJSON
 
 instance FromJSON (ApiT W.NonWalletCertificate) where
-    parseJSON = fromTextJSON "ApiT NonWalletCertificate"
+    parseJSON val =
+        if val == object ["certificate_type" .= String "mir"] then
+            pure $ ApiT MIRCertificate
+        else if val == object ["certificate_type" .= String "genesis"] then
+            pure $ ApiT GenesisCertificate
+        else
+            fail "expected object with key 'certificate_type' and value either 'mir' or 'genesis'"
 instance ToJSON (ApiT W.NonWalletCertificate) where
-    toJSON = toTextJSON
+    toJSON (ApiT cert) = object ["certificate_type" .= String (toText cert)]
+
+parseExtendedAesonObject
+    :: ( Generic a
+       , Aeson.GFromJSON Aeson.Zero (Rep a) )
+    => String
+    -> Value
+    -> Parser a
+parseExtendedAesonObject txt = withObject txt $ \o -> do
+    let removeCertType (numTxt,_) = numTxt /= "certificate_type"
+    let o' = HM.fromList $ filter removeCertType $ HM.toList o
+    genericParseJSON defaultRecordTypeOptions (Object o')
+
+extendAesonObject
+    :: ( Generic a
+       , Aeson.GToJSON' Value Aeson.Zero (Rep a))
+    => Text
+    -> a
+    -> Value
+extendAesonObject txt apipool =
+    let Object obj = genericToJSON defaultRecordTypeOptions apipool
+        Object obj' = object ["certificate_type" .= String txt]
+    in Object $ obj <> obj'
 
 instance FromJSON ApiRegisterPool where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON = parseExtendedAesonObject "ApiRegisterPool"
 instance ToJSON ApiRegisterPool where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON = extendAesonObject "register_pool"
 
 instance FromJSON ApiDeregisterPool where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON = parseExtendedAesonObject "ApiDeregisterPool"
 instance ToJSON ApiDeregisterPool where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON = extendAesonObject "deregister_pool"
 
 instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
     parseJSON t =
@@ -3122,7 +3150,7 @@ instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
                     pool <- parseJSON obj :: Aeson.Parser ApiDeregisterPool
                     pure $ StakePoolDeregister pool
         parseOtherCert =
-            fmap OtherCertificate . fromTextJSON "OtherCertificate"
+            fmap OtherCertificate . (parseJSON :: Value -> Aeson.Parser (ApiT W.NonWalletCertificate))
 
 instance EncodeStakeAddress n => ToJSON (ApiAnyCertificate n) where
     toJSON (WalletDelegationCertificate cert) = toJSON cert
