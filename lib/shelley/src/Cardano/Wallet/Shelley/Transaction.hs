@@ -94,7 +94,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Balance
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter, getSystemStart, toEpochInfo )
 import Cardano.Wallet.Primitive.Types
-    ( Certificates
+    ( Certificate
     , ExecutionUnitPrices (..)
     , ExecutionUnits (..)
     , FeePolicy (..)
@@ -561,7 +561,7 @@ newTransactionLayer networkId = TransactionLayer
     , updateTx = updateSealedTx
     }
 
-_decodeSealedTx :: SealedTx -> (Tx, TokenMap, TokenMap, Certificates)
+_decodeSealedTx :: SealedTx -> (Tx, TokenMap, TokenMap, [Certificate])
 _decodeSealedTx (cardanoTx -> InAnyCardanoEra _era tx) = fromCardanoTx tx
 
 mkDelegationCertificates

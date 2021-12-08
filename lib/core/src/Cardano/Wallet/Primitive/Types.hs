@@ -64,7 +64,7 @@ module Cardano.Wallet.Primitive.Types
     , getPoolRetirementCertificate
 
     , NonWalletCertificate (..)
-    , Certificates
+    , Certificate (..)
 
     -- * Network Parameters
     , NetworkParameters (..)
@@ -1492,8 +1492,13 @@ instance FromText NonWalletCertificate where
 
 instance NFData NonWalletCertificate
 
-type Certificates =
-    ([DelegationCertificate], [PoolCertificate], [NonWalletCertificate])
+data Certificate =
+      CertificateOfDelegation DelegationCertificate
+    | CertificateOfPool PoolCertificate
+    | CertificateOther NonWalletCertificate
+    deriving (Generic, Show, Eq)
+
+instance NFData Certificate
 
 -- | Represents an abstract notion of a certificate publication time.
 --
