@@ -23,7 +23,7 @@
 
 module Cardano.Wallet.DB.Sqlite.CheckpointsOld
     ( mkStoreWalletsCheckpoints
-    , PersistState (..)
+    , PersistAddressBook (..)
     , blockHeaderFromEntity
     )
     where
@@ -42,6 +42,12 @@ import Cardano.Wallet.DB.Checkpoints
     , DeltaMap (..)
     , getPoint
     , loadCheckpoints
+    )
+import Cardano.Wallet.DB.Sqlite.AddressBook
+    ( AddressBookIso (..)
+    , Discoveries (..)
+    , Prologue (..)
+    , SeqAddressList (..)
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
@@ -70,7 +76,6 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
@@ -101,12 +106,16 @@ import Data.Bifunctor
     ( second )
 import Data.DBVar
     ( Store (..) )
+import Data.Functor
+    ( (<&>) )
+import Data.Generics.Internal.VL
+    ( withIso )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromJust, isJust )
+    ( fromJust, isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -151,7 +160,7 @@ import qualified Data.Map.Strict as Map
 -------------------------------------------------------------------------------}
 -- | Store for 'Checkpoints' of multiple different wallets.
 mkStoreWalletsCheckpoints
-    :: forall s key. (PersistState s, key ~ W.WalletId)
+    :: forall s key. (PersistAddressBook s, key ~ W.WalletId)
     => Store (SqlPersistT IO)
         (DeltaMap key (DeltaCheckpoints (W.Wallet s)))
 mkStoreWalletsCheckpoints = Store{loadS=load,writeS=write,updateS=update}
@@ -184,7 +193,7 @@ mkStoreWalletsCheckpoints = Store{loadS=load,writeS=write,updateS=update}
 
 -- | Store for 'Checkpoints' of a single wallet.
 mkStoreCheckpoints
-    :: forall s. PersistState s
+    :: forall s. PersistAddressBook s
     => W.WalletId
     -> Store (SqlPersistT IO) (DeltaCheckpoints (W.Wallet s))
 mkStoreCheckpoints wid =
@@ -225,19 +234,20 @@ mkStoreCheckpoints wid =
     Database operations
 -------------------------------------------------------------------------------}
 selectAllCheckpoints
-    :: forall s. PersistState s
+    :: forall s. PersistAddressBook s
     => W.WalletId
     -> SqlPersistT IO [(W.Slot, W.Wallet s)]
 selectAllCheckpoints wid = do
     cps <- fmap entityVal <$> selectList
         [ CheckpointWalletId ==. wid ]
         [ Desc CheckpointSlot ]
-    fmap catMaybes $ forM cps $ \cp -> do
+    -- FIXME LATER during ADP-1043: Presence of these tables?
+    prologue <- fromJust <$> loadPrologue wid
+    forM cps $ \cp -> do
         utxo <- selectUTxO cp
-        st <- selectState (checkpointId cp)
-        pure $
-            (\s -> let c = checkpointFromEntity @s cp utxo s in (getPoint c, c))
-            <$> st
+        discoveries <- loadDiscoveries wid (checkpointSlot cp)
+        let st = withIso addressIso $ \_ from -> from (prologue, discoveries)
+        pure $ let c = checkpointFromEntity @s cp utxo st in (getPoint c, c)
 
 selectUTxO
     :: Checkpoint
@@ -256,7 +266,7 @@ selectUTxO cp = do
     return (coins, tokens)
 
 insertCheckpoint
-    :: forall s. (PersistState s)
+    :: forall s. (PersistAddressBook s)
     => W.WalletId
     -> W.Wallet s
     -> SqlPersistT IO ()
@@ -267,7 +277,10 @@ insertCheckpoint wid wallet = do
     insert_ cp
     dbChunked insertMany_ utxo
     dbChunked insertMany_ utxoTokens
-    insertState (wid, sl) (W.getState wallet)
+    withIso addressIso $ \to _ -> do
+        let (prologue, discoveries) = to $ W.getState wallet
+        insertPrologue wid prologue
+        insertDiscoveries wid sl discoveries
 
 {-------------------------------------------------------------------------------
     Database type conversions
@@ -349,44 +362,45 @@ checkpointFromEntity cp (coins, tokens) =
         ]
 
 {-------------------------------------------------------------------------------
-    DB queries for address discovery state
+    AddressBook storage
 -------------------------------------------------------------------------------}
-
--- | Get a @(WalletId, SlotNo)@ pair from the checkpoint table, for use with
--- 'insertState' and 'selectState'.
-checkpointId :: Checkpoint -> (W.WalletId, W.SlotNo)
-checkpointId cp = (checkpointWalletId cp, checkpointSlot cp)
-
--- | Functions for saving/loading the wallet's address discovery state into
--- SQLite.
-class PersistState s where
-    -- | Store the state for a checkpoint.
-    insertState :: (W.WalletId, W.SlotNo) -> s -> SqlPersistT IO ()
-    -- | Load the state for a checkpoint.
-    selectState :: (W.WalletId, W.SlotNo) -> SqlPersistT IO (Maybe s)
+-- | Functions for saving / loading the wallet's address book to / from SQLite
+class AddressBookIso s => PersistAddressBook s where
+    insertPrologue
+        :: W.WalletId -> Prologue s -> SqlPersistT IO ()
+    insertDiscoveries
+        :: W.WalletId -> W.SlotNo -> Discoveries s -> SqlPersistT IO ()
+    
+    loadPrologue
+        :: W.WalletId -> SqlPersistT IO (Maybe (Prologue s))
+    loadDiscoveries
+        :: W.WalletId -> W.SlotNo -> SqlPersistT IO (Discoveries s)
 
 {-------------------------------------------------------------------------------
-    SeqState address books
+    Sequential address book storage
 -------------------------------------------------------------------------------}
-
 -- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance PersistState (Seq.SeqState n k) => PersistState (Seq.SeqAnyState n k p)
+instance PersistAddressBook (Seq.SeqState n k)
+    => PersistAddressBook (Seq.SeqAnyState n k p)
   where
-    insertState (wid, sl) = insertState (wid, sl) . Seq.innerState
-    selectState (wid, sl) = fmap Seq.SeqAnyState <$> selectState (wid, sl)
+    insertPrologue wid (PS s) = insertPrologue wid s
+    insertDiscoveries wid sl (DS s) = insertDiscoveries wid sl s
+    loadPrologue wid = fmap PS <$> loadPrologue wid
+    loadDiscoveries wid sl = DS <$> loadDiscoveries wid sl
 
 instance
-    ( Eq (k 'AccountK XPub)
-    , PersistPublicKey (k 'AccountK)
-    , PersistPublicKey (k 'AddressK)
-    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , PaymentAddress n k
-    , SoftDerivation k
-    , GetPurpose k
+    ( Eq (key 'AccountK XPub)
+    , PersistPublicKey (key 'AccountK)
+    , PersistPublicKey (key 'AddressK)
+    , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
+    , GetPurpose key
+    , PaymentAddress n key
+    , SoftDerivation key
     , Typeable n
-    , (k == SharedKey) ~ 'False
-    ) => PersistState (Seq.SeqState n k) where
-    insertState (wid, sl) st = do
+    , (key == SharedKey) ~ 'False
+    ) => PersistAddressBook (Seq.SeqState n key) where
+
+    insertPrologue wid (SeqPrologue st) = do
         let (intPool, extPool) =
                 (Seq.internalPool st, Seq.externalPool st)
         let (Seq.ParentContextUtxo accXPubInternal) = Seq.context intPool
@@ -405,63 +419,38 @@ instance
             , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
             , seqStateDerivationPrefix = Seq.derivationPrefix st
             }
-        insertAddressPool @n wid sl intPool
-        insertAddressPool @n wid sl extPool
         deleteWhere [SeqStatePendingWalletId ==. wid]
         dbChunked
             insertMany_
             (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
 
-    selectState (wid, sl) = runMaybeT $ do
+    insertDiscoveries wid sl
+        (SeqDiscoveries (SeqAddressList ints) (SeqAddressList exts))
+      = do
+        void $ dbChunked insertMany_
+            [ SeqStateAddress wid sl addr ix UtxoInternal state
+            | (ix, (addr, state)) <- zip [0..] ints
+            ]
+        void $ dbChunked insertMany_
+            [ SeqStateAddress wid sl addr ix UtxoExternal state
+            | (ix, (addr, state)) <- zip [0..] exts
+            ]
+
+    loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
         let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
-        intPool <- lift $ selectAddressPool @n wid sl iGap (Seq.ParentContextUtxo accountXPub)
-        extPool <- lift $ selectAddressPool @n wid sl eGap (Seq.ParentContextUtxo accountXPub)
+        let intPool = Seq.mkAddressPool @n (Seq.ParentContextUtxo accountXPub) iGap []
+        let extPool = Seq.mkAddressPool @n (Seq.ParentContextUtxo accountXPub) eGap []
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
+        pure $ SeqPrologue $
+            Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
 
-insertAddressPool
-    :: forall n k c. (PaymentAddress n k, Typeable c, GetPurpose k)
-    => W.WalletId
-    -> W.SlotNo
-    -> Seq.AddressPool c k
-    -> SqlPersistT IO ()
-insertAddressPool wid sl pool =
-    void $ dbChunked insertMany_
-        [ SeqStateAddress wid sl addr ix (Seq.role @c) state
-        | (ix, (addr, state, _))
-        <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
-        ]
-
-selectAddressPool
-    :: forall (n :: NetworkDiscriminant) k c.
-        ( Typeable c
-        , Typeable n
-        , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , MkKeyFingerprint k W.Address
-        )
-    => W.WalletId
-    -> W.SlotNo
-    -> Seq.AddressPoolGap
-    -> Seq.ParentContext c k
-    -> SqlPersistT IO (Seq.AddressPool c k)
-selectAddressPool wid sl gap ctx = do
-    addrs <- fmap entityVal <$> selectList
-        [ SeqStateAddressWalletId ==. wid
-        , SeqStateAddressSlot ==. sl
-        , SeqStateAddressRole ==. Seq.role @c
-        ] [Asc SeqStateAddressIndex]
-    pure $ addressPoolFromEntity addrs
-  where
-    addressPoolFromEntity
-        :: [SeqStateAddress]
-        -> Seq.AddressPool c k
-    addressPoolFromEntity addrs
-        = Seq.mkAddressPool @n @c @k ctx gap
-        $ map (\x -> (seqStateAddressAddress x, seqStateAddressStatus x)) addrs
+    loadDiscoveries wid sl =
+        SeqDiscoveries
+            <$> selectSeqAddressList wid sl
+            <*> selectSeqAddressList wid sl
 
 mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
@@ -475,21 +464,33 @@ selectSeqStatePendingIxs wid =
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
-{-------------------------------------------------------------------------------
-    SharedState address books
--------------------------------------------------------------------------------}
+selectSeqAddressList
+    :: forall c. Typeable c
+    => W.WalletId -> W.SlotNo -> SqlPersistT IO (SeqAddressList c)
+selectSeqAddressList wid sl = do
+    SeqAddressList . map (toPair . entityVal) <$> selectList
+        [ SeqStateAddressWalletId ==. wid
+        , SeqStateAddressSlot ==. sl
+        , SeqStateAddressRole ==. Seq.role @c
+        ] [Asc SeqStateAddressIndex]
+  where
+    toPair x = (seqStateAddressAddress x, seqStateAddressStatus x)
 
+{-------------------------------------------------------------------------------
+    Shared key address book storage
+-------------------------------------------------------------------------------}
 instance
-    ( PersistPublicKey (k 'AccountK)
-    , MkKeyFingerprint k W.Address
-    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , SoftDerivation k
-    , WalletKey k
+    ( PersistPublicKey (key 'AccountK)
+    , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
+    , MkKeyFingerprint key W.Address
+    , SoftDerivation key
+    , GetPurpose key
+    , WalletKey key
     , Typeable n
-    , GetPurpose k
-    , k ~ SharedKey
-    ) => PersistState (Shared.SharedState n k) where
-    insertState (wid, sl) st = do
+    , key ~ SharedKey
+    ) => PersistAddressBook (Shared.SharedState n key) where
+    
+    insertPrologue wid (SharedPrologue st) = do
         case st of
             Shared.SharedState prefix (Shared.PendingFields (Shared.SharedStatePending accXPub pTemplate dTemplateM g)) -> do
                 insertSharedState accXPub g pTemplate dTemplateM prefix
@@ -504,11 +505,9 @@ instance
                 insertCosigner (cosigners pTemplate) Payment
                 when (isJust dTemplateM) $
                     insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
-                insertAddressSharedPool @n wid sl pool
       where
          insertSharedState accXPub g pTemplate dTemplateM prefix = do
              deleteWhere [SharedStateWalletId ==. wid]
-
              insert_ $ SharedState
                  { sharedStateWalletId = wid
                  , sharedStateAccountXPub = serializeXPub accXPub
@@ -517,46 +516,43 @@ instance
                  , sharedStateDelegationScript = template <$> dTemplateM
                  , sharedStateDerivationPrefix = prefix
                  }
+
          insertCosigner cs cred = do
              deleteWhere [CosignerKeyWalletId ==. wid, CosignerKeyCredential ==. cred]
-
              dbChunked insertMany_
-                 [ CosignerKey wid cred (serializeXPub @(k 'AccountK) $ liftRawKey xpub) c
+                 [ CosignerKey wid cred (serializeXPub @(key 'AccountK) $ liftRawKey xpub) c
                  | ((Cosigner c), xpub) <- Map.assocs cs
                  ]
 
-    selectState (wid, sl) = runMaybeT $ do
+    insertDiscoveries wid sl (SharedDiscoveries (SeqAddressList exts)) = do
+        dbChunked insertMany_
+            [ SeqStateAddress wid sl addr ix UtxoExternal state
+            | (ix, (addr, state)) <- zip [0..] exts
+            ]
+
+    loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []
         let SharedState _ accountBytes g pScript dScriptM prefix = entityVal st
         let accXPub = unsafeDeserializeXPub accountBytes
-        pCosigners <- lift $ selectCosigners @k wid Payment
+        pCosigners <- lift $ selectCosigners @key wid Payment
         let prepareKeys = map (second getRawKey)
         let pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
-        dCosigners <- lift $ selectCosigners @k wid Delegation
+        dCosigners <- lift $ selectCosigners @key wid Delegation
         let dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
-        lift (multisigPoolAbsent wid sl) >>= \case
-            True -> pure $ Shared.SharedState prefix $ Shared.PendingFields $ Shared.SharedStatePending
+        prologue <- lift $ multisigPoolAbsent wid <&> \case
+            True -> Shared.SharedState prefix $ Shared.PendingFields $ Shared.SharedStatePending
                 { Shared.pendingSharedStateAccountKey = accXPub
                 , Shared.pendingSharedStatePaymentTemplate = pTemplate
                 , Shared.pendingSharedStateDelegationTemplate = dTemplateM
                 , Shared.pendingSharedStateAddressPoolGap = g
                 }
-            False -> do
+            False ->
                 let ctx = Seq.ParentContextShared accXPub pTemplate dTemplateM
-                pool <- lift $ selectAddressPool @n wid sl g ctx
-                pure $ Shared.SharedState prefix (Shared.ReadyFields pool)
+                    pool = Seq.mkAddressPool @n @_ @key ctx g []
+                in  Shared.SharedState prefix (Shared.ReadyFields pool)
+        pure $ SharedPrologue prologue
 
-insertAddressSharedPool
-    :: forall (n :: NetworkDiscriminant) k. (GetPurpose k, Typeable n)
-    => W.WalletId
-    -> W.SlotNo
-    -> Seq.AddressPool 'UtxoExternal k
-    -> SqlPersistT IO ()
-insertAddressSharedPool wid sl pool =
-    void $ dbChunked insertMany_
-    [ SeqStateAddress wid sl addr ix UtxoExternal state
-    | (ix, (addr, state, _)) <- zip [0..] (Seq.addresses (Shared.liftPaymentAddress @n) pool)
-    ]
+    loadDiscoveries wid sl = SharedDiscoveries <$> selectSeqAddressList wid sl
 
 selectCosigners
     :: forall k. PersistPublicKey (k 'AccountK)
@@ -572,64 +568,66 @@ selectCosigners wid cred = do
    cosignerFromEntity (CosignerKey _ _ key c) =
        (Cosigner c, unsafeDeserializeXPub key)
 
-multisigPoolAbsent
-    :: W.WalletId
-    -> W.SlotNo
-    -> SqlPersistT IO Bool
-multisigPoolAbsent wid sl = do
-    entries <- selectList
+-- | Check whether we have ever stored checkpoints for a multi-signature pool
+multisigPoolAbsent :: W.WalletId -> SqlPersistT IO Bool
+multisigPoolAbsent wid =
+    isNothing <$> selectFirst
         [ SeqStateAddressWalletId ==. wid
-        , SeqStateAddressSlot ==. sl
-        , SeqStateAddressRole ==. Seq.role @'UtxoExternal
+        , SeqStateAddressRole ==. UtxoExternal
         ] []
-    pure $ null entries
 
 {-------------------------------------------------------------------------------
-    HD Random address books
+    HD Random address book storage
 -------------------------------------------------------------------------------}
-
 -- piggy-back on RndState existing instance, to simulate the same behavior.
-instance PersistState (Rnd.RndAnyState n p) where
-    insertState (wid, sl) = insertState (wid, sl) . Rnd.innerState
-    selectState (wid, sl) = fmap Rnd.RndAnyState <$> selectState (wid, sl)
+instance PersistAddressBook (Rnd.RndAnyState n p)
+  where
+    insertPrologue wid (PR s) = insertPrologue wid s
+    insertDiscoveries wid sl (DR s) = insertDiscoveries wid sl s
+    loadPrologue wid = fmap PR <$> loadPrologue wid
+    loadDiscoveries wid sl = DR <$> loadDiscoveries wid sl
 
--- Persisting 'RndState' requires that the wallet root key has already been
+-- | Persisting 'RndState' requires that the wallet root key has already been
 -- added to the database with 'putPrivateKey'. Unlike sequential AD, random
 -- address discovery requires a root key to recognize addresses.
-instance PersistState (Rnd.RndState t) where
-    insertState (wid, sl) st = do
-        let ix = W.getIndex (st ^. #accountIndex)
+instance PersistAddressBook (Rnd.RndState n) where
+    insertPrologue wid (RndPrologue st) = do
+        let ix  = W.getIndex (st ^. #accountIndex)
         let gen = st ^. #gen
         let pwd = st ^. #hdPassphrase
         repsert (RndStateKey wid) (RndState wid ix gen (HDPassphrase pwd))
-        insertRndStateDiscovered wid sl (Rnd.discoveredAddresses st)
-        insertRndStatePending wid (Rnd.pendingAddresses st)
+        insertRndStatePending wid (st ^. #pendingAddresses)
 
-    selectState (wid, sl) = runMaybeT $ do
+    insertDiscoveries wid sl (RndDiscoveries addresses) = do
+        dbChunked insertMany_
+            [ RndStateAddress wid sl accIx addrIx addr st
+            | ((W.Index accIx, W.Index addrIx), (addr, st))
+                <- Map.assocs addresses
+            ]
+
+    loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst
             [ RndStateWalletId ==. wid
             ] []
         let (RndState _ ix gen (HDPassphrase pwd)) = entityVal st
-        discoveredAddresses <- lift $ selectRndStateDiscovered wid sl
         pendingAddresses <- lift $ selectRndStatePending wid
-        pure $ Rnd.RndState
+        pure $ RndPrologue $ Rnd.RndState
             { hdPassphrase = pwd
             , accountIndex = W.Index ix
-            , discoveredAddresses = discoveredAddresses
+            , discoveredAddresses = Map.empty
             , pendingAddresses = pendingAddresses
             , gen = gen
             }
 
-insertRndStateDiscovered
-    :: W.WalletId
-    -> W.SlotNo
-    -> Map Rnd.DerivationPath (W.Address, W.AddressState)
-    -> SqlPersistT IO ()
-insertRndStateDiscovered wid sl addresses = do
-    dbChunked insertMany_
-        [ RndStateAddress wid sl accIx addrIx addr st
-        | ((W.Index accIx, W.Index addrIx), (addr, st)) <- Map.assocs addresses
-        ]
+    loadDiscoveries wid sl = do
+        addrs <- map (assocFromEntity . entityVal) <$> selectList
+            [ RndStateAddressWalletId ==. wid
+            , RndStateAddressSlot ==. sl
+            ] []
+        pure $ RndDiscoveries $ Map.fromList addrs
+      where
+        assocFromEntity (RndStateAddress _ _ accIx addrIx addr st) =
+            ((W.Index accIx, W.Index addrIx), (addr, st))
 
 insertRndStatePending
     :: W.WalletId
@@ -641,20 +639,6 @@ insertRndStatePending wid addresses = do
         [ RndStatePendingAddress wid accIx addrIx addr
         | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
         ]
-
-selectRndStateDiscovered
-    :: W.WalletId
-    -> W.SlotNo
-    -> SqlPersistT IO (Map Rnd.DerivationPath (W.Address, W.AddressState))
-selectRndStateDiscovered wid sl = do
-    addrs <- fmap entityVal <$> selectList
-        [ RndStateAddressWalletId ==. wid
-        , RndStateAddressSlot ==. sl
-        ] []
-    pure $ Map.fromList $ map assocFromEntity addrs
-  where
-    assocFromEntity (RndStateAddress _ _ accIx addrIx addr st) =
-        ((W.Index accIx, W.Index addrIx), (addr, st))
 
 selectRndStatePending
     :: W.WalletId
