@@ -879,7 +879,7 @@ prop_localTxSubmission tc = monadicIO $ do
     mockNodeTip end sl cb
         | sl < end = do
             let h = Hash ""
-            void $ cb $ BlockHeader (SlotNo sl) (Quantity (fromIntegral sl)) h h
+            void $ cb $ BlockHeader (SlotNo sl) (Quantity (fromIntegral sl)) h (Just h)
             mockNodeTip end (sl + 1) cb
         | otherwise = pure ()
 
@@ -1323,7 +1323,7 @@ mockNetworkLayer = dummyNetworkLayer
         error "dummyNetworkLayer: syncProgress not implemented"
     }
   where
-    dummyTip = BlockHeader (SlotNo 0) (Quantity 0) dummyHash dummyHash
+    dummyTip = BlockHeader (SlotNo 0) (Quantity 0) dummyHash (Just dummyHash)
     dummyHash = Hash "dummy hash"
 
 newtype DummyState

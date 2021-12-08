@@ -394,7 +394,7 @@ emptyGenesis gp = W.Block
         , headerHash =
             coerce $ W.getGenesisBlockHash gp
         , parentHeaderHash =
-            hashOfNoParent
+            Nothing
         }
     }
 
@@ -409,11 +409,6 @@ nodeToClientVersions = [NodeToClientV_8, NodeToClientV_9]
 --------------------------------------------------------------------------------
 --
 -- Type Conversions
-
--- | Magic value for the absence of a block.
-hashOfNoParent :: W.Hash "BlockHeader"
-hashOfNoParent =
-    W.Hash . BS.pack $ replicate 32 0
 
 toCardanoHash :: W.Hash "BlockHeader" -> OneEraHash (CardanoEras sc)
 toCardanoHash (W.Hash bytes) =
@@ -460,7 +455,7 @@ toShelleyBlockHeader genesisHash blk =
                 fromBlockNo $ SL.bheaderBlockNo header
             , headerHash =
                 fromShelleyHash headerHash
-            , parentHeaderHash =
+            , parentHeaderHash = Just $
                 fromPrevHash (coerce genesisHash) $
                     SL.bheaderPrev header
             }
@@ -606,14 +601,14 @@ fromTip genesisHash tip = case getPoint (getTipPoint tip) of
         { slotNo = W.SlotNo 0
         , blockHeight = Quantity 0
         , headerHash = coerce genesisHash
-        , parentHeaderHash = hashOfNoParent
+        , parentHeaderHash = Nothing
         }
     At blk -> W.BlockHeader
         { slotNo = Point.blockPointSlot blk
         , blockHeight = fromBlockNo $ getLegacyTipBlockNo tip
         , headerHash = fromCardanoHash $ Point.blockPointHash blk
         -- TODO: parentHeaderHash could be removed.
-        , parentHeaderHash = W.Hash "parentHeaderHash - unused in Shelley"
+        , parentHeaderHash = Just $ W.Hash "parentHeaderHash - unused in Shelley"
         }
   where
     -- TODO: This function was marked deprecated in ouroboros-network.
@@ -1167,7 +1162,7 @@ fromGenesisData g initialFunds =
             , headerHash =
                 dummyGenesisHash
             , parentHeaderHash =
-                W.Hash (BS.replicate 32 0)
+                Nothing
             }
         , transactions = mkTx <$> outs
         }

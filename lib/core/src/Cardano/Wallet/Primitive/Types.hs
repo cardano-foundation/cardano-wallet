@@ -20,6 +20,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+-- Technically,  instance Buildable Slot
+-- in an orphan instance, but `Slot` is a type synonym
+-- and the instance is more specific than a vanilla `WithOrigin` instance.
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -35,8 +40,14 @@ module Cardano.Wallet.Primitive.Types
     -- * Block
       Block(..)
     , BlockHeader(..)
+    , isGenesisBlockHeader
+
     , ChainPoint (..)
     , compareSlot
+    , chainPointFromBlockHeader
+    , Slot
+    , WithOrigin (..)
+    , toSlot
 
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
@@ -154,7 +165,7 @@ module Cardano.Wallet.Primitive.Types
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo (..) )
+    ( SlotNo (..), WithOrigin (..) )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.Coin
@@ -204,7 +215,7 @@ import Data.List
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust )
+    ( isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -761,7 +772,7 @@ instance Buildable StakePoolsSummary where
 {-------------------------------------------------------------------------------
                                     Block
 -------------------------------------------------------------------------------}
-
+-- | A block on the chain, as the wallet sees it.
 data Block = Block
     { header
         :: !BlockHeader
@@ -778,27 +789,67 @@ instance Buildable (Block) where
         <> build h
         <> if null txs then " ∅" else "\n" <> indentF 4 (blockListF txs)
 
+data BlockHeader = BlockHeader
+    { slotNo
+        :: SlotNo
+    , blockHeight
+        :: Quantity "block" Word32
+    , headerHash
+        :: !(Hash "BlockHeader")
+    , parentHeaderHash
+        :: !(Maybe (Hash "BlockHeader"))
+    } deriving (Show, Eq, Ord, Generic)
+
+-- | Check whether a block with a given 'BlockHeader' is the genesis block.
+isGenesisBlockHeader :: BlockHeader -> Bool
+isGenesisBlockHeader = isNothing . view #parentHeaderHash
+
+instance NFData BlockHeader
+
+instance Buildable BlockHeader where
+    build (BlockHeader s (Quantity bh) hh ph) =
+        previous
+        <> "["
+        <> current
+        <> "-"
+        <> build s
+        <> "#" <> build (show bh)
+        <> "]"
+      where
+        toHex = T.decodeUtf8 . convertToBase Base16
+        current  = prefixF 8 $ build $ toHex $ getHash hh
+        previous = case ph of
+            Nothing -> ""
+            Just h  ->
+                prefixF 8 (build $ toHex $ getHash h)
+                <> "<-"
+
 -- | A point on the blockchain
 -- is either the genesis block, or a block with a hash that was
 -- created at a particular 'SlotNo'.
 --
--- TODO: This type is essentially a copy of the 'Cardano.Api.Block.ChainPoint'
+-- TODO:
+--
+-- * This type is essentially a copy of the 'Cardano.Api.Block.ChainPoint'
 -- type. We want to import it from there when overhauling our types.
+-- * That said, using 'WithOrigin' would not be bad.
+-- * 'BlockHeader' is also a good type for rerencing points on the chain,
+-- but it's less compatible with the types in ouroboros-network.
 data ChainPoint
     = ChainPointAtGenesis
     | ChainPoint !SlotNo !(Hash "BlockHeader")
     deriving (Eq, Ord, Show, Generic)
 
 -- | Compare the slot numbers of two 'ChainPoint's,
--- but where the 'ChainPointAtGenesis' comes before all natural slot numbers.
---
--- Note: The 'Ord' instance of 'ChainPoint' is more fine-grained and
--- also compares block hashes.
+-- but where the 'ChainPointAtGenesis' comes before all other slot numbers.
 compareSlot :: ChainPoint -> ChainPoint -> Ordering
-compareSlot ChainPointAtGenesis ChainPointAtGenesis = EQ
-compareSlot ChainPointAtGenesis _ = LT
-compareSlot _ ChainPointAtGenesis = GT
-compareSlot (ChainPoint sl1 _) (ChainPoint sl2 _) = compare sl1 sl2
+compareSlot pt1 pt2 = compare (toSlot pt1) (toSlot pt2)
+
+-- | Convert a 'BlockHeader' into a 'ChainPoint'.
+chainPointFromBlockHeader :: BlockHeader -> ChainPoint
+chainPointFromBlockHeader header@(BlockHeader sl _ hash _)
+    | isGenesisBlockHeader header = ChainPointAtGenesis
+    | otherwise                   = ChainPoint sl hash
 
 instance NFData ChainPoint
 
@@ -811,31 +862,28 @@ instance Buildable ChainPoint where
       where
         hashF = prefixF 8 $ T.decodeUtf8 $ convertToBase Base16 $ getHash hash
 
-data BlockHeader = BlockHeader
-    { slotNo
-        :: SlotNo
-    , blockHeight
-        :: Quantity "block" Word32
-    , headerHash
-        :: !(Hash "BlockHeader")
-    , parentHeaderHash
-        :: !(Hash "BlockHeader")
-    } deriving (Show, Eq, Ord, Generic)
+-- | A point in (slot) time, which is either genesis ('Origin')
+-- or has a slot number ('At').
+--
+-- In contrast to 'ChainPoint', the type 'Slot' does not refer
+-- to a point on an actual chain with valid block hashes,
+-- but merely to a timeslot which can hold a single block.
+-- This implies:
+--
+-- * 'Slot' has a linear ordering implemented in the 'Ord' class
+--   (where @Origin < At slot@).
+-- * Using 'Slot' in QuickCheck testing requires less context
+-- (such as an actual simulated chain.)
+type Slot = WithOrigin SlotNo
 
-instance NFData BlockHeader
+-- | Retrieve the slot of a 'ChainPoint'.
+toSlot :: ChainPoint -> Slot
+toSlot ChainPointAtGenesis = Origin
+toSlot (ChainPoint slot _) = At slot
 
-instance Buildable BlockHeader where
-    build (BlockHeader s (Quantity bh) hh ph) =
-        prefixF 8 phF
-        <> "<-["
-        <> prefixF 8 hhF
-        <> "-"
-        <> build s
-        <> "#" <> build (show bh)
-        <> "]"
-      where
-        hhF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash hh
-        phF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash ph
+instance Buildable Slot where
+    build Origin    = "[genesis]"
+    build (At slot) = "[at slot " <> pretty slot <> "]"
 
 -- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
 -- function where @x@ can be the transaction size in bytes or, a number of

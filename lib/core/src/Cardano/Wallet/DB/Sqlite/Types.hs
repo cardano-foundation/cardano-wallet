@@ -95,7 +95,7 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -140,6 +140,7 @@ import Web.PathPieces
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -323,6 +324,18 @@ instance PersistFieldSql TokenQuantity where
 -- Wraps Hash "BlockHeader" because the persistent dsl doesn't like it raw.
 newtype BlockId = BlockId { getBlockId :: Hash "BlockHeader" }
     deriving (Show, Eq, Ord, Generic)
+
+-- | Magic value that denotes the hash of the parent of the genesis block
+-- (which does not exist). This value is used for serializing
+-- the Nothing case of the #parentHeaderHash field.
+hashOfNoParent :: Hash "BlockHeader"
+hashOfNoParent = Hash . BS.pack $ replicate 32 0
+
+fromMaybeHash :: Maybe (Hash "BlockHeader") -> BlockId
+fromMaybeHash = BlockId . fromMaybe hashOfNoParent 
+
+toMaybeHash :: BlockId -> Maybe (Hash "BlockHeader")
+toMaybeHash (BlockId h) = if h == hashOfNoParent then Nothing else Just h
 
 instance PersistField BlockId where
     toPersistValue = toPersistValue . toText . getBlockId

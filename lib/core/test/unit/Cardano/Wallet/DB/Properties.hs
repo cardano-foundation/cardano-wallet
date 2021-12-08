@@ -49,13 +49,18 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
+    , ChainPoint (..)
     , GenesisParameters
     , ProtocolParameters
+    , Slot
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
     , WalletId (..)
     , WalletMetadata (..)
+    , WithOrigin (..)
+    , chainPointFromBlockHeader
+    , toSlot
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -802,12 +807,12 @@ prop_rollbackCheckpoint db@DBLayer{..} cp0 (MockChain chain) = do
     prop wid point = do
         let tip = currentTip point
         point' <- run $ atomically $ unsafeRunExceptT $
-            rollbackTo wid (tip ^. #slotNo)
+            rollbackTo wid (toSlot $ chainPointFromBlockHeader tip)
         cp <- run $ atomically $ readCheckpoint wid
         let str = maybe "∅" pretty cp
         monitor $ counterexample ("Checkpoint after rollback: \n" <> str)
         assert (ShowFmt cp == ShowFmt (pure point))
-        assert (ShowFmt (point' ^. #slotNo) == ShowFmt (tip ^. #slotNo))
+        assert (ShowFmt point' == ShowFmt (chainPointFromBlockHeader tip))
 
 -- | Re-schedule pending transaction on rollback, i.e.:
 --
@@ -817,6 +822,12 @@ prop_rollbackCheckpoint db@DBLayer{..} cp0 (MockChain chain) = do
 -- - Any incoming transaction after the PoR is forgotten
 -- - Any outgoing transaction after the PoR is back in pending, and have a slot
 --   equal to the PoR.
+--
+-- FIXME LATER: This function only tests slot numbers to roll back to,
+-- not Slot. See note [PointSlotNo] for the difference.
+-- The reason for this restriction is that the 'rollbackTo' function
+-- from the DBLayer currently does not roll the TxHistory back correctly
+-- if there is a rollback to genesis.
 prop_rollbackTxHistory
     :: forall s k. ()
     => DBLayer IO s k
@@ -827,11 +838,11 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
     monadicIO $ do
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
-        ShowFmt point <- namedPick "Requested Rollback point" arbitrary
-        let ixs = rescheduled point
+        ShowFmt slot <- namedPick "Requested Rollback slot" arbitrary
+        let ixs = rescheduled slot
         monitor $ label ("Outgoing tx after point: " <> show (L.length ixs))
         monitor $ cover 50 (not $ null ixs) "rolling back something"
-        setup wid meta >> prop wid point
+        setup wid meta >> prop wid slot
   where
     setup wid meta = run $ do
         cleanDB db
@@ -841,7 +852,7 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
 
     prop wid requestedPoint = do
         point <- run $ unsafeRunExceptT $ mapExceptT atomically $
-            view #slotNo <$> rollbackTo wid requestedPoint
+            rollbackTo wid (At requestedPoint)
         txs <- run $ atomically $ fmap toTxHistory
             <$> readTxHistory wid Nothing Descending wholeRange Nothing
 
@@ -849,12 +860,13 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
         monitor $ counterexample $ "\nOriginal tx history:\n" <> (txsF txs0)
         monitor $ counterexample $ "\nNew tx history:\n" <> (txsF txs)
 
+        let slot = pseudoSlotNo point
         assertWith "Outgoing txs are reschuled" $
-            L.sort (rescheduled point) == L.sort (filterTxs isPending txs)
+            L.sort (rescheduled slot) == L.sort (filterTxs isPending txs)
         assertWith "All other txs are still known" $
-            L.sort (knownAfterRollback point) == L.sort (txId . fst <$> txs)
+            L.sort (knownAfterRollback slot) == L.sort (txId . fst <$> txs)
         assertWith "All txs are now before the point of rollback" $
-            all (isBefore point . snd) txs
+            all (isBefore slot . snd) txs
       where
         txsF :: [(Tx, TxMeta)] -> String
         txsF =
@@ -868,18 +880,21 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
                 , pretty (meta ^. #amount)
                 ])
 
+    pseudoSlotNo ChainPointAtGenesis = SlotNo 0
+    pseudoSlotNo (ChainPoint slot _) = slot
+
     isBefore :: SlotNo -> TxMeta -> Bool
-    isBefore point meta =
-        (slotNo :: TxMeta -> SlotNo) meta <= point
+    isBefore slot meta = (slotNo :: TxMeta -> SlotNo) meta <= slot
 
     rescheduled :: SlotNo -> [Hash "Tx"]
-    rescheduled point =
-        let addedAfter meta = direction meta == Outgoing && meta ^. #slotNo > point
+    rescheduled slot =
+        let addedAfter meta =
+                direction meta == Outgoing && meta ^. #slotNo > slot
         in filterTxs (\tx -> addedAfter tx || isPending tx) txs0
 
     knownAfterRollback :: SlotNo -> [Hash "Tx"]
-    knownAfterRollback point =
-        rescheduled point ++ filterTxs (isBefore point) txs0
+    knownAfterRollback slot =
+        rescheduled slot ++ filterTxs (isBefore slot) txs0
 
 -- | No matter what, the current tip is always a checkpoint.
 prop_sparseCheckpointTipAlwaysThere

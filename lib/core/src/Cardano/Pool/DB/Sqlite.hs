@@ -55,7 +55,7 @@ import Cardano.Pool.DB.Log
 import Cardano.Pool.DB.Sqlite.TH hiding
     ( BlockHeader, blockHeight )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..) )
+    ( BlockId (..), fromMaybeHash, toMaybeHash )
 import Cardano.Wallet.Logging
     ( bracketTracer )
 import Cardano.Wallet.Primitive.Slotting
@@ -912,7 +912,7 @@ mkPoolProduction pool block = PoolProduction
     { poolProductionPoolId = pool
     , poolProductionSlot = view #slotNo block
     , poolProductionHeaderHash = BlockId (headerHash block)
-    , poolProductionParentHash = BlockId (parentHeaderHash block)
+    , poolProductionParentHash = fromMaybeHash (parentHeaderHash block)
     , poolProductionBlockHeight = getQuantity (blockHeight block)
     }
 
@@ -925,7 +925,7 @@ fromPoolProduction (PoolProduction pool slot headerH parentH height) =
         { slotNo = slot
         , blockHeight = Quantity height
         , headerHash = getBlockId headerH
-        , parentHeaderHash = getBlockId parentH
+        , parentHeaderHash = toMaybeHash parentH
         }
     )
 
@@ -935,7 +935,7 @@ mkBlockHeader
 mkBlockHeader block = TH.BlockHeader
     { blockSlot = view #slotNo block
     , blockHeaderHash = BlockId (headerHash block)
-    , blockParentHash = BlockId (parentHeaderHash block)
+    , blockParentHash = fromMaybeHash (parentHeaderHash block)
     , TH.blockHeight = getQuantity (blockHeight block)
     }
 
@@ -944,7 +944,7 @@ fromBlockHeaders h =
     BlockHeader blockSlot
         (Quantity blockHeight)
         (getBlockId blockHeaderHash)
-        (getBlockId blockParentHash)
+        (toMaybeHash blockParentHash)
   where
     TH.BlockHeader
         { blockSlot

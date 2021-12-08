@@ -136,6 +136,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
+    , WithOrigin (At)
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -542,7 +543,7 @@ fileModeSpec =  do
                             -- Such that old checkpoints are always pruned.
                             , blockHeight = Quantity $ bhA + 5000
                             , headerHash = h
-                            , parentHeaderHash = hashA
+                            , parentHeaderHash = Just hashA
                             })
                             mockTxs
                             mempty
@@ -676,7 +677,7 @@ fileModeSpec =  do
                 getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
 
                 atomically . void . unsafeRunExceptT $
-                    rollbackTo testWid (SlotNo 200)
+                    rollbackTo testWid (At $ SlotNo 200)
                 Just cp <- atomically $ readCheckpoint testWid
                 view #slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 
@@ -912,7 +913,7 @@ manualMigrationsSpec = describe "Manual migrations" $ do
                 , blockHeight = Quantity 1124949
                 , headerHash = Hash $ unsafeFromHex
                     "3b309f1ca388459f0ce2c4ccca20ea646b75e6fc1447be032a41d43f209ecb50"
-                , parentHeaderHash = Hash $ unsafeFromHex
+                , parentHeaderHash = Just $ Hash $ unsafeFromHex
                     "e9414e08d8c5ca177dd0cb6a9e4bf868e1ea03389c31f5f7a6b099a3bcdfdedf"
                 }
             )
