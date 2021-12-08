@@ -917,8 +917,8 @@ instance
 -- seed.
 --
 -- The type parameter is expected to be a ratio of addresses we ought to simply
--- recognize as ours. It is expressed in tenths of percent, so "1" means 0.1%,
--- "10" means 1% and 1000 means 100%.
+-- recognize as ours. It is expressed in per-myriad, so "1" means 0.01%,
+-- "100" means 1% and 10000 means 100%.
 mkSeqAnyState
     :: forall (p :: Nat) n k.
         ( SoftDerivation k
@@ -957,7 +957,7 @@ instance
         | otherwise =
             (Nothing, st)
       where
-        p = floor (double sup * double (natVal (Proxy @p)) / 1000)
+        p = floor (double sup * double (natVal (Proxy @p)) / 10000)
           where
             sup = maxBound :: Word32
 
