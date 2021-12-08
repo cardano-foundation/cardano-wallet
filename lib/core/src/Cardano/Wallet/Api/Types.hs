@@ -3067,13 +3067,14 @@ instance ToJSON (ApiT W.StakePoolMetadataHash) where
     toJSON = toTextJSON
 
 instance FromJSON (ApiT W.NonWalletCertificate) where
-    parseJSON val =
-        if val == object ["certificate_type" .= String "mir"] then
-            pure $ ApiT MIRCertificate
-        else if val == object ["certificate_type" .= String "genesis"] then
-            pure $ ApiT GenesisCertificate
-        else
-            fail "expected object with key 'certificate_type' and value either 'mir' or 'genesis'"
+  parseJSON val
+    | val == object ["certificate_type" .= String "mir"]
+    = pure $ ApiT MIRCertificate
+    | val == object ["certificate_type" .= String "genesis"]
+    = pure $ ApiT GenesisCertificate
+    | otherwise
+    = fail
+        "expected object with key 'certificate_type' and value either 'mir' or 'genesis'"
 instance ToJSON (ApiT W.NonWalletCertificate) where
     toJSON (ApiT cert) = object ["certificate_type" .= String (toText cert)]
 
