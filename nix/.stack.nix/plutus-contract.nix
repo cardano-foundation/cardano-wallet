@@ -33,6 +33,7 @@
           (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
           (hsPkgs."freer-extras" or (errorHandler.buildDepError "freer-extras"))
           (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
+          (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
           (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."aeson-pretty" or (errorHandler.buildDepError "aeson-pretty"))
@@ -42,7 +43,10 @@
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."fingertree" or (errorHandler.buildDepError "fingertree"))
+          (hsPkgs."flat" or (errorHandler.buildDepError "flat"))
           (hsPkgs."foldl" or (errorHandler.buildDepError "foldl"))
           (hsPkgs."freer-simple" or (errorHandler.buildDepError "freer-simple"))
           (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
@@ -70,6 +74,7 @@
           (hsPkgs."uuid" or (errorHandler.buildDepError "uuid"))
           (hsPkgs."IntervalMap" or (errorHandler.buildDepError "IntervalMap"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+          (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
           ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"))) ++ (pkgs.lib).optionals (!(compiler.isGhcjs && true || system.isGhcjs || system.isWindows)) [
           (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
           (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
@@ -89,6 +94,7 @@
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-golden" or (errorHandler.buildDepError "tasty-golden"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
             (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
@@ -110,12 +116,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       }) // {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       };
     postUnpack = "sourceRoot+=/plutus-contract; echo source root reset to \$sourceRoot";
     }

@@ -39,6 +39,7 @@
           (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
+          (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
@@ -50,8 +51,8 @@
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
           (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
           (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+          (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
           (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
-          (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
           ] ++ (pkgs.lib).optional (system.isWindows) (hsPkgs."Win32" or (errorHandler.buildDepError "Win32"));
         buildable = true;
         };
@@ -75,6 +76,24 @@
             ];
           buildable = true;
           };
+        "demo-connection-manager" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+            (hsPkgs."network" or (errorHandler.buildDepError "network"))
+            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            (hsPkgs."random" or (errorHandler.buildDepError "random"))
+            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
+            (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
+            (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
+            ];
+          buildable = true;
+          };
         };
       tests = {
         "test" = {
@@ -87,17 +106,24 @@
             (hsPkgs."dns" or (errorHandler.buildDepError "dns"))
             (hsPkgs."iproute" or (errorHandler.buildDepError "iproute"))
             (hsPkgs."network" or (errorHandler.buildDepError "network"))
+            (hsPkgs."pretty-simple" or (errorHandler.buildDepError "pretty-simple"))
             (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
             (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
             (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
             (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
+            (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
             (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
             (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
             ] ++ (pkgs.lib).optionals (system.isWindows) [
             (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
@@ -110,12 +136,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "aa7bc087737edca29133844b14bb7cba2cd213f2";
-      sha256 = "1rcjlj5z8igrfy07lkdrlm4xcx9a3g0jl69wvqk0vvff4hfr00ar";
+      rev = "d613de3d872ec8b4a5da0c98afb443f322dc4dab";
+      sha256 = "0lfbipfdrzay8v1pcazx0qgkda3d1j0505yig9jrml9j7991rmhl";
       }) // {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "aa7bc087737edca29133844b14bb7cba2cd213f2";
-      sha256 = "1rcjlj5z8igrfy07lkdrlm4xcx9a3g0jl69wvqk0vvff4hfr00ar";
+      rev = "d613de3d872ec8b4a5da0c98afb443f322dc4dab";
+      sha256 = "0lfbipfdrzay8v1pcazx0qgkda3d1j0505yig9jrml9j7991rmhl";
       };
     postUnpack = "sourceRoot+=/ouroboros-network-framework; echo source root reset to \$sourceRoot";
     }

@@ -28,6 +28,7 @@
         depends = [
           (hsPkgs."freer-extras" or (errorHandler.buildDepError "freer-extras"))
           (hsPkgs."playground-common" or (errorHandler.buildDepError "playground-common"))
+          (hsPkgs."plutus-chain-index" or (errorHandler.buildDepError "plutus-chain-index"))
           (hsPkgs."plutus-contract" or (errorHandler.buildDepError "plutus-contract"))
           (hsPkgs."plutus-ledger" or (errorHandler.buildDepError "plutus-ledger"))
           (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
@@ -48,6 +49,7 @@
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."freer-simple" or (errorHandler.buildDepError "freer-simple"))
+          (hsPkgs."fingertree" or (errorHandler.buildDepError "fingertree"))
           (hsPkgs."generic-arbitrary" or (errorHandler.buildDepError "generic-arbitrary"))
           (hsPkgs."http-client" or (errorHandler.buildDepError "http-client"))
           (hsPkgs."http-client-tls" or (errorHandler.buildDepError "http-client-tls"))
@@ -79,6 +81,10 @@
           (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
           (hsPkgs."servant-client" or (errorHandler.buildDepError "servant-client"))
           (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
+          (hsPkgs."servant-swagger-ui" or (errorHandler.buildDepError "servant-swagger-ui"))
+          (hsPkgs."servant-openapi3" or (errorHandler.buildDepError "servant-openapi3"))
+          (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
+          (hsPkgs."servant-options" or (errorHandler.buildDepError "servant-options"))
           (hsPkgs."tagged" or (errorHandler.buildDepError "tagged"))
           (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
           (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
@@ -174,6 +180,7 @@
             (hsPkgs."row-types" or (errorHandler.buildDepError "row-types"))
             (hsPkgs."servant-purescript" or (errorHandler.buildDepError "servant-purescript"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
             ];
           buildable = true;
           };
@@ -191,6 +198,7 @@
             (hsPkgs."plutus-use-cases" or (errorHandler.buildDepError "plutus-use-cases"))
             (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
             ];
           buildable = true;
           };
@@ -217,7 +225,6 @@
             (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
             (hsPkgs."servant-client" or (errorHandler.buildDepError "servant-client"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
-            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
             (hsPkgs."smallcheck" or (errorHandler.buildDepError "smallcheck"))
             (hsPkgs."tasty-smallcheck" or (errorHandler.buildDepError "tasty-smallcheck"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
@@ -261,8 +268,10 @@
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
             (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."either" or (errorHandler.buildDepError "either"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            (hsPkgs."plutus-chain-index" or (errorHandler.buildDepError "plutus-chain-index"))
             (hsPkgs."plutus-ledger" or (errorHandler.buildDepError "plutus-ledger"))
             (hsPkgs."plutus-pab" or (errorHandler.buildDepError "plutus-pab"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
@@ -302,6 +311,8 @@
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
+            (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
+            (hsPkgs."async" or (errorHandler.buildDepError "async"))
             ];
           buildable = true;
           };
@@ -345,6 +356,51 @@
             (hsPkgs."async" or (errorHandler.buildDepError "async"))
             (hsPkgs."servant-client" or (errorHandler.buildDepError "servant-client"))
             (hsPkgs."uuid" or (errorHandler.buildDepError "uuid"))
+            (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
+            ];
+          buildable = true;
+          };
+        "plutus-pab-test-full-long-running" = {
+          depends = [
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."aeson-pretty" or (errorHandler.buildDepError "aeson-pretty"))
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
+            (hsPkgs."freer-extras" or (errorHandler.buildDepError "freer-extras"))
+            (hsPkgs."freer-simple" or (errorHandler.buildDepError "freer-simple"))
+            (hsPkgs."http-client" or (errorHandler.buildDepError "http-client"))
+            (hsPkgs."http-client-tls" or (errorHandler.buildDepError "http-client-tls"))
+            (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+            (hsPkgs."monad-logger" or (errorHandler.buildDepError "monad-logger"))
+            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+            (hsPkgs."plutus-contract" or (errorHandler.buildDepError "plutus-contract"))
+            (hsPkgs."plutus-pab" or (errorHandler.buildDepError "plutus-pab"))
+            (hsPkgs."plutus-use-cases" or (errorHandler.buildDepError "plutus-use-cases"))
+            (hsPkgs."plutus-ledger" or (errorHandler.buildDepError "plutus-ledger"))
+            (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
+            (hsPkgs."servant-client" or (errorHandler.buildDepError "servant-client"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
+            (hsPkgs."smallcheck" or (errorHandler.buildDepError "smallcheck"))
+            (hsPkgs."tasty-smallcheck" or (errorHandler.buildDepError "tasty-smallcheck"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+            (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
+            (hsPkgs."row-types" or (errorHandler.buildDepError "row-types"))
+            (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
+            (hsPkgs."playground-common" or (errorHandler.buildDepError "playground-common"))
+            (hsPkgs."yaml" or (errorHandler.buildDepError "yaml"))
+            (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
+            (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
+            (hsPkgs."purescript-bridge" or (errorHandler.buildDepError "purescript-bridge"))
+            (hsPkgs."async" or (errorHandler.buildDepError "async"))
+            (hsPkgs."servant-client" or (errorHandler.buildDepError "servant-client"))
+            (hsPkgs."uuid" or (errorHandler.buildDepError "uuid"))
+            (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
             ];
           buildable = true;
           };
@@ -353,12 +409,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       }) // {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       };
     postUnpack = "sourceRoot+=/plutus-pab; echo source root reset to \$sourceRoot";
     }

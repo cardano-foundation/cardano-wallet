@@ -46,6 +46,7 @@
           (hsPkgs."freer-simple" or (errorHandler.buildDepError "freer-simple"))
           (hsPkgs."streaming" or (errorHandler.buildDepError "streaming"))
           (hsPkgs."semigroups" or (errorHandler.buildDepError "semigroups"))
+          (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
           ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"));
         buildable = true;
         };
@@ -55,6 +56,7 @@
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
             (hsPkgs."flat" or (errorHandler.buildDepError "flat"))
@@ -80,6 +82,7 @@
             (hsPkgs."plutus-ledger-api" or (errorHandler.buildDepError "plutus-ledger-api"))
             (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
             (hsPkgs."plutus-contract" or (errorHandler.buildDepError "plutus-contract"))
+            (hsPkgs."plutus-chain-index" or (errorHandler.buildDepError "plutus-chain-index"))
             (hsPkgs."plutus-ledger" or (errorHandler.buildDepError "plutus-ledger"))
             (hsPkgs."plutus-use-cases" or (errorHandler.buildDepError "plutus-use-cases"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
@@ -101,6 +104,7 @@
             (hsPkgs."plutus-use-cases" or (errorHandler.buildDepError "plutus-use-cases"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."data-default" or (errorHandler.buildDepError "data-default"))
             (hsPkgs."freer-extras" or (errorHandler.buildDepError "freer-extras"))
@@ -125,12 +129,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       }) // {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       };
     postUnpack = "sourceRoot+=/plutus-use-cases; echo source root reset to \$sourceRoot";
     }

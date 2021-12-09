@@ -28,10 +28,13 @@
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+          (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
           ];
         buildable = true;
         };
@@ -39,8 +42,10 @@
         "test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
+            (hsPkgs."typed-protocols-cborg" or (errorHandler.buildDepError "typed-protocols-cborg"))
             (hsPkgs."typed-protocols-examples" or (errorHandler.buildDepError "typed-protocols-examples"))
             (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
             (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
@@ -55,12 +60,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "aa7bc087737edca29133844b14bb7cba2cd213f2";
-      sha256 = "1rcjlj5z8igrfy07lkdrlm4xcx9a3g0jl69wvqk0vvff4hfr00ar";
+      rev = "d613de3d872ec8b4a5da0c98afb443f322dc4dab";
+      sha256 = "0lfbipfdrzay8v1pcazx0qgkda3d1j0505yig9jrml9j7991rmhl";
       }) // {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "aa7bc087737edca29133844b14bb7cba2cd213f2";
-      sha256 = "1rcjlj5z8igrfy07lkdrlm4xcx9a3g0jl69wvqk0vvff4hfr00ar";
+      rev = "d613de3d872ec8b4a5da0c98afb443f322dc4dab";
+      sha256 = "0lfbipfdrzay8v1pcazx0qgkda3d1j0505yig9jrml9j7991rmhl";
       };
     postUnpack = "sourceRoot+=/typed-protocols-examples; echo source root reset to \$sourceRoot";
     }

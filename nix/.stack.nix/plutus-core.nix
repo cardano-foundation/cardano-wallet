@@ -48,6 +48,7 @@
           (hsPkgs."deriving-aeson" or (errorHandler.buildDepError "deriving-aeson"))
           (hsPkgs."deriving-compat" or (errorHandler.buildDepError "deriving-compat"))
           (hsPkgs."dlist" or (errorHandler.buildDepError "dlist"))
+          (hsPkgs."dom-lt" or (errorHandler.buildDepError "dom-lt"))
           (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
@@ -62,7 +63,6 @@
           (hsPkgs."mmorph" or (errorHandler.buildDepError "mmorph"))
           (hsPkgs."monoidal-containers" or (errorHandler.buildDepError "monoidal-containers"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-          (hsPkgs."nonempty-containers" or (errorHandler.buildDepError "nonempty-containers"))
           (hsPkgs."parser-combinators" or (errorHandler.buildDepError "parser-combinators"))
           (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
           (hsPkgs."prettyprinter-configurable" or (errorHandler.buildDepError "prettyprinter-configurable"))
@@ -299,12 +299,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       }) // {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       };
     postUnpack = "sourceRoot+=/plutus-core; echo source root reset to \$sourceRoot";
     }

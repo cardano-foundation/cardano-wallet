@@ -34,6 +34,7 @@
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-ledger-alonzo" or (errorHandler.buildDepError "cardano-ledger-alonzo"))
           (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
+          (hsPkgs."cardano-ledger-pretty" or (errorHandler.buildDepError "cardano-ledger-pretty"))
           (hsPkgs."cardano-ledger-shelley-ma-test" or (errorHandler.buildDepError "cardano-ledger-shelley-ma-test"))
           (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
@@ -43,8 +44,8 @@
           (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
           (hsPkgs."plutus-ledger-api" or (errorHandler.buildDepError "plutus-ledger-api"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-          (hsPkgs."shelley-spec-ledger-test" or (errorHandler.buildDepError "shelley-spec-ledger-test"))
-          (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
+          (hsPkgs."cardano-ledger-shelley-test" or (errorHandler.buildDepError "cardano-ledger-shelley-test"))
+          (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
           (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
@@ -62,7 +63,9 @@
             (hsPkgs."cardano-ledger-alonzo-test" or (errorHandler.buildDepError "cardano-ledger-alonzo-test"))
             (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
             (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
+            (hsPkgs."cardano-ledger-pretty" or (errorHandler.buildDepError "cardano-ledger-pretty"))
             (hsPkgs."cardano-ledger-shelley-ma-test" or (errorHandler.buildDepError "cardano-ledger-shelley-ma-test"))
+            (hsPkgs."cardano-protocol-tpraos" or (errorHandler.buildDepError "cardano-protocol-tpraos"))
             (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
@@ -71,12 +74,15 @@
             (hsPkgs."plutus-ledger-api" or (errorHandler.buildDepError "plutus-ledger-api"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
-            (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
-            (hsPkgs."shelley-spec-ledger-test" or (errorHandler.buildDepError "shelley-spec-ledger-test"))
+            (hsPkgs."small-steps-test" or (errorHandler.buildDepError "small-steps-test"))
+            (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
+            (hsPkgs."cardano-ledger-shelley-test" or (errorHandler.buildDepError "cardano-ledger-shelley-test"))
             (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
             (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
+            (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             ];
           buildable = true;
           };
@@ -85,12 +91,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
-      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
+      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
+      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
       }) // {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
-      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
+      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
+      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
       };
-    postUnpack = "sourceRoot+=/alonzo/test; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/eras/alonzo/test-suite; echo source root reset to \$sourceRoot";
     }

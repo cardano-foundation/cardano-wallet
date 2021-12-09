@@ -47,6 +47,27 @@
           else [ (hsPkgs."ghc" or (errorHandler.buildDepError "ghc")) ]);
         buildable = true;
         };
+      exes = {
+        "profile" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."flat" or (errorHandler.buildDepError "flat"))
+            (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+            (hsPkgs."integer-gmp" or (errorHandler.buildDepError "integer-gmp"))
+            (hsPkgs."plutus-core" or (errorHandler.buildDepError "plutus-core"))
+            (hsPkgs."plutus-tx" or (errorHandler.buildDepError "plutus-tx"))
+            (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"))
+            (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
+            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+            (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+            ];
+          buildable = true;
+          };
+        };
       tests = {
         "plutus-tx-tests" = {
           depends = [
@@ -77,12 +98,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       }) // {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "edc6d4672c41de4485444122ff843bc86ff421a0";
-      sha256 = "12dmxp11xlal8rr3371sir5q4f7gscmyl84nw6wm47mb5b28bk92";
+      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
+      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
       };
     postUnpack = "sourceRoot+=/plutus-tx-plugin; echo source root reset to \$sourceRoot";
     }

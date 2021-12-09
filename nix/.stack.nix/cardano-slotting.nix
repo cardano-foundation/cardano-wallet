@@ -44,12 +44,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "e8a48cf0500b03c744c7fc6f2fedb86e8bdbe055";
-      sha256 = "0s3w796y4bgjidg5iwapdq88cq9ipy346gagbip6xlqxdvpp99xj";
+      rev = "654f5b7c76f7cc57900b4ddc664a82fc3b925fb0";
+      sha256 = "0j4x9zbx5dkww82sqi086h39p456iq5xr476ylmrnpwcpfb4xai4";
       }) // {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "e8a48cf0500b03c744c7fc6f2fedb86e8bdbe055";
-      sha256 = "0s3w796y4bgjidg5iwapdq88cq9ipy346gagbip6xlqxdvpp99xj";
+      rev = "654f5b7c76f7cc57900b4ddc664a82fc3b925fb0";
+      sha256 = "0j4x9zbx5dkww82sqi086h39p456iq5xr476ylmrnpwcpfb4xai4";
       };
     postUnpack = "sourceRoot+=/slotting; echo source root reset to \$sourceRoot";
     }
