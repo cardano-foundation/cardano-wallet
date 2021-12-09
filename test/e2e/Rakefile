@@ -86,7 +86,7 @@ task :wait_until_node_synced do
   puts "\n  >> Waiting for node to be synced"
 
   network = CardanoWallet.new.misc.network
-  timeout = 180
+  timeout = 600
   current_time = Time.now
   timeout_treshold = current_time + timeout
   puts "Timeout: #{timeout}s"
