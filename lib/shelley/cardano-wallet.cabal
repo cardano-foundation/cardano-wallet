@@ -241,6 +241,7 @@ test-suite unit
     , ouroboros-consensus-shelley
     , ouroboros-network
     , shelley-spec-ledger
+    , cardano-ledger-shelley
     , text
     , text-class
     , transformers

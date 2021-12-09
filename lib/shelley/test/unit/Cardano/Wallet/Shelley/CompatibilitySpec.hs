@@ -162,6 +162,7 @@ import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley as SLAPI
+import qualified Cardano.Ledger.Shelley.PParams as SL
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -169,7 +170,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
-import qualified Cardano.Ledger.Shelley.PParams as SL
 
 spec :: Spec
 spec = do

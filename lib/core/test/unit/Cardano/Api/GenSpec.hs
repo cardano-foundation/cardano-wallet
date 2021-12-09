@@ -43,7 +43,6 @@ import Cardano.Api
     , TxAuxScripts (..)
     , TxCertificates (..)
     , TxExtraKeyWitnesses (..)
-    , TxExtraScriptData (..)
     , TxFee (..)
     , TxIn (..)
     , TxInsCollateral (..)
@@ -53,7 +52,7 @@ import Cardano.Api
     , TxMetadataValue (..)
     , TxMintValue (..)
     , TxOut (..)
-    , TxOutDatumHash (..)
+    , TxOutDatum (..)
     , TxOutValue (..)
     , TxScriptValidity (..)
     , TxUpdateProposal (..)
@@ -90,6 +89,8 @@ import Cardano.Chain.UTxO
     ( TxInWitness (..) )
 import Cardano.Ledger.Credential
     ( Ix, Ptr (..) )
+import Cardano.Ledger.Shelley.API
+    ( MIRPot (..) )
 import Data.Char
     ( isAlphaNum, isDigit, isLower, isUpper )
 import Data.Foldable
@@ -108,8 +109,6 @@ import Data.Word
     ( Word32 )
 import Numeric.Natural
     ( Natural )
-import Shelley.Spec.Ledger.API
-    ( MIRPot (..) )
 import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary
@@ -1163,11 +1162,11 @@ genValueForTxOutCoverage val =
             True
 
 genTxOutDatumHashCoverage
-    :: CardanoEra era -> TxOutDatumHash era -> Property
+    :: CardanoEra era -> TxOutDatum ctx era -> Property
 genTxOutDatumHashCoverage era datum =
     case scriptDataSupportedInEra era of
         Nothing ->
-            (datum == TxOutDatumHashNone)
+            (datum == TxOutDatumNone)
             & label "tx out datums not generated in unsupported era"
             & counterexample ( "tx out datums were generated in unsupported "
                                <> show era
@@ -1179,11 +1178,11 @@ genTxOutDatumHashCoverage era datum =
                 "tx out datum hash present"
                 True
     where
-        hasNoDatumHash = (== TxOutDatumHashNone)
+        hasNoDatumHash = (== TxOutDatumNone)
 
         hasDatumHash = \case
-            TxOutDatumHashNone   -> False
-            (TxOutDatumHash _ _) -> True
+            TxOutDatumHash _ _ -> True
+            _ -> False
 
 genTxOutValueCoverage :: CardanoEra era -> TxOutValue era -> Property
 genTxOutValueCoverage era val =
@@ -1205,7 +1204,7 @@ genTxOutValueCoverage era val =
                     property False
                     & counterexample (show era <> " should support multi-asset")
 
-genTxOutCoverage :: CardanoEra era -> TxOut era -> Property
+genTxOutCoverage :: CardanoEra era -> TxOut ctx era -> Property
 genTxOutCoverage era (TxOut addr val datum) = checkCoverage $ conjoin
     [ genAddressInEraCoverage era addr
     , genTxOutValueCoverage era val

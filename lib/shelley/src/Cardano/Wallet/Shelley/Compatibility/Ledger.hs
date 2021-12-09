@@ -90,6 +90,7 @@ import qualified Cardano.Ledger.Alonzo as Alonzo
 import qualified Cardano.Ledger.Alonzo.Rules.Utxo as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Mary.Value as Ledger
+import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Ledger.ShelleyMA.Rules.Utxo as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -97,7 +98,6 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
-import qualified Cardano.Ledger.Shelley.API as Ledger
 
 --------------------------------------------------------------------------------
 -- Public functions
@@ -341,4 +341,3 @@ computeMinimumAdaQuantityInternal (MinimumUTxOValueCostPerWord (Coin perWord)) b
     -- Because the ledger function is pure and not taking a network, passing in
     -- a mainnet network should be fine regardless of network.
     dummyAddr = Address $ BS.pack $ 97 : replicate 28 0
-

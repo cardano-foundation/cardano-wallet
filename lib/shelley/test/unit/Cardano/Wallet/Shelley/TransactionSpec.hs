@@ -281,58 +281,59 @@ import Test.Utils.Paths
 import Test.Utils.Pretty
     ( Pretty (..), (====) )
 
-import qualified Cardano.Api as Cardano
 import Cardano.Api.Gen
     ( genTxForBalancing, genTxIn, genTxOut )
 import Cardano.Api.Shelley
     ( selectLovelace )
-import qualified Cardano.Api.Shelley as Cardano
 import Cardano.BM.Data.Tracer
     ( nullTracer )
 import Cardano.BM.Tracer
     ( Tracer )
-import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
-import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Core as Ledger
+import Cardano.Ledger.Shelley.API
+    ( StrictMaybe (SJust, SNothing), Wdrl (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, defaultAddressPoolGap, mkSeqStateFromRootXPrv, purposeCIP1852 )
-import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import Cardano.Wallet.Primitive.Model
     ( Wallet (..), unsafeInitWallet )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, hoistTimeInterpreter, mkSingleEraInterpreter )
+import Cardano.Wallet.Primitive.Types.UTxOIndex
+    ( UTxOIndex )
+import Control.Monad.Random
+    ( MonadRandom (..), Random (randomR, randomRs), random, randoms )
+import Data.Functor.Identity
+    ( runIdentity )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
+import GHC.Generics
+    ( Generic )
+import Test.QuickCheck.Property
+    ( label )
+
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
+import qualified Cardano.Ledger.Coin as Ledger
+import qualified Cardano.Ledger.Core as Ledger
+import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
-import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
-import Control.Monad.Random
-    ( MonadRandom (..), Random (randomR, randomRs), random, randoms )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
-import Data.Functor.Identity
-    ( runIdentity )
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
-import GHC.Generics
-    ( Generic )
-import Shelley.Spec.Ledger.API
-    ( StrictMaybe (SJust, SNothing), Wdrl (..) )
-import Test.QuickCheck.Property
-    ( label )
 
 spec :: Spec
 spec = do

@@ -105,9 +105,7 @@ import Cardano.Api hiding
 import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
 import Cardano.Api.Shelley
-    ( Certificate (..)
-    , Hash (..)
-    , Lovelace (..)
+    ( Hash (..)
     , PlutusScript (..)
     , PoolId
     , ProtocolParameters (..)
@@ -121,6 +119,8 @@ import Cardano.Ledger.Credential
     ( Ix, Ptr (..) )
 import Cardano.Ledger.SafeHash
     ( unsafeMakeSafeHash )
+import Cardano.Ledger.Shelley.API
+    ( MIRPot (..) )
 import Data.Aeson
     ( ToJSON (..), (.=) )
 import Data.ByteString
@@ -149,8 +149,6 @@ import Network.Socket
     ( PortNumber )
 import Numeric.Natural
     ( Natural )
-import Shelley.Spec.Ledger.API
-    ( MIRPot (..) )
 import Test.Cardano.Chain.UTxO.Gen
     ( genVKWitness )
 import Test.Cardano.Crypto.Gen
@@ -186,6 +184,10 @@ import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
 import qualified Cardano.Ledger.BaseTypes as Ledger
     ( Port, dnsToText )
+import qualified Cardano.Ledger.Shelley.API as Ledger
+    ( StakePoolRelay (..), portToWord16 )
+import qualified Cardano.Ledger.Shelley.TxBody as Ledger
+    ( EraIndependentTxBody )
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -197,11 +199,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Plutus.V1.Ledger.Api as Plutus
-import qualified Shelley.Spec.Ledger.API as Ledger
-    ( StakePoolRelay (..), portToWord16 )
-import qualified Shelley.Spec.Ledger.TxBody as Ledger
-    ( EraIndependentTxBody )
-import qualified Test.Shelley.Spec.Ledger.Serialisation.Generators.Genesis as Ledger
+import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
     ( genStakePoolRelay )
 
 genShelleyHash
