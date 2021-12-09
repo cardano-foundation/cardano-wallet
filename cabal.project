@@ -58,7 +58,6 @@ source-repository-package
   type: git
   location: https://github.com/input-output-hk/optparse-applicative
   tag: 7497a29cb998721a9068d5725d49461f2bba0e7a
-  --sha256: 09pr7m9gjsk8889m9d3mj75p69viv1acnrq63dgb11jl5gnnsblr
 
 source-repository-package
     type: git
@@ -98,13 +97,14 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-crypto
-    tag: 07397f0e50da97eaa0575d93bee7ac4b2b2576ec
+    tag: f73079303f663e028288f9f4a9e08bcca39a923e
 
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus
-  tag: edc6d4672c41de4485444122ff843bc86ff421a0
+  tag: 1efbb276ef1a10ca6961d0fd32e6141e9798bd11
   subdir:
+    freer-extras
     plutus-core
     plutus-ledger
     plutus-ledger-api
@@ -115,39 +115,59 @@ source-repository-package
     word-array
 
 source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/ekg-forward
+  tag: 2adc8b698443bb10154304b24f6c1d6913bb65b9
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-config
+  tag: e9de7a2cf70796f6ff26eac9f9540184ded0e4e6
+
+source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-ledger
-    tag: f827a4321e42f528e25f6079f7af3eb18f10d391
-    subdir: alonzo/impl
-            byron/chain/executable-spec
-            byron/crypto
-            byron/crypto/test
-            byron/ledger/executable-spec
-            byron/ledger/impl
-            byron/ledger/impl/test
-            cardano-ledger-core
-            semantics/executable-spec
-            semantics/small-steps-test
-            shelley/chain-and-ledger/dependencies/non-integer
-            shelley/chain-and-ledger/executable-spec
-            shelley/chain-and-ledger/shelley-spec-ledger-test
-            shelley-ma/impl
-            shelley-ma/shelley-ma-test
+    tag: bf008ce028751cae9fb0b53c3bef20f07c06e333
+    subdir:
+      eras/alonzo/impl
+      eras/alonzo/test-suite
+      eras/byron/chain/executable-spec
+      eras/byron/crypto
+      eras/byron/crypto/test
+      eras/byron/ledger/executable-spec
+      eras/byron/ledger/impl
+      eras/byron/ledger/impl/test
+      eras/shelley/impl
+      eras/shelley/test-suite
+      eras/shelley-ma/impl
+      eras/shelley-ma/test-suite
+      libs/cardano-ledger-core
+      libs/cardano-ledger-pretty
+      libs/cardano-protocol-tpraos
+      libs/small-steps
+      libs/small-steps-test
+      libs/non-integral
+      eras/shelley/chain-and-ledger/executable-spec
+      eras/shelley/chain-and-ledger/shelley-spec-ledger-test
+      eras/shelley/chain-and-ledger/dependencies/non-integer
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
-    tag: 0fb43f4e3da8b225f4f86557aed90a183981a64f
-    subdir: cardano-api
-            cardano-cli
-            cardano-config
-            cardano-node
-            cardano-node-chairman
+    tag: 4f65fb9a27aa7e3a1873ab4211e412af780a3648
+    subdir:
+      cardano-api
+      cardano-cli
+      cardano-node
+      cardano-node-chairman
+      trace-dispatcher
+      trace-resources
+      trace-forward
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-prelude
-    tag: fd773f7a58412131512b9f694ab95653ac430852
+    tag: bb4ed71ba8e587f672d06edf9d2e376f4b055555
     subdir: cardano-prelude
             cardano-prelude-test
 
@@ -176,7 +196,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/ouroboros-network
-    tag: aa7bc087737edca29133844b14bb7cba2cd213f2
+    tag: d613de3d872ec8b4a5da0c98afb443f322dc4dab
     subdir:
       io-sim
       io-classes
@@ -190,6 +210,7 @@ source-repository-package
       ouroboros-network-framework
       ouroboros-network-testing
       typed-protocols
+      typed-protocols-cborg
       typed-protocols-examples
       ntp-client
 
