@@ -158,6 +158,7 @@ import Cardano.Wallet.Transaction
     , ErrUpdateSealedTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxFeeUpdate (..)
     , TxUpdate (..)
     , withdrawalToCoin
     )
@@ -586,7 +587,7 @@ mkDelegationCertificates da accXPub =
 --      == Right tx or Left
 -- @
 noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate [] [] [] Nothing
+noTxUpdate = TxUpdate [] [] [] UseOldTxFee
 
 -- Used to add inputs and outputs when balancing a transaction.
 --
@@ -637,7 +638,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
             -> ShelleyBasedEra era
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs newFee) era body = case era of
+        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs feeUpdate) era body = case era of
             ShelleyBasedEraAlonzo -> body
                     { Alonzo.outputs = Alonzo.outputs body
                         <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
@@ -700,9 +701,11 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
             extraCollateral' = toCardanoTxIn <$> extraCollateral
             extraOutputs' = toCardanoTxOut era <$> extraOutputs
 
-            modifyFee old = case newFee of
-                Just new -> toLedgerCoin new
-                Nothing -> old
+            modifyFee old = case feeUpdate of
+                UseNewTxFee new ->
+                    toLedgerCoin new
+                UseOldTxFee ->
+                    old
               where
                 toLedgerCoin :: Coin -> Ledger.Coin
                 toLedgerCoin (Coin c) =
@@ -710,9 +713,6 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
 
     modifyLedgerTx _ (Byron.ByronTxBody _)
         = Left ErrByronTxNotSupported
-
-{-# ANN updateSealedTx ("HLint: ignore Replace case with maybe" :: T.Text) #-}
-
 
 -- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
 -- estimate what would be the cost of a selecting a particular input. Indeed, an

@@ -179,6 +179,7 @@ import Cardano.Wallet.Shelley.Transaction
 import Cardano.Wallet.Transaction
     ( TransactionCtx (..)
     , TransactionLayer (..)
+    , TxFeeUpdate (..)
     , Withdrawal (..)
     , defaultTransactionCtx
     )
@@ -1976,7 +1977,7 @@ unsafeSealedTxFromHex =
 
 prop_updateSealedTx :: SealedTx -> [(TxIn, TxOut)] -> [TxIn] -> [TxOut] -> Coin -> Property
 prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
-    let extra = TxUpdate extraIns extraCol extraOuts (Just newFee)
+    let extra = TxUpdate extraIns extraCol extraOuts (UseNewTxFee newFee)
     let tx' = either (error . show) id
             $ updateSealedTx tx extra
     conjoin
