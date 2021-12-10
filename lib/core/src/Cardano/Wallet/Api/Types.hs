@@ -3082,77 +3082,50 @@ parseExtendedAesonObject
     :: ( Generic a
        , Aeson.GFromJSON Aeson.Zero (Rep a) )
     => String
+    -> Text
     -> Value
     -> Parser a
-parseExtendedAesonObject txt = withObject txt $ \o -> do
-    let removeCertType (numTxt,_) = numTxt /= "certificate_type"
+parseExtendedAesonObject txt fieldtoremove = withObject txt $ \o -> do
+    let removeCertType (numTxt,_) = numTxt /= fieldtoremove
     let o' = HM.fromList $ filter removeCertType $ HM.toList o
     genericParseJSON defaultRecordTypeOptions (Object o')
 
 extendAesonObject
     :: ( Generic a
        , Aeson.GToJSON' Value Aeson.Zero (Rep a))
-    => Text
+    => [Aeson.Pair]
     -> a
     -> Value
-extendAesonObject txt apipool =
+extendAesonObject tobeadded apipool =
     let Object obj = genericToJSON defaultRecordTypeOptions apipool
-        Object obj' = object ["certificate_type" .= String txt]
+        Object obj' = object tobeadded
     in Object $ obj <> obj'
 
 instance FromJSON ApiRegisterPool where
-    parseJSON = parseExtendedAesonObject "ApiRegisterPool"
+    parseJSON = parseExtendedAesonObject "ApiRegisterPool" "certificate_type"
 instance ToJSON ApiRegisterPool where
-    toJSON = extendAesonObject "register_pool"
+    toJSON = extendAesonObject ["certificate_type" .= String "register_pool"]
 
 instance FromJSON ApiDeregisterPool where
-    parseJSON = parseExtendedAesonObject "ApiDeregisterPool"
+    parseJSON = parseExtendedAesonObject "ApiDeregisterPool" "certificate_type"
 instance ToJSON ApiDeregisterPool where
-    toJSON = extendAesonObject "deregister_pool"
+    toJSON = extendAesonObject ["certificate_type" .= String "deregister_pool"]
 
 instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
-    parseJSON t =
-        parseDelOur t <|> parseDelNotOur t <|> parseReg t <|> parseDereg t <|> parseOtherCert t
-      where
-        parseDelOur obj = do
-            derPathM <-
-                (withObject "WalletDelegationCertificate" $
-                 \o -> o .:? "reward_account_path" :: Aeson.Parser (Maybe (NonEmpty (ApiT DerivationIndex)))) obj
-            case derPathM of
-                Nothing -> fail "expected rewardAccountPath"
-                Just _ -> do
-                    cert <- parseJSON obj :: Aeson.Parser ApiCertificate
-                    pure $ WalletDelegationCertificate cert
-        parseDelNotOur obj = do
-            rewardAcctM <-
-                (withObject "DelegationCertificate" $
-                 \o -> o .:? "reward_account" :: Aeson.Parser (Maybe (ApiT W.RewardAccount, Proxy n))) obj
-            case rewardAcctM of
-                Nothing -> fail "expected rewardAccount"
-                Just _ -> do
-                    cert <- parseJSON obj :: Aeson.Parser (ApiExternalCertificate n)
-                    pure $ DelegationCertificate cert
-        parseReg obj = do
-            marginM <-
-                (withObject "StakePoolRegister" $
-                 \o -> o .:? "pool_margin" :: Aeson.Parser (Maybe (Quantity "percent" Percentage))) obj
-            case marginM of
-                Nothing -> fail "expected poolMargin"
-                Just _ -> do
-                    pool <- parseJSON obj :: Aeson.Parser ApiRegisterPool
-                    pure $ StakePoolRegister pool
-        parseDereg obj = do
-            epochM <-
-                (withObject "StakePoolDeregister" $
-                 \o -> o .:? "retirement_epoch" :: Aeson.Parser (Maybe (ApiT EpochNo))) obj
-            case epochM of
-                Nothing -> fail "expected retirementEpoch"
-                Just _ -> do
-                    pool <- parseJSON obj :: Aeson.Parser ApiDeregisterPool
-                    pure $ StakePoolDeregister pool
-        parseOtherCert =
-            fmap OtherCertificate . (parseJSON :: Value -> Aeson.Parser (ApiT W.NonWalletCertificate))
-
+    parseJSON = withObject "ApiAnyCertificate" $ \o -> do
+        (certType :: String) <- o .: "certificate_type"
+        case certType of
+            "register_pool" -> StakePoolRegister <$> parseJSON (Object o)
+            "deregister_pool" -> StakePoolDeregister <$> parseJSON (Object o)
+            "join_pool" -> WalletDelegationCertificate <$> parseJSON (Object o)
+            "quit_pool" -> WalletDelegationCertificate <$> parseJSON (Object o)
+            "register_reward_account" -> WalletDelegationCertificate <$> parseJSON (Object o)
+            "join_pool_external" -> DelegationCertificate <$> parseJSON (Object o)
+            "quit_pool_external" -> DelegationCertificate <$> parseJSON (Object o)
+            "register_reward_account_external" -> DelegationCertificate <$> parseJSON (Object o)
+            "mir" -> OtherCertificate <$> parseJSON (Object o)
+            "genesis" -> OtherCertificate <$> parseJSON (Object o)
+            _ -> fail $ "unknown certificate_type: " <> show certType
 instance EncodeStakeAddress n => ToJSON (ApiAnyCertificate n) where
     toJSON (WalletDelegationCertificate cert) = toJSON cert
     toJSON (DelegationCertificate cert) = toJSON cert
