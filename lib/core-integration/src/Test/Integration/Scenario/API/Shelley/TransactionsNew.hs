@@ -30,9 +30,13 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
+    , ApiAnyCertificate (..)
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
+    , ApiDeregisterPool (..)
+    , ApiExternalCertificate (..)
+    , ApiRegisterPool (..)
     , ApiSerialisedTransaction (..)
     , ApiStakePool
     , ApiT (..)
@@ -60,12 +64,22 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.Types
+    ( EpochNo (..)
+    , NonWalletCertificate (..)
+    , PoolId (..)
+    , PoolOwner (..)
+    , StakePoolMetadataHash (..)
+    , StakePoolMetadataUrl (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -109,7 +123,9 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity (..), mkPercentage )
+import Data.Ratio
+    ( (%) )
 import Data.Text
     ( Text )
 import Numeric.Natural
@@ -934,14 +950,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
 
         wa <- fixtureWallet ctx
-        pool:_ <- map (view #id) . snd <$> unsafeRequest
+        pool':_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
         let delegation = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{pool},
+                        "pool": #{pool'},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -1169,7 +1185,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let amt = minUTxOValue (_mainEra ctx) :: Natural
         let destination1 = (addrs !! 1) ^. #id
         let destination2 = (addrs !! 2) ^. #id
-        pool:_ <- map (view #id) . snd <$> unsafeRequest
+        pool':_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
@@ -1190,7 +1206,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }],
                 "delegations": [{
                     "join": {
-                        "pool": #{pool},
+                        "pool": #{pool'},
                         "stake_key_index": "0H"
                     }
                 }],
@@ -1248,7 +1264,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ expectSuccess
                 , expectField
                         #delegation
-                        (`shouldBe` delegating pool [])
+                        (`shouldBe` delegating pool' [])
                 ]
 
         eventually "Destination wallet balance is as expected" $ do
@@ -1364,22 +1380,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (AssetId tokenPolicyId' (UnsafeTokenName "HappyCoin"))
                 (TokenQuantity 50_000)
 
-        let textEnvelopeMint =
-                Cardano.TextEnvelope
-                (Cardano.TextEnvelopeType "TxBodyAlonzo")
-                ""
-                (unsafeFromHex $ T.encodeUtf8 cborHexWithMinting)
-
-        let (Right txBodyMint) =
-                Cardano.deserialiseFromTextEnvelope
-                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeMint
-
-        let toCborHexTx txbody =
-                T.decodeUtf8 $
-                hex $
-                Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txbody)
-
-        let cborHexMint = toCborHexTx txBodyMint
+        let cborHexMint = fromTextEnvelope cborHexWithMinting
         let decodeMintPayload = Json [json|{
               "transaction": #{cborHexMint}
           }|]
@@ -1409,16 +1410,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \4861707079436f696e39c34f9f82008201818200581c69303ce3536df260ef\
                 \ddbc949ccb94e6993302b10b778d8b4d98bfb5ff8080f5f6" :: Text
 
-        let textEnvelopeBurn =
-                Cardano.TextEnvelope
-                (Cardano.TextEnvelopeType "TxBodyAlonzo")
-                ""
-                (unsafeFromHex $ T.encodeUtf8 cborHexWithBurning)
-
-        let (Right txBodyBurn) =
-                Cardano.deserialiseFromTextEnvelope
-                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelopeBurn
-        let cborHexBurn = toCborHexTx txBodyBurn
+        let cborHexBurn = fromTextEnvelope cborHexWithBurning
         let decodeBurnPayload = Json [json|{
               "transaction": #{cborHexBurn}
           }|]
@@ -1430,6 +1422,221 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
             , expectField #assetsMinted (`shouldBe` ApiT TokenMap.empty)
             , expectField #assetsBurned (`shouldBe` ApiT tokens)
+            ]
+
+    it "TRANS_DECODE_03 - transaction with external delegation certificates" $ \ctx -> runResourceT $ do
+
+        -- constructing source wallet
+        let initialAmt = minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        -- tx within some wallet, so other that wallet wa, that contains
+        -- registration of reward account and joining to some pool using this
+        -- reward account
+        let serializedTxHexJoin =
+                "84a700818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1\
+                \770e07fa22ba8648060d800181825839011a2f2f103b895dbe7388acc9cc10\
+                \f90dc4ada53f46c841d2ac44630789fc61d21ddfcbd4d43652bf05c40c346f\
+                \a794871423b65052d7614c1b0000001748656dc8021a000237f803198d1904\
+                \8282008200581c89fc61d21ddfcbd4d43652bf05c40c346fa794871423b650\
+                \52d7614c83028200581c89fc61d21ddfcbd4d43652bf05c40c346fa7948714\
+                \23b65052d7614c581cec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9\
+                \c2bbe6838dc60e80a10082825820a922e88e8148f1bb9b9578e2640704ae86\
+                \99bdd17bb9c26ed35881343c15ec485840995587f2e29c72c7ed2eb6e2381b\
+                \e4745503d7d2ba8de30c6cf176f82fb9074854c39ab85cb7d8e1dcdf9fb990\
+                \07de2b044ba7a05ea7712b7084b4d352aa8502825820a1a07799ec226d8f2b\
+                \ea80dc1a4fdb25e1b2cb0dbd312a1b004b0401e901225358403ad81b75a057\
+                \c419d48e1840bdeba8338206cf3df799d04328c4208b4d7a87248e604a7844\
+                \7c2a7acfa4488f3df5c92b01535f756e6ae6e1f23ddb9f438de10ef5f6" :: Text
+
+        let rewardAccount' = ApiT $ RewardAccount "\137\252a\210\GS\223\203\212\212\&6R\191\ENQ\196\f4o\167\148\135\DC4#\182PR\215aL"
+        let pool' = ApiT $ PoolId "\236(\243=\203\230\214@\n\RS^3\155\208d|\ts\202l\f\249\194\187\230\131\141\198"
+
+        let certsJoin =
+                [ DelegationCertificate (RegisterRewardAccountExternal (rewardAccount', Proxy))
+                , DelegationCertificate (JoinPoolExternal (rewardAccount', Proxy) pool')
+                ]
+
+        let decodePayloadJoin = Json [json|{
+              "transaction": #{serializedTxHexJoin}
+          }|]
+        rTxJoin <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadJoin
+        verify rTxJoin
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` certsJoin)
+            ]
+
+        -- tx within other wallet than wa, containing quitting the pool
+        let serializedTxHexQuit =
+                "84a700818258200eaa33be8780935ca5a7c1e628a2d54402446f96236ca8f1\
+                \770e07fa22ba8648000d800181825839012c6f08b29f901657f4daf134a36a\
+                \64b7b53977eb00866aadf6b8fb4d89fc61d21ddfcbd4d43652bf05c40c346f\
+                \a794871423b65052d7614c1b0000001748840b48021a00021ef803198f0304\
+                \8182018200581c89fc61d21ddfcbd4d43652bf05c40c346fa794871423b650\
+                \52d7614c0e80a10082825820a1a07799ec226d8f2bea80dc1a4fdb25e1b2cb\
+                \0dbd312a1b004b0401e901225358408fec23c16be743ee592a948a4a1c9d9a\
+                \4529a868d3217386985c30c6d1797c50c4928b6c3aea2825fc0677ea9550ef\
+                \e2270447514f1f6e189b73a0234029a802825820c15b990344122b12494a5e\
+                \dd1020d9eb32e34b0f82691f8e31645ddab712ff2b58402504005e990a2a6e\
+                \db71e6bb1dee0c59e9328e5d698a97139567db4b7754d960ddcb738b852746\
+                \c9571d7175c9263a12e40139c93929ef6ba11c1815f792b40cf5f6" :: Text
+
+        let certsQuit =
+                [ DelegationCertificate (QuitPoolExternal (rewardAccount', Proxy))
+                ]
+
+        let decodePayloadQuit = Json [json|{
+              "transaction": #{serializedTxHexQuit}
+          }|]
+        rTxQuit <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadQuit
+        verify rTxQuit
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` certsQuit)
+            ]
+
+    it "TRANS_DECODE_04 - transaction with mir certificate" $ \ctx -> runResourceT $ do
+
+        -- constructing source wallet
+        let initialAmt = minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        -- this is tx integration cluster sends when setting up, ie. a lot of MIRs
+        -- and reward account registrations
+        let cborHex =
+                "83a50081825820e6f53fa3a753f637c62ee198421bbaef604faee230fe4262\
+                \340eedf13a8d0bba00018182581d61161a20f92ea667c30de21e49f01cc4ba\
+                \7aadaa9b685a3dab7d4b040a1a000f4240021b00038d7ea3678c40031a3b9a\
+                \c9ff049f82008200581cfb3c13a29d3798f1b77b47f2ddb31c19326b87ed6f\
+                \71fb9a27133ad582068200a18200581cfb3c13a29d3798f1b77b47f2ddb31c\
+                \19326b87ed6f71fb9a27133ad51b000000e8d4a5100082008200581ceb220e\
+                \40c3ca1de87c448972443020d8fa08d111a699a4d7b51ba4bc82068200a182\
+                \00581ceb220e40c3ca1de87c448972443020d8fa08d111a699a4d7b51ba4bc\
+                \1b000000e8d4a5100082008200581cc72a6827138da1341c9ea1e55a04bd10\
+                \96824f0c66a0ec282d5daad382068200a18200581cc72a6827138da1341c9e\
+                \a1e55a04bd1096824f0c66a0ec282d5daad31b000000e8d4a5100082008200\
+                \581c3b525e261b6434b75f949404fbc5b3ef4acf686a31af9facea74687082\
+                \068200a18200581c3b525e261b6434b75f949404fbc5b3ef4acf686a31af9f\
+                \acea7468701b000000e8d4a5100082008200581c8bf7bb98dd01953c5754fc\
+                \f49460aaaa3368faf9476267411a38d33c82068200a18200581c8bf7bb98dd\
+                \01953c5754fcf49460aaaa3368faf9476267411a38d33c1b000000e8d4a510\
+                \0082008200581c917d3b19a2c9fe13ca2dea4c9b1555257af2f185b58ad483\
+                \7e801c1782068200a18200581c917d3b19a2c9fe13ca2dea4c9b1555257af2\
+                \f185b58ad4837e801c171b000000e8d4a5100082008200581c37457aadf2fa\
+                \6292ebca8460e01ff4e813a495466512b930eb564ec782068200a18200581c\
+                \37457aadf2fa6292ebca8460e01ff4e813a495466512b930eb564ec71b0000\
+                \00e8d4a5100082008200581cc1e7e3ea91ee7a92f0b33afceab00a41c7039b\
+                \f083636689d2de1f0482068200a18200581cc1e7e3ea91ee7a92f0b33afcea\
+                \b00a41c7039bf083636689d2de1f041b000000e8d4a5100082008200581c8a\
+                \dbd72dd6b5b46b27df79b1f8bcbcf0ac780d515f5b57cb08a2c9a782068200\
+                \a18200581c8adbd72dd6b5b46b27df79b1f8bcbcf0ac780d515f5b57cb08a2\
+                \c9a71b000000e8d4a5100082008200581c9c19c3caa333ee30c6d5d9f0ddd0\
+                \1ad09258a47dec0380519bcae7ac82068200a18200581c9c19c3caa333ee30\
+                \c6d5d9f0ddd01ad09258a47dec0380519bcae7ac1b000000e8d4a510008200\
+                \8200581c6433cd346858f15142171023c633ae0646bdc0470de5ae6f110bdf\
+                \0682068200a18200581c6433cd346858f15142171023c633ae0646bdc0470d\
+                \e5ae6f110bdf061b000000e8d4a5100082008200581c63ec6f04e6fa18e830\
+                \05a02bc57d72f7afa3a04523d016010076b40a82068200a18200581c63ec6f\
+                \04e6fa18e83005a02bc57d72f7afa3a04523d016010076b40a1b000000e8d4\
+                \a5100082008200581c990d9d698730cbc4c09f95be75f54e47c524c3e7ad48\
+                \4de626ef321482068200a18200581c990d9d698730cbc4c09f95be75f54e47\
+                \c524c3e7ad484de626ef32141b000000e8d4a5100082008200581ccc8116d5\
+                \0326ea87caa3e46597b54e56725ff1fe39d1bc08361bc20682068200a18200\
+                \581ccc8116d50326ea87caa3e46597b54e56725ff1fe39d1bc08361bc2061b\
+                \000000e8d4a5100082008200581c246a121534ab486f4e47618cb192568b77\
+                \a491cf4db613a80ced4d7682068200a18200581c246a121534ab486f4e4761\
+                \8cb192568b77a491cf4db613a80ced4d761b000000e8d4a510008200820058\
+                \1c36cf17310d216fc7a2ac6122088766bbc5761129b1155d495bf8112b8206\
+                \8200a18200581c36cf17310d216fc7a2ac6122088766bbc5761129b1155d49\
+                \5bf8112b1b000000e8d4a5100082008200581c1bb104a403de68b0c03438a1\
+                \0d9142a595f4a9ff8162b195493bf55082068200a18200581c1bb104a403de\
+                \68b0c03438a10d9142a595f4a9ff8162b195493bf5501b000000e8d4a51000\
+                \82008200581cc2a47d500058e60176c437fc61be7d0cd07f0d8c871abe6d00\
+                \2636a182068200a18200581cc2a47d500058e60176c437fc61be7d0cd07f0d\
+                \8c871abe6d002636a11b000000e8d4a5100082008200581ce8b783e08083c2\
+                \3c2682afcd4b7a5cb0851239e5f9c04beb2455979582068200a18200581ce8\
+                \b783e08083c23c2682afcd4b7a5cb0851239e5f9c04beb245597951b000000\
+                \e8d4a5100082008200581cedf156a660897651bd753aefa7af7f81d6d83dfc\
+                \9bcdc4afbd36fad382068200a18200581cedf156a660897651bd753aefa7af\
+                \7f81d6d83dfc9bcdc4afbd36fad31b000000e8d4a5100082008200581c30c6\
+                \00d4fcf006fc2067721c55fc7d3a696b93a4f382aaad75e3516682068200a1\
+                \8200581c30c600d4fcf006fc2067721c55fc7d3a696b93a4f382aaad75e351\
+                \661b000000e8d4a5100082008200581cc7d5e024d22767a891e02834b27588\
+                \5e06ed04869747cff43cec91e082068200a18200581cc7d5e024d22767a891\
+                \e02834b275885e06ed04869747cff43cec91e01b000000e8d4a51000ff9fff\
+                \f6" :: Text
+
+        let cborHexMIR = fromTextEnvelope cborHex
+
+        let containMIR certs = OtherCertificate (ApiT MIRCertificate) `elem` certs
+
+        let decodePayloadJoin = Json [json|{
+              "transaction": #{cborHexMIR}
+          }|]
+        rTxJoin <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadJoin
+        verify rTxJoin
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldSatisfy` containMIR)
+            ]
+
+    it "TRANS_DECODE_05 - transaction with pool registration and deregistration certificates" $ \ctx -> runResourceT $ do
+
+        -- constructing source wallet
+        let initialAmt = minUTxOValue (_mainEra ctx)
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+
+        -- this is tx integration cluster sends when registering one of 4 pools
+        let cborHex =
+                "83a50081825820fe13857230b6db7f4d30acb043c6cd0c36595657ef79212f\
+                \6b4e0cc5d5af1c8b000181825839019ae3b4936cb9e6e6e4fb854d17ed867c\
+                \e10f3acdc19cdab52ab4a6de124827f09f6d5029a46b7d09854ac6a9ab16f3\
+                \a991c3e2b19ac029511b000000e8d4a51000021b00038c95d0122dc0031901\
+                \90048482008200581c124827f09f6d5029a46b7d09854ac6a9ab16f3a991c3\
+                \e2b19ac029518a03581cbb114cb37d75fa05260328c235a3dae295a33d0ba6\
+                \74a5eb1e3e568e5820ff097f7a12be27b1c4445b43a2d2279cc714a3c47f47\
+                \7a6eac3fc0ea54032ab21b000000e8d4a5100000d81e82010a581de1124827\
+                \f09f6d5029a46b7d09854ac6a9ab16f3a991c3e2b19ac0295181581c124827\
+                \f09f6d5029a46b7d09854ac6a9ab16f3a991c3e2b19ac02951808278246874\
+                \74703a2f2f6c6f63616c686f73743a34343130372f6d657461646174612e6a\
+                \736f6e5820f1941b06d889a1a9bd8a7dd72d2160aa294d81a4494f99353c6b\
+                \bb120746808983028200581c124827f09f6d5029a46b7d09854ac6a9ab16f3\
+                \a991c3e2b19ac02951581cbb114cb37d75fa05260328c235a3dae295a33d0b\
+                \a674a5eb1e3e568e8304581cbb114cb37d75fa05260328c235a3dae295a33d\
+                \0ba674a5eb1e3e568e1a000f42409ffff6" :: Text
+
+        let cborHexPool = fromTextEnvelope cborHex
+
+        let (Right percentage) = mkPercentage (1 % 10)
+        let poolId' = PoolId "\187\DC1L\179}u\250\ENQ&\ETX(\194\&5\163\218\226\149\163=\v\166t\165\235\RS>V\142"
+        let containRegPool = elem
+                (StakePoolRegister ApiRegisterPool
+                 { poolId = ApiT poolId'
+                 , poolOwners = [ ApiT (PoolOwner "\DC2H'\240\159mP)\164k}\t\133J\198\169\171\SYN\243\169\145\195\226\177\154\192)Q") ]
+                 , poolMargin = Quantity percentage
+                 , poolCost = Quantity 0
+                 , poolPledge = Quantity 1000000000000
+                 , poolMetadata =
+                         Just (ApiT (StakePoolMetadataUrl "http://localhost:44107/metadata.json")
+                              ,ApiT (StakePoolMetadataHash "\241\148\ESC\ACK\216\137\161\169\189\138}\215-!`\170)M\129\164IO\153\&5<k\187\DC2\aF\128\137"))
+                 })
+
+        let containDeregPool = elem
+                (StakePoolDeregister ApiDeregisterPool
+                 { poolId = ApiT poolId'
+                 , retirementEpoch = ApiT (EpochNo 1000000)
+                 })
+
+        let decodePayloadJoin = Json [json|{
+              "transaction": #{cborHexPool}
+          }|]
+        rTxJoin <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadJoin
+        verify rTxJoin
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldSatisfy` containRegPool)
+            , expectField #certificates (`shouldSatisfy` containDeregPool)
             ]
 
     it "TRANS_NEW_BALANCE_01d - single-output transaction with missing covering inputs" $ \ctx -> runResourceT $ do
@@ -2200,3 +2407,21 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             . fromJust
             . rawDeserialiseVerKeyDSIGN
             . xpubPublicKey
+
+    fromTextEnvelope cborHex =
+        let textEnvelope =
+                Cardano.TextEnvelope
+                (Cardano.TextEnvelopeType "TxBodyAlonzo")
+                ""
+                (unsafeFromHex $ T.encodeUtf8 cborHex)
+
+            (Right txBody) =
+                Cardano.deserialiseFromTextEnvelope
+                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelope
+
+            toCborHexTx txbody =
+                T.decodeUtf8 $
+                hex $
+                Cardano.serialiseToCBOR (Cardano.makeSignedTransaction [] txbody)
+
+        in toCborHexTx txBody

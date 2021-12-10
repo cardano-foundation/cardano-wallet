@@ -196,6 +196,7 @@ import Cardano.Wallet.Api.Types
     , ApiAccountPublicKey (..)
     , ApiActiveSharedWallet (..)
     , ApiAddress (..)
+    , ApiAnyCertificate (..)
     , ApiAsset (..)
     , ApiBalanceTransactionPostData
     , ApiBlockInfo (..)
@@ -203,6 +204,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiBytesT (..)
+    , ApiCertificate (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionCollateral (..)
@@ -211,9 +213,11 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiDecodedTransaction (..)
+    , ApiDeregisterPool (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiEra (..)
     , ApiErrorCode (..)
+    , ApiExternalCertificate (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
@@ -231,6 +235,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRedeemer (..)
+    , ApiRegisterPool (..)
     , ApiScriptTemplateEntry (..)
     , ApiSelectCoinsPayments
     , ApiSerialisedTransaction (..)
@@ -2211,14 +2216,15 @@ decodeTransaction
     -> ApiSerialisedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
-    let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn) = decodeTx tl sealed
-    (txinsOutsPaths, collsOutsPaths, outsPath, acct)  <-
+    let (Tx txid feeM colls inps outs wdrlMap meta vldt, toMint, toBurn, allCerts) =
+            decodeTx tl sealed
+    (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath)  <-
         withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-          (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+          (acct, _, acctPath) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
           txinsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> inps)
           collsOutsPaths <- liftHandler $ W.lookupTxIns @_ @s @k wrk wid (fst <$> colls)
           outsPath <- liftHandler $ W.lookupTxOuts @_ @s @k wrk wid outs
-          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct)
+          pure (txinsOutsPaths, collsOutsPaths, outsPath, acct, acctPath)
     pure $ ApiDecodedTransaction
         { id = ApiT txid
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) feeM
@@ -2228,6 +2234,7 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
         , withdrawals = map (toWrdl acct) $ Map.assocs wdrlMap
         , assetsMinted = ApiT toMint
         , assetsBurned = ApiT toBurn
+        , certificates = map (toApiAnyCert acct acctPath) allCerts
         , metadata = ApiTxMetadata $ ApiT <$> meta
         , scriptValidity = ApiT <$> vldt
         }
@@ -2260,6 +2267,47 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) Our
         else
            ApiWithdrawalGeneral (ApiT rewardKey, Proxy @n) (Quantity $ fromIntegral c) External
+
+    toApiAnyCert acct acctPath = \case
+        W.CertificateOfDelegation delCert -> toApiDelCert acct acctPath delCert
+        W.CertificateOfPool poolCert -> toApiPoolCert poolCert
+        W.CertificateOther otherCert -> toApiOtherCert otherCert
+
+    toApiOtherCert = OtherCertificate . ApiT
+
+    toApiPoolCert (W.Registration (W.PoolRegistrationCertificate poolId' poolOwners' poolMargin' poolCost' poolPledge' poolMetadata')) =
+        let enrich (a, b) = (ApiT a, ApiT b)
+        in StakePoolRegister $ ApiRegisterPool
+           (ApiT poolId')
+           (map ApiT poolOwners')
+           (Quantity poolMargin')
+           (Quantity $ unCoin poolCost')
+           (Quantity $ unCoin poolPledge')
+           (enrich <$> poolMetadata')
+    toApiPoolCert (W.Retirement (W.PoolRetirementCertificate poolId' retirementEpoch')) =
+        StakePoolDeregister $ ApiDeregisterPool
+        (ApiT poolId')
+        (ApiT retirementEpoch')
+
+    toApiDelCert acct acctPath (W.CertDelegateNone rewardKey) =
+        if rewardKey == acct then
+            WalletDelegationCertificate $ QuitPool $ NE.map ApiT acctPath
+        else
+            DelegationCertificate $ QuitPoolExternal (ApiT rewardKey, Proxy @n)
+    toApiDelCert acct acctPath (W.CertRegisterKey rewardKey) =
+        if rewardKey == acct then
+            WalletDelegationCertificate $
+            RegisterRewardAccount $ NE.map ApiT acctPath
+        else
+            DelegationCertificate $
+            RegisterRewardAccountExternal (ApiT rewardKey, Proxy @n)
+    toApiDelCert acct acctPath (W.CertDelegateFull rewardKey poolId') =
+        if rewardKey == acct then
+            WalletDelegationCertificate $
+            JoinPool (NE.map ApiT acctPath) (ApiT poolId')
+        else
+            DelegationCertificate $
+            JoinPoolExternal (ApiT rewardKey, Proxy @n) (ApiT poolId')
 
 joinStakePool
     :: forall ctx s n k.

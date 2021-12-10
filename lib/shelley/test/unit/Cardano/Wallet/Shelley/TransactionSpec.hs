@@ -1493,20 +1493,20 @@ prop_updateSealedTx tx extraIns extraCol extraOuts newFee = do
     isAlonzo (cardanoTx -> InAnyCardanoEra Cardano.AlonzoEra _) = True
     isAlonzo (cardanoTx -> InAnyCardanoEra _ _) = False
 
-fst3 :: (a, b, c) -> a
-fst3 (a,_,_) = a
+fst4 :: (a, b, c, d) -> a
+fst4 (a,_,_,_) = a
 
 sealedInputs :: SealedTx -> Set TxIn
 sealedInputs =
-    Set.fromList . map fst . view #resolvedInputs . fst3 . _decodeSealedTx
+    Set.fromList . map fst . view #resolvedInputs . fst4 . _decodeSealedTx
 
 sealedCollateral :: SealedTx -> Set TxIn
 sealedCollateral =
-    Set.fromList . map fst . view #resolvedCollateral . fst3 . _decodeSealedTx
+    Set.fromList . map fst . view #resolvedCollateral . fst4 . _decodeSealedTx
 
 sealedOutputs :: SealedTx -> Set TxOut
 sealedOutputs =
-    Set.fromList . view #outputs . fst3 . _decodeSealedTx
+    Set.fromList . view #outputs . fst4 . _decodeSealedTx
 
 sealedNumberOfRedeemers :: SealedTx -> Int
 sealedNumberOfRedeemers sealedTx =
@@ -1527,7 +1527,7 @@ sealedNumberOfRedeemers sealedTx =
 
 sealedFee :: SealedTx -> Maybe Coin
 sealedFee =
-    view #fee . fst3 . _decodeSealedTx
+    view #fee . fst4 . _decodeSealedTx
 
 txWithInputsOutputsAndWits :: ByteString
 txWithInputsOutputsAndWits =

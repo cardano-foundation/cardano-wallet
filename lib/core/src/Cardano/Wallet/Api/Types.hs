@@ -168,6 +168,10 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawalGeneral (..)
     , ApiWalletOutput (..)
     , ApiTxOutputGeneral (..)
+    , ApiAnyCertificate (..)
+    , ApiExternalCertificate (..)
+    , ApiRegisterPool (..)
+    , ApiDeregisterPool (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -295,6 +299,7 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , MinimumUTxOValue (..)
     , NetworkParameters (..)
+    , NonWalletCertificate (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
     , SlotInEpoch (..)
@@ -435,7 +440,7 @@ import Data.Word.Odd
 import Fmt
     ( pretty )
 import GHC.Generics
-    ( Generic )
+    ( Generic, Rep )
 import GHC.TypeLits
     ( Nat, Symbol )
 import Numeric.Natural
@@ -1171,6 +1176,47 @@ data ApiTxOutputGeneral (n :: NetworkDiscriminant) =
       deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
+data ApiExternalCertificate (n :: NetworkDiscriminant)
+    = RegisterRewardAccountExternal
+        { rewardAccount :: !(ApiT W.RewardAccount, Proxy n)
+        }
+    | JoinPoolExternal
+        { rewardAccount :: !(ApiT W.RewardAccount, Proxy n)
+        , pool :: ApiT PoolId
+        }
+    | QuitPoolExternal
+        { rewardAccount :: !(ApiT W.RewardAccount, Proxy n)
+        }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiRegisterPool = ApiRegisterPool
+    { poolId :: !(ApiT PoolId)
+    , poolOwners :: ![ApiT W.PoolOwner]
+    , poolMargin :: !(Quantity "percent" Percentage)
+    , poolCost :: !(Quantity "lovelace" Natural)
+    , poolPledge :: !(Quantity "lovelace" Natural)
+    , poolMetadata :: Maybe (ApiT W.StakePoolMetadataUrl, ApiT W.StakePoolMetadataHash)
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiDeregisterPool = ApiDeregisterPool
+    { poolId :: !(ApiT PoolId)
+    , retirementEpoch :: !(ApiT EpochNo)
+    }
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+data ApiAnyCertificate n =
+      WalletDelegationCertificate ApiCertificate
+    | DelegationCertificate (ApiExternalCertificate n)
+    | StakePoolRegister ApiRegisterPool
+    | StakePoolDeregister ApiDeregisterPool
+    | OtherCertificate (ApiT NonWalletCertificate)
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     { id :: !(ApiT (Hash "Tx"))
     , fee :: !(Quantity "lovelace" Natural)
@@ -1180,6 +1226,7 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , withdrawals :: ![ApiWithdrawalGeneral n]
     , assetsMinted :: !(ApiT W.TokenMap)
     , assetsBurned :: !(ApiT W.TokenMap)
+    , certificates :: ![ApiAnyCertificate n]
     , metadata :: !ApiTxMetadata
     , scriptValidity :: !(Maybe (ApiT TxScriptValidity))
     } deriving (Eq, Generic, Show, Typeable)
@@ -2998,6 +3045,93 @@ instance DecodeAddress n => FromJSON (ApiWalletOutput n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiWalletOutput n) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeStakeAddress n => FromJSON (ApiExternalCertificate n) where
+    parseJSON = genericParseJSON apiCertificateOptions
+instance EncodeStakeAddress n => ToJSON (ApiExternalCertificate n) where
+    toJSON = genericToJSON apiCertificateOptions
+
+instance FromJSON (ApiT W.PoolOwner) where
+    parseJSON = fromTextJSON "ApiT PoolOwner"
+instance ToJSON (ApiT W.PoolOwner) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT W.StakePoolMetadataUrl) where
+    parseJSON = fromTextJSON "ApiT StakePoolMetadataUrl"
+instance ToJSON (ApiT W.StakePoolMetadataUrl) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT W.StakePoolMetadataHash) where
+    parseJSON = fromTextJSON "ApiT StakePoolMetadataHash"
+instance ToJSON (ApiT W.StakePoolMetadataHash) where
+    toJSON = toTextJSON
+
+instance FromJSON (ApiT W.NonWalletCertificate) where
+  parseJSON val
+    | val == object ["certificate_type" .= String "mir"]
+    = pure $ ApiT MIRCertificate
+    | val == object ["certificate_type" .= String "genesis"]
+    = pure $ ApiT GenesisCertificate
+    | otherwise
+    = fail
+        "expected object with key 'certificate_type' and value either 'mir' or 'genesis'"
+instance ToJSON (ApiT W.NonWalletCertificate) where
+    toJSON (ApiT cert) = object ["certificate_type" .= String (toText cert)]
+
+parseExtendedAesonObject
+    :: ( Generic a
+       , Aeson.GFromJSON Aeson.Zero (Rep a) )
+    => String
+    -> Text
+    -> Value
+    -> Parser a
+parseExtendedAesonObject txt fieldtoremove = withObject txt $ \o -> do
+    let removeCertType (numTxt,_) = numTxt /= fieldtoremove
+    let o' = HM.fromList $ filter removeCertType $ HM.toList o
+    genericParseJSON defaultRecordTypeOptions (Object o')
+
+extendAesonObject
+    :: ( Generic a
+       , Aeson.GToJSON' Value Aeson.Zero (Rep a))
+    => [Aeson.Pair]
+    -> a
+    -> Value
+extendAesonObject tobeadded apipool =
+    let Object obj = genericToJSON defaultRecordTypeOptions apipool
+        Object obj' = object tobeadded
+    in Object $ obj <> obj'
+
+instance FromJSON ApiRegisterPool where
+    parseJSON = parseExtendedAesonObject "ApiRegisterPool" "certificate_type"
+instance ToJSON ApiRegisterPool where
+    toJSON = extendAesonObject ["certificate_type" .= String "register_pool"]
+
+instance FromJSON ApiDeregisterPool where
+    parseJSON = parseExtendedAesonObject "ApiDeregisterPool" "certificate_type"
+instance ToJSON ApiDeregisterPool where
+    toJSON = extendAesonObject ["certificate_type" .= String "deregister_pool"]
+
+instance DecodeStakeAddress n => FromJSON (ApiAnyCertificate n) where
+    parseJSON = withObject "ApiAnyCertificate" $ \o -> do
+        (certType :: String) <- o .: "certificate_type"
+        case certType of
+            "register_pool" -> StakePoolRegister <$> parseJSON (Object o)
+            "deregister_pool" -> StakePoolDeregister <$> parseJSON (Object o)
+            "join_pool" -> WalletDelegationCertificate <$> parseJSON (Object o)
+            "quit_pool" -> WalletDelegationCertificate <$> parseJSON (Object o)
+            "register_reward_account" -> WalletDelegationCertificate <$> parseJSON (Object o)
+            "join_pool_external" -> DelegationCertificate <$> parseJSON (Object o)
+            "quit_pool_external" -> DelegationCertificate <$> parseJSON (Object o)
+            "register_reward_account_external" -> DelegationCertificate <$> parseJSON (Object o)
+            "mir" -> OtherCertificate <$> parseJSON (Object o)
+            "genesis" -> OtherCertificate <$> parseJSON (Object o)
+            _ -> fail $ "unknown certificate_type: " <> show certType
+instance EncodeStakeAddress n => ToJSON (ApiAnyCertificate n) where
+    toJSON (WalletDelegationCertificate cert) = toJSON cert
+    toJSON (DelegationCertificate cert) = toJSON cert
+    toJSON (StakePoolRegister reg) = toJSON reg
+    toJSON (StakePoolDeregister dereg) = toJSON dereg
+    toJSON (OtherCertificate cert) = toJSON cert
 
 instance
     ( DecodeAddress n

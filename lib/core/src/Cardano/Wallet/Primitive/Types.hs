@@ -63,6 +63,9 @@ module Cardano.Wallet.Primitive.Types
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
 
+    , NonWalletCertificate (..)
+    , Certificate (..)
+
     -- * Network Parameters
     , NetworkParameters (..)
     , GenesisParameters (..)
@@ -1471,6 +1474,31 @@ instance Buildable PoolRetirementCertificate where
         <> build p
         <> " with retirement epoch "
         <> build e
+
+data NonWalletCertificate
+    = GenesisCertificate
+    | MIRCertificate
+    deriving (Generic, Show, Read, Eq)
+
+instance ToText NonWalletCertificate where
+    toText GenesisCertificate = "genesis"
+    toText MIRCertificate = "mir"
+
+instance FromText NonWalletCertificate where
+    fromText "genesis" = Right GenesisCertificate
+    fromText "mir" = Right MIRCertificate
+    fromText _ = Left $ TextDecodingError
+        "expecting either 'genesis' or 'mir' for NonWalletCertificate text value"
+
+instance NFData NonWalletCertificate
+
+data Certificate =
+      CertificateOfDelegation DelegationCertificate
+    | CertificateOfPool PoolCertificate
+    | CertificateOther NonWalletCertificate
+    deriving (Generic, Show, Eq)
+
+instance NFData Certificate
 
 -- | Represents an abstract notion of a certificate publication time.
 --
