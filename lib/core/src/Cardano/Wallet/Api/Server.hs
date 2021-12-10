@@ -3782,7 +3782,7 @@ instance IsServerError ErrBalanceTx where
                 ]
         ErrBalanceTxNotYetSupported ZeroAdaOutput ->
             apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "The transaction contains one or more outputs with "
+                [ "The transaction contains one or more zero ada outputs."
                 ]
         ErrBalanceTxNotYetSupported Deposits ->
             apiError err500 CreatedInvalidTransaction $ mconcat

@@ -1459,6 +1459,11 @@ balanceTransaction
         isReg (Cardano.StakeAddressRegistrationCertificate _) = True
         isReg (Cardano.StakeAddressDeregistrationCertificate _) = True
         isReg _ = False
+    case Cardano.txCertificates bod of
+        Cardano.TxCertificatesNone -> return ()
+        Cardano.TxCertificates _ certs _
+            | any isReg certs -> throwE $ ErrBalanceTxNotYetSupported Deposits
+            | otherwise -> return ()
 
     -- Use of withdrawals with different networks breaks balancing.
     --
@@ -1470,7 +1475,7 @@ balanceTransaction
     --
     -- Even though this is absurd, the node/ledger @evaluateTransactionBalance@
     -- will count @coin1+coin2@ towards the total balance. Because the wallet
-    -- does not concider the network tag, it will drop one of the two, leading
+    -- does not consider the network tag, it will drop one of the two, leading
     -- to a discrepancy.
     let networkOfWdrl ((Cardano.StakeAddress nw _), _, _) = nw
     let conflictingWdrlNetworks = case Cardano.txWithdrawals bod of
@@ -1479,7 +1484,6 @@ balanceTransaction
                 (Set.fromList $ map networkOfWdrl wdrls) > 1
     when conflictingWdrlNetworks $
         throwE $ ErrBalanceTxNotYetSupported ConflictingNetworks
-
 
     -- We seem to produce imbalanced transactions if zero-ada
     -- outputs are pre-specified. Example from
@@ -1504,12 +1508,6 @@ balanceTransaction
             filter (\o -> view (#tokens . #coin) o == Coin 0 ) outputs
     unless (null zeroAdaOutputs) $
         throwE $ ErrBalanceTxNotYetSupported ZeroAdaOutput
-
-    case Cardano.txCertificates bod of
-        Cardano.TxCertificatesNone -> return ()
-        Cardano.TxCertificates _ certs _
-            | any isReg certs -> throwE $ ErrBalanceTxNotYetSupported Deposits
-            | otherwise -> return ()
 
     (delta, extraInputs, extraCollateral, extraOutputs) <- do
         let externalSelectedUtxo = UTxOIndex.fromSequence $
