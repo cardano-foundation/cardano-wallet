@@ -144,7 +144,13 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE )
 import Control.Retry
-    ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
+    ( RetryAction (..)
+    , RetryPolicyM
+    , RetryStatus (..)
+    , capDelay
+    , fibonacciBackoff
+    , recoveringDynamic
+    )
 import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.ByteString.Lazy
@@ -1009,7 +1015,7 @@ recoveringNodeConnection
     -> IO a
     -> IO a
 recoveringNodeConnection tr handlers action =
-    recovering policy (coerceHandlers handlers) $ \status -> do
+    recoveringDynamic policy (coerceHandlers handlers) $ \status -> do
         traceWith tr $ MsgCouldntConnect (rsIterNumber status)
         action
   where
@@ -1018,7 +1024,7 @@ recoveringNodeConnection tr handlers action =
     policy = fibonacciBackoff 250_000 & capDelay 2_000_000
 
 -- | Shorthand for the list of exception handlers used with 'recovering'.
-type RetryHandlers = [RetryStatus -> Handler IO Bool]
+type RetryHandlers = [RetryStatus -> Handler IO RetryAction]
 
 -- | Handlers that are retrying on every connection lost.
 retryOnConnectionLost :: Tracer IO NetworkLayerLog -> RetryHandlers
@@ -1036,26 +1042,26 @@ handleIOException
     :: Tracer IO (Maybe IOException)
     -> Bool -- ^ 'True' = retry on 'ResourceVanishedError'
     -> IOException
-    -> IO Bool
+    -> IO RetryAction
 handleIOException tr onResourceVanished e
     -- There's a race-condition when starting the wallet and the node at the
     -- same time: the socket might not be there yet when we try to open it.
     -- In such case, we simply retry a bit later and hope it's there.
     | isDoesNotExistError e =
-        pure True
+        pure ConsultPolicy
 
     -- If the nonblocking UNIX domain socket connection cannot be completed
     -- immediately (i.e. connect() returns EAGAIN), try again. This happens
     -- because the node's listen queue is quite short.
     | isTryAgainError e =
-        pure True
+        pure ConsultPolicy
 
     | isResourceVanishedError e = do
         traceWith tr $ Just e
-        pure onResourceVanished
+        pure $ if onResourceVanished then ConsultPolicy else DontRetry
 
     | otherwise = do
-        pure False
+        pure DontRetry
   where
     isResourceVanishedError = isInfixOf "resource vanished" . show
     isTryAgainError = isInfixOf "resource exhausted" . show
@@ -1064,21 +1070,27 @@ handleMuxError
     :: Tracer IO (Maybe IOException)
     -> Bool -- ^ 'True' = retry on 'ResourceVanishedError'
     -> MuxError
-    -> IO Bool
+    -> IO RetryAction
 handleMuxError tr onResourceVanished = pure . errorType >=> \case
-    MuxUnknownMiniProtocol -> pure False
-    MuxDecodeError -> pure False
-    MuxIngressQueueOverRun -> pure False
-    MuxInitiatorOnly -> pure False
-    MuxSDUReadTimeout -> pure False
-    MuxSDUWriteTimeout -> pure False
-    MuxShutdown _ -> pure False -- fixme: #2212 consider cases
+    MuxUnknownMiniProtocol -> pure DontRetry
+    MuxDecodeError -> pure DontRetry
+    MuxIngressQueueOverRun -> pure DontRetry
+    MuxInitiatorOnly -> pure DontRetry
+    MuxShutdown _ -> pure DontRetry -- fixme: #2212 consider cases
     MuxIOException e ->
         handleIOException tr onResourceVanished e
     MuxBearerClosed -> do
         traceWith tr Nothing
-        pure onResourceVanished
-    MuxBlockedOnCompletionVar _ -> pure False -- TODO: Is this correct?
+        pure $ if onResourceVanished then ConsultPolicy else DontRetry
+    MuxBlockedOnCompletionVar _ -> pure DontRetry -- TODO: Is this correct?
+
+    -- MuxSDU*Timeout errors arise because the bandwidth of the
+    -- interprocess communication socket dropped unexpectedly,
+    -- and the socket library decided to cut off the connection
+    -- after ~ 30 seconds.
+    -- Chances are that the system is overloaded, let's retry in 30 seconds.
+    MuxSDUReadTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
+    MuxSDUWriteTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
 
 {-------------------------------------------------------------------------------
     Helper functions of the Control.* and STM variety
