@@ -422,6 +422,7 @@ import Cardano.Wallet.Transaction
     , ErrUpdateSealedTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxFeeUpdate (..)
     , TxUpdate (..)
     , Withdrawal (..)
     , defaultTransactionCtx
@@ -1590,7 +1591,7 @@ balanceTransaction
         { extraInputs
         , extraCollateral
         , extraOutputs
-        , newFee = Just delta
+        , feeUpdate = UseNewTxFee delta
         }
     let candidateMinFee = fromMaybe (Coin 0) $
             evaluateMinimumFee tl nodePParams candidateTx
@@ -1612,7 +1613,7 @@ balanceTransaction
         { extraInputs
         , extraCollateral
         , extraOutputs = mapFirst (txOutAddCoin surplus) extraOutputs
-        , newFee = Just candidateMinFee
+        , feeUpdate = UseNewTxFee candidateMinFee
         }
   where
     tl = ctx ^. transactionLayer @k
