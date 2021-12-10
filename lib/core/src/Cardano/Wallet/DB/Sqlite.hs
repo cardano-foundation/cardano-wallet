@@ -12,7 +12,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -53,28 +52,20 @@ module Cardano.Wallet.DB.Sqlite
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
-import Cardano.Address.Script
-    ( Cosigner (..), ScriptTemplate (..) )
+    ( XPrv )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
-    ( DBField (..)
-    , DBLog (..)
-    , ManualMigration (..)
+    ( DBLog (..)
     , SqliteContext (..)
     , chunkSize
-    , dbChunked
     , dbChunked'
     , dbChunkedFor
-    , fieldName
-    , fieldType
     , handleConstraint
     , newInMemorySqliteContext
     , newSqliteContext
-    , tableName
     , withConnectionPool
     )
 import Cardano.DB.Sqlite.Delete
@@ -95,22 +86,25 @@ import Cardano.Wallet.DB
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
+import Cardano.Wallet.DB.Checkpoints
+    ( DeltaCheckpoints (..)
+    , DeltaMap (..)
+    , findNearestPoint
+    , getLatest
+    , getPoint
+    , singleton
+    )
+import Cardano.Wallet.DB.Sqlite.CheckpointsOld
+    ( PersistState (..), blockHeaderFromEntity, mkStoreWalletsCheckpoints )
+import Cardano.Wallet.DB.Sqlite.Migration
+    ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.TH
-    ( Checkpoint (..)
-    , CosignerKey (..)
-    , DelegationCertificate (..)
+    ( DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
     , Key (..)
     , LocalTxSubmission (..)
     , PrivateKey (..)
-    , RndState (..)
-    , RndStateAddress (..)
-    , RndStatePendingAddress (..)
-    , SeqState (..)
-    , SeqStateAddress (..)
-    , SeqStatePendingIx (..)
-    , SharedState (..)
     , StakeKeyCertificate (..)
     , TxCollateral (..)
     , TxIn (..)
@@ -118,43 +112,14 @@ import Cardano.Wallet.DB.Sqlite.TH
     , TxOut (..)
     , TxOutToken (..)
     , TxWithdrawal (..)
-    , UTxO (..)
-    , UTxOToken (..)
     , Wallet (..)
     , migrateAll
     , unWalletKey
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( BlockId (..)
-    , HDPassphrase (..)
-    , TxId (..)
-    , fromMaybeHash
-    , hashOfNoParent
-    , toMaybeHash
-    )
+    ( BlockId (..), TxId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
-    , PaymentAddress (..)
-    , PersistPrivateKey (..)
-    , PersistPublicKey (..)
-    , Role (..)
-    , SoftDerivation (..)
-    , WalletKey (..)
-    )
-import Cardano.Wallet.Primitive.AddressDerivation.Icarus
-    ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GetPurpose )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( CredentialType (..) )
+    ( Depth (..), PersistPrivateKey (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , epochOf
@@ -162,40 +127,28 @@ import Cardano.Wallet.Primitive.Slotting
     , interpretQuery
     , slotToUTCTime
     )
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
-import Cardano.Wallet.Util
-    ( invariant )
 import Control.Monad
-    ( forM, forM_, unless, void, when, (<=<) )
+    ( forM, unless, void, when, (<=<) )
 import Control.Monad.Extra
     ( concatMapM )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
-import Control.Monad.Trans.Maybe
-    ( MaybeT (..) )
+    ( ExceptT (..) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
-import Data.Bifunctor
-    ( second )
 import Data.Coerce
     ( coerce )
 import Data.DBVar
-    ( Store (..), loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
-import Data.Delta
-    ( Delta (..) )
+    ( loadDBVar, modifyDBMaybe, readDBVar, updateDBVar )
 import Data.Either
     ( isRight )
 import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
-    ( over, view, (^.) )
+    ( view, (^.) )
 import Data.List
     ( nub, sortOn, unzip4 )
 import Data.List.Split
@@ -203,7 +156,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromJust, fromMaybe, isJust, mapMaybe )
+    ( catMaybes, isJust )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -214,12 +167,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..), fromText )
-import Data.Type.Equality
-    ( type (==) )
-import Data.Typeable
-    ( Typeable )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word32 )
 import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Sql
@@ -230,7 +179,6 @@ import Database.Persist.Sql
     , Update (..)
     , deleteWhere
     , deleteWhereCount
-    , insertMany_
     , insert_
     , rawExecute
     , rawSql
@@ -241,8 +189,6 @@ import Database.Persist.Sql
     , selectList
     , updateWhere
     , upsert
-    , (!=.)
-    , (/<-.)
     , (<-.)
     , (<.)
     , (<=.)
@@ -253,8 +199,6 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
-import Database.Persist.Types
-    ( PersistValue (..), fromPersistValueText )
 import Fmt
     ( pretty, (+|), (|+) )
 import GHC.Generics
@@ -268,24 +212,16 @@ import UnliftIO.Exception
 import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
-import qualified Cardano.Wallet.Primitive.AddressDerivation as W
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Database.Sqlite as Sqlite
 
 {-------------------------------------------------------------------------------
                                Database "factory"
@@ -436,725 +372,6 @@ instance ToText DBFactoryLog where
             "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
             "Attempting to remove the database anyway."
         MsgWalletDB _file msg -> toText msg
-
-{-------------------------------------------------------------------------------
-                           Database Schema Migrations
--------------------------------------------------------------------------------}
-
--- | A set of default field values that can be consulted when performing a
---   database migration.
---
-data DefaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient
-    , defaultDesiredNumberOfPool :: Word16
-    , defaultMinimumUTxOValue :: W.Coin
-    , defaultHardforkEpoch :: Maybe W.EpochNo
-    , defaultKeyDeposit :: W.Coin
-    }
-
--- | A data-type for capturing column status. Used to be represented as a
--- 'Maybe Bool' which is somewhat confusing to interpret.
-data SqlColumnStatus
-    = TableMissing
-    | ColumnMissing
-    | ColumnPresent
-    deriving Eq
-
--- | Executes any manual database migration steps that may be required on
---   startup.
---
-migrateManually
-    :: WalletKey k
-    => Tracer IO DBLog
-    -> Proxy k
-    -> DefaultFieldValues
-    -> [ManualMigration]
-migrateManually tr proxy defaultFieldValues =
-    ManualMigration <$>
-    [ cleanupCheckpointTable
-    , assignDefaultPassphraseScheme
-    , addDesiredPoolNumberIfMissing
-    , addMinimumUTxOValueIfMissing
-    , addHardforkEpochIfMissing
-
-      -- FIXME
-      -- Temporary migration to fix Daedalus flight wallets. This should
-      -- really be removed as soon as we have a fix for the cardano-sl:wallet
-      -- currently in production.
-    , removeSoftRndAddresses
-
-    , removeOldTxParametersTable
-    , addAddressStateIfMissing
-    , addSeqStateDerivationPrefixIfMissing
-    , renameRoleColumn
-    , renameRoleFields
-    , updateFeeValueAndAddKeyDeposit
-    , addFeeToTransaction
-    , moveRndUnusedAddresses
-    , cleanupSeqStateTable
-    ]
-  where
-    -- NOTE
-    -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
-    -- represented by 'seqStateScriptGap' field. We introduce separate shared wallet state
-    -- and want to get rid of this. Also we had two supporting tables which we will drop,
-    -- 'SeqStateKeyHash' and 'SeqStateScriptHash'.
-    cleanupSeqStateTable :: Sqlite.Connection -> IO ()
-    cleanupSeqStateTable conn = do
-        let orig = "seq_state"
-
-        -- 1. Drop column from the 'seq_state' table
-        isFieldPresentByName conn "seq_state" "script_gap" >>= \case
-            ColumnPresent -> do
-                let tmp = orig <> "_tmp"
-
-                info <- runSql conn $ getTableInfo orig
-                let excluding = ["script_gap"]
-                let filtered = mapMaybe (filterColumn excluding) info
-                dropColumnOp conn orig tmp filtered
-
-            _ -> return ()
-
-        -- 2. Drop supplementrary tables
-        _ <- runSql conn $ dropTable "seq_state_key_hash"
-        _ <- runSql conn $ dropTable "seq_state_script_hash"
-
-        return ()
-
-    dropTable :: Text -> Text
-    dropTable table = mconcat
-        [ "DROP TABLE IF EXISTS " <> table <> ";"
-        ]
-
-    getTableInfo :: Text -> Text
-    getTableInfo table = mconcat
-        [ "PRAGMA table_info(", table, ");"
-        ]
-
-    filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
-    filterColumn excluding = \case
-        [ _, PersistText colName, PersistText colType, colNull, _, _] ->
-            if colName `elem` excluding then
-                Nothing
-            else
-                Just [PersistText colName, PersistText colType, colNull]
-        _ ->
-            Nothing
-
-    dropColumnOp
-        :: Sqlite.Connection
-        -> Text
-        -> Text
-        -> [[PersistValue]]
-        -> IO ()
-    dropColumnOp conn orig tmp filtered = do
-        _ <- runSql conn $ dropTable tmp
-        _ <- runSql conn $ createTable tmp filtered
-        _ <- runSql conn $ copyTable orig tmp filtered
-        _ <- runSql conn $ dropTable orig
-        _ <- runSql conn $ renameTable tmp orig
-
-        return ()
-      where
-        createTable table cols = mconcat
-            [ "CREATE TABLE ", table, " ("
-            , T.intercalate ", " (mapMaybe createColumn cols)
-            , ");"
-            ]
-        copyTable source destination cols = mconcat
-            [ "INSERT INTO ", destination, " SELECT "
-            , T.intercalate ", " (mapMaybe selectColumn cols)
-            , " FROM ", source
-            , ";"
-            ]
-        renameTable from to = mconcat
-            [ "ALTER TABLE ", from, " RENAME TO ", to, ";" ]
-
-        selectColumn :: [PersistValue] -> Maybe Text
-        selectColumn = \case
-            [ PersistText colName, _ , _ ] ->
-                Just colName
-            _ ->
-                Nothing
-
-        createColumn :: [PersistValue] -> Maybe Text
-        createColumn = \case
-            [ PersistText colName, PersistText colType, PersistInt64 1 ] ->
-                Just $ T.unwords [ colName, colType, "NOT NULL" ]
-            [ PersistText colName, PersistText colType, _ ] ->
-                Just $ T.unwords [ colName, colType ]
-            _ ->
-                Nothing
-
-    -- NOTE
-    -- We originally stored protocol parameters in the 'Checkpoint' table, and
-    -- later moved them to a new dedicatd table. However, removing a column is
-    -- not something straightforward in SQLite, so we initially simply marked
-    -- most parameters as _unused. Later, we did rework how genesis and protocol
-    -- parameters were stored and shared between wallets and completely removed
-    -- them from the database. At the same time, we also introduced
-    -- 'genesis_hash' and 'genesis_start' in the 'Wallet' table which we use is
-    -- as a discriminator for the migration.
-    cleanupCheckpointTable :: Sqlite.Connection -> IO ()
-    cleanupCheckpointTable conn = do
-        let orig = "checkpoint"
-
-        -- 1. Add genesis_hash and genesis_start to the 'wallet' table.
-        let field = DBField WalGenesisHash
-        isFieldPresent conn field >>= \case
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
-
-            ColumnPresent -> do
-                traceWith tr $ MsgManualMigrationNotNeeded field
-
-            ColumnMissing -> do
-                [defaults] <- runSql conn $ select ["genesis_hash", "genesis_start"] orig
-                let [PersistText genesisHash, PersistText genesisStart] = defaults
-                addColumn_ conn True (DBField WalGenesisHash) (quotes genesisHash)
-                addColumn_ conn True (DBField WalGenesisStart) (quotes genesisStart)
-
-        -- 2. Drop columns from the 'checkpoint' table
-        isFieldPresentByName conn "checkpoint" "genesis_hash" >>= \case
-            ColumnPresent -> do
-                let tmp = orig <> "_tmp"
-
-                info <- runSql conn $ getTableInfo orig
-                let filtered = mapMaybe (filterColumn excluding) info
-                      where
-                        excluding =
-                            [ "genesis_hash", "genesis_start", "fee_policy"
-                            , "slot_length", "epoch_length", "tx_max_size"
-                            , "epoch_stability", "active_slot_coeff"
-                            ]
-                dropColumnOp conn orig tmp filtered
-            _ -> return ()
-
-      where
-        select fields table = mconcat
-            [ "SELECT ", T.intercalate ", " fields
-            , " FROM ", table
-            , " ORDER BY slot ASC LIMIT 1;"
-            ]
-
-    -- NOTE
-    -- Wallets created before the 'PassphraseScheme' was introduced have no
-    -- passphrase scheme set in the database. Yet, their passphrase is known
-    -- to use the default / new scheme (i.e. PBKDF2) and, it is impossible
-    -- to have a wallet with a scheme but no last update. Either they should
-    -- have both, or they should have none.
-    --
-    --     Creation Method               | Scheme | Last Update
-    --     ---                           | ---    | ---
-    --     Byron, from mnemonic          | ✓      | ✓
-    --     Byron, from xprv              | ✓      | ✓
-    --     Shelley, from mnemonic        | ✓      | ✓
-    --     Shelley, from account pub key | ø      | ø
-    assignDefaultPassphraseScheme :: Sqlite.Connection -> IO ()
-    assignDefaultPassphraseScheme conn = do
-        isFieldPresent conn passphraseScheme >>= \case
-            TableMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded passphraseScheme
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded passphraseScheme
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName passphraseScheme
-                    , "ADD COLUMN", fieldName passphraseScheme
-                    , fieldType passphraseScheme, " NULL"
-                    , ";"
-                    ]
-                Sqlite.step query *> Sqlite.finalize query
-                assignDefaultPassphraseScheme conn -- loop to apply case below
-            ColumnPresent  -> do
-                value <- either (fail . show) (\x -> pure $ "\"" <> x <> "\"") $
-                    fromPersistValueText (toPersistValue W.EncryptWithPBKDF2)
-                traceWith tr . MsgExpectedMigration
-                    $ MsgManualMigrationNeeded passphraseScheme value
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "UPDATE", tableName passphraseScheme
-                    , "SET", fieldName passphraseScheme, "=", value
-                    , "WHERE", fieldName passphraseScheme, "IS NULL"
-                    , "AND", fieldName passphraseLastUpdatedAt, "IS NOT NULL"
-                    , ";"
-                    ]
-                Sqlite.step query *> Sqlite.finalize query
-      where
-        passphraseScheme = DBField WalPassphraseScheme
-        passphraseLastUpdatedAt = DBField WalPassphraseLastUpdatedAt
-
-    -- | Remove any addresses that were wrongly generated in previous releases.
-    -- See comment below in 'selectState' from 'RndState'.
-    --
-    -- Important: this _may_ remove USED addresses from the discovered set which
-    -- is _okay-ish_ for two reasons:
-    --
-    --     1. Address will still be discovered in UTxOs and this won't affect
-    --     users' balance. But the address won't show up when in the listing.
-    --     This is a wanted behavior.
-    --
-    --     2. The discovered list of address is really used internally to avoid
-    --     index clash when generating new change addresses. Since we'll
-    --     generate addresses from a completely different part of the HD tree
-    --     ANYWAY, there's no risk of clash.
-    removeSoftRndAddresses :: Sqlite.Connection -> IO ()
-    removeSoftRndAddresses conn = do
-        isFieldPresent conn rndAccountIx >>= \case
-            TableMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded rndAccountIx
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded rndAccountIx
-            ColumnPresent -> do
-                traceWith tr . MsgExpectedMigration
-                    $ MsgManualMigrationNeeded rndAccountIx hardLowerBound
-                stmt <- Sqlite.prepare conn $ T.unwords
-                    [ "DELETE FROM", tableName rndAccountIx
-                    , "WHERE", fieldName rndAccountIx, "<", hardLowerBound
-                    , ";"
-                    ]
-                _ <- Sqlite.step stmt
-                Sqlite.finalize stmt
-      where
-        hardLowerBound = toText $ fromEnum $ minBound @(Index 'Hardened _)
-        rndAccountIx   = DBField RndStateAddressAccountIndex
-
-    -- | When we implemented the 'importAddress' and 'createAddress' features,
-    -- we mistakenly added all imported addresses in the discovered section and
-    -- table of the RndState. This makes them affected by rollbacks, which is
-    -- very much an issue. While fixing this, we can also take the opportunity
-    -- to move all existing 'unused' addresses from the 'RndStateAddress' to the
-    -- 'RndStatePendingAddress' table.
-    --
-    -- Arguably, the 'status' column is redundant on the 'RndStateAddress' table
-    -- because any address in that table must be 'Used', by construction.
-    moveRndUnusedAddresses :: Sqlite.Connection -> IO ()
-    moveRndUnusedAddresses conn = do
-        isFieldPresent conn rndStateAddressStatus >>= \case
-            TableMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded rndStateAddressStatus
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded rndStateAddressStatus
-            ColumnPresent -> do
-                let unused = quotes $ toText W.Unused
-
-                [[PersistInt64 n]] <- runSql conn $ T.unwords
-                    [ "SELECT COUNT(*)"
-                    , "FROM", tableName rndStateAddressStatus
-                    , "WHERE", fieldName rndStateAddressStatus, "=", unused
-                    , ";"
-                    ]
-
-                if n > 0 then do
-                    traceWith tr $ MsgManualMigrationNeeded rndStateAddressStatus "-"
-
-                    void $ runSql conn $ T.unwords
-                        [ "INSERT INTO", rndStatePendingTable
-                        , "(wallet_id, account_ix, address_ix, address)"
-                        , "SELECT wallet_id, account_ix, address_ix, address"
-                        , "FROM", rndStateDiscoveredTable
-                        , "WHERE", fieldName rndStateAddressStatus, "=", unused
-                        , ";"
-                        ]
-
-                    void $ runSql conn $ T.unwords
-                        [ "DELETE FROM", rndStateDiscoveredTable
-                        , "WHERE", fieldName rndStateAddressStatus, "=", unused
-                        , ";"
-                        ]
-                else do
-                    traceWith tr $ MsgManualMigrationNotNeeded rndStateAddressStatus
-      where
-        rndStateAddressStatus = DBField RndStateAddressStatus
-        rndStateDiscoveredTable = tableName $ DBField RndStateAddressWalletId
-        rndStatePendingTable  = tableName $ DBField RndStatePendingAddressWalletId
-
-    -- | Adds an 'desired_pool_number' column to the 'protocol_parameters'
-    -- table if it is missing.
-    --
-    addDesiredPoolNumberIfMissing :: Sqlite.Connection -> IO ()
-    addDesiredPoolNumberIfMissing conn = do
-        addColumn_ conn True (DBField ProtocolParametersDesiredNumberOfPools) value
-      where
-        value = T.pack $ show $ defaultDesiredNumberOfPool defaultFieldValues
-
-    -- | Adds an 'minimum_utxo_value' column to the 'protocol_parameters'
-    -- table if it is missing.
-    --
-    addMinimumUTxOValueIfMissing :: Sqlite.Connection -> IO ()
-    addMinimumUTxOValueIfMissing conn = do
-        addColumn_ conn True (DBField ProtocolParametersMinimumUtxoValue) value
-      where
-        value = T.pack $ show $ W.unCoin $ defaultMinimumUTxOValue defaultFieldValues
-
-    -- | Adds an 'hardfork_epoch' column to the 'protocol_parameters'
-    -- table if it is missing.
-    --
-    addHardforkEpochIfMissing :: Sqlite.Connection -> IO ()
-    addHardforkEpochIfMissing conn = do
-        addColumn_ conn False (DBField ProtocolParametersHardforkEpoch) value
-      where
-        value = case defaultHardforkEpoch defaultFieldValues of
-            Nothing -> "NULL"
-            Just v -> T.pack $ show $ W.unEpochNo v
-
-    -- | Adds a 'key_deposit column to the 'protocol_parameters' table if it is
-    -- missing.
-    --
-    addKeyDepositIfMissing :: Sqlite.Connection -> Text -> IO ()
-    addKeyDepositIfMissing conn =
-        addColumn_ conn True (DBField ProtocolParametersKeyDeposit)
-
-    -- | This table became @protocol_parameters@.
-    removeOldTxParametersTable :: Sqlite.Connection -> IO ()
-    removeOldTxParametersTable conn = do
-        dropTable' <- Sqlite.prepare conn "DROP TABLE IF EXISTS tx_parameters;"
-        void $ Sqlite.stepConn conn dropTable'
-        Sqlite.finalize dropTable'
-
-    -- | In order to make listing addresses bearable for large wallet, we
-    -- altered the discovery process to mark addresses as used as they are
-    -- discovered. Existing databases don't have that pre-computed field.
-    addAddressStateIfMissing :: Sqlite.Connection -> IO ()
-    addAddressStateIfMissing conn = do
-        _  <- addColumn conn False (DBField SeqStateAddressStatus) (toText W.Unused)
-        st <- addColumn conn False (DBField RndStateAddressStatus) (toText W.Unused)
-        when (st == ColumnMissing) $ do
-            markAddressesAsUsed (DBField SeqStateAddressStatus)
-            markAddressesAsUsed (DBField RndStateAddressStatus)
-      where
-        markAddressesAsUsed field = do
-            query <- Sqlite.prepare conn $ T.unwords
-                [ "UPDATE", tableName field
-                , "SET status = '" <> toText W.Used <> "'"
-                , "WHERE", tableName field <> ".address", "IN"
-                , "(SELECT DISTINCT(address) FROM tx_out)"
-                ]
-            _ <- Sqlite.step query
-            Sqlite.finalize query
-
-    addSeqStateDerivationPrefixIfMissing :: Sqlite.Connection -> IO ()
-    addSeqStateDerivationPrefixIfMissing conn
-        | isIcarusDatabase = do
-            addColumn_ conn True (DBField SeqStateDerivationPrefix) icarusPrefix
-
-        | isShelleyDatabase = do
-            addColumn_ conn True (DBField SeqStateDerivationPrefix) shelleyPrefix
-
-        | otherwise =
-            return ()
-      where
-        isIcarusDatabase =
-            keyTypeDescriptor proxy == keyTypeDescriptor (Proxy @IcarusKey)
-        icarusPrefix = T.pack $ show $ toText
-            $ Seq.DerivationPrefix (Seq.purposeBIP44, Seq.coinTypeAda, minBound)
-
-        isShelleyDatabase =
-            keyTypeDescriptor proxy == keyTypeDescriptor (Proxy @ShelleyKey)
-        shelleyPrefix = T.pack $ show $ toText
-            $ Seq.DerivationPrefix (Seq.purposeCIP1852, Seq.coinTypeAda, minBound)
-
-    --
-    --   - UTxOInternal
-    --   - UTxOExternal
-    --
-    -- (notice the mixed case here) and were serialized to text as:
-    --
-    --   - u_tx_o_internal
-    --   - u_tx_o_external
-    --
-    -- which is pretty lame. This was changed later on, but already
-    -- serialized data may subsist on for quite a while. Hence this little
-    -- pirouette here.
-    renameRoleFields :: Sqlite.Connection -> IO ()
-    renameRoleFields conn = do
-        renameColumnField conn (DBField SeqStateAddressRole)
-            "u_tx_o_internal" "utxo_internal"
-        renameColumnField conn (DBField SeqStateAddressRole)
-            "u_tx_o_external" "utxo_external"
-
-    -- | Rename column table of SeqStateAddress from 'accounting_style' to `role`
-    -- if needed.
-    renameRoleColumn :: Sqlite.Connection -> IO ()
-    renameRoleColumn conn =
-        isFieldPresent conn roleField >>= \case
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded roleField
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNeeded roleField "accounting_style"
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName roleField
-                    , "RENAME COLUMN accounting_style TO"
-                    , fieldName roleField
-                    , ";"
-                    ]
-                Sqlite.step query *> Sqlite.finalize query
-            ColumnPresent ->
-                traceWith tr $ MsgManualMigrationNotNeeded roleField
-      where
-        roleField = DBField SeqStateAddressRole
-
-    -- This migration is rather delicate. Indeed, we need to introduce an
-    -- explicit 'fee' on known transactions, so only do we need to add the new
-    -- column (easy), but we also need to find the right value for that new
-    -- column (delicate).
-    --
-    -- Note that it is not possible to recover explicit fees on incoming
-    -- transactions without having access to the entire ledger (we do not know
-    -- the _amount_ from inputs of incoming transactions). Therefore, by
-    -- convention it has been decided that incoming transactions will have fee
-    -- equals to 0.
-    --
-    -- For outgoing transaction, it is possible to recalculate fees by
-    -- calculating the delta between the total input value minus the total
-    -- output value. The delta (inputs - output) is necessarily positive
-    -- (by definition of 'outgoing' transactions) and comprised of:
-    --
-    -- - Fees
-    -- - Total deposits if any
-    --
-    -- To substract deposit values from fees, we consider that any transaction
-    -- that has one or less output and fees greater than the key deposit (or min
-    -- utxo value) is a key registration transaction and the key deposit value
-    -- can be substracted from the delta to deduce the fees.
-    --
-    -- Note that ideally, we would do this in a single `UPDATE ... FROM` query
-    -- but the `FROM` syntax is only supported in SQLite >= 3.33 which is only
-    -- supported in the latest version of persistent-sqlite (2.11.0.0). So
-    -- instead, we query all transactions which require an update in memory,
-    -- and update them one by one. This may be quite long on some database but
-    -- it is in the end a one-time cost paid on start-up.
-    addFeeToTransaction :: Sqlite.Connection -> IO ()
-    addFeeToTransaction conn = do
-        isFieldPresent conn fieldFee >>= \case
-            TableMissing  ->
-                traceWith tr $ MsgManualMigrationNotNeeded fieldFee
-            ColumnPresent ->
-                traceWith tr $ MsgManualMigrationNotNeeded fieldFee
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNeeded fieldFee "NULL"
-
-                rows <- fmap unwrapRows (mkQuery >>= runSql conn)
-
-                _ <- runSql conn $ T.unwords
-                    [ "ALTER TABLE", tableName fieldFee
-                    , "ADD COLUMN", fieldName fieldFee
-                    , fieldType fieldFee
-                    , ";"
-                    ]
-
-                forM_ rows $ \(txid, nOuts, delta) -> do
-                    let fee = T.pack $ show $
-                            if isKeyRegistration nOuts delta
-                            then delta - keyDepositValue
-                            else delta
-
-                    runSql conn $ T.unwords
-                        [ "UPDATE", tableName fieldFee
-                        , "SET", fieldName fieldFee, "=", quotes fee
-                        , "WHERE", fieldName fieldTxId, "=", quotes txid
-                        , ";"
-                        ]
-      where
-        fieldFee  = DBField TxMetaFee
-        fieldTxId = DBField TxMetaTxId
-
-        unwrapRows = fmap $ \[PersistText txid, PersistInt64 nOuts, PersistInt64 delta] ->
-            (txid, nOuts, delta)
-
-        isKeyRegistration nOuts delta =
-            nOuts <= 1 && delta > max keyDepositValue minUtxoValue
-
-        minUtxoValue
-            = fromIntegral
-            $ W.unCoin
-            $ defaultMinimumUTxOValue defaultFieldValues
-
-        keyDepositValue
-            = fromIntegral
-            $ W.unCoin
-            $ defaultKeyDeposit defaultFieldValues
-
-        mkQuery = isFieldPresent conn (DBField TxWithdrawalTxId) <&> \case
-            -- On rather old databases, the tx_withdrawal table doesn't even exists.
-            TableMissing -> T.unwords
-                [ "SELECT tx_id, num_out, total_in - total_out FROM tx_meta"
-                , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
-                , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
-                , "WHERE direction = 0"
-                , ";"
-                ]
-
-            _ -> T.unwords
-                [ "SELECT tx_id, num_out, total_in + IFNULL(total_wdrl, 0) - total_out FROM tx_meta"
-                , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
-                , "LEFT JOIN (" <> withdrawalsQuery <> ") USING (tx_id)"
-                , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
-                , "WHERE direction = 0"
-                , ";"
-                ]
-
-        resolvedInputsQuery = T.unwords
-            [ "SELECT tx_in.tx_id, SUM(tx_out.amount) AS total_in FROM tx_in"
-            , "JOIN tx_out ON tx_out.tx_id = tx_in.source_tx_id AND tx_out.'index' = tx_in.source_index"
-            , "GROUP BY tx_in.tx_id"
-            ]
-
-        withdrawalsQuery = T.unwords
-            [ "SELECT tx_id, SUM(amount) AS total_wdrl FROM tx_withdrawal"
-            , "GROUP BY tx_id"
-            ]
-
-        outputsQuery = T.unwords
-            [ "SELECT tx_id, SUM(amount) AS total_out, COUNT(*) AS num_out FROM tx_out"
-            , "GROUP BY tx_id"
-            ]
-
-    -- | Since key deposit and fee value are intertwined, we migrate them both
-    -- here.
-    updateFeeValueAndAddKeyDeposit :: Sqlite.Connection -> IO ()
-    updateFeeValueAndAddKeyDeposit conn = do
-        isFieldPresent conn fieldKeyDeposit >>= \case
-            ColumnMissing -> do
-                -- If the key deposit is missing, we need to add it, but also
-                -- and first, we also need to update the fee policy and drop
-                -- the third component of the fee policy which is now captured
-                -- by the stake key deposit.
-                feePolicyInfo <- Sqlite.prepare conn $ T.unwords
-                    [ "SELECT", fieldName fieldFeePolicy
-                    , "FROM", tableName fieldFeePolicy
-                    , ";"
-                    ]
-                row <- Sqlite.step feePolicyInfo >> Sqlite.columns feePolicyInfo
-                Sqlite.finalize feePolicyInfo
-
-                case filter (/= PersistNull) row of
-                    [PersistText t] -> case T.splitOn " + " t of
-                        [a,b,c] -> do
-                            traceWith tr $ MsgManualMigrationNeeded fieldFeePolicy t
-                            -- update fee policy
-                            let newVal = a <> " + " <> b
-                            query <- Sqlite.prepare conn $ T.unwords
-                                [ "UPDATE", tableName fieldFeePolicy
-                                , "SET", fieldName fieldFeePolicy, "= '" <> newVal <> "'"
-                                , ";"
-                                ]
-                            Sqlite.step query *> Sqlite.finalize query
-                            let (Right stakeKeyVal) = W.Coin . round <$> fromText @Double (T.dropEnd 1 c)
-                            addKeyDepositIfMissing conn (toText stakeKeyVal)
-                        _ ->
-                            fail ("Unexpected row result when querying fee value: " <> T.unpack t)
-                    _ ->
-                        return ()
-
-            -- If the protocol_parameters table is missing, or if if the key
-            -- deposit exists, there's nothing to do in this migration.
-            _ -> do
-                traceWith tr $ MsgManualMigrationNotNeeded fieldFeePolicy
-                traceWith tr $ MsgManualMigrationNotNeeded fieldKeyDeposit
-      where
-        fieldFeePolicy  = DBField ProtocolParametersFeePolicy
-        fieldKeyDeposit = DBField ProtocolParametersKeyDeposit
-
-    -- | Determines whether a field is present in its parent table.
-    isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
-    isFieldPresent conn field =
-        isFieldPresentByName conn (tableName field) (fieldName field)
-
-    isFieldPresentByName :: Sqlite.Connection -> Text -> Text -> IO SqlColumnStatus
-    isFieldPresentByName conn table field = do
-        getTableInfo' <- Sqlite.prepare conn $ mconcat
-            [ "SELECT sql FROM sqlite_master "
-            , "WHERE type = 'table' "
-            , "AND name = '" <> table <> "';"
-            ]
-        row <- Sqlite.step getTableInfo'
-            >> Sqlite.columns getTableInfo'
-        Sqlite.finalize getTableInfo'
-        pure $ case row of
-            [PersistText t]
-                | field `T.isInfixOf` t -> ColumnPresent
-                | otherwise             -> ColumnMissing
-            _ -> TableMissing
-
-    addColumn_
-        :: Sqlite.Connection
-        -> Bool
-        -> DBField
-        -> Text
-        -> IO ()
-    addColumn_ a b c =
-        void . addColumn a b c
-
-    -- | A migration for adding a non-existing column to a table. Factor out as
-    -- it's a common use-case.
-    addColumn
-        :: Sqlite.Connection
-        -> Bool
-        -> DBField
-        -> Text
-        -> IO SqlColumnStatus
-    addColumn conn notNull field value = do
-        isFieldPresent conn field >>= \st -> st <$ case st of
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNeeded field value
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName field
-                    , "ADD COLUMN", fieldName field
-                    , fieldType field, if notNull then "NOT NULL" else ""
-                    , "DEFAULT", value
-                    , ";"
-                    ]
-                _ <- Sqlite.step query
-                Sqlite.finalize query
-            ColumnPresent ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
-
-    renameColumnField
-        :: Sqlite.Connection
-        -> DBField
-        -> Text -- Old Value
-        -> Text -- New Value
-        -> IO ()
-    renameColumnField conn field old new = do
-        isFieldPresent conn field >>= \case
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
-            ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded field
-            ColumnPresent -> do
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "UPDATE", tableName field
-                    , "SET", fieldName field, "=", quotes new
-                    , "WHERE", fieldName field, "=", quotes old
-                    ]
-                _ <- Sqlite.step query
-                changes <- Sqlite.changes conn
-                traceWith tr $ if changes > 0
-                    then MsgManualMigrationNeeded field old
-                    else MsgManualMigrationNotNeeded field
-                Sqlite.finalize query
-
-    quotes :: Text -> Text
-    quotes x = "\"" <> x <> "\""
-
--- | Unsafe, execute a raw SQLite query. Used only in migration when really
--- needed.
-runSql :: Sqlite.Connection -> Text -> IO [[PersistValue]]
-runSql conn raw = do
-    query <- Sqlite.prepare conn raw
-    result <- collect query []
-    Sqlite.finalize query
-    return result
-  where
-    collect query acc = do
-        step <- Sqlite.step query
-        case step of
-            Sqlite.Row -> do
-                result <- Sqlite.columns query
-                collect query (result : acc)
-            Sqlite.Done -> do
-                return (reverse acc)
 
 {-------------------------------------------------------------------------------
                                  Database layer
@@ -1705,14 +922,6 @@ mkWalletMetadataUpdate meta =
         W.passphraseScheme <$> meta ^. #passphraseInfo
     ]
 
-blockHeaderFromEntity :: Checkpoint -> W.BlockHeader
-blockHeaderFromEntity cp = W.BlockHeader
-    { slotNo = checkpointSlot cp
-    , blockHeight = Quantity (checkpointBlockHeight cp)
-    , headerHash = getBlockId (checkpointHeaderHash cp)
-    , parentHeaderHash = toMaybeHash (checkpointParentHash cp)
-    }
-
 metadataFromEntity :: W.WalletDelegation -> Wallet -> W.WalletMetadata
 metadataFromEntity walDelegation wal = W.WalletMetadata
     { name = W.WalletName (walName wal)
@@ -1742,74 +951,6 @@ privateKeyFromEntity
     -> (k 'RootK XPrv, W.Hash "encryption")
 privateKeyFromEntity (PrivateKey _ k h) =
     unsafeDeserializeXPrv (k, h)
-
-mkCheckpointEntity
-    :: W.WalletId
-    -> W.Wallet s
-    -> (Checkpoint, [UTxO], [UTxOToken])
-mkCheckpointEntity wid wal =
-    (cp, utxo, utxoTokens)
-  where
-    header = W.currentTip wal
-    sl = header ^. #slotNo
-    (Quantity bh) = header ^. #blockHeight
-    cp = Checkpoint
-        { checkpointWalletId = wid
-        , checkpointSlot = sl
-        , checkpointParentHash = fromMaybeHash (header ^. #parentHeaderHash)
-        , checkpointHeaderHash = BlockId (header ^. #headerHash)
-        , checkpointBlockHeight = bh
-        }
-    utxo =
-        [ UTxO wid sl (TxId input) ix addr (TokenBundle.getCoin tokens)
-        | (W.TxIn input ix, W.TxOut addr tokens) <- utxoMap
-        ]
-    utxoTokens =
-        [ UTxOToken wid sl (TxId input) ix policy token quantity
-        | (W.TxIn input ix, W.TxOut {tokens}) <- utxoMap
-        , let tokenList = snd (TokenBundle.toFlatList tokens)
-        , (AssetId policy token, quantity) <- tokenList
-        ]
-    utxoMap = Map.assocs (W.unUTxO (W.utxo wal))
-
--- note: TxIn records must already be sorted by order
--- and TxOut records must already by sorted by index.
-checkpointFromEntity
-    :: Checkpoint
-    -> ([UTxO], [UTxOToken])
-    -> s
-    -> W.Wallet s
-checkpointFromEntity cp (coins, tokens) =
-    W.unsafeInitWallet utxo header
-  where
-    header = blockHeaderFromEntity cp
-
-    utxo = W.UTxO $ Map.merge
-        (Map.mapMissing (const mkFromCoin)) -- No assets, only coins
-        (Map.dropMissing) -- Only assets, impossible.
-        (Map.zipWithMatched (const mkFromBoth)) -- Both assets and coins
-        (Map.fromList
-            [ (W.TxIn input ix, (addr, coin))
-            | (UTxO _ _ (TxId input) ix addr coin) <- coins
-            ])
-        (Map.fromListWith TokenBundle.add
-            [ (W.TxIn input ix, mkTokenEntry token)
-            | (token@(UTxOToken _ _ (TxId input) ix _ _ _)) <- tokens
-            ])
-
-    mkFromCoin :: (W.Address, W.Coin) -> W.TxOut
-    mkFromCoin (addr, coin) =
-        W.TxOut addr (TokenBundle.fromCoin coin)
-
-    mkFromBoth :: (W.Address, W.Coin) -> TokenBundle -> W.TxOut
-    mkFromBoth (addr, coin) bundle =
-        W.TxOut addr (TokenBundle.add (TokenBundle.fromCoin coin) bundle)
-
-    mkTokenEntry token = TokenBundle.fromFlatList (W.Coin 0)
-        [ ( AssetId (utxoTokenPolicyId token) (utxoTokenName token)
-          , utxoTokenQuantity token
-          )
-        ]
 
 mkTxHistory
     :: W.WalletId
@@ -2048,205 +1189,12 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
         }
 
 {-------------------------------------------------------------------------------
-    Store for Wallet Checkpoints
--------------------------------------------------------------------------------}
--- | Delta type for 'Map'.
-data DeltaMap key da
-    = Insert key (Base da)
-    | Delete key
-    | Adjust key da
-instance (Ord key, Delta da) => Delta (DeltaMap key da) where
-    type Base (DeltaMap key da) = Map key (Base da)
-    apply (Insert key a) = Map.insert key a
-    apply (Delete key) = Map.delete key
-    apply (Adjust key da) = Map.adjust (apply da) key
-
-{- NOTE [PointSlotNo]
-
-'SlotNo' cannot represent the genesis point.
-
-Historical hack. The DB layer can't represent 'Origin' in the database,
-instead we have mapped it to 'SlotNo 0', which is wrong.
-
-Rolling back to SlotNo 0 instead of Origin is fine for followers starting
-from genesis (which should be the majority of cases). Other, non-trivial
-rollbacks to genesis cannot occur on mainnet (genesis is years within
-stable part, and there were no rollbacks in byron).
-
-Could possibly be problematic in the beginning of a testnet without a
-byron era. /Perhaps/ this is what is happening in the
->>> [cardano-wallet.pools-engine:Error:1293] [2020-11-24 10:02:04.00 UTC]
->>> Couldn't store production for given block before it conflicts with
->>> another block. Conflicting block header is:
->>> 5bde7e7b<-[f1b35b98-4290#2008]
-errors observed in the integration tests.
-
-The issue has been partially fixed in that 'rollbackTo' now takes
-a 'Slotargument, which can represent the 'Origin'.
-However, the database itself mostly stores slot numbers.
-
-FIXME LATER during ADP-1043: As we move towards in-memory data,
-all slot numbers in the DB file will either be replaced by
-the 'Slot' type, or handled slightly differently when it
-is clear that the data cannot exist at the genesis point
-(e.g. for TxHistory).
-
--}
-
--- | Get the 'Point' of a wallet state.
-getPoint :: W.Wallet s -> W.Slot
-getPoint =
-    W.toSlot . W.chainPointFromBlockHeader . view #currentTip
-
-{- HLINT ignore Checkpoints "Use newtype instead of data" -}
--- | Collection of checkpoints indexed by 'SlotNo'.
-data Checkpoints a = Checkpoints
-    { checkpoints :: Map W.Slot a
-    } deriving (Eq,Show,Generic)
--- FIXME LATER during ADP-1043:
---  Use a more sophisticated 'Checkpoints' type that stores deltas.
-
-singleton :: W.Slot -> a -> Checkpoints a
-singleton key a = Checkpoints $ Map.singleton key a
-
--- | Get the checkpoint with the largest 'SlotNo'.
-getLatest :: Checkpoints a -> (W.Slot, a)
-getLatest = from . Map.lookupMax . view #checkpoints 
-  where
-    from = fromMaybe (error "getLatest: Genesis checkpoint is missing!")
-    -- FIXME LATER during ADP-1043:
-    --   Make sure that 'Checkpoints' always has a genesis checkpoint
-
--- | Find the nearest 'Checkpoint' that is either at the given point or before.
-findNearestPoint :: Checkpoints a -> W.Slot -> Maybe W.Slot
-findNearestPoint m key = fst <$> Map.lookupLE key (view #checkpoints m)
-
-data DeltaCheckpoints a
-    = PutCheckpoint W.Slot a
-    | RollbackTo W.Slot
-        -- Rolls back to the latest checkpoint at or before this slot.
-    | RestrictTo [W.Slot]
-        -- ^ Restrict to the intersection of this list with
-        -- the checkpoints that are already present.
-        -- The genesis checkpoint will always be present.
-
-instance Delta (DeltaCheckpoints a) where
-    type Base (DeltaCheckpoints a) = Checkpoints a
-    apply (PutCheckpoint pt a) = over #checkpoints $ Map.insert pt a
-    apply (RollbackTo pt) = over #checkpoints $
-        Map.filterWithKey (\k _ -> k <= pt)
-    apply (RestrictTo pts) = over #checkpoints $ \m ->
-        Map.restrictKeys m $ Set.fromList pts
-
-type StoreCheckpoints s
-    = Store (SqlPersistT IO) (DeltaCheckpoints (W.Wallet s))
-
-mkStoreCheckpoints
-    :: forall s. PersistState s
-    => W.WalletId -> StoreCheckpoints s
-mkStoreCheckpoints wid =
-    Store{ loadS = load, writeS = write, updateS = \_ -> update }
-  where
-    load = do
-        cps <- selectAllCheckpoints wid
-        pure $ Right $ Checkpoints{ checkpoints = Map.fromList cps }
-
-    write Checkpoints{checkpoints} =
-        forM_ (Map.toList checkpoints) $ \(pt,cp) ->
-            update (PutCheckpoint pt cp)
-
-    update (PutCheckpoint _ state) =
-        insertCheckpoint wid state
-    update (RollbackTo (W.At slot)) =
-        deleteWhere [ CheckpointWalletId ==. wid, CheckpointSlot >. slot ]
-    update (RollbackTo W.Origin) =
-        deleteWhere
-            [ CheckpointWalletId ==. wid
-            , CheckpointParentHash !=. BlockId hashOfNoParent
-            ]
-    update (RestrictTo points) = do
-        let pseudoSlot W.Origin    = W.SlotNo 0
-            pseudoSlot (W.At slot) = slot
-        let slots = map pseudoSlot points
-        deleteWhere [ CheckpointWalletId ==. wid, CheckpointSlot /<-. slots ]
-
-        -- We may have to delete the checkpoint at SlotNo 0 that is not genesis.
-        let slot0 = W.At $ W.SlotNo 0
-        unless (slot0 `elem` points) $
-            deleteWhere
-                [ CheckpointWalletId ==. wid
-                , CheckpointSlot ==. W.SlotNo 0
-                , CheckpointParentHash !=. BlockId hashOfNoParent
-                ]
-
-mkStoreWalletsCheckpoints
-    :: forall s key. (PersistState s, key ~ W.WalletId)
-    => Store (SqlPersistT IO)
-        (DeltaMap key (DeltaCheckpoints (W.Wallet s)))
-mkStoreWalletsCheckpoints = Store{loadS=load,writeS=write,updateS=update}
-  where
-    write = error "mkStoreWalletsCheckpoints: not implemented"
-
-    update _ (Insert wid a) =
-        writeS (mkStoreCheckpoints wid) a 
-    update _ (Delete wid) = do
-        -- FIXME LATER during ADP-1043:
-        --  Deleting an entry in the Checkpoint table
-        --  will trigger a delete cascade. We want this cascade
-        --  to be explicit in our code.
-        deleteWhere [CheckpointWalletId ==. wid]
-    update _ (Adjust wid da) =
-        updateS (mkStoreCheckpoints wid) undefined da
-        -- FIXME LATER during ADP-1043:
-        --   Remove 'undefined'.
-        --   Probably needs a change to 'Data.DBVar.updateS'
-        --   to take a 'Maybe a' as parameter instead of an 'a'.
-
-    load = do
-        wids <- fmap (view #walId . entityVal) <$> selectAll
-        runExceptT $ do
-            xs <- forM wids $ ExceptT . loadS . mkStoreCheckpoints
-            pure $ Map.fromList (zip wids xs)
-      where
-        selectAll :: SqlPersistT IO [Entity Wallet]
-        selectAll = selectList [] []
-
-{-------------------------------------------------------------------------------
     SQLite database operations
 -------------------------------------------------------------------------------}
 
 selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
-
-selectAllCheckpoints
-    :: forall s. PersistState s
-    => W.WalletId
-    -> SqlPersistT IO [(W.Slot, W.Wallet s)]
-selectAllCheckpoints wid = do
-    cps <- fmap entityVal <$> selectList
-        [ CheckpointWalletId ==. wid ]
-        [ Desc CheckpointSlot ]
-    fmap catMaybes $ forM cps $ \cp -> do
-        utxo <- selectUTxO cp
-        st <- selectState (checkpointId cp)
-        pure $
-            (\s -> let c = checkpointFromEntity @s cp utxo s in (getPoint c, c))
-            <$> st
-
-insertCheckpoint
-    :: forall s. (PersistState s)
-    => W.WalletId
-    -> W.Wallet s
-    -> SqlPersistT IO ()
-insertCheckpoint wid wallet = do
-    let (cp, utxo, utxoTokens) = mkCheckpointEntity wid wallet
-    let sl = (W.currentTip wallet) ^. #slotNo
-    deleteWhere [CheckpointWalletId ==. wid, CheckpointSlot ==. sl]
-    insert_ cp
-    dbChunked insertMany_ utxo
-    dbChunked insertMany_ utxoTokens
-    insertState (wid, sl) (W.getState wallet)
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
@@ -2255,7 +1203,6 @@ deleteTxMetas
     -> SqlPersistT IO ()
 deleteTxMetas wid filters =
     deleteWhere ((TxMetaWalletId ==. wid) : filters)
-
 
 -- | Delete stake key certificates for a wallet.
 deleteStakeKeyCerts
@@ -2337,22 +1284,6 @@ deleteDelegationCertificates
     -> SqlPersistT IO ()
 deleteDelegationCertificates wid filters = do
     deleteWhere ((CertWalletId ==. wid) : filters)
-
-selectUTxO
-    :: Checkpoint
-    -> SqlPersistT IO ([UTxO], [UTxOToken])
-selectUTxO cp = do
-    coins <- fmap entityVal <$>
-        selectList
-            [ UtxoWalletId ==. checkpointWalletId cp
-            , UtxoSlot ==. checkpointSlot cp
-            ] []
-    tokens <- fmap entityVal <$>
-        selectList
-            [ UtxoTokenWalletId ==. checkpointWalletId cp
-            , UtxoTokenSlot ==. checkpointSlot cp
-            ] []
-    return (coins, tokens)
 
 
 -- This relies on available information from the database to reconstruct coin
@@ -2616,319 +1547,3 @@ selectGenesisParameters wid = do
 -- violated.
 data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.Slot deriving (Show)
 instance Exception ErrRollbackTo
-
-{-------------------------------------------------------------------------------
-                     DB queries for address discovery state
--------------------------------------------------------------------------------}
-
--- | Get a @(WalletId, SlotNo)@ pair from the checkpoint table, for use with
--- 'insertState' and 'selectState'.
-checkpointId :: Checkpoint -> (W.WalletId, W.SlotNo)
-checkpointId cp = (checkpointWalletId cp, checkpointSlot cp)
-
--- | Functions for saving/loading the wallet's address discovery state into
--- SQLite.
-class PersistState s where
-    -- | Store the state for a checkpoint.
-    insertState :: (W.WalletId, W.SlotNo) -> s -> SqlPersistT IO ()
-    -- | Load the state for a checkpoint.
-    selectState :: (W.WalletId, W.SlotNo) -> SqlPersistT IO (Maybe s)
-
-{-------------------------------------------------------------------------------
-                          Sequential address discovery
--------------------------------------------------------------------------------}
-
--- piggy-back on SeqState existing instance, to simulate the same behavior.
-instance PersistState (Seq.SeqState n k) => PersistState (Seq.SeqAnyState n k p)
-  where
-    insertState (wid, sl) = insertState (wid, sl) . Seq.innerState
-    selectState (wid, sl) = fmap Seq.SeqAnyState <$> selectState (wid, sl)
-
-instance
-    ( Eq (k 'AccountK XPub)
-    , PersistPublicKey (k 'AccountK)
-    , PersistPublicKey (k 'AddressK)
-    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , PaymentAddress n k
-    , SoftDerivation k
-    , GetPurpose k
-    , Typeable n
-    , (k == SharedKey) ~ 'False
-    ) => PersistState (Seq.SeqState n k) where
-    insertState (wid, sl) st = do
-        let (intPool, extPool) =
-                (Seq.internalPool st, Seq.externalPool st)
-        let (Seq.ParentContextUtxo accXPubInternal) = Seq.context intPool
-        let (Seq.ParentContextUtxo accXPubExternal) = Seq.context extPool
-        let (accountXPub, _) = invariant
-                "Internal & External pool use different account public keys!"
-                ( accXPubExternal, accXPubInternal )
-                (uncurry (==))
-        let eGap = Seq.gap extPool
-        let iGap = Seq.gap intPool
-        repsert (SeqStateKey wid) $ SeqState
-            { seqStateWalletId = wid
-            , seqStateExternalGap = eGap
-            , seqStateInternalGap = iGap
-            , seqStateAccountXPub = serializeXPub accountXPub
-            , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
-            , seqStateDerivationPrefix = Seq.derivationPrefix st
-            }
-        insertAddressPool @n wid sl intPool
-        insertAddressPool @n wid sl extPool
-        deleteWhere [SeqStatePendingWalletId ==. wid]
-        dbChunked
-            insertMany_
-            (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
-
-    selectState (wid, sl) = runMaybeT $ do
-        st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
-        let accountXPub = unsafeDeserializeXPub accountBytes
-        let rewardXPub = unsafeDeserializeXPub rewardBytes
-        intPool <- lift $ selectAddressPool @n wid sl iGap (Seq.ParentContextUtxo accountXPub)
-        extPool <- lift $ selectAddressPool @n wid sl eGap (Seq.ParentContextUtxo accountXPub)
-        pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
-
-insertAddressPool
-    :: forall n k c. (PaymentAddress n k, Typeable c, GetPurpose k)
-    => W.WalletId
-    -> W.SlotNo
-    -> Seq.AddressPool c k
-    -> SqlPersistT IO ()
-insertAddressPool wid sl pool =
-    void $ dbChunked insertMany_
-        [ SeqStateAddress wid sl addr ix (Seq.role @c) state
-        | (ix, (addr, state, _))
-        <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
-        ]
-
-selectAddressPool
-    :: forall (n :: NetworkDiscriminant) k c.
-        ( Typeable c
-        , Typeable n
-        , SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , MkKeyFingerprint k W.Address
-        )
-    => W.WalletId
-    -> W.SlotNo
-    -> Seq.AddressPoolGap
-    -> Seq.ParentContext c k
-    -> SqlPersistT IO (Seq.AddressPool c k)
-selectAddressPool wid sl gap ctx = do
-    addrs <- fmap entityVal <$> selectList
-        [ SeqStateAddressWalletId ==. wid
-        , SeqStateAddressSlot ==. sl
-        , SeqStateAddressRole ==. Seq.role @c
-        ] [Asc SeqStateAddressIndex]
-    pure $ addressPoolFromEntity addrs
-  where
-    addressPoolFromEntity
-        :: [SeqStateAddress]
-        -> Seq.AddressPool c k
-    addressPoolFromEntity addrs
-        = Seq.mkAddressPool @n @c @k ctx gap
-        $ map (\x -> (seqStateAddressAddress x, seqStateAddressStatus x)) addrs
-
-mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
-mkSeqStatePendingIxs wid =
-    fmap (SeqStatePendingIx wid . W.getIndex) . Seq.pendingIxsToList
-
-selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO Seq.PendingIxs
-selectSeqStatePendingIxs wid =
-    Seq.pendingIxsFromList . fromRes <$> selectList
-        [SeqStatePendingWalletId ==. wid]
-        [Desc SeqStatePendingIxIndex]
-  where
-    fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
-
-instance
-    ( PersistPublicKey (k 'AccountK)
-    , MkKeyFingerprint k W.Address
-    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , SoftDerivation k
-    , WalletKey k
-    , Typeable n
-    , GetPurpose k
-    , k ~ SharedKey
-    ) => PersistState (Shared.SharedState n k) where
-    insertState (wid, sl) st = do
-        case st of
-            Shared.SharedState prefix (Shared.PendingFields (Shared.SharedStatePending accXPub pTemplate dTemplateM g)) -> do
-                insertSharedState accXPub g pTemplate dTemplateM prefix
-                insertCosigner (cosigners pTemplate) Payment
-                when (isJust dTemplateM) $
-                    insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
-
-            Shared.SharedState prefix (Shared.ReadyFields pool) -> do
-                let (Seq.ParentContextShared accXPub pTemplate dTemplateM) =
-                        Seq.context pool
-                insertSharedState accXPub (Seq.gap pool) pTemplate dTemplateM prefix
-                insertCosigner (cosigners pTemplate) Payment
-                when (isJust dTemplateM) $
-                    insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
-                insertAddressSharedPool @n wid sl pool
-      where
-         insertSharedState accXPub g pTemplate dTemplateM prefix = do
-             deleteWhere [SharedStateWalletId ==. wid]
-
-             insert_ $ SharedState
-                 { sharedStateWalletId = wid
-                 , sharedStateAccountXPub = serializeXPub accXPub
-                 , sharedStateScriptGap = g
-                 , sharedStatePaymentScript = template pTemplate
-                 , sharedStateDelegationScript = template <$> dTemplateM
-                 , sharedStateDerivationPrefix = prefix
-                 }
-         insertCosigner cs cred = do
-             deleteWhere [CosignerKeyWalletId ==. wid, CosignerKeyCredential ==. cred]
-
-             dbChunked insertMany_
-                 [ CosignerKey wid cred (serializeXPub @(k 'AccountK) $ liftRawKey xpub) c
-                 | ((Cosigner c), xpub) <- Map.assocs cs
-                 ]
-
-    selectState (wid, sl) = runMaybeT $ do
-        st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []
-        let SharedState _ accountBytes g pScript dScriptM prefix = entityVal st
-        let accXPub = unsafeDeserializeXPub accountBytes
-        pCosigners <- lift $ selectCosigners @k wid Payment
-        let prepareKeys = map (second getRawKey)
-        let pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
-        dCosigners <- lift $ selectCosigners @k wid Delegation
-        let dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
-        lift (multisigPoolAbsent wid sl) >>= \case
-            True -> pure $ Shared.SharedState prefix $ Shared.PendingFields $ Shared.SharedStatePending
-                { Shared.pendingSharedStateAccountKey = accXPub
-                , Shared.pendingSharedStatePaymentTemplate = pTemplate
-                , Shared.pendingSharedStateDelegationTemplate = dTemplateM
-                , Shared.pendingSharedStateAddressPoolGap = g
-                }
-            False -> do
-                let ctx = Seq.ParentContextShared accXPub pTemplate dTemplateM
-                pool <- lift $ selectAddressPool @n wid sl g ctx
-                pure $ Shared.SharedState prefix (Shared.ReadyFields pool)
-
-insertAddressSharedPool
-    :: forall (n :: NetworkDiscriminant) k. (GetPurpose k, Typeable n)
-    => W.WalletId
-    -> W.SlotNo
-    -> Seq.AddressPool 'UtxoExternal k
-    -> SqlPersistT IO ()
-insertAddressSharedPool wid sl pool =
-    void $ dbChunked insertMany_
-    [ SeqStateAddress wid sl addr ix UtxoExternal state
-    | (ix, (addr, state, _)) <- zip [0..] (Seq.addresses (Shared.liftPaymentAddress @n) pool)
-    ]
-
-selectCosigners
-    :: forall k. PersistPublicKey (k 'AccountK)
-    => W.WalletId
-    -> CredentialType
-    -> SqlPersistT IO [(Cosigner, k 'AccountK XPub)]
-selectCosigners wid cred = do
-    fmap (cosignerFromEntity . entityVal) <$> selectList
-        [ CosignerKeyWalletId ==. wid
-        , CosignerKeyCredential ==. cred
-        ] []
- where
-   cosignerFromEntity (CosignerKey _ _ key c) =
-       (Cosigner c, unsafeDeserializeXPub key)
-
-multisigPoolAbsent
-    :: W.WalletId
-    -> W.SlotNo
-    -> SqlPersistT IO Bool
-multisigPoolAbsent wid sl = do
-    entries <- selectList
-        [ SeqStateAddressWalletId ==. wid
-        , SeqStateAddressSlot ==. sl
-        , SeqStateAddressRole ==. Seq.role @'UtxoExternal
-        ] []
-    pure $ null entries
-
-{-------------------------------------------------------------------------------
-                          HD Random address discovery
--------------------------------------------------------------------------------}
-
--- piggy-back on RndState existing instance, to simulate the same behavior.
-instance PersistState (Rnd.RndAnyState n p) where
-    insertState (wid, sl) = insertState (wid, sl) . Rnd.innerState
-    selectState (wid, sl) = fmap Rnd.RndAnyState <$> selectState (wid, sl)
-
--- Persisting 'RndState' requires that the wallet root key has already been
--- added to the database with 'putPrivateKey'. Unlike sequential AD, random
--- address discovery requires a root key to recognize addresses.
-instance PersistState (Rnd.RndState t) where
-    insertState (wid, sl) st = do
-        let ix = W.getIndex (st ^. #accountIndex)
-        let gen = st ^. #gen
-        let pwd = st ^. #hdPassphrase
-        repsert (RndStateKey wid) (RndState wid ix gen (HDPassphrase pwd))
-        insertRndStateDiscovered wid sl (Rnd.discoveredAddresses st)
-        insertRndStatePending wid (Rnd.pendingAddresses st)
-
-    selectState (wid, sl) = runMaybeT $ do
-        st <- MaybeT $ selectFirst
-            [ RndStateWalletId ==. wid
-            ] []
-        let (RndState _ ix gen (HDPassphrase pwd)) = entityVal st
-        discoveredAddresses <- lift $ selectRndStateDiscovered wid sl
-        pendingAddresses <- lift $ selectRndStatePending wid
-        pure $ Rnd.RndState
-            { hdPassphrase = pwd
-            , accountIndex = W.Index ix
-            , discoveredAddresses = discoveredAddresses
-            , pendingAddresses = pendingAddresses
-            , gen = gen
-            }
-
-insertRndStateDiscovered
-    :: W.WalletId
-    -> W.SlotNo
-    -> Map Rnd.DerivationPath (W.Address, W.AddressState)
-    -> SqlPersistT IO ()
-insertRndStateDiscovered wid sl addresses = do
-    dbChunked insertMany_
-        [ RndStateAddress wid sl accIx addrIx addr st
-        | ((W.Index accIx, W.Index addrIx), (addr, st)) <- Map.assocs addresses
-        ]
-
-insertRndStatePending
-    :: W.WalletId
-    -> Map Rnd.DerivationPath W.Address
-    -> SqlPersistT IO ()
-insertRndStatePending wid addresses = do
-    deleteWhere [RndStatePendingAddressWalletId ==. wid]
-    dbChunked insertMany_
-        [ RndStatePendingAddress wid accIx addrIx addr
-        | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
-        ]
-
-selectRndStateDiscovered
-    :: W.WalletId
-    -> W.SlotNo
-    -> SqlPersistT IO (Map Rnd.DerivationPath (W.Address, W.AddressState))
-selectRndStateDiscovered wid sl = do
-    addrs <- fmap entityVal <$> selectList
-        [ RndStateAddressWalletId ==. wid
-        , RndStateAddressSlot ==. sl
-        ] []
-    pure $ Map.fromList $ map assocFromEntity addrs
-  where
-    assocFromEntity (RndStateAddress _ _ accIx addrIx addr st) =
-        ((W.Index accIx, W.Index addrIx), (addr, st))
-
-selectRndStatePending
-    :: W.WalletId
-    -> SqlPersistT IO (Map Rnd.DerivationPath W.Address)
-selectRndStatePending wid = do
-    addrs <- fmap entityVal <$> selectList
-        [ RndStatePendingAddressWalletId ==. wid
-        ] []
-    pure $ Map.fromList $ map assocFromEntity addrs
-  where
-    assocFromEntity (RndStatePendingAddress _ accIx addrIx addr) =
-        ((W.Index accIx, W.Index addrIx), addr)
