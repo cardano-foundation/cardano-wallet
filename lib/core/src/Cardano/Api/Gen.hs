@@ -749,7 +749,7 @@ genRational =
     ratioToRational = toRational
 
 -- TODO: consolidate this back to just genRational once this is merged:
--- https://github.com/input-output-hk/cardano-ledger-specs/pull/2330
+-- https://github.com/input-output-hk/cardano-ledger/pull/2330
 genRationalInt64 :: Gen Rational
 genRationalInt64 =
     (\d -> ratioToRational (1 % d)) <$> genDenominator

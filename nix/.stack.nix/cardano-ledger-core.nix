@@ -61,11 +61,11 @@
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/cardano-ledger-specs";
+      url = "https://github.com/input-output-hk/cardano-ledger";
       rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
       sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
       }) // {
-      url = "https://github.com/input-output-hk/cardano-ledger-specs";
+      url = "https://github.com/input-output-hk/cardano-ledger";
       rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
       sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
       };

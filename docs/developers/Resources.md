@@ -14,7 +14,7 @@
 - Low-Level Specifications
   - [[Byron] On-Chain Binary Formats](https://github.com/input-output-hk/cardano-sl/blob/master/docs/on-the-wire/current-spec.cddl)
   - [[Shelley] Network Binary Formats - Draft](https://github.com/input-output-hk/ouroboros-network/blob/master/ouroboros-network/test/messages.cddl)
-  - [[Shelley] On chain Binary formats - Draft](https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/cddl-spec/shelley.cddl#L32)
+  - [[Shelley] On chain Binary formats - Draft](https://github.com/input-output-hk/cardano-ledger/blob/master/shelley/chain-and-ledger/cddl-spec/shelley.cddl#L32)
 
 ## Plutus
 
