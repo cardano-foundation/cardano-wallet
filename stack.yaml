@@ -155,7 +155,7 @@ extra-deps:
 - git: https://github.com/input-output-hk/cardano-crypto
   commit: 07397f0e50da97eaa0575d93bee7ac4b2b2576ec
 
-- git: https://github.com/input-output-hk/cardano-ledger-specs
+- git: https://github.com/input-output-hk/cardano-ledger
   commit: f827a4321e42f528e25f6079f7af3eb18f10d391
   subdirs:
   - alonzo/impl

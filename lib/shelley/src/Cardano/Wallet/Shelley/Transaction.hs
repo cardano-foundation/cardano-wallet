@@ -1195,8 +1195,8 @@ estimateTxCost pp skeleton =
 -- This function uses the upper bounds of CBOR serialized objects as the basis
 -- for many of its calculations. The following document is used as a reference:
 --
--- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
--- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley-ma/shelley-ma-test/cddl-files/shelley-ma.cddl
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/shelley-ma/shelley-ma-test/cddl-files/shelley-ma.cddl
 --
 estimateTxSize :: TxSkeleton -> TxSize
 estimateTxSize skeleton =
