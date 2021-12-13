@@ -19,7 +19,7 @@
 ## Plutus
 
 - [Plutus Book](https://plutus-book.surge.sh)
-- [Multi-assets Ledger Specs extension](https://hydra.iohk.io/job/Cardano/cardano-ledger/specs.shelley-mc/latest/download/1/multi-asset.pdf)
+- [Multi-assets Ledger Specs extension](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/specs.shelley-mc/latest/download/1/multi-asset.pdf)
 
 ## Emurgo
 
