@@ -195,7 +195,7 @@ import GHC.Generics
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
 import Numeric
-    ( showFFloat )
+    ( fromRat, showFFloat )
 import Say
     ( sayErr )
 import System.Exit
@@ -838,15 +838,22 @@ instance NetworkDiscriminantVal n => ToText (BenchmarkLog n) where
 --
 -- >>> showPercentFromPermyriad (Proxy @0)
 -- "0"
+--
+-- Unfortunately we have:
+--
+-- >>> showPercentFromPermyriad (Proxy @10)
+-- "0.10"
+--
+-- rather than "0.1", but we'll have to live with it.
 showPercentFromPermyriad :: forall (p :: Nat) . KnownNat p => Proxy p -> Text
 showPercentFromPermyriad =
-    T.pack . display . (/100) . fromRational . toRational . natVal
+    T.pack . display . (/100) . toRational . natVal
   where
-    -- I cannot find a haskell way to format a rational with a /minimum/ number
-    -- of decimals, so this will do.
-    display :: Double -> String
+    -- I cannot find a haskell way to format a rational with as few decimals as
+    -- possible, so this will have to do:
+    display :: Rational -> String
     display 0 = "0"
-    display x = show x
+    display x = showFFloat @Double (Just 2) (fromRat x) ""
 
 sTol :: SyncTolerance
 sTol = mkSyncTolerance 3600
