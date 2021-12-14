@@ -195,7 +195,7 @@ import GHC.Generics
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
 import Numeric
-    ( showFFloat )
+    ( fromRat, showFFloat )
 import Say
     ( sayErr )
 import System.Exit
@@ -272,7 +272,7 @@ cardanoRestoreBench tr c socketFile = do
                 benchmarksSeq
 
     let benchRestoreRndWithOwnership p = do
-            let benchname = showPercentFromPermille p <> "-percent-rnd"
+            let benchname = showPercentFromPermyriad p <> "-percent-rnd"
             bench_restoration
                 networkProxy
                 (trMessageText tr)
@@ -288,7 +288,7 @@ cardanoRestoreBench tr c socketFile = do
                 benchmarksRnd
 
     let benchRestoreSeqWithOwnership p = do
-            let benchname = showPercentFromPermille p <> "-percent-seq"
+            let benchname = showPercentFromPermyriad p <> "-percent-seq"
             bench_restoration
                 networkProxy
                 (trMessageText tr)
@@ -309,16 +309,11 @@ cardanoRestoreBench tr c socketFile = do
           -- to-100% time.
           benchRestoreMultipleWallets 1 (unsafeMkPercentage 0.1)
         , benchRestoreMultipleWallets 10 (unsafeMkPercentage 0.01)
-        , benchRestoreMultipleWallets 20 (unsafeMkPercentage 0.01)
-        , benchRestoreMultipleWallets 40 (unsafeMkPercentage 0.01)
-        , benchRestoreMultipleWallets 80 (unsafeMkPercentage 0.01)
         , benchRestoreMultipleWallets 100 (unsafeMkPercentage 0.01)
 
         , benchRestoreSeqWithOwnership (Proxy @0)
-        , benchRestoreSeqWithOwnership (Proxy @2)
-
-        , benchRestoreRndWithOwnership (Proxy @0)
-        , benchRestoreRndWithOwnership (Proxy @2)
+        , benchRestoreSeqWithOwnership (Proxy @1)
+        , benchRestoreRndWithOwnership (Proxy @1)
         ]
   where
     walletRnd
@@ -836,22 +831,29 @@ instance NetworkDiscriminantVal n => ToText (BenchmarkLog n) where
             "Fetching tip failed, retrying in " +|| (delay `div` 1000) ||+ "ms"
 
 
--- | Format a type-level per-mille number as percent
+-- | Format a type-level per-myriad number as percent
 --
--- >>> showPercentFromPermille (Proxy @1)
--- "0.1"
+-- >>> showPercentFromPermyriad (Proxy @1)
+-- "0.01"
 --
--- >>> showPercentFromPermille (Proxy @0)
+-- >>> showPercentFromPermyriad (Proxy @0)
 -- "0"
-showPercentFromPermille :: forall (p :: Nat) . KnownNat p => Proxy p -> Text
-showPercentFromPermille =
-    T.pack . display . (/10) . fromRational . toRational . natVal
+--
+-- Unfortunately we have:
+--
+-- >>> showPercentFromPermyriad (Proxy @10)
+-- "0.10"
+--
+-- rather than "0.1", but we'll have to live with it.
+showPercentFromPermyriad :: forall (p :: Nat) . KnownNat p => Proxy p -> Text
+showPercentFromPermyriad =
+    T.pack . display . (/100) . toRational . natVal
   where
-    -- I cannot find a haskell way to format a rational with a /minimum/ number
-    -- of decimals, so this will do.
-    display :: Double -> String
+    -- I cannot find a haskell way to format a rational with as few decimals as
+    -- possible, so this will have to do:
+    display :: Rational -> String
     display 0 = "0"
-    display x = show x
+    display x = showFFloat @Double (Just 2) (fromRat x) ""
 
 sTol :: SyncTolerance
 sTol = mkSyncTolerance 3600

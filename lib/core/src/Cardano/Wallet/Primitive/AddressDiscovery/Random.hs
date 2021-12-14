@@ -375,8 +375,8 @@ instance NFData (RndAnyState n p)
 -- seed.
 --
 -- The type parameter is expected to be a ratio of addresses we ought to simply
--- recognize as ours. It is expressed in tenths of percent, so "1" means 0.1%,
--- "10" means 1% and 1000 means 100%.
+-- recognize as ours. It is expressed in per-myriad, so "1" means 0.01%,
+-- "100" means 1% and 10000 means 100%.
 mkRndAnyState
     :: forall (p :: Nat) n. ()
     => ByronKey 'RootK XPrv
@@ -427,7 +427,7 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
             (Nothing, _) ->
                 (Nothing, st)
       where
-        p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 1000)
+        p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 10000)
 
         double :: Integral a => a -> Double
         double = fromIntegral
