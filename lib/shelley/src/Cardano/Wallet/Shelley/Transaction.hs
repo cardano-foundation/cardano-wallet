@@ -159,6 +159,7 @@ import Cardano.Wallet.Transaction
     , ErrUpdateSealedTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , TxFeeUpdate (..)
     , TxUpdate (..)
     , withdrawalToCoin
     )
@@ -587,7 +588,7 @@ mkDelegationCertificates da accXPub =
 --      == Right tx or Left
 -- @
 noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate [] [] [] id
+noTxUpdate = TxUpdate [] [] [] UseOldTxFee
 
 -- Used to add inputs and outputs when balancing a transaction.
 --
@@ -638,7 +639,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
             -> ShelleyBasedEra era
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
             -> Ledger.TxBody (Cardano.ShelleyLedgerEra era)
-        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs modifyFee) era body = case era of
+        adjustBody (TxUpdate extraInputs extraCollateral extraOutputs feeUpdate) era body = case era of
             ShelleyBasedEraAlonzo -> body
                     { Alonzo.outputs = Alonzo.outputs body
                         <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs')
@@ -647,7 +648,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                     , Alonzo.collateral = Alonzo.collateral body
                         <> Set.fromList (Cardano.toShelleyTxIn <$> extraCollateral')
                     , Alonzo.txfee =
-                        modifyFee' $ Alonzo.txfee body
+                        modifyFee $ Alonzo.txfee body
                     }
             ShelleyBasedEraMary ->
                 let
@@ -660,7 +661,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                             <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
                         certs
                         wdrls
-                        (modifyFee' txfee)
+                        (modifyFee txfee)
                         vldt
                         update
                         adHash
@@ -676,7 +677,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                             <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
                         certs
                         wdrls
-                        (modifyFee' txfee)
+                        (modifyFee txfee)
                         vldt
                         update
                         adHash
@@ -692,7 +693,7 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
                             <> StrictSeq.fromList (Cardano.toShelleyTxOut era <$> extraOutputs'))
                         certs
                         wdrls
-                        (modifyFee' txfee)
+                        (modifyFee txfee)
                         ttl
                         txUpdate
                         mdHash
@@ -700,16 +701,16 @@ updateSealedTx (cardanoTx -> InAnyCardanoEra _era tx) extraContent = do
             extraInputs' = toCardanoTxIn . fst <$> extraInputs
             extraCollateral' = toCardanoTxIn <$> extraCollateral
             extraOutputs' = toCardanoTxOut era <$> extraOutputs
-            modifyFee' old = toLedgerCoin $ modifyFee $ fromLedgerCoin old
+
+            modifyFee old = case feeUpdate of
+                UseNewTxFee new ->
+                    toLedgerCoin new
+                UseOldTxFee ->
+                    old
               where
                 toLedgerCoin :: Coin -> Ledger.Coin
                 toLedgerCoin (Coin c) =
                     Ledger.Coin (intCast c)
-                fromLedgerCoin :: Ledger.Coin -> Coin
-                fromLedgerCoin (Ledger.Coin c) =
-                    Coin.unsafeFromIntegral c
-                    -- fromIntegral will throw "Exception: arithmetic underflow"
-                    -- if (c :: Integral) for some reason were to be negative.
 
     modifyLedgerTx _ (Byron.ByronTxBody _)
         = Left ErrByronTxNotSupported

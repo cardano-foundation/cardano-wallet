@@ -26,6 +26,7 @@ module Cardano.Wallet.Transaction
     , Withdrawal (..)
     , withdrawalToCoin
     , TxUpdate (..)
+    , TxFeeUpdate(..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -224,6 +225,14 @@ data TransactionLayer k tx = TransactionLayer
     }
     deriving Generic
 
+-- | Method to use when updating the fee of a transaction.
+data TxFeeUpdate = UseOldTxFee
+                 -- ^ Instead of updating the fee, just use the old fee of the
+                 -- Tx (no-op for fee update).
+                 | UseNewTxFee Coin
+                 -- ^ Specify a new fee to use instead.
+    deriving (Eq, Show)
+
 -- | Describes modifications that can be made to a `Tx` using `updateTx`.
 data TxUpdate = TxUpdate
     { extraInputs :: [(TxIn, TxOut)]
@@ -231,12 +240,8 @@ data TxUpdate = TxUpdate
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [TxOut]
-    , newFee :: Coin -> Coin
-        -- ^ Set the new fee, given the old one.
-        --
-        -- Note that you most likely won't care about the old fee at all. But it
-        -- is useful to allow defining a no-op `TxUpdate` for the sake
-        -- of testing.
+    , feeUpdate :: TxFeeUpdate
+        -- ^ Set a new fee or use the old one.
     }
 
 -- | Some additional context about a transaction. This typically contains
