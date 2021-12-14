@@ -121,6 +121,7 @@ module Cardano.Wallet
     , buildAndSignTransaction
     , signTransaction
     , constructTransaction
+    , constructTxMeta
     , ErrSelectAssets(..)
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
@@ -132,6 +133,7 @@ module Cardano.Wallet
     , ErrUpdateSealedTx (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
+    , ErrSubmitTransaction (..)
 
     -- ** Migration
     , createMigrationPlan
@@ -2089,6 +2091,64 @@ getTxExpiry ti maybeTTL = do
     defaultTTL :: NominalDiffTime
     defaultTTL = 7200  -- that's 2 hours
 
+constructTxMeta
+    :: forall ctx s k.
+        ( HasDBLayer IO s k ctx
+        , IsOwned s k
+        )
+    => ctx
+    -> WalletId
+    -> TransactionCtx
+    -> [(TxIn, Coin)]
+    -> [TxOut]
+    -> ExceptT ErrSubmitTransaction IO TxMeta
+constructTxMeta ctx wid txCtx inps outs = db & \DBLayer{..} -> do
+    mapExceptT atomically $ do
+        cp <- withExceptT ErrSubmitTransactionNoSuchWallet
+              $ withNoSuchWallet wid
+              $ readCheckpoint wid
+        liftIO $
+            mkTxMetaWithoutSel (currentTip cp) (getState cp) txCtx inps outs
+  where
+    db = ctx ^. dbLayer @IO @s @k
+
+mkTxMetaWithoutSel
+    :: IsOurs s Address
+    => BlockHeader
+    -> s
+    -> TransactionCtx
+    -> [(TxIn, Coin)]
+    -> [TxOut]
+    -> IO TxMeta
+mkTxMetaWithoutSel blockHeader wState txCtx inps outs =
+    let
+        amtOuts = F.fold $ mapMaybe (`ourCoin` wState) outs
+
+        amtInps
+            = F.fold (map snd inps)
+            & case txWithdrawal txCtx of
+                w@WithdrawalSelf{} -> Coin.add (withdrawalToCoin w)
+                WithdrawalExternal{} -> Prelude.id
+                NoWithdrawal -> Prelude.id
+    in return TxMeta
+       { status = Pending
+       , direction = Outgoing
+       , slotNo = blockHeader ^. #slotNo
+       , blockHeight = blockHeader ^. #blockHeight
+       , amount = Coin.distance amtInps amtOuts
+       , expiry = Just (txTimeToLive txCtx)
+       }
+
+ourCoin
+    :: IsOurs s Address
+    => TxOut
+    -> s
+    -> Maybe Coin
+ourCoin (TxOut addr tokens) wState =
+    case fst (isOurs addr wState) of
+        Just{}  -> Just (TokenBundle.getCoin tokens)
+        Nothing -> Nothing
+
 -- | Construct transaction metadata for a pending transaction from the block
 -- header of the current tip and a list of input and output.
 --
@@ -2107,7 +2167,7 @@ mkTxMeta ti' blockHeader wState txCtx sel =
         amtOuts = F.fold $
             (txOutCoin <$> view #change sel)
             ++
-            mapMaybe ourCoin (view #outputs sel)
+            mapMaybe (`ourCoin` wState) (view #outputs sel)
 
         amtInps
             = F.fold (txOutCoin . snd <$> view #inputs sel)
@@ -2138,12 +2198,6 @@ mkTxMeta ti' blockHeader wState txCtx sel =
     slotStartTime' = interpretQuery ti . slotToUTCTime
       where
         ti = neverFails "mkTxMeta slots should never be ahead of the node tip" ti'
-
-    ourCoin :: TxOut -> Maybe Coin
-    ourCoin (TxOut addr tokens) =
-        case fst (isOurs addr wState) of
-            Just{}  -> Just (TokenBundle.getCoin tokens)
-            Nothing -> Nothing
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
@@ -3009,6 +3063,11 @@ data BalanceTxNotSupportedReason
     | Deposits
     | ZeroAdaOutput
     | ConflictingNetworks
+    deriving (Show, Eq)
+
+-- | Errors that can occur when submitting a transaction.
+newtype ErrSubmitTransaction
+    = ErrSubmitTransactionNoSuchWallet ErrNoSuchWallet
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.
