@@ -113,6 +113,7 @@ module Test.Integration.Framework.DSL
     , listAddresses
     , signTx
     , submitTx
+    , submitTxWithWid
     , getWallet
     , listTransactions
     , listAllTransactions
@@ -2293,6 +2294,21 @@ submitTx ctx tx expectations = do
     r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
     verify r expectations
     pure $ getFromResponse Prelude.id  r
+
+submitTxWithWid
+    :: MonadUnliftIO m
+    => Context
+    -> ApiWallet
+    -> ApiSerialisedTransaction
+    -> m (HTTP.Status, Either RequestException ApiTxId)
+submitTxWithWid ctx w tx = do
+    let submitEndpoint = Link.submitTransaction @'Shelley w
+    let payload = Json $ Aeson.toJSON tx
+    let headers = Headers
+            [ ("Content-Type", "application/json")
+            , ("Accept", "application/json")
+            ]
+    request @ApiTxId ctx submitEndpoint headers payload
 
 getWallet
     :: forall w m.
