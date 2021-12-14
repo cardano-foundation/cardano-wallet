@@ -162,6 +162,7 @@ import Cardano.Wallet
     , ErrSignPayment (..)
     , ErrStakePoolDelegation (..)
     , ErrStartTimeLaterThanEndTime (..)
+    , ErrSubmitTransaction (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrUpdateSealedTx (..)
@@ -2346,7 +2347,30 @@ submitTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler ApiTxId
-submitTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealedTx)) = undefined
+submitTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealedTx)) = do
+    ttl <- liftIO $ W.getTxExpiry ti Nothing
+    let (tx@(Tx txId _ _ inps outs wdrlMap _ _),_,_,_) = txDecoded
+
+    _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid $
+            if Map.member acct wdrlMap
+            then Just SelfWithdrawal
+            else Nothing
+        let txCtx = defaultTransactionCtx
+                { txTimeToLive = ttl
+                , txWithdrawal = wdrl
+                }
+        txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx inps outs
+        liftHandler
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+    return $ ApiTxId (ApiT txId)
+  where
+    txDecoded = decodeTx tl sealedTx
+    tl = ctx ^. W.transactionLayer @k
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    nl = ctx ^. networkLayer
+    ti = timeInterpreter nl
 
 joinStakePool
     :: forall ctx s n k.
@@ -3859,6 +3883,13 @@ instance IsServerError ErrPostTx where
                 , "node. Here's an error message that may help with "
                 , "debugging:\n", err
                 ]
+
+instance IsServerError ErrSubmitTransaction where
+    toServerError = \case
+        ErrSubmitTransactionNoSuchWallet e -> (toServerError e)
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
+            }
 
 instance IsServerError ErrSubmitTx where
     toServerError = \case
