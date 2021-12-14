@@ -1332,9 +1332,11 @@ sendFaucet tr conn dir what targets = do
                 map (("+ " ++) . cliAsset) (TokenMap.toFlatList tokens)
             ]
         cliAsset (aid, (TokenQuantity q)) = unwords [show q, cliAssetId aid]
-        cliAssetId (AssetId pid (UnsafeTokenName name)) =
-            T.unpack (toText pid) ++
-            (if BS.null name then "" else "." ++ B8.unpack name)
+        cliAssetId (AssetId pid (UnsafeTokenName name)) = mconcat
+            [ T.unpack (toText pid)
+            , if B8.null name then "" else "."
+            , B8.unpack (hex name)
+            ]
         mkMint [] = []
         mkMint assets = ["--mint", intercalate " + " (map cliAsset assets)]
 
