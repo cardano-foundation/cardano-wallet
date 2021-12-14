@@ -86,20 +86,23 @@ task :wait_until_node_synced do
   puts "\n  >> Waiting for node to be synced"
 
   network = CardanoWallet.new.misc.network
-  timeout = 600
+  # it seems that occasionally cardano-node needs more time to spin up 
+  timeout = 1800
   current_time = Time.now
   timeout_treshold = current_time + timeout
   puts "Timeout: #{timeout}s"
+  puts "Current time: #{current_time}"
   puts "Threshold: #{timeout_treshold}"
+  puts "[#{Time.now}] Waiting for node to start..."
   begin
     current_time = Time.now
     while network.information["sync_progress"]["status"] == "syncing" do
-      puts "Syncing node... #{network.information["sync_progress"]["progress"]["quantity"]}%"
+      puts "[#{Time.now}] Syncing node... #{network.information["sync_progress"]["progress"]["quantity"]}%"
       sleep 15
     end
   rescue
     retry if (current_time <= timeout_treshold)
-    raise("Could not connect to wallet within #{timeout} seconds...")
+    raise("[#{Time.now}] Could not connect to wallet within #{timeout} seconds...")
   end
 
   puts "\n>> Cardano-node and cardano-wallet are synced! <<"
