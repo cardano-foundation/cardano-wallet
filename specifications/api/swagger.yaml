@@ -2085,6 +2085,11 @@ components:
             description: Only for 'Byron' style.
             type: string
             format: base16
+          address_type:
+            description: The raw type field of the address.
+            type: integer
+            minimum: 0
+            maximum: 15
 
     ApiNetworkTip: &ApiNetworkTip
       <<: *slotReference
