@@ -2,12 +2,11 @@
 
 ## Preparing the release
 
-- Make sure `cardano-wallet` points to correct revisions of
-  dependent low-level libs in [`stack.yaml`](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml) and [`cabal.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal.project).
+- Make sure `cardano-wallet` points to correct revisions of dependencies in
+  [`stack.yaml`](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml) and
+  [`cabal.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal.project).
 
-  Verify that the stack snapshot revision is on the [cardano-haskell](https://github.com/input-output-hk/cardano-haskell) `master` branch.
-
-  Verify that the stack resolver corresponds to the `cardano-node` version.
+  Verify that the content of [`stack.yaml`][] and [`cabal.project`][] correspond to the `cardano-node` version.
 
   Verify that target repositories point to appopriate revisions for `persistent`, `cardano-addresses`, `bech32`, ...)
 
@@ -43,19 +42,23 @@
 
 - Verify that the script modified the compatibility matrix in README.md correctly.
 
-- Open a pull request to submit the modified files
+- Open a pull request to submit the modified files.
 
-- Get it merged
+- Get it merged.
 
-- Trigger a release build on CI (GitHub Actions) and wait for the
-  build artifacts to be published on the GitHub release page.
+- Create and push a signed release tag on the `HEAD` of `master`.
 
   ```shell
+  $ git tag -s -m vYYYY-MM-DD vYYYY-MM-DD
   $ git push origin refs/tags/vYYYY-MM-DD
   ```
 
   Where `YYYY-MM-DD` should be replaced by the actual date of the release.
 
+  This will trigger a release build on CI (GitHub Actions).
+
+- Wait for the release build to finish and then check that
+  build artifacts have been published on the GitHub release page.
 
 ## Create the release notes
 
