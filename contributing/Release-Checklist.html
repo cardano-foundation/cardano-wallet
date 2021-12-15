@@ -1893,15 +1893,11 @@
         <li>
           
     <p class='mb-3'>
-      Make sure <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> points to correct revisions of dependent low-level libs in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code></a> and <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/cabal.project' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal.project</code></a>.
+      Make sure <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> points to correct revisions of dependencies in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code></a> and <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/cabal.project' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal.project</code></a>.
     </p>
   
     <p class='mb-3'>
-      Verify that the stack snapshot revision is on the <a href='https://github.com/input-output-hk/cardano-haskell' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-haskell</a> <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code> branch.
-    </p>
-  
-    <p class='mb-3'>
-      Verify that the stack resolver corresponds to the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> version.
+      Verify that the content of [<code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code>][] and [<code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal.project</code>][] correspond to the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> version.
     </p>
   
     <p class='mb-3'>
@@ -1958,7 +1954,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      Open a pull request to submit the modified files
+      Open a pull request to submit the modified files.
     </p>
   
         </li>
@@ -1966,7 +1962,7 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      Get it merged
+      Get it merged.
     </p>
   
         </li>
@@ -1974,11 +1970,24 @@ $ git pull</code></pre></div>
         <li>
           
     <p class='mb-3'>
-      Trigger a release build on CI (GitHub Actions) and wait for the build artifacts to be published on the GitHub release page.
+      Create and push a signed release tag on the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>HEAD</code> of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code>.
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='shell language-shell'>$ git push origin refs/tags/vYYYY-MM-DD</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='shell language-shell'>$ git tag -s -m vYYYY-MM-DD vYYYY-MM-DD
+$ git push origin refs/tags/vYYYY-MM-DD</code></pre></div>
     <p class='mb-3'>
       Where <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>YYYY-MM-DD</code> should be replaced by the actual date of the release.
+    </p>
+  
+    <p class='mb-3'>
+      This will trigger a release build on CI (GitHub Actions).
+    </p>
+  
+        </li>
+      
+        <li>
+          
+    <p class='mb-3'>
+      Wait for the release build to finish and then check that build artifacts have been published on the GitHub release page.
     </p>
   
         </li>
