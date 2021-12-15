@@ -2085,6 +2085,28 @@ components:
             description: Only for 'Byron' style.
             type: string
             format: base16
+          address_type:
+            description: |
+              The raw type field of the address.
+
+              Details about possible address types are following (refer also to [cddl](https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl)).
+
+              | address_type | binary prefix  |   Meaning                                                |
+              | ------------ |:--------------:|:--------------------------------------------------------:|
+              |      0       |  0000          |   base address: keyhash28,keyhash28                      |
+              |      1       |  0001          |   base address: scripthash28,keyhash28                   |
+              |      2       |  0010          |   base address: keyhash28,scripthash28                   |
+              |      3       |  0011          |   base address: scripthash28,scripthash28                |
+              |      4       |  0100          |   pointer address: keyhash28, 3 variable length uint     |
+              |      5       |  0101          |   pointer address: scripthash28, 3 variable length uint  |
+              |      6       |  0110          |   enterprise address: keyhash28                          |
+              |      7       |  0111          |   enterprise address: scripthash28                       |
+              |      8       |  1000          |   byron/icarus                                           |
+              |      14      |  1110          |   reward account: keyhash28                              |
+              |      15      |  1111          |   reward account: scripthash28                           |
+            type: integer
+            minimum: 0
+            maximum: 15
 
     ApiNetworkTip: &ApiNetworkTip
       <<: *slotReference

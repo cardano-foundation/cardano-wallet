@@ -350,25 +350,57 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         listAddresses @n ctx wB
             >>= verifyAddrs (initialTotalB + 1) (initialUsedB + 1)
 
-    it "ADDRESS_INSPECT_01 - Address inspect OK" $ \ctx -> do
+    it "ADDRESS_INSPECT_01 - Address inspect OK Icarus" $ \ctx -> do
         let str = "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
-        expectResponseCode HTTP.status200 r
+        verify r
+            [ expectResponseCode HTTP.status200
+            , expectField (Aeson.key "address_style" . Aeson._String)
+                (`shouldBe` "Icarus")
+            , expectField (Aeson.key "address_type" . Aeson._Number)
+                (`shouldBe` 8)
+            ]
 
-    it "ADDRESS_INSPECT_02 - Address inspect KO" $ \ctx -> runResourceT $ do
+    it "ADDRESS_INSPECT_02 - Address inspect OK Byron" $ \ctx -> do
+        let str = "37btjrVyb4KE2ByiPiJUQfAUBGaMyKScg4mnYjzVAsN2PUxj1WxTg98ien3oAo8vKBhP2KTuC9wi76vZ9kDNFkjbmzywdLTJgaz8n3RD3Rueim3Pd3"
+        r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
+        verify r
+            [ expectResponseCode HTTP.status200
+            , expectField (Aeson.key "address_style" . Aeson._String)
+                (`shouldBe` "Byron")
+            , expectField (Aeson.key "address_type" . Aeson._Number)
+                (`shouldBe` 8)
+            ]
+
+    it "ADDRESS_INSPECT_03 - Address inspect OK reward" $ \ctx -> do
+        let str = "stake1u8pn5jr7cfa0x8ndtdufyg5lty3avg3zd2tq35c06hpsh8gptdza4"
+        r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
+        verify r
+            [ expectResponseCode HTTP.status200
+            , expectField (Aeson.key "address_style" . Aeson._String)
+                (`shouldBe` "Shelley")
+            , expectField (Aeson.key "address_type" . Aeson._Number)
+                (`shouldBe` 14)
+            ]
+
+    it "ADDRESS_INSPECT_04 - Address inspect KO" $ \ctx -> runResourceT $ do
         let str = "patate"
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
         expectResponseCode HTTP.status400 r
 
-    it "ADDRESS_INSPECT_03 - Address inspect bech32" $ \ctx -> do
+    it "ADDRESS_INSPECT_05 - Address inspect OK bech32" $ \ctx -> do
         let str = "addr_test1qzamu40sglnsrylzv9jylekjmzgaqsg5v5z9u6yk3jpnnxjwck77fqu8deuumsvnazjnjhwasc2eetfqpa2pvygts78ssd5388"
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
         verify r
             [ expectResponseCode HTTP.status200
+            , expectField (Aeson.key "address_style" . Aeson._String)
+                (`shouldBe` "Shelley")
             , expectField (Aeson.key "spending_key_hash_bech32" . Aeson._String)
                 (`shouldBe` "addr_vkh1hwl9tuz8uuqe8cnpv387d5kcj8gyz9r9q30x395vsvue5e44fh7")
             , expectField (Aeson.key "stake_key_hash_bech32" . Aeson._String)
                 (`shouldBe` "stake_vkh1fmzmmeyrsah8nnwpj0522w2amkrpt89dyq84g9s3pwrc7dqjnfu")
+            , expectField (Aeson.key "address_type" . Aeson._Number)
+                (`shouldBe` 0)
             ]
 
     -- Generating golden test data for enterprise addresses - script credential:

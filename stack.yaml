@@ -70,9 +70,9 @@ extra-deps:
 - hspec-core-2.8.2
 - hspec-discover-2.8.2
 
-# cardano-addresses-3.6.0
+# cardano-addresses-3.7.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 4003fc09780da61bc09d85337bdd4c7664aa49ba
+  commit: 71006f9eb956b0004022e80aadd4ad50d837b621
   subdirs:
     - command-line
     - core
