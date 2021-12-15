@@ -76,11 +76,11 @@ See **Installation Instructions** for each available [release](https://github.co
 
 ## How to build from sources
 
-See [Building](https://input-output-hk.github.io/cardano-wallet/dev/Building)
+See [Building](https://input-output-hk.github.io/cardano-wallet/developers/Building)
 
 ## How to test
 
-See [Testing](https://input-output-hk.github.io/cardano-wallet/dev/Testing)
+See [Testing](https://input-output-hk.github.io/cardano-wallet/contributing/Testing)
 
 ## Documentation
 
