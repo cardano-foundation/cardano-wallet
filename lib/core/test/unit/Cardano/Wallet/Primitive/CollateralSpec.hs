@@ -73,8 +73,8 @@ import qualified Data.Binary.Put as B
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Test.Cardano.Chain.Common.Gen as Byron
-import qualified Test.Shelley.Spec.Ledger.Serialisation.EraIndepGenerators as L
-import qualified Test.Shelley.Spec.Ledger.Serialisation.Generators.Genesis as L
+import qualified Test.Cardano.Ledger.Shelley.Serialisation.EraIndepGenerators as L
+import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as L
     ( genRewardAcnt )
 
 -- To begin with, we will write our generators and tests for the @AddressType@
@@ -698,7 +698,7 @@ spec = do
 -- cat recovery-phrase.txt | cardano-address key from-recovery-phrase Byron > root.prv
 -- cat root.prv | cardano-address key child 14H/42H | tee addr.prv | cardano-address key public --with-chain-code | cardano-address address bootstrap --root $(cat root.prv | cardano-address key public --with-chain-code) --network-tag testnet 14H/42H
 byronAddrGolden :: BL.ByteString
-byronAddrGolden = BL.fromStrict . fromJust . decodeBase58 bitcoinAlphabet $ 
+byronAddrGolden = BL.fromStrict . fromJust . decodeBase58 bitcoinAlphabet $
     "37btjrVyb4KFsMoVwPRZ5aJko48uBFFUnJ46eV3vC3uBCC65mj5BfbGP6jYDfhojm8MAayHo4RPvWH4x852FcJq8SHazCx31FJM2TfDpV9Azrc8UKD"
 
 -- cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley > root.prv
@@ -720,7 +720,7 @@ pointerAddrGolden  = unsafeBech32Decode
 -- cat root.prv | cardano-address key child 1852H/1815H/0H/0/0 > addr.prv
 -- cat addr.prv | cardano-address key public --with-chain-code | cardano-address address payment --network-tag testnet | cardano-address address delegation $(cat stake.prv | cardano-address key public --with-chain-code)
 delegationAddrGolden :: BL.ByteString
-delegationAddrGolden = unsafeBech32Decode 
+delegationAddrGolden = unsafeBech32Decode
     "addr_test1qpdylg53ekxh2404mfgw4pt4gfm7dc9dkc74ck0gtrld8uyh9dhl3d8cc52zacu6wapdf2pfnepf5n7pp2vfaz7ge8eqd4nn9s"
 
 -- cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley > root.prv

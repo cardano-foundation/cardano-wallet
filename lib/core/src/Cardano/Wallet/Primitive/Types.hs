@@ -1155,11 +1155,11 @@ instance Buildable ProtocolParameters where
 
 data ExecutionUnits = ExecutionUnits
     { executionSteps
-        :: Word64
+        :: Natural
         -- ^ This corresponds roughly to the time to execute a script.
 
     , executionMemory
-        :: Word64
+        :: Natural
         -- ^ This corresponds roughly to the peak memory used during script
         -- execution.
     } deriving (Eq, Generic, Show)

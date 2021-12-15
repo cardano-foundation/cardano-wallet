@@ -43,7 +43,6 @@ import Cardano.Api
     , TxAuxScripts (..)
     , TxCertificates (..)
     , TxExtraKeyWitnesses (..)
-    , TxExtraScriptData (..)
     , TxFee (..)
     , TxIn (..)
     , TxInsCollateral (..)
@@ -53,7 +52,7 @@ import Cardano.Api
     , TxMetadataValue (..)
     , TxMintValue (..)
     , TxOut (..)
-    , TxOutDatumHash (..)
+    , TxOutDatum (..)
     , TxOutValue (..)
     , TxScriptValidity (..)
     , TxUpdateProposal (..)
@@ -90,6 +89,8 @@ import Cardano.Chain.UTxO
     ( TxInWitness (..) )
 import Cardano.Ledger.Credential
     ( Ix, Ptr (..) )
+import Cardano.Ledger.Shelley.API
+    ( MIRPot (..) )
 import Data.Char
     ( isAlphaNum, isDigit, isLower, isUpper )
 import Data.Foldable
@@ -108,8 +109,6 @@ import Data.Word
     ( Word32 )
 import Numeric.Natural
     ( Natural )
-import Shelley.Spec.Ledger.API
-    ( MIRPot (..) )
 import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary
@@ -266,12 +265,12 @@ spec =
                     forAll genUnsignedQuantity genUnsignedQuantityCoverage
             it "genValueForTxOutCoverage" $
                 property $ forAll genValueForTxOut genValueForTxOutCoverage
-            describe "genTxOutDatumHash" $
+            describe "genTxOutDatum" $
                 forAllEras $ \(AnyCardanoEra era) ->
                     it (show era) $
                         property $ forAll
-                            (genTxOutDatumHash era)
-                            (genTxOutDatumHashCoverage era)
+                            (genTxOutDatum era)
+                            (genTxOutDatumCoverage era)
             describe "genTxOutValue" $
                 forAllEras $ \(AnyCardanoEra era) ->
                     it (show era) $
@@ -373,12 +372,6 @@ spec =
                         property $ forAll
                             (genUpdateProposal era)
                             (genUpdateProposalCoverage era)
-            describe "genExtraScriptData" $
-                forAllEras $ \(AnyCardanoEra era) ->
-                    it (show era) $
-                        property $ forAll
-                            (genExtraScriptData era)
-                            (genExtraScriptDataCoverage era)
 
 genTxIxCoverage :: TxIx -> Property
 genTxIxCoverage (TxIx ix) = unsignedCoverage (maxBound @Word32) "txIx" ix
@@ -1168,12 +1161,12 @@ genValueForTxOutCoverage val =
             "Value has more assets"
             True
 
-genTxOutDatumHashCoverage
-    :: CardanoEra era -> TxOutDatumHash era -> Property
-genTxOutDatumHashCoverage era datum =
+genTxOutDatumCoverage
+    :: CardanoEra era -> TxOutDatum ctx era -> Property
+genTxOutDatumCoverage era datum =
     case scriptDataSupportedInEra era of
         Nothing ->
-            (datum == TxOutDatumHashNone)
+            (datum == TxOutDatumNone)
             & label "tx out datums not generated in unsupported era"
             & counterexample ( "tx out datums were generated in unsupported "
                                <> show era
@@ -1185,11 +1178,11 @@ genTxOutDatumHashCoverage era datum =
                 "tx out datum hash present"
                 True
     where
-        hasNoDatumHash = (== TxOutDatumHashNone)
+        hasNoDatumHash = (== TxOutDatumNone)
 
         hasDatumHash = \case
-            TxOutDatumHashNone   -> False
-            (TxOutDatumHash _ _) -> True
+            TxOutDatumHash _ _ -> True
+            _ -> False
 
 genTxOutValueCoverage :: CardanoEra era -> TxOutValue era -> Property
 genTxOutValueCoverage era val =
@@ -1211,11 +1204,11 @@ genTxOutValueCoverage era val =
                     property False
                     & counterexample (show era <> " should support multi-asset")
 
-genTxOutCoverage :: CardanoEra era -> TxOut era -> Property
+genTxOutCoverage :: CardanoEra era -> TxOut ctx era -> Property
 genTxOutCoverage era (TxOut addr val datum) = checkCoverage $ conjoin
     [ genAddressInEraCoverage era addr
     , genTxOutValueCoverage era val
-    , genTxOutDatumHashCoverage era datum
+    , genTxOutDatumCoverage era datum
     ]
 
 genWitnessNetworkIdOrByronAddressCoverage
@@ -1537,31 +1530,6 @@ genUpdateProposalCoverage era proposal = checkCoverage
                         "empty protocol updates"
                     & cover 10 (not $ null m)
                         "non-empty protocol updates"
-                _ ->
-                    error "uncovered case"
-
-genExtraScriptDataCoverage
-    :: CardanoEra era -> TxExtraScriptData era -> Property
-genExtraScriptDataCoverage era scriptData = checkCoverage
-    $ case scriptDataSupportedInEra era of
-        Nothing ->
-            scriptData == TxExtraScriptDataNone
-            & label "tx extra script data not generated in unsupported era"
-            & counterexample ( "tx extra script data was generated in unsupported "
-                               <> show era
-                             )
-        Just _ ->
-            case scriptData of
-                TxExtraScriptDataNone ->
-                    cover 5 True "no extra script data" True
-                TxExtraScriptData _ sd ->
-                    True
-                    & cover 30 True
-                        "extra script data"
-                    & cover 0.4 (null sd)
-                        "empty script data"
-                    & cover 10 (not $ null sd)
-                        "non-empty script data"
                 _ ->
                     error "uncovered case"
 

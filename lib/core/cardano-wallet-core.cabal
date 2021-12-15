@@ -47,6 +47,8 @@ library
     , cardano-numeric
     , cardano-ledger-core
     , cardano-ledger-byron-test
+    , cardano-ledger-shelley-test
+    , cardano-ledger-shelley
     , cardano-ledger-alonzo
     , cardano-slotting
     , cborg
@@ -304,6 +306,8 @@ test-suite unit
     , cardano-ledger-byron
     , cardano-ledger-byron-test
     , cardano-ledger-core
+    , cardano-ledger-shelley
+    , cardano-ledger-shelley-test
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet-test-utils

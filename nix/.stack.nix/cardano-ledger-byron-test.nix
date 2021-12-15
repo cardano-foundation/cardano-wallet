@@ -8,7 +8,7 @@
   , config
   , ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
       specVersion = "2.2";
       identifier = { name = "cardano-ledger-byron-test"; version = "1.3.0"; };
@@ -63,12 +63,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
-      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
+      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
+      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
       }) // {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
-      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
+      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
+      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
       };
-    postUnpack = "sourceRoot+=/byron/ledger/impl/test; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/eras/byron/ledger/impl/test; echo source root reset to \$sourceRoot";
     }

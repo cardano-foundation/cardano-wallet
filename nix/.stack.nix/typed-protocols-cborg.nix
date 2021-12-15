@@ -11,14 +11,14 @@
     flags = {};
     package = {
       specVersion = "1.10";
-      identifier = { name = "ouroboros-network-testing"; version = "0.1.0.0"; };
+      identifier = { name = "typed-protocols-cborg"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "";
-      author = "Alexander Vieth, Marcin Szamotulski, Duncan Coutts, Karl Knuttson";
+      copyright = "2019-2021 Input Output (Hong Kong) Ltd.";
+      maintainer = "alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io";
+      author = "Alexander Vieth, Duncan Coutts, Marcin Szamotulski";
       homepage = "";
       url = "";
-      synopsis = "Common modules used for testing in ouroboros-network and ouroboros-consensus";
+      synopsis = "CBOR codecs for typed-protocols";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -27,12 +27,10 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
-          (hsPkgs."io-sim" or (errorHandler.buildDepError "io-sim"))
+          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-          (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+          (hsPkgs."io-classes" or (errorHandler.buildDepError "io-classes"))
+          (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
           ];
         buildable = true;
         };
@@ -47,5 +45,5 @@
       rev = "d613de3d872ec8b4a5da0c98afb443f322dc4dab";
       sha256 = "0lfbipfdrzay8v1pcazx0qgkda3d1j0505yig9jrml9j7991rmhl";
       };
-    postUnpack = "sourceRoot+=/ouroboros-network-testing; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/typed-protocols-cborg; echo source root reset to \$sourceRoot";
     }

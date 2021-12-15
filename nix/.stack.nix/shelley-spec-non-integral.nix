@@ -8,7 +8,7 @@
   , config
   , ... }:
   {
-    flags = { development = false; };
+    flags = {};
     package = {
       specVersion = "2.2";
       identifier = { name = "shelley-spec-non-integral"; version = "0.1.0.0"; };
@@ -25,29 +25,22 @@
       };
     components = {
       "library" = {
-        depends = [ (hsPkgs."base" or (errorHandler.buildDepError "base")) ];
+        depends = [
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."non-integral" or (errorHandler.buildDepError "non-integral"))
+          ];
         buildable = true;
-        };
-      tests = {
-        "shelley-spec-non-integral-test" = {
-          depends = [
-            (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."shelley-spec-non-integral" or (errorHandler.buildDepError "shelley-spec-non-integral"))
-            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-            ];
-          buildable = true;
-          };
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
-      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
+      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
+      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
       }) // {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "f827a4321e42f528e25f6079f7af3eb18f10d391";
-      sha256 = "0dmgxg7cpgz4lnscqrrk4gakw9w90dx8ljv5wr923rfp9nyzc5qf";
+      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
+      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
       };
-    postUnpack = "sourceRoot+=/shelley/chain-and-ledger/dependencies/non-integer; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/eras/shelley/chain-and-ledger/dependencies/non-integer; echo source root reset to \$sourceRoot";
     }

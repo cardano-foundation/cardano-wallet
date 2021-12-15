@@ -269,6 +269,8 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Crypto as SL
+import qualified Cardano.Ledger.Shelley.API as SL
+import qualified Cardano.Ledger.Shelley.LedgerState as SL
 import qualified Cardano.Wallet.Primitive.SyncProgress as SyncProgress
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -280,8 +282,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
-import qualified Shelley.Spec.Ledger.API as SL
-import qualified Shelley.Spec.Ledger.LedgerState as SL
 
 {- HLINT ignore "Use readTVarIO" -}
 {- HLINT ignore "Use newTVarIO" -}
@@ -1005,7 +1005,7 @@ connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
             { nctMuxTracer = nullTracer
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
-    let socket = localSnocket iocp (nodeSocketFile conn)
+    let socket = localSnocket iocp
     recoveringNodeConnection tr handlers $
         connectTo socket tracers versions (nodeSocketFile conn)
 
@@ -1077,12 +1077,12 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxIngressQueueOverRun -> pure DontRetry
     MuxInitiatorOnly -> pure DontRetry
     MuxShutdown _ -> pure DontRetry -- fixme: #2212 consider cases
+    MuxCleanShutdown -> pure DontRetry
     MuxIOException e ->
         handleIOException tr onResourceVanished e
     MuxBearerClosed -> do
         traceWith tr Nothing
         pure $ if onResourceVanished then ConsultPolicy else DontRetry
-    MuxBlockedOnCompletionVar _ -> pure DontRetry -- TODO: Is this correct?
 
     -- MuxSDU*Timeout errors arise because the bandwidth of the
     -- interprocess communication socket dropped unexpectedly,

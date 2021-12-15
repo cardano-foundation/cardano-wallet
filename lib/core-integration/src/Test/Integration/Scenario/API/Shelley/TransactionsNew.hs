@@ -1350,8 +1350,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         --- $ cardano-cli transaction build-raw --fee 202725 \
         --- > --tx-in 637255c96ff39303573047ba4a53064c18fbdf8ce8cee71431e8cd5333e4bdfd#0 \
         --- > --tx-out="addr1zyqmnmwuh85e0fxaggl6ac2hfeqncg76gsr0ld8qdjd84af5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7srr0dle+4623486815" \
-        --- > --tx-out="addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgph8kaew0fj7jd6s3l4ms4wnjp8s3a53qxl76wqmy60t6ssqcamq+1500000+50000 919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149.HappyCoin" \
-        --- > --mint="50000 919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149.HappyCoin" \
+        --- > --tx-out="addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgph8kaew0fj7jd6s3l4ms4wnjp8s3a53qxl76wqmy60t6ssqcamq+1500000+50000 919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149.4861707079436f696e" \
+        --- > --mint="50000 919e8a1922aaa764b1d66407c6f62244e77081215f385b60a6209149.4861707079436f696e" \
         --- > --metadata-json-file metadata.json \
         --- > --mint-script-file policy.script \
         --- > --alonzo-era

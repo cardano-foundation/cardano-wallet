@@ -139,7 +139,7 @@ extra-deps:
   - bech32-th
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: e8a48cf0500b03c744c7fc6f2fedb86e8bdbe055
+  commit: 654f5b7c76f7cc57900b4ddc664a82fc3b925fb0
   subdirs:
   - base-deriving-via
   - binary
@@ -153,38 +153,46 @@ extra-deps:
   - measures
 
 - git: https://github.com/input-output-hk/cardano-crypto
-  commit: 07397f0e50da97eaa0575d93bee7ac4b2b2576ec
+  commit: f73079303f663e028288f9f4a9e08bcca39a923e
 
 - git: https://github.com/input-output-hk/cardano-ledger
-  commit: f827a4321e42f528e25f6079f7af3eb18f10d391
+  commit: bf008ce028751cae9fb0b53c3bef20f07c06e333
   subdirs:
-  - alonzo/impl
-  - alonzo/test
-  - byron/chain/executable-spec
-  - byron/crypto
-  - byron/crypto/test
-  - byron/ledger/executable-spec
-  - byron/ledger/impl
-  - byron/ledger/impl/test
-  - cardano-ledger-core
-  - semantics/executable-spec
-  - semantics/small-steps-test
-  - shelley/chain-and-ledger/dependencies/non-integer
-  - shelley/chain-and-ledger/executable-spec
-  - shelley/chain-and-ledger/shelley-spec-ledger-test
-  - shelley-ma/impl
-  - shelley-ma/shelley-ma-test
+  - eras/alonzo/impl
+  - eras/alonzo/test-suite
+  - eras/byron/chain/executable-spec
+  - eras/byron/crypto
+  - eras/byron/crypto/test
+  - eras/byron/ledger/executable-spec
+  - eras/byron/ledger/impl
+  - eras/byron/ledger/impl/test
+  - eras/shelley/impl
+  - eras/shelley/test-suite
+  - eras/shelley-ma/impl
+  - eras/shelley-ma/test-suite
+  - libs/cardano-ledger-core
+  - libs/cardano-ledger-pretty
+  - libs/cardano-protocol-tpraos
+  - libs/small-steps
+  - libs/small-steps-test
+  - libs/non-integral
+  - eras/shelley/chain-and-ledger/executable-spec
+  - eras/shelley/chain-and-ledger/shelley-spec-ledger-test
+  - eras/shelley/chain-and-ledger/dependencies/non-integer
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 0fb43f4e3da8b225f4f86557aed90a183981a64f
+  commit: 4f65fb9a27aa7e3a1873ab4211e412af780a3648
   subdirs:
   - cardano-api
   - cardano-cli
-  - cardano-config
   - cardano-node
+  - trace-dispatcher
+  - trace-resources
+  - trace-forward
+
 
 - git: https://github.com/input-output-hk/cardano-prelude
-  commit: fd773f7a58412131512b9f694ab95653ac430852
+  commit: bb4ed71ba8e587f672d06edf9d2e376f4b055555
   subdirs:
   - cardano-prelude
   - cardano-prelude-test
@@ -217,7 +225,7 @@ extra-deps:
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: aa7bc087737edca29133844b14bb7cba2cd213f2
+  commit: d613de3d872ec8b4a5da0c98afb443f322dc4dab
   subdirs:
   - io-classes
   - io-sim
@@ -236,6 +244,7 @@ extra-deps:
   - ouroboros-network-framework
   - ouroboros-network-testing
   - typed-protocols
+  - typed-protocols-cborg
   - typed-protocols-examples
   # Extra packages not used by cardano-node but used by cardano-wallet
   - cardano-client
@@ -243,7 +252,7 @@ extra-deps:
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: edc6d4672c41de4485444122ff843bc86ff421a0
+  commit: 1efbb276ef1a10ca6961d0fd32e6141e9798bd11
   subdirs:
     - freer-extras
     - playground-common
@@ -260,6 +269,12 @@ extra-deps:
     - prettyprinter-configurable
     - quickcheck-dynamic
     - word-array
+
+- git: https://github.com/input-output-hk/ekg-forward
+  commit: 2adc8b698443bb10154304b24f6c1d6913bb65b9
+
+- git: https://github.com/input-output-hk/cardano-config
+  commit: e9de7a2cf70796f6ff26eac9f9540184ded0e4e6
 
 - git: https://github.com/shmish111/servant-purescript.git
   commit: a76104490499aa72d40c2790d10e9383e0dbde63

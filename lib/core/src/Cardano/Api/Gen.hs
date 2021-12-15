@@ -65,7 +65,7 @@ module Cardano.Api.Gen
   , genValueForTxOut
   , genTxOutValue
   , genTxOut
-  , genTxOutDatumHash
+  , genTxOutDatum
   , genWitnessNetworkIdOrByronAddress
   , genByronKeyWitness
   , genShelleyWitnessSigningKey
@@ -95,7 +95,6 @@ module Cardano.Api.Gen
   , genStakePoolParameters
   , genProtocolParametersUpdate
   , genUpdateProposal
-  , genExtraScriptData
   , genWitness
   ) where
 
@@ -106,9 +105,7 @@ import Cardano.Api hiding
 import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness), WitnessNetworkIdOrByronAddress (..) )
 import Cardano.Api.Shelley
-    ( Certificate (..)
-    , Hash (..)
-    , Lovelace (..)
+    ( Hash (..)
     , PlutusScript (..)
     , PoolId
     , ProtocolParameters (..)
@@ -122,6 +119,8 @@ import Cardano.Ledger.Credential
     ( Ix, Ptr (..) )
 import Cardano.Ledger.SafeHash
     ( unsafeMakeSafeHash )
+import Cardano.Ledger.Shelley.API
+    ( MIRPot (..) )
 import Data.Aeson
     ( ToJSON (..), (.=) )
 import Data.ByteString
@@ -150,8 +149,6 @@ import Network.Socket
     ( PortNumber )
 import Numeric.Natural
     ( Natural )
-import Shelley.Spec.Ledger.API
-    ( MIRPot (..) )
 import Test.Cardano.Chain.UTxO.Gen
     ( genVKWitness )
 import Test.Cardano.Crypto.Gen
@@ -187,6 +184,10 @@ import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.Seed as Crypto
 import qualified Cardano.Ledger.BaseTypes as Ledger
     ( Port, dnsToText )
+import qualified Cardano.Ledger.Shelley.API as Ledger
+    ( StakePoolRelay (..), portToWord16 )
+import qualified Cardano.Ledger.Shelley.TxBody as Ledger
+    ( EraIndependentTxBody )
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -198,11 +199,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Plutus.V1.Ledger.Api as Plutus
-import qualified Shelley.Spec.Ledger.API as Ledger
-    ( StakePoolRelay (..), portToWord16 )
-import qualified Shelley.Spec.Ledger.TxBody as Ledger
-    ( EraIndependentTxBody )
-import qualified Test.Shelley.Spec.Ledger.Serialisation.Generators.Genesis as Ledger
+import qualified Test.Cardano.Ledger.Shelley.Serialisation.Generators.Genesis as Ledger
     ( genStakePoolRelay )
 
 genShelleyHash
@@ -539,9 +536,10 @@ genScriptData =
 
 genExecutionUnits :: Gen ExecutionUnits
 genExecutionUnits = do
-    (Large steps) <- arbitrary
-    (Large mem) <- arbitrary
-    pure $ ExecutionUnits steps mem
+    Large steps <- arbitrary
+    Large mem <- arbitrary
+    let fromWord64 = fromIntegral @Word64
+    pure $ ExecutionUnits (fromWord64 steps) (fromWord64 mem)
 
 genTxWithdrawals :: CardanoEra era -> Gen (TxWithdrawals BuildTx era)
 genTxWithdrawals era =
@@ -740,20 +738,19 @@ genTxOutValue era =
     Left adaOnlyInEra     -> TxOutAdaOnly adaOnlyInEra <$> genLovelace
     Right multiAssetInEra -> TxOutValue multiAssetInEra <$> genValueForTxOut
 
-genTxOut :: CardanoEra era -> Gen (TxOut era)
+genTxOut :: CardanoEra era -> Gen (TxOut ctx era)
 genTxOut era =
   TxOut <$> genAddressInEra era
         <*> genTxOutValue era
-        <*> genTxOutDatumHash era
+        <*> genTxOutDatum era
 
-genTxOutDatumHash :: CardanoEra era -> Gen (TxOutDatumHash era)
-genTxOutDatumHash era =
-    case scriptDataSupportedInEra era of
-        Nothing -> pure TxOutDatumHashNone
-        Just supported -> oneof
-            [ pure TxOutDatumHashNone
-            , TxOutDatumHash supported <$> genHashScriptData
-            ]
+genTxOutDatum :: CardanoEra era -> Gen (TxOutDatum ctx era)
+genTxOutDatum era = case scriptDataSupportedInEra era of
+    Nothing -> pure TxOutDatumNone
+    Just supported -> oneof
+        [ pure TxOutDatumNone
+        , TxOutDatumHash supported <$> genHashScriptData
+        ]
 
 mkDummyHash :: forall h a. Crypto.HashAlgorithm h => Int -> Crypto.Hash h a
 mkDummyHash = coerce . Crypto.hashWithSerialiser @h CBOR.toCBOR
@@ -1171,18 +1168,6 @@ genUpdateProposal era =
                       )
                 ]
 
-genExtraScriptData :: CardanoEra era -> Gen (TxExtraScriptData era)
-genExtraScriptData era =
-    case scriptDataSupportedInEra era of
-        Nothing ->
-            pure TxExtraScriptDataNone
-        Just supported ->
-            oneof
-                [ pure TxExtraScriptDataNone
-                , TxExtraScriptData supported
-                  <$> scale (`div` 3) (listOf genScriptData)
-                ]
-
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = do
     txIns <- map (, BuildTxWith (KeyWitness KeyWitnessForSpending))
@@ -1197,7 +1182,6 @@ genTxBodyContent era = do
     txUpdateProposal <- genUpdateProposal era
     txMintValue <- genTxMintValue era
     txScriptValidity <- genTxScriptValidity era
-    txExtraScriptData <- BuildTxWith <$> genExtraScriptData era
     txExtraKeyWits <- genExtraKeyWitnesses era
 
     let
@@ -1209,7 +1193,6 @@ genTxBodyContent era = do
             , Api.txValidityRange
             , Api.txMetadata
             , Api.txAuxScripts
-            , Api.txExtraScriptData
             , Api.txExtraKeyWits
             , Api.txProtocolParams = BuildTxWith Nothing
             , Api.txWithdrawals
