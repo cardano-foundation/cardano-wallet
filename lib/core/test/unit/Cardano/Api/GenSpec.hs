@@ -265,12 +265,12 @@ spec =
                     forAll genUnsignedQuantity genUnsignedQuantityCoverage
             it "genValueForTxOutCoverage" $
                 property $ forAll genValueForTxOut genValueForTxOutCoverage
-            describe "genTxOutDatumHash" $
+            describe "genTxOutDatum" $
                 forAllEras $ \(AnyCardanoEra era) ->
                     it (show era) $
                         property $ forAll
-                            (genTxOutDatumHash era)
-                            (genTxOutDatumHashCoverage era)
+                            (genTxOutDatum era)
+                            (genTxOutDatumCoverage era)
             describe "genTxOutValue" $
                 forAllEras $ \(AnyCardanoEra era) ->
                     it (show era) $
@@ -1161,9 +1161,9 @@ genValueForTxOutCoverage val =
             "Value has more assets"
             True
 
-genTxOutDatumHashCoverage
+genTxOutDatumCoverage
     :: CardanoEra era -> TxOutDatum ctx era -> Property
-genTxOutDatumHashCoverage era datum =
+genTxOutDatumCoverage era datum =
     case scriptDataSupportedInEra era of
         Nothing ->
             (datum == TxOutDatumNone)
@@ -1208,7 +1208,7 @@ genTxOutCoverage :: CardanoEra era -> TxOut ctx era -> Property
 genTxOutCoverage era (TxOut addr val datum) = checkCoverage $ conjoin
     [ genAddressInEraCoverage era addr
     , genTxOutValueCoverage era val
-    , genTxOutDatumHashCoverage era datum
+    , genTxOutDatumCoverage era datum
     ]
 
 genWitnessNetworkIdOrByronAddressCoverage

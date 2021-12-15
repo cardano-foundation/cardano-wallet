@@ -740,8 +740,8 @@ fromLedgerExUnits
     -> W.ExecutionUnits
 fromLedgerExUnits (Alonzo.ExUnits mem steps) =
     W.ExecutionUnits
-    { executionSteps = fromIntegral steps
-    , executionMemory = fromIntegral mem
+    { executionSteps = steps
+    , executionMemory = mem
     }
 
 toLedgerExUnits
@@ -749,8 +749,8 @@ toLedgerExUnits
     -> Alonzo.ExUnits
 toLedgerExUnits W.ExecutionUnits{executionSteps,executionMemory} =
     Alonzo.ExUnits
-    { Alonzo.exUnitsMem = fromIntegral executionMemory
-    , Alonzo.exUnitsSteps = fromIntegral executionSteps
+    { Alonzo.exUnitsMem = executionMemory
+    , Alonzo.exUnitsSteps = executionSteps
     }
 
 txParametersFromPParams

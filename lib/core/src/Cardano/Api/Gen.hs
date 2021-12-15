@@ -65,7 +65,7 @@ module Cardano.Api.Gen
   , genValueForTxOut
   , genTxOutValue
   , genTxOut
-  , genTxOutDatumHash
+  , genTxOutDatum
   , genWitnessNetworkIdOrByronAddress
   , genByronKeyWitness
   , genShelleyWitnessSigningKey
@@ -536,9 +536,10 @@ genScriptData =
 
 genExecutionUnits :: Gen ExecutionUnits
 genExecutionUnits = do
-    (Large (steps :: Int)) <- arbitrary
-    (Large (mem :: Int)) <- arbitrary
-    pure $ ExecutionUnits (fromIntegral $ abs steps) (fromIntegral $ abs mem)
+    Large steps <- arbitrary
+    Large mem <- arbitrary
+    let fromWord64 = fromIntegral @Word64
+    pure $ ExecutionUnits (fromWord64 steps) (fromWord64 mem)
 
 genTxWithdrawals :: CardanoEra era -> Gen (TxWithdrawals BuildTx era)
 genTxWithdrawals era =
@@ -741,16 +742,15 @@ genTxOut :: CardanoEra era -> Gen (TxOut ctx era)
 genTxOut era =
   TxOut <$> genAddressInEra era
         <*> genTxOutValue era
-        <*> genTxOutDatumHash era
+        <*> genTxOutDatum era
 
-genTxOutDatumHash :: CardanoEra era -> Gen (TxOutDatum ctx era)
-genTxOutDatumHash era =
-    case scriptDataSupportedInEra era of
-        Nothing -> pure TxOutDatumNone
-        Just supported -> oneof
-            [ pure TxOutDatumNone
-            , TxOutDatumHash supported <$> genHashScriptData
-            ]
+genTxOutDatum :: CardanoEra era -> Gen (TxOutDatum ctx era)
+genTxOutDatum era = case scriptDataSupportedInEra era of
+    Nothing -> pure TxOutDatumNone
+    Just supported -> oneof
+        [ pure TxOutDatumNone
+        , TxOutDatumHash supported <$> genHashScriptData
+        ]
 
 mkDummyHash :: forall h a. Crypto.HashAlgorithm h => Int -> Crypto.Hash h a
 mkDummyHash = coerce . Crypto.hashWithSerialiser @h CBOR.toCBOR
