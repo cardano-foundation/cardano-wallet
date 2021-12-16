@@ -11,10 +11,12 @@ set -euo pipefail
 # wiki hasn't changed undesirably since the release tag.
 #
 # Usage:
-# cd cardano-wallet # (only works from here!)
-# export GITHUB_API_TOKEN="..."
-# ./scripts/make_release.sh
+#   export GITHUB_API_TOKEN="..."
+#   ./scripts/make_release.sh [vYYYY-MM-DD] [CARDANO_NODE_TAG]
 #
+
+cd "$(dirname "$0" || exit 1)"/..
+SCRIPT=$(realpath "$0")
 
 ################################################################################
 # Release-specific parameters. Can be changed interactively by running the script.
@@ -44,35 +46,51 @@ tag_cabal_ver_re() {
 # mutating the script itself.
 
 echo "Previous release: $GIT_TAG"
-new_tag=$(date +v%Y-%m-%d)
-read -r -e -p "New release tag: " -i "$new_tag" new_tag
+new_tag="${1:-}"
+if [ -z "$new_tag" ]; then
+  today=$(date +%Y-%m-%d)
+  read -r -e -p "New release tag: " -i "v$today" new_tag
+fi
 
-SCRIPT=$(realpath "$0")
-sed -i -e "s/^OLD_GIT_TAG=\"$OLD_GIT_TAG\"/OLD_GIT_TAG=\"$GIT_TAG\"/g" "$SCRIPT"
-sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" "$SCRIPT"
+if [ "$new_tag" != "$GIT_TAG" ]; then
+  sed -i -e "s/^OLD_GIT_TAG=\"$OLD_GIT_TAG\"/OLD_GIT_TAG=\"$GIT_TAG\"/g" "$SCRIPT"
+  sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" "$SCRIPT"
 
-OLD_GIT_TAG=$GIT_TAG
-GIT_TAG="$new_tag"
+  OLD_GIT_TAG=$GIT_TAG
+  GIT_TAG="$new_tag"
+else
+  echo "This release:     $GIT_TAG"
+  echo "Previous release: $OLD_GIT_TAG"
+fi
 
-OLD_CARDANO_NODE_TAG=$CARDANO_NODE_TAG
-read -r -e -p "Cardano node tag: " -i "$CARDANO_NODE_TAG" CARDANO_NODE_TAG
-sed -i -e "s/^CARDANO_NODE_TAG=\"$OLD_CARDANO_NODE_TAG\"/CARDANO_NODE_TAG=\"$CARDANO_NODE_TAG\"/g" "$SCRIPT"
+new_cardano_node_tag="${2:-}"
+if [ -z "$new_cardano_node_tag" ]; then
+  read -r -e -p "Cardano node tag: " -i "$CARDANO_NODE_TAG" new_cardano_node_tag
+fi
+
+if [ "$new_cardano_node_tag" != "$CARDANO_NODE_TAG" ]; then
+  OLD_CARDANO_NODE_TAG=$CARDANO_NODE_TAG
+  CARDANO_NODE_TAG="$new_cardano_node_tag"
+  sed -i -e "s/^CARDANO_NODE_TAG=\"$OLD_CARDANO_NODE_TAG\"/CARDANO_NODE_TAG=\"$CARDANO_NODE_TAG\"/g" "$SCRIPT"
+fi
 
 ################################################################################
 # Update releases in README.md
 
-# We assuming a specific structure and want to insert a tweaked copy of the
-# master version, and delete the oldest release.
-ln=$(awk '$0 ~ "`master` branch" {print NR}' README.md)
-master_line=$(sed -n "$ln"p README.md)
-line_to_insert=$(echo "$master_line" | sed -e "s/\`master\` branch/\[$GIT_TAG\](https:\/\/github.com\/input-output-hk\/cardano-wallet\/releases\/tag\/$GIT_TAG)/")
-sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" "$SCRIPT"
+if [ "$OLD_GIT_TAG" != "$GIT_TAG" ]; then
+  # We assuming a specific structure and want to insert a tweaked copy of the
+  # master version, and delete the oldest release.
+  ln=$(awk '$0 ~ "`master` branch" {print NR}' README.md)
+  master_line=$(sed -n "$ln"p README.md)
+  line_to_insert=$(echo "$master_line" | sed -e "s/\`master\` branch/\[$GIT_TAG\](https:\/\/github.com\/input-output-hk\/cardano-wallet\/releases\/tag\/$GIT_TAG)/")
+  sed -i -e "s/^GIT_TAG=\"$GIT_TAG\"/GIT_TAG=\"$new_tag\"/g" "$SCRIPT"
 
-# Edit from the bottom and up, not to affect the line-numbers.
-sed -i -e $((ln+3))d README.md
-sed -i -e $((ln+1))i"$line_to_insert" README.md
+  # Edit from the bottom and up, not to affect the line-numbers.
+  sed -i -e $((ln+3))d README.md
+  sed -i -e $((ln+1))i"$line_to_insert" README.md
 
-echo "Automatically updated the list of releases in README.md. Please review the resulting changes."
+  echo "Automatically updated the list of releases in README.md. Please review the resulting changes."
+fi
 
 ################################################################################
 # Update versions
@@ -102,23 +120,25 @@ echo ""
 ################################################################################
 # ChangeLog
 
-OUT=GENERATED_RELEASE_NOTES-$GIT_TAG.md
-CHANGELOG=GENERATED_CHANGELOG.md
-KNOWN_ISSUES=GENERATED_KNOWN_ISSUES.md
-REPO="input-output-hk/cardano-wallet"
+release_docs="docs/releases/$GIT_TAG"
+release_notes="${release_docs}/GENERATED_RELEASE_NOTES.md"
+CHANGELOG="$release_docs/GENERATED_CHANGELOG.md"
+KNOWN_ISSUES="$release_docs/GENERATED_KNOWN_ISSUES.md"
+
+mkdir -p "$release_docs"
 
 echo "Generating changelog into $CHANGELOG..."
-./scripts/make_changelog.sh "$OLD_DATE" > $CHANGELOG
+./scripts/make_changelog.sh "$OLD_DATE" > "$CHANGELOG"
 echo ""
 
 echo "Generating unresolved issues list into $KNOWN_ISSUES..."
-if ! jira release-notes-bugs > $KNOWN_ISSUES; then
+if ! jira release-notes-bugs > "$KNOWN_ISSUES"; then
   echo "The \"jira release-notes-bugs\" command didn't work."
-  echo TBD > $KNOWN_ISSUES
+  echo TBD > "$KNOWN_ISSUES"
 fi
 echo ""
 
-echo "Filling in template into $OUT..."
+echo "Filling in template into ${release_notes}..."
 sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
     -e "s/{{CARDANO_NODE_TAG}}/$CARDANO_NODE_TAG/g" \
     -e "s/{{CABAL_VERSION}}/$CABAL_VERSION/g"       \
@@ -126,15 +146,19 @@ sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
     -e "/{{CHANGELOG}}/d"                           \
     -e "/{{KNOWN_ISSUES}}/r $KNOWN_ISSUES"          \
     -e "/{{KNOWN_ISSUES}}/d"                        \
-    .github/RELEASE_TEMPLATE.md > "$OUT"
+    .github/RELEASE_TEMPLATE.md > "$release_notes"
 
 ################################################################################
 # Commit and tag
 
-read -p "Do you want to create a commit (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]
-then
-  msg="Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
-  git diff --quiet || git commit -am "$msg"
+if git diff --quiet; then
+  echo "No git sources changed"
+else
+  read -p "Do you want to create a commit (y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]
+  then
+    msg="Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
+    git commit -am "$msg"
+  fi
 fi
