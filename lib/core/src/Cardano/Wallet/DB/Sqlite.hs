@@ -90,9 +90,9 @@ import Cardano.Wallet.DB.Checkpoints
     ( DeltaCheckpoints (..)
     , DeltaMap (..)
     , findNearestPoint
+    , fromGenesis
     , getLatest
     , getPoint
-    , singleton
     )
 import Cardano.Wallet.DB.Sqlite.CheckpointsOld
     ( PersistState (..), blockHeaderFromEntity, mkStoreWalletsCheckpoints )
@@ -535,14 +535,25 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
     -- mutex (queryLock), which means no concurrent queries.
     queryLock <- newMVar () -- fixme: ADP-586
 
-    -- Insert a checkpoint into the DBVar
+    -- Insert a checkpoint for a given wallet ID into the DBVar,
+    -- assuming that the wallet already exists.
     let insertCheckpointCached wid cp = do
             liftIO $ traceWith tr $ MsgCheckpointCache wid MsgPutCheckpoint
             modifyDBMaybe checkpointsVar $ \ws ->
                 let point = getPoint cp
                 in  case Map.lookup wid ws of
-                    Nothing  -> (Just $ Insert wid $ singleton point cp, ())
+                    Nothing  -> (Nothing, ())
                     Just _   -> (Just $ Adjust wid $ PutCheckpoint point cp, ())
+
+    -- Insert genesis checkpoint into the DBVar.
+    -- Throws an internal error if the checkpoint is not actually at genesis.
+    let insertCheckpointGenesis wid cp
+            | W.isGenesisBlockHeader header =
+                updateDBVar checkpointsVar $ Insert wid $ fromGenesis cp
+            | otherwise =
+                throwIO $ ErrInitializeNotGenesis wid header
+          where
+            header = cp ^. #currentTip
 
     -- Retrieve the latest checkpoint from the DBVar
     let selectLatestCheckpointCached
@@ -588,7 +599,7 @@ newDBLayerWith _cacheBehavior tr ti SqliteContext{runQuery} = do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta gp)
             when (isRight res) $ do
-                insertCheckpointCached wid cp
+                insertCheckpointGenesis wid cp
                 let (metas, txins, txcins, txouts, txoutTokens, ws) =
                         mkTxHistory wid txs
                 putTxs metas txins txcins txouts txoutTokens ws
@@ -1538,6 +1549,9 @@ selectGenesisParameters wid = do
     gp <- selectFirst [WalId ==. wid] []
     pure $ (genesisParametersFromEntity . entityVal) <$> gp
 
+{-------------------------------------------------------------------------------
+    Internal errors
+-------------------------------------------------------------------------------}
 -- | A fatal exception thrown when trying to rollback but, there's no checkpoint
 -- to rollback to. The database maintain the invariant that there's always at
 -- least one checkpoint (the first one made for genesis) present in the
@@ -1547,3 +1561,9 @@ selectGenesisParameters wid = do
 -- violated.
 data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.Slot deriving (Show)
 instance Exception ErrRollbackTo
+
+-- | Can't initialize a wallet because the given 'BlockHeader' is not genesis.
+data ErrInitializeNotGenesis
+    = ErrInitializeNotGenesis W.WalletId W.BlockHeader deriving (Eq, Show)
+
+instance Exception ErrInitializeNotGenesis

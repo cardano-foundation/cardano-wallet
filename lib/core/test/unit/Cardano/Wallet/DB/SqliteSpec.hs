@@ -173,7 +173,7 @@ import Data.ByteString
 import Data.Coerce
     ( coerce )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
+    ( over, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.Maybe
@@ -717,9 +717,14 @@ prop_randomOpChunks (KeyValPairs pairs) =
             unsafeRunExceptT $ putCheckpoint k cp
             unsafeRunExceptT $ putWalletMeta k meta
         else do
-            atomically $ unsafeRunExceptT $ initializeWallet k cp meta mempty gp
+            let cp0 = imposeGenesisState cp
+            atomically $ unsafeRunExceptT $ initializeWallet k cp0 meta mempty gp
             Set.fromList <$> atomically listWallets
                 `shouldReturn` Set.fromList (k:keys)
+
+    imposeGenesisState :: Wallet s -> Wallet s
+    imposeGenesisState = over #currentTip $ \(BlockHeader _ _ h _) ->
+        BlockHeader (SlotNo 0) (Quantity 0) h Nothing
 
     shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s k -> DBLayer IO s k -> IO ()
     shouldBeConsistentWith db1 db2 = do

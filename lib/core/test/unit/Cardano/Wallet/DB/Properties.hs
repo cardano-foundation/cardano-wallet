@@ -445,51 +445,51 @@ assertWith lbl condition = do
 -- | Can list created wallets
 prop_createListWallet
     :: DBLayer IO s ShelleyKey
-    -> KeyValPairs WalletId (Wallet s , WalletMetadata)
+    -> KeyValPairs WalletId (InitialCheckpoint s, WalletMetadata)
     -> Property
 prop_createListWallet db@DBLayer{..} (KeyValPairs pairs) =
     monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
-        res <- once pairs $ \(k, (cp, meta)) ->
+        res <- once pairs $ \(k, (InitialCheckpoint cp0, meta)) ->
             atomically $ unsafeRunExceptT $
-            initializeWallet k cp meta mempty gp
+            initializeWallet k cp0 meta mempty gp
         (length <$> atomically listWallets) `shouldReturn` length res
 
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
     :: DBLayer IO s ShelleyKey
     -> ( WalletId
-       , Wallet s
+       , InitialCheckpoint s
        , WalletMetadata
        )
     -> Property
-prop_createWalletTwice db@DBLayer{..} (wid, cp, meta) =
+prop_createWalletTwice db@DBLayer{..} (wid, InitialCheckpoint cp0, meta) =
     monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
         let err = ErrWalletAlreadyExists wid
-        atomically (runExceptT $ initializeWallet wid cp meta mempty gp)
+        atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
             `shouldReturn` Right ()
-        atomically (runExceptT $ initializeWallet wid cp meta mempty gp)
+        atomically (runExceptT $ initializeWallet wid cp0 meta mempty gp)
             `shouldReturn` Left err
 
 -- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
     :: DBLayer IO s ShelleyKey
     -> ( WalletId
-       , Wallet s
+       , InitialCheckpoint s
        , WalletMetadata
        )
     -> Property
-prop_removeWalletTwice db@DBLayer{..} (wid, cp, meta) =
+prop_removeWalletTwice db@DBLayer{..} (wid, InitialCheckpoint cp0, meta) =
     monadicIO (setup >> prop)
   where
     setup = liftIO $ do
         cleanDB db
-        atomically $ unsafeRunExceptT $ initializeWallet wid cp meta mempty gp
+        atomically $ unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
     prop = liftIO $ do
         let err = ErrNoSuchWallet wid
         atomically (runExceptT $ removeWallet wid) `shouldReturn` Right ()
@@ -516,9 +516,9 @@ prop_readAfterPut putOp readOp db@DBLayer{..} (wid, a) =
   where
     setup = do
         run $ cleanDB db
-        (InitialCheckpoint cp, meta) <- namedPick "Initial Checkpoint" arbitrary
+        (InitialCheckpoint cp0, meta) <- pick arbitrary
         run $ atomically $ unsafeRunExceptT $
-            initializeWallet wid cp meta mempty gp
+            initializeWallet wid cp0 meta mempty gp
     prop = do
         run $ unsafeRunExceptT $ putOp db wid a
         res <- run $ readOp db wid
@@ -538,9 +538,9 @@ prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
   where
     setup = do
         run $ cleanDB db
-        (InitialCheckpoint cp, meta) <- namedPick "Initial Checkpoint" arbitrary
+        (InitialCheckpoint cp0, meta) <- pick arbitrary
         run $ atomically $ unsafeRunExceptT $
-            initializeWallet wid cp meta mempty gp
+            initializeWallet wid cp0 meta mempty gp
     prop = do
         let txs = unGenTxHistory txGen
         run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
@@ -566,9 +566,9 @@ prop_getTxAfterPutInvalidTxId db@DBLayer{..} wid txGen txId' =
   where
     setup = do
         run $ cleanDB db
-        (InitialCheckpoint cp, meta) <- namedPick "Initial Checkpoint" arbitrary
+        (InitialCheckpoint cp0, meta) <- pick arbitrary
         run $ atomically $ unsafeRunExceptT $
-            initializeWallet wid cp meta mempty gp
+            initializeWallet wid cp0 meta mempty gp
     prop = do
         let txs = unGenTxHistory txGen
         run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
@@ -579,18 +579,19 @@ prop_getTxAfterPutInvalidTxId db@DBLayer{..} wid txGen txId' =
 prop_getTxAfterPutInvalidWalletId
     :: DBLayer IO s ShelleyKey
     -> ( WalletId
-       , Wallet s
+       , InitialCheckpoint s
        , WalletMetadata
        )
     -> GenTxHistory
     -> WalletId
     -> Property
-prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (wid, cp, meta) txGen wid' =
-    wid /= wid' ==> monadicIO (setup >> prop)
+prop_getTxAfterPutInvalidWalletId db@DBLayer{..}
+    (wid, InitialCheckpoint cp0, meta) txGen wid'
+  = wid /= wid' ==> monadicIO (setup >> prop)
   where
     setup = liftIO $ do
         cleanDB db
-        atomically $ unsafeRunExceptT $ initializeWallet wid cp meta mempty gp
+        atomically $ unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
     prop = liftIO $ do
         let txs = unGenTxHistory txGen
         atomically (runExceptT $ putTxHistory wid txs) `shouldReturn` Right ()
@@ -600,7 +601,7 @@ prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (wid, cp, meta) txGen wid' =
 
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
-    :: (Buildable (f a), Eq (f a))
+    :: (Buildable (f a), Eq (f a), GenState s)
     => (  DBLayer IO s ShelleyKey
        -> WalletId
        -> a
@@ -633,7 +634,7 @@ prop_isolation
     :: ( Buildable (f b), Eq (f b)
        , Buildable (g c), Eq (g c)
        , Buildable (h d), Eq (h d)
-       , Arbitrary (Wallet s)
+       , GenState s
        , Show s
        )
     => (  DBLayer IO s ShelleyKey
@@ -661,16 +662,16 @@ prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt wid, ShowFmt a) =
     monadicIO (setup >>= prop)
   where
     setup = do
-        liftIO (cleanDB db)
-        (cp, meta, GenTxHistory txs) <- pick arbitrary
-        liftIO $ atomically $ do
-            unsafeRunExceptT $ initializeWallet wid cp meta mempty gp
+        run $ cleanDB db
+        (InitialCheckpoint cp0, meta) <- pick arbitrary
+        (GenTxHistory txs) <- pick arbitrary
+        run $ atomically $ do
+            unsafeRunExceptT $ initializeWallet wid cp0 meta mempty gp
             unsafeRunExceptT $ putTxHistory wid txs
-        (b, c, d) <- liftIO $ (,,)
+        run $ (,,)
             <$> readB db wid
             <*> readC db wid
             <*> readD db wid
-        return (b, c, d)
 
     prop (b, c, d) = liftIO $ do
         unsafeRunExceptT $ putA db wid a
@@ -694,10 +695,10 @@ prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt wid) =
     monadicIO (setup >> prop)
   where
     setup = do
-        liftIO (cleanDB db)
-        (cp, meta) <- pick arbitrary
-        liftIO $ atomically $ unsafeRunExceptT $
-            initializeWallet wid cp meta mempty gp
+        run $ cleanDB db
+        (InitialCheckpoint cp0, meta) <- pick arbitrary
+        run $ atomically $ unsafeRunExceptT $
+            initializeWallet wid cp0 meta mempty gp
     prop = liftIO $ do
         atomically $ unsafeRunExceptT $ removeWallet wid
         (ShowFmt <$> readOp db wid) `shouldReturn` ShowFmt empty
@@ -731,9 +732,9 @@ prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
         ids = map fst pairs
     setup = do
         run $ cleanDB db
-        (InitialCheckpoint cp, meta) <- pick arbitrary
+        (InitialCheckpoint cp0, meta) <- pick arbitrary
         run $ atomically $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            initializeWallet k cp meta mempty gp
+            initializeWallet k cp0 meta mempty gp
     prop = do
         run $ unsafeRunExceptT $ forM_ pairs $ uncurry (putOp db)
         res <- run $ once pairs (readOp db . fst)
@@ -744,7 +745,7 @@ prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
 
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
-    :: (Arbitrary (Wallet s), Show s)
+    :: (GenState s)
     => (  DBLayer IO s ShelleyKey
        -> WalletId
        -> a
@@ -769,10 +770,10 @@ prop_parallelPut putOp readOp resolve db@DBLayer{..} (KeyValPairs pairs) =
       where
         ids = map fst pairs
     setup = do
-        liftIO (cleanDB db)
-        (cp, meta) <- pick arbitrary
-        liftIO $ atomically $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
-            initializeWallet k cp meta mempty gp
+        run $ cleanDB db
+        (InitialCheckpoint cp0, meta) <- pick arbitrary
+        run $ atomically $ unsafeRunExceptT $ once_ pairs $ \(k, _) ->
+            initializeWallet k cp0 meta mempty gp
     prop = liftIO $ do
         forConcurrently_ pairs $ unsafeRunExceptT . uncurry (putOp db)
         res <- once pairs (readOp db . fst)
@@ -783,10 +784,10 @@ prop_parallelPut putOp readOp resolve db@DBLayer{..} (KeyValPairs pairs) =
 prop_rollbackCheckpoint
     :: forall s k. (GenState s, Eq s)
     => DBLayer IO s k
-    -> Wallet s
+    -> InitialCheckpoint s
     -> MockChain
     -> Property
-prop_rollbackCheckpoint db@DBLayer{..} cp0 (MockChain chain) = do
+prop_rollbackCheckpoint db@DBLayer{..} (InitialCheckpoint cp0) (MockChain chain) = do
     monadicIO $ do
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary

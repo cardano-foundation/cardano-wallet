@@ -37,7 +37,12 @@ import Cardano.Address.Script
 import Cardano.DB.Sqlite
     ( dbChunked )
 import Cardano.Wallet.DB.Checkpoints
-    ( Checkpoints (..), DeltaCheckpoints (..), DeltaMap (..), getPoint )
+    ( Checkpoints (..)
+    , DeltaCheckpoints (..)
+    , DeltaMap (..)
+    , getPoint
+    , loadCheckpoints
+    )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
     , CosignerKey (..)
@@ -187,10 +192,9 @@ mkStoreCheckpoints wid =
   where
     load = do
         cps <- selectAllCheckpoints wid
-        pure $ Right $ Checkpoints{ checkpoints = Map.fromList cps }
+        pure $ Right $ loadCheckpoints cps
 
-    write Checkpoints{checkpoints} =
-        forM_ (Map.toList checkpoints) $ \(pt,cp) ->
+    write cps = forM_ (Map.toList $ checkpoints cps) $ \(pt,cp) ->
             update (PutCheckpoint pt cp)
 
     update (PutCheckpoint _ state) =
