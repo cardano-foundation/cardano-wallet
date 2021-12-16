@@ -106,7 +106,6 @@ OUT=GENERATED_RELEASE_NOTES-$GIT_TAG.md
 CHANGELOG=GENERATED_CHANGELOG.md
 KNOWN_ISSUES=GENERATED_KNOWN_ISSUES.md
 REPO="input-output-hk/cardano-wallet"
-WIKI_COMMIT=$(git ls-remote https://github.com/$REPO.wiki.git HEAD | cut -f1)
 
 echo "Generating changelog into $CHANGELOG..."
 ./scripts/make_changelog.sh "$OLD_DATE" > $CHANGELOG
@@ -123,7 +122,6 @@ echo "Filling in template into $OUT..."
 sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
     -e "s/{{CARDANO_NODE_TAG}}/$CARDANO_NODE_TAG/g" \
     -e "s/{{CABAL_VERSION}}/$CABAL_VERSION/g"       \
-    -e "s/{{WIKI_COMMIT}}/$WIKI_COMMIT/g"           \
     -e "/{{CHANGELOG}}/r $CHANGELOG"                \
     -e "/{{CHANGELOG}}/d"                           \
     -e "/{{KNOWN_ISSUES}}/r $KNOWN_ISSUES"          \

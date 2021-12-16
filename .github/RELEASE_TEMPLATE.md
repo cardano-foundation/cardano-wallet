@@ -34,7 +34,7 @@ Compatible with [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-o
 
 | :closed_book: | :computer: | :whale: |
 | -- | -- | -- |
-| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}}) | [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface/{{WIKI_COMMIT}}) | [Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/{{WIKI_COMMIT}}) |
+| [API Documentation](https://input-output-hk.github.io/cardano-wallet/releases/{{GIT_TAG}}/api) | [CLI Manual](https://input-output-hk.github.io/cardano-wallet/releases/{{GIT_TAG}}/user-guide/cli) | [Docker Manual](https://input-output-hk.github.io/cardano-wallet/releases/{{GIT_TAG}}/user-guide/Docker) |
 
 ## Installation Instructions
 
