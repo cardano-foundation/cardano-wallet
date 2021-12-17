@@ -185,6 +185,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , computeTokenBundleSerializedLengthBytes
     , fromCardanoTxIn
     , fromCardanoTxOut
+    , getScriptIntegrityHash
     , getShelleyBasedEra
     , shelleyToCardanoEra
     , toCardanoLovelace
@@ -245,7 +246,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromJust )
+    ( fromJust, isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -386,6 +387,8 @@ spec = do
             property (prop_signTransaction_addsTxInCollateralWitnesses era))
         forAllEras (\era -> it ("signTransaction never removes witnesses (" <> show era <> ")") $
             property (prop_signTransaction_neverRemovesWitnesses era))
+        forAllEras (\era -> it ("signTransaction preserves script integrity (" <> show era <> ")") $
+            property (prop_signTransaction_preservesScriptIntegrity era))
 
 instance Arbitrary SealedTx where
     arbitrary = sealedTxFromCardano <$> genTx
@@ -760,6 +763,41 @@ prop_signTransaction_neverRemovesWitnesses (AnyCardanoEra era) rootK utxo =
                   & counterexample ("num witnesses before: " <> show (length witnessesAfter))
                 ]
 
+    where
+        tl = testTxLayer
+
+prop_signTransaction_preservesScriptIntegrity
+    :: AnyCardanoEra
+    -- ^ Era
+    -> (XPrv, Passphrase "encryption")
+    -- ^ Root key of wallet
+    -> UTxO
+    -- ^ UTxO of wallet
+    -> Property
+prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
+    case Cardano.scriptDataSupportedInEra era of
+        Nothing ->
+            True
+            & label ("Plutus scripts not supported in " <> show era <> ".")
+        Just _supported ->
+            forAll (genTxInEra era) $ \tx -> do
+                let
+                    sealedTx = sealedTxFromCardano' tx
+                    sealedTx' = signTransaction tl (AnyCardanoEra era) (const Nothing) (first liftRawKey rootK) utxo sealedTx
+
+                    getScriptIntegrityHashInAnyCardanoEra :: InAnyCardanoEra Cardano.Tx -> Maybe ByteString
+                    getScriptIntegrityHashInAnyCardanoEra (InAnyCardanoEra _ transaction) = getScriptIntegrityHash transaction
+
+                    scriptIntegrityHashBefore = getScriptIntegrityHashInAnyCardanoEra $ cardanoTx sealedTx
+                    scriptIntegrityHashAfter = getScriptIntegrityHashInAnyCardanoEra $ cardanoTx sealedTx'
+
+                checkCoverage
+                    $ cover 30 (isJust scriptIntegrityHashBefore) "script integrity hash exists"
+                    $ conjoin
+                        [ scriptIntegrityHashBefore == scriptIntegrityHashAfter
+                          & counterexample ("script integrity hash before: " <> show scriptIntegrityHashBefore)
+                          & counterexample ("script integrity hash after: " <> show scriptIntegrityHashAfter)
+                        ]
     where
         tl = testTxLayer
 
