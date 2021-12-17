@@ -1871,6 +1871,39 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- returns: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'
             ]
 
+    it "TRANS_NEW_BALANCE_05/ADP-1286 - \
+        \I can balance correctly in case I need to spend my remaining ADA for fee" $ 
+        \ctx -> runResourceT $ do
+        wa <- fixtureWalletWith @n ctx [3_000_000]
+        -- PlutusScenario.pingPong_1 is sending out 2₳ therefore tx fee
+        -- needs to be 1₳ to comply with minUTxOValue constraint
+        let expectedFee = 1_000_000
+        let balancePayload = Json PlutusScenario.pingPong_1
+        let hasExpectedFee = [expectField (#fee . #getQuantity) (`shouldBe` expectedFee)]
+        
+        rTx <- request @ApiSerialisedTransaction ctx
+            (Link.balanceTransaction @'Shelley wa) Default balancePayload
+        verify rTx [ expectResponseCode HTTP.status202 ]
+        let apiTx = getFromResponse #transaction rTx
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction apiTx)
+
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx hasExpectedFee
+
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+
+        eventually "Wallet balance is as expected" $ do
+            rWa <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wa) Default Empty
+            verify rWa
+                [ expectSuccess
+                , expectField
+                        (#balance . #available . #getQuantity)
+                        (`shouldBe` 0)
+                ]
+
     it "TRANS_NEW_SIGN_01 - Sign single-output transaction" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
 
