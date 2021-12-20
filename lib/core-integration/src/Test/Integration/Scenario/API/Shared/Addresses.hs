@@ -120,10 +120,14 @@ spec = describe "SHARED_ADDRESSES" $ do
   where
      getAccountWallet name = do
           (_, accXPubTxt):_ <- liftIO $ genXPubs 1
+          -- NOTE: A previous test had used "account_index": "30H",
+          -- presumably to spice things up,
+          -- but the `isValidDerivationPath` function expects that the
+          -- account index is equal to "0H".
           let payload = Json [json| {
                   "name": #{name},
                   "account_public_key": #{accXPubTxt},
-                  "account_index": "30H",
+                  "account_index": "0H",
                   "payment_script_template":
                       { "cosigners":
                           { "cosigner#0": #{accXPubTxt} },

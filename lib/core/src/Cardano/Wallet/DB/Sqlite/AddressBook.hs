@@ -28,6 +28,10 @@ import Cardano.Address.Derivation
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , KeyFingerprint (..)
+    , MkKeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
@@ -53,6 +57,7 @@ import Data.Type.Equality
 import Data.Typeable
     ( Typeable )
 
+import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
@@ -99,7 +104,6 @@ instance
     , GetPurpose key
     , SoftDerivation key
     , PaymentAddress n key
-    , Typeable n
     , (key == SharedKey) ~ 'False
     ) => AddressBookIso (Seq.SeqState n key)
   where
@@ -130,24 +134,12 @@ toDiscoveries
 toDiscoveries pool = SeqAddressList
     [ (a,st) | (a,st,_) <- Seq.addresses (liftPaymentAddress @n) pool ]
 
--- | Variant of 'toDiscoveries' that can be used with 'SharedKey'
-toDiscoveriesShared
-    :: forall (n :: NetworkDiscriminant) (c :: Role) key.
-    ( GetPurpose key
-    , Typeable c
-    , Typeable n
-    , key ~ SharedKey
-    ) => Seq.AddressPool c key -> SeqAddressList c
-toDiscoveriesShared pool = SeqAddressList
-    [ (a,st) | (a,st,_) <- Seq.addresses (Shared.liftPaymentAddress @n) pool ]
-
 -- | Fill an empty address pool with addresses.
 fromDiscoveries
     :: forall (n :: NetworkDiscriminant) (c :: Role) key.
     ( MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
     , MkKeyFingerprint key Address
     , SoftDerivation key
-    , Typeable n
     , Typeable c
     ) => Seq.AddressPool c key -> SeqAddressList c -> Seq.AddressPool c key
 fromDiscoveries ctx (SeqAddressList addrs) =
@@ -162,41 +154,33 @@ emptyPool pool = pool{ Seq.indexedKeys = Map.empty }
     Shared key address book
 -------------------------------------------------------------------------------}
 -- | Isomorphism for multi-sig address book.
-instance
-    ( MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
-    , MkKeyFingerprint key Address
-    , GetPurpose key
-    , SoftDerivation key
-    , Typeable n
-    , key ~ SharedKey
-    ) => AddressBookIso (Shared.SharedState n key)
+instance ( key ~ SharedKey ) => AddressBookIso (Shared.SharedState n key)
   where
     data Prologue (Shared.SharedState n key)
         = SharedPrologue (Shared.SharedState n key)
         -- Trick: We keep the type, but we empty the discovered addresses
     data Discoveries (Shared.SharedState n key)
-        = SharedDiscoveries (SeqAddressList 'UtxoExternal)
+        = SharedDiscoveries
+            ( Map
+                (KeyFingerprint "payment" SharedKey)
+                (Index 'Soft 'ScriptK, AddressState)
+            )
 
     addressIso = iso from to
       where
-        from st@(Shared.SharedState a b) = case b of
-            Shared.PendingFields{} ->
-                ( SharedPrologue st
-                , SharedDiscoveries (SeqAddressList [])
-                )
-            Shared.ReadyFields pool ->
-                let b0 = Shared.ReadyFields $ emptyPool pool
-                in  ( SharedPrologue (Shared.SharedState a b0)
-                    , SharedDiscoveries (toDiscoveriesShared @n pool)
+        from st = case Shared.ready st of
+            Shared.Pending -> (SharedPrologue st, SharedDiscoveries Map.empty)
+            Shared.Active pool ->
+                let pool0 = AddressPool.clear pool
+                in  ( SharedPrologue st{ Shared.ready = Shared.Active pool0 }
+                    , SharedDiscoveries $ AddressPool.addresses pool
                     )
-        to  ( SharedPrologue st@(Shared.SharedState a b0)
-            , SharedDiscoveries addrs
-            )
-          = case b0 of
-            Shared.PendingFields{} -> st
-            Shared.ReadyFields pool0
-                -> Shared.SharedState a $ Shared.ReadyFields
-                $ fromDiscoveries @n pool0 addrs
+        to (SharedPrologue st, SharedDiscoveries addrs)
+          = case Shared.ready st of
+            Shared.Pending -> st
+            Shared.Active pool0 ->
+                let pool = AddressPool.loadUnsafe pool0 addrs
+                in  st{ Shared.ready = Shared.Active pool }
 
 {-------------------------------------------------------------------------------
     HD Random address book

@@ -19,7 +19,7 @@ module Cardano.Wallet.Address.Pool
     , gap
     , lookup
     , size
-    , next
+    , successor
     , new
     , load
     , update
@@ -62,11 +62,18 @@ import qualified Data.Map.Strict as Map
 -- which are derived from a numeric index (type @ix@).
 data Pool addr ix = Pool
     { generator :: ix -> addr
-    -- ^ Each address is obtained from a numeric index.
-    -- The purpose of the 'Pool' data structure is to (partially)
-    -- cache this mapping,
-    -- because it is expensive to compute (hashing)
-    -- and its inverse is practically impossible to compute.
+    -- ^ Mapping from a numeric index to its corresponding address.
+    --
+    -- This mapping is supposed to be (practically) a one-way function:
+    -- Given an 'addr', it is impossible to compute the preimage
+    -- 'ix' in practice.
+    -- The purpose of the 'Pool' data structure is to help inverting
+    -- this function regardless. The idea is that addresses
+    -- with small indices @0,1,…@ are 'Used' before addresses with larger
+    -- indices; specifically, only less than 'gap' many addresses in sequence
+    -- may be 'Unused' before the next 'Used' address.
+    -- This usage scheme restricts the search space considerably
+    -- and allows us to practically invert the 'generator' function.
     , gap :: Int
     -- ^ The pool gap determines how 'Used' and 'Unused'
     -- have to be distributed.
@@ -93,18 +100,18 @@ prop_sequence Pool{addresses} =
 -- | Internal invariant:
 -- If we order the 'addresses' by their indices,
 -- then there are always /less than/ 'gap' many 'Unused'
--- addresses between two consecutive 'Used' addresses.
+-- addresses between two consecutive 'Used' addresses,
+-- or before the first 'Used' address.
 prop_gap :: Ord ix => Pool addr ix -> Bool
 prop_gap Pool{gap,addresses}
-    = all ((< gap) . length)
-    . filter isUnused
-    . dropFresh
-    $ List.group statuses
+    = all (< gap) . consecutiveUnused . List.group $ statuses
   where
-    isUnused (Unused:_) = True
-    isUnused _ = False
-    dropFresh = drop 1 -- drop items that are checked by 'prop_fresh'.
-    statuses = map snd $ List.sortOn (Down . fst) $ Map.elems addresses
+    consecutiveUnused ((Used:_):xs) = consecutiveUnused xs
+    consecutiveUnused (x@(Unused:_):(Used:_):xs) =
+        length x : consecutiveUnused xs
+    consecutiveUnused _ = []
+
+    statuses = map snd $ List.sortOn fst $ Map.elems addresses
 
 -- | Internal invariant:
 -- If we order the 'addresses' by their indices,
@@ -160,8 +167,8 @@ new generator gap
 load
     :: (Ord addr,  Ord ix, Enum ix)
     => Pool addr ix -> Map addr (ix,AddressState) -> Maybe (Pool addr ix)
-load addrs pool0 = if prop_consistent pool then Just pool else Nothing
-  where pool = loadUnsafe addrs pool0
+load pool0 addrs = if prop_consistent pool then Just pool else Nothing
+  where pool = loadUnsafe pool0 addrs
 
 -- | Replace the collection of addresses in a pool,
 -- but skips checking the invariants.
@@ -181,9 +188,21 @@ lookup addr Pool{addresses} = fst <$> Map.lookup addr addresses
 size :: Pool addr ix -> Int
 size = Map.size . addresses
 
--- | Given an index, retrieve the next index that is still in the pool.
-next :: Enum ix => Pool addr ix -> ix -> Maybe ix
-next Pool{addresses} ix = let jx = succ ix in
+-- | Given an index @ix@, return the enumerated successor @Just (succ ix)@
+-- as long as the address corresponding to this successor is still
+-- in the pool.
+--
+-- This function is useful for address discovery in a light client setting,
+-- where the discovery procedure is:
+-- Start with index @ix = 0@, query the corresponding address in an explorer,
+-- @update@ address pool and repeat with @successor ix@ until the latter
+-- returns 'Nothing'. According to the BIP-44 standard,
+-- the account may not contain any other addresses than the ones discovered.
+--
+-- This function is not useful for generating change addresses,
+-- as it does not take 'Used' or 'Unused' status into account.
+successor :: Enum ix => Pool addr ix -> ix -> Maybe ix
+successor Pool{addresses} ix = let jx = succ ix in
     if fromEnum jx >= Map.size addresses then Nothing else Just jx
 
 -- | Update an address to the 'Used' status
@@ -200,9 +219,14 @@ update addr pool@Pool{addresses} =
 -- | Create additional 'Unused' addresses from larger indices
 -- in order to satisfy 'prop_fresh' again.
 --
--- Precondition: Either @ix = fromEnum 0@,
--- or the index @jx@ which satisfies to @ix = succ jx@
--- is associated with a 'Used' address.
+-- Preconditions:
+-- 
+-- * The index @ix@ satisfies:
+--
+--     either @ix = fromEnum 0@
+--     or @ix = succ jx@ and the index @jx@ is a 'Used' address.
+--
+-- * All addresses with index @ix@ or larger are 'Unused'.
 ensureFresh :: (Ord addr, Enum ix) => ix -> Pool addr ix -> Pool addr ix
 ensureFresh ix pool@Pool{generator,gap,addresses}
     = pool { addresses = Map.union addresses nexts }

@@ -286,20 +286,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( ParentContext (..)
-    , SeqState
-    , defaultAddressPoolGap
-    , mkSeqStateFromRootXPrv
-    , purposeBIP44
-    )
+    ( SeqState, defaultAddressPoolGap, mkSeqStateFromRootXPrv, purposeBIP44 )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..)
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
     , SharedState (..)
-    , SharedStateFields (..)
     , addCosignerAccXPub
-    , isShared
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( Selection
@@ -744,7 +737,6 @@ createIcarusWallet
         , PaymentAddress n k
         , k ~ IcarusKey
         , s ~ SeqState n k
-        , Typeable n
         )
     => ctx
     -> WalletId
@@ -2907,11 +2899,11 @@ updateCosigner
     -> Cosigner
     -> CredentialType
     -> ExceptT ErrAddCosignerKey IO ()
-updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
+updateCosigner ctx wid cosignerXPub cosigner cred = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         cp <- withExceptT ErrAddCosignerKeyNoSuchWallet $ withNoSuchWallet wid $
               readCheckpoint wid
-        case addCosignerAccXPub accXPub cosigner cred (getState cp) of
+        case addCosignerAccXPub (cosigner, cosignerXPub) cred (getState cp) of
             Left err -> throwE (ErrAddCosignerKey err)
             Right st' -> withExceptT ErrAddCosignerKeyNoSuchWallet $
                 putCheckpoint wid (updateState st' cp)
@@ -2923,23 +2915,16 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
 -- base addresses (containing both payment and delegation credentials).
 -- So we normalize them all to be base addresses to make sure that we compare them correctly.
 normalizeSharedAddress
-    :: forall s k n.
-        ( MkKeyFingerprint k Address
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , s ~ SharedState n k
-        , k ~ SharedKey
-        , SoftDerivation k
-        , Typeable n
-        )
-    => s
+    :: forall n k. ( Shared.SupportsDiscovery n k, k ~ SharedKey )
+    => SharedState n k
     -> Address
     -> Maybe Address
-normalizeSharedAddress s@(SharedState _ state') addr = case state' of
-    PendingFields _ -> Nothing
-    ReadyFields pool -> do
-        let (ParentContextShared _ _ dTM) = Seq.context pool
+normalizeSharedAddress st addr = case Shared.ready st of
+    Shared.Pending -> Nothing
+    Shared.Active _ -> do
+        let dTM = Shared.delegationTemplate st
         fingerprint <- eitherToMaybe (paymentKeyFingerprint @k addr)
-        let (ixM, _) = isShared addr s
+        let (ixM, _) = Shared.isShared addr st
         case (dTM, ixM) of
             (Just dT, Just ix) ->
                 pure $ Shared.liftDelegationAddress @n ix dT fingerprint

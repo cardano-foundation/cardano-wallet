@@ -101,7 +101,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , utxoInternal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
-    ( SharedKey (..), constructAddressFromIx )
+    ( SharedKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -128,8 +128,6 @@ import Control.Monad
     ( unless )
 import Data.Bifunctor
     ( first )
-import Data.Coerce
-    ( coerce )
 import Data.Digest.CRC32
     ( crc32 )
 import Data.Function
@@ -250,13 +248,6 @@ data ParentContext (chain :: Role) (key :: Depth -> Type -> Type) where
         => key 'AccountK XPub
         -> ParentContext chain key
 
-    ParentContextShared
-        :: (key ~ SharedKey)
-        => key 'AccountK XPub
-        -> ScriptTemplate
-        -> Maybe ScriptTemplate
-        -> ParentContext 'UtxoExternal key
-
 deriving instance Eq   (key 'AccountK XPub) => Eq   (ParentContext chain key)
 deriving instance Show (key 'AccountK XPub) => Show (ParentContext chain key)
 
@@ -265,16 +256,10 @@ instance (WalletKey key, Typeable chain) => Buildable (ParentContext chain key) 
         mempty <> "(ParentContext for "<> ccF <> " " <> build (accXPubTxt (getRawKey acct)) <>")"
         where
             ccF = build $ toText $ role @chain
-    build (ParentContextShared acct p dM) =
-        mempty <> "(ParentContext for "<> ccF <> " " <> build (accXPubTxt (getRawKey acct))
-        <> ", " <> build (p, dM) <> ")"
-        where
-            ccF = build $ toText $ role @chain
 
 instance NFData (key 'AccountK XPub) => NFData (ParentContext chain key) where
     rnf = \case
         ParentContextUtxo acct  -> rnf acct
-        ParentContextShared acct p d -> rnf (acct, p, d)
 
 -- | An 'AddressPool' which keeps track of sequential addresses within a given
 -- Account and change chain. See 'mkAddressPool' to create a new or existing
@@ -406,7 +391,6 @@ mkAddressPool
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable c
-        , Typeable n
         )
     => ParentContext c k
     -> AddressPoolGap
@@ -436,7 +420,6 @@ lookupAddress
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable c
-        , Typeable n
         )
     => (AddressState -> AddressState)
     -> Address
@@ -466,10 +449,8 @@ lookupAddress alterSt !target !pool =
 extendAddressPool
     :: forall (n :: NetworkDiscriminant) c k.
         ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable c
-        , Typeable n
         )
     => Index 'Soft 'AddressK
     -> AddressPool c k
@@ -489,10 +470,8 @@ extendAddressPool !ix !pool
 nextAddresses
     :: forall (n :: NetworkDiscriminant) (c :: Role) k.
         ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable c
-        , Typeable n
         )
     => ParentContext c k
     -> AddressPoolGap
@@ -510,19 +489,10 @@ nextAddresses !ctx (AddressPoolGap !g) !fromIx =
 
     mkPaymentKey ix = \case
         ParentContextUtxo acct ->
-            mkPaymentKeyFromAccXPub acct
-        ParentContextShared _ payment delegation ->
-            mkPaymentKeyFromTemplates payment delegation
-      where
-        mkPaymentKeyFromAccXPub acct =
             unsafePaymentKeyFingerprint @k
                 ( Proxy @n
                 , deriveAddressPublicKey @k acct (role @c) ix
                 )
-
-        mkPaymentKeyFromTemplates payment delegation =
-            unsafePaymentKeyFingerprint @k $
-                constructAddressFromIx @n payment delegation (coerce ix)
 
 {-------------------------------------------------------------------------------
                             Pending Change Indexes
@@ -690,7 +660,6 @@ mkSeqStateFromRootXPrv
         , MkKeyFingerprint k Address
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
-        , Typeable n
         , (k == SharedKey) ~ 'False
         )
     => (k 'RootK XPrv, Passphrase "encryption")
@@ -718,7 +687,6 @@ mkSeqStateFromAccountXPub
         ( SoftDerivation k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
-        , Typeable n
         , (k == SharedKey) ~ 'False
         )
     => k 'AccountK XPub
@@ -749,7 +717,6 @@ instance
     ( SoftDerivation k
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
-    , Typeable n
     ) => IsOurs (SeqState n k) Address
   where
     isOurs addr (SeqState !s1 !s2 !ixs !rpk !prefix) =
@@ -810,7 +777,6 @@ instance
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , AddressIndexDerivationType k ~ 'Soft
-    , Typeable n
     )
     => IsOwned (SeqState n k) k where
     isOwned (SeqState !s1 !s2 _ _ _) (rootPrv, pwd) addr =
@@ -838,7 +804,6 @@ instance
     ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
-    , Typeable n
     ) => CompareDiscovery (SeqState n k) where
     compareDiscovery (SeqState !s1 !s2 _ _ _) a1 a2 =
         case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
@@ -926,7 +891,6 @@ mkSeqAnyState
         , MkKeyFingerprint k Address
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
-        , Typeable n
         , (k == SharedKey) ~ 'False
         )
     => (k 'RootK XPrv, Passphrase "encryption")
@@ -940,8 +904,6 @@ mkSeqAnyState credentials purpose poolGap = SeqAnyState
 instance
     ( SoftDerivation k
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , MkKeyFingerprint k Address
-    , Typeable n
     , KnownNat p
     ) => IsOurs (SeqAnyState n k p) Address
   where
@@ -971,10 +933,8 @@ instance IsOurs (SeqAnyState n k p) RewardAccount
 instance
     ( SoftDerivation k
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , MkKeyFingerprint k Address
     , AddressIndexDerivationType k ~ 'Soft
     , KnownNat p
-    , Typeable n
     ) => IsOwned (SeqAnyState n k p) k
   where
     isOwned _ _ _ = Nothing
@@ -990,7 +950,6 @@ instance
     ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
-    , Typeable n
     ) => CompareDiscovery (SeqAnyState n k p)
   where
     compareDiscovery (SeqAnyState s) = compareDiscovery s
