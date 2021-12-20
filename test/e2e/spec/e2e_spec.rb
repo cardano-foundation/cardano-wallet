@@ -22,8 +22,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     # @wid_sha = "d20b7f812fb571e7a3b14fb8a13c595d32cad5e6"
     # @wid_rnd = "12cbebfdc4521766e63a7e07c4825b24deb4176c"
     # @wid_ic = "f5da82c1eb3e391a535dd5ba2867fe9bdaf2f313"
-    # @wid = "1f82e83772b7579fc0854bd13db6a9cce21ccd95"
-    # @target_id = "e47d780efac3ee9e3565f5996f8f357472f7b8bc"
+    # @wid = "2269611a3c10b219b0d38d74b004c298b76d16a9"
+    # @target_id = "8d0fc5d4450d7430a822f2102a84ac2ca1bc1bf1"
     # 1f82e83772b7579fc0854bd13db6a9cce21ccd95
     # 2269611a3c10b219b0d38d74b004c298b76d16a9
     # a042bafdaf98844cfa8f6d4b1dc47519b21a4d95
@@ -622,16 +622,21 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
 
         target_after = get_shelley_balances(@target_id)
-
+        
         # verify balances are correct on target wallet
+        assets_to_check = ["#{ASSETS[0]["policy_id"]}#{ASSETS[0]["asset_name"]}",
+                           "#{ASSETS[1]["policy_id"]}#{ASSETS[1]["asset_name"]}"]
+        target_total_after = assets_balance(target_after['assets_total'], {assets_to_check: assets_to_check})
+        target_avail_after = assets_balance(target_after['assets_available'], {assets_to_check: assets_to_check})
+        target_total_expected = assets_balance(target_before['assets_total'], {assets_to_check: assets_to_check, delta: (+amt)})
+        target_avail_expected = assets_balance(target_before['assets_available'], {assets_to_check: assets_to_check, delta: (+amt)})
         if target_before['assets_total'] == []
-          target_balance = [{ "#{ASSETS[0]["policy_id"]}#{ASSETS[0]["asset_name"]}" => amt },
-                            { "#{ASSETS[1]["policy_id"]}#{ASSETS[1]["asset_name"]}" => amt }].to_set
-          expect(assets_balance(target_after['assets_total'])).to eq target_balance
-          expect(assets_balance(target_after['assets_available'])).to eq target_balance
+          target_balance_expected = assets_to_check.map {|a| {a => amt}}.to_set
+          expect(target_total_after).to eq target_balance_expected
+          expect(target_avail_after).to eq target_balance_expected
         else
-          expect(assets_balance(target_after['assets_total'])).to eq assets_balance(target_before['assets_total'], (+amt))
-          expect(assets_balance(target_after['assets_available'])).to eq assets_balance(target_before['assets_available'], (+amt))
+          expect(target_total_after).to eq target_total_expected
+          expect(target_avail_after).to eq target_avail_expected
         end
       end
 
