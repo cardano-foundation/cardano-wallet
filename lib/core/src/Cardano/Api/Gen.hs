@@ -3,7 +3,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -576,6 +575,15 @@ genWitnessStake era = oneof $
        , Just langInEra <- [scriptLanguageSupportedInEra era lang]
        ]
 
+genWitnessSpend :: CardanoEra era -> Gen (Witness WitCtxTxIn era)
+genWitnessSpend era = oneof $
+    [ pure $ KeyWitness KeyWitnessForSpending ]
+    <> [ ScriptWitness ScriptWitnessForSpending
+         <$> genScriptWitnessSpend langInEra
+       | AnyScriptLanguage lang <- [minBound..maxBound]
+       , Just langInEra <- [scriptLanguageSupportedInEra era lang]
+       ]
+
 genScriptWitnessMint
     :: ScriptLanguageInEra lang era
     -> Gen (ScriptWitness WitCtxMint era)
@@ -601,6 +609,20 @@ genScriptWitnessStake langEra =
             PlutusScriptWitness langEra ver
             <$> genPlutusScript ver
             <*> pure NoScriptDatumForStake
+            <*> genScriptData
+            <*> genExecutionUnits
+
+genScriptWitnessSpend
+    :: ScriptLanguageInEra lang era
+    -> Gen (ScriptWitness WitCtxTxIn era)
+genScriptWitnessSpend langEra =
+    case languageOfScriptLanguageInEra langEra of
+        (SimpleScriptLanguage ver) ->
+            SimpleScriptWitness langEra ver <$> genSimpleScript ver
+        (PlutusScriptLanguage ver) ->
+            PlutusScriptWitness langEra ver
+            <$> genPlutusScript ver
+            <*> (ScriptDatumForTxIn <$> genScriptData)
             <*> genScriptData
             <*> genExecutionUnits
 
@@ -1170,8 +1192,10 @@ genUpdateProposal era =
 
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = do
-    txIns <- map (, BuildTxWith (KeyWitness KeyWitnessForSpending))
-             <$> scale (`div` 3) (listOf1 genTxIn)
+    txIns <- scale (`div` 3) $ do
+        txIns <- listOf1 genTxIn
+        ctxs <- vectorOf (length txIns) (genWitnessSpend era)
+        pure $ zip txIns (BuildTxWith <$> ctxs)
     txOuts <- scale (`div` 3) $ listOf1 $ genTxOut era
     txFee <- genTxFee era
     txValidityRange <- genTxValidityRange era
