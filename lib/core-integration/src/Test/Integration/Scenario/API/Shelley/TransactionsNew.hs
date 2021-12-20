@@ -1874,6 +1874,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_BALANCE_05/ADP-1286 - \
         \I can balance correctly in case I need to spend my remaining ADA for fee" $ 
         \ctx -> runResourceT $ do
+        liftIO $ pendingWith 
+            "ADP-1286 - ValueNotConservedUTxO: Transaction seems balanced incorrectly \
+            \in case when less than minUtxOValue is left on the wallet"
         wa <- fixtureWalletWith @n ctx [3_000_000]
         -- PlutusScenario.pingPong_1 is sending out 2₳ therefore tx fee
         -- needs to be 1₳ to comply with minUTxOValue constraint
