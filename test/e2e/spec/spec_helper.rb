@@ -304,7 +304,7 @@ def assets_balance(assets, options = {})
 
   asset_set = assets.map { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + options[:delta] } }.to_set
   if assets_to_check
-    asset_set.select! {|a| assets_to_check.include? a.keys.first}
+    asset_set.select {|a| assets_to_check.include? a.keys.first}.to_set
   else
     asset_set
   end
