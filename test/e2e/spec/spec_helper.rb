@@ -293,8 +293,21 @@ end
 
 ##
 # return asset total or available balance for comparison
-def assets_balance(assets, received = 0)
-  assets.map { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + received } }.to_set
+# @param [Hash] assets - asset balance Hash from the wallet (output of get_wallet_balances['assets_*'])
+# @param [Hash] options - 
+#                    options[:delta] [Int] - received/sent assets that we are expecting (default: 0)
+#                    options[:assets_to_check] [Array] - limit looking up balance to only assets in the array ["#{policy_id}#{asset_name}",...] (default: nil)
+# @return [Set] Set of Hashes {"#{policy_id}#{asset_name}" => balance}
+def assets_balance(assets, options = {})
+  options[:delta] ||= 0
+  assets_to_check = options[:assets_to_check]
+
+  asset_set = assets.map { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + options[:delta] } }.to_set
+  if assets_to_check
+    asset_set.select {|a| assets_to_check.include? a.keys.first}.to_set
+  else
+    asset_set
+  end
 end
 
 ##
@@ -347,19 +360,35 @@ def verify_ada_balance(src_after, src_before, target_after, target_before, amt, 
   expect(src_after['total']).to eq (src_before['total'] - amt - fee)
 end
 
-def verify_asset_balance(src_after, src_before, target_after, target_before, amt)
+##
+# Verify assets balance on target and src wallets after transaction
+# @params src_after, src_before, target_after, target_before - src and target wallet balances before and after tx
+# @param [Int] amt - amt of assets sent in tx
+# @param [Array] assets_to_check - array of assets sent in the tx in the form of ["#{policy_id}#{asset_name}",...]
+def verify_asset_balance(src_after, src_before, target_after, target_before, amt, 
+                         assets_to_check = ["#{ASSETS[0]['policy_id']}#{ASSETS[0]['asset_name']}",
+                                            "#{ASSETS[1]['policy_id']}#{ASSETS[1]['asset_name']}"])
+  
+  target_total_after = assets_balance(target_after['assets_total'], {assets_to_check: assets_to_check})
+  target_avail_after = assets_balance(target_after['assets_available'], {assets_to_check: assets_to_check})
+  target_total_expected = assets_balance(target_before['assets_total'], {assets_to_check: assets_to_check, delta: (+amt)})
+  target_avail_expected = assets_balance(target_before['assets_available'], {assets_to_check: assets_to_check, delta: (+amt)})
+  src_total_after = assets_balance(src_after['assets_total'], {assets_to_check: assets_to_check})
+  src_avail_after = assets_balance(src_after['assets_available'], {assets_to_check: assets_to_check})
+  src_total_expected = assets_balance(src_before['assets_total'], {assets_to_check: assets_to_check, delta: (-amt)})
+  src_avail_expected = assets_balance(src_before['assets_available'], {assets_to_check: assets_to_check, delta: (-amt)})
+
   if target_before['assets_total'] == []
-    target_balance = [{ "#{ASSETS[0]["policy_id"]}#{ASSETS[0]["asset_name"]}" => amt },
-                      { "#{ASSETS[1]["policy_id"]}#{ASSETS[1]["asset_name"]}" => amt }].to_set
-    expect(assets_balance(target_after['assets_total'])).to eq target_balance
-    expect(assets_balance(target_after['assets_available'])).to eq target_balance
+    target_balance_expected = assets_to_check.map {|a| {a => amt}}.to_set
+    expect(target_total_after).to eq target_balance_expected
+    expect(target_avail_after).to eq target_balance_expected
   else
-    expect(assets_balance(target_after['assets_total'])).to eq assets_balance(target_before['assets_total'], (+amt))
-    expect(assets_balance(target_after['assets_available'])).to eq assets_balance(target_before['assets_available'], (+amt))
+    expect(target_total_after).to eq target_total_expected
+    expect(target_avail_after).to eq target_avail_expected
   end
 
-  expect(assets_balance(src_after['assets_total'])).to eq assets_balance(src_before['assets_total'], (-amt))
-  expect(assets_balance(src_after['assets_available'])).to eq assets_balance(src_before['assets_available'], (-amt))
+  expect(src_total_after).to eq src_total_expected
+  expect(src_avail_after).to eq src_avail_expected
 end
 
 def wait_for_tx_in_ledger(wid, tx_id)
