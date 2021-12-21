@@ -387,6 +387,8 @@ spec = do
             property (prop_signTransaction_addsTxInCollateralWitnesses era))
         forAllEras (\era -> it ("signTransaction never removes witnesses (" <> show era <> ")") $
             property (prop_signTransaction_neverRemovesWitnesses era))
+        forAllEras (\era -> it ("signTransaction never changes tx body (" <> show era <> ")") $
+            property (prop_signTransaction_neverChangesTxBody era))
         forAllEras (\era -> it ("signTransaction preserves script integrity (" <> show era <> ")") $
             property (prop_signTransaction_preservesScriptIntegrity era))
 
@@ -493,12 +495,8 @@ prop_signTransaction_addsRewardAccountKey (AnyCardanoEra era) rootXPrv utxo wdrl
                             ShelleyBasedEra _ ->
                                 [mkShelleyWitness txBody rawRewardK]
 
-            checkCoverage . conjoin $
-                [ sealedTx' `checkExpectedWitnesses` expectedWits
-                , length (getSealedTxWitnesses sealedTx') == (length (getSealedTxWitnesses sealedTx) + length expectedWits)
-                  & counterexample ("num witnesses after: " <> show (length $ getSealedTxWitnesses sealedTx'))
-                  & counterexample ("num witnesses before: " <> show (length $ getSealedTxWitnesses sealedTx))
-                ]
+            checkCoverage $
+                expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
     where
         tl = testTxLayer
 
@@ -562,12 +560,8 @@ prop_signTransaction_addsExtraKeyWitnesses (AnyCardanoEra era) rootK utxo extraK
                             ShelleyBasedEra _ ->
                                 mkShelleyWitness txBody <$> extraKeys
 
-            checkCoverage . conjoin $
-                [ sealedTx' `checkExpectedWitnesses` expectedWits
-                , length (getSealedTxWitnesses sealedTx') == (length (getSealedTxWitnesses sealedTx) + length expectedWits)
-                  & counterexample ("num witnesses after: " <> show (length $ getSealedTxWitnesses sealedTx'))
-                  & counterexample ("num witnesses before: " <> show (length $ getSealedTxWitnesses sealedTx))
-                ]
+            checkCoverage $
+                expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
     where
         tl = testTxLayer
 
@@ -624,17 +618,18 @@ withBodyContent era modTxBody cont =
 
         forAll (genWitnesses era txBody) $ \wits -> cont (txBody, wits)
 
-checkExpectedWitnesses
-    :: SealedTx
-    -> [InAnyCardanoEra Cardano.KeyWitness]
+checkSubsetOf
+    :: ( Eq a
+       , Show a
+       )
+    => [a]
+    -> [a]
     -> Property
-checkExpectedWitnesses sealedTx expectedWits = do
-    let sealedTxWitnesses = getSealedTxWitnesses sealedTx
-
-    conjoin $ (flip foldMap) expectedWits $ \wit ->
-        [ wit `elem` sealedTxWitnesses
-        & counterexample ("actual witnesses: " <> show sealedTxWitnesses)
-        & counterexample ("expected witness: " <> show wit)
+checkSubsetOf elems xs = do
+    conjoin $ (flip foldMap) elems $ \x ->
+        [ x `elem` xs
+        & counterexample ("actual set: " <> show xs)
+        & counterexample ("expected elem: " <> show x)
         ]
 
 prop_signTransaction_addsTxInWitnesses
@@ -676,12 +671,8 @@ prop_signTransaction_addsTxInWitnesses (AnyCardanoEra era) rootK extraKeysNE = d
                             ShelleyBasedEra _ ->
                                 mkShelleyWitness txBody <$> extraKeys
 
-            checkCoverage . conjoin $
-                [ sealedTx' `checkExpectedWitnesses` expectedWits
-                , length (getSealedTxWitnesses sealedTx') == (length (getSealedTxWitnesses sealedTx) + length expectedWits)
-                  & counterexample ("num witnesses after: " <> show (length $ getSealedTxWitnesses sealedTx'))
-                  & counterexample ("num witnesses before: " <> show (length $ getSealedTxWitnesses sealedTx))
-                ]
+            checkCoverage $
+                expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
     where
         tl = testTxLayer
 
@@ -726,12 +717,8 @@ prop_signTransaction_addsTxInCollateralWitnesses (AnyCardanoEra era) rootK extra
                                 ShelleyBasedEra _ ->
                                     mkShelleyWitness txBody <$> extraKeys
 
-                checkCoverage . conjoin $
-                    [ sealedTx' `checkExpectedWitnesses` expectedWits
-                    , length (getSealedTxWitnesses sealedTx') == (length (getSealedTxWitnesses sealedTx) + length expectedWits)
-                      & counterexample ("num witnesses after: " <> show (length $ getSealedTxWitnesses sealedTx'))
-                      & counterexample ("num witnesses before: " <> show (length $ getSealedTxWitnesses sealedTx))
-                    ]
+                checkCoverage $
+                    expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
     where
         tl = testTxLayer
 
@@ -742,27 +729,48 @@ prop_signTransaction_neverRemovesWitnesses
     -- ^ Root key of wallet
     -> UTxO
     -- ^ UTxO of wallet
+    -> [(XPrv, Passphrase "encryption")]
+    -- ^ Extra keys to form basis of address -> key lookup function
     -> Property
-prop_signTransaction_neverRemovesWitnesses (AnyCardanoEra era) rootK utxo =
+prop_signTransaction_neverRemovesWitnesses (AnyCardanoEra era) rootK utxo extraKeys =
     forAll (genTxInEra era) $ \tx -> do
         let
             sealedTx = sealedTxFromCardano' tx
-            sealedTx' = signTransaction tl (AnyCardanoEra era) (const Nothing) (first liftRawKey rootK) utxo sealedTx
+            sealedTx' = signTransaction tl (AnyCardanoEra era) (lookupFnFromKeys extraKeys) (first liftRawKey rootK) utxo sealedTx
 
             witnessesBefore = getSealedTxWitnesses sealedTx
             witnessesAfter = getSealedTxWitnesses sealedTx'
 
-            expectedWits = witnessesBefore
-
         checkCoverage
             $ cover 30 (not $ null witnessesBefore) "witnesses non-empty before"
-            $ conjoin
-                [ sealedTx' `checkExpectedWitnesses` expectedWits
-                , length witnessesBefore >= length witnessesAfter
-                  & counterexample ("num witnesses after: " <> show (length witnessesBefore))
-                  & counterexample ("num witnesses before: " <> show (length witnessesAfter))
-                ]
+            $ witnessesBefore `checkSubsetOf` witnessesAfter
+    where
+        tl = testTxLayer
 
+prop_signTransaction_neverChangesTxBody
+    :: AnyCardanoEra
+    -- ^ Era
+    -> (XPrv, Passphrase "encryption")
+    -- ^ Root key of wallet
+    -> UTxO
+    -- ^ UTxO of wallet
+    -> [(XPrv, Passphrase "encryption")]
+    -- ^ Extra keys to form basis of address -> key lookup function
+    -> Property
+prop_signTransaction_neverChangesTxBody (AnyCardanoEra era) rootK utxo extraKeys =
+    forAll (genTxInEra era) $ \tx -> do
+        let
+            sealedTx = sealedTxFromCardano' tx
+            sealedTx' = signTransaction tl (AnyCardanoEra era) (lookupFnFromKeys extraKeys) (first liftRawKey rootK) utxo sealedTx
+
+            txBodyContent :: InAnyCardanoEra Cardano.Tx -> InAnyCardanoEra (Cardano.TxBodyContent Cardano.ViewTx)
+            txBodyContent (InAnyCardanoEra e (Cardano.Tx (Cardano.TxBody bodyContent) _wits)) =
+                InAnyCardanoEra e bodyContent
+
+            bodyContentBefore = txBodyContent $ cardanoTx sealedTx
+            bodyContentAfter = txBodyContent $ cardanoTx sealedTx'
+
+        bodyContentBefore == bodyContentAfter
     where
         tl = testTxLayer
 
