@@ -340,7 +340,7 @@ import Test.Utils.Pretty
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Gen as Cardano
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Crypto.Hash.Blake2b as Blake2b
+import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
@@ -419,7 +419,7 @@ stakeAddressForKey net pubkey =
         (SL.KeyHashObj (SL.KeyHash $ hash pubkey)
              :: SL.Credential 'SL.Staking Crypto.StandardCrypto)
     where
-        hash :: XPub -> Crypto.Hash Blake2b.Blake2b_224 a
+        hash :: XPub -> Crypto.Hash Crypto.Blake2b_224 a
         hash = fromJust . Crypto.hashFromBytes . blake2b224 . xpubPublicKey
 
 withdrawalForKey
