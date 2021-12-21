@@ -39,9 +39,7 @@ echo "+++ Results - $network"
 cat $results
 
 mv restore.hp $artifact_name.hp
-
-# FIXME [ADP-1074]
-# hp2pretty $artifact_name.hp
+hp2pretty $artifact_name.hp
 
 GNUPLOT_PROGRAM=$(cat <<EOP
 set timefmt "%s";
@@ -88,8 +86,7 @@ if [ -n "${BUILDKITE:-}" ]; then
   buildkite-agent artifact upload plot.svg
 
   echo "+++ Heap profile"
-  echo "Heap profile visualization has temporarily been disabled because it runs out of memory (ADP-1074)"
-  # printf '\033]1338;url='"artifact://$artifact_name.svg"';alt='"Heap profile"'\a\n'
+  printf '\033]1338;url='"artifact://$artifact_name.svg"';alt='"Heap profile"'\a\n'
   echo "+++ Restore plot"
   printf '\033]1338;url='"artifact://plot.svg"';alt='"Restore plot"'\a\n'
 fi
