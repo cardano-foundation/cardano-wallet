@@ -20,7 +20,7 @@
 - Create a new branch for the release:
 
   ```shell
-  $ git checkout -b your-name/bump-release/YYYY-MM-DD
+  $ git checkout -b your-name/vYYYY-MM-DD/bump-release
   ```
 
 - From the **root** of the repository, run:

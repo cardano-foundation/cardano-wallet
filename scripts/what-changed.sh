@@ -13,4 +13,4 @@ fi
 base="$1"
 branch="$2"
 
-git log --name-only --pretty=format: "${base}..${branch}" | grep -v '^$' | sed 's=^\([^/]*\).*$=\1=' | sort -u
+git log --name-only --pretty=format: "${base}..${branch}" | grep -v '^$' | sed -e 's|^"||' -e 's|"$"||' -e 's|^\([^/]*\).*$|\1|' | sort -u
