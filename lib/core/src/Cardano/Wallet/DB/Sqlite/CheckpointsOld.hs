@@ -36,6 +36,8 @@ import Cardano.Address.Script
     ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.DB.Sqlite
     ( dbChunked )
+import Cardano.Wallet.DB
+    ( ErrBadFormat (..) )
 import Cardano.Wallet.DB.Checkpoints
     ( Checkpoints (..)
     , DeltaCheckpoints (..)
@@ -103,7 +105,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Data.Bifunctor
-    ( second )
+    ( bimap, second )
 import Data.DBVar
     ( Store (..) )
 import Data.Functor
@@ -140,6 +142,8 @@ import Database.Persist.Sql
     )
 import Database.Persist.Sqlite
     ( SqlPersistT )
+import UnliftIO.Exception
+    ( toException )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -199,9 +203,7 @@ mkStoreCheckpoints
 mkStoreCheckpoints wid =
     Store{ loadS = load, writeS = write, updateS = \_ -> update }
   where
-    load = do
-        cps <- selectAllCheckpoints wid
-        pure $ Right $ loadCheckpoints cps
+    load = bimap toException loadCheckpoints <$> selectAllCheckpoints wid
 
     write cps = forM_ (Map.toList $ checkpoints cps) $ \(pt,cp) ->
             update (PutCheckpoint pt cp)
@@ -236,18 +238,23 @@ mkStoreCheckpoints wid =
 selectAllCheckpoints
     :: forall s. PersistAddressBook s
     => W.WalletId
-    -> SqlPersistT IO [(W.Slot, W.Wallet s)]
+    -> SqlPersistT IO (Either ErrBadFormat [(W.Slot, W.Wallet s)])
 selectAllCheckpoints wid = do
     cps <- fmap entityVal <$> selectList
         [ CheckpointWalletId ==. wid ]
         [ Desc CheckpointSlot ]
     -- FIXME LATER during ADP-1043: Presence of these tables?
-    prologue <- fromJust <$> loadPrologue wid
-    forM cps $ \cp -> do
-        utxo <- selectUTxO cp
-        discoveries <- loadDiscoveries wid (checkpointSlot cp)
-        let st = withIso addressIso $ \_ from -> from (prologue, discoveries)
-        pure $ let c = checkpointFromEntity @s cp utxo st in (getPoint c, c)
+    mprologue <- loadPrologue wid
+    case mprologue of
+        Nothing -> pure $ Left ErrBadFormatAddressState
+        Just prologue -> fmap Right $
+            forM cps $ \cp -> do
+                utxo <- selectUTxO cp
+                discoveries <- loadDiscoveries wid (checkpointSlot cp)
+                let st = withIso addressIso $ \_ from ->
+                        from (prologue, discoveries)
+                    c = checkpointFromEntity @s cp utxo st
+                pure (getPoint c, c)
 
 selectUTxO
     :: Checkpoint

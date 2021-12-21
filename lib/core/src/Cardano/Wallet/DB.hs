@@ -26,6 +26,7 @@ module Cardano.Wallet.DB
     , gapSize
 
       -- * Errors
+    , ErrBadFormat(..)
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
     , ErrNoSuchTransaction (..)
@@ -72,6 +73,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word32, Word8 )
+import UnliftIO.Exception
+    ( Exception )
 
 import qualified Data.List as L
 
@@ -325,6 +328,14 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         :: forall a. stm a -> m a
         -- ^ Execute operations of the database in isolation and atomically.
     }
+
+-- | Can't read the database file because it's in a bad format
+-- (corrupted, too old, …)
+data ErrBadFormat
+    = ErrBadFormatAddressState
+    deriving (Eq,Show)
+
+instance Exception ErrBadFormat
 
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
