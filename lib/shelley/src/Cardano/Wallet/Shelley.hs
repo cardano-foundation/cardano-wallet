@@ -73,7 +73,7 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress
     )
 import Cardano.Wallet.DB.Sqlite
-    ( DBFactoryLog, DefaultFieldValues (..), PersistState )
+    ( DBFactoryLog, DefaultFieldValues (..), PersistAddressBook )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -378,7 +378,7 @@ serveWallet
         :: forall s k.
             ( IsOurs s Address
             , IsOurs s RewardAccount
-            , PersistState s
+            , PersistAddressBook s
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )

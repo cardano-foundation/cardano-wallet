@@ -42,7 +42,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkUnboundedAddressPoolGap
 
     -- ** Address Pool
-    , AddressPool
+    , AddressPool (indexedKeys)
     , ParentContext (..)
     , gap
     , addresses

@@ -68,7 +68,11 @@ import Cardano.Startup
 import Cardano.Wallet.DB
     ( DBLayer (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( CacheBehavior (..), PersistState, WalletDBLog (..), newDBLayerWith )
+    ( CacheBehavior (..)
+    , PersistAddressBook
+    , WalletDBLog (..)
+    , newDBLayerWith
+    )
 import Cardano.Wallet.DB.Sqlite.TH
     ( migrateAll )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -666,7 +670,7 @@ txHistoryFixture db@DBLayer{..} bSize nAssets range = do
 -- database in a temporary location.
 withDB
     :: forall s k.
-        ( PersistState s
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
@@ -690,7 +694,7 @@ withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
 
 setupDB
     :: forall s k.
-        ( PersistState s
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )

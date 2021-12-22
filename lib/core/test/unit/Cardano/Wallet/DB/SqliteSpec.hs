@@ -59,7 +59,7 @@ import Cardano.Wallet.DB.Properties
     ( properties )
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..)
-    , PersistState
+    , PersistAddressBook
     , WalletDBLog (..)
     , newDBFactory
     , newDBLayerInMemory
@@ -289,7 +289,7 @@ stateMachineSpec
         ( WalletKey k
         , PersistPrivateKey (k 'RootK)
         , PaymentAddress 'Mainnet k
-        , PersistState s
+        , PersistAddressBook s
         , TestConstraints s k
         , Typeable s
         )
@@ -344,7 +344,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
             length msgs `shouldBe` count * 2
 
 withLoggingDB
-    :: (Show s, PersistState s)
+    :: (Show s, PersistAddressBook s)
     => SpecWith (IO [DBLog], DBLayer IO s ShelleyKey)
     -> Spec
 withLoggingDB = around f . beforeWith clean
@@ -691,7 +691,7 @@ fileModeSpec =  do
 -- SQLite session has the same effect as executing the same operations over
 -- multiple sessions.
 prop_randomOpChunks
-    :: (Eq s, PersistState s, Show s)
+    :: (Eq s, PersistAddressBook s, Show s)
     => KeyValPairs WalletId (Wallet s, WalletMetadata)
     -> Property
 prop_randomOpChunks (KeyValPairs pairs) =
@@ -794,11 +794,11 @@ defaultFieldValues = DefaultFieldValues
 
 -- Note: Having helper with concrete key types reduces the need
 -- for type-application everywhere.
-withShelleyDBLayer :: PersistState s => (DBLayer IO s ShelleyKey -> IO a) -> IO a
+withShelleyDBLayer :: PersistAddressBook s => (DBLayer IO s ShelleyKey -> IO a) -> IO a
 withShelleyDBLayer = withDBLayerInMemory nullTracer dummyTimeInterpreter
 
 withShelleyFileDBLayer
-    :: PersistState s
+    :: PersistAddressBook s
     => FilePath
     -> (DBLayer IO s ShelleyKey -> IO a)
     -> IO a
@@ -1026,7 +1026,7 @@ testMigrationTxMetaFee
         ( s ~ SeqState 'Mainnet k
         , k ~ ShelleyKey
         , WalletKey k
-        , PersistState s
+        , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , PaymentAddress 'Mainnet k
         )
@@ -1083,7 +1083,7 @@ testMigrationCleanupCheckpoints
         ( s ~ SeqState 'Mainnet k
         , k ~ ShelleyKey
         , WalletKey k
-        , PersistState s
+        , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , PaymentAddress 'Mainnet k
         )
@@ -1121,7 +1121,7 @@ testMigrationRole
     :: forall k s.
         ( s ~ SeqState 'Mainnet k
         , WalletKey k
-        , PersistState s
+        , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , PaymentAddress 'Mainnet k
         , GetPurpose k
@@ -1154,7 +1154,7 @@ testMigrationSeqStateDerivationPrefix
     :: forall k s.
         ( s ~ SeqState 'Mainnet k
         , WalletKey k
-        , PersistState s
+        , PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , Show s
         )

@@ -177,8 +177,8 @@ import Data.Either
     ( isLeft, isRight )
 import Data.Function
     ( on )
-import Data.Generics.Internal.VL.Lens
-    ( set, view, (^.) )
+import Data.Generics.Internal.VL
+    ( iso, set, view, (^.) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -265,6 +265,7 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Cardano.Wallet.DB.Sqlite.AddressBook as Sqlite
 import qualified Cardano.Wallet.Primitive.CoinSelection.Balance as Balance
 import qualified Cardano.Wallet.Primitive.Migration as Migration
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -1330,9 +1331,19 @@ newtype DummyState
     = DummyState (Map Address (Index 'Soft 'AddressK))
     deriving (Generic, Show, Eq)
 
-instance Sqlite.PersistState DummyState where
-    insertState _ _ = error "DummyState.insertState: not implemented"
-    selectState _ = error "DummyState.selectState: not implemented"
+instance Sqlite.AddressBookIso DummyState where
+    data Prologue DummyState = DummyPrologue
+    data Discoveries DummyState = DummyDiscoveries DummyState
+    addressIso = iso from to
+      where
+        from x = (DummyPrologue, DummyDiscoveries x)
+        to (_,DummyDiscoveries x) = x
+
+instance Sqlite.PersistAddressBook DummyState where
+    insertPrologue _ _ = error "DummyState.insertPrologue: not implemented"
+    insertDiscoveries _ _ _ = error "DummyState.insertDiscoveries: not implemented"
+    loadPrologue _ = error "DummyState.loadPrologue: not implemented"
+    loadDiscoveries _ _ = error "DummyState.loadDiscoveries: not implemented"
 
 instance NFData DummyState
 

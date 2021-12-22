@@ -71,7 +71,7 @@ import Cardano.Wallet.BenchShared
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, withDBLayer )
+    ( PersistAddressBook, withDBLayer )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -595,7 +595,7 @@ bench_restoration
         , WalletKey k
         , NFData s
         , Show s
-        , PersistState s
+        , PersistAddressBook s
         , CompareDiscovery s
         , KnownAddresses s
         , PersistPrivateKey (k 'RootK)
@@ -703,7 +703,7 @@ withBenchDBLayer
         ( IsOwned s k
         , NFData s
         , Show s
-        , PersistState s
+        , PersistAddressBook s
         , IsOurs s RewardAccount
         , IsOurs s Address
         , PersistPrivateKey (k 'RootK)

@@ -42,7 +42,7 @@ module Cardano.Wallet.DB.Sqlite
     , newDBLayerInMemory
 
     -- * Interfaces
-    , PersistState (..)
+    , PersistAddressBook (..)
 
     -- * Migration Support
     , DefaultFieldValues (..)
@@ -95,7 +95,10 @@ import Cardano.Wallet.DB.Checkpoints
     , getPoint
     )
 import Cardano.Wallet.DB.Sqlite.CheckpointsOld
-    ( PersistState (..), blockHeaderFromEntity, mkStoreWalletsCheckpoints )
+    ( PersistAddressBook (..)
+    , blockHeaderFromEntity
+    , mkStoreWalletsCheckpoints
+    )
 import Cardano.Wallet.DB.Sqlite.Migration
     ( DefaultFieldValues (..), migrateManually )
 import Cardano.Wallet.DB.Sqlite.TH
@@ -231,7 +234,7 @@ import qualified Data.Text as T
 -- | Instantiate a 'DBFactory' from a given directory, or in-memory for testing.
 newDBFactory
     :: forall s k.
-        ( PersistState s
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
@@ -385,7 +388,7 @@ instance ToText DBFactoryLog where
 -- library.
 withDBLayer
     :: forall s k a.
-        ( PersistState s
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
@@ -442,7 +445,7 @@ instance ToText CheckpointCacheLog where
 -- database.
 withDBLayerInMemory
     :: forall s k a.
-        ( PersistState s
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         )
     => Tracer IO WalletDBLog
@@ -459,7 +462,7 @@ withDBLayerInMemory tr ti action = bracket (newDBLayerInMemory tr ti) fst (actio
 -- finished with the 'DBLayer'.
 newDBLayerInMemory
     :: forall s k.
-        ( PersistState s
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         )
     => Tracer IO WalletDBLog
@@ -492,7 +495,7 @@ data CacheBehavior
 -- is better initialized with 'withDBLayer'.
 newDBLayer
     :: forall s k.
-        ( PersistState s
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         )
     => Tracer IO WalletDBLog
@@ -508,7 +511,7 @@ newDBLayer = newDBLayerWith @s @k CacheLatestCheckpoint
 -- | Like 'newDBLayer', but allows to explicitly specify the caching behavior.
 newDBLayerWith
     :: forall s k.
-        ( PersistState s
+        ( PersistAddressBook s
         , PersistPrivateKey (k 'RootK)
         )
     => CacheBehavior
