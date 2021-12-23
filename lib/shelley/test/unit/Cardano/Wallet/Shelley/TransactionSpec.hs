@@ -626,11 +626,9 @@ checkSubsetOf
     -> [a]
     -> Property
 checkSubsetOf elems xs = do
-    conjoin $ (flip foldMap) elems $ \x ->
-        [ x `elem` xs
-        & counterexample ("actual set: " <> show xs)
-        & counterexample ("expected elem: " <> show x)
-        ]
+    counterexample ("actual set: " <> show xs) $ conjoin
+        [ x `elem` xs & counterexample ("expected elem: " <> show x)
+        | x <- elems ]
 
 prop_signTransaction_addsTxInWitnesses
     :: AnyCardanoEra
