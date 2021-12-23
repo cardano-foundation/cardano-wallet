@@ -483,6 +483,8 @@ prop_signTransaction_addsRewardAccountKey (AnyCardanoEra era) rootXPrv utxo wdrl
 
         withBodyContent era addWithdrawals $ \(txBody, wits) -> do
             let
+                tl = testTxLayer
+
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction tl (AnyCardanoEra era) (const Nothing) rootK utxo sealedTx
 
@@ -497,8 +499,6 @@ prop_signTransaction_addsRewardAccountKey (AnyCardanoEra era) rootXPrv utxo wdrl
 
             checkCoverage $
                 expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
-    where
-        tl = testTxLayer
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
@@ -547,6 +547,8 @@ prop_signTransaction_addsExtraKeyWitnesses (AnyCardanoEra era) rootK utxo extraK
 
         withBodyContent era addExtraWits $ \(txBody, wits) -> do
             let
+                tl = testTxLayer
+
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction tl (AnyCardanoEra era) (lookupFnFromKeys extraKeys) (first liftRawKey rootK) utxo sealedTx
 
@@ -562,8 +564,6 @@ prop_signTransaction_addsExtraKeyWitnesses (AnyCardanoEra era) rootK utxo extraK
 
             checkCoverage $
                 expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
-    where
-        tl = testTxLayer
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = genericArbitrary
@@ -658,6 +658,8 @@ prop_signTransaction_addsTxInWitnesses (AnyCardanoEra era) rootK extraKeysNE = d
 
         withBodyContent era addTxIns $ \(txBody, wits) -> do
             let
+                tl = testTxLayer
+
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction tl (AnyCardanoEra era) (lookupFnFromKeys extraKeys) (first liftRawKey rootK) utxo sealedTx
 
@@ -673,8 +675,6 @@ prop_signTransaction_addsTxInWitnesses (AnyCardanoEra era) rootK extraKeysNE = d
 
             checkCoverage $
                 expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
-    where
-        tl = testTxLayer
 
 prop_signTransaction_addsTxInCollateralWitnesses
     :: AnyCardanoEra
@@ -704,6 +704,8 @@ prop_signTransaction_addsTxInCollateralWitnesses (AnyCardanoEra era) rootK extra
 
             withBodyContent era addTxCollateralIns $ \(txBody, wits) -> do
                 let
+                    tl = testTxLayer
+
                     sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                     sealedTx' = signTransaction tl (AnyCardanoEra era) (lookupFnFromKeys extraKeys) (first liftRawKey rootK) utxo sealedTx
 
@@ -719,8 +721,6 @@ prop_signTransaction_addsTxInCollateralWitnesses (AnyCardanoEra era) rootK extra
 
                 checkCoverage $
                     expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
-    where
-        tl = testTxLayer
 
 prop_signTransaction_neverRemovesWitnesses
     :: AnyCardanoEra
@@ -735,6 +735,8 @@ prop_signTransaction_neverRemovesWitnesses
 prop_signTransaction_neverRemovesWitnesses (AnyCardanoEra era) rootK utxo extraKeys =
     forAll (genTxInEra era) $ \tx -> do
         let
+            tl = testTxLayer
+
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl (AnyCardanoEra era) (lookupFnFromKeys extraKeys) (first liftRawKey rootK) utxo sealedTx
 
@@ -744,8 +746,6 @@ prop_signTransaction_neverRemovesWitnesses (AnyCardanoEra era) rootK utxo extraK
         checkCoverage
             $ cover 30 (not $ null witnessesBefore) "witnesses non-empty before"
             $ witnessesBefore `checkSubsetOf` witnessesAfter
-    where
-        tl = testTxLayer
 
 prop_signTransaction_neverChangesTxBody
     :: AnyCardanoEra
@@ -760,6 +760,8 @@ prop_signTransaction_neverChangesTxBody
 prop_signTransaction_neverChangesTxBody (AnyCardanoEra era) rootK utxo extraKeys =
     forAll (genTxInEra era) $ \tx -> do
         let
+            tl = testTxLayer
+
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction tl (AnyCardanoEra era) (lookupFnFromKeys extraKeys) (first liftRawKey rootK) utxo sealedTx
 
@@ -771,8 +773,6 @@ prop_signTransaction_neverChangesTxBody (AnyCardanoEra era) rootK utxo extraKeys
             bodyContentAfter = txBodyContent $ cardanoTx sealedTx'
 
         bodyContentBefore == bodyContentAfter
-    where
-        tl = testTxLayer
 
 prop_signTransaction_preservesScriptIntegrity
     :: AnyCardanoEra
@@ -786,6 +786,8 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
     whenSupportedInEra Cardano.scriptDataSupportedInEra era $ \_supported -> do
         forAll (genTxInEra era) $ \tx -> do
             let
+                tl = testTxLayer
+
                 sealedTx = sealedTxFromCardano' tx
                 sealedTx' = signTransaction tl (AnyCardanoEra era) (const Nothing) (first liftRawKey rootK) utxo sealedTx
 
@@ -802,8 +804,6 @@ prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
                       & counterexample ("script integrity hash before: " <> show scriptIntegrityHashBefore)
                       & counterexample ("script integrity hash after: " <> show scriptIntegrityHashAfter)
                         ]
-    where
-        tl = testTxLayer
 
 forAllEras :: (AnyCardanoEra -> Spec) -> Spec
 forAllEras eraSpec = do
