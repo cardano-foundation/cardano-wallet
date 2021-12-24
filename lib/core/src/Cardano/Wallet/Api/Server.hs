@@ -344,6 +344,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOurs
     , IsOwned
     , KnownAddresses
+    , isOwned
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
@@ -389,6 +390,7 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , totalBalance
+    , totalUTxO
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
@@ -478,7 +480,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, throwE, withExceptT )
+    ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), exceptToMaybeT )
 import Control.Tracer
@@ -596,6 +598,7 @@ import UnliftIO.Exception
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
@@ -1878,8 +1881,31 @@ signTransaction ctx (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let sealedTx = body ^. #transaction . #getApiT
 
-    sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk ->
-        liftHandler $ W.signTransaction wrk wid pwd sealedTx
+    sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        let
+            db = wrk ^. W.dbLayer @IO @s @k
+            tl = wrk ^. W.transactionLayer @k
+            nl = wrk ^. W.networkLayer
+        era <- liftIO $ NW.currentNodeEra nl
+        db & \W.DBLayer{atomically, readCheckpoint} -> do
+            W.withRootKey @_ @s wrk wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
+                cp <- mapExceptT atomically
+                    $ withExceptT ErrWitnessTxNoSuchWallet
+                    $ W.withNoSuchWallet wid
+                    $ readCheckpoint wid
+                let
+                    pwdP :: Passphrase "encryption"
+                    pwdP = preparePassphrase scheme pwd
+
+                    utxo :: UTxO.UTxO
+                    utxo = totalUTxO mempty cp
+
+                    keyLookup
+                        :: Address
+                        -> Maybe (k 'AddressK XPrv, Passphrase "encryption")
+                    keyLookup = isOwned (getState cp) (rootK, pwdP)
+
+                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client

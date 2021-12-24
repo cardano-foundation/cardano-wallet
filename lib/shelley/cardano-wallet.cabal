@@ -213,8 +213,11 @@ test-suite unit
     , bytestring
     , cardano-addresses
     , cardano-api
+    , cardano-crypto
     , cardano-crypto-class
+    , cardano-crypto-wrapper
     , cardano-ledger-alonzo
+    , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-wallet
     , cardano-wallet-core
@@ -229,6 +232,7 @@ test-suite unit
     , directory
     , filepath
     , fmt
+    , generic-arbitrary
     , generic-lens
     , hspec-core
     , iohk-monitoring

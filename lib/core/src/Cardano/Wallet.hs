@@ -190,6 +190,7 @@ module Cardano.Wallet
     -- * Utilities
     , throttle
     , guardHardIndex
+    , withNoSuchWallet
 
     -- * Logging
     , WalletWorkerLog (..)
@@ -1968,43 +1969,39 @@ selectAssets ctx pp params transform = do
         txWithdrawal = params ^. (#txContext . #txWithdrawal)
 
 signTransaction
-    :: forall ctx s k.
-        ( HasTransactionLayer k ctx
-        , HasDBLayer IO s k ctx
-        , HasNetworkLayer IO ctx
-        , HardDerivation k
-        , WalletKey k
-        , IsOwned s k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
-        )
-    => ctx
-    -> WalletId
-    -> Passphrase "raw"
-    -> SealedTx
-    -> ExceptT ErrWitnessTx IO SealedTx
-signTransaction ctx wid pwd tx = db & \DBLayer{..} -> do
-    era <- liftIO $ currentNodeEra nl
-    withRootKey @_ @s ctx wid pwd ErrWitnessTxWithRootKey $ \rootK scheme -> do
-        cp <- mapExceptT atomically
-            $ withExceptT ErrWitnessTxNoSuchWallet
-            $ withNoSuchWallet wid
-            $ readCheckpoint wid
-        let pwdP = preparePassphrase scheme pwd
-        let rewardAcnt = (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
-        let addressResolver = mkAddressResolver cp (rootK, pwdP)
-        let inputResolver = mkInputResolver cp
-        pure $ addVkWitnesses tl era rewardAcnt addressResolver inputResolver tx
-  where
-    db = ctx ^. dbLayer @IO @s @k
-    tl = ctx ^. transactionLayer @k
-    nl = ctx ^. networkLayer
+  :: forall k
+   . ( WalletKey k
+     , HardDerivation k
+     , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+     )
+  => TransactionLayer k SealedTx
+  -- ^ The way to interact with the wallet backend
+  -> Cardano.AnyCardanoEra
+  -- ^ The era to operate in
+  -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+  -- ^ The wallets address-key lookup function
+  -> (k 'RootK XPrv, Passphrase "encryption")
+  -- ^ The root key of the wallet
+  -> UTxO
+  -- ^ The total UTxO set of the wallet (i.e. if pending transactions all
+  -- applied).
+  -> SealedTx
+  -- ^ The transaction to sign
+  -> SealedTx
+  -- ^ The original transaction, with additional signatures added where
+  -- necessary
+signTransaction tl era keyLookup (rootKey, rootPwd) utxo =
+    let
+        rewardAcnt :: (XPrv, Passphrase "encryption")
+        rewardAcnt =
+            (getRawKey $ deriveRewardAccount @k rootPwd rootKey, rootPwd)
 
-    mkInputResolver cp i = do
-        TxOut addr _ <- UTxO.lookup i (totalUTxO mempty cp)
-        pure addr
-
-    mkAddressResolver cp (rootK, pwdP) =
-        isOwned (getState cp) (rootK, pwdP)
+        inputResolver :: TxIn -> Maybe Address
+        inputResolver i = do
+            TxOut addr _ <- UTxO.lookup i utxo
+            pure addr
+    in
+        addVkWitnesses tl era rewardAcnt keyLookup inputResolver
 
 -- | Produce witnesses and construct a transaction from a given selection.
 --

@@ -137,6 +137,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , invertUnitInterval
     , interval0
     , interval1
+    , getScriptIntegrityHash
     ) where
 
 import Prelude
@@ -1428,6 +1429,24 @@ fromMaryTx tx =
     fromMaryTxOut (SL.TxOut addr value) =
         W.TxOut (fromShelleyAddress addr) $
         fromCardanoValue $ Cardano.fromMaryValue value
+
+getScriptIntegrityHash
+    :: Cardano.Tx era
+    -> Maybe ByteString
+getScriptIntegrityHash = \case
+    Cardano.ShelleyTx era tx -> case era of
+        Cardano.ShelleyBasedEraShelley -> Nothing
+        Cardano.ShelleyBasedEraAllegra -> Nothing
+        Cardano.ShelleyBasedEraMary    -> Nothing
+        Cardano.ShelleyBasedEraAlonzo  -> SafeHash.originalBytes <$> scriptIntegrityHashOfAlonzoTx tx
+    Cardano.ByronTx _                  -> Nothing
+
+    where
+        scriptIntegrityHashOfAlonzoTx
+            :: Alonzo.ValidatedTx (Alonzo.AlonzoEra StandardCrypto)
+            -> Maybe (Alonzo.ScriptIntegrityHash StandardCrypto)
+        scriptIntegrityHashOfAlonzoTx (Alonzo.ValidatedTx body _wits _isValid _auxData)
+            = strictMaybeToMaybe . Alonzo.scriptIntegrityHash $ body
 
 fromAlonzoTxBodyAndAux
     :: Alonzo.TxBody (Cardano.ShelleyLedgerEra AlonzoEra)
