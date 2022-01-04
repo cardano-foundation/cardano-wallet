@@ -121,6 +121,7 @@ library
     , streaming-commons
     , strict-containers
     , strict-non-empty-containers
+    , strict-stm
     , string-interpolate
     , template-haskell
     , text
