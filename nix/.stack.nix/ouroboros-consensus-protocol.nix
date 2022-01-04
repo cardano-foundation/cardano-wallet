@@ -10,15 +10,18 @@
   {
     flags = { asserts = false; };
     package = {
-      specVersion = "1.10";
-      identifier = { name = "ouroboros-consensus-mock"; version = "0.1.0.0"; };
-      license = "Apache-2.0";
-      copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "operations@iohk.io";
-      author = "IOHK Engineering Team";
+      specVersion = "3.0";
+      identifier = {
+        name = "ouroboros-consensus-protocol";
+        version = "0.1.0.0";
+        };
+      license = "NONE";
+      copyright = "";
+      maintainer = "nick@topos.org.uk";
+      author = "IOHK Formal methods team";
       homepage = "";
       url = "";
-      synopsis = "Mock ledger integration in the Ouroboros consensus layer";
+      synopsis = "Cardano consensus protocols.";
       description = "";
       buildType = "Simple";
       isLocal = true;
@@ -27,21 +30,19 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."bimap" or (errorHandler.buildDepError "bimap"))
-          (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+          (hsPkgs."cardano-ledger-core" or (errorHandler.buildDepError "cardano-ledger-core"))
+          (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
+          (hsPkgs."cardano-protocol-tpraos" or (errorHandler.buildDepError "cardano-protocol-tpraos"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
-          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-          (hsPkgs."time" or (errorHandler.buildDepError "time"))
-          (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
           (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
+          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
           ];
         buildable = true;
         };
@@ -56,5 +57,5 @@
       rev = "d2d219a86cda42787325bb8c20539a75c2667132";
       sha256 = "18xk7r0h2pxrbx76d6flsxifh0a9rz1cj1rjqs1pbs5kdmy8b7kx";
       };
-    postUnpack = "sourceRoot+=/ouroboros-consensus-mock; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/ouroboros-consensus-protocol; echo source root reset to \$sourceRoot";
     }

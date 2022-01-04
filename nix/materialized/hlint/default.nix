@@ -26,10 +26,10 @@
         "random".revision = (((hackage."random")."1.2.1").revisions).default;
         "dlist".revision = (((hackage."dlist")."1.0").revisions).default;
         "dlist".flags.werror = false;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.15.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "array".revision = (((hackage."array")."0.5.4.0").revisions).default;
-        "ghc-lib-parser".revision = (((hackage."ghc-lib-parser")."9.0.1.20210324").revisions).default;
+        "ghc-lib-parser".revision = (((hackage."ghc-lib-parser")."9.0.2.20211226").revisions).default;
         "utf8-string".revision = (((hackage."utf8-string")."1.0.2").revisions).default;
         "process".revision = (((hackage."process")."1.6.13.2").revisions).default;
         "data-default-class".revision = (((hackage."data-default-class")."0.1.2.0").revisions).default;
@@ -69,11 +69,10 @@
         "exceptions".revision = (((hackage."exceptions")."0.10.4").revisions).default;
         "data-fix".revision = (((hackage."data-fix")."0.3.2").revisions).default;
         "primitive".revision = (((hackage."primitive")."0.7.3.0").revisions).default;
-        "hpc".revision = (((hackage."hpc")."0.6.1.0").revisions).default;
         "directory".revision = (((hackage."directory")."1.3.6.0").revisions).default;
         "clock".revision = (((hackage."clock")."0.8.2").revisions).default;
         "clock".flags.llvm = false;
-        "ghc-lib-parser-ex".revision = (((hackage."ghc-lib-parser-ex")."9.0.0.4").revisions).default;
+        "ghc-lib-parser-ex".revision = (((hackage."ghc-lib-parser-ex")."9.0.0.6").revisions).default;
         "ghc-lib-parser-ex".flags.auto = true;
         "ghc-lib-parser-ex".flags.no-ghc-lib = false;
         "alex".revision = (((hackage."alex")."3.2.6").revisions).default;
@@ -83,6 +82,7 @@
         "transformers".revision = (((hackage."transformers")."0.5.6.2").revisions).default;
         "rts".revision = (((hackage."rts")."1.0.1").revisions).default;
         "OneTuple".revision = (((hackage."OneTuple")."0.3.1").revisions).default;
+        "parsec".revision = (((hackage."parsec")."3.1.14.0").revisions).default;
         "template-haskell".revision = (((hackage."template-haskell")."2.16.0.0").revisions).default;
         "bytestring".revision = (((hackage."bytestring")."0.10.12.0").revisions).default;
         "aeson".revision = (((hackage."aeson")."1.5.6.0").revisions).default;
@@ -103,7 +103,7 @@
         "splitmix".revision = (((hackage."splitmix")."0.1.0.4").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
-        "attoparsec".revision = (((hackage."attoparsec")."0.14.2").revisions).default;
+        "attoparsec".revision = (((hackage."attoparsec")."0.14.3").revisions).default;
         "attoparsec".flags.developer = false;
         "uniplate".revision = (((hackage."uniplate")."1.6.13").revisions).default;
         "filepath".revision = (((hackage."filepath")."1.4.2.1").revisions).default;
@@ -154,11 +154,11 @@
           "array" = "0.5.4.0";
           "process" = "1.6.13.2";
           "exceptions" = "0.10.4";
-          "hpc" = "0.6.1.0";
           "directory" = "1.3.6.0";
           "mtl" = "2.2.2";
           "transformers" = "0.5.6.2";
           "rts" = "1.0.1";
+          "parsec" = "3.1.14.0";
           "template-haskell" = "2.16.0.0";
           "bytestring" = "0.10.12.0";
           "deepseq" = "1.4.4.0";
@@ -226,7 +226,6 @@
           "hscolour".components.exes."HsColour".planned = lib.mkOverride 900 true;
           "dlist".components.library.planned = lib.mkOverride 900 true;
           "ghc-prim".components.library.planned = lib.mkOverride 900 true;
-          "hpc".components.library.planned = lib.mkOverride 900 true;
           "array".components.library.planned = lib.mkOverride 900 true;
           "scientific".components.library.planned = lib.mkOverride 900 true;
           "binary".components.library.planned = lib.mkOverride 900 true;
@@ -249,6 +248,7 @@
           "vector".components.library.planned = lib.mkOverride 900 true;
           "hlint".components.exes."hlint".planned = lib.mkOverride 900 true;
           "transformers".components.library.planned = lib.mkOverride 900 true;
+          "parsec".components.library.planned = lib.mkOverride 900 true;
           "deepseq".components.library.planned = lib.mkOverride 900 true;
           "OneTuple".components.library.planned = lib.mkOverride 900 true;
           "directory".components.library.planned = lib.mkOverride 900 true;

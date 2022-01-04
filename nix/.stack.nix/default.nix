@@ -90,12 +90,12 @@
         cardano-ledger-core = ./cardano-ledger-core.nix;
         cardano-ledger-pretty = ./cardano-ledger-pretty.nix;
         cardano-protocol-tpraos = ./cardano-protocol-tpraos.nix;
+        cardano-data = ./cardano-data.nix;
+        compact-map = ./compact-map.nix;
+        set-algebra = ./set-algebra.nix;
         small-steps = ./small-steps.nix;
         small-steps-test = ./small-steps-test.nix;
         non-integral = ./non-integral.nix;
-        shelley-spec-ledger = ./shelley-spec-ledger.nix;
-        shelley-spec-ledger-test = ./shelley-spec-ledger-test.nix;
-        shelley-spec-non-integral = ./shelley-spec-non-integral.nix;
         cardano-api = ./cardano-api.nix;
         cardano-cli = ./cardano-cli.nix;
         cardano-node = ./cardano-node.nix;
@@ -126,6 +126,7 @@
         ouroboros-consensus-byron = ./ouroboros-consensus-byron.nix;
         ouroboros-consensus-byronspec = ./ouroboros-consensus-byronspec.nix;
         ouroboros-consensus-byron-test = ./ouroboros-consensus-byron-test.nix;
+        ouroboros-consensus-protocol = ./ouroboros-consensus-protocol.nix;
         ouroboros-consensus-shelley = ./ouroboros-consensus-shelley.nix;
         ouroboros-consensus-shelley-test = ./ouroboros-consensus-shelley-test.nix;
         ouroboros-consensus-cardano = ./ouroboros-consensus-cardano.nix;
@@ -133,6 +134,7 @@
         ouroboros-network = ./ouroboros-network.nix;
         ouroboros-network-framework = ./ouroboros-network-framework.nix;
         ouroboros-network-testing = ./ouroboros-network-testing.nix;
+        strict-stm = ./strict-stm.nix;
         typed-protocols = ./typed-protocols.nix;
         typed-protocols-cborg = ./typed-protocols-cborg.nix;
         typed-protocols-examples = ./typed-protocols-examples.nix;
@@ -162,7 +164,7 @@
       compiler.version = "8.10.7";
       compiler.nix-name = "ghc8107";
       };
-  resolver = "lts-18.13";
+  resolver = "lts-18.21";
   modules = [
     ({ lib, ... }:
       {

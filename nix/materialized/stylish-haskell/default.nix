@@ -26,7 +26,7 @@
         "bifunctors".flags.semigroups = true;
         "random".revision = (((hackage."random")."1.2.1").revisions).default;
         "dlist".revision = (((hackage."dlist")."0.8.0.8").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.15.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "array".revision = (((hackage."array")."0.5.4.0").revisions).default;
         "process".revision = (((hackage."process")."1.6.13.2").revisions).default;

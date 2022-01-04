@@ -15,7 +15,7 @@
         "distributive".revision = (((hackage."distributive")."0.6.2.1").revisions).default;
         "distributive".flags.tagged = true;
         "distributive".flags.semigroups = true;
-        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.2").revisions).default;
+        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.3").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "xml-types".revision = (((hackage."xml-types")."0.3.8").revisions).default;
         "asn1-encoding".revision = (((hackage."asn1-encoding")."0.9.6").revisions).default;
@@ -42,7 +42,7 @@
         "cabal-doctest".revision = (((hackage."cabal-doctest")."1.0.9").revisions).default;
         "random".revision = (((hackage."random")."1.2.1").revisions).default;
         "dlist".revision = (((hackage."dlist")."0.8.0.8").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.15.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "array".revision = (((hackage."array")."0.5.4.0").revisions).default;
         "cereal".revision = (((hackage."cereal")."0.5.8.2").revisions).default;
@@ -140,7 +140,7 @@
         "Cabal".revision = (((hackage."Cabal")."3.2.1.0").revisions).default;
         "hspec".revision = (((hackage."hspec")."2.7.10").revisions).default;
         "primitive".revision = (((hackage."primitive")."0.7.3.0").revisions).default;
-        "tls".revision = (((hackage."tls")."1.5.5").revisions).default;
+        "tls".revision = (((hackage."tls")."1.5.6").revisions).default;
         "tls".flags.network = true;
         "tls".flags.hans = false;
         "tls".flags.compat = true;
@@ -199,7 +199,7 @@
         "splitmix".flags.optimised-mixer = false;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
         "relation".revision = (((hackage."relation")."0.5.2.0").revisions).default;
-        "attoparsec".revision = (((hackage."attoparsec")."0.14.2").revisions).default;
+        "attoparsec".revision = (((hackage."attoparsec")."0.14.3").revisions).default;
         "attoparsec".flags.developer = false;
         "conduit-extra".revision = (((hackage."conduit-extra")."1.3.5").revisions).default;
         "tar".revision = (((hackage."tar")."0.5.1.1").revisions).default;

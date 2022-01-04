@@ -16,7 +16,7 @@
         "distributive".revision = (((hackage."distributive")."0.6.2.1").revisions).default;
         "distributive".flags.tagged = true;
         "distributive".flags.semigroups = true;
-        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.2").revisions).default;
+        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.3").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "asn1-encoding".revision = (((hackage."asn1-encoding")."0.9.6").revisions).default;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
@@ -44,7 +44,7 @@
         "unix-time".revision = (((hackage."unix-time")."0.4.7").revisions).default;
         "dlist".revision = (((hackage."dlist")."1.0").revisions).default;
         "dlist".flags.werror = false;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.15.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "wai".revision = (((hackage."wai")."3.2.3").revisions).default;
         "easy-file".revision = (((hackage."easy-file")."0.2.2").revisions).default;
@@ -87,7 +87,7 @@
         "vector-algorithms".flags.properties = true;
         "vector-algorithms".flags.boundschecks = true;
         "socks".revision = (((hackage."socks")."0.6.1").revisions).default;
-        "wai-logger".revision = (((hackage."wai-logger")."2.3.6").revisions).default;
+        "wai-logger".revision = (((hackage."wai-logger")."2.3.7").revisions).default;
         "x509".revision = (((hackage."x509")."1.7.5").revisions).default;
         "http-types".revision = (((hackage."http-types")."0.12.3").revisions).default;
         "comonad".revision = (((hackage."comonad")."5.0.8").revisions).default;
@@ -123,7 +123,7 @@
         "Cabal".revision = (((hackage."Cabal")."3.2.1.0").revisions).default;
         "data-fix".revision = (((hackage."data-fix")."0.3.2").revisions).default;
         "primitive".revision = (((hackage."primitive")."0.7.3.0").revisions).default;
-        "tls".revision = (((hackage."tls")."1.5.5").revisions).default;
+        "tls".revision = (((hackage."tls")."1.5.6").revisions).default;
         "tls".flags.network = true;
         "tls".flags.hans = false;
         "tls".flags.compat = true;
@@ -172,7 +172,7 @@
         "splitmix".revision = (((hackage."splitmix")."0.1.0.4").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
-        "attoparsec".revision = (((hackage."attoparsec")."0.14.2").revisions).default;
+        "attoparsec".revision = (((hackage."attoparsec")."0.14.3").revisions).default;
         "attoparsec".flags.developer = false;
         "conduit-extra".revision = (((hackage."conduit-extra")."1.3.5").revisions).default;
         "tar".revision = (((hackage."tar")."0.5.1.1").revisions).default;
@@ -198,7 +198,7 @@
         "generic-deriving".flags.base-4-9 = true;
         "js-flot".revision = (((hackage."js-flot")."0.8.3").revisions).default;
         "connection".revision = (((hackage."connection")."0.3.1").revisions).default;
-        "fast-logger".revision = (((hackage."fast-logger")."3.0.5").revisions).default;
+        "fast-logger".revision = (((hackage."fast-logger")."3.1.0").revisions).default;
         "cmdargs".revision = (((hackage."cmdargs")."0.10.21").revisions).default;
         "cmdargs".flags.quotation = true;
         "cmdargs".flags.testprog = false;
