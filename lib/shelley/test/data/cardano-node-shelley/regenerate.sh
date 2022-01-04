@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-cardano-cli shelley genesis create \
+cardano-cli genesis create \
   --genesis-dir . \
   --mainnet \
   --gen-genesis-keys 1 \
@@ -20,11 +20,11 @@ mv delegate-keys/delegate1.vrf.skey bft-leader.vrf.skey
 
 rm -r delegate-keys genesis-keys utxo-keys genesis.spec.json
 
-cardano-cli shelley node key-gen-KES \
+cardano-cli node key-gen-KES \
     --verification-key-file bft-leader.kes.vkey \
     --signing-key-file bft-leader.kes.skey
 
-cardano-cli shelley node issue-op-cert \
+cardano-cli node issue-op-cert \
   --hot-kes-verification-key-file bft-leader.kes.vkey \
   --cold-signing-key-file bft-leader.skey \
   --operational-certificate-issue-counter bft-leader.counter \
