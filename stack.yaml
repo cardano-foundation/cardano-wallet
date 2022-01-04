@@ -78,7 +78,7 @@ extra-deps:
     - core
 
 ########################################################################
-### cardano-node 1.29.0-rc1 and its dependencies
+### cardano-node 1.32.0 and its dependencies
 
 - cryptonite-0.27 # 0.29 on lts-18.5 - constraint from ouroboros-consensus-byron
 - Cabal-3.4.0.0 # 3.2.1.0 on lts-18.5
@@ -139,7 +139,7 @@ extra-deps:
   - bech32-th
 
 - git: https://github.com/input-output-hk/cardano-base
-  commit: 654f5b7c76f7cc57900b4ddc664a82fc3b925fb0
+  commit: 41545ba3ac6b3095966316a99883d678b5ab8da8
   subdirs:
   - base-deriving-via
   - binary
@@ -156,7 +156,7 @@ extra-deps:
   commit: f73079303f663e028288f9f4a9e08bcca39a923e
 
 - git: https://github.com/input-output-hk/cardano-ledger
-  commit: bf008ce028751cae9fb0b53c3bef20f07c06e333
+  commit: 1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5
   subdirs:
   - eras/alonzo/impl
   - eras/alonzo/test-suite
@@ -173,15 +173,15 @@ extra-deps:
   - libs/cardano-ledger-core
   - libs/cardano-ledger-pretty
   - libs/cardano-protocol-tpraos
+  - libs/cardano-data
+  - libs/compact-map
+  - libs/set-algebra
   - libs/small-steps
   - libs/small-steps-test
   - libs/non-integral
-  - eras/shelley/chain-and-ledger/executable-spec
-  - eras/shelley/chain-and-ledger/shelley-spec-ledger-test
-  - eras/shelley/chain-and-ledger/dependencies/non-integer
 
 - git: https://github.com/input-output-hk/cardano-node
-  commit: 4f65fb9a27aa7e3a1873ab4211e412af780a3648
+  commit: 814df2c146f5d56f8c35a681fe75e85b905aed5d
   subdirs:
   - cardano-api
   - cardano-cli
@@ -225,7 +225,7 @@ extra-deps:
   commit: 6a92d7853ea514be8b70bab5e72077bf5a510596
 
 - git: https://github.com/input-output-hk/ouroboros-network
-  commit: d613de3d872ec8b4a5da0c98afb443f322dc4dab
+  commit: d2d219a86cda42787325bb8c20539a75c2667132
   subdirs:
   - io-classes
   - io-sim
@@ -236,6 +236,7 @@ extra-deps:
   - ouroboros-consensus-byron
   - ouroboros-consensus-byronspec
   - ouroboros-consensus-byron-test
+  - ouroboros-consensus-protocol
   - ouroboros-consensus-shelley
   - ouroboros-consensus-shelley-test
   - ouroboros-consensus-cardano
@@ -243,6 +244,7 @@ extra-deps:
   - ouroboros-network
   - ouroboros-network-framework
   - ouroboros-network-testing
+  - strict-stm
   - typed-protocols
   - typed-protocols-cborg
   - typed-protocols-examples
