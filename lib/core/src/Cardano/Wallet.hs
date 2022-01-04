@@ -737,6 +737,7 @@ createIcarusWallet
         , PaymentAddress n k
         , k ~ IcarusKey
         , s ~ SeqState n k
+        , Typeable n
         )
     => ctx
     -> WalletId

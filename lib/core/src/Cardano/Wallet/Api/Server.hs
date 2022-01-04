@@ -352,6 +352,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
     , defaultAddressPoolGap
+    , getGap
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
     , purposeCIP1852
@@ -748,7 +749,6 @@ postWallet
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
@@ -776,7 +776,6 @@ postShelleyWallet
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
@@ -816,6 +815,7 @@ postAccountWallet
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
         , (k == SharedKey) ~ 'False
+        , Typeable n
         )
     => ctx
     -> MkApiWallet ctx s w
@@ -873,7 +873,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     let available = availableBalance pending cp
     let total = totalBalance pending reward cp
     pure ApiWallet
-        { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
+        { addressPoolGap = ApiT $ getGap $ getState cp ^. #externalPool
         , balance = ApiWalletBalance
             { available = coinToQuantity (available ^. #coin)
             , total = coinToQuantity (total ^. #coin)
@@ -1269,6 +1269,7 @@ postIcarusWallet
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey
+        , Typeable n
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -1289,6 +1290,7 @@ postTrezorWallet
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey
+        , Typeable n
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -1309,6 +1311,7 @@ postLedgerWallet
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey
+        , Typeable n
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]

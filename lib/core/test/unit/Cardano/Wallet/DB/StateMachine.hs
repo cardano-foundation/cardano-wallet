@@ -108,7 +108,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , KeyFingerprint
     , NetworkDiscriminant (..)
     , PersistPrivateKey (..)
-    , Role (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -121,7 +120,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPool (..), AddressPoolGap, SeqState (..) )
+    ( AddressPoolGap, SeqState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( Readiness, SharedState (..) )
 import Cardano.Wallet.Primitive.Model
@@ -968,13 +967,6 @@ instance ToExpr (SeqState 'Mainnet ShelleyKey) where
     toExpr = defaultExprViaShow
 
 instance ToExpr (RndState 'Mainnet) where
-    toExpr = defaultExprViaShow
-
-instance (Show (key 'AccountK CC.XPub)) =>
-    ToExpr (AddressPool
-        (chain :: Role)
-        (key :: Depth -> * -> *)
-    ) where
     toExpr = defaultExprViaShow
 
 instance ToExpr a => ToExpr (Readiness a) where
