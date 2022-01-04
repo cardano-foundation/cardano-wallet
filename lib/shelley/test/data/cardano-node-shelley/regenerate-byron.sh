@@ -42,7 +42,7 @@ cardano-cli byron genesis genesis \
    --protocol-parameters-file byron.genesis.spec.json \
    --genesis-output-dir tmp
 
-cat tmp/genesis.json | yq e -P - > byron-genesis-init.yaml
+yq -y . < tmp/genesis.json > byron-genesis-init.yaml
 mv -vf tmp/delegate-keys.*.key .
 mv -vf tmp/delegation-cert.*.json .
 
