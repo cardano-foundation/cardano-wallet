@@ -330,6 +330,7 @@ data ErrAssignRedeemers
     -- ^ Redeemer's data isn't a valid Plutus' data.
     | ErrAssignRedeemersPastHorizon PastHorizonException
     -- ^ Evaluating the Plutus script failed past the visible horizon.
+    | ErrAssignRedeemersUnknownTxIns
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error

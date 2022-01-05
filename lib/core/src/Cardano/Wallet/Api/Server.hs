@@ -4246,6 +4246,11 @@ instance IsServerError ErrAssignRedeemers where
                 , "for one of your redeemers since I am unable to decode it"
                 , "into a valid Plutus data:", pretty r <> "."
                 ]
+        ErrAssignRedeemersUnknownTxIns ->
+             apiError err400 RedeemerUnresolvedInputs $ T.unwords
+                ["The transaction contains inputs which cannot be resolved."
+                ]
+
         ErrAssignRedeemersPastHorizon e ->
             toServerError e
 
