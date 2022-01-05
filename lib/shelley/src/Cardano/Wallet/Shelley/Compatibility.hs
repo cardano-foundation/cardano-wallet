@@ -1241,8 +1241,7 @@ fromShelleyTxId (SL.TxId h) =
     W.Hash $ Crypto.hashToBytes $ SafeHash.extractHash h
 
 fromShelleyTxIn
-    :: SL.Crypto crypto
-    => SL.TxIn crypto
+    :: SL.TxIn crypto
     -> W.TxIn
 fromShelleyTxIn (SL.TxIn txid ix) =
     W.TxIn (fromShelleyTxId txid) (unsafeCast ix)
