@@ -340,7 +340,6 @@ import qualified Cardano.Ledger.Shelley as SL hiding
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Ledger.Shelley.BlockChain as SL
-import qualified Cardano.Ledger.Shelley.Constraints as SL
 import qualified Cardano.Ledger.Shelley.PParams as Shelley
 import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
@@ -780,7 +779,7 @@ txParametersFromPParams maxBundleSize getMaxExecutionUnits pp = W.TxParameters
 --------------------------------------------------------------------------------
 
 fromLedgerPParams
-  :: ShelleyBasedEra era
+  :: Cardano.ShelleyBasedEra era
   -> Ledger.PParams (Cardano.ShelleyLedgerEra era)
   -> Cardano.ProtocolParameters
 fromLedgerPParams Cardano.ShelleyBasedEraShelley = fromLedgerShelleyPParams
@@ -1280,7 +1279,7 @@ fromCardanoWdrls = \case
             )
 
 fromShelleyTxOut
-    :: ( SL.ShelleyBased era
+    :: ( Era era
        , SL.Core.Value era ~ SL.Coin
        )
     => SLAPI.TxOut era
