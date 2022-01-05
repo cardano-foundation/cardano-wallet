@@ -118,6 +118,7 @@ library
     , split
     , splitmix
     , statistics
+    , stm
     , streaming-commons
     , strict-containers
     , strict-non-empty-containers

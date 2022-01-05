@@ -57,7 +57,7 @@ import Data.Delta
     DBVar
 -------------------------------------------------------------------------------}
 -- | A 'DBVar'@ m delta@ is a mutable reference to a Haskell value of type @a@.
--- The type @delta@ is a delta encoding for this value type @a@, 
+-- The type @delta@ is a delta encoding for this value type @a@,
 -- that is we have @a ~ @'Base'@ delta@.
 --
 -- The Haskell value is cached in memory, in weak head normal form (WHNF).
@@ -356,14 +356,13 @@ cachedStore Store{loadS,writeS,updateS} = do
         }
 -}
 
-{- HLINT ignore embedStore "Use readTVarIO" -}
 embedStore :: (MonadSTM m, MonadMask m, Delta da)
     => Embedding da db -> Store m db -> m (Store m da)
 embedStore embed bstore = do
     -- For reasons of efficiency, we have to store the 'Machine'
     -- that is created within the 'Embedding'.
     machine <- newTVarIO Nothing
-    let readMachine  = atomically $ readTVar machine
+    let readMachine  = readTVarIO machine
         writeMachine = atomically . writeTVar machine . Just
 
     -- Operations of the result 'Store'.
