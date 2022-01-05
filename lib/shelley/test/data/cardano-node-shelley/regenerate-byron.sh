@@ -29,14 +29,13 @@ cat > byron.genesis.spec.json <<EOF
 }
 EOF
 
-cardano-cli genesis \
+cardano-cli byron genesis genesis \
    --protocol-magic 764824073 \
    --start-time 2500000 \
    --k 8 \
    --n-poor-addresses 0 \
    --n-delegate-addresses 1 \
    --total-balance 50 \
-   --byron-formats \
    --delegate-share 1 \
    --avvm-entry-count 0 \
    --avvm-entry-balance 0 \
