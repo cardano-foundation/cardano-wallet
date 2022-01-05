@@ -78,7 +78,7 @@ extra-deps:
     - core
 
 ########################################################################
-### cardano-node 1.32.0 and its dependencies
+### cardano-node 1.33.0 and its dependencies
 
 - cryptonite-0.27 # 0.29 on lts-18.5 - constraint from ouroboros-consensus-byron
 - Cabal-3.4.0.0 # 3.2.1.0 on lts-18.5
