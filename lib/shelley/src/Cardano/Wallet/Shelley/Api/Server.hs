@@ -565,7 +565,7 @@ server byron icarus shelley multisig spl ntp =
         :: ApiLayer (SharedState n SharedKey) SharedKey
         -> Server (SharedAddresses n)
     sharedAddresses apilayer =
-             listAddresses apilayer (normalizeSharedAddress @_ @SharedKey @n)
+             listAddresses apilayer normalizeSharedAddress
 
 postAnyAddress
     :: NetworkId

@@ -39,12 +39,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shared
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..), constructAddressFromIx )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap (..), addresses, mkUnboundedAddressPoolGap )
+    ( AddressPoolGap (..), mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState (..)
-    , SharedStateFields (..)
+    ( Readiness (..)
+    , SharedState (..)
     , isShared
-    , liftDelegationAddress
     , liftPaymentAddress
     , mkSharedStateFromAccountXPub
     )
@@ -78,6 +77,7 @@ import Test.QuickCheck
 import Type.Reflection
     ( Typeable )
 
+import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
@@ -134,22 +134,16 @@ prop_addressDiscoveryMakesAddressUsed
     -> Property
 prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     preconditions keyIx g dTemplate' ==>
-    L.lookup addr ourAddrs === Just Used .&&.
-    fromIntegral (L.length ourAddrs) === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
+    (snd <$> Map.lookup addr ourAddrs) === Just Used .&&.
+    fromIntegral (Map.size ourAddrs) === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
   where
-    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    (Just ix, sharedState') = isShared @n addr sharedState
-    pair' (a,s,_) = (a,s)
-    getPool (SharedState _ (ReadyFields pool)) = pool
-    getPool _ = error "expected active state"
-    ourAddrs = case dTemplate' of
-        Nothing ->
-            map pair' $
-            addresses (liftPaymentAddress @n @SharedKey) $ getPool sharedState'
-        Just dT ->
-            map pair' $
-            addresses (liftDelegationAddress @n @SharedKey ix dT) $ getPool sharedState'
+    addr = AddressPool.generator (getPool sharedState) keyIx
+    (Just ix, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
+    getPool st = case ready st of
+        Active pool -> pool
+        Pending -> error "expected active state"
+    ourAddrs = AddressPool.addresses (getPool sharedState')
 
 prop_addressDoubleDiscovery
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -226,15 +220,19 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
     preconditions keyIx g dTemplate' ==>
     fromIntegral (L.length mapOfConsecutiveUnused) === getAddressPoolGap g
   where
-    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
-    (_, sharedState') = isShared @n addr sharedState
-    getPool (SharedState _ (ReadyFields pool)) = pool
-    getPool _ = error "expected active state"
-    mapOfConsecutiveUnused =
-        L.tail $
-        L.dropWhile (\(_addr, state,_path) -> state /= Used) $
-        addresses (liftPaymentAddress @n @SharedKey) $ getPool sharedState'
+    addr = AddressPool.generator (getPool sharedState) keyIx
+    (_, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
+    getPool st = case ready st of
+        Active pool -> pool
+        Pending -> error "expected active state"
+    mapOfConsecutiveUnused
+        = L.tail
+        . L.dropWhile (== Unused)
+        . L.map snd
+        . L.sortOn fst
+        . Map.elems . AddressPool.addresses
+        $ getPool sharedState'
 
 preconditions
     :: Index 'Soft 'ScriptK

@@ -76,7 +76,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState (..), SharedStateFields (..) )
+    ( SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
@@ -209,6 +209,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shared as Shared
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -607,12 +608,16 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 -- and make
 
 instance Arbitrary (SharedState 'Mainnet SharedKey) where
-    shrink (SharedState prefix (ReadyFields pool)) =
-        SharedState prefix <$> (ReadyFields <$> shrink pool)
-    shrink _ = []
-    arbitrary =
-        SharedState defaultSharedStatePrefix
-        <$> (ReadyFields <$> arbitrary)
+    arbitrary = do
+        pt <- genScriptTemplateHardCoded
+        pure $ SharedState
+            defaultSharedStatePrefix
+            arbitrarySharedAccount
+            pt
+            Nothing
+            defaultAddressPoolGap
+            (Shared.Active
+                $ Shared.newSharedAddressPool @'Mainnet defaultAddressPoolGap pt Nothing)
 
 defaultSharedStatePrefix :: DerivationPrefix
 defaultSharedStatePrefix = DerivationPrefix
@@ -628,12 +633,6 @@ instance Arbitrary (Script Cosigner) where
 genScriptTemplateHardCoded :: Gen ScriptTemplate
 genScriptTemplateHardCoded =
     ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey arbitrarySeqAccount)] ) <$> arbitrary
-
-instance Arbitrary (AddressPool 'UtxoExternal SharedKey) where
-    arbitrary = do
-        ctx <- ParentContextShared arbitrarySharedAccount
-            <$> genScriptTemplateHardCoded <*> pure Nothing
-        pure $ mkAddressPool @'Mainnet ctx minBound mempty
 
 instance Arbitrary Seq.AddressPoolGap where
     arbitrary = pure defaultAddressPoolGap
@@ -782,10 +781,11 @@ instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain
 
 instance Buildable (SharedState 'Mainnet SharedKey) where
-    build (SharedState _ (PendingFields _)) = "not supported here"
-    build (SharedState prefix (ReadyFields pool)) =
-        build (printStateActive <> printIndex prefix) <> printPool
+    build st = case ready st of
+        Shared.Pending -> "not supported here"
+        Shared.Active pool ->
+            build (printStateActive <> printIndex prefix) <> build pool
       where
         printStateActive = "shared wallet state: active"
-        printPool = build pool
+        prefix = Shared.derivationPrefix st
         printIndex (DerivationPrefix (_,_,ix)) = " hardened index: "<> toText (getIndex ix) <> " "

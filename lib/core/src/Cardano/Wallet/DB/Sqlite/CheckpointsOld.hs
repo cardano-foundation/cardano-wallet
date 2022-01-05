@@ -403,7 +403,6 @@ instance
     , GetPurpose key
     , PaymentAddress n key
     , SoftDerivation key
-    , Typeable n
     , (key == SharedKey) ~ 'False
     ) => PersistAddressBook (Seq.SeqState n key) where
 
@@ -488,37 +487,24 @@ selectSeqAddressList wid sl = do
 -------------------------------------------------------------------------------}
 instance
     ( PersistPublicKey (key 'AccountK)
-    , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
-    , MkKeyFingerprint key W.Address
-    , SoftDerivation key
-    , GetPurpose key
+    , Shared.SupportsDiscovery n key
     , WalletKey key
-    , Typeable n
     , key ~ SharedKey
     ) => PersistAddressBook (Shared.SharedState n key) where
     
     insertPrologue wid (SharedPrologue st) = do
-        case st of
-            Shared.SharedState prefix (Shared.PendingFields (Shared.SharedStatePending accXPub pTemplate dTemplateM g)) -> do
-                insertSharedState accXPub g pTemplate dTemplateM prefix
-                insertCosigner (cosigners pTemplate) Payment
-                when (isJust dTemplateM) $
-                    insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
-
-            Shared.SharedState prefix (Shared.ReadyFields pool) -> do
-                let (Seq.ParentContextShared accXPub pTemplate dTemplateM) =
-                        Seq.context pool
-                insertSharedState accXPub (Seq.gap pool) pTemplate dTemplateM prefix
-                insertCosigner (cosigners pTemplate) Payment
-                when (isJust dTemplateM) $
-                    insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+        let Shared.SharedState prefix accXPub pTemplate dTemplateM gap _ = st
+        insertSharedState prefix accXPub gap pTemplate dTemplateM
+        insertCosigner (cosigners pTemplate) Payment
+        when (isJust dTemplateM) $
+            insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
       where
-         insertSharedState accXPub g pTemplate dTemplateM prefix = do
+         insertSharedState prefix accXPub gap pTemplate dTemplateM = do
              deleteWhere [SharedStateWalletId ==. wid]
              insert_ $ SharedState
                  { sharedStateWalletId = wid
                  , sharedStateAccountXPub = serializeXPub accXPub
-                 , sharedStateScriptGap = g
+                 , sharedStateScriptGap = gap
                  , sharedStatePaymentScript = template pTemplate
                  , sharedStateDelegationScript = template <$> dTemplateM
                  , sharedStateDerivationPrefix = prefix
@@ -531,35 +517,43 @@ instance
                  | ((Cosigner c), xpub) <- Map.assocs cs
                  ]
 
-    insertDiscoveries wid sl (SharedDiscoveries (SeqAddressList exts)) = do
+    insertDiscoveries wid sl (SharedDiscoveries addrs) = do
         dbChunked insertMany_
-            [ SeqStateAddress wid sl addr ix UtxoExternal state
-            | (ix, (addr, state)) <- zip [0..] exts
+            [ SeqStateAddress wid sl addr ix UtxoExternal status
+            | (ix, addr, status) <- map convert $ Map.toList addrs
             ]
+      where
+        convert (addr,(ix,status)) =
+            (fromIntegral $ fromEnum ix, Shared.liftPaymentAddress @n addr, status)
 
     loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []
-        let SharedState _ accountBytes g pScript dScriptM prefix = entityVal st
+        let SharedState _ accountBytes gap pScript dScriptM prefix = entityVal st
         let accXPub = unsafeDeserializeXPub accountBytes
         pCosigners <- lift $ selectCosigners @key wid Payment
-        let prepareKeys = map (second getRawKey)
-        let pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
         dCosigners <- lift $ selectCosigners @key wid Delegation
-        let dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
+
+        let prepareKeys = map (second getRawKey)
+            pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
+            dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
+            mkSharedState = Shared.SharedState prefix accXPub pTemplate dTemplateM gap
         prologue <- lift $ multisigPoolAbsent wid <&> \case
-            True -> Shared.SharedState prefix $ Shared.PendingFields $ Shared.SharedStatePending
-                { Shared.pendingSharedStateAccountKey = accXPub
-                , Shared.pendingSharedStatePaymentTemplate = pTemplate
-                , Shared.pendingSharedStateDelegationTemplate = dTemplateM
-                , Shared.pendingSharedStateAddressPoolGap = g
-                }
-            False ->
-                let ctx = Seq.ParentContextShared accXPub pTemplate dTemplateM
-                    pool = Seq.mkAddressPool @n @_ @key ctx g []
-                in  Shared.SharedState prefix (Shared.ReadyFields pool)
+            True ->  mkSharedState Shared.Pending
+            False -> mkSharedState $ Shared.Active
+                $ Shared.newSharedAddressPool @n gap pTemplate dTemplateM
         pure $ SharedPrologue prologue
 
-    loadDiscoveries wid sl = SharedDiscoveries <$> selectSeqAddressList wid sl
+    loadDiscoveries wid sl = do
+        addrs <- map entityVal <$> selectList
+            [ SeqStateAddressWalletId ==. wid
+            , SeqStateAddressSlot ==. sl
+            , SeqStateAddressRole ==. UtxoExternal
+            ] [Asc SeqStateAddressIndex]
+        pure $ SharedDiscoveries $ Map.fromList 
+            [ (fingerprint, (toEnum $ fromIntegral ix, status))
+            | SeqStateAddress _ _ addr ix _ status <- addrs
+            , Right fingerprint <- [paymentKeyFingerprint addr]
+            ]
 
 selectCosigners
     :: forall k. PersistPublicKey (k 'AccountK)

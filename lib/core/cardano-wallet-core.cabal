@@ -169,6 +169,7 @@ library
       Cardano.Pool.DB.Sqlite.TH
       Cardano.Pool.Metadata
       Cardano.Wallet
+      Cardano.Wallet.Address.Pool
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Client
       Cardano.Wallet.Api.Link
@@ -408,6 +409,7 @@ test-suite unit
       Cardano.Pool.DB.MVarSpec
       Cardano.Pool.DB.Properties
       Cardano.Pool.DB.SqliteSpec
+      Cardano.Wallet.Address.PoolSpec
       Cardano.Wallet.Api.Malformed
       Cardano.Wallet.Api.Server.TlsSpec
       Cardano.Wallet.Api.ServerSpec

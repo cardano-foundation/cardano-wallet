@@ -56,6 +56,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Address.Script
+    ( ScriptTemplate (..) )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchTransaction (..)
@@ -100,7 +102,14 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), NetworkDiscriminant (..), PersistPrivateKey (..), Role (..) )
+    ( Depth (..)
+    , DerivationPrefix
+    , Index
+    , KeyFingerprint
+    , NetworkDiscriminant (..)
+    , PersistPrivateKey (..)
+    , Role (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shared
@@ -112,9 +121,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPool (..), SeqState (..) )
+    ( AddressPool (..), AddressPoolGap, SeqState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState (..) )
+    ( Readiness, SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -138,7 +147,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address )
+    ( Address, AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -261,12 +270,15 @@ import UnliftIO.Exception
     ( evaluate )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Control.Foldl as Foldl
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.TreeDiff as Expr
+import qualified Data.TreeDiff.OMap as Expr
 import qualified Test.QuickCheck as QC
 import qualified Test.StateMachine.Types as QSM
 import qualified Test.StateMachine.Types.Rank2 as Rank2
@@ -937,6 +949,21 @@ instance ToExpr TxStatus where
 instance ToExpr PoolId where
     toExpr = defaultExprViaShow
 
+instance ToExpr AddressState where
+    toExpr = genericToExpr
+
+instance (ToExpr addr, ToExpr ix) => ToExpr (AddressPool.Pool addr ix) where
+    toExpr pool = Expr.Rec "Pool" $ Expr.fromList
+        [ ("gap", toExpr $ AddressPool.gap pool)
+        , ("addresses", toExpr $ AddressPool.addresses pool)
+        ]
+
+instance ToExpr DerivationPrefix where
+    toExpr = defaultExprViaShow
+
+instance ToExpr (Index ix typ) where
+    toExpr = defaultExprViaShow
+
 instance ToExpr (SeqState 'Mainnet ShelleyKey) where
     toExpr = defaultExprViaShow
 
@@ -950,8 +977,23 @@ instance (Show (key 'AccountK CC.XPub)) =>
     ) where
     toExpr = defaultExprViaShow
 
-instance ToExpr (SharedState 'Mainnet SharedKey) where
+instance ToExpr a => ToExpr (Readiness a) where
+    toExpr = genericToExpr
+
+instance ToExpr AddressPoolGap where
+    toExpr = genericToExpr
+
+instance ToExpr ScriptTemplate where
     toExpr = defaultExprViaShow
+
+instance ToExpr (SharedKey 'AccountK CC.XPub) where
+    toExpr = defaultExprViaShow
+
+instance ToExpr (KeyFingerprint "payment" SharedKey) where
+    toExpr = defaultExprViaShow
+
+instance ToExpr (SharedState 'Mainnet SharedKey) where
+    toExpr = genericToExpr
 
 instance (ToExpr s, ToExpr xprv) => ToExpr (WalletDatabase s xprv) where
     toExpr = genericToExpr
