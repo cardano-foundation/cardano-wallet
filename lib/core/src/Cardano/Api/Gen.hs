@@ -968,7 +968,8 @@ genStakePoolMetadata =
 
         genDescription :: Gen T.Text
         genDescription = do
-            n <- arbitrary
+            -- There is a overall limit of 512 bytes for metadata
+            n <- chooseInt (0, 64)
             T.pack <$> vector n
 
         genTicker :: Gen T.Text
