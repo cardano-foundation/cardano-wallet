@@ -4550,6 +4550,18 @@ x-errRedeemerTargetNotFound: &errRedeemerTargetNotFound
       type: string
       enum: ['redeemer_target_not_found']
 
+x-errRedeemerUnresolvedInputs: &errRedeemerUnresolvedInputs
+  <<: *responsesErr
+  title: redeemer_unresolved_inputs
+  properties:
+    message:
+      type: string
+      description: |
+        The transaction contains inputs which cannot be resolved.
+    code:
+      type: string
+      enum: ['redeemer_unresolved_inputs']
+
 x-errRedeemerInvalidData: &errRedeemerInvalidData
   <<: *responsesErr
   title: redeemer_invalid_data
@@ -5424,6 +5436,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errRedeemerScriptFailure
             - <<: *errRedeemerTargetNotFound
             - <<: *errRedeemerInvalidData
+            - <<: *errRedeemerUnresolvedInputs
   403:
     description: Forbidden
     content:
