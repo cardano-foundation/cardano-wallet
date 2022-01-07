@@ -143,7 +143,7 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import Network.Socket
     ( PortNumber )
 import Numeric.Natural
@@ -213,7 +213,8 @@ genTxId = TxId <$> genShelleyHash
 
 genTxIndex :: Gen TxIx
 genTxIndex = do
-    n <- chooseInt (0, maxBound :: Int)
+    -- 2 ^ 32 - 1 is the upper limit on TxIxs in the Byron era
+    n <- chooseInteger (0, fromIntegral $ ((2 :: Word32) ^ (32 :: Word32)) - 1)
     pure $ TxIx $ fromIntegral n
 
 genTxInsCollateral :: CardanoEra era -> Gen (TxInsCollateral era)
@@ -1228,6 +1229,7 @@ genTxBodyContent era = do
             }
 
     let witnesses = collectTxBodyScriptWitnesses txBody
+    -- No use of a script language means no need for collateral
     if Set.null (languages witnesses)
     then do
         pparams <- BuildTxWith <$> liftArbitrary genProtocolParameters
