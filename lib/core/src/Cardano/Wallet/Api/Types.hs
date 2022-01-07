@@ -1659,7 +1659,7 @@ data ApiErrorCode
     | TransactionAlreadyBalanced
     | RedeemerScriptFailure
     | RedeemerTargetNotFound
-    | RedeemerUnresolvedInputs
+    | UnresolvedInputs
     | RedeemerInvalidData
     | ExistingKeyWitnesses
     deriving (Eq, Generic, Show, Data, Typeable)

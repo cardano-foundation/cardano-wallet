@@ -74,7 +74,7 @@ import Cardano.Binary
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Ledger.Alonzo.Tools
-    ( evaluateTransactionExecutionUnits )
+    ( BasicFailure (..), evaluateTransactionExecutionUnits )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
@@ -954,8 +954,10 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
                 systemStart
                 costs
         case res of
-            Left _ -> Left ErrAssignRedeemersUnknownTxIns
-            Right report -> Right $ hoistScriptFailure report
+            Left (UnknownTxIns ins) ->
+                Left $ ErrAssignRedeemersUnresolvedTxIns $ map fromShelleyTxIn (F.toList ins)
+            Right report ->
+                Right $ hoistScriptFailure report
       where
         hoistScriptFailure
             :: Show scriptFailure

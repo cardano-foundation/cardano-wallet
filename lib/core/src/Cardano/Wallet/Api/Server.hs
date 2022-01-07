@@ -4246,11 +4246,17 @@ instance IsServerError ErrAssignRedeemers where
                 , "for one of your redeemers since I am unable to decode it"
                 , "into a valid Plutus data:", pretty r <> "."
                 ]
-        ErrAssignRedeemersUnknownTxIns ->
-             apiError err400 RedeemerUnresolvedInputs $ T.unwords
-                ["The transaction contains inputs which cannot be resolved."
+        ErrAssignRedeemersUnresolvedTxIns ins ->
+            -- Note that although this error is thrown from
+            -- '_assignScriptRedeemers', it's more related to balanceTransaction
+            -- in general than to assigning redeemers. Hence we don't mention
+            -- redeemers in the message.
+            apiError err400 UnresolvedInputs $ T.unwords
+                [ "The transaction I was given contains inputs I don't know"
+                , "about. Please ensure all foreign inputs are specified as "
+                , "part of the API request. The unknown inputs are:\n\n"
+                , pretty ins
                 ]
-
         ErrAssignRedeemersPastHorizon e ->
             toServerError e
 

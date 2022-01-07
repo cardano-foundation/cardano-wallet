@@ -211,7 +211,7 @@ import Cardano.Wallet.Shelley.Transaction
     , _maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
-    ( ErrAssignRedeemers (ErrAssignRedeemersUnknownTxIns)
+    ( ErrAssignRedeemers (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeUpdate (..)
@@ -2230,7 +2230,7 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
     shrinkUpdates SNothing = []
     shrinkUpdates (SJust _) = [SNothing]
 
--- | Tests that 'ErrAssignRedeemersUnknownTxIns' can in fact be returned by
+-- | Tests that 'ErrAssignRedeemersUnresolvedTxIns' can in fact be returned by
 -- 'balanceTransaction'.
 prop_balanceTransactionUnresolvedInputs
     :: Wallet'
@@ -2252,7 +2252,7 @@ prop_balanceTransactionUnresolvedInputs
                 -> cover 0 True "success" $ property True
                    -- Balancing can succeed if the dropped inputs happen to be
                    -- apart of the wallet UTxO.
-            Left (ErrBalanceTxAssignRedeemers ErrAssignRedeemersUnknownTxIns)
+            Left (ErrBalanceTxAssignRedeemers (ErrAssignRedeemersUnresolvedTxIns _))
                 -> cover 1 True "unknown txins" True
             Left _
                 -> property True
