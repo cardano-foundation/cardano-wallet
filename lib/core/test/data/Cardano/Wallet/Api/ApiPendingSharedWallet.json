@@ -2,22 +2,53 @@
     "seed": -9137929064745454795,
     "samples": [
         {
+            "account_index": "12684",
+            "name": "s墠vX𥚳RBh",
+            "id": "45dc89026e26ae866845042a92b490b0d39ad852",
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#2": "511b9b3236672feb1fc45d69c18c504f29c5d3dbe1a400cb1c783d3438fd84954329857689b1be9ac5f20b03b65e7f605673085cfbe002c776eb549aeb6d6f3c",
+                    "cosigner#3": "c3b8d675b6919b84b2d8cbbb653cd934edeac0570a79a27efcd912599dfe601bbed14e9b0a5bde28e795b77e17ca748b8e08bcf5159bec4aa2948267c878d89e"
+                },
+                "template": {
+                    "all": [
+                        "cosigner#4",
+                        "cosigner#0",
+                        "cosigner#0",
+                        {
+                            "active_until": 4
+                        },
+                        "cosigner#3",
+                        "cosigner#2",
+                        {
+                            "active_from": 5
+                        },
+                        "cosigner#2",
+                        {
+                            "active_until": 10
+                        },
+                        "cosigner#2"
+                    ]
+                }
+            },
             "address_pool_gap": 25960,
             "state": {
                 "status": "incomplete"
             },
             "delegation_script_template": {
                 "cosigners": {
-                    "cosigner#4": "9f648c7e8b7162ee020a9278f68edea18499b49a6dc846b076c57cb71756ba21853aef7c426af530552e4b0c2a80f5f5d8d5776494ab920ac4e18375efe16f40",
-                    "cosigner#3": "7dd8d737193bc0613bb4a07ca34011fcefa5256d0459ce0b02fb66aa3ef8cb85f523022f86aabc6dde4f1061e47d0f00f21dc205235585c003f2815b8d6c2655",
-                    "cosigner#1": "0233ce5a6d2fd2313d91cb9770895fd2f4b5120364ece6c39cb5ac01cb88cbc71f50a26fbd37d6a92e344b9dbb5335372dea6c8415dfe459fb20ea5320f08e52"
+                    "cosigner#4": "918e61aee3d62c07123ca3007bc338e8203a5281f8f47e567fbf46dc381fcd9dbec807a70d63ab87d95b58de347cd259e1238f5d325de989cc260a2c47d9eafa",
+                    "cosigner#2": "7dd8d737193bc0613bb4a07ca34011fcefa5256d0459ce0b02fb66aa3ef8cb85f523022f86aabc6dde4f1061e47d0f00f21dc205235585c003f2815b8d6c2655",
+                    "cosigner#7": "0233ce5a6d2fd2313d91cb9770895fd2f4b5120364ece6c39cb5ac01cb88cbc71f50a26fbd37d6a92e344b9dbb5335372dea6c8415dfe459fb20ea5320f08e52",
+                    "cosigner#5": "9f648c7e8b7162ee020a9278f68edea18499b49a6dc846b076c57cb71756ba21853aef7c426af530552e4b0c2a80f5f5d8d5776494ab920ac4e18375efe16f40"
                 },
                 "template": {
                     "some": {
+                        "at_least": 1,
                         "from": [
                             {
                                 "all": [
-                                    "cosigner#1",
+                                    "cosigner#6",
                                     {
                                         "active_from": 9
                                     },
@@ -30,7 +61,7 @@
                                     {
                                         "active_until": 9
                                     },
-                                    "cosigner#3",
+                                    "cosigner#2",
                                     {
                                         "active_from": 6
                                     },
@@ -58,7 +89,7 @@
                                     {
                                         "active_until": 10
                                     },
-                                    "cosigner#1",
+                                    "cosigner#7",
                                     {
                                         "active_from": 5
                                     }
@@ -69,7 +100,7 @@
                                     {
                                         "active_from": 6
                                     },
-                                    "cosigner#4",
+                                    "cosigner#5",
                                     {
                                         "active_from": 1
                                     },
@@ -80,6 +111,7 @@
                             },
                             {
                                 "some": {
+                                    "at_least": 3,
                                     "from": [
                                         "cosigner#0",
                                         {
@@ -89,46 +121,131 @@
                                             "active_from": 9
                                         },
                                         "cosigner#4"
-                                    ],
-                                    "at_least": 1
+                                    ]
                                 }
                             }
-                        ],
-                        "at_least": 4
+                        ]
                     }
-                }
-            },
-            "account_index": "12684",
-            "name": "s墠vX𥚳RBh",
-            "id": "45dc89026e26ae866845042a92b490b0d39ad852",
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#3": "c3b8d675b6919b84b2d8cbbb653cd934edeac0570a79a27efcd912599dfe601bbed14e9b0a5bde28e795b77e17ca748b8e08bcf5159bec4aa2948267c878d89e",
-                    "cosigner#2": "511b9b3236672feb1fc45d69c18c504f29c5d3dbe1a400cb1c783d3438fd84954329857689b1be9ac5f20b03b65e7f605673085cfbe002c776eb549aeb6d6f3c"
-                },
-                "template": {
-                    "all": [
-                        "cosigner#4",
-                        "cosigner#0",
-                        "cosigner#0",
-                        {
-                            "active_until": 4
-                        },
-                        "cosigner#3",
-                        "cosigner#2",
-                        {
-                            "active_from": 5
-                        },
-                        "cosigner#2",
-                        {
-                            "active_until": 10
-                        },
-                        "cosigner#2"
-                    ]
                 }
             }
         },
         {
+            "account_index": "25635",
+            "name": "|* ",
+            "id": "eaa40e9be5268f330a9b8f1993a91f231604c3f6",
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#3": "a397299ae665145179478b80c967ef3eff9db5581fd6ac1064c597e1b04e007b41fa9191f5668d76d93130511cb8bb80a84d802ba9b112bfa210f6f6a1797957"
+                },
+                "template": {
+                    "all": [
+                        {
+                            "all": [
+                                "cosigner#7",
+                                {
+                                    "active_from": 7
+                                },
+                                {
+                                    "active_from": 4
+                                },
+                                {
+                                    "active_until": 7
+                                }
+                            ]
+                        },
+                        {
+                            "some": {
+                                "at_least": 1,
+                                "from": [
+                                    {
+                                        "active_until": 10
+                                    },
+                                    {
+                                        "active_until": 5
+                                    },
+                                    "cosigner#6"
+                                ]
+                            }
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_from": 10
+                                },
+                                {
+                                    "active_from": 0
+                                }
+                            ]
+                        },
+                        {
+                            "any": [
+                                "cosigner#2",
+                                "cosigner#2",
+                                {
+                                    "active_from": 2
+                                },
+                                {
+                                    "active_until": 2
+                                },
+                                {
+                                    "active_until": 5
+                                },
+                                {
+                                    "active_until": 2
+                                },
+                                {
+                                    "active_until": 9
+                                }
+                            ]
+                        },
+                        {
+                            "all": [
+                                "cosigner#3",
+                                {
+                                    "active_until": 0
+                                }
+                            ]
+                        },
+                        {
+                            "some": {
+                                "at_least": 3,
+                                "from": [
+                                    {
+                                        "active_until": 5
+                                    },
+                                    {
+                                        "active_until": 10
+                                    },
+                                    {
+                                        "active_until": 0
+                                    },
+                                    {
+                                        "active_until": 0
+                                    },
+                                    "cosigner#4",
+                                    "cosigner#0",
+                                    {
+                                        "active_from": 8
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "some": {
+                                "at_least": 1,
+                                "from": [
+                                    "cosigner#3",
+                                    "cosigner#6",
+                                    "cosigner#5",
+                                    {
+                                        "active_until": 6
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
             "address_pool_gap": 52067,
             "state": {
                 "status": "incomplete"
@@ -136,8 +253,8 @@
             "delegation_script_template": {
                 "cosigners": {
                     "cosigner#7": "1bc0a686525e08dec27bb898f951b4a04258b71d92047bd901716d9c8f362047f6517c4c9178abfc2d615d22c1684e51dfd0b30250a71c5ed050c8ef6ece0c18",
-                    "cosigner#1": "ebb737f1748f6db27685d914a4bbcd12b5db370c5c788241a30cac4484f1db5249ced1cf1f70fe2a3ef4ba39887ce5199d2379886c2d472179b7e036f24b9665",
-                    "cosigner#0": "6becb0a7df751d9eea8686783032abe188a35784f17ff14f2af3453954e28ea597200b4021237716ecf24db0d2bfc3aa29bf380b0690df511963adc5517b3964"
+                    "cosigner#0": "6becb0a7df751d9eea8686783032abe188a35784f17ff14f2af3453954e28ea597200b4021237716ecf24db0d2bfc3aa29bf380b0690df511963adc5517b3964",
+                    "cosigner#1": "ebb737f1748f6db27685d914a4bbcd12b5db370c5c788241a30cac4484f1db5249ced1cf1f70fe2a3ef4ba39887ce5199d2379886c2d472179b7e036f24b9665"
                 },
                 "template": {
                     "any": [
@@ -165,6 +282,7 @@
                         },
                         {
                             "some": {
+                                "at_least": 1,
                                 "from": [
                                     "cosigner#0",
                                     "cosigner#1",
@@ -174,8 +292,7 @@
                                     {
                                         "active_from": 3
                                     }
-                                ],
-                                "at_least": 4
+                                ]
                             }
                         },
                         {
@@ -226,125 +343,141 @@
                         }
                     ]
                 }
-            },
-            "account_index": "25635",
-            "name": "|* ",
-            "id": "eaa40e9be5268f330a9b8f1993a91f231604c3f6",
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#3": "a397299ae665145179478b80c967ef3eff9db5581fd6ac1064c597e1b04e007b41fa9191f5668d76d93130511cb8bb80a84d802ba9b112bfa210f6f6a1797957"
-                },
-                "template": {
-                    "all": [
-                        {
-                            "all": [
-                                "cosigner#10",
-                                {
-                                    "active_from": 7
-                                },
-                                {
-                                    "active_from": 4
-                                },
-                                {
-                                    "active_until": 7
-                                }
-                            ]
-                        },
-                        {
-                            "some": {
-                                "from": [
-                                    {
-                                        "active_until": 10
-                                    },
-                                    {
-                                        "active_until": 5
-                                    },
-                                    "cosigner#6"
-                                ],
-                                "at_least": 3
-                            }
-                        },
-                        {
-                            "any": [
-                                {
-                                    "active_from": 10
-                                },
-                                {
-                                    "active_from": 0
-                                }
-                            ]
-                        },
-                        {
-                            "any": [
-                                "cosigner#2",
-                                "cosigner#10",
-                                {
-                                    "active_from": 2
-                                },
-                                {
-                                    "active_until": 2
-                                },
-                                {
-                                    "active_until": 5
-                                },
-                                {
-                                    "active_until": 2
-                                },
-                                {
-                                    "active_until": 9
-                                }
-                            ]
-                        },
-                        {
-                            "all": [
-                                "cosigner#3",
-                                {
-                                    "active_until": 0
-                                }
-                            ]
-                        },
-                        {
-                            "some": {
-                                "from": [
-                                    {
-                                        "active_until": 5
-                                    },
-                                    {
-                                        "active_until": 10
-                                    },
-                                    {
-                                        "active_until": 0
-                                    },
-                                    {
-                                        "active_until": 0
-                                    },
-                                    "cosigner#3",
-                                    "cosigner#0",
-                                    {
-                                        "active_from": 8
-                                    }
-                                ],
-                                "at_least": 6
-                            }
-                        },
-                        {
-                            "some": {
-                                "from": [
-                                    "cosigner#3",
-                                    "cosigner#8",
-                                    "cosigner#8",
-                                    {
-                                        "active_until": 6
-                                    }
-                                ],
-                                "at_least": 2
-                            }
-                        }
-                    ]
-                }
             }
         },
         {
+            "account_index": "31628",
+            "name": "yx~85.tp=",
+            "id": "92187e9b0cf13cdfdcc5a20b622d874a03a76a74",
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#4": "7a4852c99fc79c15baf3606dbb1172d0aa19735db5991325fa7618efe3fd16401d209a9414873c9fe464abeb52b13fdfb35b8a2ce77b4caaffc8ea3c98791ee7",
+                    "cosigner#9": "2b0614fbf696bd81213098c9ea44aa4286d6999c3ea0dd782312d7b6fb34bafded3ed59539dc13279aa84e6cd26ebc68bf37d5f9b1a22cd8a25e72a636007636",
+                    "cosigner#2": "fa71feb7c114cdb5900ec72913e606cf83d2fe4daa90eec175d851a81a913f962a40289e73f4c905c3a35dac77e64a8a03401ac4f04285e0e4be33ac752caa31",
+                    "cosigner#7": "9c5805050ca9fc1180bd2eafbb93f30bfe319a9ebdd87c3f9632bfa30a0e3a4f4ae6d61e3ec83de678089088a30cb505620ad418c6dccec8da65727643c38822",
+                    "cosigner#6": "a7dec1862c643976be2afab6f386e9dbdb15fcf2661f0da138155aeb00dff714506eafc83ebaafa5fa7e28c41e56d3c121ed0218c28d00f7b848f2df594205be"
+                },
+                "template": {
+                    "some": {
+                        "at_least": 7,
+                        "from": [
+                            {
+                                "any": [
+                                    "cosigner#0",
+                                    {
+                                        "active_from": 4
+                                    }
+                                ]
+                            },
+                            {
+                                "any": [
+                                    "cosigner#5",
+                                    "cosigner#3",
+                                    {
+                                        "active_until": 1
+                                    },
+                                    {
+                                        "active_from": 8
+                                    },
+                                    {
+                                        "active_from": 0
+                                    },
+                                    {
+                                        "active_until": 4
+                                    },
+                                    "cosigner#7",
+                                    {
+                                        "active_until": 0
+                                    }
+                                ]
+                            },
+                            {
+                                "all": [
+                                    {
+                                        "active_from": 1
+                                    },
+                                    "cosigner#9"
+                                ]
+                            },
+                            {
+                                "all": [
+                                    {
+                                        "active_until": 4
+                                    },
+                                    {
+                                        "active_until": 8
+                                    },
+                                    {
+                                        "active_until": 6
+                                    },
+                                    "cosigner#2",
+                                    {
+                                        "active_until": 10
+                                    },
+                                    {
+                                        "active_until": 7
+                                    }
+                                ]
+                            },
+                            {
+                                "all": [
+                                    "cosigner#9",
+                                    {
+                                        "active_until": 6
+                                    },
+                                    "cosigner#0",
+                                    "cosigner#6",
+                                    {
+                                        "active_until": 6
+                                    }
+                                ]
+                            },
+                            {
+                                "some": {
+                                    "at_least": 4,
+                                    "from": [
+                                        {
+                                            "active_from": 7
+                                        },
+                                        {
+                                            "active_from": 4
+                                        },
+                                        {
+                                            "active_until": 8
+                                        },
+                                        {
+                                            "active_until": 8
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "all": [
+                                    {
+                                        "active_from": 4
+                                    },
+                                    {
+                                        "active_until": 5
+                                    },
+                                    "cosigner#4",
+                                    {
+                                        "active_from": 4
+                                    },
+                                    {
+                                        "active_from": 7
+                                    },
+                                    "cosigner#5",
+                                    "cosigner#7",
+                                    {
+                                        "active_from": 4
+                                    },
+                                    "cosigner#5"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
             "address_pool_gap": 51603,
             "state": {
                 "status": "incomplete"
@@ -377,7 +510,7 @@
                                 {
                                     "active_from": 6
                                 },
-                                "cosigner#2",
+                                "cosigner#1",
                                 {
                                     "active_until": 3
                                 },
@@ -445,152 +578,16 @@
                         }
                     ]
                 }
-            },
-            "account_index": "31628",
-            "name": "yx~85.tp=",
-            "id": "92187e9b0cf13cdfdcc5a20b622d874a03a76a74",
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#4": "a7dec1862c643976be2afab6f386e9dbdb15fcf2661f0da138155aeb00dff714506eafc83ebaafa5fa7e28c41e56d3c121ed0218c28d00f7b848f2df594205be",
-                    "cosigner#2": "2b0614fbf696bd81213098c9ea44aa4286d6999c3ea0dd782312d7b6fb34bafded3ed59539dc13279aa84e6cd26ebc68bf37d5f9b1a22cd8a25e72a636007636",
-                    "cosigner#7": "9c5805050ca9fc1180bd2eafbb93f30bfe319a9ebdd87c3f9632bfa30a0e3a4f4ae6d61e3ec83de678089088a30cb505620ad418c6dccec8da65727643c38822",
-                    "cosigner#1": "703361adb7a926e6eeb56a1f8a101b432f6ae17c5d52ff519e6bef875b7319988baab93c18117378d3b4b1d41b8549d1ddbb0d7084c926fbd2ac52ba96fb390f"
-                },
-                "template": {
-                    "some": {
-                        "from": [
-                            {
-                                "any": [
-                                    "cosigner#6",
-                                    {
-                                        "active_from": 4
-                                    }
-                                ]
-                            },
-                            {
-                                "any": [
-                                    "cosigner#2",
-                                    "cosigner#7",
-                                    {
-                                        "active_until": 1
-                                    },
-                                    {
-                                        "active_from": 8
-                                    },
-                                    {
-                                        "active_from": 0
-                                    },
-                                    {
-                                        "active_until": 4
-                                    },
-                                    "cosigner#7",
-                                    {
-                                        "active_until": 0
-                                    }
-                                ]
-                            },
-                            {
-                                "all": [
-                                    {
-                                        "active_from": 1
-                                    },
-                                    "cosigner#2"
-                                ]
-                            },
-                            {
-                                "all": [
-                                    {
-                                        "active_until": 4
-                                    },
-                                    {
-                                        "active_until": 8
-                                    },
-                                    {
-                                        "active_until": 6
-                                    },
-                                    "cosigner#2",
-                                    {
-                                        "active_until": 10
-                                    },
-                                    {
-                                        "active_until": 7
-                                    }
-                                ]
-                            },
-                            {
-                                "all": [
-                                    "cosigner#1",
-                                    {
-                                        "active_until": 6
-                                    },
-                                    "cosigner#0",
-                                    "cosigner#4",
-                                    {
-                                        "active_until": 6
-                                    }
-                                ]
-                            },
-                            {
-                                "some": {
-                                    "from": [
-                                        {
-                                            "active_from": 7
-                                        },
-                                        {
-                                            "active_from": 4
-                                        },
-                                        {
-                                            "active_until": 8
-                                        },
-                                        {
-                                            "active_until": 8
-                                        }
-                                    ],
-                                    "at_least": 1
-                                }
-                            },
-                            {
-                                "all": [
-                                    {
-                                        "active_from": 4
-                                    },
-                                    {
-                                        "active_until": 5
-                                    },
-                                    "cosigner#4",
-                                    {
-                                        "active_from": 4
-                                    },
-                                    {
-                                        "active_from": 7
-                                    },
-                                    "cosigner#5",
-                                    "cosigner#7",
-                                    {
-                                        "active_from": 4
-                                    },
-                                    "cosigner#2"
-                                ]
-                            }
-                        ],
-                        "at_least": 7
-                    }
-                }
             }
         },
         {
-            "address_pool_gap": 49014,
-            "state": {
-                "status": "incomplete"
-            },
             "account_index": "2016",
             "name": "(<YQy`↕𪛕q8K",
             "id": "e5fdff1b88addb68dc0e2302e4007c594601ed5c",
             "payment_script_template": {
                 "cosigners": {
-                    "cosigner#3": "b1f4383f1674c7ba5670b683ec7224a312cc4863356d7bfa0810c78b47e6c4bca83b614961955f0ba7150d3ea5c0fbfbb8f4523ce54033fb08c58da66fa0b3ae",
-                    "cosigner#1": "070e1e2fadc85beff86edc9d0a51ea50d39382f4dfbc9172921ffee365eccf61e9a926207afbbb15edad41d7ad96813b210eccd084b7ae032d7660ff15e1c148",
-                    "cosigner#0": "95c3a83884ea02ee3711af3ced53c3789e5523e9bb409582dfee2ea82c9c448b5064602c2dd6a6c1cc2faee547ccb24810bf2986b70fb3e3e6ce859dd46c7fa2"
+                    "cosigner#0": "95c3a83884ea02ee3711af3ced53c3789e5523e9bb409582dfee2ea82c9c448b5064602c2dd6a6c1cc2faee547ccb24810bf2986b70fb3e3e6ce859dd46c7fa2",
+                    "cosigner#1": "b1f4383f1674c7ba5670b683ec7224a312cc4863356d7bfa0810c78b47e6c4bca83b614961955f0ba7150d3ea5c0fbfbb8f4523ce54033fb08c58da66fa0b3ae"
                 },
                 "template": {
                     "all": [
@@ -616,11 +613,11 @@
                                 {
                                     "active_from": 3
                                 },
-                                "cosigner#3",
+                                "cosigner#2",
                                 {
                                     "active_until": 7
                                 },
-                                "cosigner#3",
+                                "cosigner#1",
                                 {
                                     "active_from": 6
                                 }
@@ -646,6 +643,7 @@
                         },
                         {
                             "some": {
+                                "at_least": 1,
                                 "from": [
                                     {
                                         "active_from": 2
@@ -653,7 +651,7 @@
                                     {
                                         "active_from": 8
                                     },
-                                    "cosigner#3",
+                                    "cosigner#0",
                                     {
                                         "active_until": 3
                                     },
@@ -669,12 +667,11 @@
                                     {
                                         "active_until": 7
                                     },
-                                    "cosigner#4",
+                                    "cosigner#0",
                                     {
                                         "active_from": 10
                                     }
-                                ],
-                                "at_least": 6
+                                ]
                             }
                         },
                         {
@@ -682,7 +679,7 @@
                                 {
                                     "active_from": 3
                                 },
-                                "cosigner#4",
+                                "cosigner#0",
                                 "cosigner#0",
                                 {
                                     "active_from": 10
@@ -690,9 +687,9 @@
                                 {
                                     "active_from": 6
                                 },
-                                "cosigner#5",
                                 "cosigner#1",
-                                "cosigner#5",
+                                "cosigner#1",
+                                "cosigner#1",
                                 {
                                     "active_until": 4
                                 }
@@ -714,6 +711,7 @@
                         },
                         {
                             "some": {
+                                "at_least": 3,
                                 "from": [
                                     {
                                         "active_from": 0
@@ -722,15 +720,128 @@
                                     {
                                         "active_from": 6
                                     }
-                                ],
-                                "at_least": 3
+                                ]
                             }
                         }
                     ]
                 }
+            },
+            "address_pool_gap": 49014,
+            "state": {
+                "status": "incomplete"
             }
         },
         {
+            "account_index": "28248",
+            "name": "hrhRQ",
+            "id": "29f7fc4d13ed650d201bfb540ca7a8a3f602c113",
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#9": "cb8d9dfccaf702ab1848ad71bbe6f5b2aace1462157bf3842e330bbc12284f9dabfe5335cf228730d7b6a148c47d175899ce5c790f93df4a0edf5ca6544cb3aa",
+                    "cosigner#0": "34a31d4e8c6aa945e1278b423ae8cec765db2e77282dc5d21f0d5e9a98c5e86da2afbd85fc9fd13680c2f1d2b8460ad589d4d65127d66fa06840411ca506dba5",
+                    "cosigner#5": "10cb541bffdbcbd94fcbbf7d9e0a3412fb8d9be14c4ae27a8a9739e47e2addc690f37482cde4c7c519510dad60574800b37b2baa36b75e4db42e9f0107958291",
+                    "cosigner#8": "eaa41ebd914e33f0cd2082f76456328a290d302f06b483c5d80d6b10a23d229907759fbff8e97bc769c36ccbdfedb27f5f2d582721bd81e48aca41691655d4f1",
+                    "cosigner#1": "89c045c560b1ed88a65e47016d3be65674a89fbd38b91072aa4d2bbf13f257b6a39aa328ec22c61dc73f7388647e5b8a376b859947b58373785c80b4003c88ed",
+                    "cosigner#6": "10b9cab843566248b864a7a62ade2eeaa439da5d68e16b3b02977859e96b1070665172cb3d887853751dcad02d1e9ae7b3a7461714ec73475f2eeda226a1179e"
+                },
+                "template": {
+                    "all": [
+                        {
+                            "all": [
+                                "cosigner#0",
+                                "cosigner#9",
+                                {
+                                    "active_until": 2
+                                },
+                                {
+                                    "active_from": 9
+                                },
+                                "cosigner#8",
+                                "cosigner#8",
+                                "cosigner#6"
+                            ]
+                        },
+                        {
+                            "all": [
+                                "cosigner#1",
+                                "cosigner#2",
+                                {
+                                    "active_until": 5
+                                },
+                                "cosigner#5",
+                                {
+                                    "active_until": 8
+                                },
+                                {
+                                    "active_until": 10
+                                },
+                                "cosigner#8",
+                                "cosigner#9"
+                            ]
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_until": 1
+                                }
+                            ]
+                        },
+                        {
+                            "some": {
+                                "at_least": 1,
+                                "from": [
+                                    {
+                                        "active_from": 10
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "some": {
+                                "at_least": 4,
+                                "from": [
+                                    "cosigner#10",
+                                    {
+                                        "active_from": 5
+                                    },
+                                    {
+                                        "active_from": 5
+                                    },
+                                    {
+                                        "active_from": 7
+                                    },
+                                    {
+                                        "active_until": 2
+                                    },
+                                    {
+                                        "active_from": 8
+                                    },
+                                    {
+                                        "active_until": 3
+                                    },
+                                    {
+                                        "active_until": 6
+                                    },
+                                    {
+                                        "active_until": 1
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "some": {
+                                "at_least": 3,
+                                "from": [
+                                    "cosigner#9",
+                                    "cosigner#8",
+                                    "cosigner#9",
+                                    "cosigner#9"
+                                ]
+                            }
+                        }
+                    ]
+                }
+            },
             "address_pool_gap": 28857,
             "state": {
                 "status": "incomplete"
@@ -798,130 +909,91 @@
                         }
                     ]
                 }
-            },
-            "account_index": "28248",
-            "name": "hrhRQ",
-            "id": "29f7fc4d13ed650d201bfb540ca7a8a3f602c113",
+            }
+        },
+        {
+            "account_index": "15062",
+            "name": "Ứ~sXr>𫑳𠟕n",
+            "id": "1bfb98a813bf4a71daa21e51520378f66e2f5a3d",
             "payment_script_template": {
                 "cosigners": {
-                    "cosigner#3": "cb8d9dfccaf702ab1848ad71bbe6f5b2aace1462157bf3842e330bbc12284f9dabfe5335cf228730d7b6a148c47d175899ce5c790f93df4a0edf5ca6544cb3aa",
-                    "cosigner#2": "10b9cab843566248b864a7a62ade2eeaa439da5d68e16b3b02977859e96b1070665172cb3d887853751dcad02d1e9ae7b3a7461714ec73475f2eeda226a1179e",
-                    "cosigner#1": "89c045c560b1ed88a65e47016d3be65674a89fbd38b91072aa4d2bbf13f257b6a39aa328ec22c61dc73f7388647e5b8a376b859947b58373785c80b4003c88ed",
-                    "cosigner#0": "34a31d4e8c6aa945e1278b423ae8cec765db2e77282dc5d21f0d5e9a98c5e86da2afbd85fc9fd13680c2f1d2b8460ad589d4d65127d66fa06840411ca506dba5"
+                    "cosigner#1": "3dc3f33e725a131e7d2deb280b6c184ba4508d4d1f17b8b912c73f01113b769ea3f6fbde753c4120c287fed73dc318d2a304b86a23fad28fd71554861e24a3a6"
                 },
                 "template": {
-                    "all": [
+                    "any": [
                         {
-                            "all": [
-                                "cosigner#0",
-                                "cosigner#3",
+                            "any": [
                                 {
-                                    "active_until": 2
+                                    "active_until": 3
                                 },
                                 {
-                                    "active_from": 9
-                                },
-                                "cosigner#0",
-                                "cosigner#2",
-                                "cosigner#2"
-                            ]
-                        },
-                        {
-                            "all": [
-                                "cosigner#1",
-                                "cosigner#2",
-                                {
-                                    "active_until": 5
-                                },
-                                "cosigner#3",
-                                {
-                                    "active_until": 8
+                                    "active_from": 5
                                 },
                                 {
-                                    "active_until": 10
-                                },
-                                "cosigner#0",
-                                "cosigner#1"
+                                    "active_from": 4
+                                }
                             ]
                         },
                         {
                             "any": [
+                                "cosigner#1",
+                                {
+                                    "active_until": 4
+                                },
                                 {
                                     "active_until": 1
+                                },
+                                "cosigner#1",
+                                {
+                                    "active_from": 7
+                                },
+                                {
+                                    "active_from": 7
                                 }
                             ]
                         },
                         {
                             "some": {
+                                "at_least": 2,
                                 "from": [
                                     {
-                                        "active_from": 10
-                                    }
-                                ],
-                                "at_least": 1
+                                        "active_until": 5
+                                    },
+                                    "cosigner#0"
+                                ]
                             }
                         },
                         {
-                            "some": {
-                                "from": [
-                                    "cosigner#2",
-                                    {
-                                        "active_from": 5
-                                    },
-                                    {
-                                        "active_from": 5
-                                    },
-                                    {
-                                        "active_from": 7
-                                    },
-                                    {
-                                        "active_until": 2
-                                    },
-                                    {
-                                        "active_from": 8
-                                    },
-                                    {
-                                        "active_until": 3
-                                    },
-                                    {
-                                        "active_until": 6
-                                    },
-                                    {
-                                        "active_until": 1
-                                    }
-                                ],
-                                "at_least": 1
-                            }
+                            "any": [
+                                {
+                                    "active_from": 3
+                                }
+                            ]
                         },
                         {
-                            "some": {
-                                "from": [
-                                    "cosigner#1",
-                                    "cosigner#0",
-                                    "cosigner#1",
-                                    "cosigner#1"
-                                ],
-                                "at_least": 2
-                            }
+                            "any": [
+                                {
+                                    "active_until": 3
+                                }
+                            ]
                         }
                     ]
                 }
-            }
-        },
-        {
+            },
             "address_pool_gap": 32647,
             "state": {
                 "status": "incomplete"
             },
             "delegation_script_template": {
                 "cosigners": {
-                    "cosigner#1": "90b2ebc080ca1237ce10bdacbcd9f23813eb41cc0bef32398bc64713219066d7e4252a4c970c37eb2219065d8991c62745d6b78766d66d757bc1018182149a97",
-                    "cosigner#0": "c1dc5b8b2e14f77d32e84710e7504655c9a03eba637689f1dc4e107d5c03f51852f05aeab8c73985487d9203f62be3dc3172580598a3ec8ec737d64b574b9bef"
+                    "cosigner#0": "c1dc5b8b2e14f77d32e84710e7504655c9a03eba637689f1dc4e107d5c03f51852f05aeab8c73985487d9203f62be3dc3172580598a3ec8ec737d64b574b9bef",
+                    "cosigner#1": "90b2ebc080ca1237ce10bdacbcd9f23813eb41cc0bef32398bc64713219066d7e4252a4c970c37eb2219065d8991c62745d6b78766d66d757bc1018182149a97"
                 },
                 "template": {
                     "all": [
                         {
                             "some": {
+                                "at_least": 4,
                                 "from": [
                                     {
                                         "active_from": 2
@@ -945,8 +1017,7 @@
                                     {
                                         "active_until": 5
                                     }
-                                ],
-                                "at_least": 1
+                                ]
                             }
                         },
                         {
@@ -1009,6 +1080,7 @@
                         },
                         {
                             "some": {
+                                "at_least": 3,
                                 "from": [
                                     {
                                         "active_from": 4
@@ -1017,30 +1089,29 @@
                                     {
                                         "active_until": 5
                                     }
-                                ],
-                                "at_least": 1
+                                ]
                             }
                         },
                         {
                             "some": {
+                                "at_least": 1,
                                 "from": [
                                     "cosigner#0",
                                     {
                                         "active_until": 8
                                     }
-                                ],
-                                "at_least": 2
+                                ]
                             }
                         },
                         {
                             "some": {
+                                "at_least": 1,
                                 "from": [
                                     {
                                         "active_until": 8
                                     },
                                     "cosigner#0"
-                                ],
-                                "at_least": 1
+                                ]
                             }
                         },
                         {
@@ -1054,88 +1125,17 @@
                         }
                     ]
                 }
-            },
-            "account_index": "15062",
-            "name": "Ứ~sXr>𫑳𠟕n",
-            "id": "1bfb98a813bf4a71daa21e51520378f66e2f5a3d",
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#5": "3dc3f33e725a131e7d2deb280b6c184ba4508d4d1f17b8b912c73f01113b769ea3f6fbde753c4120c287fed73dc318d2a304b86a23fad28fd71554861e24a3a6"
-                },
-                "template": {
-                    "any": [
-                        {
-                            "any": [
-                                {
-                                    "active_until": 3
-                                },
-                                {
-                                    "active_from": 5
-                                },
-                                {
-                                    "active_from": 4
-                                }
-                            ]
-                        },
-                        {
-                            "any": [
-                                "cosigner#5",
-                                {
-                                    "active_until": 4
-                                },
-                                {
-                                    "active_until": 1
-                                },
-                                "cosigner#3",
-                                {
-                                    "active_from": 7
-                                },
-                                {
-                                    "active_from": 7
-                                }
-                            ]
-                        },
-                        {
-                            "some": {
-                                "from": [
-                                    {
-                                        "active_until": 5
-                                    },
-                                    "cosigner#4"
-                                ],
-                                "at_least": 1
-                            }
-                        },
-                        {
-                            "any": [
-                                {
-                                    "active_from": 3
-                                }
-                            ]
-                        },
-                        {
-                            "any": [
-                                {
-                                    "active_until": 3
-                                }
-                            ]
-                        }
-                    ]
-                }
             }
         },
         {
-            "address_pool_gap": 31243,
-            "state": {
-                "status": "incomplete"
-            },
             "account_index": "29477",
             "name": "1𤠧L:o𮖓)𘒕🐞𘆆ho",
             "id": "5aabd432e4ac4a96a81cae118bfc2477a7deb648",
             "payment_script_template": {
                 "cosigners": {
                     "cosigner#4": "6338c1ddc27c7535a0427360326b224a86f90fb2a122cca725588e64ddf8f626b9344b79e187e97067a6ab4457ccefa90d84bae6c6d7bc86626f2df0df8cb71f",
-                    "cosigner#2": "bd8186949943e58f55fbca801592337cb22e57897d39ae0e9c5fd2a02b74163ae1d56de61c9258554c93d7ad7083087211359e35e94072c8e594e4bb951d4869"
+                    "cosigner#2": "bd8186949943e58f55fbca801592337cb22e57897d39ae0e9c5fd2a02b74163ae1d56de61c9258554c93d7ad7083087211359e35e94072c8e594e4bb951d4869",
+                    "cosigner#6": "3d5723b04e856874a583e66651dd7f0b1865ed1bf4d3c8a90842f5fffe9fbf5c4c178268090d923320cc050e982f46e01af84d415049e3877adbcaaf794bd802"
                 },
                 "template": {
                     "all": [
@@ -1155,18 +1155,18 @@
                                     "active_from": 10
                                 },
                                 "cosigner#2",
-                                "cosigner#3",
+                                "cosigner#2",
                                 "cosigner#0"
                             ]
                         },
                         {
                             "some": {
+                                "at_least": 1,
                                 "from": [
                                     {
                                         "active_from": 9
                                     }
-                                ],
-                                "at_least": 1
+                                ]
                             }
                         },
                         {
@@ -1181,8 +1181,8 @@
                                 {
                                     "active_from": 9
                                 },
-                                "cosigner#2",
-                                "cosigner#2",
+                                "cosigner#6",
+                                "cosigner#7",
                                 {
                                     "active_until": 9
                                 },
@@ -1234,22 +1234,25 @@
                         }
                     ]
                 }
+            },
+            "address_pool_gap": 31243,
+            "state": {
+                "status": "incomplete"
             }
         },
         {
-            "address_pool_gap": 27665,
-            "state": {
-                "status": "incomplete"
-            },
             "account_index": "266",
             "name": "+]nYpZ\"(e",
             "id": "e6d30bdc58864536d046bfe88e54ebdd46275842",
             "payment_script_template": {
                 "cosigners": {
-                    "cosigner#1": "b0eed2124e7f7a859c289550f0c3b9ac80b628ea728d1a4126febd73f812d945857d226a315d3c3ad42804681a002629a7c14b7ecb939b37b639c68a5238be6c"
+                    "cosigner#3": "0853c0a6ed6d153bcf6203d2f7aa0d3a861ddc9c191564b63598b30e4a64c841d7f9a046f50e6f7446ff80b8d37aacdd6d72af99503dab47a2b684459a81addc",
+                    "cosigner#1": "b0eed2124e7f7a859c289550f0c3b9ac80b628ea728d1a4126febd73f812d945857d226a315d3c3ad42804681a002629a7c14b7ecb939b37b639c68a5238be6c",
+                    "cosigner#6": "317a3c9a7a777a4d5f0bc9f8b66f3e8b670ebd6330da3b87b137570ae609b2610597df576e901c8cb3eafe71b676046d6a4b7e5335b395dcba2b3c05a7e583db"
                 },
                 "template": {
                     "some": {
+                        "at_least": 2,
                         "from": [
                             {
                                 "all": [
@@ -1283,8 +1286,9 @@
                             },
                             {
                                 "some": {
+                                    "at_least": 5,
                                     "from": [
-                                        "cosigner#3",
+                                        "cosigner#7",
                                         {
                                             "active_from": 5
                                         },
@@ -1300,21 +1304,21 @@
                                         {
                                             "active_from": 1
                                         },
-                                        "cosigner#3",
+                                        "cosigner#8",
                                         {
                                             "active_until": 1
                                         },
                                         {
                                             "active_until": 5
                                         }
-                                    ],
-                                    "at_least": 5
+                                    ]
                                 }
                             },
                             {
                                 "some": {
+                                    "at_least": 4,
                                     "from": [
-                                        "cosigner#1",
+                                        "cosigner#3",
                                         {
                                             "active_from": 5
                                         },
@@ -1327,8 +1331,7 @@
                                         {
                                             "active_until": 3
                                         }
-                                    ],
-                                    "at_least": 4
+                                    ]
                                 }
                             },
                             {
@@ -1340,11 +1343,12 @@
                             },
                             {
                                 "some": {
+                                    "at_least": 5,
                                     "from": [
                                         {
                                             "active_from": 4
                                         },
-                                        "cosigner#1",
+                                        "cosigner#6",
                                         {
                                             "active_from": 10
                                         },
@@ -1357,32 +1361,84 @@
                                         {
                                             "active_until": 9
                                         }
-                                    ],
-                                    "at_least": 4
+                                    ]
                                 }
                             }
-                        ],
-                        "at_least": 1
+                        ]
                     }
                 }
+            },
+            "address_pool_gap": 27665,
+            "state": {
+                "status": "incomplete"
             }
         },
         {
+            "account_index": "11492",
+            "name": "Jg$$|B5s-c_𫘐k",
+            "id": "9ea485610700e64bd205d2d6c70725bf107f7847",
+            "payment_script_template": {
+                "cosigners": {
+                    "cosigner#0": "10607faa1867c11ccff0f60e796a0bdcf45ad3830498c0e89d659790d9046627a5b06590d5f768a9eebf0b03ce17ad3f0241e745a651d9e04acdd9bf5a7e231a"
+                },
+                "template": {
+                    "any": [
+                        {
+                            "some": {
+                                "at_least": 2,
+                                "from": [
+                                    {
+                                        "active_until": 10
+                                    },
+                                    {
+                                        "active_from": 3
+                                    },
+                                    "cosigner#2",
+                                    {
+                                        "active_until": 8
+                                    },
+                                    {
+                                        "active_until": 6
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "any": [
+                                "cosigner#0",
+                                {
+                                    "active_from": 2
+                                },
+                                {
+                                    "active_from": 3
+                                },
+                                {
+                                    "active_until": 3
+                                },
+                                {
+                                    "active_from": 6
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
             "address_pool_gap": 95739,
             "state": {
                 "status": "incomplete"
             },
             "delegation_script_template": {
                 "cosigners": {
-                    "cosigner#3": "5d9465eff9b562661fa529cfaa773805c977fe36d620c78b0f4b1223408f22cf0b3962eede73656fff8be5be21f8e7ba1e3cf05f688bbf5a0100f3fd4a33156d",
                     "cosigner#2": "f862f61375383db47380adbfb75299b336b2ebfcd0a03d75499b0ca2d0f1b0f933fd7221fc7384abfe981404f78305aa304b593e7eff1094140851330efd20a3",
                     "cosigner#7": "0582188e041ec01c61e74b4154534adccfaad70f27e7515d317b5f900138fff533fe3f694e141ccdef96ed160125957351726059b7b9a78035f2b0aa08f0b66e",
-                    "cosigner#5": "ae1cb7cff9e29d70588cc0094c7c65b84055f80baa8633ac71a72369cec492d79f4e9b54811ee68fd7f213894aa8a12f443214c3e7ef3f2d62547006d87086e3"
+                    "cosigner#5": "ae1cb7cff9e29d70588cc0094c7c65b84055f80baa8633ac71a72369cec492d79f4e9b54811ee68fd7f213894aa8a12f443214c3e7ef3f2d62547006d87086e3",
+                    "cosigner#3": "5d9465eff9b562661fa529cfaa773805c977fe36d620c78b0f4b1223408f22cf0b3962eede73656fff8be5be21f8e7ba1e3cf05f688bbf5a0100f3fd4a33156d"
                 },
                 "template": {
                     "all": [
                         {
                             "some": {
+                                "at_least": 2,
                                 "from": [
                                     {
                                         "active_until": 9
@@ -1397,8 +1453,7 @@
                                         "active_until": 3
                                     },
                                     "cosigner#2"
-                                ],
-                                "at_least": 2
+                                ]
                             }
                         },
                         {
@@ -1428,6 +1483,7 @@
                         },
                         {
                             "some": {
+                                "at_least": 3,
                                 "from": [
                                     {
                                         "active_from": 7
@@ -1445,8 +1501,7 @@
                                         "active_until": 4
                                     },
                                     "cosigner#5"
-                                ],
-                                "at_least": 6
+                                ]
                             }
                         },
                         {
@@ -1458,6 +1513,7 @@
                         },
                         {
                             "some": {
+                                "at_least": 4,
                                 "from": [
                                     {
                                         "active_until": 0
@@ -1476,8 +1532,7 @@
                                     {
                                         "active_from": 2
                                     }
-                                ],
-                                "at_least": 6
+                                ]
                             }
                         },
                         {
@@ -1504,6 +1559,7 @@
                         },
                         {
                             "some": {
+                                "at_least": 4,
                                 "from": [
                                     {
                                         "active_from": 8
@@ -1523,8 +1579,7 @@
                                     {
                                         "active_until": 4
                                     }
-                                ],
-                                "at_least": 5
+                                ]
                             }
                         },
                         {
@@ -1556,73 +1611,57 @@
                         }
                     ]
                 }
-            },
-            "account_index": "11492",
-            "name": "Jg$$|B5s-c_𫘐k",
-            "id": "9ea485610700e64bd205d2d6c70725bf107f7847",
+            }
+        },
+        {
+            "account_index": "6157",
+            "name": "%a1.@<睏ZD>X%K𣣈cD&|'R䐢y\\𰃂",
+            "id": "6790e3153d311d379a852346466339d9d64ff70e",
             "payment_script_template": {
                 "cosigners": {
-                    "cosigner#8": "10607faa1867c11ccff0f60e796a0bdcf45ad3830498c0e89d659790d9046627a5b06590d5f768a9eebf0b03ce17ad3f0241e745a651d9e04acdd9bf5a7e231a"
+                    "cosigner#0": "85f9fdb702a908d2f254e2e0b8693c837dc2dd06a1cbac9aca49e1317fe91bd77005d8f198c16c4f127c62ec5b59e88d1aae663ce865edb3d9567ceb85506627"
                 },
                 "template": {
                     "any": [
                         {
-                            "some": {
-                                "from": [
-                                    {
-                                        "active_until": 10
-                                    },
-                                    {
-                                        "active_from": 3
-                                    },
-                                    "cosigner#2",
-                                    {
-                                        "active_until": 8
-                                    },
-                                    {
-                                        "active_until": 6
-                                    }
-                                ],
-                                "at_least": 5
-                            }
+                            "active_from": 8
+                        },
+                        "cosigner#0",
+                        "cosigner#1",
+                        "cosigner#0",
+                        "cosigner#0",
+                        {
+                            "active_until": 8
+                        },
+                        "cosigner#0",
+                        {
+                            "active_from": 9
                         },
                         {
-                            "any": [
-                                "cosigner#8",
-                                {
-                                    "active_from": 2
-                                },
-                                {
-                                    "active_from": 3
-                                },
-                                {
-                                    "active_until": 3
-                                },
-                                {
-                                    "active_from": 6
-                                }
-                            ]
+                            "active_from": 0
+                        },
+                        {
+                            "active_until": 6
                         }
                     ]
                 }
-            }
-        },
-        {
+            },
             "address_pool_gap": 9667,
             "state": {
                 "status": "incomplete"
             },
             "delegation_script_template": {
                 "cosigners": {
-                    "cosigner#2": "ab6041537b11f39f1ceb90ae4e18041b8633b69c875783d55676eb6b4a2ceadb8b747469794473fe0d92dd59df85b4256d2f82b7cb04d5c823a4a02947e82d8a",
-                    "cosigner#0": "677a09157064b139d5de2a2cc4bc00ec6f5ac48489a10a08ae1b4e9d13d958b7581add155460d0d1b2daa5613fe6782d8de3cc1dafa2b8ddf3892eff13f3e2bc"
+                    "cosigner#4": "677a09157064b139d5de2a2cc4bc00ec6f5ac48489a10a08ae1b4e9d13d958b7581add155460d0d1b2daa5613fe6782d8de3cc1dafa2b8ddf3892eff13f3e2bc",
+                    "cosigner#2": "ab6041537b11f39f1ceb90ae4e18041b8633b69c875783d55676eb6b4a2ceadb8b747469794473fe0d92dd59df85b4256d2f82b7cb04d5c823a4a02947e82d8a"
                 },
                 "template": {
                     "some": {
+                        "at_least": 1,
                         "from": [
                             {
                                 "any": [
-                                    "cosigner#0",
+                                    "cosigner#4",
                                     "cosigner#2",
                                     {
                                         "active_until": 1
@@ -1637,7 +1676,7 @@
                                     {
                                         "active_until": 3
                                     },
-                                    "cosigner#0"
+                                    "cosigner#8"
                                 ]
                             },
                             {
@@ -1656,42 +1695,8 @@
                                     }
                                 ]
                             }
-                        ],
-                        "at_least": 1
+                        ]
                     }
-                }
-            },
-            "account_index": "6157",
-            "name": "%a1.@<睏ZD>X%K𣣈cD&|'R䐢y\\𠹒",
-            "id": "6790e3153d311d379a852346466339d9d64ff70e",
-            "payment_script_template": {
-                "cosigners": {
-                    "cosigner#4": "85f9fdb702a908d2f254e2e0b8693c837dc2dd06a1cbac9aca49e1317fe91bd77005d8f198c16c4f127c62ec5b59e88d1aae663ce865edb3d9567ceb85506627",
-                    "cosigner#0": "f630bc9deb1ca84c09ecc1a8ee703c4a211f11bd800c5905aa1efe71fef32cf8da40fd3e2ca15cfa9faabdd5b4fa43c2dddd49baae2a41977f085c7cb8e8d191"
-                },
-                "template": {
-                    "any": [
-                        {
-                            "active_from": 8
-                        },
-                        "cosigner#4",
-                        "cosigner#1",
-                        "cosigner#0",
-                        "cosigner#2",
-                        {
-                            "active_until": 8
-                        },
-                        "cosigner#0",
-                        {
-                            "active_from": 9
-                        },
-                        {
-                            "active_from": 0
-                        },
-                        {
-                            "active_until": 6
-                        }
-                    ]
                 }
             }
         }
