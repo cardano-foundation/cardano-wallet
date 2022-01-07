@@ -106,7 +106,7 @@ import Data.Maybe
 import Data.Ratio
     ( denominator, numerator )
 import Data.Word
-    ( Word32 )
+    ( Word16, Word32 )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -374,7 +374,7 @@ spec =
                             (genUpdateProposalCoverage era)
 
 genTxIxCoverage :: TxIx -> Property
-genTxIxCoverage (TxIx ix) = unsignedCoverage (maxBound @Word32) "txIx" ix
+genTxIxCoverage (TxIx ix) = unsignedCoverage (maxBound @Word16) "txIx" ix
 
 instance Arbitrary TxIx where
     arbitrary = genTxIndex

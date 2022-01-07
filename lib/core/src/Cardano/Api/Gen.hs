@@ -143,7 +143,7 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word16, Word32, Word64 )
 import Network.Socket
     ( PortNumber )
 import Numeric.Natural
@@ -212,10 +212,16 @@ genTxId :: Gen TxId
 genTxId = TxId <$> genShelleyHash
 
 genTxIndex :: Gen TxIx
-genTxIndex = do
-    -- 2 ^ 32 - 1 is the upper limit on TxIxs in the Byron era
-    n <- chooseInteger (0, fromIntegral $ ((2 :: Word32) ^ (32 :: Word32)) - 1)
-    pure $ TxIx $ fromIntegral n
+genTxIndex = frequency
+    [ ( 45, do
+          -- 2 ^ 32 - 1 is the upper limit on TxIxs in the Byron era
+          n <- chooseInteger (0, fromIntegral $ ((2 :: Word32) ^ (32 :: Word32)) - 1)
+          pure $ TxIx $ fromIntegral n
+      )
+    -- Make sure to choose some small values too
+    , ( 45, (TxIx . fromIntegral) <$> chooseInteger (0, fromIntegral (maxBound :: Word16)) )
+    , ( 10, pure $ TxIx 0 )
+    ]
 
 genTxInsCollateral :: CardanoEra era -> Gen (TxInsCollateral era)
 genTxInsCollateral era =
