@@ -213,8 +213,8 @@ genTxId = TxId <$> genShelleyHash
 
 genTxIndex :: Gen TxIx
 genTxIndex = do
-    (Large (n :: Word)) <- arbitrary
-    pure $ TxIx n
+    n <- chooseInt (0, maxBound :: Int)
+    pure $ TxIx $ fromIntegral n
 
 genTxInsCollateral :: CardanoEra era -> Gen (TxInsCollateral era)
 genTxInsCollateral era =
