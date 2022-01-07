@@ -37,6 +37,7 @@ import Cardano.Wallet.Primitive.Model
     , availableUTxO
     , changeUTxO
     , currentTip
+    , discoverAddresses
     , getState
     , initWallet
     , isOurTx
@@ -98,7 +99,7 @@ import Control.DeepSeq
 import Control.Monad
     ( foldM, guard )
 import Control.Monad.Trans.State.Strict
-    ( State, evalState, runState, state )
+    ( State, evalState, execState, runState, state )
 import Data.Foldable
     ( fold )
 import Data.Function
@@ -271,6 +272,10 @@ spec = do
             property prop_applyOurTxToUTxO_allOurs
         it "prop_applyOurTxToUTxO_someOurs" $
             property prop_applyOurTxToUTxO_someOurs
+    
+    parallel $ describe "Address discovery" $ do
+        it "discoverAddresses ~ isOurTx" $
+            property prop_discoverAddresses
 
 {-------------------------------------------------------------------------------
                                 Properties
@@ -762,9 +767,7 @@ prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
     haveResult :: Bool
     haveResult = isJust maybeResult
     maybeResult :: Maybe UTxO
-    maybeResult = snd <$> evalState
-        (applyOurTxToUTxO slotNo blockHeight tx utxo)
-        (AllOurs)
+    maybeResult = snd <$> applyOurTxToUTxO slotNo blockHeight AllOurs tx utxo
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
 
@@ -814,11 +817,21 @@ prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
     haveResult :: Bool
     haveResult = isJust maybeResult
     maybeResult :: Maybe UTxO
-    maybeResult = snd <$> evalState
-        (applyOurTxToUTxO slotNo blockHeight tx utxo)
-        (ourState)
+    maybeResult = snd <$> applyOurTxToUTxO slotNo blockHeight ourState tx utxo
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) ourState
+
+{-------------------------------------------------------------------------------
+    Address discovery
+-------------------------------------------------------------------------------}
+{- HLINT ignore prop_discoverAddresses "Avoid lambda using `infix`" -}
+prop_discoverAddresses :: ApplyBlock -> Property
+prop_discoverAddresses (ApplyBlock s utxo block) =
+        discoverAddresses block s
+    ===
+        execState (mapM (\tx -> isOurTx tx utxo) txs) s
+  where
+    txs = view #transactions block
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
@@ -888,7 +901,7 @@ txOutsOurs txs =
 data WalletState = WalletState
     { _ourAddresses :: Set (ShowFmt Address)
     , _discoveredAddresses :: Set (ShowFmt Address)
-    } deriving (Generic, Show)
+    } deriving (Generic, Show, Eq)
 
 ourAddresses :: WalletState -> Set Address
 ourAddresses =
