@@ -1944,9 +1944,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_BALANCE_05/ADP-1286 - \
-        \I can balance correctly in case I need to spend my remaining ADA for fee" $ 
+        \I can balance correctly in case I need to spend my remaining ADA for fee" $
         \ctx -> runResourceT $ do
-        liftIO $ pendingWith 
+        liftIO $ pendingWith
             "ADP-1286 - ValueNotConservedUTxO: Transaction seems balanced incorrectly \
             \in case when less than minUtxOValue is left on the wallet"
         wa <- fixtureWalletWith @n ctx [3_000_000]
@@ -1955,7 +1955,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedFee = 1_000_000
         let balancePayload = Json PlutusScenario.pingPong_1
         let hasExpectedFee = [expectField (#fee . #getQuantity) (`shouldBe` expectedFee)]
-        
+
         rTx <- request @ApiSerialisedTransaction ctx
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
         verify rTx [ expectResponseCode HTTP.status202 ]
@@ -2158,7 +2158,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     { "transaction": #{sealedTx}
                     , "passphrase": #{fixturePassphrase}
                     }|]
-            (_, signedTx) <- second Prelude.id <$>
+            (_, signedTx) <- Prelude.id <$>
                 unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign
 
             -- Submit
@@ -2178,7 +2178,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             { "transaction": #{sealedTx'}
                             , "passphrase": #{fixturePassphrase}
                             }|]
-                    (_, signedTx') <- second Prelude.id <$>
+                    (_, signedTx') <- Prelude.id <$>
                         unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign'
 
                     -- Submit

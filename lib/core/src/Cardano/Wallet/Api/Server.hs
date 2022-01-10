@@ -2348,9 +2348,6 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
-    let (tx@(Tx txId _ _ inps _ _ _ _),_,_,_) = txDecoded
-    let ourInpsWithAmt = filter (\(i,_) -> i `elem` ourInps) inps
-
 
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -2359,16 +2356,17 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
                 { txTimeToLive = ttl
                 , txWithdrawal = wdrl
                 }
-        txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInpsWithAmt ourOuts
+        txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInps ourOuts
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
-    return $ ApiTxId (ApiT txId)
+    return $ ApiTxId (apiDecoded ^. #id)
   where
-    txDecoded = decodeTx tl sealedTx
+    (tx,_,_,_) = decodeTx tl sealedTx
     tl = ctx ^. W.transactionLayer @k
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
+
 
     isOutOurs (WalletOutput _) = True
     isOutOurs _ = False
@@ -2391,8 +2389,8 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
 
     isInpOurs (WalletInput _) = True
     isInpOurs _ = False
-    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ _ _)) =
-        TxIn txid ix
+    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ (Quantity _amt) _)) =
+        (TxIn txid ix, Coin 0) -- $ fromIntegral amt)
     toTxInp _ = error "we should have only our inputs at this point"
     getOurInps apiDecodedTx =
         let generalInps = apiDecodedTx ^. #inputs
