@@ -2347,9 +2347,11 @@ submitTransaction
     -> ApiT WalletId
     -> ApiSerialisedTransaction
     -> Handler ApiTxId
-submitTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealedTx)) = do
+submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT sealedTx)) = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
-    let (tx@(Tx txId _ _ inps outs wdrlMap _ _),_,_,_) = txDecoded
+    apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
+    let outs = getOurOuts apiDecoded
+    let (tx@(Tx txId _ _ inps _outs wdrlMap _ _),_,_,_) = txDecoded
 
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -2371,6 +2373,15 @@ submitTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealedTx)) = do
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
+
+    isOutOurs (WalletOutput _) = True
+    isOutOurs _ = False
+    toTxOut (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity amt) (ApiT tmap) _)) =
+        TxOut addr (TokenBundle (Coin $ fromIntegral amt) tmap)
+    toTxOut _ = error "we should have only our outputs at this point"
+    getOurOuts apiDecodedTx =
+        let generalOuts = apiDecodedTx ^. #outputs
+        in map toTxOut $ filter isOutOurs generalOuts
 
 joinStakePool
     :: forall ctx s n k.
