@@ -467,6 +467,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Cardano.Wallet.Util
+    ( invariant )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -2334,11 +2336,8 @@ submitTransaction
         ( ctx ~ ApiLayer s k
         , HasNetworkLayer IO ctx
         , IsOwned s k
-        , WalletKey k
-        , HardDerivation k
         , Typeable s
         , Typeable n
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => ctx
     -> ApiT WalletId
@@ -2348,14 +2347,11 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     ttl <- liftIO $ W.getTxExpiry ti Nothing
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
     let outs = getOurOuts apiDecoded
-    let (tx@(Tx txId _ _ inps _outs wdrlMap _ _),_,_,_) = txDecoded
+    let (tx@(Tx txId _ _ inps _ _ _ _),_,_,_) = txDecoded
 
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (acct, _, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-        (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid $
-            if Map.member acct wdrlMap
-            then Just SelfWithdrawal
-            else Nothing
+        (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        let wdrl = getOurWdrl acct path apiDecoded
         let txCtx = defaultTransactionCtx
                 { txTimeToLive = ttl
                 , txWithdrawal = wdrl
@@ -2379,6 +2375,16 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     getOurOuts apiDecodedTx =
         let generalOuts = apiDecodedTx ^. #outputs
         in map toTxOut $ filter isOutOurs generalOuts
+
+    getOurWdrl rewardAcct path apiDecodedTx =
+        let generalWdrls = apiDecodedTx ^. #withdrawals
+            isWdrlOurs (ApiWithdrawalGeneral _ _ context) = context == Our
+        in case filter isWdrlOurs generalWdrls of
+            [ApiWithdrawalGeneral (ApiT acct, _) (Quantity amt) _] ->
+                let acct' = invariant "reward account should be the same" acct (rewardAcct ==)
+                in WithdrawalSelf acct' path (Coin $ fromIntegral amt)
+            _ ->
+                NoWithdrawal
 
 joinStakePool
     :: forall ctx s n k.
