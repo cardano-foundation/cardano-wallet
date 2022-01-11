@@ -55,12 +55,17 @@
         "plutus-ledger-api-test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."plutus-core" or (errorHandler.buildDepError "plutus-core"))
             (hsPkgs."plutus-ledger-api" or (errorHandler.buildDepError "plutus-ledger-api"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
             ];
           buildable = true;
           };
@@ -69,12 +74,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
-      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
+      rev = "4710dff2e30ce131191a6a1ccbe43595b2e3af24";
+      sha256 = "0z61mxdk6r092vblfzn81m2d9ss9iqwa1k2nsmmfyhn0q7h66yvg";
       }) // {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
-      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
+      rev = "4710dff2e30ce131191a6a1ccbe43595b2e3af24";
+      sha256 = "0z61mxdk6r092vblfzn81m2d9ss9iqwa1k2nsmmfyhn0q7h66yvg";
       };
     postUnpack = "sourceRoot+=/plutus-ledger-api; echo source root reset to \$sourceRoot";
     }

@@ -141,28 +141,23 @@
         cardano-client = ./cardano-client.nix;
         ntp-client = ./ntp-client.nix;
         ouroboros-consensus-mock = ./ouroboros-consensus-mock.nix;
-        freer-extras = ./freer-extras.nix;
-        playground-common = ./playground-common.nix;
-        plutus-chain-index = ./plutus-chain-index.nix;
-        plutus-contract = ./plutus-contract.nix;
+        plutus-benchmark = ./plutus-benchmark.nix;
         plutus-core = ./plutus-core.nix;
-        plutus-ledger = ./plutus-ledger.nix;
+        plutus-errors = ./plutus-errors.nix;
         plutus-ledger-api = ./plutus-ledger-api.nix;
-        plutus-pab = ./plutus-pab.nix;
+        plutus-metatheory = ./plutus-metatheory.nix;
         plutus-tx = ./plutus-tx.nix;
         plutus-tx-plugin = ./plutus-tx-plugin.nix;
-        plutus-use-cases = ./plutus-use-cases.nix;
-        plutus-ghc-stub = ./plutus-ghc-stub.nix;
         prettyprinter-configurable = ./prettyprinter-configurable.nix;
-        quickcheck-dynamic = ./quickcheck-dynamic.nix;
         word-array = ./word-array.nix;
+        plutus-ghc-stub = ./plutus-ghc-stub.nix;
         ekg-forward = ./ekg-forward.nix;
         cardano-config = ./cardano-config.nix;
         servant-purescript = ./servant-purescript.nix;
         Win32-network = ./Win32-network.nix;
         };
-      compiler.version = "8.10.7";
-      compiler.nix-name = "ghc8107";
+      compiler.version = "8.10.420210212";
+      compiler.nix-name = "ghc810420210212";
       };
   resolver = "lts-18.21";
   modules = [
@@ -182,5 +177,5 @@
     ({ lib, ... }:
       { planned = lib.mkOverride 900 true; })
     ];
-  compiler = "ghc-8.10.7";
+  compiler = "ghc-8.10.4-2021-02-12";
   }

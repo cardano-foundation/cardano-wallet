@@ -102,17 +102,18 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus
-  tag: 1efbb276ef1a10ca6961d0fd32e6141e9798bd11
+  tag: 4710dff2e30ce131191a6a1ccbe43595b2e3af24
   subdir:
-    freer-extras
+    plutus-benchmark
     plutus-core
-    plutus-ledger
+    plutus-errors
     plutus-ledger-api
+    plutus-metatheory
     plutus-tx
     plutus-tx-plugin
     prettyprinter-configurable
-    stubs/plutus-ghc-stub
     word-array
+    stubs/plutus-ghc-stub
 
 source-repository-package
   type: git

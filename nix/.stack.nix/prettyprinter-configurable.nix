@@ -10,7 +10,7 @@
   {
     flags = {};
     package = {
-      specVersion = "1.10";
+      specVersion = "2.4";
       identifier = {
         name = "prettyprinter-configurable";
         version = "0.1.0.0";
@@ -61,7 +61,6 @@
           };
         "prettyprinter-configurable-doctest" = {
           depends = [
-            (hsPkgs."prettyprinter-configurable" or (errorHandler.buildDepError "prettyprinter-configurable"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."doctest" or (errorHandler.buildDepError "doctest"))
             ];
@@ -72,12 +71,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
-      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
+      rev = "4710dff2e30ce131191a6a1ccbe43595b2e3af24";
+      sha256 = "0z61mxdk6r092vblfzn81m2d9ss9iqwa1k2nsmmfyhn0q7h66yvg";
       }) // {
       url = "https://github.com/input-output-hk/plutus";
-      rev = "1efbb276ef1a10ca6961d0fd32e6141e9798bd11";
-      sha256 = "1jicyk4hr8p0xksj4048gdxndrb42jz4wsnkhc3ymxbm5v6snalf";
+      rev = "4710dff2e30ce131191a6a1ccbe43595b2e3af24";
+      sha256 = "0z61mxdk6r092vblfzn81m2d9ss9iqwa1k2nsmmfyhn0q7h66yvg";
       };
     postUnpack = "sourceRoot+=/prettyprinter-configurable; echo source root reset to \$sourceRoot";
     }

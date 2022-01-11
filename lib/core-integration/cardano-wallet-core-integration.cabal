@@ -77,6 +77,8 @@ library
     , microstache
     , network-uri
     , optparse-applicative
+    , plutus-ledger-api
+    , plutus-tx-plugin
     , process
     , resourcet
     , retry

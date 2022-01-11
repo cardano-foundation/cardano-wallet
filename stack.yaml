@@ -254,23 +254,18 @@ extra-deps:
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: 1efbb276ef1a10ca6961d0fd32e6141e9798bd11
+  commit: 4710dff2e30ce131191a6a1ccbe43595b2e3af24
   subdirs:
-    - freer-extras
-    - playground-common
-    - plutus-chain-index
-    - plutus-contract
+    - plutus-benchmark
     - plutus-core
-    - plutus-ledger
+    - plutus-errors
     - plutus-ledger-api
-    - plutus-pab
+    - plutus-metatheory
     - plutus-tx
     - plutus-tx-plugin
-    - plutus-use-cases
-    - stubs/plutus-ghc-stub
     - prettyprinter-configurable
-    - quickcheck-dynamic
     - word-array
+    - stubs/plutus-ghc-stub
 
 - git: https://github.com/input-output-hk/ekg-forward
   commit: 2adc8b698443bb10154304b24f6c1d6913bb65b9
