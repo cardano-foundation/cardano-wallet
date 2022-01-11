@@ -2590,6 +2590,11 @@ components:
       description: |
         The result of signing a transaction (serialized and encoded).
 
+    ApiSignedTransactionEncoded: &ApiSignedTransactionEncoded
+      <<: *ApiSerialisedTransactionEncoded
+      description: |
+        The result of signing a transaction (serialized and encoded).
+
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
       description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
@@ -5902,7 +5907,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiSignedTransaction
+            schema: *ApiSignedTransactionEncoded
       responses: *responsesPostExternalTransaction
 
   /wallets/{walletId}/addresses:
