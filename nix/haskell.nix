@@ -289,21 +289,21 @@ let
       # Allow installation of a newer version of Win32 than what is
       # included with GHC. The packages in this list are all those
       # installed with GHC, except for Win32.
-      { nonReinstallablePkgs =
-        [ "rts" "ghc-heap" "ghc-prim" "integer-gmp" "integer-simple" "base"
-          "deepseq" "array" "ghc-boot-th" "pretty" "template-haskell"
-          # ghcjs custom packages
-          "ghcjs-prim" "ghcjs-th"
-          "ghc-boot"
-          "ghc" "array" "binary" "bytestring" "containers"
-          "filepath" "ghc-boot" "ghc-compact" "ghc-prim"
-          # "ghci" "haskeline"
-          "hpc"
-          "mtl" "parsec" "text" "transformers"
-          "xhtml"
-          # "stm" "terminfo"
-        ];
-      }
+      # { nonReinstallablePkgs =
+      #   [ "rts" "ghc-heap" "ghc-prim" "integer-gmp" "integer-simple" "base"
+      #     "deepseq" "array" "ghc-boot-th" "pretty" "template-haskell"
+      #     # ghcjs custom packages
+      #     "ghcjs-prim" "ghcjs-th"
+      #     "ghc-boot"
+      #     "ghc" "array" "binary" "bytestring" "containers"
+      #     "filepath" "ghc-boot" "ghc-compact" "ghc-prim"
+      #     # "ghci" "haskeline"
+      #     "hpc"
+      #     "mtl" "parsec" "text" "transformers"
+      #     "xhtml"
+      #     # "stm" "terminfo"
+      #   ];
+      # }
       {
         packages.cardano-wallet-core.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
         packages.cardano-config.components.library.build-tools = [ pkgs.buildPackages.buildPackages.gitMinimal ];
