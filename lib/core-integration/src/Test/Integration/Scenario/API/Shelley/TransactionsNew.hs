@@ -113,8 +113,6 @@ import Data.Aeson
     ( toJSON, (.=) )
 import Data.Function
     ( (&) )
-import Data.Functor
-    ( void )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Generics.Sum
@@ -164,7 +162,6 @@ import Test.Integration.Framework.DSL
     , rewardWallet
     , selectCoins
     , signTx
-    , submitTx
     , submitTxWithWid
     , unsafeRequest
     , verify
@@ -295,7 +292,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         -- Submit tx
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
         -- Make sure only fee is deducted from fixtureWallet
         eventually "Wallet balance is as expected" $ do
@@ -336,7 +337,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         -- Submit tx
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
         -- Make sure wallet balance is decreased by fee, since rewards = 0
         eventually "Wallet balance is decreased by fee" $ do
@@ -388,7 +393,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         -- Submit tx
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
         -- Make sure wallet balance is increased by withdrawalAmt - fee
         eventually "Wallet balance is increased by withdrawalAmt - fee" $ do
@@ -443,7 +452,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
         -- Make sure wallet balance is increased by withdrawalAmt - fee
         eventually "Wallet balance is increased by withdrawalAmt - fee" $ do
@@ -553,7 +566,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
         eventually "Target wallet balance is decreased by amt + fee" $ do
             rWa <- request @ApiWallet ctx
@@ -746,7 +763,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
         eventually "Target wallet balance is increased by 2*amt" $ do
             rWb <- request @ApiWallet ctx
@@ -872,7 +893,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
         eventually "Target wallet balance is increased by amt and assets" $ do
             rWb <- request @ApiWallet ctx
@@ -955,7 +980,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let txId = getFromResponse (#id) submittedTx
 
         outTxAmt <- eventually "Transactions is in ledger" $ do
             let linkSrc = Link.getTransaction @'Shelley wa txId
@@ -1139,7 +1169,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_01b - Validity interval with slot" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -1168,7 +1202,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - Validity interval second should be >= 0" $ \ctx -> runResourceT $ do
 
@@ -1314,7 +1352,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let apiTx = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
         -- Submit tx
-        txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let txId = getFromResponse (#id) submittedTx
 
         eventually "Metadata is on-chain" $ do
             rWa <- request @(ApiTransaction n) ctx
@@ -1820,11 +1863,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let apiTx = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        txId <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let txId = getFromResponse (#id) submittedTx
 
         waitForTxImmutability ctx
         partialTx' <- PlutusScenario.pingPong_2 $ Aeson.object
-            [ "transactionId" .= view #id txId ]
+            [ "transactionId" .= txId ]
         let toBalance' = Json (toJSON partialTx')
 
         rTx' <- request @ApiSerialisedTransaction ctx
@@ -1861,7 +1909,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
     it "TRANS_NEW_BALANCE_04a - \
         \I get proper error message when payload is not hex or base64 encoded" $
@@ -1967,7 +2019,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rDecodedTx hasExpectedFee
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
         eventually "Wallet balance is as expected" $ do
             rWa <- request @ApiWallet ctx
@@ -1998,7 +2054,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx w signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
     it "TRANS_NEW_SIGN_02 - Rejects unsigned transaction" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
@@ -2010,7 +2070,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
 
         -- Submit tx
-        void $ submitTx ctx (ApiSerialisedTransaction sealedTx) [ expectResponseCode HTTP.status500 ]
+        submittedTx <- submitTxWithWid ctx w (ApiSerialisedTransaction sealedTx)
+        verify submittedTx
+            [ expectResponseCode HTTP.status500
+            ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
         (w, _) <- rewardWallet ctx
@@ -2032,7 +2095,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             <$> request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
         -- Submit tx
-        void $ submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+        submittedTx <- submitTxWithWid ctx w signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
     it "TRANS_NEW_SIGN_04 - Sign extra required signatures" $ \ctx -> runResourceT $ do
         (w, mw) <- second (unsafeMkMnemonic @15) <$> fixtureWalletWithMnemonics (Proxy @"shelley") ctx
@@ -2071,7 +2138,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- too small, which is good enough for this test... Yet really, we
         -- should be able to construct transactions with extra signers from the
         -- API!
-        void $ submitTx ctx signedTx
+        submittedTx <- submitTxWithWid ctx w signedTx
+        verify submittedTx
             [ expectResponseCode HTTP.status500
             , expectErrorMessage "FeeTooSmallUTxO"
             ]
@@ -2158,11 +2226,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     { "transaction": #{sealedTx}
                     , "passphrase": #{fixturePassphrase}
                     }|]
-            (_, signedTx) <- Prelude.id <$>
+            (_, signedTx) <-
                 unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign
 
             -- Submit
-            txid <- submitTx ctx signedTx [ expectResponseCode HTTP.status202 ]
+            submittedTx <- submitTxWithWid ctx w signedTx
+            verify submittedTx
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
+            let txid = getFromResponse Prelude.id submittedTx
 
             let runStep = \previous step -> do
                     waitForTxImmutability ctx
@@ -2178,11 +2251,16 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             { "transaction": #{sealedTx'}
                             , "passphrase": #{fixturePassphrase}
                             }|]
-                    (_, signedTx') <- Prelude.id <$>
+                    (_, signedTx') <-
                         unsafeRequest @ApiSerialisedTransaction ctx signEndpoint toSign'
 
                     -- Submit
-                    submitTx ctx signedTx' [ expectResponseCode HTTP.status202 ]
+                    submittedTx' <- submitTxWithWid ctx w signedTx'
+                    verify submittedTx'
+                        [ expectSuccess
+                        , expectResponseCode HTTP.status202
+                        ]
+                    pure $ getFromResponse Prelude.id submittedTx'
 
             foldM_ runStep txid steps
   where

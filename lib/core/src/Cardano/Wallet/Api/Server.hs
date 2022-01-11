@@ -2389,8 +2389,8 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
 
     isInpOurs (WalletInput _) = True
     isInpOurs _ = False
-    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ (Quantity _amt) _)) =
-        (TxIn txid ix, Coin 0) -- $ fromIntegral amt)
+    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ _ _)) =
+        (TxIn txid ix, Coin 0)
     toTxInp _ = error "we should have only our inputs at this point"
     getOurInps apiDecodedTx =
         let generalInps = apiDecodedTx ^. #inputs
