@@ -85,6 +85,8 @@ let
           unit.testFlags = lib.optionals pkgs.stdenv.hostPlatform.isDarwin ["-j" "1"];
         };
 
+	packages.plutus-tx-plugin.ghcOptions = [ "-DUBXT_PATCH" ];
+
         packages.cardano-wallet.components.tests = {
           # Only run integration tests on non-PR jobsets. Note that
           # the master branch jobset will just re-use the cached Bors

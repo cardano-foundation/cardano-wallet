@@ -254,7 +254,7 @@ extra-deps:
   - ouroboros-consensus-mock
 
 - git: https://github.com/input-output-hk/plutus
-  commit: 4710dff2e30ce131191a6a1ccbe43595b2e3af24
+  commit: 103fe104e8138dcf2a8d52d5e45177bac4e396b1
   subdirs:
     - plutus-benchmark
     - plutus-core
