@@ -104,11 +104,9 @@ module Helpers
     end
 
     def wget(url, file = nil)
-      file = File.basename(url) unless file
+      file ||= File.basename(url)
       resp = HTTParty.get(url)
-      open(file, "wb") do |file|
-        file.write(resp.body)
-      end
+      File.binwrite(file, resp.body)
       puts "#{url} -> #{resp.code}"
     end
 
@@ -156,6 +154,6 @@ end
 # extend String class with hexdump methods
 class String
   def cbor_to_hex
-    bytes.map{|x| "%02x" % x}.join
+    bytes.map { |x| "%02x" % x }.join
   end
 end
