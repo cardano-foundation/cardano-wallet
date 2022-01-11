@@ -1145,6 +1145,44 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
   end
 
+  describe "E2E External transaction" do
+    it "Single output transaction" do
+      amt = 1000000
+      address = SHELLEY.addresses.list(@target_id)[0]['id']
+      target_before = get_shelley_balances(@target_id)
+      src_before = get_shelley_balances(@wid)
+
+      payment = [{ :address => address,
+                 :amount => { :quantity => amt,
+                           :unit => 'lovelace' }
+               }]
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment)
+      expect(tx_constructed).to be_correct_and_respond 202
+      expected_fee = tx_constructed['fee']['quantity']
+      decoded_fee = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])['fee']['quantity']
+      expect(expected_fee).to eq decoded_fee
+
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      expect(tx_signed).to be_correct_and_respond 202
+
+      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      expect(tx_submitted).to be_correct_and_respond 202
+      tx_id = tx_submitted['id']
+
+      wait_for_tx_in_ledger(@wid, tx_id)
+
+      target_after = get_shelley_balances(@target_id)
+      src_after = get_shelley_balances(@wid)
+      tx = SHELLEY.transactions.get(@wid, tx_id)
+      # verify actual fee the same as constructed
+      expect(expected_fee).to eq tx['fee']['quantity']
+
+      verify_ada_balance(src_after, src_before,
+                         target_after, target_before,
+                         amt, expected_fee)
+    end
+  end
+
   describe "E2E Migration" do
     it "I can migrate all funds back to fixture wallet" do
       address = SHELLEY.addresses.list(@wid)[0]['id']
