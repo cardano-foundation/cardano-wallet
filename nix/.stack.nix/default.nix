@@ -156,8 +156,8 @@
         servant-purescript = ./servant-purescript.nix;
         Win32-network = ./Win32-network.nix;
         };
-      compiler.version = "8.10.420210212";
-      compiler.nix-name = "ghc810420210212";
+      compiler.version = "8.10.7";
+      compiler.nix-name = "ghc8107";
       };
   resolver = "lts-18.21";
   modules = [
@@ -177,5 +177,5 @@
     ({ lib, ... }:
       { planned = lib.mkOverride 900 true; })
     ];
-  compiler = "ghc-8.10.4-2021-02-12";
+  compiler = "ghc-8.10.7";
   }
