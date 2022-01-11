@@ -304,7 +304,7 @@ def assets_balance(assets, options = {})
 
   asset_set = assets.map { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + options[:delta] } }.to_set
   if assets_to_check
-    asset_set.select {|a| assets_to_check.include? a.keys.first}.to_set
+    asset_set.select { |a| assets_to_check.include? a.keys.first }.to_set
   else
     asset_set
   end
@@ -369,17 +369,17 @@ def verify_asset_balance(src_after, src_before, target_after, target_before, amt
                          assets_to_check = ["#{ASSETS[0]['policy_id']}#{ASSETS[0]['asset_name']}",
                                             "#{ASSETS[1]['policy_id']}#{ASSETS[1]['asset_name']}"])
 
-  target_total_after = assets_balance(target_after['assets_total'], {assets_to_check: assets_to_check})
-  target_avail_after = assets_balance(target_after['assets_available'], {assets_to_check: assets_to_check})
-  target_total_expected = assets_balance(target_before['assets_total'], {assets_to_check: assets_to_check, delta: (+amt)})
-  target_avail_expected = assets_balance(target_before['assets_available'], {assets_to_check: assets_to_check, delta: (+amt)})
-  src_total_after = assets_balance(src_after['assets_total'], {assets_to_check: assets_to_check})
-  src_avail_after = assets_balance(src_after['assets_available'], {assets_to_check: assets_to_check})
-  src_total_expected = assets_balance(src_before['assets_total'], {assets_to_check: assets_to_check, delta: (-amt)})
-  src_avail_expected = assets_balance(src_before['assets_available'], {assets_to_check: assets_to_check, delta: (-amt)})
+  target_total_after = assets_balance(target_after['assets_total'], { assets_to_check: assets_to_check })
+  target_avail_after = assets_balance(target_after['assets_available'], { assets_to_check: assets_to_check })
+  target_total_expected = assets_balance(target_before['assets_total'], { assets_to_check: assets_to_check, delta: (+amt) })
+  target_avail_expected = assets_balance(target_before['assets_available'], { assets_to_check: assets_to_check, delta: (+amt) })
+  src_total_after = assets_balance(src_after['assets_total'], { assets_to_check: assets_to_check })
+  src_avail_after = assets_balance(src_after['assets_available'], { assets_to_check: assets_to_check })
+  src_total_expected = assets_balance(src_before['assets_total'], { assets_to_check: assets_to_check, delta: (-amt) })
+  src_avail_expected = assets_balance(src_before['assets_available'], { assets_to_check: assets_to_check, delta: (-amt) })
 
   if target_before['assets_total'] == []
-    target_balance_expected = assets_to_check.map {|a| {a => amt}}.to_set
+    target_balance_expected = assets_to_check.map { |a| { a => amt } }.to_set
     expect(target_total_after).to eq target_balance_expected
     expect(target_avail_after).to eq target_balance_expected
   else
@@ -474,7 +474,7 @@ end
 # Get all sent ADA amounts from the wallet from decoded tx outputs
 # We assume multi output transaction
 def get_sent_amts(outputs)
-  outputs.map{|o| o["amount"]["quantity"] if o["derivation_path"] == nil }
+  outputs.map { |o| o["amount"]["quantity"] if o["derivation_path"] == nil }
 end
 ##
 # The same as get_sent_amts, but we assume single output tx
