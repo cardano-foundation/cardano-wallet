@@ -143,7 +143,7 @@ import Data.String
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word64 )
+    ( Word16, Word32, Word64 )
 import Network.Socket
     ( PortNumber )
 import Numeric.Natural
@@ -212,9 +212,16 @@ genTxId :: Gen TxId
 genTxId = TxId <$> genShelleyHash
 
 genTxIndex :: Gen TxIx
-genTxIndex = do
-    (Large (n :: Word)) <- arbitrary
-    pure $ TxIx n
+genTxIndex = frequency
+    [ ( 45, do
+          -- 2 ^ 32 - 1 is the upper limit on TxIxs in the Byron era
+          n <- chooseInteger (0, fromIntegral $ ((2 :: Word32) ^ (32 :: Word32)) - 1)
+          pure $ TxIx $ fromIntegral n
+      )
+    -- Make sure to choose some small values too
+    , ( 45, (TxIx . fromIntegral) <$> chooseInteger (0, fromIntegral (maxBound :: Word16)) )
+    , ( 10, pure $ TxIx 0 )
+    ]
 
 genTxInsCollateral :: CardanoEra era -> Gen (TxInsCollateral era)
 genTxInsCollateral era =
@@ -968,7 +975,8 @@ genStakePoolMetadata =
 
         genDescription :: Gen T.Text
         genDescription = do
-            n <- arbitrary
+            -- There is a overall limit of 512 bytes for metadata
+            n <- chooseInt (0, 64)
             T.pack <$> vector n
 
         genTicker :: Gen T.Text
@@ -1227,6 +1235,7 @@ genTxBodyContent era = do
             }
 
     let witnesses = collectTxBodyScriptWitnesses txBody
+    -- No use of a script language means no need for collateral
     if Set.null (languages witnesses)
     then do
         pparams <- BuildTxWith <$> liftArbitrary genProtocolParameters

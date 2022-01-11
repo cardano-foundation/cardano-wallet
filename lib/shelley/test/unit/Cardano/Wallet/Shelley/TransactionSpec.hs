@@ -211,7 +211,8 @@ import Cardano.Wallet.Shelley.Transaction
     , _maxScriptExecutionCost
     )
 import Cardano.Wallet.Transaction
-    ( TransactionCtx (..)
+    ( ErrAssignRedeemers (..)
+    , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeUpdate (..)
     , Withdrawal (..)
@@ -1982,13 +1983,17 @@ data Ctx = Ctx (Tracer Gen WalletWorkerLog) (TransactionLayer ShelleyKey SealedT
 
 balanceTransactionSpec :: Spec
 balanceTransactionSpec = do
-    describe "balanceTransaction" $
+    describe "balanceTransaction" $ do
         -- TODO: Create a test to show that datums are passed through...
 
         -- TODO: Fix balancing issues which are presumably due to
         -- variable-length coin encoding boundary cases.
         xit "produces balanced transactions or fails"
             $ property prop_balanceTransactionBalanced
+
+        describe "when passed unresolved inputs" $ do
+            it "may fail"
+                $ property prop_balanceTransactionUnresolvedInputs
 
 -- https://mail.haskell.org/pipermail/haskell-cafe/2016-August/124742.html
 mkGen :: (QCGen -> a) -> Gen a
@@ -2225,6 +2230,43 @@ shrinkTxBody (Cardano.ShelleyTxBody e bod scripts scriptData aux val) = tail
     shrinkUpdates SNothing = []
     shrinkUpdates (SJust _) = [SNothing]
 
+-- | Tests that 'ErrAssignRedeemersUnresolvedTxIns' can in fact be returned by
+-- 'balanceTransaction'.
+prop_balanceTransactionUnresolvedInputs
+    :: Wallet'
+    -> ShowBuildable PartialTx
+    -> Property
+prop_balanceTransactionUnresolvedInputs
+    (Wallet' utxo wal pending)
+    (ShowBuildable partialTx') = withMaxSuccess 400 $
+        forAll (dropResolvedInputs partialTx') $ \(partialTx, dropped) ->
+        not (null dropped) ==>
+            forAllShow (runExceptT $ balanceTransaction
+                (Ctx nullTracer tl)
+                (delegationAddress @'Mainnet)
+                mockProtocolParametersForBalancing
+                dummyTimeInterpreter
+                (utxo, wal, pending)
+                partialTx) (show . Pretty) $ \case
+            Right _
+                -> cover 0 True "success" $ property True
+                   -- Balancing can succeed if the dropped inputs happen to be
+                   -- apart of the wallet UTxO.
+            Left (ErrBalanceTxAssignRedeemers (ErrAssignRedeemersUnresolvedTxIns _))
+                -> cover 1 True "unknown txins" True
+            Left _
+                -> property True
+  where
+    tl = testTxLayer
+    dropResolvedInputs (PartialTx tx inputs redeemers) = do
+        shouldKeep <- vectorOf (length inputs) $ frequency
+            [ (8, pure False)
+            , (2, pure True)
+            ]
+        let inputs' = map snd $ filter        fst  $ zip shouldKeep inputs
+        let dropped = map snd $ filter (not . fst) $ zip shouldKeep inputs
+        pure (PartialTx tx inputs' redeemers, dropped)
+
 -- TODO: I believe evaluateTransactionFee relies on estimating the number of
 -- witnesses required to determine the balance. We should also have a similar
 -- test which also signs.
@@ -2247,7 +2289,7 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
         forAllShow (runExceptT $ balanceTransaction
                 (Ctx nullTracer tl)
                 (delegationAddress @'Mainnet)
-                pparams
+                mockProtocolParametersForBalancing
                 dummyTimeInterpreter
                 (utxo, wal, pending)
                 partialTx) (show . Pretty) $ \case
@@ -2348,10 +2390,15 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
         in f bod
     withAlonzoBod _ _ = error "withBod: other eras are not handled yet"
 
+    (_, nodePParams) = mockProtocolParametersForBalancing
+
+
+mockProtocolParametersForBalancing
+    :: (ProtocolParameters, Cardano.ProtocolParameters)
+mockProtocolParametersForBalancing = (mockProtocolParameters, nodePParams)
+  where
     -- NOTE: We don't have a 'Cardano.ProtocolParameters -> ProtocolParameters'
     -- function. For the time being, we simply hard-code the nodePParms here.
-
-    pparams = (mockProtocolParameters, nodePParams)
     nodePParams = Cardano.ProtocolParameters
         { Cardano.protocolParamTxFeeFixed = 155381
         , Cardano.protocolParamTxFeePerByte = 44

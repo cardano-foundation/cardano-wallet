@@ -115,14 +115,14 @@ library
     , servant
     , servant-client
     , servant-server
-    , shelley-spec-ledger
-    , shelley-spec-ledger-test
     , split
     , splitmix
     , statistics
+    , stm
     , streaming-commons
     , strict-containers
     , strict-non-empty-containers
+    , strict-stm
     , string-interpolate
     , template-haskell
     , text
@@ -356,7 +356,6 @@ test-suite unit
     , plutus-ledger-api
     , pretty-simple
     , regex-pcre-builtin
-    , shelley-spec-ledger
     , OddWord
     , ouroboros-consensus
     , QuickCheck
@@ -369,7 +368,6 @@ test-suite unit
     , scrypt
     , servant
     , servant-server
-    , shelley-spec-ledger-test
     , should-not-typecheck
     , splitmix
     , strict-non-empty-containers

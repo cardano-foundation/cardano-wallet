@@ -46,6 +46,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , Property
+    , Testable
     , checkCoverage
     , counterexample
     , cover
@@ -378,12 +379,10 @@ simplifyAddress (Address addrBytes) = do
             Just $ B.runPut $ do
                 putAddressType addr
                 -- payload for pointer addr is one 28-byte bytestring followed
-                -- by three unsigned ints of variable size (in this case two
-                -- bytes each).
+                -- by three unsigned ints of variable size (in this case one
+                -- byte each).
                 putNullBytes 28
-                putNullBytes 2
-                putNullBytes 2
-                putNullBytes 2
+                putNullBytes 3
         Just addr@(EnterpriseAddress _) ->
             Just $ B.runPut $ do
                 putAddressType addr
@@ -431,18 +430,48 @@ prop_simplifyAddress_validAddress =
 
                         simplifiedAddress :: Maybe (L.Addr CC.StandardCrypto)
                         simplifiedAddress = L.deserialiseAddr simplifiedBytes
+
+                        commonErrorOutput :: Testable prop => prop -> Property
+                        commonErrorOutput prop =
+                            prop
+                            & counterexample
+                                ( "Simplified address type: "
+                                  <> show (runGetMaybe getAddressType (BL.fromStrict addrBytes))
+                                )
+                            & counterexample
+                                ( "Simplified: " <> show simplifiedAddress
+                                 <> ", bytes (hex): "
+                                 <> BS.foldr showHex "" simplifiedBytes
+                                )
+                            & counterexample
+                                ( "Original: " <> show originalAddress
+                                 <> ", bytes (hex): "
+                                 <> BS.foldr showHex "" addrBytes
+                                )
                     in
-                        isJust originalAddress === isJust simplifiedAddress
-                        & counterexample
-                            ("Simplified: " <> show simplifiedAddress <>
-                             ", bytes (hex): " <>
-                                BS.foldr showHex "" simplifiedBytes
-                            )
-                        & counterexample
-                            ("Original: " <> show originalAddress <>
-                             ", bytes (hex): " <>
-                                BS.foldr showHex "" addrBytes
-                            )
+                        case (originalAddress, simplifiedAddress) of
+                            (Nothing, _) ->
+                                False
+                                & commonErrorOutput
+                                & counterexample
+                                    ("Generator failed to generate valid address, bytes (hex): "
+                                     <> BS.foldr showHex "" addrBytes
+                                    )
+                            (_, Nothing) ->
+                                case B.runGetOrFail (L.getAddr :: B.Get (L.Addr CC.StandardCrypto)) (BL.fromStrict simplifiedBytes) of
+                                    Left e ->
+                                        False
+                                        & commonErrorOutput
+                                        & counterexample ("Failed to parse simplified address, error output was: " <> show e)
+                                    Right (remaining, offset, addrParsed) ->
+                                        False
+                                        & commonErrorOutput
+                                        & counterexample ("  Address parsed: " <> show addrParsed)
+                                        & counterexample ("  Offset: " <> show offset)
+                                        & counterexample ("  Remaining: " <> show remaining)
+                                        & counterexample ("Was able to parse simplified address, but failed to consume whole input.")
+                            (Just _, Just _) ->
+                                property True
 
 -- | Assert that if an address can be simplified, the type of the simplified
 -- address matches the type of the original address.

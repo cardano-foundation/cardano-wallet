@@ -33,7 +33,7 @@
         "distributive".flags.semigroups = true;
         "hls-module-name-plugin".revision = (((hackage."hls-module-name-plugin")."1.0.0.3").revisions).default;
         "hls-haddock-comments-plugin".revision = (((hackage."hls-haddock-comments-plugin")."1.0.0.4").revisions).default;
-        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.2").revisions).default;
+        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.3").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "hls-test-utils".revision = (((hackage."hls-test-utils")."1.1.0.2").revisions).default;
         "hls-test-utils".flags.pedantic = false;
@@ -51,7 +51,7 @@
         "stylish-haskell".revision = (((hackage."stylish-haskell")."0.13.0.0").revisions).default;
         "heapsize".revision = (((hackage."heapsize")."0.3.0.1").revisions).default;
         "psqueues".revision = (((hackage."psqueues")."0.2.7.3").revisions).default;
-        "Diff".revision = (((hackage."Diff")."0.4.0").revisions).default;
+        "Diff".revision = (((hackage."Diff")."0.4.1").revisions).default;
         "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
@@ -88,7 +88,7 @@
         "random".revision = (((hackage."random")."1.2.1").revisions).default;
         "dlist".revision = (((hackage."dlist")."1.0").revisions).default;
         "dlist".flags.werror = false;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.15.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "haddock-library".revision = (((hackage."haddock-library")."1.10.0").revisions).default;
         "entropy".revision = (((hackage."entropy")."0.4.1.7").revisions).default;
@@ -104,7 +104,7 @@
         "utf8-string".revision = (((hackage."utf8-string")."1.0.2").revisions).default;
         "process".revision = (((hackage."process")."1.6.13.2").revisions).default;
         "random-shuffle".revision = (((hackage."random-shuffle")."0.0.4").revisions).default;
-        "unagi-chan".revision = (((hackage."unagi-chan")."0.4.1.3").revisions).default;
+        "unagi-chan".revision = (((hackage."unagi-chan")."0.4.1.4").revisions).default;
         "unagi-chan".flags.compare-benchmarks = false;
         "parser-combinators".revision = (((hackage."parser-combinators")."1.3.0").revisions).default;
         "parser-combinators".flags.dev = false;
@@ -158,7 +158,7 @@
         "monad-memo".revision = (((hackage."monad-memo")."0.5.3").revisions).default;
         "prettyprinter-ansi-terminal".revision = (((hackage."prettyprinter-ansi-terminal")."1.1.3").revisions).default;
         "hls-retrie-plugin".revision = (((hackage."hls-retrie-plugin")."1.0.1.4").revisions).default;
-        "hlint".revision = (((hackage."hlint")."3.2.7").revisions).default;
+        "hlint".revision = (((hackage."hlint")."3.2.8").revisions).default;
         "hlint".flags.hsyaml = false;
         "hlint".flags.threaded = true;
         "hlint".flags.ghc-lib = false;
@@ -167,8 +167,8 @@
         "profunctors".revision = (((hackage."profunctors")."5.6.2").revisions).default;
         "optparse-simple".revision = (((hackage."optparse-simple")."0.1.1.4").revisions).default;
         "optparse-simple".flags.build-example = false;
-        "dependent-sum-template".revision = (((hackage."dependent-sum-template")."0.1.1.0").revisions).default;
-        "some".revision = (((hackage."some")."1.0.2").revisions).default;
+        "dependent-sum-template".revision = (((hackage."dependent-sum-template")."0.1.1.1").revisions).default;
+        "some".revision = (((hackage."some")."1.0.3").revisions).default;
         "some".flags.newtype-unsafe = true;
         "comonad".revision = (((hackage."comonad")."5.0.8").revisions).default;
         "comonad".flags.distributive = true;
@@ -220,7 +220,7 @@
         "primes".revision = (((hackage."primes")."0.2.1.0").revisions).default;
         "lsp-types".revision = (((hackage."lsp-types")."1.3.0.1").revisions).default;
         "exceptions".revision = (((hackage."exceptions")."0.10.4").revisions).default;
-        "ghc-trace-events".revision = (((hackage."ghc-trace-events")."0.1.2.3").revisions).default;
+        "ghc-trace-events".revision = (((hackage."ghc-trace-events")."0.1.2.4").revisions).default;
         "butcher".revision = (((hackage."butcher")."1.3.3.2").revisions).default;
         "hls-fourmolu-plugin".revision = (((hackage."hls-fourmolu-plugin")."1.0.1.2").revisions).default;
         "Cabal".revision = (((hackage."Cabal")."3.2.1.0").revisions).default;
@@ -260,7 +260,7 @@
         "monad-control".revision = (((hackage."monad-control")."1.0.3.1").revisions).default;
         "hls-plugin-api".revision = (((hackage."hls-plugin-api")."1.2.0.2").revisions).default;
         "hls-plugin-api".flags.pedantic = false;
-        "constraints-extras".revision = (((hackage."constraints-extras")."0.3.2.0").revisions).default;
+        "constraints-extras".revision = (((hackage."constraints-extras")."0.3.2.1").revisions).default;
         "constraints-extras".flags.build-readme = true;
         "tasty".revision = (((hackage."tasty")."1.4.2.1").revisions).default;
         "tasty".flags.unix = true;
@@ -333,10 +333,10 @@
         "splitmix".flags.optimised-mixer = false;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
         "filemanip".revision = (((hackage."filemanip")."0.3.6.3").revisions).default;
-        "attoparsec".revision = (((hackage."attoparsec")."0.13.2.5").revisions).default;
+        "attoparsec".revision = (((hackage."attoparsec")."0.14.3").revisions).default;
         "attoparsec".flags.developer = false;
         "conduit-extra".revision = (((hackage."conduit-extra")."1.3.5").revisions).default;
-        "algebraic-graphs".revision = (((hackage."algebraic-graphs")."0.5").revisions).default;
+        "algebraic-graphs".revision = (((hackage."algebraic-graphs")."0.6").revisions).default;
         "monad-dijkstra".revision = (((hackage."monad-dijkstra")."0.1.1.3").revisions).default;
         "uniplate".revision = (((hackage."uniplate")."1.6.13").revisions).default;
         "filepath".revision = (((hackage."filepath")."1.4.2.1").revisions).default;
@@ -362,7 +362,7 @@
         "hls-tactics-plugin".flags.pedantic = false;
         "stm".revision = (((hackage."stm")."2.5.0.1").revisions).default;
         "hls-pragmas-plugin".revision = (((hackage."hls-pragmas-plugin")."1.0.1.1").revisions).default;
-        "floskell".revision = (((hackage."floskell")."0.10.5").revisions).default;
+        "floskell".revision = (((hackage."floskell")."0.10.6").revisions).default;
         "js-flot".revision = (((hackage."js-flot")."0.8.3").revisions).default;
         "Only".revision = (((hackage."Only")."0.1").revisions).default;
         "void".revision = (((hackage."void")."0.7.3").revisions).default;

@@ -15,7 +15,7 @@
         "distributive".revision = (((hackage."distributive")."0.6.2.1").revisions).default;
         "distributive".flags.tagged = true;
         "distributive".flags.semigroups = true;
-        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.2").revisions).default;
+        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.3").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
         "indexed-traversable".revision = (((hackage."indexed-traversable")."0.1.2").revisions).default;
@@ -36,7 +36,7 @@
         "random".revision = (((hackage."random")."1.2.1").revisions).default;
         "dlist".revision = (((hackage."dlist")."1.0").revisions).default;
         "dlist".flags.werror = false;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.15.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "array".revision = (((hackage."array")."0.5.4.0").revisions).default;
         "process".revision = (((hackage."process")."1.6.13.2").revisions).default;
@@ -136,7 +136,7 @@
         "splitmix".revision = (((hackage."splitmix")."0.1.0.4").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "unix".revision = (((hackage."unix")."2.7.2.2").revisions).default;
-        "attoparsec".revision = (((hackage."attoparsec")."0.14.2").revisions).default;
+        "attoparsec".revision = (((hackage."attoparsec")."0.14.3").revisions).default;
         "attoparsec".flags.developer = false;
         "conduit-extra".revision = (((hackage."conduit-extra")."1.3.5").revisions).default;
         "filepath".revision = (((hackage."filepath")."1.4.2.1").revisions).default;

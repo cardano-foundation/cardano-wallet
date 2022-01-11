@@ -67,12 +67,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
-      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
+      rev = "1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5";
+      sha256 = "0avzyiqq0m8njd41ck9kpn992yq676b1az9xs77977h7cf85y4wm";
       }) // {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
-      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
+      rev = "1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5";
+      sha256 = "0avzyiqq0m8njd41ck9kpn992yq676b1az9xs77977h7cf85y4wm";
       };
     postUnpack = "sourceRoot+=/libs/small-steps-test; echo source root reset to \$sourceRoot";
     }

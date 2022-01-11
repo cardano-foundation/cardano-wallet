@@ -74,13 +74,15 @@ import Cardano.Binary
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Ledger.Alonzo.Tools
-    ( evaluateTransactionExecutionUnits )
+    ( BasicFailure (..), evaluateTransactionExecutionUnits )
 import Cardano.Ledger.Crypto
     ( DSIGN )
 import Cardano.Ledger.Era
     ( Crypto, Era, ValidateScript (..) )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (..) )
+import Cardano.Slotting.EpochInfo.API
+    ( hoistEpochInfo )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..), RewardAccount (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -936,31 +938,33 @@ _assignScriptRedeemers (toAlonzoPParams -> pparams) ti resolveInput redeemers tx
         -> AlonzoTx
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
-    evaluateExecutionUnits indexedRedeemers alonzoTx =
-        left ErrAssignRedeemersPastHorizon $ do
+    evaluateExecutionUnits indexedRedeemers alonzoTx = do
         let utxo = utxoFromAlonzoTx alonzoTx
         let costs = toCostModelsAsArray (Alonzo._costmdls pparams)
         let systemStart = getSystemStart ti
-        epochInfo <- toEpochInfo ti
 
-        hoistScriptFailure $ runIdentity $ runExceptT $ do
-            evaluateTransactionExecutionUnits
+        epochInfo <- hoistEpochInfo (left ErrAssignRedeemersPastHorizon . runIdentity . runExceptT)
+            <$> left ErrAssignRedeemersPastHorizon (toEpochInfo ti)
+
+        res <- evaluateTransactionExecutionUnits
                 pparams
                 alonzoTx
                 utxo
                 epochInfo
                 systemStart
                 costs
+        case res of
+            Left (UnknownTxIns ins) ->
+                Left $ ErrAssignRedeemersUnresolvedTxIns $ map fromShelleyTxIn (F.toList ins)
+            Right report ->
+                Right $ hoistScriptFailure report
       where
         hoistScriptFailure
             :: Show scriptFailure
-            => Either PastHorizonException (Map Alonzo.RdmrPtr (Either scriptFailure a))
-            -> Either PastHorizonException (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a))
-        hoistScriptFailure =
-            fmap $ Map.mapWithKey
-                (\ptr -> left $
-                    \e -> ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
-                )
+            => Map Alonzo.RdmrPtr (Either scriptFailure a)
+            -> Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a)
+        hoistScriptFailure = Map.mapWithKey $ \ptr -> left $ \e ->
+            ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
@@ -1195,8 +1199,9 @@ estimateTxCost pp skeleton =
 -- This function uses the upper bounds of CBOR serialized objects as the basis
 -- for many of its calculations. The following document is used as a reference:
 --
--- https://github.com/input-output-hk/cardano-ledger/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
--- https://github.com/input-output-hk/cardano-ledger/blob/master/shelley-ma/shelley-ma-test/cddl-files/shelley-ma.cddl
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley/test-suite/cddl-files/shelley.cddl
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/shelley-ma/test-suite/cddl-files/shelley-ma.cddl
+-- https://github.com/input-output-hk/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl
 --
 estimateTxSize :: TxSkeleton -> TxSize
 estimateTxSize skeleton =

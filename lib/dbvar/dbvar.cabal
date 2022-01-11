@@ -41,6 +41,7 @@ library
     , safe
     , say
     , semigroupoids
+    , stm
     , text
     , transformers
   hs-source-dirs:

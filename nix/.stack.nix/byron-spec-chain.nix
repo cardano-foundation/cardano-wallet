@@ -29,6 +29,7 @@
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."bimap" or (errorHandler.buildDepError "bimap"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+          (hsPkgs."cardano-data" or (errorHandler.buildDepError "cardano-data"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
           (hsPkgs."goblins" or (errorHandler.buildDepError "goblins"))
@@ -46,6 +47,7 @@
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."cardano-data" or (errorHandler.buildDepError "cardano-data"))
             (hsPkgs."data-ordlist" or (errorHandler.buildDepError "data-ordlist"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
             (hsPkgs."microlens" or (errorHandler.buildDepError "microlens"))
@@ -64,12 +66,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
-      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
+      rev = "1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5";
+      sha256 = "0avzyiqq0m8njd41ck9kpn992yq676b1az9xs77977h7cf85y4wm";
       }) // {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
-      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
+      rev = "1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5";
+      sha256 = "0avzyiqq0m8njd41ck9kpn992yq676b1az9xs77977h7cf85y4wm";
       };
     postUnpack = "sourceRoot+=/eras/byron/chain/executable-spec; echo source root reset to \$sourceRoot";
     }

@@ -19,12 +19,18 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
+
 module Demo.Database where
 
 import Prelude
 
 import Conduit
     ( ResourceT )
+import Control.Applicative
+    ( Alternative )
+import Control.Monad
+    ( MonadPlus )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM (..) )
 import Control.Monad.Class.MonadThrow
@@ -35,7 +41,7 @@ import Control.Monad.Class.MonadThrow
     , MonadThrow (..)
     )
 import Control.Monad.IO.Class
-    ( liftIO )
+    ( MonadIO (..) )
 import Control.Monad.Logger
     ( NoLoggingT )
 import Data.Chain
@@ -53,7 +59,7 @@ import Data.Word
 import Database.Persist.Delta
     ( newEntityStore, newSqlStore )
 import Database.Persist.Sql
-    ( SqlPersistM )
+    ( SqlPersistM, SqlPersistT )
 import Database.Persist.TH
     ( mkMigrate
     , mkPersist
@@ -69,7 +75,9 @@ import GHC.Generics
 import Say
     ( sayShow )
 
+import qualified Control.Concurrent.STM.TVar as STM
 import qualified Control.Monad.Catch as ResourceT
+import qualified Control.Monad.STM as STM
 import qualified Data.Chain as Chain
 import qualified Database.Persist.Sqlite as Persist
 import qualified Database.Schema as Sql
@@ -133,7 +141,7 @@ addressChainIntoTable
     :: Embedding
         (DeltaChain Node [AddressInPool])
         [DeltaDB Int SeqStateAddress]
-addressChainIntoTable = 
+addressChainIntoTable =
     embedIso addressDBIso `o` (tableIntoDatabase `o` chainIntoTable Pile getPile)
 
 newStoreAddress :: SqlPersistM StoreAddress
@@ -142,10 +150,26 @@ newStoreAddress = embedStore addressChainIntoTable =<< newEntityStore
 {-------------------------------------------------------------------------------
     Store using SQL row types
 -------------------------------------------------------------------------------}
+
 -- | 'MonadSTM' instance for the 'SqlPersistM' monad.
-instance MonadSTM (NoLoggingT (ResourceT IO)) where
-    type STM (NoLoggingT (ResourceT IO)) = STM IO
-    atomically = liftIO . atomically
+--
+-- NB. This is missing most of the STM methods except for a handful of TVar
+-- ones!
+instance MonadSTM (SqlPersistT (NoLoggingT (ResourceT IO))) where
+    type STM (SqlPersistT (NoLoggingT (ResourceT IO))) = WrapSTM
+    type TVar (SqlPersistT (NoLoggingT (ResourceT IO))) = TVar IO
+    atomically = liftIO . STM.atomically . unWrapSTM
+    newTVar = WrapSTM . STM.newTVar
+    readTVar = WrapSTM . STM.readTVar
+    writeTVar = \v -> WrapSTM . STM.writeTVar v
+    modifyTVar'    = \v -> WrapSTM . STM.modifyTVar' v
+
+-- | Helper type for the above instance.
+newtype WrapSTM a = WrapSTM { unWrapSTM :: STM.STM a }
+    deriving (Applicative, Functor, Monad)
+
+deriving instance MonadPlus WrapSTM
+deriving instance Alternative WrapSTM
 
 -- "Exceptional monads" instances for the 'SqlPersistM' monad.
 instance MonadEvaluate (NoLoggingT (ResourceT IO)) where

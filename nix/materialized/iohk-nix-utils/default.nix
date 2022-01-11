@@ -8,7 +8,7 @@
         "distributive".revision = (((hackage."distributive")."0.6.2.1").revisions).default;
         "distributive".flags.tagged = true;
         "distributive".flags.semigroups = true;
-        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.2").revisions).default;
+        "streaming-commons".revision = (((hackage."streaming-commons")."0.2.2.3").revisions).default;
         "streaming-commons".flags.use-bytestring-builder = false;
         "pretty".revision = (((hackage."pretty")."1.1.3.6").revisions).default;
         "indexed-traversable".revision = (((hackage."indexed-traversable")."0.1.2").revisions).default;
@@ -24,7 +24,7 @@
         "bifunctors".flags.tagged = true;
         "bifunctors".flags.semigroups = true;
         "random".revision = (((hackage."random")."1.2.1").revisions).default;
-        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.15.0").revisions).default;
+        "unordered-containers".revision = (((hackage."unordered-containers")."0.2.16.0").revisions).default;
         "unordered-containers".flags.debug = false;
         "system-filepath".revision = (((hackage."system-filepath")."0.4.14").revisions).default;
         "megaparsec".revision = (((hackage."megaparsec")."9.2.0").revisions).default;
@@ -52,7 +52,7 @@
         "hsc2hs".revision = (((hackage."hsc2hs")."0.68.8").revisions).default;
         "hsc2hs".flags.in-ghc-tree = false;
         "profunctors".revision = (((hackage."profunctors")."5.6.2").revisions).default;
-        "managed".revision = (((hackage."managed")."1.0.8").revisions).default;
+        "managed".revision = (((hackage."managed")."1.0.9").revisions).default;
         "comonad".revision = (((hackage."comonad")."5.0.8").revisions).default;
         "comonad".flags.distributive = true;
         "comonad".flags.containers = true;

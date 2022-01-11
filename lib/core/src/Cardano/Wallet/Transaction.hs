@@ -330,6 +330,8 @@ data ErrAssignRedeemers
     -- ^ Redeemer's data isn't a valid Plutus' data.
     | ErrAssignRedeemersPastHorizon PastHorizonException
     -- ^ Evaluating the Plutus script failed past the visible horizon.
+    | ErrAssignRedeemersUnresolvedTxIns [TxIn]
+    -- ^ The transaction contains inputs which couldn't be resolved.
     deriving (Generic, Eq, Show)
 
 -- | Possible signing error

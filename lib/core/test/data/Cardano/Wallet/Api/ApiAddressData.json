@@ -12,17 +12,18 @@
                 "all": [
                     {
                         "some": {
+                            "at_least": 1,
                             "from": [
                                 "stake_shared_vkh1zdw0qv982466mp7kcdg558kdm6pxumzmdjxmxghjlsnqkx7mf7h",
                                 {
                                     "active_until": 6
                                 }
-                            ],
-                            "at_least": 2
+                            ]
                         }
                     },
                     {
                         "some": {
+                            "at_least": 1,
                             "from": [
                                 "stake_shared_vkh18zpz9t5taktwudqv07w9cqfkqvxsc900rntj0frx2n3kwzk80g7",
                                 "stake_shared_vkh1dqyg33rcaxkmeclv2a0wtg9lgevn4h4r4r742rakgyd9uajzhsc",
@@ -39,12 +40,12 @@
                                 {
                                     "active_from": 4
                                 }
-                            ],
-                            "at_least": 7
+                            ]
                         }
                     },
                     {
                         "some": {
+                            "at_least": 4,
                             "from": [
                                 {
                                     "active_from": 10
@@ -70,12 +71,12 @@
                                 {
                                     "active_until": 6
                                 }
-                            ],
-                            "at_least": 1
+                            ]
                         }
                     },
                     {
                         "some": {
+                            "at_least": 1,
                             "from": [
                                 {
                                     "active_from": 10
@@ -105,8 +106,7 @@
                                 {
                                     "active_from": 3
                                 }
-                            ],
-                            "at_least": 1
+                            ]
                         }
                     },
                     {
@@ -149,6 +149,7 @@
                     },
                     {
                         "some": {
+                            "at_least": 3,
                             "from": [
                                 {
                                     "active_from": 5
@@ -172,8 +173,7 @@
                                 {
                                     "active_from": 2
                                 }
-                            ],
-                            "at_least": 7
+                            ]
                         }
                     }
                 ]
@@ -182,6 +182,7 @@
         {
             "payment": {
                 "some": {
+                    "at_least": 2,
                     "from": [
                         {
                             "any": [
@@ -193,13 +194,13 @@
                         },
                         {
                             "some": {
+                                "at_least": 2,
                                 "from": [
                                     "addr_shared_vkh1554szwvqgvnq8m23c790arwz7q6yxpef3uv2l79gc8qpgkq395h",
                                     {
                                         "active_from": 5
                                     }
-                                ],
-                                "at_least": 2
+                                ]
                             }
                         },
                         {
@@ -234,6 +235,7 @@
                         },
                         {
                             "some": {
+                                "at_least": 5,
                                 "from": [
                                     {
                                         "active_until": 1
@@ -254,12 +256,10 @@
                                     {
                                         "active_until": 0
                                     }
-                                ],
-                                "at_least": 3
+                                ]
                             }
                         }
-                    ],
-                    "at_least": 3
+                    ]
                 }
             },
             "stake": "addr_vk1zze33jtekh99mds8p9lqkesnyjtqjy7dwg52cwfgyywpy75l6epqrcwvcf"
@@ -274,6 +274,7 @@
         {
             "stake": {
                 "some": {
+                    "at_least": 3,
                     "from": [
                         {
                             "all": [
@@ -328,16 +329,17 @@
                         },
                         {
                             "some": {
+                                "at_least": 1,
                                 "from": [
                                     {
                                         "active_from": 10
                                     }
-                                ],
-                                "at_least": 1
+                                ]
                             }
                         },
                         {
                             "some": {
+                                "at_least": 5,
                                 "from": [
                                     "addr_shared_vkh1nyk3qm8mac9nppkmyygp423vcaxcrcm33e4ehd3g5fjwycphsun",
                                     "stake_shared_vkh17msv896wnnf22ga9zq8taar7am25pdens672ucgqpr3s2m7cqxj",
@@ -356,8 +358,7 @@
                                     {
                                         "active_from": 6
                                     }
-                                ],
-                                "at_least": 7
+                                ]
                             }
                         },
                         {
@@ -397,6 +398,7 @@
                         },
                         {
                             "some": {
+                                "at_least": 3,
                                 "from": [
                                     {
                                         "active_from": 0
@@ -429,12 +431,10 @@
                                     {
                                         "active_until": 7
                                     }
-                                ],
-                                "at_least": 10
+                                ]
                             }
                         }
-                    ],
-                    "at_least": 5
+                    ]
                 }
             },
             "validation": "recommended"
@@ -448,6 +448,7 @@
             "payment": "addr_vk1jcggs0nlrv3y237zwqlyss8xh3tvfy3j84y5qk2egasyzska85aq58aldg",
             "stake": {
                 "some": {
+                    "at_least": 6,
                     "from": [
                         "stake_shared_vkh19vnlr8g8cemz0x52jzk4lyxk7y4mmlgp657gravdt5wa7kqzeul",
                         {
@@ -467,8 +468,7 @@
                         {
                             "active_from": 2
                         }
-                    ],
-                    "at_least": 7
+                    ]
                 }
             },
             "validation": "recommended"
@@ -515,6 +515,7 @@
                     },
                     {
                         "some": {
+                            "at_least": 9,
                             "from": [
                                 "stake_shared_vkh1w3lk6hvralxn6689qeeqn7u5l2jj9mmnsfhjj98l457775gnaj0",
                                 {
@@ -537,8 +538,7 @@
                                 {
                                     "active_from": 6
                                 }
-                            ],
-                            "at_least": 1
+                            ]
                         }
                     },
                     {

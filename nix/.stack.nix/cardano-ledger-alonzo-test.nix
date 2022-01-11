@@ -37,6 +37,7 @@
           (hsPkgs."cardano-ledger-pretty" or (errorHandler.buildDepError "cardano-ledger-pretty"))
           (hsPkgs."cardano-ledger-shelley-ma-test" or (errorHandler.buildDepError "cardano-ledger-shelley-ma-test"))
           (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
+          (hsPkgs."cardano-protocol-tpraos" or (errorHandler.buildDepError "cardano-protocol-tpraos"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
@@ -46,7 +47,7 @@
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."cardano-ledger-shelley-test" or (errorHandler.buildDepError "cardano-ledger-shelley-test"))
           (hsPkgs."cardano-ledger-shelley" or (errorHandler.buildDepError "cardano-ledger-shelley"))
-          (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
+          (hsPkgs."set-algebra" or (errorHandler.buildDepError "set-algebra"))
           (hsPkgs."strict-containers" or (errorHandler.buildDepError "strict-containers"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           ];
@@ -91,12 +92,12 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
-      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
+      rev = "1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5";
+      sha256 = "0avzyiqq0m8njd41ck9kpn992yq676b1az9xs77977h7cf85y4wm";
       }) // {
       url = "https://github.com/input-output-hk/cardano-ledger";
-      rev = "bf008ce028751cae9fb0b53c3bef20f07c06e333";
-      sha256 = "0my3801w1vinc0kf5yh9lxl6saqxgwm6ccg0vvzi104pafcwwcqx";
+      rev = "1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5";
+      sha256 = "0avzyiqq0m8njd41ck9kpn992yq676b1az9xs77977h7cf85y4wm";
       };
     postUnpack = "sourceRoot+=/eras/alonzo/test-suite; echo source root reset to \$sourceRoot";
     }
