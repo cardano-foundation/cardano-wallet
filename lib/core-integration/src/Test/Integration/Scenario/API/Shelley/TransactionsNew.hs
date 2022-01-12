@@ -141,6 +141,8 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , arbitraryStake
     , delegating
+    , emptyIcarusWallet
+    , emptyRandomWallet
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -167,6 +169,7 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , waitForTxImmutability
+    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg403Collateral
@@ -176,6 +179,7 @@ import Test.Integration.Framework.TestData
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
     , errMsg404NoSuchPool
+    , errMsg404NoWallet
     )
 import UnliftIO.Exception
     ( fromEither )
@@ -2143,6 +2147,73 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status500
             , expectErrorMessage "FeeTooSmallUTxO"
             ]
+
+    describe "TRANS_NEW_SUBMIT_01 - Submitting on foreign wallet is forbidden" $ do
+        let scenarios =
+                  [ ( "empty", emptyWallet )
+                  , ( "fixture", fixtureWallet )
+                  ]
+        forM_ scenarios $ \(title, foreignWallet) -> it title $ \ctx -> runResourceT $ do
+            wa <- fixtureWallet ctx
+            wb <- foreignWallet ctx
+
+            -- Construct tx
+            payload <- mkTxPayload ctx wb $ minUTxOValue (_mainEra ctx)
+            let constructEndpoint = Link.createUnsignedTransaction @'Shelley wa
+            sealedTx <- getFromResponse #transaction <$>
+                request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
+
+            -- Sign tx
+            let toSign = Json [json|
+                    { "transaction": #{sealedTx}
+                    , "passphrase": #{fixturePassphrase}
+                    }|]
+            let signEndpoint = Link.signTransaction @'Shelley wa
+            signedTx <- getFromResponse Prelude.id <$>
+                request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+
+            -- Submit tx (from wb)
+            submittedTx <- submitTxWithWid ctx wb signedTx
+            verify submittedTx
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage "Transaction cannot be submitted as it is foreign to\
+                                     \ this wallet. Please submit it from the wallet it belongs to."
+                ]
+
+    describe "TRANS_NEW_SUBMIT_02 - Submitting on foreign Byron wallet is forbidden" $ do
+        let scenarios =
+                  [ ( "Byron random", emptyRandomWallet )
+                  , ( "Byron icarus", emptyIcarusWallet )
+                  ]
+        forM_ scenarios $ \(title, foreignByronWallet) -> it title $ \ctx -> runResourceT $ do
+            wa <- fixtureWallet ctx
+            wb <- foreignByronWallet ctx
+            let wid = wb ^. walletId
+
+            -- Construct tx
+            payload <- mkTxPayload ctx wa $ minUTxOValue (_mainEra ctx)
+            let constructEndpoint = Link.createUnsignedTransaction @'Shelley wa
+            sealedTx <- getFromResponse #transaction <$>
+                request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
+
+            -- Sign tx
+            let toSign = Json [json|
+                    { "transaction": #{sealedTx}
+                    , "passphrase": #{fixturePassphrase}
+                    }|]
+            let signEndpoint = Link.signTransaction @'Shelley wa
+            signedTx <- getFromResponse Prelude.id <$>
+                request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+
+            -- Submit tx (from wb)
+            let submitEndpoint = ("POST", "v2/wallets/" <> wid <> "/transactions-submit")
+            let submitPayload = Json $ Aeson.toJSON signedTx
+            submittedTx <- request @ApiTxId ctx submitEndpoint Default submitPayload
+
+            verify submittedTx
+                [ expectResponseCode HTTP.status404
+                , expectErrorMessage (errMsg404NoWallet wid)
+                ]
 
     describe "Plutus scenarios" $ do
         let scenarios =
