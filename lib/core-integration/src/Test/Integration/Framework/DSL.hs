@@ -2304,11 +2304,7 @@ submitTxWithWid
 submitTxWithWid ctx w tx = do
     let submitEndpoint = Link.submitTransaction @'Shelley w
     let payload = Json $ Aeson.toJSON tx
-    let headers = Headers
-            [ ("Content-Type", "application/json")
-            , ("Accept", "application/json")
-            ]
-    request @ApiTxId ctx submitEndpoint headers payload
+    request @ApiTxId ctx submitEndpoint Default payload
 
 getWallet
     :: forall w m.

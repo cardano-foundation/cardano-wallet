@@ -24,6 +24,9 @@ module Test.Integration.Plutus
     , withdrawScript_1
 
     , currencyTx
+
+    -- utils
+    , toHex
     ) where
 
 {- HLINT ignore "Avoid restricted qualification" -}

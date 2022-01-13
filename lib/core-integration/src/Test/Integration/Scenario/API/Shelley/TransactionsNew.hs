@@ -2215,6 +2215,36 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectErrorMessage (errMsg404NoWallet wid)
                 ]
 
+    it "TRANS_NEW_SUBMIT_03 - Can submit transaction encoded in base16" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+
+        -- Construct tx
+        payload <- mkTxPayload ctx wa $ minUTxOValue (_mainEra ctx)
+        let constructEndpoint = Link.createUnsignedTransaction @'Shelley wa
+        sealedTx <- getFromResponse #transaction <$>
+            request @(ApiConstructTransaction n) ctx constructEndpoint Default payload
+
+        -- Sign tx
+        let toSign = Json [json|
+                { "transaction": #{sealedTx}
+                , "passphrase": #{fixturePassphrase}
+                }|]
+        let signEndpoint = Link.signTransaction @'Shelley wa
+        signedTx <- getFromResponse #transaction <$>
+            request @ApiSerialisedTransaction ctx signEndpoint Default toSign
+        let signedTxHex = PlutusScenario.toHex $ serialisedTx $ getApiT signedTx
+
+        -- Submit tx
+        let submitEndpoint = Link.submitTransaction @'Shelley wa
+        let toSend = Json [json|
+                { "transaction": #{signedTxHex}
+                }|]
+        submittedTx <- request @ApiTxId ctx submitEndpoint Default toSend
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
     describe "Plutus scenarios" $ do
         let scenarios =
                 [ ( "ping-pong"
