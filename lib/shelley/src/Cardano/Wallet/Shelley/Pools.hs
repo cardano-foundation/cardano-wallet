@@ -157,6 +157,8 @@ import Data.Word
     ( Word64 )
 import Fmt
     ( fixedF, pretty )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
@@ -295,7 +297,12 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} mkCacheWorker restartSyncThread = 
         sortByReward
             :: RandomGen g => g -> [Api.ApiStakePool] -> [Api.ApiStakePool]
         sortByReward seed = sortRandomOn seed (Down . rewards)
-            where rewards = view (#metrics . #nonMyopicMemberRewards)
+          where
+            rewards :: Api.ApiStakePool -> (Quantity "lovelace" Natural, Double)
+            rewards pool =
+                ( view (#metrics . #nonMyopicMemberRewards) pool
+                , view (#metrics . #desirabilityScore) pool
+                )
 
     _forceMetadataGC :: IO ()
     _forceMetadataGC = do
