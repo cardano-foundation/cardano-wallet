@@ -797,7 +797,7 @@ prop_rollbackCheckpoint db@DBLayer{..} (InitialCheckpoint cp0) (MockChain chain)
     cps :: [Wallet s]
     cps = flip unfoldr (chain, cp0) $ \case
         ([], _) -> Nothing
-        (b:q, cp) -> let cp' = snd $ applyBlock b cp in Just (cp', (q, cp'))
+        (b:q, cp) -> let cp' = snd . snd $ applyBlock b cp in Just (cp', (q, cp'))
 
     setup wid meta = run $ do
         cleanDB db

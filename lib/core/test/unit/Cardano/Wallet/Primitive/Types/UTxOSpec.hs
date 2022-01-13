@@ -13,14 +13,25 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( Parity (..), addressParity, coarbitraryAddress )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( mockHash )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn )
+    ( TxIn (..), TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( coarbitraryTxIn )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( UTxO (..), dom, filterByAddress, filterByAddressM, isSubsetOf )
+    ( UTxO (..)
+    , dom
+    , excludingD
+    , filterByAddress
+    , filterByAddressM
+    , isSubsetOf
+    , receiveD
+    )
 import Cardano.Wallet.Primitive.Types.UTxO.Gen
     ( genUTxO, shrinkUTxO )
+import Data.Delta
+    ( apply )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
@@ -50,6 +61,10 @@ spec :: Spec
 spec =
     describe "Cardano.Wallet.Primitive.Types.UTxOSpec" $ do
 
+    parallel $ describe "delta encoding" $ do
+        it "DeltaUTXO is a semigroup compatible with `apply`" $
+            property prop_deltaUTxO_semigroup_apply
+
     parallel $ describe "filtering and partitioning" $ do
 
         it "prop_filter_disjoint" $
@@ -77,6 +92,27 @@ spec =
             property prop_filterByAddress_filterByAddressM
         it "filterByAddress is always subset" $
             property prop_filterByAddress_isSubset
+
+prop_deltaUTxO_semigroup_apply :: Property
+prop_deltaUTxO_semigroup_apply = 
+        delta2 `apply` (delta1 `apply` utxo0)
+    ===
+        (delta2 <> delta1) `apply` utxo0
+  where
+    -- As the functions in 'DeltaUTxO' are implemented in terms of set
+    -- operations, we only have to test a Venn diagram using few elements.
+    utxo0  = mkUTxOs ["a0","a1","a2"]
+    delta1 = mkDelta ["a1"] ["b1","b2"]
+    delta2 = mkDelta ["a2","b2"] ["c2"]
+
+    names = Map.fromList $ zip ["a0","a1","a2","b1","b2","c2" :: String] [0..] 
+    mkTxIn name = TxIn (mockHash name) (names Map.! name)
+    mkUTxO ix = UTxO $ Map.fromList
+        [(mkTxIn ix, TxOut (Address "TEST") mempty)]
+    mkUTxOs = mconcat . map mkUTxO
+    mkDelta ex re =
+        fst (excludingD (mkUTxOs ex) $ Set.fromList (map mkTxIn ex))
+        <> fst (receiveD mempty $ mkUTxOs re)
 
 --------------------------------------------------------------------------------
 -- Filtering and partitioning

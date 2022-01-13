@@ -1021,7 +1021,8 @@ restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomic
         , pretty (header (NE.head blocks))
         ]
 
-    let (filteredBlocks, cps) = NE.unzip $ applyBlocks @s blocks cp0
+    let (filteredBlocks, cps') = NE.unzip $ applyBlocks @s blocks cp0
+        cps = NE.map snd cps'
     let slotPoolDelegations =
             [ (slotNo, cert)
             | let slots = view #slotNo . view #header <$> blocks

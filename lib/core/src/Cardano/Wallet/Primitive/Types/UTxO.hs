@@ -16,35 +16,42 @@
 --
 module Cardano.Wallet.Primitive.Types.UTxO
     (
-    -- * UTxO types
+    -- * UTxO
       UTxO (..)
-    , UTxOStatistics (..)
-
-    -- * Auxiliary types
-    , BoundType
     , Dom (..)
-    , HistogramBar (..)
 
-    -- * Functions
+    , null
+    , size
     , balance
-    , computeStatistics
-    , computeUtxoStatistics
-    , difference
-    , disjoint
-    , excluding
     , isSubsetOf
     , empty
-    , null
-    , log10
+    , disjoint
+    , excluding
     , restrictedBy
     , restrictedTo
-    , size
+    , difference
+    , partition
     , lookup
     , filter
     , filterByAddressM
     , filterByAddress
-    , partition
     , toList
+
+    -- * UTxO delta encoding
+    , DeltaUTxO
+    , excluded
+    , received
+    , excludingD
+    , receiveD
+
+    -- * UTxO Statistics
+    , UTxOStatistics (..)
+    , BoundType
+    , HistogramBar (..)
+
+    , computeStatistics
+    , computeUtxoStatistics
+    , log10
     ) where
 
 import Prelude hiding
@@ -60,6 +67,8 @@ import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
     ( bimap, first )
+import Data.Delta
+    ( Delta (..) )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
@@ -166,13 +175,10 @@ size :: UTxO -> Int
 size (UTxO u) = Map.size u
 
 -- | Filters a UTxO set according to a condition.
---
 filter :: (TxIn -> Bool) -> UTxO -> UTxO
 filter f (UTxO u) = UTxO $ Map.filterWithKey (const . f) u
 
 -- | Lookup an input in the UTXO
---
---
 lookup :: TxIn -> UTxO -> Maybe TxOut
 lookup i (UTxO u) = Map.lookup i u
 
@@ -204,6 +210,8 @@ filterByAddress f = runIdentity . filterByAddressM (pure . f)
 
 -- | Partitions a UTxO set according to a condition.
 --
+-- > filter p a == a && filter (not . p) b == b
+-- >   where (a,b) = partition p utxo
 partition :: (TxIn -> Bool) -> UTxO -> (UTxO, UTxO)
 partition f (UTxO u) = bimap UTxO UTxO $ Map.partitionWithKey (const . f) u
 
@@ -211,6 +219,52 @@ partition f (UTxO u) = bimap UTxO UTxO $ Map.partitionWithKey (const . f) u
 --
 toList :: UTxO -> [(TxIn, TxOut)]
 toList = Map.toList . unUTxO
+
+{-------------------------------------------------------------------------------
+    Delta encodings of UTxO
+-------------------------------------------------------------------------------}
+-- | Efficient delta encoding for 'UTxO'.
+data DeltaUTxO = DeltaUTxO
+    { excluded :: !(Set TxIn) -- ^ First exclude these inputs
+    , received :: !UTxO       -- ^ Then receive these additional outputs.
+    } deriving (Generic, Eq, Show)
+
+instance Delta DeltaUTxO where
+    type Base DeltaUTxO = UTxO
+    du `apply` u = (u `excluding` excluded du) <> received du
+
+-- | Left argument is applied /after/ right argument.
+instance Semigroup DeltaUTxO where
+    db <> da = DeltaUTxO
+        { excluded = excluded da <> excluded'db
+        , received = received'da <> received db
+        }
+      where
+        received'da = received da `excluding` excluded db
+        excluded'db = excluded db `excludingS` received da
+
+-- | Exclude the inputs of a 'UTxO' from a 'Set' of inputs.
+excludingS :: Set TxIn -> UTxO -> Set TxIn 
+excludingS a (UTxO b) = Set.filter (not . (`Map.member` b)) a
+
+-- | Restrict a 'Set' of inputs by the inputs of a 'UTxO'.
+restrictedByS :: Set TxIn -> UTxO -> Set TxIn
+restrictedByS a (UTxO b) = Set.filter (`Map.member` b) a
+
+instance Monoid DeltaUTxO where
+    mempty = DeltaUTxO { excluded = mempty, received = mempty }
+
+-- | Exclude a set of transaction inputs, typically because we spend them.
+excludingD :: UTxO -> Set TxIn -> (DeltaUTxO, UTxO)
+excludingD u ins = (du, u `excluding` spent)
+  where
+    spent = ins `restrictedByS` u
+    du = DeltaUTxO { excluded = spent, received = mempty }
+
+-- | Receive additional 'UTxO' / union.
+receiveD :: UTxO -> UTxO -> (DeltaUTxO, UTxO)
+receiveD a b = (da, a <> b)
+  where da = DeltaUTxO { excluded = mempty, received = b }
 
 --------------------------------------------------------------------------------
 -- UTxO Statistics

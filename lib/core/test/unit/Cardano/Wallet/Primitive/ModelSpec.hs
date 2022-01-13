@@ -313,7 +313,7 @@ prop_applyBlockBasic s =
     prop =
         let
             (_, cp0) = initWallet @_ block0 s
-            wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 blockchain
+            wallet = foldl (\cp b -> snd . snd $ applyBlock b cp) cp0 blockchain
             utxo = totalUTxO mempty wallet
             utxo' = evalState (foldM (flip updateUTxO) mempty blockchain) s
         in
@@ -328,7 +328,8 @@ prop_applyBlockTxHistoryIncoming s =
   where
     (_, cp0) = initWallet @_ block0 s
     bs = NE.fromList blockchain
-    (filteredBlocks, cps) = NE.unzip $ applyBlocks bs cp0
+    (filteredBlocks, cps') = NE.unzip $ applyBlocks bs cp0
+    cps = NE.map snd cps'
     txs = fold $ (view #transactions) <$> filteredBlocks
     s' = getState $ NE.last cps
     isIncoming (_, m) = direction m == Incoming
@@ -343,7 +344,7 @@ prop_applyBlockCurrentTip (ApplyBlock s _ b) =
     property $ currentTip wallet' > currentTip wallet
   where
     (_, wallet) = initWallet @_ block0 s
-    wallet' = snd $ applyBlock b wallet
+    wallet' = snd $ snd $ applyBlock b wallet
 
 -- | applyBlocks increases the block height.
 prop_applyBlocksBlockHeight :: WalletState -> Positive Int -> Property
@@ -353,7 +354,7 @@ prop_applyBlocksBlockHeight s (Positive n) =
   where
     bs = NE.fromList (take n blockchain)
     (_, wallet) = initWallet block0 s
-    wallet' = NE.last $ snd <$> applyBlocks bs wallet
+    wallet' = NE.last $ snd . snd <$> applyBlocks bs wallet
     bh = unQuantity . blockHeight . currentTip
     unQuantity (Quantity a) = a
 
@@ -753,7 +754,8 @@ prop_applyOurTxToUTxO_allOurs slotNo blockHeight tx utxo =
     haveResult :: Bool
     haveResult = isJust maybeResult
     maybeResult :: Maybe UTxO
-    maybeResult = snd <$> applyOurTxToUTxO slotNo blockHeight AllOurs tx utxo
+    maybeResult = get <$> applyOurTxToUTxO slotNo blockHeight AllOurs tx utxo
+      where get (_,_,a) = a
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) AllOurs
 
@@ -790,7 +792,8 @@ prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
     haveResult :: Bool
     haveResult = isJust maybeResult
     maybeResult :: Maybe UTxO
-    maybeResult = snd <$> applyOurTxToUTxO slotNo blockHeight ourState tx utxo
+    maybeResult = get <$> applyOurTxToUTxO slotNo blockHeight ourState tx utxo
+      where get (_,_,a) = a
     shouldHaveResult :: Bool
     shouldHaveResult = evalState (isOurTx tx utxo) ourState
 
@@ -801,7 +804,7 @@ prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
 {- HLINT ignore prop_discoverAddresses "Avoid lambda using `infix`" -}
 prop_discoverAddresses :: ApplyBlock -> Property
 prop_discoverAddresses (ApplyBlock s utxo block) =
-    discoverAddresses block s
+    snd (discoverAddresses block s)
     ===
     execState (mapM (\tx -> isOurTx tx utxo) txs) s
   where
@@ -1005,7 +1008,7 @@ instance Arbitrary (WithPending WalletState) where
     arbitrary = do
         (_, cp0) <- initWallet @_ block0 <$> arbitrary
         subChain <- flip take blockchain <$> choose (1, length blockchain)
-        let wallet = foldl (\cp b -> snd $ applyBlock b cp) cp0 subChain
+        let wallet = foldl (\cp b -> snd . snd $ applyBlock b cp) cp0 subChain
         rewards <- Coin <$> oneof [pure 0, chooseNatural (1, 10000)]
         pending <- genPendingTx (totalUTxO Set.empty wallet) rewards
         pure $ WithPending wallet pending rewards

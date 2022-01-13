@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -87,15 +88,22 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
-    ( Dom (..), UTxO (..), balance, excluding )
+    ( DeltaUTxO
+    , Dom (..)
+    , UTxO (..)
+    , balance
+    , excluding
+    , excludingD
+    , receiveD
+    )
 import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, state )
+import Data.Delta
+    ( Delta (..) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
-import Data.Generics.Labels
-    ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -113,6 +121,7 @@ import GHC.Generics
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Data.Delta as Delta
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -174,6 +183,23 @@ instance Buildable s => Buildable (Wallet s) where
         <> indentF 4 ("UTxO:\n" <> indentF 4 (build u))
         <> indentF 4 (build s)
 
+-- | Delta encoding for 'Wallet'.
+data DeltaWallet s = DeltaWallet
+    { deltaUTxO :: DeltaUTxO
+    , deltaCurrentTip :: Delta.Replace BlockHeader
+    , deltaAddressBook :: DeltaAddressBook s
+    }
+
+type DeltaAddressBook s = Delta.Replace s
+
+instance Delta (DeltaWallet s) where
+    type Base (DeltaWallet s) = Wallet s
+    dw `apply` w = w
+        { utxo = deltaUTxO dw `apply` utxo w
+        , currentTip = deltaCurrentTip dw `apply` currentTip w
+        , getState = deltaAddressBook dw `apply` getState w
+        }
+
 {-------------------------------------------------------------------------------
                           Construction & Modification
 -------------------------------------------------------------------------------}
@@ -191,7 +217,7 @@ initWallet
 initWallet block0 s = (transactions, w1)
   where
     w0 = Wallet mempty undefined s
-    (FilteredBlock{transactions}, w1) = applyBlock block0 w0
+    (FilteredBlock{transactions}, (_, w1)) = applyBlock block0 w0
 
 -- | Construct a wallet from the exact given state.
 --
@@ -239,12 +265,16 @@ applyBlock
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
     -> Wallet s
-    -> (FilteredBlock, Wallet s)
+    -> (FilteredBlock, (DeltaWallet s, Wallet s))
 applyBlock !block (Wallet !u0 _ s0) =
-    (filteredBlock, Wallet u1 (block ^. #header) s1)
+    (filteredBlock, (dw, Wallet u1 tip1 s1))
   where
-    s1 = discoverAddresses block s0
-    (filteredBlock, u1) = applyBlockToUTxO block s1 u0
+    (ds, s1) = discoverAddresses block s0
+    (filteredBlock, du, u1) = applyBlockToUTxO block s1 u0
+    tip1 = block ^. #header
+    dtip = Delta.Replace tip1
+    dw   = DeltaWallet
+        { deltaUTxO = du , deltaAddressBook = ds, deltaCurrentTip = dtip }
 
 -- | Apply multiple blocks in sequence to an existing wallet, returning a list
 --   of intermediate wallet states.
@@ -273,9 +303,9 @@ applyBlocks
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => NonEmpty Block
     -> Wallet s
-    -> NonEmpty (FilteredBlock, Wallet s)
-applyBlocks (block0 :| blocks) walletState =
-    NE.scanl (flip applyBlock . snd) (applyBlock block0 walletState) blocks
+    -> NonEmpty (FilteredBlock, (DeltaWallet s, Wallet s))
+applyBlocks (block0 :| blocks) cp =
+    NE.scanl (flip applyBlock . snd . snd) (applyBlock block0 cp) blocks
 
 {-------------------------------------------------------------------------------
                                    Accessors
@@ -415,8 +445,12 @@ applyTxToUTxO tx !u = spendTx tx u <> utxoFromTx tx
 -- spendTx tx (u <> utxoFromTx tx) = spendTx tx u <> utxoFromTx tx
 -- @
 spendTx :: Tx -> UTxO -> UTxO
-spendTx tx !u =
-    u `excluding` Set.fromList inputsToExclude
+spendTx tx = snd . spendTxD tx
+
+-- | Remove unspent outputs that are consumed by the given transaction.
+spendTxD :: Tx -> UTxO -> (DeltaUTxO, UTxO)
+spendTxD tx !u =
+    u `excludingD` Set.fromList inputsToExclude
   where
     inputsToExclude =
         if failedScriptValidation tx
@@ -451,8 +485,8 @@ utxoFromUnvalidatedTx Tx {txId, outputs} =
 -- and delegation certificates in the block.
 discoverAddresses
     :: (IsOurs s Address, IsOurs s RewardAccount)
-    => Block -> s -> s
-discoverAddresses block s0 = s2
+    => Block -> s -> (DeltaAddressBook s, s)
+discoverAddresses block s0 = (Delta.Replace s2, s2)
   where
     -- NOTE: Order in which we perform discovery is important.
     s1 = L.foldl' discoverCert s0 (block ^. #delegations)
@@ -520,20 +554,24 @@ applyBlockToUTxO
     => Block
     -> s
     -> UTxO
-    -> (FilteredBlock, UTxO)
-applyBlockToUTxO Block{header,transactions,delegations} s u0 = (fblock, u1)
+    -> (FilteredBlock, DeltaUTxO, UTxO)
+applyBlockToUTxO Block{header,transactions,delegations} s u0 =
+    (fblock, du1, u1)
   where
     fblock = FilteredBlock
       { transactions = txs1
       , delegations = filter (ours s . dlgCertAccount) delegations
       }
-    (txs1, u1) = L.foldl' applyOurTx (mempty, u0) transactions
+    (txs1, du1, u1) = L.foldl' applyOurTx (mempty, mempty, u0) transactions
 
-    applyOurTx :: ([(Tx, TxMeta)], UTxO) -> Tx -> ([(Tx, TxMeta)], UTxO)
-    applyOurTx (!txs, !u) !tx =
+    applyOurTx
+        :: ([(Tx, TxMeta)], DeltaUTxO, UTxO)
+        -> Tx
+        -> ([(Tx, TxMeta)], DeltaUTxO, UTxO)
+    applyOurTx (!txs, !du, !u) !tx =
         case applyOurTxToUTxO slotNo blockHeight s tx u of
-            Nothing -> (txs, u)
-            Just (tx', u') -> (tx' : txs, u')
+            Nothing -> (txs, du, u)
+            Just (tx', du', u') -> (tx' : txs, du' <> du, u')
     slotNo = header ^. #slotNo
     blockHeight = header ^. #blockHeight
 
@@ -552,19 +590,19 @@ applyOurTxToUTxO
     -> s
     -> Tx
     -> UTxO
-    -> Maybe ((Tx, TxMeta), UTxO)
+    -> Maybe ((Tx, TxMeta), DeltaUTxO, UTxO)
 applyOurTxToUTxO !slotNo !blockHeight !s !tx !prevUTxO =
-    if ourWithdrawalSum /= mempty || prevUTxO /= ourNextUTxO
-        then
-            let updatedTx = tx { fee = actualFee dir }
-            in Just ((updatedTx, txmeta), ourNextUTxO)
+    if hasKnownWithdrawal || dUtxO /= mempty
+        then Just ((tx {fee = actualFee dir}, txmeta), dUtxO, ourNextUTxO)
         else Nothing
   where
     -- The next UTxO state (apply a state transition) (e.g. remove
     -- transaction outputs we've spent)
-    ourNextUTxO =
-        spendTx tx prevUTxO
-        <> UTxO.filterByAddress (ours s) (utxoFromTx tx)
+    (dUtxO, ourNextUTxO) =
+        let (du10, u1) = spendTxD tx prevUTxO
+            (du21, u2) = receiveD u1
+                $ UTxO.filterByAddress (ours s) (utxoFromTx tx)
+        in  (du21 <> du10, u2)
     ourWithdrawalSum = ourWithdrawalSumFromTx s tx
 
     -- Balance of the UTxO that we received and that we spent
@@ -587,6 +625,8 @@ applyOurTxToUTxO !slotNo !blockHeight !s !tx !prevUTxO =
         , amount = amount
         , expiry = Nothing
         }
+
+    hasKnownWithdrawal = ourWithdrawalSum /= mempty
 
     -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
     -- a Byron transaction. In which case fees can actually be calculated as
