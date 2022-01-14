@@ -177,6 +177,7 @@ import Test.Integration.Framework.TestData
     , errMsg403ForeignTransaction
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
+    , errMsg403MissingWitsInTransaction
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
     , errMsg404NoSuchPool
@@ -2077,7 +2078,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- Submit tx
         submittedTx <- submitTxWithWid ctx w (ApiSerialisedTransaction sealedTx)
         verify submittedTx
-            [ expectResponseCode HTTP.status500
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage (errMsg403MissingWitsInTransaction 1 0)
             ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do

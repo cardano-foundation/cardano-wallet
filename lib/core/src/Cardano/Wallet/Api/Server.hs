@@ -446,6 +446,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , getSealedTxWitnesses
     , txOutCoin
     )
 import Cardano.Wallet.Registry
@@ -2354,6 +2355,12 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
+    let allInpsNum = length $ apiDecoded ^. #inputs
+    let witsNum = length $ getSealedTxWitnesses sealedTx
+    when (allInpsNum > witsNum) $
+        liftHandler $ throwE $
+        ErrSubmitTransactionPartiallySignedOrNoSignedTx allInpsNum witsNum
+
     _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
         let wdrl = getOurWdrl acct path apiDecoded
@@ -3940,7 +3947,7 @@ instance IsServerError ErrSubmitTransaction where
                 ]
         ErrSubmitTransactionPartiallySignedOrNoSignedTx expectedWitsNo foundWitsNo ->
             apiError err403 MissingWitnessesInTransaction $ mconcat $
-                [ "The transaction has ", toText expectedWitsNo,
+                [ "The transaction has ", toText expectedWitsNo
                 , " inputs and ", toText foundWitsNo, " witnesses included."
                 , " Submit fully-signed transaction."
                 ]

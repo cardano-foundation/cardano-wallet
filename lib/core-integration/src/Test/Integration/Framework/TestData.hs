@@ -102,6 +102,7 @@ module Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidScript
     , errMsg403InvalidConstructTx
     , errMsg403ForeignTransaction
+    , errMsg403MissingWitsInTransaction
     ) where
 
 import Prelude
@@ -643,6 +644,13 @@ errMsg403ForeignTransaction = mconcat
     [ "The transaction to be submitted is foreign to the current wallet "
     , "and cannot be sent. Submit a transaction that has either input, output "
     , "or withdrawal belonging to the wallet."
+    ]
+
+errMsg403MissingWitsInTransaction :: Int -> Int -> String
+errMsg403MissingWitsInTransaction expected got = mconcat
+    [ "The transaction has ", show expected
+    , " inputs and ", show got, " witnesses included."
+    , " Submit fully-signed transaction."
     ]
 
 --------------------------------------------------------------------------------
