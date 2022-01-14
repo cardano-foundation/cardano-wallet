@@ -4229,6 +4229,17 @@ x-errForeignTransaction: &errForeignTransaction
       type: string
       enum: ['foreign_transaction']
 
+x-errMissingWitnessesInTransaction: &errMissingWitnessesInTransaction
+  <<: *responsesErr
+  title: missing_witnesses_in_transaction
+  properties:
+    message:
+      type: string
+      description: Occurs when a transaction to be submitted is not fully signed.
+    code:
+      type: string
+      enum: ['missing_witnesses_in_transaction']
+
 x-errRejectedByCoreNode: &errRejectedByCoreNode
   <<: *responsesErr
   title: rejected_by_core_node
@@ -5134,6 +5145,7 @@ x-responsesSubmitTransaction: &responsesSubmitTransaction
         schema:
           oneOf:
             - <<: *errForeignTransaction
+            - <<: *errMissingWitnessesInTransaction
 
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400

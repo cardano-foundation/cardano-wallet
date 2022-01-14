@@ -3069,6 +3069,7 @@ data BalanceTxNotSupportedReason
 data ErrSubmitTransaction
     = ErrSubmitTransactionNoSuchWallet ErrNoSuchWallet
     | ErrSubmitTransactionForeignWallet
+    | ErrSubmitTransactionPartiallySignedOrNoSignedTx Word8 Word8
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.

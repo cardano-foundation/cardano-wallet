@@ -1663,6 +1663,7 @@ data ApiErrorCode
     | RedeemerInvalidData
     | ExistingKeyWitnesses
     | ForeignTransaction
+    | MissingWitnessesInTransaction
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

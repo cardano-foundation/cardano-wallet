@@ -3938,6 +3938,12 @@ instance IsServerError ErrSubmitTransaction where
                 , "and cannot be sent. Submit a transaction that has either input, output "
                 , "or withdrawal belonging to the wallet."
                 ]
+        ErrSubmitTransactionPartiallySignedOrNoSignedTx expectedWitsNo foundWitsNo ->
+            apiError err403 MissingWitnessesInTransaction $ mconcat $
+                [ "The transaction has ", toText expectedWitsNo,
+                , " inputs and ", toText foundWitsNo, " witnesses included."
+                , " Submit fully-signed transaction."
+                ]
 
 instance IsServerError ErrSubmitTx where
     toServerError = \case
