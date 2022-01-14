@@ -3066,8 +3066,9 @@ data BalanceTxNotSupportedReason
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting a transaction.
-newtype ErrSubmitTransaction
+data ErrSubmitTransaction
     = ErrSubmitTransactionNoSuchWallet ErrNoSuchWallet
+    | ErrSubmitTransactionForeignWallet
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.

@@ -4218,6 +4218,17 @@ x-errCreatedInvalidTransaction: &errCreatedInvalidTransaction
       type: string
       enum: ['created_invalid_transaction']
 
+x-errForeignTransaction: &errForeignTransaction
+  <<: *responsesErr
+  title: foreign_transaction
+  properties:
+    message:
+      type: string
+      description: Occurs when a transaction to be submitted does have neither input, output nor withdrawal belonging to a given wallet.
+    code:
+      type: string
+      enum: ['foreign_transaction']
+
 x-errRejectedByCoreNode: &errRejectedByCoreNode
   <<: *responsesErr
   title: rejected_by_core_node
@@ -5116,6 +5127,13 @@ x-responsesSubmitTransaction: &responsesSubmitTransaction
     content:
       application/json:
         schema: *ApiTxId
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errForeignTransaction
 
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400

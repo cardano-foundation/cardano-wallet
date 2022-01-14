@@ -3917,6 +3917,12 @@ instance IsServerError ErrSubmitTransaction where
             { errHTTPCode = 404
             , errReasonPhrase = errReasonPhrase err404
             }
+        ErrSubmitTransactionForeignWallet ->
+            apiError err403 ForeignTransaction $ mconcat
+                [ "The transaction to be submitted is foreign to the current wallet "
+                , "and cannot be sent. Submit a transaction that has either input, output "
+                , "or withdrawal belonging to the wallet."
+                ]
 
 instance IsServerError ErrSubmitTx where
     toServerError = \case

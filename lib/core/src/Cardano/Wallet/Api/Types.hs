@@ -1662,6 +1662,7 @@ data ApiErrorCode
     | UnresolvedInputs
     | RedeemerInvalidData
     | ExistingKeyWitnesses
+    | ForeignTransaction
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
