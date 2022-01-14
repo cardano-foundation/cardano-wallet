@@ -174,6 +174,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403Collateral
     , errMsg403Fee
+    , errMsg403ForeignTransaction
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403NotDelegating
@@ -2155,7 +2156,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   ]
         forM_ scenarios $ \(title, foreignWallet) -> it title $ \ctx -> runResourceT $ do
             wa <- fixtureWallet ctx
-            wb <- foreignWallet ctx
+            wb <- fixtureWallet ctx
+            wF <- foreignWallet ctx
 
             -- Construct tx
             payload <- mkTxPayload ctx wb $ minUTxOValue (_mainEra ctx)
@@ -2172,12 +2174,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             signedTx <- getFromResponse Prelude.id <$>
                 request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
-            -- Submit tx (from wb)
-            submittedTx <- submitTxWithWid ctx wb signedTx
+            -- Submit tx (from wF)
+            submittedTx <- submitTxWithWid ctx wF signedTx
             verify submittedTx
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage "Transaction cannot be submitted as it is foreign to\
-                                     \ this wallet. Please submit it from the wallet it belongs to."
+                , expectErrorMessage errMsg403ForeignTransaction
                 ]
 
     describe "TRANS_NEW_SUBMIT_02 - Submitting on foreign Byron wallet is forbidden" $ do

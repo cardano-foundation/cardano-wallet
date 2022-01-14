@@ -2349,6 +2349,8 @@ submitTransaction
 submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT sealedTx)) = do
     ttl <- liftIO $ W.getTxExpiry ti Nothing
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
+    when (isForeign apiDecoded) $
+        liftHandler $ throwE ErrSubmitTransactionForeignWallet
     let ourOuts = getOurOuts apiDecoded
     let ourInps = getOurInps apiDecoded
 
@@ -2369,7 +2371,6 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
-
 
     isOutOurs (WalletOutput _) = True
     isOutOurs _ = False
@@ -2398,6 +2399,20 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     getOurInps apiDecodedTx =
         let generalInps = apiDecodedTx ^. #inputs
         in map toTxInp $ filter isInpOurs generalInps
+
+    isForeign apiDecodedTx =
+        let generalInps = apiDecodedTx ^. #inputs
+            generalWdrls = apiDecodedTx ^. #withdrawals
+            generalOuts = apiDecodedTx ^. #outputs
+            isInpForeign (WalletInput _) = False
+            isInpForeign _ = True
+            isOutForeign (WalletOutput _) = False
+            isOutForeign _ = True
+            isWdrlForeign (ApiWithdrawalGeneral _ _ context) = context == External
+        in
+            all isInpForeign generalInps &&
+            all isOutForeign generalOuts &&
+            all isWdrlForeign generalWdrls
 
 joinStakePool
     :: forall ctx s n k.
