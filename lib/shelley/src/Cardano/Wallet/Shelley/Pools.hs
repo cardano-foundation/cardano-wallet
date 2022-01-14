@@ -337,7 +337,7 @@ sortRandomOn seed f
 percentOf :: Percentage -> Coin -> Coin
 percentOf r (Coin x) = Coin . round $ getPercentage r * fromIntegral x
 
-fractionOf :: Double -> Coin -> Coin
+fractionOf :: RealFrac r => r -> Coin -> Coin
 fractionOf r (Coin x) = Coin . round $ r * fromIntegral x
 
 oneMinus :: Percentage -> Percentage
@@ -350,6 +350,8 @@ proportionTo (Coin x) (Coin y) = fromIntegral x / fromIntegral y
 z0 :: RewardParams -> Rational
 z0 RewardParams{nOpt} = 1 / fromIntegral nOpt
 
+-- | Non-Myopic Pool Member Rewards
+-- according to Eq.(3) of Section 5.6.4 in SL-D1.
 nonMyopicMemberReward
     :: RewardParams
     -> RewardInfoPool
@@ -359,12 +361,16 @@ nonMyopicMemberReward
 nonMyopicMemberReward rp RewardInfoPool{..} isTop tcoin
     | ownerStake < ownerPledge = Coin 0
     | otherwise
-        = afterFees cost margin
-        $ performanceEstimate `fractionOf` optimalRewards rp s sigma_nonmyopic
+        = (memberShare `fractionOf`)
+        $ afterFees cost margin
+        $ (performanceEstimate `fractionOf`)
+        $ optimalRewards rp s sigma_nonmyopic
   where
     s     = ownerStakeRelative
     sigma = stakeRelative
     t     = tcoin `proportionTo` (totalStake rp)
+
+    memberShare = t / sigma_nonmyopic
 
     sigma_nonmyopic
         | isTop      = max (getPercentage sigma + t) (z0 rp)
@@ -402,7 +408,8 @@ optimalRewards params s sigma = Coin . round
 desirability :: RewardParams -> RewardInfoPool -> Coin
 desirability rp RewardInfoPool{..}
     = afterFees cost margin
-    $ performanceEstimate `fractionOf` optimalRewards rp ownerStakeRelative (z0 rp)
+    $ (performanceEstimate `fractionOf`)
+    $ optimalRewards rp ownerStakeRelative (z0 rp)
 
 -- | The saturation of a pool is the ratio of the current pool stake
 -- to the fully saturated stake.
