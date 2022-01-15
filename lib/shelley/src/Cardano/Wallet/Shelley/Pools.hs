@@ -343,6 +343,9 @@ fractionOf r (Coin x) = Coin . round $ r * fromIntegral x
 oneMinus :: Percentage -> Percentage
 oneMinus p = unsafeMkPercentage $ 1 - getPercentage p
 
+clipToPercentage :: Rational -> Percentage
+clipToPercentage = unsafeMkPercentage . min 1 . max 0
+
 proportionTo :: Coin -> Coin -> Rational
 proportionTo _        (Coin 0) = 0
 proportionTo (Coin x) (Coin y) = fromIntegral x / fromIntegral y
@@ -366,7 +369,7 @@ nonMyopicMemberReward rp RewardInfoPool{..} isTop tcoin
         $ (performanceEstimate `fractionOf`)
         $ optimalRewards rp s sigma_nonmyopic
   where
-    s     = ownerStakeRelative
+    s     = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
     sigma = stakeRelative
     t     = tcoin `proportionTo` (totalStake rp)
 
@@ -409,7 +412,9 @@ desirability :: RewardParams -> RewardInfoPool -> Coin
 desirability rp RewardInfoPool{..}
     = afterFees cost margin
     $ (performanceEstimate `fractionOf`)
-    $ optimalRewards rp ownerStakeRelative (z0 rp)
+    $ optimalRewards rp s (z0 rp)
+  where
+    s = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
 
 -- | The saturation of a pool is the ratio of the current pool stake
 -- to the fully saturated stake.
