@@ -51,7 +51,7 @@ integration tests and test cluster.
 | `NO_POOLS` | bool | Don't start any stake pool nodes in the local test cluster. | Pool nodes are started |
 | `TOKEN_METADATA_SERVER` | URL | Use this URL for querying asset metadata | Asset metadata fetching disabled |
 | `NO_CACHE_LISTPOOLS` | bool | Do not cache pool listing retrieved from cardano-node. *Testing only. Use `--no-cache-listpools` command line for executable*. | Stake distribution is cached to improve responsiveness |
-| `CACHE_LISTPOOLS_TTL` | number | Cache time to live (TTL) for pool listing. *Testing only. Use `--no-cache-listpools` command line for executable*. | 6 seconds for test builds |
+| `CACHE_LISTPOOLS_REFRESH` | number | Time interval that indicates how often the cache for the stake-pools listing will be refreshed. *Testing only. Use `--cache-listpools-refresh` command line for executable*. | 6 seconds for test builds |
 
 
 Here are the possible values of different types of environment variables:

@@ -299,9 +299,9 @@ spec = do
         forM_ parseTimeTests $ \(desc, arg, tst) ->
             it desc $ parse arg `shouldSatisfy` tst
 
-    describe "Cache listpools TTL option" $ do
+    describe "Cache listpools refresh option" $ do
         let parse arg = execParserPure defaultPrefs
-                (info cacheListPoolsOption mempty) ["--cache-listpools-ttl", arg]
+                (info cacheListPoolsOption mempty) ["--cache-listpools-refresh", arg]
         let toMaybe (CacheTTL x) = Just (Quantity x)
             toMaybe (NoCache) = Nothing
         forM_ parseTimeTests $ \(desc, arg, tst) ->
