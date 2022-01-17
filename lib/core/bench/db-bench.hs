@@ -87,7 +87,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , PersistPrivateKey
-    , Role (..)
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -97,14 +96,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( DerivationPath, RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPool
-    , DerivationPrefix (..)
-    , ParentContext (..)
+    ( DerivationPrefix (..)
+    , SeqAddressPool (..)
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
-    , emptyPendingIxs
-    , mkAddressPool
+    , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
     , purposeCIP1852
     )
@@ -179,6 +176,8 @@ import Data.Functor
     ( ($>) )
 import Data.Functor.Identity
     ( Identity (..) )
+import Data.List
+    ( foldl' )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -216,6 +215,7 @@ import UnliftIO.Temporary
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
+import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -359,13 +359,7 @@ bgroupWriteSeqState db = bgroup "SeqState"
             pure cps
         cps :: [WalletBench]
         cps =
-            [ snd $ initWallet (withMovingSlot i block0) $
-                SeqState
-                    (mkIntPool a i)
-                    (mkExtPool a i)
-                    emptyPendingIxs
-                    rewardAccount
-                    defaultPrefix
+            [ snd $ initWallet (withMovingSlot i block0) $ mkSeqState a i
             | i <- [1..n]
             ]
 
@@ -373,17 +367,18 @@ benchPutSeqState :: DBLayerBench -> [WalletBench] -> IO ()
 benchPutSeqState DBLayer{..} cps = do
     unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testWid) cps
 
-mkExtPool :: Int -> Int -> AddressPool  'UtxoExternal ShelleyKey
-mkExtPool numAddrs i =
-    mkAddressPool @'Mainnet (ParentContextUtxo ourAccount) defaultAddressPoolGap addrs
+mkSeqState :: Int -> Int -> SeqState 'Mainnet ShelleyKey
+mkSeqState numAddrs _ = s 
+    { internalPool = fillPool (internalPool s)
+    , externalPool = fillPool (externalPool s)
+    }
   where
-    addrs = [ force (mkAddress i j, Unused) | j <- [1..numAddrs] ]
-
-mkIntPool :: Int -> Int -> AddressPool 'UtxoInternal ShelleyKey
-mkIntPool numAddrs i =
-    mkAddressPool @'Mainnet (ParentContextUtxo ourAccount) defaultAddressPoolGap addrs
-  where
-    addrs = [ force (mkAddress i j, Unused) | j <- [1..numAddrs] ]
+    s = mkSeqStateFromAccountXPub @'Mainnet
+        ourAccount purposeCIP1852 defaultAddressPoolGap
+    fillPool (SeqAddressPool pool0) = SeqAddressPool $
+        foldl' (\p ix -> AddressPool.update (gen ix) p) pool0 [0 .. numAddrs-1]
+      where
+        gen ix = AddressPool.generator pool0 $ toEnum ix
 
 ----------------------------------------------------------------------------
 -- Wallet State (Random Scheme) Benchmarks

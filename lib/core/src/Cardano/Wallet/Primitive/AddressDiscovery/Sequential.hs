@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -7,6 +8,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -18,6 +20,9 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+-- We intentionally specify the constraint  (k == SharedKey) ~ 'False  
+-- in some exports.
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -42,14 +47,10 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkUnboundedAddressPoolGap
 
     -- ** Address Pool
-    , AddressPool (indexedKeys)
-    , ParentContext (..)
-    , gap
-    , addresses
+    , SeqAddressPool (..)
     , role
-    , context
-    , mkAddressPool
-    , lookupAddress
+    , getGap
+    , newSeqAddressPool
     , unsafePaymentKeyFingerprint
 
     -- * Pending Change Indexes
@@ -96,9 +97,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
-    , deriveRewardAccount
-    , utxoExternal
-    , utxoInternal
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
@@ -106,7 +104,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
     , GetAccount (..)
-    , GetPurpose (..)
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
@@ -130,14 +127,10 @@ import Data.Bifunctor
     ( first )
 import Data.Digest.CRC32
     ( crc32 )
-import Data.Function
-    ( (&) )
 import Data.Kind
     ( Type )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
-import Data.Map.Strict
-    ( Map )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
@@ -163,11 +156,20 @@ import GHC.TypeLits
 import Type.Reflection
     ( Typeable, typeRep )
 
+import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+
+-- | Convenient constraint alias for commonly used class contexts on keys.
+type SupportsDiscovery n k =
+    ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , MkKeyFingerprint k Address
+    , SoftDerivation k
+    , Typeable n
+    )
 
 {-------------------------------------------------------------------------------
                               Address Pool Gap
@@ -239,58 +241,65 @@ defaultAddressPoolGap =
     AddressPoolGap 20
 
 {-------------------------------------------------------------------------------
-                                 Address Pool
+    Sequential address pools
 -------------------------------------------------------------------------------}
-
-data ParentContext (chain :: Role) (key :: Depth -> Type -> Type) where
-    ParentContextUtxo
-        :: ((key == SharedKey) ~ 'False)
-        => key 'AccountK XPub
-        -> ParentContext chain key
-
-deriving instance Eq   (key 'AccountK XPub) => Eq   (ParentContext chain key)
-deriving instance Show (key 'AccountK XPub) => Show (ParentContext chain key)
-
-instance (WalletKey key, Typeable chain) => Buildable (ParentContext chain key) where
-    build (ParentContextUtxo acct) =
-        mempty <> "(ParentContext for "<> ccF <> " " <> build (accXPubTxt (getRawKey acct)) <>")"
-        where
-            ccF = build $ toText $ role @chain
-
-instance NFData (key 'AccountK XPub) => NFData (ParentContext chain key) where
-    rnf = \case
-        ParentContextUtxo acct  -> rnf acct
-
--- | An 'AddressPool' which keeps track of sequential addresses within a given
--- Account and change chain. See 'mkAddressPool' to create a new or existing
--- pool:
---
--- >>> mkAddressPool xpub gap role mempty
--- AddressPool { }
-data AddressPool
-    (chain :: Role)
-    (key :: Depth -> Type -> Type) = AddressPool
-    { context
-        :: ParentContext chain key
-        -- ^ Context of given address pool
-    , gap
-        :: !AddressPoolGap
-        -- ^ The actual gap for the pool. This can't change for a given pool.
-    , indexedKeys
-        :: !(Map
+-- | An address pool which keeps track of sequential addresses.
+-- To create a new pool, see 'newSeqAddressPool'.
+newtype SeqAddressPool (c :: Role) (key :: Depth -> Type -> Type) =
+    SeqAddressPool {
+        getPool ::
+            AddressPool.Pool
                 (KeyFingerprint "payment" key)
-                (Index 'Soft 'AddressK, AddressState)
+                (Index 'Soft 'AddressK)
+    } deriving (Generic, Show)
+
+instance NFData (SeqAddressPool c k)
+
+instance Buildable (SeqAddressPool c k) where
+    build (SeqAddressPool pool) = build pool
+
+-- | Create a new Address pool from a list of addresses. Note that, the list is
+-- expected to be ordered in sequence (first indexes, first in the list).
+newSeqAddressPool
+    :: forall (n :: NetworkDiscriminant) c key.
+        ( SupportsDiscovery n key
+        , Typeable c
+        )
+    => key 'AccountK XPub
+    -> AddressPoolGap
+    -> SeqAddressPool c key
+newSeqAddressPool account g = SeqAddressPool $ AddressPool.new generator gap
+  where
+    gap = fromIntegral $ getAddressPoolGap g
+    generator ix =
+        unsafePaymentKeyFingerprint @key
+            ( Proxy @n
+            , deriveAddressPublicKey @key account (role @c) ix
             )
-    } deriving (Generic)
 
-deriving instance (Show (key 'AccountK XPub), Show (ParentContext chain key))
-    => Show (AddressPool chain key)
+getGap :: SeqAddressPool c k -> AddressPoolGap
+getGap = AddressPoolGap . fromIntegral . AddressPool.gap . getPool
 
-deriving instance (Eq (key 'AccountK XPub), Eq (ParentContext chain key))
-    => Eq (AddressPool chain key)
+-- Extract the fingerprint from an 'Address', we expect the caller to
+-- provide addresses that are compatible with the key scheme being used.
+--
+-- Actually, addresses passed as asgument should have been "generated" by
+-- the address pool itself in the past, so they ought to be valid!
+unsafePaymentKeyFingerprint
+    :: forall k from. (HasCallStack, MkKeyFingerprint k from)
+    => from
+    -> KeyFingerprint "payment" k
+unsafePaymentKeyFingerprint from = case paymentKeyFingerprint @k from of
+    Right a -> a
+    Left err -> error $ unwords
+        [ "unsafePaymentKeyFingerprint was given a source invalid with its"
+        , "key type:"
+        , show err
+        ]
 
-instance (NFData (key 'AccountK XPub), NFData (ParentContext chain key))
-    => NFData (AddressPool chain key)
+{-------------------------------------------------------------------------------
+    Pretty printing
+-------------------------------------------------------------------------------}
 
 instance PersistPublicKey (key 'AccountK) => Buildable (key 'AccountK XPub) where
     build key = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
@@ -320,12 +329,6 @@ instance Buildable ScriptTemplate where
         presentCosigners =
             Map.foldrWithKey (\c k acc -> acc <> "| " <> printCosigner c <> " " <> accXPubTxt k ) mempty
 
-instance (Typeable chain, WalletKey key) => Buildable (AddressPool chain key) where
-    build (AddressPool ctx (AddressPoolGap g) _) = mempty
-        <> ccF <> " " <> build ctx <> " (gap=" <> build g <> ")\n"
-      where
-        ccF = build $ toText $ role @chain
-
 -- | Bring a 'Role' type back to the term-level. This requires a type
 -- application and either a scoped type variable, or an explicit passing of a
 -- 'Role'.
@@ -351,148 +354,6 @@ role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
         case testEquality (typeRep @c) (typeRep @'MutableAccount) of
             Just Refl  -> Just MutableAccount
             Nothing -> Nothing
-
--- | Get all addresses in the pool, sorted from the first address discovered,
--- up until the next one.
---
--- In practice, we always have:
---
--- > mkAddressPool key g cc (addresses pool) == pool
-addresses
-    :: forall c k. (Typeable c, GetPurpose k)
-    => (KeyFingerprint "payment" k -> Address)
-    -> AddressPool c k
-    -> [(Address, AddressState, NonEmpty DerivationIndex)]
-addresses mkAddress =
-    map (\(k, (ix, st)) -> (mkAddress k, st, toDerivationPath ix))
-    . L.sortOn (fst . snd)
-    . Map.toList
-    . indexedKeys
-  where
-    toDerivationPath ix = NE.fromList $ map DerivationIndex
-        [ getIndex $ getPurpose @k
-        , getIndex coinTypeAda
-        , getIndex $ minBound @(Index 'Hardened 'AccountK)
-        , fromIntegral $ fromEnum $ role @c
-        , getIndex ix
-        ]
-
--- | Create a new Address pool from a list of addresses. Note that, the list is
--- expected to be ordered in sequence (first indexes, first in the list).
---
--- The pool will grow from the start if less than @g :: AddressPoolGap@ are
--- given, such that, there are always @g@ undiscovered addresses in the pool.
---
--- FIXME:
--- Don't construct from addresses but from fingerprints!
-mkAddressPool
-    :: forall (n :: NetworkDiscriminant) c k.
-        ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , MkKeyFingerprint k Address
-        , SoftDerivation k
-        , Typeable c
-        )
-    => ParentContext c k
-    -> AddressPoolGap
-    -> [(Address, AddressState)]
-    -> AddressPool c k
-mkAddressPool ctx g addrs = AddressPool
-    { context = ctx
-    , gap = g
-    , indexedKeys = mconcat
-        [ Map.fromList $ zipWith (\(addr, status) ix -> (addr, (ix, status)))
-            (first (unsafePaymentKeyFingerprint @k) <$> addrs)
-            [minBound..maxBound]
-        , nextAddresses @n @c
-            ctx
-            g
-            minBound
-        ]
-    }
-
--- | Lookup an address in the pool. When we find an address in a pool, the pool
--- may be amended if the address was discovered near the edge. It is also
--- possible that the pool is not amended at all - this happens in the case that
--- an address is discovered 'far' from the edge.
-lookupAddress
-    :: forall (n :: NetworkDiscriminant) c k.
-        ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , MkKeyFingerprint k Address
-        , SoftDerivation k
-        , Typeable c
-        )
-    => (AddressState -> AddressState)
-    -> Address
-    -> AddressPool c k
-    -> (Maybe (Index 'Soft 'AddressK), AddressPool c k)
-lookupAddress alterSt !target !pool =
-    case paymentKeyFingerprint @k target of
-        Left _ ->
-            (Nothing, pool)
-        Right fingerprint ->
-            case Map.alterF lookupF fingerprint (indexedKeys pool) of
-                (Just ix, keys') ->
-                    ( Just ix
-                    , extendAddressPool @n ix (pool { indexedKeys = keys'})
-                    )
-                (Nothing, _) ->
-                    ( Nothing
-                    , pool
-                    )
-  where
-    lookupF = \case
-        Nothing -> (Nothing, Nothing)
-        Just (ix, st) -> (Just ix, Just (ix, alterSt st))
-
--- | If an address is discovered near the edge, we extend the address sequence,
--- otherwise we return the pool untouched.
-extendAddressPool
-    :: forall (n :: NetworkDiscriminant) c k.
-        ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , SoftDerivation k
-        , Typeable c
-        )
-    => Index 'Soft 'AddressK
-    -> AddressPool c k
-    -> AddressPool c k
-extendAddressPool !ix !pool
-    | isOnEdge  = pool { indexedKeys = indexedKeys pool <> next }
-    | otherwise = pool
-  where
-    edge = Map.size (indexedKeys pool)
-    isOnEdge = edge - fromEnum ix <= fromEnum (gap pool)
-    next = if ix == maxBound then mempty else nextAddresses @n @c
-        (context pool)
-        (gap pool)
-        (succ ix)
-
--- | Compute the pool extension from a starting index
-nextAddresses
-    :: forall (n :: NetworkDiscriminant) (c :: Role) k.
-        ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , SoftDerivation k
-        , Typeable c
-        )
-    => ParentContext c k
-    -> AddressPoolGap
-    -> Index 'Soft 'AddressK
-    -> Map (KeyFingerprint "payment" k) (Index 'Soft 'AddressK, AddressState)
-nextAddresses !ctx (AddressPoolGap !g) !fromIx =
-    [fromIx .. min maxBound toIx]
-        & map (\ix -> (mkPaymentKey ix ctx, (ix, Unused)))
-        & Map.fromList
-  where
-    toIx = invariant
-        "nextAddresses: toIx should be greater than fromIx"
-        (toEnum $ fromEnum fromIx + fromEnum g - 1)
-        (>= fromIx)
-
-    mkPaymentKey ix = \case
-        ParentContextUtxo acct ->
-            unsafePaymentKeyFingerprint @k
-                ( Proxy @n
-                , deriveAddressPublicKey @k acct (role @c) ix
-                )
 
 {-------------------------------------------------------------------------------
                             Pending Change Indexes
@@ -538,20 +399,20 @@ pendingIxsFromList = PendingIxs . reverse . map head . L.group . L.sort
 -- exchanges who care less about privacy / not-reusing addresses than
 -- regular users.
 nextChangeIndex
-    :: AddressPool c k
+    :: SeqAddressPool c k
     -> PendingIxs
     -> (Index 'Soft 'AddressK, PendingIxs)
-nextChangeIndex pool (PendingIxs ixs) =
+nextChangeIndex (SeqAddressPool pool) (PendingIxs ixs) =
     let
-        poolLen = Map.size (indexedKeys pool)
+        poolLen = AddressPool.size  pool
         (firstUnused, lastUnused) =
-            ( toEnum $ poolLen - fromEnum (gap pool)
+            ( toEnum $ poolLen - AddressPool.gap pool
             , toEnum $ poolLen - 1
             )
         (ix, ixs') = case ixs of
             [] ->
                 (firstUnused, PendingIxs [firstUnused])
-            h:_ | length ixs < fromEnum (gap pool) ->
+            h:_ | length ixs < AddressPool.gap pool ->
                 (succ h, PendingIxs (succ h:ixs))
             h:q ->
                 (h, PendingIxs (q++[h]))
@@ -559,25 +420,8 @@ nextChangeIndex pool (PendingIxs ixs) =
         invariant "index is within first unused and last unused" (ix, ixs')
             (\(i,_) -> i >= firstUnused && i <= lastUnused)
 
--- Extract the fingerprint from an 'Address', we expect the caller to
--- provide addresses that are compatible with the key scheme being used.
---
--- Actually, addresses passed as asgument should have been "generated" by
--- the address pool itself in the past, so they ought to be valid!
-unsafePaymentKeyFingerprint
-    :: forall k from. (HasCallStack, MkKeyFingerprint k from)
-    => from
-    -> KeyFingerprint "payment" k
-unsafePaymentKeyFingerprint from = case paymentKeyFingerprint @k from of
-    Right a -> a
-    Left err -> error $ unwords
-        [ "unsafePaymentKeyFingerprint was given a source invalid with its"
-        , "key type:"
-        , show err
-        ]
-
 {-------------------------------------------------------------------------------
-                                 State
+    SeqState
 -------------------------------------------------------------------------------}
 
 -- | A state to keep track of sequential addresses as described in
@@ -587,14 +431,16 @@ unsafePaymentKeyFingerprint from = case paymentKeyFingerprint @k from of
 -- parameterized by a type @n@ which captures a particular network discrimination.
 -- This enables the state to be agnostic to the underlying address format.
 data SeqState (n :: NetworkDiscriminant) k = SeqState
-    { internalPool :: !(AddressPool 'UtxoInternal k)
+    { internalPool :: !(SeqAddressPool 'UtxoInternal k)
         -- ^ Addresses living on the 'UtxoInternal'
-    , externalPool :: !(AddressPool 'UtxoExternal k)
+    , externalPool :: !(SeqAddressPool 'UtxoExternal k)
         -- ^ Addresses living on the 'UtxoExternal'
     , pendingChangeIxs :: !PendingIxs
         -- ^ Indexes from the internal pool that have been used in pending
         -- transactions. The list is maintained sorted in descending order
         -- (cf: 'PendingIxs')
+    , accountXPub :: k 'AccountK XPub
+        -- ^ The account public key associated with this state
     , rewardAccountKey :: k 'AddressK XPub
         -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
@@ -608,12 +454,6 @@ deriving instance
     , Show (KeyFingerprint "payment" k)
     ) => Show (SeqState n k)
 
-deriving instance
-    ( Eq (k 'AccountK XPub)
-    , Eq (k 'AddressK XPub)
-    , Eq (KeyFingerprint "payment" k)
-    ) => Eq (SeqState n k)
-
 instance
     ( NFData (k 'AccountK XPub)
     , NFData (k 'AddressK XPub)
@@ -621,14 +461,31 @@ instance
     )
     => NFData (SeqState n k)
 
-instance (WalletKey k) => Buildable (SeqState n k) where
-    build (SeqState intP extP chgs _ path) = "SeqState:\n"
-        <> indentF 4 ("Derivation prefix: " <> build (toText path))
-        <> indentF 4 (build intP)
-        <> indentF 4 (build extP)
+-- Hand-written, because 'AddressPool.Pool' is not an instance of 'Eq'.
+instance
+    ( Eq (k 'AccountK XPub)
+    , Eq (k 'AddressK XPub)
+    , Eq (KeyFingerprint "payment" k)
+    ) => Eq (SeqState n k)
+  where
+    SeqState ai ae a1 a2 a3 a4 == SeqState bi be b1 b2 b3 b4
+        = and
+            [a1 == b1, a2 == b2, a3 == b3, a4 == b4
+            , ae `match` be, ai `match` bi
+            ]
+      where
+        match (SeqAddressPool a) (SeqAddressPool b)
+            = AddressPool.addresses a == AddressPool.addresses b
+            && AddressPool.gap a == AddressPool.gap b
+
+instance Buildable (SeqState n k) where
+    build st = "SeqState:\n"
+        <> indentF 4 ("Derivation prefix: " <> build (toText (derivationPrefix st)))
+        <> indentF 4 (build $ internalPool st)
+        <> indentF 4 (build $ externalPool st)
         <> indentF 4 ("Change indexes: " <> indentF 4 chgsF)
       where
-        chgsF = blockListF' "-" build (pendingIxsToList chgs)
+        chgsF = blockListF' "-" build (pendingIxsToList $ pendingChangeIxs st)
 
 -- | Purpose is a constant set to 44' (or 0x8000002C) following the original
 -- BIP-44 specification.
@@ -655,100 +512,91 @@ purposeCIP1852 = toEnum 0x8000073c
 -- | Construct a Sequential state for a wallet from root private key and password.
 mkSeqStateFromRootXPrv
     :: forall n k.
-        ( SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , MkKeyFingerprint k Address
-        , WalletKey k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        ( WalletKey k
+        , SupportsDiscovery n k
         , (k == SharedKey) ~ 'False
         )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqState n k
-mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g =
-    let
-        accXPrv =
-            deriveAccountPrivateKey pwd rootXPrv minBound
-        rewardXPub =
-            publicKey $ deriveRewardAccount pwd rootXPrv
-        extPool =
-            mkAddressPool @n (ParentContextUtxo $ publicKey accXPrv) g []
-        intPool =
-            mkAddressPool @n (ParentContextUtxo $ publicKey accXPrv) g []
-        prefix =
-            DerivationPrefix ( purpose, coinTypeAda, minBound )
-    in
-        SeqState intPool extPool emptyPendingIxs rewardXPub prefix
+mkSeqStateFromRootXPrv (rootXPrv, pwd) =
+    mkSeqStateFromAccountXPub $
+        publicKey $ deriveAccountPrivateKey pwd rootXPrv minBound
 
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub
     :: forall (n :: NetworkDiscriminant) k.
-        ( SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , MkKeyFingerprint k Address
+        ( SupportsDiscovery n k
         , (k == SharedKey) ~ 'False
         )
     => k 'AccountK XPub
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqState n k
-mkSeqStateFromAccountXPub accXPub purpose g =
-    let
-        -- This matches the reward address for "normal wallets". The accountXPub
-        -- is the first account, minBound being the first Soft index
-        rewardXPub =
-            deriveAddressPublicKey accXPub MutableAccount minBound
-        extPool =
-            mkAddressPool @n (ParentContextUtxo accXPub) g []
-        intPool =
-            mkAddressPool @n (ParentContextUtxo accXPub) g []
-        prefix =
-            DerivationPrefix ( purpose, coinTypeAda, minBound )
-    in
-        SeqState intPool extPool emptyPendingIxs rewardXPub prefix
+mkSeqStateFromAccountXPub accXPub purpose g = SeqState
+    { internalPool = newSeqAddressPool @n accXPub g
+    , externalPool = newSeqAddressPool @n accXPub g
+    , accountXPub = accXPub
+    , rewardAccountKey = rewardXPub
+    , pendingChangeIxs = emptyPendingIxs
+    , derivationPrefix = DerivationPrefix ( purpose, coinTypeAda, minBound )
+    }
+  where
+    -- This matches the reward address for "normal wallets". The accountXPub
+    -- is the first account, minBound being the first Soft index
+    rewardXPub = deriveAddressPublicKey accXPub MutableAccount minBound
+
+-- | Decorate an index with the derivation prefix corresponding to the state.
+decoratePath
+    :: SeqState n k -> Role -> Index 'Soft 'AddressK
+    -> NE.NonEmpty DerivationIndex
+decoratePath SeqState{derivationPrefix} r ix = NE.fromList
+    [ DerivationIndex $ getIndex purpose
+    , DerivationIndex $ getIndex coinType
+    , DerivationIndex $ getIndex accountIx
+    , DerivationIndex $ fromIntegral $ fromEnum r
+    , DerivationIndex $ getIndex ix
+    ]
+  where
+    DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
--- account discovery algorithm is only specified for the external chain so
--- in theory, there's nothing forcing a wallet to generate change
+-- BIP-44 account discovery algorithm is only specified for the external
+-- chain so in theory, there's nothing forcing a wallet to generate change
 -- addresses on the internal chain anywhere in the available range.
-instance
-    ( SoftDerivation k
-    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , MkKeyFingerprint k Address
-    ) => IsOurs (SeqState n k) Address
-  where
-    isOurs addr (SeqState !s1 !s2 !ixs !rpk !prefix) =
-        let
-            DerivationPrefix (purpose, coinType, accountIx) = prefix
-            (internal, !s1') = lookupAddress @n (const Used) addr s1
-            (external, !s2') = lookupAddress @n (const Used) addr s2
+instance SupportsDiscovery n k => IsOurs (SeqState n k) Address where
+    isOurs addrRaw st@SeqState{pendingChangeIxs=ixs} =
+        -- FIXME LATER: Check that the network discrimant of the type
+        -- is compatible with the discriminant of the Address!
+        case paymentKeyFingerprint addrRaw of
+            Left _ -> (Nothing, st)
+            Right addr ->
+                let (internal, !int) = lookupAddress addr (internalPool st)
+                    (external, !ext) = lookupAddress addr (externalPool st)
 
-            !ixs' = case internal of
-                Nothing -> ixs
-                Just ix -> updatePendingIxs ix ixs
+                    !ixs' = case internal of
+                        Nothing -> ixs
+                        Just ix -> updatePendingIxs ix ixs
 
-            ours = case (external, internal) of
-                (Just addrIx, _) -> Just $ NE.fromList
-                    [ DerivationIndex $ getIndex purpose
-                    , DerivationIndex $ getIndex coinType
-                    , DerivationIndex $ getIndex accountIx
-                    , DerivationIndex $ getIndex utxoExternal
-                    , DerivationIndex $ getIndex addrIx
-                    ]
-
-                (_, Just addrIx) -> Just $ NE.fromList
-                    [ DerivationIndex $ getIndex purpose
-                    , DerivationIndex $ getIndex coinType
-                    , DerivationIndex $ getIndex accountIx
-                    , DerivationIndex $ getIndex utxoInternal
-                    , DerivationIndex $ getIndex addrIx
-                    ]
-
-                _ -> Nothing
-        in
-            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk prefix)
+                    ours = case (external, internal) of
+                        (Just ix, _) -> Just $ decoratePath st UtxoExternal ix
+                        (_, Just ix) -> Just $ decoratePath st UtxoInternal ix
+                        _ -> Nothing
+                in
+                    ( ixs' `deepseq` ours `deepseq` ours
+                    , st
+                        { internalPool = int
+                        , externalPool = ext
+                        , pendingChangeIxs = ixs'
+                        }
+                    )
+      where
+        lookupAddress addr (SeqAddressPool pool) =
+            case AddressPool.lookup addr pool of
+                Nothing -> (Nothing, SeqAddressPool pool)
+                Just ix -> (Just ix, SeqAddressPool $ AddressPool.update addr pool)
 
 instance
     ( SoftDerivation k
@@ -761,97 +609,96 @@ instance
     -- See also: 'nextChangeIndex'
     type ArgGenChange (SeqState n k) =
         (k 'AddressK XPub -> k 'AddressK XPub -> Address)
-
-    genChange mkAddress (SeqState intPool extPool pending rpk path) =
-        let
-            (ix, pending') = nextChangeIndex intPool pending
-            ParentContextUtxo accountXPub' = context intPool
-            addressXPub = deriveAddressPublicKey accountXPub' UtxoInternal ix
-            addr = mkAddress addressXPub rpk
-        in
-            (addr, SeqState intPool extPool pending' rpk path)
+    
+    genChange mkAddress st =
+        (addr, st{ pendingChangeIxs = pending' })
+      where
+        (ix, pending') = nextChangeIndex (internalPool st) (pendingChangeIxs st)
+        addressXPub = deriveAddressPublicKey (accountXPub st) UtxoInternal ix
+        addr = mkAddress addressXPub (rewardAccountKey st)
 
 instance
     ( IsOurs (SeqState n k) Address
-    , SoftDerivation k
-    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , MkKeyFingerprint k Address
+    , SupportsDiscovery n k
     , AddressIndexDerivationType k ~ 'Soft
     )
     => IsOwned (SeqState n k) k where
-    isOwned (SeqState !s1 !s2 _ _ _) (rootPrv, pwd) addr =
-        let
-            xPrv1 = lookupAndDeriveXPrv s1
-            xPrv2 = lookupAndDeriveXPrv s2
-            xPrv = xPrv1 <|> xPrv2
-        in
-            (,pwd) <$> xPrv
+    isOwned st (rootPrv, pwd) addrRaw =
+        case paymentKeyFingerprint addrRaw of
+            Left _ -> Nothing
+            Right addr -> 
+                let
+                    xPrv1 = lookupAndDeriveXPrv addr (internalPool st)
+                    xPrv2 = lookupAndDeriveXPrv addr (externalPool st)
+                    xPrv = xPrv1 <|> xPrv2
+                in
+                    (,pwd) <$> xPrv
       where
+        -- We are assuming there is only one account
+        accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
+
         lookupAndDeriveXPrv
             :: forall c. (Typeable c)
-            => AddressPool c k
+            => KeyFingerprint "payment" k
+            -> SeqAddressPool c k
             -> Maybe (k 'AddressK XPrv)
-        lookupAndDeriveXPrv pool =
-            let
-                -- We are assuming there is only one account
-                accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
-                (addrIx, _) = lookupAddress @n (const Used) addr pool
-                cc = role @c
-            in
-                deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
+        lookupAndDeriveXPrv addr (SeqAddressPool pool) =
+                deriveAddressPrivateKey pwd accountPrv (role @c)
+            <$> AddressPool.lookup addr pool 
 
-instance
-    ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , MkKeyFingerprint k Address
-    , SoftDerivation k
-    ) => CompareDiscovery (SeqState n k) where
-    compareDiscovery (SeqState !s1 !s2 _ _ _) a1 a2 =
+instance SupportsDiscovery n k => CompareDiscovery (SeqState n k) where
+    compareDiscovery (SeqState !s1 !s2 _ _ _ _) a1 a2 =
         case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
             (Nothing, Nothing) -> EQ
             (Nothing, Just _)  -> GT
             (Just _, Nothing)  -> LT
             (Just i1, Just i2) -> compare i1 i2
       where
-        ix :: Typeable c => Address -> AddressPool c k -> Maybe (Index 'Soft 'AddressK)
-        ix a = fst . lookupAddress @n id a
+        ix :: Address -> SeqAddressPool c k -> Maybe (Index 'Soft 'AddressK)
+        ix a (SeqAddressPool pool) = case paymentKeyFingerprint a of
+            Left _ -> Nothing
+            Right addr -> AddressPool.lookup addr pool
 
 instance
     ( PaymentAddress n k
-    , GetPurpose k
     ) => KnownAddresses (SeqState n k) where
-    knownAddresses s =
+    knownAddresses st =
         nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
       where
-            nonChangeAddresses =
-                addresses (liftPaymentAddress @n @k) (externalPool s)
+        -- | List addresses in order of increasing indices.
+        listAddresses
+            :: forall c. (Typeable c)
+            => SeqAddressPool c k
+            -> [(Address, AddressState, NonEmpty DerivationIndex)]
+        listAddresses (SeqAddressPool pool) =
+            map shuffle . L.sortOn idx . Map.toList
+            $ AddressPool.addresses pool
+          where
+            idx (_,(ix,_)) = ix
+            shuffle (k,(ix,s)) =
+                (liftPaymentAddress @n k, s, decoratePath st (role @c) ix)
 
-            changeAddresses =
-                addresses (liftPaymentAddress @n @k) (internalPool s)
+        nonChangeAddresses = listAddresses $ externalPool st
 
-            usedChangeAddresses =
-                filter (\(_, state, _) -> state == Used) changeAddresses
+        changeAddresses = listAddresses $ internalPool st
+        usedChangeAddresses =
+            filter (\(_, status, _) -> status == Used) changeAddresses
 
-            -- pick as many unused change addresses as there are pending
-            -- transactions. Note: the last `internalGap` addresses are all
-            -- unused.
-            pendingChangeAddresses =
-                let
-                    (PendingIxs ixs) =
-                        pendingChangeIxs s
+        -- pick as many unused change addresses as there are pending
+        -- transactions. Note: the last `internalGap` addresses are all
+        -- unused.
+        pendingChangeAddresses = take (length ixs) edgeChangeAddresses
+          where
+            PendingIxs ixs = pendingChangeIxs st
+            internalGap = AddressPool.gap $ getPool $ internalPool st
+            edgeChangeAddresses =
+                drop (length changeAddresses - internalGap) changeAddresses
 
-                    internalGap =
-                        fromEnum . getAddressPoolGap . gap . internalPool $ s
+{-------------------------------------------------------------------------------
+    SeqAnyState
 
-                    edgeChangeAddresses =
-                        drop (length changeAddresses - internalGap) changeAddresses
-                in
-                    take (length ixs) edgeChangeAddresses
-
---------------------------------------------------------------------------------
---
--- SeqAnyState
---
--- For benchmarking and testing arbitrary large sequential wallets.
+    For benchmarking and testing arbitrary large sequential wallets.
+-------------------------------------------------------------------------------}
 
 -- | An "unsound" alternative that can be used for benchmarking and stress
 -- testing. It re-uses the same underlying structure as the `SeqState` but
@@ -886,11 +733,8 @@ instance
 -- "100" means 1% and 10000 means 100%.
 mkSeqAnyState
     :: forall (p :: Nat) n k.
-        ( SoftDerivation k
-        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , MkKeyFingerprint k Address
+        ( SupportsDiscovery n k
         , WalletKey k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , (k == SharedKey) ~ 'False
         )
     => (k 'RootK XPrv, Passphrase "encryption")
@@ -901,21 +745,19 @@ mkSeqAnyState credentials purpose poolGap = SeqAnyState
     { innerState = mkSeqStateFromRootXPrv credentials purpose poolGap
     }
 
-instance
-    ( SoftDerivation k
-    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , KnownNat p
-    ) => IsOurs (SeqAnyState n k p) Address
-  where
+instance KnownNat p => IsOurs (SeqAnyState n k p) Address where
     isOurs (Address bytes) st@(SeqAnyState inner)
         | crc32 bytes < p =
             let
-                edge = Map.size (indexedKeys $ externalPool inner)
-                ix = toEnum (edge - fromEnum (gap $ externalPool inner))
-                pool' = extendAddressPool @n ix (externalPool inner)
+                pool = getPool $ externalPool inner
+                ix = toEnum $ AddressPool.size pool - AddressPool.gap pool
+                addr = AddressPool.generator pool ix
+                pool' = AddressPool.update addr pool
                 path = DerivationIndex (getIndex ix) :| []
             in
-                (Just path, SeqAnyState (inner { externalPool = pool' }))
+                ( Just path
+                , SeqAnyState $ inner{ externalPool = SeqAddressPool pool' }
+                )
         | otherwise =
             (Nothing, st)
       where
@@ -926,44 +768,25 @@ instance
         double :: Integral a => a -> Double
         double = fromIntegral
 
-instance IsOurs (SeqAnyState n k p) RewardAccount
-  where
+instance IsOurs (SeqAnyState n k p) RewardAccount where
     isOurs _account state = (Nothing, state)
 
 instance
-    ( SoftDerivation k
-    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , AddressIndexDerivationType k ~ 'Soft
+    ( AddressIndexDerivationType k ~ 'Soft
     , KnownNat p
     ) => IsOwned (SeqAnyState n k p) k
   where
     isOwned _ _ _ = Nothing
 
-instance
-    ( SoftDerivation k
-    ) => GenChange (SeqAnyState n k p)
-  where
+instance SoftDerivation k => GenChange (SeqAnyState n k p) where
     type ArgGenChange (SeqAnyState n k p) = ArgGenChange (SeqState n k)
     genChange a (SeqAnyState s) = SeqAnyState <$> genChange a s
 
-instance
-    ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , MkKeyFingerprint k Address
-    , SoftDerivation k
-    ) => CompareDiscovery (SeqAnyState n k p)
-  where
+instance SupportsDiscovery n k => CompareDiscovery (SeqAnyState n k p) where
     compareDiscovery (SeqAnyState s) = compareDiscovery s
 
-instance
-    ( PaymentAddress n k
-    , GetPurpose k
-    ) => KnownAddresses (SeqAnyState n k p)
-  where
+instance PaymentAddress n k => KnownAddresses (SeqAnyState n k p) where
     knownAddresses (SeqAnyState s) = knownAddresses s
 
 instance GetAccount (SeqState n k) k where
-    getAccount s =
-        -- NOTE: Alternatively, we could use 'internalPool', they share the same
-        --       account public key.
-        let (ParentContextUtxo acctK) = context $ externalPool s
-        in acctK
+    getAccount = accountXPub

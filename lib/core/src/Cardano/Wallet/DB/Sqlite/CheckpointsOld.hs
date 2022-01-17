@@ -54,7 +54,7 @@ import Cardano.Wallet.DB.Sqlite.AddressBook
     ( AddressBookIso (..)
     , Discoveries (..)
     , Prologue (..)
-    , SeqAddressList (..)
+    , SeqAddressMap (..)
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
@@ -91,16 +91,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GetPurpose )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
     ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
-import Cardano.Wallet.Util
-    ( invariant )
 import Control.Applicative
     ( Alternative )
 import Control.Monad
@@ -415,33 +411,22 @@ instance PersistAddressBook (Seq.SeqState n k)
     loadDiscoveries wid sl = DS <$> loadDiscoveries wid sl
 
 instance
-    ( Eq (key 'AccountK XPub)
-    , PersistPublicKey (key 'AccountK)
+    ( PersistPublicKey (key 'AccountK)
     , PersistPublicKey (key 'AddressK)
     , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
-    , GetPurpose key
     , PaymentAddress n key
     , SoftDerivation key
+    , Typeable n
     , (key == SharedKey) ~ 'False
     ) => PersistAddressBook (Seq.SeqState n key) where
 
     insertPrologue wid (SeqPrologue st) = do
-        let (intPool, extPool) =
-                (Seq.internalPool st, Seq.externalPool st)
-        let (Seq.ParentContextUtxo accXPubInternal) = Seq.context intPool
-        let (Seq.ParentContextUtxo accXPubExternal) = Seq.context extPool
-        let (accountXPub, _) = invariant
-                "Internal & External pool use different account public keys!"
-                ( accXPubExternal, accXPubInternal )
-                (uncurry (==))
-        let eGap = Seq.gap extPool
-        let iGap = Seq.gap intPool
         repsert (SeqStateKey wid) $ SeqState
             { seqStateWalletId = wid
-            , seqStateExternalGap = eGap
-            , seqStateInternalGap = iGap
-            , seqStateAccountXPub = serializeXPub accountXPub
-            , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
+            , seqStateExternalGap = Seq.getGap $ Seq.externalPool st
+            , seqStateInternalGap = Seq.getGap $ Seq.internalPool st
+            , seqStateAccountXPub = serializeXPub $ Seq.accountXPub st
+            , seqStateRewardXPub = serializeXPub $ Seq.rewardAccountKey st
             , seqStateDerivationPrefix = Seq.derivationPrefix st
             }
         deleteWhere [SeqStatePendingWalletId ==. wid]
@@ -449,33 +434,25 @@ instance
             insertMany_
             (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
 
-    insertDiscoveries wid sl
-        (SeqDiscoveries (SeqAddressList ints) (SeqAddressList exts))
-      = do
-        void $ dbChunked insertMany_
-            [ SeqStateAddress wid sl addr ix UtxoInternal state
-            | (ix, (addr, state)) <- zip [0..] ints
-            ]
-        void $ dbChunked insertMany_
-            [ SeqStateAddress wid sl addr ix UtxoExternal state
-            | (ix, (addr, state)) <- zip [0..] exts
-            ]
+    insertDiscoveries wid sl (SeqDiscoveries ints exts) = do
+        insertSeqAddressMap @n wid sl ints
+        insertSeqAddressMap @n wid sl exts
 
     loadPrologue wid = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
         let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
-        let intPool = Seq.mkAddressPool @n (Seq.ParentContextUtxo accountXPub) iGap []
-        let extPool = Seq.mkAddressPool @n (Seq.ParentContextUtxo accountXPub) eGap []
+        let intPool = Seq.newSeqAddressPool @n accountXPub iGap
+        let extPool = Seq.newSeqAddressPool @n accountXPub eGap
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ SeqPrologue $
-            Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
+            Seq.SeqState intPool extPool pendingChangeIxs accountXPub rewardXPub prefix
 
     loadDiscoveries wid sl =
         SeqDiscoveries
-            <$> selectSeqAddressList wid sl
-            <*> selectSeqAddressList wid sl
+            <$> selectSeqAddressMap wid sl
+            <*> selectSeqAddressMap wid sl
 
 mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
@@ -489,17 +466,34 @@ selectSeqStatePendingIxs wid =
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
-selectSeqAddressList
-    :: forall c. Typeable c
-    => W.WalletId -> W.SlotNo -> SqlPersistT IO (SeqAddressList c)
-selectSeqAddressList wid sl = do
-    SeqAddressList . map (toPair . entityVal) <$> selectList
+insertSeqAddressMap
+    :: forall n c key. (PaymentAddress n key, Typeable c)
+    =>  W.WalletId -> W.SlotNo -> SeqAddressMap c key -> SqlPersistT IO ()
+insertSeqAddressMap wid sl (SeqAddressMap pool) = void $
+    dbChunked insertMany_
+        [ SeqStateAddress wid sl (liftPaymentAddress @n addr)
+            (W.getIndex ix) (Seq.role @c) status
+        | (addr, (ix, status)) <- Map.toList pool
+        ]
+
+-- MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
+selectSeqAddressMap :: forall (c :: Role) key.
+    ( MkKeyFingerprint key W.Address
+    , Typeable c
+    ) => W.WalletId -> W.SlotNo -> SqlPersistT IO (SeqAddressMap c key)
+selectSeqAddressMap wid sl = do
+    SeqAddressMap . Map.fromList . map (toTriple . entityVal) <$> selectList
         [ SeqStateAddressWalletId ==. wid
         , SeqStateAddressSlot ==. sl
         , SeqStateAddressRole ==. Seq.role @c
         ] [Asc SeqStateAddressIndex]
   where
-    toPair x = (seqStateAddressAddress x, seqStateAddressStatus x)
+    toTriple x =
+        ( Seq.unsafePaymentKeyFingerprint @key (seqStateAddressAddress x)
+        ,   ( toEnum $ fromIntegral $ seqStateAddressIndex x
+            , seqStateAddressStatus x
+            )
+        )
 
 {-------------------------------------------------------------------------------
     Shared key address book storage

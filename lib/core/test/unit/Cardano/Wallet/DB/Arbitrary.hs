@@ -66,13 +66,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPool
-    , DerivationPrefix (..)
-    , ParentContext (..)
+    ( DerivationPrefix (..)
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
-    , mkAddressPool
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
@@ -165,6 +162,8 @@ import Data.Ratio
     ( (%) )
 import Data.Text.Class
     ( toText )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
     ( Word16, Word32 )
 import Data.Word.Odd
@@ -481,12 +480,14 @@ instance Arbitrary (Index 'WholeDomain depth) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs rwd prefix) =
-        (\(i, e, x) -> SeqState i e x rwd prefix) <$> shrink (intPool, extPool, ixs)
+    shrink (SeqState intPool extPool ixs acc rwd prefix) =
+            (\(i, e, x) -> SeqState i e x acc rwd prefix)
+        <$> shrink (intPool, extPool, ixs)
     arbitrary = SeqState
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> pure arbitrarySeqAccount
         <*> pure arbitraryRewardAccount
         <*> pure defaultSeqStatePrefix
 
@@ -522,13 +523,11 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
 instance Arbitrary (Seq.PendingIxs) where
     arbitrary = pure Seq.emptyPendingIxs
 
-instance Arbitrary (AddressPool 'UtxoExternal ShelleyKey) where
-    arbitrary = pure $ mkAddressPool @'Mainnet
-        (ParentContextUtxo arbitrarySeqAccount) minBound mempty
-
-instance Arbitrary (AddressPool 'UtxoInternal ShelleyKey) where
-    arbitrary = pure $ mkAddressPool @'Mainnet
-        (ParentContextUtxo arbitrarySeqAccount) minBound mempty
+instance ( Typeable ( c :: Role ) )
+    => Arbitrary (Seq.SeqAddressPool c ShelleyKey)
+  where
+    arbitrary = pure $ Seq.newSeqAddressPool @'Mainnet
+        arbitrarySeqAccount defaultAddressPoolGap
 
 -- Properties are quite heavy on the generation of values, although for
 -- private keys, it isn't particularly useful / relevant to generate many of

@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -18,30 +17,21 @@ module Cardano.Wallet.DB.Sqlite.AddressBook
     ( AddressBookIso (..)
     , Prologue (..)
     , Discoveries (..)
-    , SeqAddressList (..)
+    , SeqAddressMap (..)
     )
   where
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
     , KeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , MkKeyFingerprint (..)
-    , NetworkDiscriminant (..)
-    , PaymentAddress (..)
     , Role (..)
-    , SoftDerivation (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.SharedKey
     ( SharedKey (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery
-    ( GetPurpose )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Data.Generics.Internal.VL
@@ -50,18 +40,13 @@ import Data.Kind
     ( Type )
 import Data.Map.Strict
     ( Map )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Type.Equality
     ( type (==) )
-import Data.Typeable
-    ( Typeable )
 
 import qualified Cardano.Wallet.Address.Pool as AddressPool
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Shared as Shared
-import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -83,9 +68,6 @@ class AddressBookIso s where
 {-------------------------------------------------------------------------------
     Sequential address book
 -------------------------------------------------------------------------------}
--- | Sequential list of addresses
-newtype SeqAddressList (c :: Role) = SeqAddressList [(W.Address, W.AddressState)]
-
 -- piggy-back on SeqState existing instance, to simulate the same behavior.
 instance AddressBookIso (Seq.SeqState n k)
     => AddressBookIso (Seq.SeqAnyState n k p)
@@ -99,56 +81,47 @@ instance AddressBookIso (Seq.SeqState n k)
         in  iso from2 to2
 
 -- | Isomorphism for sequential address book.
-instance 
-    ( MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
-    , GetPurpose key
-    , SoftDerivation key
-    , PaymentAddress n key
-    , (key == SharedKey) ~ 'False
-    ) => AddressBookIso (Seq.SeqState n key)
+instance ( (key == SharedKey) ~ 'False ) => AddressBookIso (Seq.SeqState n key)
   where
     data Prologue (Seq.SeqState n key)
         = SeqPrologue (Seq.SeqState n key)
         -- Trick: We keep the type, but we empty the discovered addresses
     data Discoveries (Seq.SeqState n key)
         = SeqDiscoveries
-            (SeqAddressList 'UtxoInternal)
-            (SeqAddressList 'UtxoExternal)
+            (SeqAddressMap 'UtxoInternal key)
+            (SeqAddressMap 'UtxoExternal key)
 
     addressIso = iso from to
       where
-        from (Seq.SeqState int ext a b c) =
-            ( SeqPrologue $ Seq.SeqState (emptyPool int) (emptyPool ext) a b c
-            , SeqDiscoveries (toDiscoveries @n int) (toDiscoveries @n ext)
-            )
-        to (SeqPrologue (Seq.SeqState int ext a b c), SeqDiscoveries ints exts)
-          = Seq.SeqState (fromDiscoveries @n int ints) (fromDiscoveries @n ext exts) a b c
+        from (Seq.SeqState int ext a b c d) =
+            let int0 = clear int
+                ext0 = clear ext
+            in  ( SeqPrologue $ Seq.SeqState int0 ext0 a b c d
+                , SeqDiscoveries (addresses int) (addresses ext)
+                )
+        to (SeqPrologue (Seq.SeqState int0 ext0 a b c d), SeqDiscoveries ints exts)
+          = Seq.SeqState (loadUnsafe int0 ints) (loadUnsafe ext0 exts) a b c d
 
--- | Extract the discovered addresses from an address pool.
-toDiscoveries
-    :: forall (n :: NetworkDiscriminant) (c :: Role) key.
-    ( GetPurpose key
-    , PaymentAddress n key
-    , Typeable c
-    ) => Seq.AddressPool c key -> SeqAddressList c
-toDiscoveries pool = SeqAddressList
-    [ (a,st) | (a,st,_) <- Seq.addresses (liftPaymentAddress @n) pool ]
+-- | Address data from sequential address pool.
+-- The phantom type parameter @c@ prevents mixing up
+-- the internal with the external pool.
+newtype SeqAddressMap (c :: Role) (key :: Depth -> Type -> Type) = SeqAddressMap
+        ( Map
+            (KeyFingerprint "payment" key)
+            (Index 'Soft 'AddressK, AddressState)
+        )
 
--- | Fill an empty address pool with addresses.
-fromDiscoveries
-    :: forall (n :: NetworkDiscriminant) (c :: Role) key.
-    ( MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
-    , MkKeyFingerprint key Address
-    , SoftDerivation key
-    , Typeable c
-    ) => Seq.AddressPool c key -> SeqAddressList c -> Seq.AddressPool c key
-fromDiscoveries ctx (SeqAddressList addrs) =
-    Seq.mkAddressPool @n (Seq.context ctx) (Seq.gap ctx) addrs
+clear :: Seq.SeqAddressPool c k -> Seq.SeqAddressPool c k
+clear = Seq.SeqAddressPool . AddressPool.clear . Seq.getPool
 
--- | Remove all discovered addresses from an address pool,
--- but keep context.
-emptyPool :: Seq.AddressPool c key -> Seq.AddressPool c key
-emptyPool pool = pool{ Seq.indexedKeys = Map.empty }
+addresses :: Seq.SeqAddressPool c k -> SeqAddressMap c k
+addresses = SeqAddressMap . AddressPool.addresses . Seq.getPool
+
+loadUnsafe
+    :: Seq.SeqAddressPool c k
+    -> SeqAddressMap c k -> Seq.SeqAddressPool c k
+loadUnsafe (Seq.SeqAddressPool pool0) (SeqAddressMap addrs) =
+    Seq.SeqAddressPool $ AddressPool.loadUnsafe pool0 addrs
 
 {-------------------------------------------------------------------------------
     Shared key address book
