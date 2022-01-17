@@ -9,7 +9,7 @@
 | [stack][] | >= 2.7.1 | Required, recommended |
 | [ghc][] | == 8.10.7 | Required |
 | [cabal][] | >= 3.4.0.0 | Optional |
-| [[Nix]] | >= 2.4 | Optional |
+| [[Nix]] | >= 2.5.1 | Optional |
 
 See [`nix/build-tools-overlay.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/build-tools-overlay.nix#L1) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
 
@@ -115,7 +115,9 @@ To build the wallet for your current platform:
 nix build
 ```
 
-Unless you have local changes in your git repo, this will download the
+The resulting executable will appear at `./result/bin/cardano-wallet`.
+
+Unless you have local changes in your git repo, Nix will download the
 build from the Hydra cache rather than building locally.
 
 #### Cross-compiling with Nix
@@ -147,7 +149,8 @@ See [[Hydra]] for more information.
 #### Cabal+Nix build
 
 Use the Cabal+Nix build if you want to develop with incremental
-builds, but also have it automatically download all dependencies.
+builds, but also have it automatically download cached builds of
+all dependencies.
 
 If you run `nix develop`, it will start a
 [development environment](https://input-output-hk.github.io/haskell.nix/user-guide/development/)
@@ -162,21 +165,6 @@ for `cardano-wallet`. This will contain:
 - other Adrestia utility programs such as `cardano-address` and `bech32`
 
 Inside this shell you can use `cabal build` and `ghci` for development.
-
-##### Fully cached dependencies
-
-Cabal generally tries to download and build `source-repository-package` dependencies itself, rather than using what's available through `ghc-pkg`.
-
-If you would like to further speed up your build, you may provide [`cabal-nix.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project#L1) as the `--project file` argument when running Cabal.
-
-```console
-$ nix develop
-
-[nix-shell:~/iohk/cardano-wallet]$ cabal build \
-    --project-file=cabal-nix.project \
-    --enable-tests --enable-benchmarks \
-    all
-```
 
 ##### Profiling build with cached dependencies
 
