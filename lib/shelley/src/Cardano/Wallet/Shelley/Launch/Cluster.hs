@@ -300,11 +300,11 @@ tokenMetadataServerFromEnv = envFromText "TOKEN_METADATA_SERVER" >>= \case
     Just (Right s) -> pure (Just s)
     Just (Left e) -> die $ show e
 
--- | Collect @--cache-listpools-ttl@ and @--no-cache-listpools@ options
+-- | Collect @--cache-listpools-refresh@ and @--no-cache-listpools@ options
 -- from environment variables.
 listPoolsConfigFromEnv :: IO CacheConfig
 listPoolsConfigFromEnv = do
-    ttl <- envFromText "CACHE_LISTPOOLS_TTL" >>= \case
+    ttl <- envFromText "CACHE_LISTPOOLS_REFRESH" >>= \case
         Nothing        -> pure $ CacheTTL 6 -- default value for testing
         Just (Right s) -> pure $ CacheTTL s
         Just (Left e)  -> die $ show e

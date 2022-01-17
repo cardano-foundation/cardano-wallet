@@ -1408,15 +1408,16 @@ walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
 
--- | [--no-cache-listpools|--cache-listpools-ttl DURATION]
+-- | [--no-cache-listpools|--cache-listpools-refresh DURATION]
 cacheListPoolsOption :: Parser CacheConfig
-cacheListPoolsOption = no <|> fmap (CacheTTL . getQuantity) ttl
+cacheListPoolsOption = no <|> fmap (CacheTTL . getQuantity) refresh
   where
-    ttl :: Parser (Quantity "second" NominalDiffTime)
-    ttl = fmap Quantity $ optionT $ mempty
-        <> long "cache-listpools-ttl"
-        <> metavar "TTL"
-        <> help ( "Cache time to live (TTL) for stake-pools listing. "
+    refresh :: Parser (Quantity "second" NominalDiffTime)
+    refresh = fmap Quantity $ optionT $ mempty
+        <> long "cache-listpools-refresh"
+        <> metavar "DURATION"
+        <> help ( "Time interval that indicates how often "
+            <> "the cache for the stake-pools listing will be refreshed."
             <> "Expressed in seconds with a trailing 's'. "
             )
         <> value 3600

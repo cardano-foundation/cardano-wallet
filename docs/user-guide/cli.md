@@ -168,8 +168,9 @@ Serve API that listens for commands/actions. Before launching user should start 
 >                            you are fully trusting the operator of the metadata
 >                            server to provide authentic token metadata.
 >   --no-cache-listpools     Do not cache the stake-pools listing.
->   --cache-listpools-ttl TTL
->                            Cache time to live (TTL) for stake-pools listing.
+>   --cache-listpools-refresh DURATION
+>                            Time interval that indicates how often
+>                            the cache for the stake-pools listing will be refreshed.
 >                            Expressed in seconds with a trailing 's'.
 >                            (default: 3600s)
 >   --log-level SEVERITY     Global minimum severity for a message to be logged.
