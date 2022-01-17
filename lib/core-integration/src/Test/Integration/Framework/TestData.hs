@@ -642,7 +642,7 @@ errMsg400ScriptNotUniformRoles =
 errMsg403ForeignTransaction :: String
 errMsg403ForeignTransaction = mconcat
     [ "The transaction to be submitted is foreign to the current wallet "
-    , "and cannot be sent. Submit a transaction that has either input, output "
+    , "and cannot be sent. Submit a transaction that has either input "
     , "or withdrawal belonging to the wallet."
     ]
 

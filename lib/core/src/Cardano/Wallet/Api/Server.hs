@@ -2410,15 +2410,11 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
     isForeign apiDecodedTx =
         let generalInps = apiDecodedTx ^. #inputs
             generalWdrls = apiDecodedTx ^. #withdrawals
-            generalOuts = apiDecodedTx ^. #outputs
             isInpForeign (WalletInput _) = False
             isInpForeign _ = True
-            isOutForeign (WalletOutput _) = False
-            isOutForeign _ = True
             isWdrlForeign (ApiWithdrawalGeneral _ _ context) = context == External
         in
             all isInpForeign generalInps &&
-            all isOutForeign generalOuts &&
             all isWdrlForeign generalWdrls
 
 joinStakePool
@@ -3942,11 +3938,11 @@ instance IsServerError ErrSubmitTransaction where
         ErrSubmitTransactionForeignWallet ->
             apiError err403 ForeignTransaction $ mconcat
                 [ "The transaction to be submitted is foreign to the current wallet "
-                , "and cannot be sent. Submit a transaction that has either input, output "
+                , "and cannot be sent. Submit a transaction that has either input "
                 , "or withdrawal belonging to the wallet."
                 ]
         ErrSubmitTransactionPartiallySignedOrNoSignedTx expectedWitsNo foundWitsNo ->
-            apiError err403 MissingWitnessesInTransaction $ mconcat $
+            apiError err403 MissingWitnessesInTransaction $ mconcat
                 [ "The transaction has ", toText expectedWitsNo
                 , " inputs and ", toText foundWitsNo, " witnesses included."
                 , " Submit fully-signed transaction."

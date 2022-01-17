@@ -2158,8 +2158,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   ]
         forM_ scenarios $ \(title, foreignWallet) -> it title $ \ctx -> runResourceT $ do
             wa <- fixtureWallet ctx
-            wb <- fixtureWallet ctx
-            wF <- foreignWallet ctx
+            wb <- foreignWallet ctx
 
             -- Construct tx
             payload <- mkTxPayload ctx wb $ minUTxOValue (_mainEra ctx)
@@ -2176,8 +2175,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             signedTx <- getFromResponse Prelude.id <$>
                 request @ApiSerialisedTransaction ctx signEndpoint Default toSign
 
-            -- Submit tx (from wF)
-            submittedTx <- submitTxWithWid ctx wF signedTx
+            -- Submit tx (from wb)
+            submittedTx <- submitTxWithWid ctx wb signedTx
             verify submittedTx
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage errMsg403ForeignTransaction
