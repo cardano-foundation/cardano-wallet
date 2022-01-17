@@ -334,14 +334,8 @@ sortRandomOn seed f
         Ideally, these computations should only be done in the ledger code.
 -------------------------------------------------------------------------------}
 
-percentOf :: Percentage -> Coin -> Coin
-percentOf r (Coin x) = Coin . round $ getPercentage r * fromIntegral x
-
 fractionOf :: RealFrac r => r -> Coin -> Coin
-fractionOf r (Coin x) = Coin . round $ r * fromIntegral x
-
-oneMinus :: Percentage -> Percentage
-oneMinus p = unsafeMkPercentage $ 1 - getPercentage p
+fractionOf r (Coin x) = Coin . floor $ r * fromIntegral x
 
 clipToPercentage :: Rational -> Percentage
 clipToPercentage = unsafeMkPercentage . min 1 . max 0
@@ -364,8 +358,7 @@ nonMyopicMemberReward
 nonMyopicMemberReward rp RewardInfoPool{..} isTop tcoin
     | ownerStake < ownerPledge = Coin 0
     | otherwise
-        = (memberShare `fractionOf`)
-        $ afterFees cost margin
+        = shareAfterFees memberShare cost margin
         $ (performanceEstimate `fractionOf`)
         $ optimalRewards rp s sigma_nonmyopic
   where
@@ -379,10 +372,11 @@ nonMyopicMemberReward rp RewardInfoPool{..} isTop tcoin
         | isTop      = max (getPercentage sigma + t) (z0 rp)
         | otherwise  = getPercentage s + t
 
--- | Subtract fixed and margin fees from a 'Coin'.
-afterFees :: Coin -> Percentage -> Coin -> Coin
-afterFees cost margin x = case x `Coin.subtract` cost of
-    Just y  -> oneMinus margin `percentOf` y
+-- | Compute share of 'Coin' after subtracting fixed cost and
+-- percentage margin.
+shareAfterFees :: Rational -> Coin -> Percentage -> Coin -> Coin
+shareAfterFees share cost margin x = case x `Coin.subtract` cost of
+    Just y  -> (share * (1 - getPercentage margin)) `fractionOf` y
     Nothing -> Coin 0
 
 -- | Optimal rewards for a stake pool
@@ -394,8 +388,7 @@ afterFees cost margin x = case x `Coin.subtract` cost of
 -- and is only suitable for the purpose of ranking,
 -- not for computing actual monetary rewards.
 optimalRewards :: RewardParams -> Percentage -> Rational -> Coin
-optimalRewards params s sigma = Coin . round
-    $ factor * (fromIntegral . unCoin . r $ params)
+optimalRewards params s sigma = factor `fractionOf` r params
   where
     factor = 1 / (1 + a0_)
         * ( sigma' + s' * a0_ * (sigma' - s'*(z0_-sigma')/z0_) / z0_ )
@@ -406,11 +399,12 @@ optimalRewards params s sigma = Coin . round
     sigma' = min (fromRational sigma) z0_
     s'     = min (fromRational $ getPercentage s) z0_
 
--- | The desirabilty of a pool is equal to the member rewards at saturation
+-- | The desirabilty of a pool is equal to the total
+-- member rewards at saturation
 -- IF the owner meets their pledge.
 desirability :: RewardParams -> RewardInfoPool -> Coin
 desirability rp RewardInfoPool{..}
-    = afterFees cost margin
+    = shareAfterFees 1 cost margin
     $ (performanceEstimate `fractionOf`)
     $ optimalRewards rp s (z0 rp)
   where
