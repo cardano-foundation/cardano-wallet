@@ -10,7 +10,7 @@
 
 with pkgs.lib;
 
-pkgs.stdenv.mkDerivation rec {
+let drv = pkgs.stdenv.mkDerivation rec {
   name = "${exe.identifier.name}-${version}";
   version = exe.identifier.version;
   phases = [ "installPhase" ];
@@ -20,7 +20,9 @@ pkgs.stdenv.mkDerivation rec {
     # fixme: remove this
     cp -Rv ${backend.deployments} $out/deployments
   '');
-
   meta.platforms = platforms.all;
-  passthru = optionalAttrs (backend != null) { inherit backend; };
-}
+  passthru = {
+    exePath = drv + "/bin/cardano-wallet";
+  } // (optionalAttrs (backend != null) { inherit backend; });
+};
+in drv

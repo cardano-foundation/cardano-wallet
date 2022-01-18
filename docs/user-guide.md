@@ -7,3 +7,4 @@ order: 1
 - [[http-api]]
 - [[cli]]
 - [[Docker]]
+- [[NixOS]]

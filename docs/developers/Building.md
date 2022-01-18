@@ -120,6 +120,19 @@ The resulting executable will appear at `./result/bin/cardano-wallet`.
 Unless you have local changes in your git repo, Nix will download the
 build from the Hydra cache rather than building locally.
 
+You may also run the exectable directly with:
+
+```console
+$ nix run . -- <cardano wallet arguments>
+```
+
+or more confortably, for pre-configured networks (`mainnet`, `testnet`, ...):
+```console
+$ CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
+
+$ nix run .#mainnet/wallet -- <optional additional cardano wallet arguments>
+```
+
 #### Cross-compiling with Nix
 
 To build the wallet for Windows, from **Linux**:
@@ -128,12 +141,21 @@ To build the wallet for Windows, from **Linux**:
 nix build .#hydraJobs.linux.windows.cardano-wallet
 ```
 
-#### Building straight from GitHub
+#### Building (and running) straight from GitHub
 
 To build another branch, add `/<branch name, tag, or commit hash>`:
 
-```
+```console
 nix build github:input-output-hk/cardano-wallet
+
+```
+
+To run a wallet on mainnet:
+
+```console
+$ CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
+
+$ nix run github:input-output-hk/cardano-wallet#mainnet/wallet
 ```
 
 #### Navigating Hydra
