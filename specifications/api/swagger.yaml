@@ -5931,6 +5931,8 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Submit a transaction that was already created and signed.
+        Fails for foreign transactions that is transactions which lack
+        the wallet's inputs and withdrawals.
       parameters:
         - *parametersWalletId
       requestBody:

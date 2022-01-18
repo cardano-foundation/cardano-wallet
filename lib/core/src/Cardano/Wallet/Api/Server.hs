@@ -2348,6 +2348,7 @@ submitTransaction
     -> ApiSerialisedTransaction
     -> Handler ApiTxId
 submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT sealedTx)) = do
+    --TODO: revisit/possibly set proper ttls in ADP-1193
     ttl <- liftIO $ W.getTxExpiry ti Nothing
     apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
     when (isForeign apiDecoded) $
@@ -2394,7 +2395,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT seal
         in case filter isWdrlOurs generalWdrls of
             [ApiWithdrawalGeneral (ApiT acct, _) (Quantity amt) _] ->
                 let acct' = invariant "reward account should be the same" acct (rewardAcct ==)
-                in WithdrawalSelf acct' path (Coin $ fromIntegral amt)
+                in WithdrawalSelf acct' path (Coin amt)
             _ ->
                 NoWithdrawal
 
