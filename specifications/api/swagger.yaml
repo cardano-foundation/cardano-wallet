@@ -2590,6 +2590,11 @@ components:
       description: |
         The result of signing a transaction (serialized and encoded).
 
+    ApiSignedTransactionEncoded: &ApiSignedTransactionEncoded
+      <<: *ApiSerialisedTransactionEncoded
+      description: |
+        The result of signing a transaction (serialized and encoded).
+
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
       description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
@@ -4213,6 +4218,28 @@ x-errCreatedInvalidTransaction: &errCreatedInvalidTransaction
       type: string
       enum: ['created_invalid_transaction']
 
+x-errForeignTransaction: &errForeignTransaction
+  <<: *responsesErr
+  title: foreign_transaction
+  properties:
+    message:
+      type: string
+      description: Occurs when a transaction to be submitted does have neither input, output nor withdrawal belonging to a given wallet.
+    code:
+      type: string
+      enum: ['foreign_transaction']
+
+x-errMissingWitnessesInTransaction: &errMissingWitnessesInTransaction
+  <<: *responsesErr
+  title: missing_witnesses_in_transaction
+  properties:
+    message:
+      type: string
+      description: Occurs when a transaction to be submitted is not fully signed.
+    code:
+      type: string
+      enum: ['missing_witnesses_in_transaction']
+
 x-errRejectedByCoreNode: &errRejectedByCoreNode
   <<: *responsesErr
   title: rejected_by_core_node
@@ -5111,6 +5138,14 @@ x-responsesSubmitTransaction: &responsesSubmitTransaction
     content:
       application/json:
         schema: *ApiTxId
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errForeignTransaction
+            - <<: *errMissingWitnessesInTransaction
 
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
@@ -5887,6 +5922,25 @@ paths:
           application/json:
             schema: *ApiSerialisedTransactionEncoded
       responses: *responsesDecodedTransaction
+
+  /wallets/{walletId}/transactions-submit:
+    post:
+      operationId: submitTransaction
+      tags: ["Transactions New"]
+      summary: Submit
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Submit a transaction that was already created and signed.
+        Fails for foreign transactions that is transactions which lack
+        the wallet's inputs and withdrawals.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSignedTransactionEncoded
+      responses: *responsesPostExternalTransaction
 
   /wallets/{walletId}/addresses:
     get:

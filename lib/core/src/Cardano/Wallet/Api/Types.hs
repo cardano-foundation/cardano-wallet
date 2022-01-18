@@ -1155,7 +1155,7 @@ data ResourceContext = External | Our
       deriving (Eq, Generic, Show, Typeable)
       deriving anyclass NFData
 
-data ApiWithdrawalGeneral n = ApiWithdrawalGeneral
+data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
     { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     , context :: !ResourceContext
@@ -1662,6 +1662,8 @@ data ApiErrorCode
     | UnresolvedInputs
     | RedeemerInvalidData
     | ExistingKeyWitnesses
+    | ForeignTransaction
+    | MissingWitnessesInTransaction
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

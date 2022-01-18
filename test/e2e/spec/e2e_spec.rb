@@ -23,7 +23,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     # @wid_rnd = "12cbebfdc4521766e63a7e07c4825b24deb4176c"
     # @wid_ic = "f5da82c1eb3e391a535dd5ba2867fe9bdaf2f313"
     # @wid = "2269611a3c10b219b0d38d74b004c298b76d16a9"
-    # @target_id = "8d0fc5d4450d7430a822f2102a84ac2ca1bc1bf1"
+    # @target_id = "84cbdf1ff57e5f18433c5e38a395a66e2953ae22"
     # 1f82e83772b7579fc0854bd13db6a9cce21ccd95
     # 2269611a3c10b219b0d38d74b004c298b76d16a9
     # a042bafdaf98844cfa8f6d4b1dc47519b21a4d95
@@ -55,7 +55,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       { tx_id: tx_id,
         tx_unbalanced: SHELLEY.transactions.decode(@wid, payload["transaction"]),
         tx_balanced: SHELLEY.transactions.decode(@wid, tx_balanced["transaction"]),
-        tx_signed: SHELLEY.transactions.decode(@wid, tx_signed["transaction"])}
+        tx_signed: SHELLEY.transactions.decode(@wid, tx_signed["transaction"]) }
     end
 
     def run_contract(contract_setup, scripts)
@@ -66,7 +66,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
       # Run Plutus contract
       scripts.each do |s|
-        payload = get_templated_plutus_tx(s, {transactionId: tx_id})
+        payload = get_templated_plutus_tx(s, { transactionId: tx_id })
         r = run_script(s, payload)
         tx_id = r[:tx_id]
       end
@@ -99,7 +99,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
       # run ping-pong_2
       src_before2 = get_shelley_balances(@wid)
-      payload2 = get_templated_plutus_tx(script, {transactionId: r[:tx_id]})
+      payload2 = get_templated_plutus_tx(script, { transactionId: r[:tx_id] })
       r2 = run_script(script, payload2)
 
       # verify that decoded balanced tx is the same as signed tx
@@ -120,23 +120,23 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
 
     it "mint-burn" do
-      vk = SHELLEY.keys.get_public_key(@wid, 'utxo_external', 0, {hash: true}).gsub("\"",'')
+      vk = SHELLEY.keys.get_public_key(@wid, 'utxo_external', 0, { hash: true }).gsub("\"", '')
       vkHash = bech32_to_base16(vk)
-      policy = read_mustached_file("mintBurn_policy", {vkHash: vkHash})
+      policy = read_mustached_file("mintBurn_policy", { vkHash: vkHash })
       policy_id = get_policy_id(policy)
       mint_script = "mintBurn_1.json"
       burn_script = "mintBurn_2.json"
-      assets = [{"asset_name" => asset_name("mint-burn"),
+      assets = [{ "asset_name" => asset_name("mint-burn"),
                  "quantity" => 1,
-                 "policy_id" => policy_id}]
+                 "policy_id" => policy_id }]
 
-      payload_mint = get_templated_plutus_tx(mint_script,{vkHash: vkHash,
+      payload_mint = get_templated_plutus_tx(mint_script, { vkHash: vkHash,
                                                           policyId: policy_id,
-                                                          policy: policy})
+                                                          policy: policy })
 
-      payload_burn = get_templated_plutus_tx(burn_script,{vkHash: vkHash,
+      payload_burn = get_templated_plutus_tx(burn_script, { vkHash: vkHash,
                                                           policyId: policy_id,
-                                                          policy: policy})
+                                                          policy: policy })
 
       mint = run_script(mint_script, payload_mint)
       burn = run_script(burn_script, payload_burn)
@@ -197,8 +197,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       validator = read_mustached_file("withdrawal_validator")
       validator_hash = get_policy_id(validator)
       withdrawal_script = "withdrawal.json"
-      payload = get_templated_plutus_tx(withdrawal_script, {script: validator,
-                                                            scriptHash: validator_hash})
+      payload = get_templated_plutus_tx(withdrawal_script, { script: validator,
+                                                            scriptHash: validator_hash })
 
       init_src = get_shelley_balances(@wid)
 
@@ -217,10 +217,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       # Perform coin selection to select input to be used in minting contract
       address = SHELLEY.addresses.list(@wid)[0]['id']
       payload_cs = [{ :address => address,
-                      :amount => { :quantity => 1000000000, :unit => "lovelace" }}
+                      :amount => { :quantity => 1000000000, :unit => "lovelace" } }
                    ]
       coin_selection = SHELLEY.coin_selections.random(@wid, payload_cs)
-      input = coin_selection['inputs'].select{|i| i['assets'] == []}.first
+      input = coin_selection['inputs'].select { |i| i['assets'] == [] }.first
       tx_id = input['id']
       tx_idx = input['index'].to_i
       amount = input['amount']['quantity'].to_i
@@ -231,27 +231,27 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       encoded_tx_idx = plutus_encode_idx(tx_idx) # special Plutus bit-wise encoding
 
       # feed payload for contract with data from coin selection
-      policy = read_mustached_file(currency_policy, {transactionId: tx_id,
-                                                     encodedTransactionIdx: encoded_tx_idx})
+      policy = read_mustached_file(currency_policy, { transactionId: tx_id,
+                                                     encodedTransactionIdx: encoded_tx_idx })
       policy_id = get_policy_id(policy)
-      payload = get_templated_plutus_tx(currency_script, {policy: policy,
+      payload = get_templated_plutus_tx(currency_script, { policy: policy,
                                                           policyId: policy_id,
                                                           transactionId: tx_id,
                                                           transactionIdx: tx_idx,
                                                           transactionIdxHex: tx_idx_hex,
                                                           amount: amount,
-                                                          address: address})
+                                                          address: address })
 
       # run contract
       r = run_script(currency_script, payload)
 
       # expected minted currency
-      apfel = {"policy_id" => policy_id,
+      apfel = { "policy_id" => policy_id,
                "asset_name" => asset_name("apfel"),
-               "quantity" => 1000}
-      banana = {"policy_id" => policy_id,
+               "quantity" => 1000 }
+      banana = { "policy_id" => policy_id,
                 "asset_name" => asset_name("banana"),
-                "quantity" => 1}
+                "quantity" => 1 }
 
       # verify decoded transactions show that currency will be minted
       expect(r[:tx_unbalanced]['assets_minted']).to eq [apfel, banana]
@@ -269,8 +269,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
                }]
       tx_constructed = SHELLEY.transactions.construct(@wid, payment)
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
-      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       tx_id = tx_submitted['id']
+      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -302,9 +303,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
 
-      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
+      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -343,9 +345,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
 
-      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
+      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -357,7 +360,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
       verify_ada_balance(src_after, src_before,
                          target_after, target_before,
-                         (2*amt), expected_fee)
+                         (2 * amt), expected_fee)
     end
 
     it "Multi-assets transaction" do
@@ -390,9 +393,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
 
-      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
+      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -427,9 +431,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
 
-      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
+      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -459,9 +464,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
 
-      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
+      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -503,9 +509,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
       expect(tx_signed).to be_correct_and_respond 202
 
-      tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
       expect(tx_submitted).to be_correct_and_respond 202
       tx_id = tx_submitted['id']
+      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
 
       wait_for_tx_in_ledger(@wid, tx_id)
 
@@ -622,16 +629,16 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
 
         target_after = get_shelley_balances(@target_id)
-        
+
         # verify balances are correct on target wallet
         assets_to_check = ["#{ASSETS[0]["policy_id"]}#{ASSETS[0]["asset_name"]}",
                            "#{ASSETS[1]["policy_id"]}#{ASSETS[1]["asset_name"]}"]
-        target_total_after = assets_balance(target_after['assets_total'], {assets_to_check: assets_to_check})
-        target_avail_after = assets_balance(target_after['assets_available'], {assets_to_check: assets_to_check})
-        target_total_expected = assets_balance(target_before['assets_total'], {assets_to_check: assets_to_check, delta: (+amt)})
-        target_avail_expected = assets_balance(target_before['assets_available'], {assets_to_check: assets_to_check, delta: (+amt)})
+        target_total_after = assets_balance(target_after['assets_total'], { assets_to_check: assets_to_check })
+        target_avail_after = assets_balance(target_after['assets_available'], { assets_to_check: assets_to_check })
+        target_total_expected = assets_balance(target_before['assets_total'], { assets_to_check: assets_to_check, delta: (+amt) })
+        target_avail_expected = assets_balance(target_before['assets_available'], { assets_to_check: assets_to_check, delta: (+amt) })
         if target_before['assets_total'] == []
-          target_balance_expected = assets_to_check.map {|a| {a => amt}}.to_set
+          target_balance_expected = assets_to_check.map { |a| { a => amt } }.to_set
           expect(target_total_after).to eq target_balance_expected
           expect(target_avail_after).to eq target_balance_expected
         else
@@ -1052,7 +1059,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       verify_asset_balance(src_after, src_before,
                            target_after, target_before,
                            amt)
-
     end
 
     describe "Byron Transactions" do
@@ -1145,6 +1151,45 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
   end
 
+  describe "E2E External transaction" do
+    it "Single output transaction" do
+      amt = 1000000
+      address = SHELLEY.addresses.list(@target_id)[0]['id']
+      target_before = get_shelley_balances(@target_id)
+      src_before = get_shelley_balances(@wid)
+
+      payment = [{ :address => address,
+                 :amount => { :quantity => amt,
+                           :unit => 'lovelace' }
+               }]
+      tx_constructed = SHELLEY.transactions.construct(@wid, payment)
+      expect(tx_constructed).to be_correct_and_respond 202
+      expected_fee = tx_constructed['fee']['quantity']
+      decoded_fee = SHELLEY.transactions.decode(@wid, tx_constructed["transaction"])['fee']['quantity']
+      expect(expected_fee).to eq decoded_fee
+
+      tx_signed = SHELLEY.transactions.sign(@wid, PASS, tx_constructed['transaction'])
+      expect(tx_signed).to be_correct_and_respond 202
+
+      tx_submitted = SHELLEY.transactions.submit(@wid, tx_signed['transaction'])
+      expect(tx_submitted).to be_correct_and_respond 202
+      tx_id = tx_submitted['id']
+      expect(SHELLEY.transactions.get(@wid, tx_id)['status']).to eq 'pending'
+
+      wait_for_tx_in_ledger(@wid, tx_id)
+
+      target_after = get_shelley_balances(@target_id)
+      src_after = get_shelley_balances(@wid)
+      tx = SHELLEY.transactions.get(@wid, tx_id)
+      # verify actual fee the same as constructed
+      expect(expected_fee).to eq tx['fee']['quantity']
+
+      verify_ada_balance(src_after, src_before,
+                         target_after, target_before,
+                         amt, expected_fee)
+    end
+  end
+
   describe "E2E Migration" do
     it "I can migrate all funds back to fixture wallet" do
       address = SHELLEY.addresses.list(@wid)[0]['id']
@@ -1152,20 +1197,20 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
       target_before = get_shelley_balances(@wid)
 
       migration = SHELLEY.migrations.migrate(@target_id, PASS, [address])
-      tx_ids = migration.map{|m| m['id']}
-      fees = migration.map{|m| m['fee']['quantity']}.sum
-      amounts = migration.map{|m| m['amount']['quantity']}.sum - fees
+      tx_ids = migration.map { |m| m['id'] }
+      fees = migration.map { |m| m['fee']['quantity'] }.sum
+      amounts = migration.map { |m| m['amount']['quantity'] }.sum - fees
 
       tx_ids.each do |tx_id|
         wait_for_tx_in_ledger(@target_id, tx_id)
       end
       src_after = get_shelley_balances(@target_id)
       target_after = get_shelley_balances(@wid)
-      expected_src_balance = {'total' => 0,
+      expected_src_balance = { 'total' => 0,
                                'available' => 0,
                                'rewards' => 0,
                                'assets_total' => [],
-                               'assets_available' => []}
+                               'assets_available' => [] }
 
       expect(src_after).to eq expected_src_balance
 

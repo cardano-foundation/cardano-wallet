@@ -113,6 +113,7 @@ module Test.Integration.Framework.DSL
     , listAddresses
     , signTx
     , submitTx
+    , submitTxWithWid
     , getWallet
     , listTransactions
     , listAllTransactions
@@ -2266,7 +2267,7 @@ signTx
     -> ApiWallet
     -> ApiT SealedTx
     -> [(HTTP.Status, Either RequestException ApiSerialisedTransaction) -> m ()]
-    -> m (ApiT SealedTx)
+    -> m ApiSerialisedTransaction
 signTx ctx w sealedTx expectations = do
     let toSign = Json [aesonQQ|
                            { "transaction": #{sealedTx}
@@ -2275,16 +2276,16 @@ signTx ctx w sealedTx expectations = do
     let signEndpoint = Link.signTransaction @'Shelley w
     r <- request @ApiSerialisedTransaction ctx signEndpoint Default toSign
     verify r expectations
-    pure $ getFromResponse #transaction r
+    pure $ getFromResponse Prelude.id r
 
 submitTx
     :: MonadUnliftIO m
     => Context
-    -> ApiT SealedTx
+    -> ApiSerialisedTransaction
     -> [(HTTP.Status, Either RequestException ApiTxId) -> m ()]
     -> m ApiTxId
 submitTx ctx tx expectations = do
-    let bytes = serialisedTx $ getApiT tx
+    let bytes = serialisedTx $ getApiT (tx ^. #transaction)
     let submitEndpoint = Link.postExternalTransaction
     let headers = Headers
             [ ("Content-Type", "application/octet-stream")
@@ -2293,6 +2294,17 @@ submitTx ctx tx expectations = do
     r <- request @ApiTxId ctx submitEndpoint headers (NonJson $ BL.fromStrict bytes)
     verify r expectations
     pure $ getFromResponse Prelude.id  r
+
+submitTxWithWid
+    :: MonadUnliftIO m
+    => Context
+    -> ApiWallet
+    -> ApiSerialisedTransaction
+    -> m (HTTP.Status, Either RequestException ApiTxId)
+submitTxWithWid ctx w tx = do
+    let submitEndpoint = Link.submitTransaction @'Shelley w
+    let payload = Json $ Aeson.toJSON tx
+    request @ApiTxId ctx submitEndpoint Default payload
 
 getWallet
     :: forall w m.

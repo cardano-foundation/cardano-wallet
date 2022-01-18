@@ -93,6 +93,7 @@ module Cardano.Wallet.Api.Server
     , mintBurnAssets
     , balanceTransaction
     , decodeTransaction
+    , submitTransaction
 
     -- * Server error responses
     , IsServerError(..)
@@ -161,6 +162,7 @@ import Cardano.Wallet
     , ErrSignPayment (..)
     , ErrStakePoolDelegation (..)
     , ErrStartTimeLaterThanEndTime (..)
+    , ErrSubmitTransaction (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrUpdateSealedTx (..)
@@ -444,6 +446,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , getSealedTxWitnesses
     , txOutCoin
     )
 import Cardano.Wallet.Registry
@@ -466,6 +469,8 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
+import Cardano.Wallet.Util
+    ( invariant )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -2330,6 +2335,89 @@ decodeTransaction ctx (ApiT wid) (ApiSerialisedTransaction (ApiT sealed)) = do
             DelegationCertificate $
             JoinPoolExternal (ApiT rewardKey, Proxy @n) (ApiT poolId')
 
+submitTransaction
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k
+        , HasNetworkLayer IO ctx
+        , IsOwned s k
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiSerialisedTransaction
+    -> Handler ApiTxId
+submitTransaction ctx apiw@(ApiT wid) apitx@(ApiSerialisedTransaction (ApiT sealedTx)) = do
+    --TODO: revisit/possibly set proper ttls in ADP-1193
+    ttl <- liftIO $ W.getTxExpiry ti Nothing
+    apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
+    when (isForeign apiDecoded) $
+        liftHandler $ throwE ErrSubmitTransactionForeignWallet
+    let ourOuts = getOurOuts apiDecoded
+    let ourInps = getOurInps apiDecoded
+
+    let allInpsNum = length $ apiDecoded ^. #inputs
+    let witsNum = length $ getSealedTxWitnesses sealedTx
+    when (allInpsNum > witsNum) $
+        liftHandler $ throwE $
+        ErrSubmitTransactionPartiallySignedOrNoSignedTx allInpsNum witsNum
+
+    _ <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (acct, _, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        let wdrl = getOurWdrl acct path apiDecoded
+        let txCtx = defaultTransactionCtx
+                { txTimeToLive = ttl
+                , txWithdrawal = wdrl
+                }
+        txMeta <- liftHandler $ W.constructTxMeta @_ @s @k wrk wid txCtx ourInps ourOuts
+        liftHandler
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+    return $ ApiTxId (apiDecoded ^. #id)
+  where
+    (tx,_,_,_) = decodeTx tl sealedTx
+    tl = ctx ^. W.transactionLayer @k
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    nl = ctx ^. networkLayer
+    ti = timeInterpreter nl
+
+    isOutOurs (WalletOutput _) = True
+    isOutOurs _ = False
+    toTxOut (WalletOutput (ApiWalletOutput (ApiT addr, _) (Quantity amt) (ApiT tmap) _)) =
+        TxOut addr (TokenBundle (Coin $ fromIntegral amt) tmap)
+    toTxOut _ = error "we should have only our outputs at this point"
+    getOurOuts apiDecodedTx =
+        let generalOuts = apiDecodedTx ^. #outputs
+        in map toTxOut $ filter isOutOurs generalOuts
+
+    getOurWdrl rewardAcct path apiDecodedTx =
+        let generalWdrls = apiDecodedTx ^. #withdrawals
+            isWdrlOurs (ApiWithdrawalGeneral _ _ context) = context == Our
+        in case filter isWdrlOurs generalWdrls of
+            [ApiWithdrawalGeneral (ApiT acct, _) (Quantity amt) _] ->
+                let acct' = invariant "reward account should be the same" acct (rewardAcct ==)
+                in WithdrawalSelf acct' path (Coin amt)
+            _ ->
+                NoWithdrawal
+
+    isInpOurs (WalletInput _) = True
+    isInpOurs _ = False
+    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ _ _)) =
+        (TxIn txid ix, Coin 0)
+    toTxInp _ = error "we should have only our inputs at this point"
+    getOurInps apiDecodedTx =
+        let generalInps = apiDecodedTx ^. #inputs
+        in map toTxInp $ filter isInpOurs generalInps
+
+    isForeign apiDecodedTx =
+        let generalInps = apiDecodedTx ^. #inputs
+            generalWdrls = apiDecodedTx ^. #withdrawals
+            isInpForeign (WalletInput _) = False
+            isInpForeign _ = True
+            isWdrlForeign (ApiWithdrawalGeneral _ _ context) = context == External
+        in
+            all isInpForeign generalInps &&
+            all isWdrlForeign generalWdrls
+
 joinStakePool
     :: forall ctx s n k.
         ( ctx ~ ApiLayer s k
@@ -3840,6 +3928,25 @@ instance IsServerError ErrPostTx where
                 [ "The submitted transaction was rejected by the local "
                 , "node. Here's an error message that may help with "
                 , "debugging:\n", err
+                ]
+
+instance IsServerError ErrSubmitTransaction where
+    toServerError = \case
+        ErrSubmitTransactionNoSuchWallet e -> (toServerError e)
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
+            }
+        ErrSubmitTransactionForeignWallet ->
+            apiError err403 ForeignTransaction $ mconcat
+                [ "The transaction to be submitted is foreign to the current wallet "
+                , "and cannot be sent. Submit a transaction that has either input "
+                , "or withdrawal belonging to the wallet."
+                ]
+        ErrSubmitTransactionPartiallySignedOrNoSignedTx expectedWitsNo foundWitsNo ->
+            apiError err403 MissingWitnessesInTransaction $ mconcat
+                [ "The transaction has ", toText expectedWitsNo
+                , " inputs and ", toText foundWitsNo, " witnesses included."
+                , " Submit fully-signed transaction."
                 ]
 
 instance IsServerError ErrSubmitTx where

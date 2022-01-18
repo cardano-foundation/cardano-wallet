@@ -294,7 +294,7 @@ end
 ##
 # return asset total or available balance for comparison
 # @param [Hash] assets - asset balance Hash from the wallet (output of get_wallet_balances['assets_*'])
-# @param [Hash] options - 
+# @param [Hash] options -
 #                    options[:delta] [Int] - received/sent assets that we are expecting (default: 0)
 #                    options[:assets_to_check] [Array] - limit looking up balance to only assets in the array ["#{policy_id}#{asset_name}",...] (default: nil)
 # @return [Set] Set of Hashes {"#{policy_id}#{asset_name}" => balance}
@@ -304,7 +304,7 @@ def assets_balance(assets, options = {})
 
   asset_set = assets.map { |x| { "#{x['policy_id']}#{x['asset_name']}" => x['quantity'] + options[:delta] } }.to_set
   if assets_to_check
-    asset_set.select {|a| assets_to_check.include? a.keys.first}.to_set
+    asset_set.select { |a| assets_to_check.include? a.keys.first }.to_set
   else
     asset_set
   end
@@ -365,21 +365,21 @@ end
 # @params src_after, src_before, target_after, target_before - src and target wallet balances before and after tx
 # @param [Int] amt - amt of assets sent in tx
 # @param [Array] assets_to_check - array of assets sent in the tx in the form of ["#{policy_id}#{asset_name}",...]
-def verify_asset_balance(src_after, src_before, target_after, target_before, amt, 
+def verify_asset_balance(src_after, src_before, target_after, target_before, amt,
                          assets_to_check = ["#{ASSETS[0]['policy_id']}#{ASSETS[0]['asset_name']}",
                                             "#{ASSETS[1]['policy_id']}#{ASSETS[1]['asset_name']}"])
-  
-  target_total_after = assets_balance(target_after['assets_total'], {assets_to_check: assets_to_check})
-  target_avail_after = assets_balance(target_after['assets_available'], {assets_to_check: assets_to_check})
-  target_total_expected = assets_balance(target_before['assets_total'], {assets_to_check: assets_to_check, delta: (+amt)})
-  target_avail_expected = assets_balance(target_before['assets_available'], {assets_to_check: assets_to_check, delta: (+amt)})
-  src_total_after = assets_balance(src_after['assets_total'], {assets_to_check: assets_to_check})
-  src_avail_after = assets_balance(src_after['assets_available'], {assets_to_check: assets_to_check})
-  src_total_expected = assets_balance(src_before['assets_total'], {assets_to_check: assets_to_check, delta: (-amt)})
-  src_avail_expected = assets_balance(src_before['assets_available'], {assets_to_check: assets_to_check, delta: (-amt)})
+
+  target_total_after = assets_balance(target_after['assets_total'], { assets_to_check: assets_to_check })
+  target_avail_after = assets_balance(target_after['assets_available'], { assets_to_check: assets_to_check })
+  target_total_expected = assets_balance(target_before['assets_total'], { assets_to_check: assets_to_check, delta: (+amt) })
+  target_avail_expected = assets_balance(target_before['assets_available'], { assets_to_check: assets_to_check, delta: (+amt) })
+  src_total_after = assets_balance(src_after['assets_total'], { assets_to_check: assets_to_check })
+  src_avail_after = assets_balance(src_after['assets_available'], { assets_to_check: assets_to_check })
+  src_total_expected = assets_balance(src_before['assets_total'], { assets_to_check: assets_to_check, delta: (-amt) })
+  src_avail_expected = assets_balance(src_before['assets_available'], { assets_to_check: assets_to_check, delta: (-amt) })
 
   if target_before['assets_total'] == []
-    target_balance_expected = assets_to_check.map {|a| {a => amt}}.to_set
+    target_balance_expected = assets_to_check.map { |a| { a => amt } }.to_set
     expect(target_total_after).to eq target_balance_expected
     expect(target_avail_after).to eq target_balance_expected
   else
@@ -442,8 +442,9 @@ def balance_sign_submit(wid, payload)
   tx_signed = SHELLEY.transactions.sign(wid, PASS, tx_balanced['transaction'])
   expect(tx_signed).to be_correct_and_respond 202
 
-  tx_submitted = PROXY.submit_external_transaction(Base64.decode64(tx_signed['transaction']))
+  tx_submitted = SHELLEY.transactions.submit(wid, tx_signed['transaction'])
   expect(tx_submitted).to be_correct_and_respond 202
+  expect(SHELLEY.transactions.get(wid, tx_submitted['id'])['status']).to eq 'pending'
 
   [tx_balanced, tx_signed, tx_submitted]
 end
@@ -473,7 +474,7 @@ end
 # Get all sent ADA amounts from the wallet from decoded tx outputs
 # We assume multi output transaction
 def get_sent_amts(outputs)
-  outputs.map{|o| o["amount"]["quantity"] if o["derivation_path"] == nil }
+  outputs.map { |o| o["amount"]["quantity"] if o["derivation_path"] == nil }
 end
 ##
 # The same as get_sent_amts, but we assume single output tx
