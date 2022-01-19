@@ -470,12 +470,9 @@ discoverAddresses block s0 = s2
     discoverWithdrawals s tx =
         L.foldl' updateOurs s $ Map.keys (tx ^. #withdrawals)
 
--- | Helper based on 'isOurs'.
-updateOurs :: IsOurs s entity => s -> entity -> s
-updateOurs s x = snd $ isOurs x s
-
--- | Helper based on 'isOurs'.
-ours :: IsOurs s entity => s -> entity -> Bool
+-- | Indicates whether an address is known to be ours, without updating the
+-- address discovery state.
+ours :: IsOurs s addr => s -> addr -> Bool
 ours s x = isJust . fst $ isOurs x s
 
 -- | Performs address discovery and indicates whether a given transaction is
@@ -516,7 +513,13 @@ isOurTx tx u
     txHasRelevantWithdrawal =
         F.or <$> sequence (isOursState . fst <$> Map.toList (tx ^. #withdrawals))
 
-isOursState :: IsOurs s entity => entity -> State s Bool
+-- | Add an address to the address discovery state, iff it belongs to us.
+updateOurs :: IsOurs s addr => s -> addr -> s
+updateOurs s x = snd $ isOurs x s
+
+-- | Perform stateful address discovery, and return whether the given address
+-- belongs to us.
+isOursState :: IsOurs s addr => addr -> State s Bool
 isOursState x = isJust <$> state (isOurs x)
 
 {-------------------------------------------------------------------------------
