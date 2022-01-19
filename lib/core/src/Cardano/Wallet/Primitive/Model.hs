@@ -363,6 +363,7 @@ totalUTxO pending (Wallet u _ s) =
 --   and typically does not agree with the order in which we have submitted
 --   them onto the chain. Hence, the address discovery phase is not really
 --   very effective.
+--   TODO: Add slot to 'Tx' and sort the pending set by slot.
 changeUTxO
     :: IsOurs s Address
     => Set Tx
