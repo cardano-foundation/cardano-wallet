@@ -272,7 +272,7 @@ spec = do
             property prop_applyOurTxToUTxO_allOurs
         it "prop_applyOurTxToUTxO_someOurs" $
             property prop_applyOurTxToUTxO_someOurs
-    
+
     parallel $ describe "Address discovery" $ do
         it "discoverAddresses ~ isOurTx" $
             property prop_discoverAddresses
@@ -822,14 +822,15 @@ prop_applyOurTxToUTxO_someOurs ourState slotNo blockHeight tx utxo =
     shouldHaveResult = evalState (isOurTx tx utxo) ourState
 
 {-------------------------------------------------------------------------------
-    Address discovery
+                               Address discovery
 -------------------------------------------------------------------------------}
+
 {- HLINT ignore prop_discoverAddresses "Avoid lambda using `infix`" -}
 prop_discoverAddresses :: ApplyBlock -> Property
 prop_discoverAddresses (ApplyBlock s utxo block) =
-        discoverAddresses block s
+    discoverAddresses block s
     ===
-        execState (mapM (\tx -> isOurTx tx utxo) txs) s
+    execState (mapM (\tx -> isOurTx tx utxo) txs) s
   where
     txs = view #transactions block
 

@@ -14,16 +14,15 @@
 -- It is a direct implementation of the model, with extensions, from the
 -- [Formal Specification for a Cardano Wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/wallet/formal-specification-for-a-cardano-wallet.pdf).
 --
--- In other words, this module is about how the wallet keeps
--- track of its internal state, specifically the 'UTxO' set and
--- the address discovery state.
--- This module is intentionally agnostic to specific address formats,
--- and instead relies on the 'IsOurs' abstraction.
--- It is also agnostic to issues such as how blocks are retrieved from the network,
--- or how the state is serialized and cached in the local database.
+-- In other words, this module is about how the wallet keeps track of its
+-- internal state, specifically the 'UTxO' set and the address discovery state.
+-- This module is intentionally agnostic to specific address formats, and
+-- instead relies on the 'IsOurs' abstraction.  It is also agnostic to issues
+-- such as how blocks are retrieved from the network, or how the state is
+-- serialized and cached in the local database.
 --
 -- All those functions are pure and there's no reason to shove in any sort of
--- side-effects in here. :)
+-- side-effects in here. 🙂
 
 module Cardano.Wallet.Primitive.Model
     (
@@ -48,9 +47,7 @@ module Cardano.Wallet.Primitive.Model
 
     -- * Internal
     , unsafeInitWallet
-
-    -- * Testing
-    -- ** UTxO
+    -- ** Exported for testing
     , spendTx
     , utxoFromTx
     , applyTxToUTxO
@@ -124,15 +121,17 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
-    Type
+                                      Type
 -------------------------------------------------------------------------------}
 
 -- | Abstract data type representing a wallet state.
 --
--- A 'Wallet' keeps track of transaction outputs and associated addresses
--- that belong to /us/ -- we are able to spend these outputs because
--- we know the corresponding signing key belonging to the output. Hence, we are able to produce witness engaging those outputs as they become inputs in forthcoming transactions according to UTxO model. 
--- This information is associated to a particular point on the blockchain.
+-- A 'Wallet' keeps track of transaction outputs and associated addresses that
+-- belong to /us/ -- we are able to spend these outputs because we know the
+-- corresponding signing key belonging to the output. Hence, we are able to
+-- produce witness engaging those outputs as they become inputs in forthcoming
+-- transactions according to UTxO model.  This information is associated to a
+-- particular point on the blockchain.
 --
 -- Internally, a 'Wallet' keeps track of
 --
@@ -177,12 +176,12 @@ instance Buildable s => Buildable (Wallet s) where
         <> indentF 4 (build s)
 
 {-------------------------------------------------------------------------------
-    Construction & Modification
+                          Construction & Modification
 -------------------------------------------------------------------------------}
 
--- | Create a an empty wallet and apply the given genesis block.
+-- | Create an empty wallet and apply the given genesis block.
 --
--- The wallet tip will be set to the header of the applied genesis block.
+-- The wallet tip will be the genesis block header.
 initWallet
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
@@ -197,11 +196,10 @@ initWallet block0 s = (transactions, w1)
 
 -- | Construct a wallet from the exact given state.
 --
--- Using this function instead
--- of 'initWallet' and 'applyBlock' allows the wallet invariants to be
--- broken. Therefore it should only be used in the special case of loading
--- wallet checkpoints from the database (where it is assumed a valid wallet was
--- stored into the database).
+-- Using this function instead of 'initWallet' and 'applyBlock' allows the
+-- wallet invariants to be broken. Therefore it should only be used in the
+-- special case of loading wallet checkpoints from the database (where it is
+-- assumed a valid wallet was stored into the database).
 unsafeInitWallet
     :: UTxO
        -- ^ Unspent tx outputs belonging to this wallet
@@ -220,16 +218,16 @@ updateState
 updateState s (Wallet u tip _) = Wallet u tip s
 
 -- | Represents the subset of data from a single block that are relevant to a
---   particular wallet, discovered when applying a block to that wallet.
+-- particular wallet, discovered when applying a block to that wallet.
 data FilteredBlock = FilteredBlock
     { transactions :: ![(Tx, TxMeta)]
         -- ^ The set of transactions that affect the wallet,
-        -- list in the order in which they appears in the block.
+        -- list in the same order which they appeared in the block.
     , delegations :: ![DelegationCertificate]
         -- ^ Stake delegations made on behalf of the wallet,
-        -- listed in the order in which they appear on chain.
+        -- listed in the order in which they appear on the chain.
         -- If the list contains more than element, those that appear
-        -- later in the list supercede those that appear earlier on.
+        -- later in the list supersede those that appear earlier on.
     } deriving (Generic, Show, Eq)
 
 -- | Apply a single block to a wallet.
@@ -238,7 +236,6 @@ data FilteredBlock = FilteredBlock
 --
 -- Returns an updated wallet, as well as the address data relevant to the wallet
 -- that were discovered while applying the block.
---
 applyBlock
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
@@ -282,7 +279,7 @@ applyBlocks (block0 :| blocks) cp =
     NE.scanl (flip applyBlock . snd) (applyBlock block0 cp) blocks
 
 {-------------------------------------------------------------------------------
-    Accessors
+                                   Accessors
 -------------------------------------------------------------------------------}
 
 -- | Available balance = 'balance' . 'availableUTxO'
@@ -361,7 +358,7 @@ totalUTxO pending (Wallet u _ s) =
 -- enough information to collect the change addresses in the pending
 -- transactions.
 --
--- Cave:
+-- Caveats:
 -- * Rollbacks can invalidate this assumption. 🙈
 -- * The order of pending transactions is based on transaction hashes,
 --   and typically does not agree with the order in which we have submitted
@@ -378,7 +375,7 @@ changeUTxO pending = evalState $
         (Set.toList pending)
 
 {-------------------------------------------------------------------------------
-    UTxO operations
+                                UTxO operations
 -------------------------------------------------------------------------------}
 
 -- | Applies a transaction to a UTxO, moving it from one state from another.
@@ -428,7 +425,8 @@ spendTx tx !u =
 -- | Construct a 'UTxO' corresponding to a given transaction.
 --
 -- It is important for the transaction outputs to be ordered correctly,
--- as they become available inputs for subsequent blocks.
+-- as their index within this ordering determines how 
+-- they are referenced as transaction inputs in subsequent blocks.
 --
 -- > balance (utxoFromTx tx) = foldMap tokens (outputs tx)
 -- > utxoFromTx tx `excluding` Set.fromList (inputs tx) = utxoFrom tx
@@ -445,8 +443,9 @@ utxoFromUnvalidatedTx Tx {txId, outputs} =
     UTxO $ Map.fromList $ zip (TxIn txId <$> [0..]) outputs
 
 {-------------------------------------------------------------------------------
-    Address ownership and discovery
+                        Address ownership and discovery
 -------------------------------------------------------------------------------}
+
 -- | Perform address discovery by going through all transactions
 -- and delegation certificates in the block.
 discoverAddresses
@@ -460,7 +459,10 @@ discoverAddresses block s0 = s2
 
     discoverCert s cert = updateOurs s (dlgCertAccount cert)
 
-    -- NOTE: Only outputs and withdrawals can introduce new addresses.
+    -- NOTE: Only outputs and withdrawals can potentially
+    -- result in the extension of the address pool and
+    -- the learning of new addresses.
+    -- 
     -- Inputs and collateral are forced to use existing addresses.
     discoverTx s tx = discoverWithdrawals (discoverOutputs s tx) tx
     discoverOutputs s tx =
@@ -476,9 +478,11 @@ updateOurs s x = snd $ isOurs x s
 ours :: IsOurs s entity => s -> entity -> Bool
 ours s x = isJust . fst $ isOurs x s
 
--- | For testing:
--- Indicates whether a given transaction is relevant to the wallet.
--- Also performs address discovery.
+-- | Performs address discovery and indicates whether a given transaction is
+-- relevant to the wallet.
+--
+-- This function is only used for unit tests -- wallet model code uses the
+-- 'ours' and 'updateOurs' variants.
 isOurTx
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Tx
@@ -511,12 +515,12 @@ isOurTx tx u
         F.or <$> sequence (isOursState . (^. #address) <$> tx ^. #outputs)
     txHasRelevantWithdrawal =
         F.or <$> sequence (isOursState . fst <$> Map.toList (tx ^. #withdrawals))
-    
+
 isOursState :: IsOurs s entity => entity -> State s Bool
 isOursState x = isJust <$> state (isOurs x)
 
 {-------------------------------------------------------------------------------
-    Modification of UTxO
+                              Modification of UTxO
 -------------------------------------------------------------------------------}
 
 -- | Apply a 'Block' to the 'UTxO'.
@@ -529,13 +533,17 @@ isOursState x = isJust <$> state (isOurs x)
 -- This 'FilteredBlock' includes those transactions and delegations
 -- that are in the given 'Block' and that are also relevant to the wallet,
 -- i.e. they have
--- 
+--
 -- * Outputs with known addresses
--- * Inputs referrring to known outputs.
--- 
--- In practice, most transactions that are relevant have a change output to the
--- wallet, but some may actually have no change output whatsoever and be only
--- linked to the wallet by their inputs.
+-- * Inputs referring to known outputs of previous transactions.
+--
+-- In practice, most transactions that are relevant to the wallet
+-- have at least one output that belongs to the wallet:
+-- either because we have received funds from another party,
+-- or because the wallet has created a change output when sending
+-- funds to another party.
+-- But some transactions may actually have no relevant outputs whatsoever
+-- and be only linked to the wallet by their inputs.
 --
 -- As inputs are given as references to outputs (no address, no coin value),
 -- we have to traverse all transactions in the block in order to
