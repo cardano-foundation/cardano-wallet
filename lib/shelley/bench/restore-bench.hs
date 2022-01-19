@@ -21,7 +21,7 @@
 -- Easiest run using
 -- @
 --     $ export NODE_DB="node-db-testnet"
---     $ nix-build -A benchmarks.cardano-wallet.restore -o restore && ./restore/bin/restore testnet
+--     $ nix build .#benchmarks/cardano-wallet/restore -o restore && ./restore/bin/restore testnet
 -- @
 --
 -- or

@@ -78,12 +78,13 @@ test-suite unit
     , text
     , text-class
     , unliftio
-  build-tools:
-      hspec-discover
+  build-tool-depends:
+      hspec-discover:hspec-discover
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
       test/unit
+      test/data
   main-is:
       cli-unit-test.hs
   other-modules:

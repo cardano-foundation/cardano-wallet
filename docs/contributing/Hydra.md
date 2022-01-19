@@ -4,16 +4,21 @@ The [Nix build server](https://github.com/NixOS/hydra) - not to be confused with
 
 For general information about nix, see [[Nix]].
 
+[hydra.iohk.io]: https://hydra.iohk.io
+
 ## Jobset
 
-The Hydra jobset is defined by [`release.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/release.nix#L1). There are some explanatory comments at the top of this file.
+The Hydra jobsets are defined by the `hydraJobs`, `hydraJobsPr` and `hydraJobsBors` flake attributes
+(cf. `mkSystemHydraJobs` function [`flake.nix`][flake.nix]). There are slight variations between them
+to avoid test results caching for bors builds and to disable integration tests for PRs.
 
-Here are links to the jobsets for different branches:
+Here are the corresponding links to the jobsets for the different branches:
 
 * Master branch - https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs
-* bors/staging - https://hydra.iohk.io/jobset/Cardano/cardano-wallet-bors-staging
 * GitHub PR builds - https://hydra.iohk.io/jobset/Cardano/cardano-wallet-pr-NNNN - replace _NNNN_ with the PR number.
+* bors/staging - https://hydra.iohk.io/jobset/Cardano/cardano-wallet-bors-staging
 
+[flake.nix]: https://github.com/input-output-hk/cardano-wallet/blob/master/flake.nix
 
 ## Required job
 
@@ -23,7 +28,7 @@ It is an aggregate job containing the following constituents:
 
 https://hydra.iohk.io/job/Cardano/cardano-wallet/required/latest-finished#tabs-constituents
 
-This job is set up with the `mkRequiredJob` function in `release.nix`.
+This job is set up with the `mkRequiredJob` function in `flake.nix`.
 
 
 ## Build Products
@@ -44,9 +49,9 @@ lines to the file `$out/nix-support/hydra-build-products`.
 
 ## Evaluation
 
-Hydra instantiates the `release.nix` file on the Hydra master host
-(hydra.iohk.io). This is evaluation. It then sends the jobs out to the
-build farm to be built.
+Hydra evaluates the `hydraJobs` attribute of [`flake.nix`][flake.nix]
+file on the Hydra master host ([hydra.iohk.io][]).
+It then sends the jobs out to the build farm to be built.
 
 Evaluation fails if there are syntax errors in the Nix files, type
 errors, etc. Sometimes evaluation can fail due to memory exhaustion on

@@ -25,10 +25,9 @@
 #      recent VERSION tag build (shelley backend).
 #
 
-{ walletPackages ?  import ../default.nix {}
-, pkgs ? walletPackages.private.pkgs
-# TODO: take the musl build instead because it's smaller
-, dockerImage ? walletPackages.dockerImage
+{ defaultNix ? import ../default.nix {}
+, pkgs ? defaultNix.legacyPackages.pkgs
+, dockerImage ? defaultNix.hydraJobs.linux.musl.dockerImage
 
 # Build system's Nixpkgs. We use this so that we have the same docker
 # version as the docker daemon.

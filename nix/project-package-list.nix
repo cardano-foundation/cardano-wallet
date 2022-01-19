@@ -1,0 +1,1 @@
+[ "cardano-numeric" "cardano-wallet" "cardano-wallet-cli" "cardano-wallet-core" "cardano-wallet-core-integration" "cardano-wallet-launcher" "cardano-wallet-test-utils" "dbvar" "strict-non-empty-containers" "text-class" ]

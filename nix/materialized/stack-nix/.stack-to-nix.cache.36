@@ -1,0 +1,43 @@
+{ system
+  , compiler
+  , flags
+  , pkgs
+  , hsPkgs
+  , pkgconfPkgs
+  , errorHandler
+  , config
+  , ... }:
+  {
+    flags = {};
+    package = {
+      specVersion = "2.2";
+      identifier = { name = "non-integral"; version = "0.1.0.0"; };
+      license = "Apache-2.0";
+      copyright = "";
+      maintainer = "formal.methods@iohk.io";
+      author = "IOHK Formal Methods Team";
+      homepage = "";
+      url = "";
+      synopsis = "";
+      description = "Implementation decision for non-integer calculations";
+      buildType = "Simple";
+      };
+    components = {
+      "library" = {
+        depends = [ (hsPkgs."base" or (errorHandler.buildDepError "base")) ];
+        buildable = true;
+        };
+      tests = {
+        "non-integral-test" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."non-integral" or (errorHandler.buildDepError "non-integral"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            ];
+          buildable = true;
+          };
+        };
+      };
+    } // rec {
+    src = (pkgs.lib).mkDefault /nix/store/x9qblgvxkw01bvlg0i6w2hyznkfli6jf-cardano-ledger-1a9ec4a/libs/non-integral;
+    }

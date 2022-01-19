@@ -57,6 +57,6 @@ body:
         The URL of a build job in CI where the error occurs. Please
         link to a specific build number. In Hydra, please link to the
         job page rather than the logs.
-      placeholder: https://hydra.iohk.io/job/Cardano/cardano-wallet-bors-staging/cardano-wallet-linux64
+      placeholder: https://hydra.iohk.io/job/Cardano/cardano-wallet-bors-staging/linux.musl.cardano-wallet-linux64
     validations:
       required: true

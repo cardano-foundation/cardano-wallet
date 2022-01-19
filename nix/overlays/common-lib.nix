@@ -1,7 +1,8 @@
 self: super: let
-  inherit (self) lib;
+  inherit (self) lib cardanoWalletHaskellProject;
+  inherit (self.haskell-nix) haskellLib;
 in {
-  commonLib = super.commonLib // {
+  cardanoWalletLib = {
 
     # lib.cleanSourceWith filter function which removes socket files
     # from a source tree. This files can be created by cardano-node and
@@ -52,5 +53,12 @@ in {
         else null;
     };
 
+    # Since it's not automatically discovered from stack-pkgs yet, we use homepage as discriminant
+    # to retrieve local project packages:
+    projectPackageList = lib.attrNames (lib.filterAttrs
+        (_: p: p != null
+          && haskellLib.isLocalPackage p.package
+          && p.package.homepage == "https://github.com/input-output-hk/cardano-wallet")
+        cardanoWalletHaskellProject.pkg-set.config.packages);
   };
 }

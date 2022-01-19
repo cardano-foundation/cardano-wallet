@@ -17,7 +17,7 @@ jobs:
         id: hydra
         with:
           hydra: 'https://hydra.iohk.io'
-          jobs: 'cardano-wallet-linux64 cardano-wallet-macos64 cardano-wallet-win64'
+          jobs: 'linux.musl.cardano-wallet-linux64 macos.cardano-wallet-macos64 linux.windows.cardano-wallet-win64'
 
       - name: '🍒 Fetch release files'
         run: |

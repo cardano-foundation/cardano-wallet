@@ -24,7 +24,7 @@ fi
 
 echo "--- Build"
 
-nix-build -A benchmarks.cardano-wallet.restore -o bench-restore
+nix build .#benchmarks.cardano-wallet.restore -o bench-restore
 
 bench="./bench-restore/bin/restore $network --node-db $node_db"
 

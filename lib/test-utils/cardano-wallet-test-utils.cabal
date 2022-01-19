@@ -109,8 +109,8 @@ test-suite unit
     , QuickCheck
     , unliftio
     , unliftio-core
-  build-tools:
-      hspec-discover
+  build-tool-depends:
+      hspec-discover:hspec-discover
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

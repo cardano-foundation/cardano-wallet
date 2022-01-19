@@ -28,11 +28,11 @@
 -- from stack.yaml.
 --
 -- To build, start "nix-shell", then run Cabal inside:
---     nix-shell
+--     nix develop
 --     cabal build all -O0
 --
 -- To build with profiling enabled, use:
---    nix-shell --arg profiling true
+--    nix develop .#profiled
 --    cabal configure --enable-tests --enable-benchmarks --enable-profiling
 --    cabal build all
 --

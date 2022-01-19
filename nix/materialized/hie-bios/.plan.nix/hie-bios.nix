@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "2.2";
-      identifier = { name = "hie-bios"; version = "0.8.0"; };
+      identifier = { name = "hie-bios"; version = "0.8.1"; };
       license = "BSD-3-Clause";
       copyright = "";
       maintainer = "Matthew Pickering <matthewtpickering@gmail.com>";
@@ -213,7 +213,6 @@
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."hie-bios" or (errorHandler.buildDepError "hie-bios"))
-            (hsPkgs."hspec-expectations" or (errorHandler.buildDepError "hspec-expectations"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
@@ -231,7 +230,6 @@
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
             (hsPkgs."tasty-expected-failure" or (errorHandler.buildDepError "tasty-expected-failure"))
-            (hsPkgs."hspec-expectations" or (errorHandler.buildDepError "hspec-expectations"))
             (hsPkgs."hie-bios" or (errorHandler.buildDepError "hie-bios"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))

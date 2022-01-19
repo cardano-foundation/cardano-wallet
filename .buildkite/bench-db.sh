@@ -8,7 +8,7 @@ bench_name=bench-db
 rm -rf $bench_name
 
 echo "--- Build"
-nix-build -A benchmarks.cardano-wallet-core.db -o $bench_name
+nix build .#benchmarks.cardano-wallet-core.db -o $bench_name
 
 echo "+++ Run benchmark"
 

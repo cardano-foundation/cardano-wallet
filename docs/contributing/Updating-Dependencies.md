@@ -9,11 +9,11 @@ It is possible to specify any git revision for the dependency and Nix
 will automatically build it -- unless it has already been built by
 Hydra -- in which case the build result will be downloaded instead.
 
-## nix-shell
+## nix develop
 
-The default `nix-shell` contains build tools, utilities and GHC
+The default `nix develop` contains build tools, utilities and GHC
 configured with a global package-db which matches `stack.yaml`. This
-is defined in the `shell` attribute of `default.nix`.
+is defined in the `devShell` attribute of `flake.nix`.
 
 ## Stack
 
@@ -22,24 +22,11 @@ means that all stack commands will run inside the `nix-shell` defined
 by [`nix/stack-shell.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/stack-shell.nix). If there is a program that is needed by the
 build or tests, make sure that it is present there.
 
-## niv
+## nix flake lock
 
-The [`niv`](https://github.com/nmattia/niv) utility manages the file
-[`nix/sources.json`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/sources.json).
-To get this program, just run `nix-shell`.
+[`nix flake`](https://nixos.wiki/wiki/Flakes) manages the file [`flake.lock`](https://github.com/input-output-hk/cardano-wallet/blob/master/flake.lock).
 
 ## Updating node backends
-
-### `cardano-node`
-
-To update the version of `cardano-node` used by the Nix shells, run:
-
-```
-niv update cardano-node --branch REF
-```
-
-The `REF` argument can be a tag or a branch. Commit the updated
-`nix/sources.json`.
 
 ### `cardano-node` Haskell dependencies
 

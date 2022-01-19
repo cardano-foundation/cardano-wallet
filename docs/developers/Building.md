@@ -9,7 +9,7 @@
 | [stack][] | >= 2.7.1 | Required, recommended |
 | [ghc][] | == 8.10.7 | Required |
 | [cabal][] | >= 3.4.0.0 | Optional |
-| [[Nix]] | >= 2.4 | Optional |
+| [[Nix]] | >= 2.5.1 | Optional |
 
 See [`nix/build-tools-overlay.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/build-tools-overlay.nix#L1) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
 
@@ -112,10 +112,12 @@ then you don't have the IOHK Hydra binary cache configured correctly.
 To build the wallet for your current platform:
 
 ```
-nix-build -A cardano-wallet
+nix build
 ```
 
-Unless you have local changes in your git repo, this will download the
+The resulting executable will appear at `./result/bin/cardano-wallet`.
+
+Unless you have local changes in your git repo, Nix will download the
 build from the Hydra cache rather than building locally.
 
 #### Cross-compiling with Nix
@@ -123,32 +125,21 @@ build from the Hydra cache rather than building locally.
 To build the wallet for Windows, from **Linux**:
 
 ```
-nix-build release.nix -A x86_64-w64-mingw32.cardano-wallet.x86_64-linux
-```
-
-If you're using **macOS**, then change `x86_64-linux` to
-`x86_64-darwin`, and enable the cross-building flag (macOS is disabled
-by default to reduce the load on CI):
-
-```
-nix-build \
-    release.nix \
-    --arg supportedCrossSystems '["x86_64-darwin"]' \
-     -A x86_64-w64-mingw32.cardano-wallet.x86_64-darwin
+nix build .#hydraJobs.linux.windows.cardano-wallet
 ```
 
 #### Building straight from GitHub
 
-To build another branch (replace `master` with the branch name, tag, or commit hash):
+To build another branch, add `/<branch name, tag, or commit hash>`:
 
 ```
-nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz --argstr gitrev master -A cardano-wallet
+nix build github:input-output-hk/cardano-wallet
 ```
 
 #### Navigating Hydra
 
 The Hydra [Jobset page](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs)
-shows all jobs defined in `release.nix`. Some of the release jobs have a download link.
+shows all jobs defined in the `hydraJobs` attribute of `flake.nix`. Some of the release jobs have a download link.
 
 - [Windows](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-win64/latest)
 - [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-macos64/latest)
@@ -158,9 +149,10 @@ See [[Hydra]] for more information.
 #### Cabal+Nix build
 
 Use the Cabal+Nix build if you want to develop with incremental
-builds, but also have it automatically download all dependencies.
+builds, but also have it automatically download cached builds of
+all dependencies.
 
-If you run `nix-shell`, it will start a
+If you run `nix develop`, it will start a
 [development environment](https://input-output-hk.github.io/haskell.nix/user-guide/development/)
 for `cardano-wallet`. This will contain:
 
@@ -174,30 +166,15 @@ for `cardano-wallet`. This will contain:
 
 Inside this shell you can use `cabal build` and `ghci` for development.
 
-##### Fully cached dependencies
-
-Cabal generally tries to download and build `source-repository-package` dependencies itself, rather than using what's available through `ghc-pkg`.
-
-If you would like to further speed up your build, you may provide [`cabal-nix.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project#L1) as the `--project file` argument when running Cabal.
-
-```console
-$ nix-shell
-
-[nix-shell:~/iohk/cardano-wallet]$ cabal build \
-    --project-file=cabal-nix.project \
-    --enable-tests --enable-benchmarks \
-    all
-```
-
 ##### Profiling build with cached dependencies
 
-Use `nix-shell --arg profiling true` to get a shell where Haskell
+Use `nix develop .#profiled` to get a shell where Haskell
 dependencies are built with profiling enabled. You won't need to
 rebuild all of the dependencies because they can be downloaded from
 the Hydra cache.
 
 ```console
-$ nix-shell --arg profiling true
+$ nix develop .#profiled
 
 [nix-shell:~/iohk/cardano-wallet]$ cabal build \
     --enable-tests --enable-benchmarks \

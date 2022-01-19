@@ -52,8 +52,8 @@ test-suite unit
     , cardano-numeric
     , hspec
     , QuickCheck
-  build-tools:
-      hspec-discover
+  build-tool-depends:
+      hspec-discover:hspec-discover
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

@@ -32,7 +32,6 @@ hie.yaml
 
 ### Nix ###
 /result*
-/.stack-to-nix.cache
 /.nix-shell-cabal.project*
 
 ### Direnv ###
