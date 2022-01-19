@@ -622,9 +622,9 @@ ourWithdrawalSumFromTx s tx
     -- Therefore, any reward withdrawals included in such a transaction should
     -- also have no effect.
     --
-    | failedScriptValidation tx =
-        Coin 0
-    | otherwise =
-        F.foldMap snd
-        . filter (ours s . fst)
-        $ Map.toList (tx ^. #withdrawals)
+    | failedScriptValidation tx = Coin 0
+    | otherwise = Map.foldlWithKey' add (Coin 0) (tx ^. #withdrawals)
+  where
+    add total account coin
+        | ours s account = total <> coin
+        | otherwise      = total
