@@ -49,5 +49,7 @@ xargs \
   | cardano-address key from-recovery-phrase Shelley \
   | cardano-address key public --with-chain-code \
   | bech32 \
-  | python3 -c 'import hashlib,sys; print(hashlib.blake2b(bytes.fromhex(sys.stdin.read()), digest_size=20).hexdigest())'
+  | xxd -r -p \
+  | b2sum -b -l 160 \
+  | cut -d' ' -f1
 ```
