@@ -54,7 +54,6 @@ module Cardano.Wallet.Primitive.Model
     , applyOurTxToUTxO
     , changeUTxO
     , discoverAddresses
-    , isOurTx
     ) where
 
 import Prelude
@@ -474,44 +473,6 @@ discoverAddresses block s0 = s2
 -- address discovery state.
 ours :: IsOurs s addr => s -> addr -> Bool
 ours s x = isJust . fst $ isOurs x s
-
--- | Performs address discovery and indicates whether a given transaction is
--- relevant to the wallet.
---
--- This function is only used for unit tests -- wallet model code uses the
--- 'ours' and 'updateOurs' variants.
-isOurTx
-    :: (IsOurs s Address, IsOurs s RewardAccount)
-    => Tx
-    -> UTxO
-    -> State s Bool
-isOurTx tx u
-    -- If a transaction has failed script validation, then the ledger rules
-    -- require that applying the transaction shall have no effect other than
-    -- to fully spend the collateral inputs included within that transaction.
-    --
-    -- Therefore, such a transaction is only relevant to the wallet if it has
-    -- one more collateral inputs that belong to the wallet.
-    --
-    | failedScriptValidation tx =
-        txHasRelevantCollateral
-    | otherwise =
-        F.or <$> sequence
-            [ txHasRelevantInput
-            , txHasRelevantOutput
-            , txHasRelevantWithdrawal
-            ]
-  where
-    txHasRelevantCollateral =
-        pure . not . UTxO.null $
-        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedCollateral)
-    txHasRelevantInput =
-        pure . not . UTxO.null $
-        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedInputs)
-    txHasRelevantOutput =
-        F.or <$> sequence (isOursState . (^. #address) <$> tx ^. #outputs)
-    txHasRelevantWithdrawal =
-        F.or <$> sequence (isOursState . fst <$> Map.toList (tx ^. #withdrawals))
 
 -- | Add an address to the address discovery state, iff it belongs to us.
 updateOurs :: IsOurs s addr => s -> addr -> s

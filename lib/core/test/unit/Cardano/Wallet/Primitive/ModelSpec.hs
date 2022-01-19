@@ -40,7 +40,6 @@ import Cardano.Wallet.Primitive.Model
     , discoverAddresses
     , getState
     , initWallet
-    , isOurTx
     , spendTx
     , totalBalance
     , totalUTxO
@@ -107,7 +106,7 @@ import Data.Function
 import Data.Functor
     ( ($>) )
 import Data.Generics.Internal.VL.Lens
-    ( over, view )
+    ( over, view, (^.) )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -833,6 +832,47 @@ prop_discoverAddresses (ApplyBlock s utxo block) =
     execState (mapM (\tx -> isOurTx tx utxo) txs) s
   where
     txs = view #transactions block
+
+-- | Performs address discovery and indicates whether a given transaction is
+-- relevant to the wallet.
+--
+-- This function is only used for unit tests -- wallet model code uses the
+-- 'ours' and 'updateOurs' variants.
+isOurTx
+    :: (IsOurs s Address, IsOurs s RewardAccount)
+    => Tx
+    -> UTxO
+    -> State s Bool
+isOurTx tx u
+    -- If a transaction has failed script validation, then the ledger rules
+    -- require that applying the transaction shall have no effect other than
+    -- to fully spend the collateral inputs included within that transaction.
+    --
+    -- Therefore, such a transaction is only relevant to the wallet if it has
+    -- one more collateral inputs that belong to the wallet.
+    --
+    | failedScriptValidation tx =
+        txHasRelevantCollateral
+    | otherwise =
+        F.or <$> sequence
+            [ txHasRelevantInput
+            , txHasRelevantOutput
+            , txHasRelevantWithdrawal
+            ]
+  where
+    txHasRelevantCollateral =
+        pure . not . UTxO.null $
+        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedCollateral)
+    txHasRelevantInput =
+        pure . not . UTxO.null $
+        u `UTxO.restrictedBy` Set.fromList (fst <$> tx ^. #resolvedInputs)
+    txHasRelevantOutput =
+        F.or <$> sequence (isOursState . (view #address) <$> tx ^. #outputs)
+    txHasRelevantWithdrawal =
+        F.or <$> sequence (isOursState . fst <$> Map.toList (tx ^. #withdrawals))
+
+    isOursState :: IsOurs s addr => addr -> State s Bool
+    isOursState = fmap isJust . state . isOurs
 
 {-------------------------------------------------------------------------------
                Basic Model - See Wallet Specification, section 3
