@@ -555,12 +555,14 @@ applyBlockToUTxO
     -> s
     -> UTxO
     -> (FilteredBlock, UTxO)
-applyBlockToUTxO block s u0 =
-    let delegations = filter (ours s . dlgCertAccount) (block ^. #delegations)
-        (transactions, u1) =
-            L.foldl' applyOurTx (mempty, u0) (block ^. #transactions)
-    in  (FilteredBlock {delegations, transactions}, u1)
+applyBlockToUTxO Block{header,transactions,delegations} s u0 = (fblock, u1)
   where
+    fblock = FilteredBlock
+      { transactions = txs1
+      , delegations = filter (ours s . dlgCertAccount) delegations
+      }
+    (txs1, u1) = L.foldl' applyOurTx (mempty, u0) transactions
+
     applyOurTx
         :: ([(Tx, TxMeta)], UTxO)
         -> Tx
@@ -569,8 +571,8 @@ applyBlockToUTxO block s u0 =
         case applyOurTxToUTxO slotNo blockHeight s tx u of
             Nothing -> (txs, u)
             Just (tx', u') -> (tx' : txs, u')
-    slotNo = block ^. #header . #slotNo
-    blockHeight = block ^. #header . #blockHeight
+    slotNo = header ^. #slotNo
+    blockHeight = header ^. #blockHeight
 
 -- | Apply the given transaction to the 'UTxO'.
 -- Return 'Just' if and only if the transaction is relevant to the wallet
