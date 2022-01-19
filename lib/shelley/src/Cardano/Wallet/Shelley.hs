@@ -75,7 +75,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB.Sqlite
     ( DBFactoryLog, DefaultFieldValues (..), PersistAddressBook )
 import Cardano.Wallet.Logging
-    ( trMessageText )
+    ( LoggedException (..), trMessageText )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -149,6 +149,13 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
     ( Const (..) )
+import Control.Cache
+    ( CacheConfig (..)
+    , MkCacheWorker
+    , don'tCacheWorker
+    , newCacheWorker
+    , runWorker
+    )
 import Control.Monad
     ( forM_, void )
 import Control.Tracer
@@ -193,6 +200,7 @@ import UnliftIO.STM
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
+import qualified Control.Retry as Retry
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -218,6 +226,14 @@ data SomeNetworkDiscriminant where
 
 deriving instance Show SomeNetworkDiscriminant
 
+-- | Configuration of caching of local state queries.
+--
+-- The function 'listStakePools' will query
+-- the node at the program start and cache the value
+-- in order to become more responsive.
+-- This type specifies how this caching should be done.
+type CacheConfigLocalStateQuery = CacheConfig
+
 -- | The @cardano-wallet@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
@@ -241,6 +257,8 @@ serveWallet
     -> Maybe Settings
     -- ^ Settings to be set at application start, will be written into DB.
     -> Maybe TokenMetadataServer
+    -> CacheConfigLocalStateQuery
+    -- ^ How to cache the 'listStakePools' local state query.
     -> CardanoNodeConn
     -- ^ Socket for communicating with the node
     -> Block
@@ -263,6 +281,7 @@ serveWallet
   tlsConfig
   settings
   tokenMetaUri
+  cacheListPools
   conn
   block0
   (np, vData)
@@ -291,7 +310,8 @@ serveWallet
                 multisigApi <- apiLayer txLayerUdefined nl
                     Server.idleWorker
 
-                withPoolsMonitoring databaseDir np nl $ \spl -> do
+                withPoolsMonitoring databaseDir np nl cacheListPools $
+                  \spl -> do
                     startServer
                         proxy
                         socket
@@ -343,9 +363,10 @@ serveWallet
         :: Maybe FilePath
         -> NetworkParameters
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
+        -> CacheConfig
         -> (StakePoolLayer -> IO a)
         -> IO a
-    withPoolsMonitoring dir (NetworkParameters _ sp _) nl action =
+    withPoolsMonitoring dir (NetworkParameters _ sp _) nl cachepools action =
         Pool.withDecoratedDBLayer
                 poolDatabaseDecorator
                 poolsDbTracer
@@ -363,6 +384,7 @@ serveWallet
                 (monitorStakePools tr np nl db)
                 (traceAfterThread (contramap MsgExitMonitoring tr))
 
+            -- set up thread for querying and caching stake pool metadata
             -- fixme: needs to be simplified as part of ADP-634
             let startMetadataThread = forkIOWithUnmask $ \unmask ->
                     unmask $ monitorMetadata gcStatus tr sp db
@@ -371,7 +393,29 @@ serveWallet
                     killThread tid
                     startMetadataThread
 
-            spl <- newStakePoolLayer gcStatus nl db restartMetadataThread
+            -- Set up caching for local state query (LSQ) of StakePoolSummary
+            -- TODO later:
+            --  I suppose that handling retries and logging exceptions
+            --  that occur while retrying may be a job for Cardano.Wallet.Registry
+            let policy  = Retry.exponentialBackoff 30_000_000 <> Retry.limitRetries 3
+                traceEx = Retry.logRetries (\_ -> pure True) $ \_ e _ ->
+                    traceWith tr $ MsgLocalStateQueryException $ LoggedException e
+                withRetries :: forall a. IO a -> IO a
+                withRetries maction = Retry.recovering policy
+                    (Retry.skipAsyncExceptions ++ [traceEx]) (\_ -> maction)
+            let mkCacheWorker :: forall a. MkCacheWorker a
+                mkCacheWorker = case cachepools of
+                    NoCache      -> don'tCacheWorker
+                    CacheTTL ttl -> newCacheWorker ttl grace . withRetries
+                  where
+                    grace = 3 -- seconds
+
+            (worker, spl) <-
+                newStakePoolLayer gcStatus nl db mkCacheWorker restartMetadataThread
+
+            void $ forkFinally (runWorker worker)
+                (traceAfterThread (contramap MsgExitLocalStateQueryCaching tr))
+
             action spl
 
     apiLayer

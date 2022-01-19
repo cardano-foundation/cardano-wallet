@@ -31,7 +31,7 @@ protocolParams:
   maxBlockHeaderSize: 217569
   keyDeposit: 1000000
   keyDecayRate: 0
-  nOpt: 3
+  nOpt: 2
   rho: 0.178650067
   poolMinRefund: 0
   minPoolCost: 0

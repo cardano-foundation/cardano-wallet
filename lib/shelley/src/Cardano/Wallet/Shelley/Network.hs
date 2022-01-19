@@ -84,30 +84,26 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( StandardCrypto
+    ( StakePoolsData (..)
+    , StandardCrypto
     , fromAlonzoPParams
     , fromLedgerPParams
-    , fromNonMyopicMemberRewards
     , fromPoint
-    , fromPoolDistr
     , fromShelleyCoin
     , fromShelleyPParams
     , fromStakeCredential
     , fromTip
     , fromTip'
     , localNodeConnectInfo
+    , mkStakePoolsSummary
     , nodeToClientVersions
-    , optimumNumberOfPools
     , slottingParametersFromGenesis
     , toCardanoBlockHeader
     , toCardanoEra
     , toPoint
-    , toShelleyCoin
     , toStakeCredential
     , unsealShelleyTx
     )
-import Control.Applicative
-    ( liftA3 )
 import Control.Monad
     ( forever, guard, unless, void, when, (>=>) )
 import Control.Monad.Class.MonadAsync
@@ -167,8 +163,6 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( Percentage )
 import Data.Set
     ( Set )
 import Data.Text.Class
@@ -237,7 +231,6 @@ import Ouroboros.Network.NodeToClient
     , NodeToClientProtocols (..)
     , NodeToClientVersionData (..)
     , connectTo
-    , localSnocket
     , nodeToClientProtocols
     , withIOManager
     )
@@ -253,6 +246,8 @@ import Ouroboros.Network.Protocol.LocalStateQuery.Type
     ( LocalStateQuery )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( LocalTxSubmission, SubmitResult (..) )
+import Ouroboros.Network.Snocket
+    ( localSnocket )
 import System.IO.Error
     ( isDoesNotExistError )
 import UnliftIO.Async
@@ -267,7 +262,6 @@ import UnliftIO.Exception
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
-import qualified Cardano.Ledger.Alonzo.PParams as Alonzo
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
@@ -457,62 +451,24 @@ withNetworkLayerBase tr net np conn versionData tol action = do
             SubmitSuccess -> pure ()
             SubmitFail e -> throwE $ ErrPostTxValidationError $ T.pack $ show e
 
-    _stakeDistribution queue coin = do
-        liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
-
-        let qry :: LSQ (CardanoBlock StandardCrypto) IO (Maybe W.StakePoolsSummary)
-            qry = liftA3 (liftA3 W.StakePoolsSummary)
-                getNOpt
-                queryNonMyopicMemberRewards
-                stakeDistr
+    _stakeDistribution queue = do
+        liftIO $ traceWith tr MsgWillQueryRewards
 
         mres <- bracketQuery "stakePoolsSummary" tr $
-            queue `send` (SomeLSQ qry)
-
-        -- The result will be Nothing if query occurs during the byron era
+            queue `send` (SomeLSQ qryStakePoolsData)
         traceWith tr $ MsgFetchStakePoolsData mres
-        case mres of
-            Just res@W.StakePoolsSummary{rewards,stake} -> do
-                liftIO $ traceWith tr $ MsgFetchStakePoolsDataSummary
-                    (Map.size stake)
-                    (Map.size rewards)
-                return res
-            Nothing -> pure $ W.StakePoolsSummary 0 mempty mempty
+
+        let msummary = mkStakePoolsSummary <$> mres
+        case msummary of
+            Just W.StakePoolsSummary{rewardParams=W.RewardParams{totalStake},pools} ->
+                traceWith tr $ MsgFetchStakePoolsDataSummary totalStake (Map.size pools)
+            Nothing  -> pure () -- we seem to be in the Byron era
+        pure msummary
       where
-        stakeDistr
-            :: LSQ (CardanoBlock StandardCrypto) IO
-                (Maybe (Map W.PoolId Percentage))
-        stakeDistr = shelleyBased
-            (fromPoolDistr <$> LSQry Shelley.GetStakeDistribution)
-
-        getNOpt :: LSQ (CardanoBlock StandardCrypto) IO (Maybe Int)
-        getNOpt = onAnyEra
-            (pure Nothing)
-            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-            (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-            (Just . fromIntegral . Alonzo._nOpt <$> LSQry Shelley.GetCurrentPParams)
-
-        queryNonMyopicMemberRewards
-            :: LSQ (CardanoBlock StandardCrypto) IO
-                    (Maybe (Map W.PoolId W.Coin))
-        queryNonMyopicMemberRewards = shelleyBased $
-            (getRewardMap . fromNonMyopicMemberRewards)
-                <$> LSQry (Shelley.GetNonMyopicMemberRewards stake)
-          where
-            stake :: Set (Either SL.Coin a)
-            stake = Set.singleton $ Left $ toShelleyCoin coin
-
-            fromJustRewards = fromMaybe
-                (error "stakeDistribution: requested rewards not included in response")
-
-            getRewardMap
-                :: Map
-                    (Either W.Coin W.RewardAccount)
-                    (Map W.PoolId W.Coin)
-                -> Map W.PoolId W.Coin
-            getRewardMap =
-                fromJustRewards . Map.lookup (Left coin)
+        qryStakePoolsData
+            :: LSQ (CardanoBlock StandardCrypto) IO (Maybe StakePoolsData)
+        qryStakePoolsData = shelleyBased $ do
+            uncurry StakePoolsData <$> LSQry Shelley.GetRewardInfoPools
 
     _watchNodeTip readTip cb = do
         observeForever readTip $ \tip -> do
@@ -1183,11 +1139,12 @@ data NetworkLayerLog where
         -> SL.RewardAccounts era
         -> NetworkLayerLog
     MsgDestroyCursor :: ThreadId -> NetworkLayerLog
-    MsgWillQueryRewardsForStake :: W.Coin -> NetworkLayerLog
-    MsgFetchStakePoolsData :: Maybe W.StakePoolsSummary -> NetworkLayerLog
-    MsgFetchStakePoolsDataSummary :: Int -> Int -> NetworkLayerLog
-      -- ^ Number of pools in stake distribution, and rewards map,
-      -- respectively.
+    MsgWillQueryRewards :: NetworkLayerLog
+    MsgFetchStakePoolsData :: Maybe StakePoolsData -> NetworkLayerLog
+    MsgFetchStakePoolsDataSummary
+        :: W.Coin -- ^ Total stake
+        -> Int -- ^ Number of pools in rewards provenance.
+        -> NetworkLayerLog
     MsgWatcherUpdate :: W.BlockHeader -> BracketLog -> NetworkLayerLog
     MsgInterpreter :: CardanoInterpreter StandardCrypto -> NetworkLayerLog
     -- TODO: Combine ^^ and vv
@@ -1256,16 +1213,17 @@ instance ToText NetworkLayerLog where
             [ "Destroying cursor connection at"
             , T.pack (show threadId)
             ]
-        MsgWillQueryRewardsForStake c ->
-            "Will query non-myopic rewards using the stake " <> pretty c
-        MsgFetchStakePoolsData d ->
-            "Fetched pool data from node tip using LSQ: " <> pretty d
-        MsgFetchStakePoolsDataSummary inStake inRewards -> mconcat
+        MsgWillQueryRewards ->
+            "Will query pool rewards and stake distribution"
+        MsgFetchStakePoolsData a -> mconcat
+            [ "Fetched pool data from node tip using LSQ: "
+            , pretty (show a)
+            ]
+        MsgFetchStakePoolsDataSummary coin inRewards -> mconcat
             [ "Fetched pool data from node tip using LSQ. Got "
-            , T.pack (show inStake)
-            , " pools in the stake distribution, and "
+            , pretty coin, " lovelace total stake, and "
             , T.pack (show inRewards)
-            , " pools in the non-myopic member reward map."
+            , " pools in the reward provenance."
             ]
         MsgWatcherUpdate tip b ->
             "Update watcher with tip: " <> pretty tip <>
@@ -1297,7 +1255,7 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgLocalStateQueryEraMismatch{}    -> Debug
         MsgAccountDelegationAndRewards{}   -> Debug
         MsgDestroyCursor{}                 -> Debug
-        MsgWillQueryRewardsForStake{}      -> Info
+        MsgWillQueryRewards{}              -> Info
         MsgFetchStakePoolsData{}           -> Debug
         MsgFetchStakePoolsDataSummary{}    -> Info
         MsgWatcherUpdate{}                 -> Debug
@@ -1345,18 +1303,6 @@ instance (Ord key, Buildable key, Buildable value)
 {-------------------------------------------------------------------------------
     Local State Query Helpers
 -------------------------------------------------------------------------------}
-
-byronOrShelleyBased
-    :: LSQ Byron.ByronBlock m a
-    -> (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
-    -> LSQ (CardanoBlock StandardCrypto) m a
-byronOrShelleyBased onByron onShelleyBased = onAnyEra
-    onByron
-    onShelleyBased
-    onShelleyBased
-    onShelleyBased
-    onShelleyBased
-
 -- | Create a local state query specific to the each era.
 --
 -- This combinator treats @MismatchEraInfo@ as impossible, which is true if the
@@ -1393,10 +1339,20 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo = currentEra >>= \case
     unwrap = either (error "impossible: byronOrShelleyBased query resulted in an \
         \era mismatch") id
 
+byronOrShelleyBased
+    :: LSQ Byron.ByronBlock m a
+    -> (forall era. (EraCrypto era ~ StandardCrypto) => LSQ (Shelley.ShelleyBlock era) m a)
+    -> LSQ (CardanoBlock StandardCrypto) m a
+byronOrShelleyBased onByron onShelleyBased = onAnyEra
+    onByron
+    onShelleyBased
+    onShelleyBased
+    onShelleyBased
+    onShelleyBased
 
 -- | Return Nothings in Byron, or @Just result@ in Shelley.
 shelleyBased
-    :: (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    :: (forall era. (EraCrypto era ~ StandardCrypto) => LSQ (Shelley.ShelleyBlock era) m a)
     -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
 shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron

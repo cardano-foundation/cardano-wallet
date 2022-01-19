@@ -151,8 +151,7 @@ data NetworkLayer m block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
 
     , stakeDistribution
-        :: Coin -- Stake to consider for rewards
-        -> m StakePoolsSummary
+        :: m (Maybe StakePoolsSummary)
 
     , getCachedRewardAccountBalance
         :: RewardAccount

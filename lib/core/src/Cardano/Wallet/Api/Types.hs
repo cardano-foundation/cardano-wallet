@@ -76,6 +76,7 @@ module Cardano.Wallet.Api.Types
     , ApiBase64
     , ApiMintBurnData (..)
     , ApiStakePool (..)
+    , invariantApiStakePool
     , ApiStakePoolMetrics (..)
     , ApiStakePoolFlag (..)
     , ApiWallet (..)
@@ -807,14 +808,24 @@ data ApiStakePool = ApiStakePool
     , flags :: ![ApiStakePoolFlag]
     } deriving (Eq, Generic, Show)
 
+-- | The 'ApiStakePool' response contains redundant information
+-- and needs to satisfy this invariant.
+invariantApiStakePool :: ApiStakePool -> Bool
+invariantApiStakePool r = 
+    (OwnerStakeLowerThanPledge `elem` flags r)
+    == (pledge r < ownerStake (metrics r))
+
 data ApiStakePoolFlag
     = Delisted
+    | OwnerStakeLowerThanPledge
     deriving stock (Eq, Generic, Show)
     deriving anyclass NFData
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics
     { nonMyopicMemberRewards :: !(Quantity "lovelace" Natural)
+    , desirabilityScore :: !Double
     , relativeStake :: !(Quantity "percent" Percentage)
+    , ownerStake :: !(Quantity "lovelace" Natural)
     , saturation :: !Double
     , producedBlocks :: !(Quantity "block" Natural)
     } deriving (Eq, Generic, Show)

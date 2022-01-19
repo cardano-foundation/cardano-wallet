@@ -45,6 +45,7 @@ module Cardano.CLI
     -- * Option & Argument Parsers
     , optionT
     , argumentT
+    , cacheListPoolsOption
     , databaseOption
     , hostPreferenceOption
     , listenOption
@@ -197,6 +198,8 @@ import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
     ( first, left )
+import Control.Cache
+    ( CacheConfig (..) )
 import Control.Monad
     ( forM_, forever, join, unless, void, when )
 import Control.Monad.IO.Class
@@ -1142,7 +1145,7 @@ cmdNetworkClock mkClient =
         runClient wPort Aeson.encodePretty $ networkClock mkClient forceNtpCheck
 
 {-------------------------------------------------------------------------------
-                            Commands - 'launch'
+    Commands - 'serve'
 -------------------------------------------------------------------------------}
 
 -- | Initialize a directory to store data such as blocks or the wallet databases
@@ -1404,6 +1407,24 @@ tokenMetadataSourceOption = optionT $ mempty
 walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
+
+-- | [--no-cache-listpools|--cache-listpools-refresh DURATION]
+cacheListPoolsOption :: Parser CacheConfig
+cacheListPoolsOption = no <|> fmap (CacheTTL . getQuantity) refresh
+  where
+    refresh :: Parser (Quantity "second" NominalDiffTime)
+    refresh = fmap Quantity $ optionT $ mempty
+        <> long "cache-listpool-refresh"
+        <> metavar "DURATION"
+        <> help ( "Time interval that indicates how often "
+            <> "the cache for the stake-pools listing will be refreshed."
+            <> "Expressed in seconds with a trailing 's'. "
+            )
+        <> value 3600
+        <> showDefaultWith showT
+    no = flag' NoCache $ mempty
+        <> long "no-cache-listpools"
+        <> help "Do not cache the stake-pools listing."
 
 -- | [--stake=STAKE]
 stakeOption :: Parser (Maybe Coin)

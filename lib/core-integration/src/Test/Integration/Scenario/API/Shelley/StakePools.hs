@@ -83,7 +83,7 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith )
+    ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
     ( expectationFailure, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
@@ -1058,6 +1058,17 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             `shouldSatisfy` (not . Set.null)
                     ]
 
+        it "desirability scores are present" $ \ctx -> runResourceT $ do
+            eventually "desirability score of pools is non-zero" $ do
+                r <- listPools ctx arbitraryStake
+                expectResponseCode HTTP.status200 r
+                verify r
+                    [ expectListSize 3
+                    , expectListField 0 (#metrics . #desirabilityScore) (.> 0)
+                    , expectListField 1 (#metrics . #desirabilityScore) (.> 0)
+                    , expectListField 2 (#metrics . #desirabilityScore) (.> 0)
+                    ]
+
         it "contains and is sorted by non-myopic-rewards" $ \ctx -> runResourceT $ do
             eventually "eventually shows non-zero rewards" $ do
                 Right pools'@[pool1,_pool2,pool3] <-
@@ -1070,7 +1081,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 rewards pool1 .> rewards pool3
 
         it "non-myopic-rewards are based on stake" $ \ctx -> runResourceT $ do
-            eventually "rewards are smaller for smaller stakes" $ do
+            eventually "at least one pool gets more rewards with higher stake" $ do
                 let stakeSmall = Just (Coin 1_000)
                 let stakeBig = Just (Coin 10_000_000_000_000_000)
                 Right poolsStakeSmall <- snd <$> listPools ctx stakeSmall
@@ -1086,24 +1097,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         r <- request @[ApiStakePool] ctx
             (Link.listStakePools Nothing) Default Empty
         expectResponseCode HTTP.status400 r
-
-    it "STAKE_POOLS_LIST_06 - \
-        \NonMyopicMemberRewards are 0 when stake is 0" $ \ctx -> runResourceT $ do
-        liftIO $ pendingWith "This assumption seems false, for some reasons..."
-        let stake = Just $ Coin 0
-        r <- request @[ApiStakePool]
-            ctx (Link.listStakePools stake)
-            Default Empty
-        expectResponseCode HTTP.status200 r
-        verify r
-            [ expectListSize 3
-            , expectListField 0
-                (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
-            , expectListField 1
-                (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
-            , expectListField 2
-                (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
-            ]
 
     it "STAKE_POOLS_GARBAGE_COLLECTION_01 - \
         \retired pools are garbage collected on schedule and not before" $

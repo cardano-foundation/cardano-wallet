@@ -20,6 +20,7 @@
 -- License: Apache-2.0
 --
 -- Provides functions to launch cardano-nodes in a cluster for /testing/.
+-- Also provides configuration options.
 
 module Cardano.Wallet.Shelley.Launch.Cluster
     ( -- * Local test cluster launcher
@@ -54,6 +55,7 @@ module Cardano.Wallet.Shelley.Launch.Cluster
     , testLogDirFromEnv
     , walletListenFromEnv
     , tokenMetadataServerFromEnv
+    , listPoolsConfigFromEnv
 
       -- * Faucets
     , Credential (..)
@@ -140,6 +142,8 @@ import Cardano.Wallet.Util
     ( mapFirst )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
+import Control.Cache
+    ( CacheConfig (..) )
 import Control.Monad
     ( forM, forM_, liftM2, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Trans.Except
@@ -171,7 +175,7 @@ import Data.Functor
 import Data.List
     ( intercalate, nub, permutations, sort )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( catMaybes, fromMaybe, isJust )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -295,6 +299,17 @@ tokenMetadataServerFromEnv = envFromText "TOKEN_METADATA_SERVER" >>= \case
     Nothing -> pure Nothing
     Just (Right s) -> pure (Just s)
     Just (Left e) -> die $ show e
+
+-- | Collect @--cache-listpools-refresh@ and @--no-cache-listpools@ options
+-- from environment variables.
+listPoolsConfigFromEnv :: IO CacheConfig
+listPoolsConfigFromEnv = do
+    ttl <- envFromText "CACHE_LISTPOOLS_REFRESH" >>= \case
+        Nothing        -> pure $ CacheTTL 6 -- default value for testing
+        Just (Right s) -> pure $ CacheTTL s
+        Just (Left e)  -> die $ show e
+    no   <- isJust <$> lookupEnvNonEmpty "NO_CACHE_LISTPOOLS"
+    pure $ if no then NoCache else ttl
 
 -- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.

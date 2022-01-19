@@ -49,6 +49,7 @@ library
     , cardano-ledger-shelley
     , cardano-ledger-shelley-ma
     , cardano-ledger-alonzo
+    , cardano-protocol-tpraos
     , cardano-slotting
     , cardano-wallet-cli
     , cardano-wallet-core
