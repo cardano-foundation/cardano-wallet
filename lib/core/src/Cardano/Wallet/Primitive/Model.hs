@@ -11,10 +11,10 @@
 -- License: Apache-2.0
 --
 -- This module implements the "business logic" to manage a Cardano wallet.
--- It is a direct implementation of the model from the
+-- It is a direct implementation of the model, with extensions, from the
 -- [Formal Specification for a Cardano Wallet](https://github.com/input-output-hk/cardano-wallet/blob/master/specifications/wallet/formal-specification-for-a-cardano-wallet.pdf).
 --
--- in other words, this module is about how the wallet keeps
+-- In other words, this module is about how the wallet keeps
 -- track of its internal state, specifically the 'UTxO' set and
 -- the address discovery state.
 -- This module is intentionally agnostic to specific address formats,
@@ -131,7 +131,7 @@ import qualified Data.Set as Set
 --
 -- A 'Wallet' keeps track of transaction outputs and associated addresses
 -- that belong to /us/ -- we are able to spend these outputs because
--- we know the secret keys belonging to the addresses.
+-- we know the corresponding signing key belonging to the output. Hence, we are able to produce witness engaging those outputs as they become inputs in forthcoming transactions according to UTxO model. 
 -- This information is associated to a particular point on the blockchain.
 --
 -- Internally, a 'Wallet' keeps track of
