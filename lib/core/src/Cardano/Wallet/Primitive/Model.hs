@@ -308,14 +308,15 @@ availableUTxO
     :: Set Tx
     -> Wallet s
     -> UTxO
-availableUTxO pending (Wallet u _ _) =
-    u `excluding` entriesToExclude
+availableUTxO pending (Wallet u _ _) = u `excluding` used
   where
-    entriesToExclude :: Set TxIn
-    entriesToExclude = F.foldMap' entriesToExcludeForTx pending
+    used :: Set TxIn
+    used = F.foldMap' getUsedTxIn pending
 
-    entriesToExcludeForTx :: Tx -> Set TxIn
-    entriesToExcludeForTx tx = Set.fromList $ fst <$> mconcat
+    -- UTxO which have been spent or committed as collateral in a pending
+    -- transaction are not available to use in future transactions.
+    getUsedTxIn :: Tx -> Set TxIn
+    getUsedTxIn tx = Set.fromList $ fst <$> mconcat
         [ tx ^. #resolvedInputs
         , tx ^. #resolvedCollateral
         ]
@@ -336,18 +337,18 @@ totalUTxO
     -> Wallet s
     -> UTxO
 totalUTxO pending (Wallet u _ s) =
-    (u `excluding` entriesToExclude)
-        <> changeUTxO pending s
+    (u `excluding` spent) <> changeUTxO pending s
   where
-    entriesToExclude :: Set TxIn
-    entriesToExclude = F.foldMap' entriesToExcludeForTx pending
+    spent :: Set TxIn
+    spent = F.foldMap' getSpentTxIn pending
 
-    -- Note that we must not exclude collateral inputs here, since the total
-    -- UTxO set is indended to be a projection of how the UTxO set would look
-    -- if all pending transactions are applied successfully: if a transaction
-    -- is applied successfully, then its collateral inputs cannot be consumed.
-    entriesToExcludeForTx :: Tx -> Set TxIn
-    entriesToExcludeForTx tx = Set.fromList $ fst <$> tx ^. #resolvedInputs
+    -- NOTE: In 'availableUTxO', we exclude UTxO committed as collateral, but
+    -- not here. Since the total UTxO set is indended to be a projection of how
+    -- the UTxO set would look if all pending transactions are applied
+    -- successfully: if a transaction is applied successfully, then its
+    -- collateral inputs cannot be consumed.
+    getSpentTxIn :: Tx -> Set TxIn
+    getSpentTxIn tx = Set.fromList $ fst <$> tx ^. #resolvedInputs
 
 -- | Retrieve the change 'UTxO' contained in a set of pending transactions.
 --
