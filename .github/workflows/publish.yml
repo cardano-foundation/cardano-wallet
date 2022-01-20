@@ -6,12 +6,14 @@ on:
       - master
     tags:
       - 'v*'
+  pull_request:
 
 jobs:
   docs:
     runs-on: ubuntu-20.04
     env:
-      DOCS_DIR: _build
+      PUBLISH_DIR: _build
+      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: '📥 Checkout repository'
         uses: actions/checkout@v2
@@ -24,16 +26,8 @@ jobs:
             substituters = https://hydra.iohk.io https://cache.nixos.org/
             trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
-      - name: '❄ Install dependencies'
-        run: 'nix develop .#docs --command emanote --version'
-
-      - name: '🔧 Build emanote site'
-        run: |
-          mkdir -p "$DOCS_DIR"
-          nix develop .#docs -c emanote --layers "docs;docs/.deploy/github" gen "$DOCS_DIR"
-
-      - name: '📸 Build Documentation'
-        id: build
+      - name: '🔧 Set versions'
+        id: versions
         run: |
           if [[ $GITHUB_REF =~ ^refs/tags/v ]]; then
             tag="${GITHUB_REF/refs\/tags\//}"
@@ -43,13 +37,27 @@ jobs:
             commit_message="$default_commit_message"
           fi
           echo "::set-output name=commit_message::$commit_message"
-
-          ./scripts/gh/update-docs.sh "$DOCS_DIR" $tag
+          echo "::set-output name=tag::$tag"
         env:
           default_commit_message: |
             docs: ${{ github.event.head_commit.message }}
 
             Source commit: ${{ github.sha }}
+
+      - name: '❄ Install dependencies'
+        run: 'nix develop .#docs --command emanote --version'
+
+      - name: '📸 Build Documentation'
+        run: |
+          build_dir="$PUBLISH_DIR"
+          if [ -n "$PR_NUMBER" ]; then
+            build_dir="$build_dir/_pr/$PR_NUMBER"
+            nix develop .#docs -c yq --in-place -y '.template.baseUrl|=.+"_pr/\(env.PR_NUMBER)/"' docs/.deploy/github/index.yaml
+          fi
+
+          mkdir -p "$build_dir"
+          nix develop .#docs -c emanote --layers "docs;docs/.deploy/github" gen "$build_dir"
+          ./scripts/gh/update-docs.sh "$build_dir" ${{ steps.versions.outputs.tag }}
 
       - name: '📘 Publish'
         if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}
@@ -57,8 +65,8 @@ jobs:
         with:
           github_token: ${{ secrets.WILLIAM_KING_TOKEN }}
           enable_jekyll: false
-          publish_dir: ${{ env.DOCS_DIR }}
+          publish_dir: ${{ env.PUBLISH_DIR }}
           keep_files: true
           user_name: 'William King Noel Bot'
           user_email: 'adrestia@iohk.io'
-          full_commit_message: ${{ steps.build.outputs.commit_message }}
+          full_commit_message: ${{ steps.versions.outputs.commit_message }}
