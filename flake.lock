@@ -140,11 +140,11 @@
         "tailwind-haskell": "tailwind-haskell"
       },
       "locked": {
-        "lastModified": 1641915689,
-        "narHash": "sha256-b0r+CEw6aoEChE9p04FErNRp+md/1HD8TIxs4l5jn/s=",
+        "lastModified": 1642347723,
+        "narHash": "sha256-ph7bUUWnqv1nOEHyGm8kWeCu27na2LA5CFilUzSWmAw=",
         "owner": "srid",
         "repo": "emanote",
-        "rev": "a7bf21d0583251805a822053ca6c19e7c23a928d",
+        "rev": "78a5d31d07061ef3bddeed13fcc8eae8bf99d633",
         "type": "github"
       },
       "original": {
@@ -610,15 +610,16 @@
         "tailwind-nix": "tailwind-nix"
       },
       "locked": {
-        "lastModified": 1641669733,
-        "narHash": "sha256-9kSXy2QYF22oLTvRGOQNHmZr9JC5MP+zk4AdH7jXttI=",
+        "lastModified": 1641997840,
+        "narHash": "sha256-Iv3hDIG7fdEL27FZpDzJhgdNBmgr+QnQbqXD9W42RNM=",
         "owner": "srid",
         "repo": "tailwind-haskell",
-        "rev": "eea071321505b725ff5f928741aa7a18ce335bbc",
+        "rev": "51c69972f3bdd28727f4a0473625cd05c8f7c4f3",
         "type": "github"
       },
       "original": {
         "owner": "srid",
+        "ref": "master",
         "repo": "tailwind-haskell",
         "type": "github"
       }
