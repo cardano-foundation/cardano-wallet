@@ -547,7 +547,7 @@ fileModeSpec =  do
                             })
                             mockTxs
                             mempty
-                    let (FilteredBlock _ txs, cpB) = applyBlock fakeBlock cpA
+                    let (FilteredBlock{transactions=txs}, cpB) = applyBlock fakeBlock cpA
                     print $ utxo cpB
                     atomically $ do
                         unsafeRunExceptT $ putCheckpoint testWid cpB
