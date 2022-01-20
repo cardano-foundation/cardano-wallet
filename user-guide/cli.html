@@ -17,12 +17,34 @@
       <base href='/cardano-wallet/' />
       <link href='favicon.svg' rel='icon' />
     
-    <meta name='generator' content='Emanote' />
+    <script>
+  // Keep \#links on the same page, when they would otherwise redirect to
+  // the page's <base href>. Ref: https://stackoverflow.com/q/8108836
+  (function() {
+    function fixLink(el) {
+      if (el.tagName.toLowerCase() === "a") {
+        console.log("fixLink", el);
+        var href = el.getAttribute("href");
+        if (href && href.indexOf("#") === 0) {
+          el.href = location.pathname + el.getAttribute("href");
+        }
+      }
+    }
+    // Adjust href for all existing links.
+    document.addEventListener("DOMContentLoaded", function() {
+      const es = document.getElementsByTagName("a");
+      for (var i = 0; i < es.length; i++) {
+        fixLink(es[i]);
+      }
+    });
+    // Adjust href for dynamically added links - when they are clicked.
+    document.addEventListener("click", function(ev) { fixLink(ev.target); });
+  })();
+</script>
+
 
   
-  <!-- CSSSTART -->
-	<link rel="stylesheet" href="emanote-compiled-f5777f0a47fb604cdcc969f47a239c75.css" />
-  <!-- CSSEND -->
+  <link href='tailwind.css' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -1714,6 +1736,123 @@
   
 </div>
     
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
+    <a class='hover:underline truncate' title='WalletId' href='design/WalletId'>
+      WalletId
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+      
+    
+
+
+
+  
+  
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-4 h-4 flex-shrink-0 inline text-gray-700' viewBox='0 0 20 20' fill='currentColor'>
+        <path fill-rule='evenodd' d='M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z' clip-rule='evenodd'></path>
+        <path d='M6 12a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H2h2a2 2 0 002-2v-2z'></path>
+      </svg>
+      
+  
+    <a class='font-bold hover:underline truncate' title='Decision Records' href='design/records'>
+      Decision Records
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
+    <a class='hover:underline truncate' title='Nix Flake' href='design/records/2021-01-17-nix-flake'>
+      Nix Flake
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+  
+</div>
+    
   
 </div>
             
@@ -2189,8 +2328,7 @@ The possible tracers are:
     <p class='mb-3'>
       Use these options to enable debug-level tracing for certain components of the wallet. For example, to log all database queries for the wallet databases, use:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet serve --trace-wallet-db=debug ...</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='recovery-phrase-generate' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>recovery-phrase generate</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet serve --trace-wallet-db=debug ...</code></pre></div><h3 id='recovery-phrase-generate' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>recovery-phrase generate</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2206,8 +2344,7 @@ The possible tracers are:
     <p class='mb-3'>
       These words will be used to create a wallet later. You may also ask for a specific number of words using the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--size</code> option:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet recovery-phrase generate --size 21</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='wallet-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet list</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet recovery-phrase generate --size 21</code></pre></div><h3 id='wallet-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet list</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2219,8 +2356,7 @@ The possible tracers are:
     <p class='mb-3'>
       Lists all your wallets:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet wallet list</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='wallet-create-from-recovery-phrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet create from recovery-phrase</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet wallet list</code></pre></div><h3 id='wallet-create-from-recovery-phrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet create from recovery-phrase</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2241,8 +2377,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <p class='mb-3'>
       after this your new wallet will be created
     </p>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='wallet-get' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet get</h3>
+  <h3 id='wallet-get' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet get</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2254,8 +2389,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <p class='mb-3'>
       Fetches the wallet with specified wallet id:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet wallet get 2512a00e9653fe49a44a5886202e24d77eeb998f</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='wallet-utxo' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet utxo</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet wallet get 2512a00e9653fe49a44a5886202e24d77eeb998f</code></pre></div><h3 id='wallet-utxo' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet utxo</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2302,8 +2436,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     │ │   │           │   │   │   │   │   │   │   │           │   │
     │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │      ╷
     └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └──────│────────────
-          10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳        1000₳</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='wallet-utxo-snapshot' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet utxo-snapshot</h3>
+          10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳        1000₳</code></pre></div><h3 id='wallet-utxo-snapshot' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet utxo-snapshot</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2353,8 +2486,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     </p>
   
     </blockquote>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='wallet-update-name' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet update name</h3>
+  <h3 id='wallet-update-name' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet update name</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2366,8 +2498,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
     <p class='mb-3'>
       Updates name of a wallet given wallet id:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet wallet update name 2512a00e9653fe49a44a5886202e24d77eeb998f NewName</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='wallet-update-passphrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet update passphrase</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet wallet update name 2512a00e9653fe49a44a5886202e24d77eeb998f NewName</code></pre></div><h3 id='wallet-update-passphrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet update passphrase</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2382,8 +2513,7 @@ Enter the passphrase a second time: ****************</code></pre></div>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet wallet update passphrase 2512a00e9653fe49a44a5886202e24d77eeb998f
 Please enter your current passphrase: **********
 Please enter a new passphrase: **********
-Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='wallet-delete' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet delete</h3>
+Enter the passphrase a second time: **********</code></pre></div><h3 id='wallet-delete' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>wallet delete</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2395,8 +2525,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <p class='mb-3'>
       Deletes wallet with specified wallet id:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='transaction-create' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction create</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f</code></pre></div><h3 id='transaction-create' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction create</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2419,8 +2548,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <p class='mb-3'>
       For more information about the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--metadata</code> option, see <a href='user-guide/common-use-cases/TxMetadata' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Transaction Metadata</a>.
     </p>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='transaction-fees' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction fees</h3>
+  <h3 id='transaction-fees' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction fees</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2439,8 +2567,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <p class='mb-3'>
       This estimates fees for a transaction that sends 22 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ...nRtbfw6EHRv1D</code> and 5 lovelace to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>Ae2tdPwUPEZ7...pVwEPhKwseVvf</code> from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
     </p>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='transaction-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction list</h3>
+  <h3 id='transaction-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction list</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2459,8 +2586,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <p class='mb-3'>
       This lists all transactions between <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2018-09-25T10:15:00Z</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2019-11-21T10:15:00Z</code> in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ascending</code> order.
     </p>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='transaction-submit' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction submit</h3>
+  <h3 id='transaction-submit' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction submit</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2476,8 +2602,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <p class='mb-3'>
       Sends transaction identified by a hex-encoded BINARY_BLOB of externally-signed transaction.
     </p>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='transaction-forget' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction forget</h3>
+  <h3 id='transaction-forget' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction forget</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2489,8 +2614,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <p class='mb-3'>
       Forget pending transaction for a given wallet:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet transaction forget 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='transaction-get' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction get</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet transaction forget 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12</code></pre></div><h3 id='transaction-get' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>transaction get</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2502,8 +2626,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <p class='mb-3'>
       Get a transaction with the specified id:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet transaction get 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='address-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address list</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet transaction get 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12</code></pre></div><h3 id='address-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address list</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2515,8 +2638,7 @@ Enter the passphrase a second time: **********</code></pre></div><div xmlhtmlRaw
     <p class='mb-3'>
       List all known (used or not) addresses and their corresponding status.
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='address-create' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address create</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f</code></pre></div><h3 id='address-create' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address create</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2534,8 +2656,7 @@ Ok.
 {
     "state": "unused",
     "id": "2w1sdSJu3GVgr1ic6aP3CEwZo9GAhLzigdBvCGY4JzEDRbWV4HUNpZdHf2n5fV41dGjPpisDX77BztujAJ1Xs38zS8aXvN7Qxoe"
-}</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='address-import' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address import</h3>
+}</code></pre></div><h3 id='address-import' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>address import</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2547,8 +2668,7 @@ Ok.
     <p class='mb-3'>
       Import address belonging to random wallet.
     </p>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='network-information' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network information</h3>
+  <h3 id='network-information' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network information</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2560,8 +2680,7 @@ Ok.
     <p class='mb-3'>
       View network information and syncing progress between the node and the blockchain.
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet network information</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='network-parameters' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network parameters</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet network information</code></pre></div><h3 id='network-parameters' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network parameters</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2573,8 +2692,7 @@ Ok.
     <p class='mb-3'>
       View network parameters. EPOCH_NUMBER can be <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>latest</code> or valid epoch number (not later than the current one), ie., <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>0</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>1</code>, .. .
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet network parameters latest</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='network-clock' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network clock</h3>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>$ cardano-wallet network parameters latest</code></pre></div><h3 id='network-clock' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>network clock</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2602,8 +2720,7 @@ Ok.
     </p>
   
     </blockquote>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='key-from-recovery-phrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key from-recovery-phrase</h3>
+  <h3 id='key-from-recovery-phrase' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key from-recovery-phrase</h3>
     <p class='mb-3'>
       Extract the root extended private key from a recovery phrase. New recovery phrases can be generated using <span xmlhtmlRaw><a href="#recovery-phrase-generate"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>recovery-phrase generate</code><span xmlhtmlRaw></a></span>.
     </p>
@@ -2623,8 +2740,7 @@ The recovery phrase is read from stdin.</code></pre></div>
       Example:
     </p>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phrase Icarus
-xprv12qaxje8hr7fc0t99q94jfnnfexvma22m0urhxgenafqmvw4qda0c8v9rtmk3fpxy9f2g004xj76v4jpd69a40un7sszdnw58qv527zlegvapwaee47uu724q4us4eurh52m027kk0602judjjw58gffvcqzkv2hs</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='key-child' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key child</h3>
+xprv12qaxje8hr7fc0t99q94jfnnfexvma22m0urhxgenafqmvw4qda0c8v9rtmk3fpxy9f2g004xj76v4jpd69a40un7sszdnw58qv527zlegvapwaee47uu724q4us4eurh52m027kk0602judjjw58gffvcqzkv2hs</code></pre></div><h3 id='key-child' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key child</h3>
     <p class='mb-3'>
       Derive child key from root private key. The parent key is read from standard input.
     </p>
@@ -2642,8 +2758,7 @@ The parent key is read from stdin.</code></pre></div>
     </blockquote>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phrase Icarus &gt; root.xprv
 $ cat root.xprv | cardano-wallet key child 44H/1815H/0H/0
-xprv13parrg5g83utetrwsp563w7hps2chu8mwcwqcrzehql67w9k73fq8utx6m8kgjlhle8claexrtcu068jgwl9zj5jyce6wn2k340ahpmglnq6x8zkt7plaqjgads0nvmj5ahav35m0ss8q95djl0dcee59vvwkaya</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='key-public' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key public</h3>
+xprv13parrg5g83utetrwsp563w7hps2chu8mwcwqcrzehql67w9k73fq8utx6m8kgjlhle8claexrtcu068jgwl9zj5jyce6wn2k340ahpmglnq6x8zkt7plaqjgads0nvmj5ahav35m0ss8q95djl0dcee59vvwkaya</code></pre></div><h3 id='key-public' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key public</h3>
     <p class='mb-3'>
       Extract the public key of an extended private key. Keys can be obtained using <span xmlhtmlRaw><a href="#key-from-recovery-phrase"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>key from-recovery-phrase</code><span xmlhtmlRaw></a></span> and <span xmlhtmlRaw><a href="#key-child"></span><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>key child</code><span xmlhtmlRaw></a></span>.
     </p>
@@ -2659,8 +2774,7 @@ The private key is read from stdin.</code></pre></div>
     </blockquote>
   <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phrase Icarus &gt; root.xprv
 $ cat root.xprv | cardano-wallet key public
-xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ynczj338r7f5kzs43xs2fkmktekd4fgnc8q98</code></pre></div><div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='key-inspect' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key inspect</h3>
+xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ynczj338r7f5kzs43xs2fkmktekd4fgnc8q98</code></pre></div><h3 id='key-inspect' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>key inspect</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet-jormungandr key inspect
   Show information about a key
@@ -2670,8 +2784,7 @@ Available options:
 
 The parent key is read from stdin.</code></pre></div>
     </blockquote>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='stake-pool-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>stake-pool list</h3>
+  <h3 id='stake-pool-list' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>stake-pool list</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>Usage: cardano-wallet stake-pool list [--port INT] [--stake STAKE]
   List all known stake pools.
@@ -2682,8 +2795,7 @@ Available options:
   --stake STAKE            The stake you intend to delegate, which affects the
                            rewards and the ranking of pools.</code></pre></div>
     </blockquote>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div><h3 id='version' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>version</h3>
+  <h3 id='version' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>version</h3>
     <blockquote class='py-0.5 px-4 mb-3 italic border-l-4 bg-gray-50 text-gray-600 border-gray-400 quote'>
       
     <p class='mb-3'>
@@ -2695,8 +2807,7 @@ Available options:
     <p class='mb-3'>
       Show the software version.
     </p>
-  <div xmlhtmlRaw><p align=right><a href="#">top :arrow_heading_up:</a></p>
-</div>
+  
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
@@ -2827,7 +2938,7 @@ Available options:
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.3.1'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.8.2'>
       <img class='w-6 h-6 hover:text-red-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

@@ -4,14 +4,14 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Developer Information – Cardano Wallet
+    Decision Records – Cardano Wallet
   </title>
   
     
       <meta property='og:description' content />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Developer Information' />
+      <meta property='og:title' content='Decision Records' />
     
     
       <base href='/cardano-wallet/' />
@@ -112,6 +112,15 @@
             <li class='inline-flex items-center'>
               <a class='px-1 font-bold' href=''>
                 Cardano Wallet
+              </a>
+              <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
+                <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
+              </svg>
+            </li>
+          
+            <li class='inline-flex items-center'>
+              <a class='px-1 font-bold' href='design'>
+                Design Notes
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -1073,7 +1082,11 @@
             
               <!-- Variable bindings for this tree-->
   
-  
+    
+      
+      
+    
+
 
 
   
@@ -1091,7 +1104,7 @@
       </svg>
       
   
-    <a class='font-bold text-red-600 hover:underline truncate' title='Developer Information' href='developers'>
+    <a class='font-bold hover:underline truncate' title='Developer Information' href='developers'>
       Developer Information
     </a>
     
@@ -1768,11 +1781,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-      
-    
-
+  
 
 
   
@@ -1790,7 +1799,7 @@
       </svg>
       
   
-    <a class='font-bold hover:underline truncate' title='Decision Records' href='design/records'>
+    <a class='font-bold text-red-600 hover:underline truncate' title='Decision Records' href='design/records'>
       Decision Records
     </a>
     
@@ -2012,119 +2021,35 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-red-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Developer Information
+    Decision Records
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  <h2 id='general' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>General</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='concepts' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Key Concepts</a>
-        </li>
-      
-        <li>
-          <a href='developers/Resources' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Other Resources</a> - Useful Resources and Design Documents
-        </li>
-      
-        <li>
-          <a href='https://input-output-hk.github.io/adrestia/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Adrestia</a> - Documentation for the project
-        </li>
-      
-    </ul>
-  <h2 id='development' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Development</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='developers/Building' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Building</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Testing' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Testing</a>
-        </li>
-      
-        <li>
-          <a href='https://input-output-hk.github.io/adrestia/code/Coding-Standards' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Coding Standards</a> (part of <a href='https://input-output-hk.github.io/adrestia/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Adrestia</a>)
-        </li>
-      
-    </ul>
-  
-    <p class='mb-3'>
-      <a href='https://bors-ng.aws.iohkdev.io/repositories/12' class='text-red-600 hover:underline' target='_blank' rel='noopener'><img src='https://bors.tech/images/badge_small.svg' alt='Bors enabled' /></a>
-    </p>
-  <h3 id='guides' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Guides</h3>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='contributing/Logging-Guidelines' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Logging guidelines</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Notes-from-upgrading-GHC-version' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Upgrading the GHC version of cardano-wallet</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Updating-Dependencies' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Updating Dependencies</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Swagger-Development' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Swagger</a>
-        </li>
-      
-        <li>
-          <a href='design/Specifying-exceptions-with-Servant-and-Swagger' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Specifying Exceptions with Servant and Swagger</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Hydra' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Hydra CI</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Nix' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Nix</a>
-        </li>
-      
-    </ul>
-  <h2 id='maintainer-guides' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Maintainer Guides</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          [<a href='https://input-output-hk.github.io/adrestia/process/Code-Review-Guidelines' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Code-Review-Guidelines</a> (part of <a href='https://input-output-hk.github.io/adrestia/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Adrestia</a>)
-        </li>
-      
-        <li>
-          <a href='contributing/Release-Checklist' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Release Checklist</a>
-        </li>
-      
-    </ul>
-  
+  <!-- TODO: DRY (same as query-default.tpl, except for date column)--><nav>
+  <div class='mb-8'>
+    <header class='pb-2 mb-2 font-semibold text-gray-600'>
+      Pages matching path './*'
+    </header>
+    
+      <div class='flex flex-wrap my-2'>
+        
+          <span class='mr-2 text-right text-gray-600'>
+            2021-01-17
+          </span>
+        
+        <a class='flex-1 text-red-600 mavenLinkBold border-l-2 pl-2 hover:underline' href='design/records/2021-01-17-nix-flake'>
+          Nix Flake
+        </a>
+      </div>
+    
+  </div>
+</nav>
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
-  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
-    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
-    <ul class='space-y-1'>
-      
-        <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href=''>
-            Cardano Wallet
-          </a>
-          
-            <div class='mb-4 overflow-auto text-sm text-gray-500'>
-  
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
-      <div><a href='developers' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Developer Information</a> - information for developers integrating with Cardano.</div>
-    </div>
-  
-</div>
-          
-        </li>
-      
-    </ul>
-  </div>
-
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>

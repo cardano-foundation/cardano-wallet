@@ -4,44 +4,33 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Developer Information – Cardano Wallet
+    WalletId – Cardano Wallet
   </title>
   
     
       <meta property='og:description' content />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Developer Information' />
+      <meta property='og:title' content='WalletId' />
     
     
       <base href='/cardano-wallet/' />
       <link href='favicon.svg' rel='icon' />
     
-    <script>
-  // Keep \#links on the same page, when they would otherwise redirect to
-  // the page's <base href>. Ref: https://stackoverflow.com/q/8108836
-  (function() {
-    function fixLink(el) {
-      if (el.tagName.toLowerCase() === "a") {
-        console.log("fixLink", el);
-        var href = el.getAttribute("href");
-        if (href && href.indexOf("#") === 0) {
-          el.href = location.pathname + el.getAttribute("href");
-        }
+    <!-- Prism.js --><link href='https://cdnjs.cloudflare.com/ajax/libs/prism/1.26.0/themes/prism-tomorrow.min.css' rel='stylesheet' />
+<script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.26.0/prism.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/prism/1.26.0/plugins/autoloader/prism-autoloader.min.js'></script>
+
+<script>
+  window.MathJax = {
+    startup: {
+      ready: () => {
+        MathJax.startup.defaultReady();
       }
     }
-    // Adjust href for all existing links.
-    document.addEventListener("DOMContentLoaded", function() {
-      const es = document.getElementsByTagName("a");
-      for (var i = 0; i < es.length; i++) {
-        fixLink(es[i]);
-      }
-    });
-    // Adjust href for dynamically added links - when they are clicked.
-    document.addEventListener("click", function(ev) { fixLink(ev.target); });
-  })();
+  };
 </script>
-
+<script async id='MathJax-script' src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>
 
   
   <link href='tailwind.css' rel='stylesheet' type='text/css' />
@@ -112,6 +101,15 @@
             <li class='inline-flex items-center'>
               <a class='px-1 font-bold' href=''>
                 Cardano Wallet
+              </a>
+              <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
+                <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
+              </svg>
+            </li>
+          
+            <li class='inline-flex items-center'>
+              <a class='px-1 font-bold' href='design'>
+                Design Notes
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -1073,7 +1071,11 @@
             
               <!-- Variable bindings for this tree-->
   
-  
+    
+      
+      
+    
+
 
 
   
@@ -1091,7 +1093,7 @@
       </svg>
       
   
-    <a class='font-bold text-red-600 hover:underline truncate' title='Developer Information' href='developers'>
+    <a class='font-bold hover:underline truncate' title='Developer Information' href='developers'>
       Developer Information
     </a>
     
@@ -1729,11 +1731,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-    
-    
-
+  
 
 
   
@@ -1746,12 +1744,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
         </path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='WalletId' href='design/WalletId'>
+    <a class='font-bold text-red-600 hover:underline truncate' title='WalletId' href='design/WalletId'>
       WalletId
     </a>
     
@@ -2012,119 +2010,73 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-red-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Developer Information
+    WalletId
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  <h2 id='general' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>General</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='concepts' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Key Concepts</a>
-        </li>
-      
-        <li>
-          <a href='developers/Resources' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Other Resources</a> - Useful Resources and Design Documents
-        </li>
-      
-        <li>
-          <a href='https://input-output-hk.github.io/adrestia/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Adrestia</a> - Documentation for the project
-        </li>
-      
-    </ul>
-  <h2 id='development' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Development</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='developers/Building' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Building</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Testing' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Testing</a>
-        </li>
-      
-        <li>
-          <a href='https://input-output-hk.github.io/adrestia/code/Coding-Standards' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Coding Standards</a> (part of <a href='https://input-output-hk.github.io/adrestia/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Adrestia</a>)
-        </li>
-      
-    </ul>
   
     <p class='mb-3'>
-      <a href='https://bors-ng.aws.iohkdev.io/repositories/12' class='text-red-600 hover:underline' target='_blank' rel='noopener'><img src='https://bors.tech/images/badge_small.svg' alt='Bors enabled' /></a>
+      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> is a hexadecimal string derived from the wallet’s mnemonic.
     </p>
-  <h3 id='guides' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Guides</h3>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='contributing/Logging-Guidelines' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Logging guidelines</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Notes-from-upgrading-GHC-version' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Upgrading the GHC version of cardano-wallet</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Updating-Dependencies' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Updating Dependencies</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Swagger-Development' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Swagger</a>
-        </li>
-      
-        <li>
-          <a href='design/Specifying-exceptions-with-Servant-and-Swagger' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Specifying Exceptions with Servant and Swagger</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Hydra' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Hydra CI</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Nix' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Nix</a>
-        </li>
-      
-    </ul>
-  <h2 id='maintainer-guides' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Maintainer Guides</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          [<a href='https://input-output-hk.github.io/adrestia/process/Code-Review-Guidelines' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Code-Review-Guidelines</a> (part of <a href='https://input-output-hk.github.io/adrestia/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Adrestia</a>)
-        </li>
-      
-        <li>
-          <a href='contributing/Release-Checklist' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Release Checklist</a>
-        </li>
-      
-    </ul>
   
+    <p class='mb-3'>
+      It is used by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> server to refer to specific wallets.
+    </p>
+  
+    <p class='mb-3'>
+      For all wallet types, the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> is a <em>blake2b-160</em> hash of something. This hash function produces a 20-byte digest, which becomes 40 hexadecimal digits.
+    </p>
+  <h2 id='shelley-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Shelley Wallets</h2>
+    <p class='mb-3'>
+      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> is calculated the same way for shared (multi-sig) and non-shared Shelley wallets.
+    </p>
+  
+    <p class='mb-3'>
+      Therefore, each signer in a shared wallet will have a unique <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code>, because they have a different mnemonic.
+    </p>
+  <h3 id='full-wallets-the-default' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Full Wallets (the default)</h3>
+    <p class='mb-3'>
+      The extended private key is derived from the mnemonic, and then its public key is hashed to produce the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code>.
+    </p>
+  
+    <p class='mb-3'>
+      <span class='math display'>$$WalletId = \mathrm{base16}(\mathrm{blake2b_{160}}(\mathrm{xpub}(rootXPrv)))$$</span>
+    </p>
+  <h3 id='single-account-wallets' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Single Account Wallets</h3>
+    <p class='mb-3'>
+      These are wallets for which only an account-level XPrv or XPub is known.
+    </p>
+  
+    <p class='mb-3'>
+      <span class='math display'>$$WalletId = \mathrm{base16}(\mathrm{blake2b_{160}}(accountXPub))$$</span>
+    </p>
+  <h2 id='byron-wallets' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Byron Wallets</h2>
+    <p class='mb-3'>
+      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> comes from the extended public key of the wallet root key.
+    </p>
+  
+    <p class='mb-3'>
+      <span class='math display'>$$WalletId = \mathrm{base16}(\mathrm{blake2b_{160}}(\mathrm{xpub}(rootXPrv)))$$</span>
+    </p>
+  <h2 id='example-code' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Example code</h2>
+    <p class='mb-3'>
+      This shell script will produce a Shelley <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>WalletId</code> from the mnemonic words provided on stdin.
+    </p>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='bash language-bash'>#!/usr/bin/env bash
+
+xargs \
+  | cardano-address key from-recovery-phrase Shelley \
+  | cardano-address key public --with-chain-code \
+  | bech32 \
+  | xxd -r -p \
+  | b2sum -b -l 160 \
+  | cut -d' ' -f1</code></pre></div>
   <!-- What goes in this file will appear below the note body-->
 </article>
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
-  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
-    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
-    <ul class='space-y-1'>
-      
-        <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href=''>
-            Cardano Wallet
-          </a>
-          
-            <div class='mb-4 overflow-auto text-sm text-gray-500'>
-  
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
-      <div><a href='developers' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Developer Information</a> - information for developers integrating with Cardano.</div>
-    </div>
-  
-</div>
-          
-        </li>
-      
-    </ul>
-  </div>
-
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>

@@ -4,14 +4,14 @@
   <meta charset='UTF-8' />
   <meta name='viewport' content='width=device-width, initial-scale=1' />
   <title>
-    Developer Information – Cardano Wallet
+    Nix Flake – Cardano Wallet
   </title>
   
     
       <meta property='og:description' content />
       <meta property='og:site_name' content='Cardano Wallet' />
       <meta property='og:type' content='website' />
-      <meta property='og:title' content='Developer Information' />
+      <meta property='og:title' content='Nix Flake' />
     
     
       <base href='/cardano-wallet/' />
@@ -112,6 +112,24 @@
             <li class='inline-flex items-center'>
               <a class='px-1 font-bold' href=''>
                 Cardano Wallet
+              </a>
+              <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
+                <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
+              </svg>
+            </li>
+          
+            <li class='inline-flex items-center'>
+              <a class='px-1 font-bold' href='design'>
+                Design Notes
+              </a>
+              <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
+                <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
+              </svg>
+            </li>
+          
+            <li class='inline-flex items-center'>
+              <a class='px-1 font-bold' href='design/records'>
+                Decision Records
               </a>
               <svg fill='currentColor' viewBox='0 0 20 20' class='w-auto h-5 text-gray-400'>
                 <path fill-rule='evenodd' d='M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z' clip-rule='evenodd'></path>
@@ -1073,7 +1091,11 @@
             
               <!-- Variable bindings for this tree-->
   
-  
+    
+      
+      
+    
+
 
 
   
@@ -1091,7 +1113,7 @@
       </svg>
       
   
-    <a class='font-bold text-red-600 hover:underline truncate' title='Developer Information' href='developers'>
+    <a class='font-bold hover:underline truncate' title='Developer Information' href='developers'>
       Developer Information
     </a>
     
@@ -1804,11 +1826,7 @@
     
       <!-- Variable bindings for this tree-->
   
-    
-      
-    
-    
-
+  
 
 
   
@@ -1821,12 +1839,12 @@
     
     
       <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'>
         </path>
       </svg>
-    
+      
   
-    <a class='hover:underline truncate' title='Nix Flake' href='design/records/2021-01-17-nix-flake'>
+    <a class='font-bold text-red-600 hover:underline truncate' title='Nix Flake' href='design/records/2021-01-17-nix-flake'>
       Nix Flake
     </a>
     
@@ -2012,88 +2030,80 @@
           <main class='px-4 py-4'>
             <h1 class='flex items-end justify-center mb-4 p-3 bg-red-100 text-5xl font-extrabold text-black rounded'>
   <a class='z-40 tracking-tighter '>
-    Developer Information
+    Nix Flake
   </a>
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  <h2 id='general' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>General</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='concepts' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Key Concepts</a>
-        </li>
-      
-        <li>
-          <a href='developers/Resources' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Other Resources</a> - Useful Resources and Design Documents
-        </li>
-      
-        <li>
-          <a href='https://input-output-hk.github.io/adrestia/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Adrestia</a> - Documentation for the project
-        </li>
-      
-    </ul>
-  <h2 id='development' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Development</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
-      
-        <li>
-          <a href='developers/Building' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Building</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Testing' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Testing</a>
-        </li>
-      
-        <li>
-          <a href='https://input-output-hk.github.io/adrestia/code/Coding-Standards' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Coding Standards</a> (part of <a href='https://input-output-hk.github.io/adrestia/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Adrestia</a>)
-        </li>
-      
-    </ul>
+  <h2 id='status' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Status</h2>
+    <p class='mb-3'>
+      Accepted - <a href='https://input-output.atlassian.net/browse/ADP-983' class='text-red-600 hover:underline' target='_blank' rel='noopener'>ADP-983</a>
+    </p>
+  <h2 id='context' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Context</h2>
+    <p class='mb-3'>
+      The DevOps team have contributed a <a href='https://github.com/input-output-hk/cardano-wallet/pull/2997' class='text-red-600 hover:underline' target='_blank' rel='noopener'>PR</a> which converts the Nix build to the new Nix flake format.
+    </p>
   
     <p class='mb-3'>
-      <a href='https://bors-ng.aws.iohkdev.io/repositories/12' class='text-red-600 hover:underline' target='_blank' rel='noopener'><img src='https://bors.tech/images/badge_small.svg' alt='Bors enabled' /></a>
+      This <a href='https://www.tweag.io/blog/2020-05-25-flakes/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>blog series</a> provides some background information on flakes.
     </p>
-  <h3 id='guides' class='mt-6 mb-2 text-3xl font-bold text-gray-700'>Guides</h3>
+  
+    <p class='mb-3'>
+      DevOps team also wish to convert Daedalus to use Nix flakes. For this to work well, it’s better that Daedalus dependencies such as cardano-wallet are also defined as flakes.
+    </p>
+  
+    <p class='mb-3'>
+      The <em>tl;dr</em> for flakes is that <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>default.nix</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>shell.nix</code> are deprecated in favour of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code>. You type <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix build .#cardano-wallet</code> instead of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-build -A cardano-wallet</code> and you type <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop</code> instead of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell</code>.
+    </p>
+  <h2 id='decision' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Decision</h2>
+    <p class='mb-3'>
+      Review and merge <a href='https://github.com/input-output-hk/cardano-wallet/pull/2997' class='text-red-600 hover:underline' target='_blank' rel='noopener'>PR #2997</a>, since flakes seem to be the future and offer some benefits to developers.
+    </p>
+  
+    <p class='mb-3'>
+      This will add a <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code> file, and replace <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>default.nix</code>, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>shell.nix</code>, and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>release.nix</code> with backwards compatibility shims.
+    </p>
+  
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          <a href='contributing/Logging-Guidelines' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Logging guidelines</a>
+          Pay close attention to any broken builds or CI processes which may result from these changes.
         </li>
       
         <li>
-          <a href='contributing/Notes-from-upgrading-GHC-version' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Upgrading the GHC version of cardano-wallet</a>
+          Ensure that the documentation is updated with the new build commands.
         </li>
       
         <li>
-          <a href='contributing/Updating-Dependencies' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Updating Dependencies</a>
+          Notify developers that the Nix build files have changed, and they may need to modify the commands which they use.
         </li>
       
         <li>
-          <a href='contributing/Swagger-Development' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Swagger</a>
-        </li>
-      
-        <li>
-          <a href='design/Specifying-exceptions-with-Servant-and-Swagger' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Specifying Exceptions with Servant and Swagger</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Hydra' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Hydra CI</a>
-        </li>
-      
-        <li>
-          <a href='contributing/Nix' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Nix</a>
+          After a while, remove <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>default.nix</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>shell.nix</code> and associated compatibility code.
         </li>
       
     </ul>
-  <h2 id='maintainer-guides' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Maintainer Guides</h2>
-    <ul class='my-3 ml-6 space-y-1 list-disc'>
+  <h2 id='consequences' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Consequences</h2>
+    <ul class='my-3 ml-6 space-y-1 list-decimal list-inside'>
       
         <li>
-          [<a href='https://input-output-hk.github.io/adrestia/process/Code-Review-Guidelines' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Code-Review-Guidelines</a> (part of <a href='https://input-output-hk.github.io/adrestia/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Adrestia</a>)
+          Developers and users of the Nix build will now need Nix version 2.4 at least - Nix 2.5 is probably better.
         </li>
       
         <li>
-          <a href='contributing/Release-Checklist' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Release Checklist</a>
+          The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix build</code> CLI for building with flakes seems nicer than the old <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-build</code>.
+        </li>
+      
+        <li>
+          Apparently, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop</code> has better caching than <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell</code>, and so it will be faster to start the dev environment.
+        </li>
+      
+        <li>
+          The process for updating Nix dependencies (e.g. Haskell.nix) is easier and more sane - <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix flake lock</code>.
+        </li>
+      
+        <li>
+          Other PRs which are open may need to be rebased on latest <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code> for their CI to pass.
         </li>
       
     </ul>
@@ -2103,28 +2113,6 @@
             <div class='flex flex-col lg:flex-row lg:space-x-2'>
               
               
-  <div class='flex-1 p-4 mt-8 bg-gray-100 rounded'>
-    <header class='mb-2 text-xl font-semibold text-gray-500'>Links to this page</header>
-    <ul class='space-y-1'>
-      
-        <li>
-          <a class='text-red-600 mavenLinkBold hover:bg-red-50' href=''>
-            Cardano Wallet
-          </a>
-          
-            <div class='mb-4 overflow-auto text-sm text-gray-500'>
-  
-    <div class='pl-2 mt-2 border-l-2 border-red-200 hover:border-red-500'>
-      <div><a href='developers' class='text-gray-600 font-bold hover:bg-gray-50' data-wikilink-type='WikiLinkNormal'>Developer Information</a> - information for developers integrating with Cardano.</div>
-    </div>
-  
-</div>
-          
-        </li>
-      
-    </ul>
-  </div>
-
             </div>
             
   <section class='flex flex-wrap items-end justify-center my-4 space-x-2 space-y-2 font-mono text-sm'>

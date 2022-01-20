@@ -17,12 +17,34 @@
       <base href='/cardano-wallet/' />
       <link href='favicon.svg' rel='icon' />
     
-    <meta name='generator' content='Emanote' />
+    <script>
+  // Keep \#links on the same page, when they would otherwise redirect to
+  // the page's <base href>. Ref: https://stackoverflow.com/q/8108836
+  (function() {
+    function fixLink(el) {
+      if (el.tagName.toLowerCase() === "a") {
+        console.log("fixLink", el);
+        var href = el.getAttribute("href");
+        if (href && href.indexOf("#") === 0) {
+          el.href = location.pathname + el.getAttribute("href");
+        }
+      }
+    }
+    // Adjust href for all existing links.
+    document.addEventListener("DOMContentLoaded", function() {
+      const es = document.getElementsByTagName("a");
+      for (var i = 0; i < es.length; i++) {
+        fixLink(es[i]);
+      }
+    });
+    // Adjust href for dynamically added links - when they are clicked.
+    document.addEventListener("click", function(ev) { fixLink(ev.target); });
+  })();
+</script>
+
 
   
-  <!-- CSSSTART -->
-	<link rel="stylesheet" href="emanote-compiled-f5777f0a47fb604cdcc969f47a239c75.css" />
-  <!-- CSSEND -->
+  <link href='tailwind.css' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -1714,6 +1736,123 @@
   
 </div>
     
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
+    <a class='hover:underline truncate' title='WalletId' href='design/WalletId'>
+      WalletId
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+      
+    
+
+
+
+  
+  
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-4 h-4 flex-shrink-0 inline text-gray-700' viewBox='0 0 20 20' fill='currentColor'>
+        <path fill-rule='evenodd' d='M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z' clip-rule='evenodd'></path>
+        <path d='M6 12a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H2h2a2 2 0 002-2v-2z'></path>
+      </svg>
+      
+  
+    <a class='font-bold hover:underline truncate' title='Decision Records' href='design/records'>
+      Decision Records
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
+    <a class='hover:underline truncate' title='Nix Flake' href='design/records/2021-01-17-nix-flake'>
+      Nix Flake
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+  
+</div>
+    
   
 </div>
             
@@ -1895,27 +2034,19 @@
     <p class='mb-3'>
       It is possible to specify any git revision for the dependency and Nix will automatically build it – unless it has already been built by Hydra – in which case the build result will be downloaded instead.
     </p>
-  <h2 id='nix-shell' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>nix-shell</h2>
+  <h2 id='nix-develop' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>nix develop</h2>
     <p class='mb-3'>
-      The default <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell</code> contains build tools, utilities and GHC configured with a global package-db which matches <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code>. This is defined in the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>shell</code> attribute of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>default.nix</code>.
+      The default <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop</code> contains build tools, utilities and GHC configured with a global package-db which matches <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code>. This is defined in the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>devShell</code> attribute of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code>.
     </p>
   <h2 id='stack' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Stack</h2>
     <p class='mb-3'>
       On Buildkite, the project will be built with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack build --nix</code>. This means that all stack commands will run inside the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell</code> defined by <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/stack-shell.nix' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/stack-shell.nix</code></a>. If there is a program that is needed by the build or tests, make sure that it is present there.
     </p>
-  <h2 id='niv' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>niv</h2>
+  <h2 id='nix-flake-lock' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>nix flake lock</h2>
     <p class='mb-3'>
-      The <a href='https://github.com/nmattia/niv' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>niv</code></a> utility manages the file <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/sources.json' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/sources.json</code></a>. To get this program, just run <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell</code>.
+      <a href='https://nixos.wiki/wiki/Flakes' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix flake</code></a> manages the file <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/flake.lock' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.lock</code></a>.
     </p>
-  <h2 id='updating-node-backends' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Updating node backends</h2><h3 id='cardano-node' class='mt-6 mb-2 text-3xl font-bold text-gray-700'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code></h3>
-    <p class='mb-3'>
-      To update the version of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> used by the Nix shells, run:
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>niv update cardano-node --branch REF</code></pre></div>
-    <p class='mb-3'>
-      The <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>REF</code> argument can be a tag or a branch. Commit the updated <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/sources.json</code>.
-    </p>
-  <h3 id='cardano-node-haskell-dependencies' class='mt-6 mb-2 text-3xl font-bold text-gray-700'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> Haskell dependencies</h3>
+  <h2 id='updating-node-backends' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Updating node backends</h2><h3 id='cardano-node-haskell-dependencies' class='mt-6 mb-2 text-3xl font-bold text-gray-700'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-node</code> Haskell dependencies</h3>
     <p class='mb-3'>
       These are defined by the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>resolver</code> in <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>stack.yaml</code></a>.
     </p>
@@ -2019,7 +2150,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.3.1'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.8.2'>
       <img class='w-6 h-6 hover:text-red-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>

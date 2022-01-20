@@ -17,12 +17,34 @@
       <base href='/cardano-wallet/' />
       <link href='favicon.svg' rel='icon' />
     
-    <meta name='generator' content='Emanote' />
+    <script>
+  // Keep \#links on the same page, when they would otherwise redirect to
+  // the page's <base href>. Ref: https://stackoverflow.com/q/8108836
+  (function() {
+    function fixLink(el) {
+      if (el.tagName.toLowerCase() === "a") {
+        console.log("fixLink", el);
+        var href = el.getAttribute("href");
+        if (href && href.indexOf("#") === 0) {
+          el.href = location.pathname + el.getAttribute("href");
+        }
+      }
+    }
+    // Adjust href for all existing links.
+    document.addEventListener("DOMContentLoaded", function() {
+      const es = document.getElementsByTagName("a");
+      for (var i = 0; i < es.length; i++) {
+        fixLink(es[i]);
+      }
+    });
+    // Adjust href for dynamically added links - when they are clicked.
+    document.addEventListener("click", function(ev) { fixLink(ev.target); });
+  })();
+</script>
+
 
   
-  <!-- CSSSTART -->
-	<link rel="stylesheet" href="emanote-compiled-f5777f0a47fb604cdcc969f47a239c75.css" />
-  <!-- CSSEND -->
+  <link href='tailwind.css' rel='stylesheet' type='text/css' />
 
   <!-- Heist error element -->
   <style type='text/css'>
@@ -1714,6 +1736,123 @@
   
 </div>
     
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
+    <a class='hover:underline truncate' title='WalletId' href='design/WalletId'>
+      WalletId
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+      
+    
+
+
+
+  
+  
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg xmlns='http://www.w3.org/2000/svg' class='w-4 h-4 flex-shrink-0 inline text-gray-700' viewBox='0 0 20 20' fill='currentColor'>
+        <path fill-rule='evenodd' d='M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z' clip-rule='evenodd'></path>
+        <path d='M6 12a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H2h2a2 2 0 002-2v-2z'></path>
+      </svg>
+      
+  
+    <a class='font-bold hover:underline truncate' title='Decision Records' href='design/records'>
+      Decision Records
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+      <!-- Variable bindings for this tree-->
+  
+    
+      
+    
+    
+
+
+
+  
+
+
+<!-- Rendering of this tree -->
+<div class='pl-2'>
+  <!-- Node's rootLabel-->
+  <div class='flex items-center my-2 space-x-2 justify-left'>
+    
+    
+      <svg class='w-4 h-4 flex-shrink-0 inline' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z'>
+        </path>
+      </svg>
+    
+  
+    <a class='hover:underline truncate' title='Nix Flake' href='design/records/2021-01-17-nix-flake'>
+      Nix Flake
+    </a>
+    
+      
+  </div>
+
+  <!-- Node's children forest, displayed only on active trees
+    TODO: Use <details> to toggle visibility?
+  -->
+  
+    
+  
+</div>
+    
+  
+</div>
+    
   
 </div>
             
@@ -1891,7 +2030,7 @@
     <p class='mb-3'>
       <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> uses the following Haskell build tool versions.
     </p>
-  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Supported version</strong></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Dependency?</strong></th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://haskellstack.org/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>stack</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>&gt;= 2.7.1</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Required, recommended</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://www.haskell.org/downloads/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>ghc</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>== 8.10.7</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Required</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://www.haskell.org/cabal/download.html' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cabal</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>&gt;= 3.4.0.0</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Optional</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='contributing/Nix' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Nix</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>&gt;= 2.4</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Optional</td></tr></tbody></table>
+  <table class='mb-3'><thead><tr class='border-b-2 border-t-2 border-gray-300'><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Supported version</strong></th><th class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><strong>Dependency?</strong></th></tr></thead><tbody><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://haskellstack.org/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>stack</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>&gt;= 2.7.1</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Required, recommended</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://www.haskell.org/downloads/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>ghc</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>== 8.10.7</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Required</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='https://www.haskell.org/cabal/download.html' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cabal</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>&gt;= 3.4.0.0</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Optional</td></tr><tr class='border-b-2 border-t-2 border-gray-300'><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'><a href='contributing/Nix' class='text-red-600 mavenLinkBold hover:underline' data-wikilink-type='WikiLinkNormal'>Nix</a></td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>&gt;= 2.5.1</td><td class='py-2 px-2 align-top border-r-2 border-l-2 border-gray-300'>Optional</td></tr></tbody></table>
     <p class='mb-3'>
       See <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/nix/build-tools-overlay.nix#L1' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix/build-tools-overlay.nix</code></a> for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
     </p>
@@ -2039,28 +2178,25 @@
     <p class='mb-3'>
       To build the wallet for your current platform:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix-build -A cardano-wallet</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix build</code></pre></div>
     <p class='mb-3'>
-      Unless you have local changes in your git repo, this will download the build from the Hydra cache rather than building locally.
+      The resulting executable will appear at <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>./result/bin/cardano-wallet</code>.
+    </p>
+  
+    <p class='mb-3'>
+      Unless you have local changes in your git repo, Nix will download the build from the Hydra cache rather than building locally.
     </p>
   <h4 id='cross-compiling-with-nix' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Cross-compiling with Nix</h4>
     <p class='mb-3'>
       To build the wallet for Windows, from <strong>Linux</strong>:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix-build release.nix -A x86_64-w64-mingw32.cardano-wallet.x86_64-linux</code></pre></div>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix build .#hydraJobs.linux.windows.cardano-wallet</code></pre></div><h4 id='building-straight-from-github' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Building straight from GitHub</h4>
     <p class='mb-3'>
-      If you’re using <strong>macOS</strong>, then change <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>x86_64-linux</code> to <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>x86_64-darwin</code>, and enable the cross-building flag (macOS is disabled by default to reduce the load on CI):
+      To build another branch, add <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>/&lt;branch name, tag, or commit hash&gt;</code>:
     </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix-build \
-    release.nix \
-    --arg supportedCrossSystems '["x86_64-darwin"]' \
-     -A x86_64-w64-mingw32.cardano-wallet.x86_64-darwin</code></pre></div><h4 id='building-straight-from-github' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Building straight from GitHub</h4>
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix build github:input-output-hk/cardano-wallet</code></pre></div><h4 id='navigating-hydra' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Navigating Hydra</h4>
     <p class='mb-3'>
-      To build another branch (replace <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>master</code> with the branch name, tag, or commit hash):
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='language-none'>nix-build https://github.com/input-output-hk/cardano-wallet/archive/master.tar.gz --argstr gitrev master -A cardano-wallet</code></pre></div><h4 id='navigating-hydra' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Navigating Hydra</h4>
-    <p class='mb-3'>
-      The Hydra <a href='https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Jobset page</a> shows all jobs defined in <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>release.nix</code>. Some of the release jobs have a download link.
+      The Hydra <a href='https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs' class='text-red-600 hover:underline' target='_blank' rel='noopener'>Jobset page</a> shows all jobs defined in the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>hydraJobs</code> attribute of <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>flake.nix</code>. Some of the release jobs have a download link.
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
@@ -2080,11 +2216,11 @@
     </p>
   <h4 id='cabalnix-build' class='mt-6 mb-2 text-2xl font-bold text-gray-700'>Cabal+Nix build</h4>
     <p class='mb-3'>
-      Use the Cabal+Nix build if you want to develop with incremental builds, but also have it automatically download all dependencies.
+      Use the Cabal+Nix build if you want to develop with incremental builds, but also have it automatically download cached builds of all dependencies.
     </p>
   
     <p class='mb-3'>
-      If you run <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell</code>, it will start a <a href='https://input-output-hk.github.io/haskell.nix/user-guide/development/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>development environment</a> for <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code>. This will contain:
+      If you run <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop</code>, it will start a <a href='https://input-output-hk.github.io/haskell.nix/user-guide/development/' class='text-red-600 hover:underline' target='_blank' rel='noopener'>development environment</a> for <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code>. This will contain:
     </p>
   
     <ul class='my-3 ml-6 space-y-1 list-disc'>
@@ -2122,24 +2258,11 @@
     <p class='mb-3'>
       Inside this shell you can use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal build</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ghci</code> for development.
     </p>
-  <h5 id='fully-cached-dependencies' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Fully cached dependencies</h5>
+  <h5 id='profiling-build-with-cached-dependencies' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Profiling build with cached dependencies</h5>
     <p class='mb-3'>
-      Cabal generally tries to download and build <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>source-repository-package</code> dependencies itself, rather than using what’s available through <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>ghc-pkg</code>.
+      Use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix develop .#profiled</code> to get a shell where Haskell dependencies are built with profiling enabled. You won’t need to rebuild all of the dependencies because they can be downloaded from the Hydra cache.
     </p>
-  
-    <p class='mb-3'>
-      If you would like to further speed up your build, you may provide <a href='https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project#L1' class='text-red-600 hover:underline' target='_blank' rel='noopener'><code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cabal-nix.project</code></a> as the <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>--project file</code> argument when running Cabal.
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix-shell
-
-[nix-shell:~/iohk/cardano-wallet]$ cabal build \
-    --project-file=cabal-nix.project \
-    --enable-tests --enable-benchmarks \
-    all</code></pre></div><h5 id='profiling-build-with-cached-dependencies' class='mt-6 mb-2 text-xl font-bold text-gray-700'>Profiling build with cached dependencies</h5>
-    <p class='mb-3'>
-      Use <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>nix-shell --arg profiling true</code> to get a shell where Haskell dependencies are built with profiling enabled. You won’t need to rebuild all of the dependencies because they can be downloaded from the Hydra cache.
-    </p>
-  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix-shell --arg profiling true
+  <div class='py-0.5 mb-3 text-sm'><pre><code class='console language-console'>$ nix develop .#profiled
 
 [nix-shell:~/iohk/cardano-wallet]$ cabal build \
     --enable-tests --enable-benchmarks \
@@ -2219,7 +2342,7 @@
     </a>
   </div>
   <div>
-    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.3.1'>
+    <a href='https://emanote.srid.ca' target='_blank' title='Generated by Emanote 0.4.8.2'>
       <img class='w-6 h-6 hover:text-red-700' src='_emanote-static/emanote-logo.svg' />
     </a>
   </div>
