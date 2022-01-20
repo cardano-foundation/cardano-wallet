@@ -220,7 +220,7 @@
                 STACK_IN_NIX_EXTRA_ARGS = config.stackExtraArgs;
               });
               docs = pkgs.mkShell {
-                name = "cardano-wallet-docs-env";
+                name = "cardano-wallet-docs";
                 nativeBuildInputs = [ emanote.defaultPackage.${system} ];
                 # allow building the shell so that it can be cached in hydra
                 phases = [ "installPhase" ];
