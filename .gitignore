@@ -16,8 +16,8 @@
 *.eventlog
 
 ### Cabal ###
-/dist
-/dist-*
+**/dist/
+**/dist-*/
 .ghc.environment.*
 /cabal*.project.local*
 
@@ -33,7 +33,7 @@ hie.yaml
 ### Nix ###
 /result*
 /.stack-to-nix.cache
-/.nix-shell-cabal.project*
+**/.nix-shell-cabal.project*
 
 ### Direnv ###
 .envrc-local

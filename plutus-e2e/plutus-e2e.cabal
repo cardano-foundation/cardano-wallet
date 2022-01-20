@@ -1,0 +1,108 @@
+name:                plutus-e2e
+version:             2021.12.15
+synopsis:            Tools for generating Plutus E2E test data
+homepage:            https://github.com/input-output-hk/cardano-wallet
+author:              IOHK Engineering Team
+maintainer:          operations@iohk.io
+copyright:           2018-2022 IOHK
+license:             Apache-2.0
+category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+
+flag release
+    description: Enable optimization and `-Werror`
+    default: False
+    manual: True
+
+library
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options: -Wall -Wnoncanonical-monad-instances
+               -Wincomplete-uni-patterns -Wincomplete-record-updates
+               -Wredundant-constraints -Widentities -rtsopts
+               -- See Plutus Tx readme
+               -fobject-code -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
+  ghc-options:
+      -Wall
+      -Wcompat
+  if (flag(release))
+    ghc-options:
+      -Werror
+  build-depends:
+      HUnit
+    , aeson
+    , aeson-qq
+    , base
+    , base16-bytestring
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , bytestring
+    , cardano-api
+    , cardano-addresses
+    , plutus-ledger
+    , plutus-tx
+    , plutus-tx-plugin
+    , playground-common
+    , vector
+    , plutus-contract
+    , cardano-api
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
+    , cardano-wallet-cli
+    , plutus-ledger-api
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , plutus-ledger-api
+    , plutus-ledger-constraints
+    , plutus-use-cases
+    , cborg
+    , command
+    , containers
+    , criterion-measurement
+    , cryptonite
+    , deepseq
+    , directory
+    , either
+    , extra
+    , filepath
+    , flat
+    , fmt
+    , generic-lens
+    , generic-lens-core
+    , hspec
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , iohk-monitoring
+    , lens-aeson
+    , memory
+    , microstache
+    , network-uri
+    , optparse-applicative
+    , process
+    , resourcet
+    , retry
+    , say
+    , scrypt
+    , serialise
+    , string-interpolate
+    , template-haskell
+    , text
+    , text-class
+    , time
+    , unliftio
+    , unliftio-core
+    , unordered-containers
+  hs-source-dirs:
+      src
+  exposed-modules:
+      Test.PlutusE2E.Base

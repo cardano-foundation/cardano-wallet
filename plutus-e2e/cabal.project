@@ -1,68 +1,39 @@
---------------------------------------------------------------------------------
--- Cabal project file
--- -----------------------------------------------------------------------------
---
--- Example build command:
---
---   cabal build all --enable-tests --enable-benchmarks -O0
---
--- -----------------------------------------------------------------------------
--- Updating this file
---
--- Note that the canonical source of dependencies is stack.yaml and
--- cabal.project should be kept in sync with that. The Nix packages
--- are generated from stack.yaml not cabal.project.
---
--- -----------------------------------------------------------------------------
--- How to use with the nix-shell
---
--- The advantage of building under nix-shell is that the correct
--- versions of all build and test dependencies are set up for you in the
--- nix-shell environment.
---
--- All dependencies, including Haskell package dependencies, have been
--- built on Hydra and are transparently downloaded from the IOHK
--- cache.
---
--- The Haskell package set in shell.nix is automatically generated
--- from stack.yaml.
---
--- To build, start "nix-shell", then run Cabal inside:
---     nix-shell
---     cabal build all -O0
---
--- To build with profiling enabled, use:
---    nix-shell --arg profiling true
---    cabal configure --enable-tests --enable-benchmarks --enable-profiling
---    cabal build all
---
---------------------------------------------------------------------------------
-
 index-state: 2022-01-01T00:00:00Z
 with-compiler: ghc-8.10.7
 
 packages:
-    lib/dbvar/
-  , lib/core/
-  , lib/core-integration/
-  , lib/cli/
-  , lib/launcher/
-  , lib/numeric/
-  , lib/text-class/
-  , lib/test-utils/
-  , lib/shelley/
-  , lib/strict-non-empty-containers/
+    ./.
 
+-- -------------------------------------------------------------------------
 -- Using a fork until our patches can be merged upstream
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/optparse-applicative
   tag: 7497a29cb998721a9068d5725d49461f2bba0e7a
+  --sha256: 1gvsrg925vynwgqwplgjmp53vj953qyh3wbdf34pw21c8r47w35r
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-wallet
+  tag: 25ef435c6e6a30d9d8ce3e454ee20845bdc4ae10
+  --sha256: 1qfy4j5ghg18wfjyri0f813627c0d1j2f3yxviqz1gblhffymm4l
+  subdir:
+    lib/dbvar
+    lib/text-class
+    lib/strict-non-empty-containers
+    lib/core
+    lib/test-utils
+    lib/numeric
+    lib/launcher
+    lib/core-integration
+    lib/cli
+    lib/shelley
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/Win32-network
     tag: 3825d3abf75f83f406c1f7161883c438dac7277d
+    --sha256: 19wahfv726fa3mqajpqdqhnl9ica3xmf68i254q45iyjcpj1psqx
 
 source-repository-package
     type: git
@@ -70,6 +41,7 @@ source-repository-package
     tag: 71006f9eb956b0004022e80aadd4ad50d837b621
     subdir: command-line
             core
+    --sha256: 11dl3fmq7ry5wdmz8kw07ji8yvrxnrsf7pgilw5q9mi4aqyvnaqk
 
 source-repository-package
     type: git
@@ -77,11 +49,13 @@ source-repository-package
     tag: ab61914443e5f53624d3b2995767761b3f68e576
     subdir: bech32
             bech32-th
+    --sha256: 0isqh5s6rdhmqa3jhvc32zb3kvzy149hmzddx1ld9f9jhls4f3wg
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-base
     tag: 41545ba3ac6b3095966316a99883d678b5ab8da8
+    --sha256: 0icq9y3nnl42fz536da84414av36g37894qnyw4rk3qkalksqwir
     subdir:
             base-deriving-via
             binary
@@ -98,21 +72,75 @@ source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-crypto
     tag: f73079303f663e028288f9f4a9e08bcca39a923e
+    --sha256: 1n87i15x54s0cjkh3nsxs4r1x016cdw1fypwmr68936n3xxsjn6q
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/plutus
+  tag: 2721c59fd2302b75c4138456c29fd5b509e8340a
+  --sha256: 02g8pzldyfl4pm8sy22yd3l2fr3zpyhwkvv9x3h9lsf6lfx5wi7k
+  subdir:
+    plutus-benchmark
+    plutus-core
+    plutus-errors
+    plutus-ledger-api
+    plutus-metatheory
+    plutus-tx
+    plutus-tx-plugin
+    prettyprinter-configurable
+    word-array
+    stubs/plutus-ghc-stub
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/plutus-apps
+  tag: 10b4bc5df56e99c960e3a5a6701424b195f9dbac
+  --sha256: 198pyl1ayzpivr0pgp57fdbwfd3p99rxgy5rm9nh8wzx7sb9dbcv
+  subdir:
+    doc
+    freer-extras
+    playground-common
+    plutus-chain-index
+    plutus-chain-index-core
+    plutus-contract
+    plutus-ledger
+    plutus-ledger-constraints
+    plutus-pab
+    plutus-playground-server
+    plutus-use-cases
+    quickcheck-dynamic
+    web-ghc
+
+-- See plutus-apps
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/purescript-bridge.git
+  tag: 366fc70b341e2633f3ad0158a577d52e1cd2b138
+  --sha256: 18j0rysfccbmfpbw2d1rsjkpd5h84alpsn6b5rwzdxw9h5vqi9m5
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/servant-purescript.git
+  tag: ebea59c7bdfc0338d83fca772b9a57e28560bcde
+  --sha256: 0gjcq4y61kwb4w70pnswn5dp23wd13dac8d9hz84j374cm1kshsn
 
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/ekg-forward
   tag: 2adc8b698443bb10154304b24f6c1d6913bb65b9
+  --sha256: 0cyixq3jmq43zs1yzrycqw1klyjy0zxf1vifknnr1k9d6sc3zf6b
 
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/cardano-config
   tag: e9de7a2cf70796f6ff26eac9f9540184ded0e4e6
+  --sha256: 1wm1c99r5zvz22pdl8nhkp13falvqmj8dgkm8fxskwa9ydqz01ld
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-ledger
     tag: 1a9ec4ae9e0b09d54e49b2a40c4ead37edadcce5
+    --sha256: 0avzyiqq0m8njd41ck9kpn992yq676b1az9xs77977h7cf85y4wm
     subdir:
       eras/alonzo/impl
       eras/alonzo/test-suite
@@ -140,6 +168,7 @@ source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-node
     tag: 814df2c146f5d56f8c35a681fe75e85b905aed5d
+    --sha256: 1hr00wqzmcyc3x0kp2hyw78rfmimf6z4zd4vv85b9zv3nqbjgrik
     subdir:
       cardano-api
       cardano-cli
@@ -153,6 +182,7 @@ source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-prelude
     tag: bb4ed71ba8e587f672d06edf9d2e376f4b055555
+    --sha256: 00h10l5mmiza9819p9v5q5749nb9pzgi20vpzpy1d34zmh6gf1cj
     subdir: cardano-prelude
             cardano-prelude-test
 
@@ -160,16 +190,19 @@ source-repository-package
     type: git
     location: https://github.com/input-output-hk/cardano-sl-x509
     tag: 12925934c533b3a6e009b61ede555f8f26bac037
+    --sha256: 1kma25g8sl6m3pgsihja7fysmv6vjdfc0x7dyky9g5z156sh8z7i
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/goblins
     tag: cde90a2b27f79187ca8310b6549331e59595e7ba
+    --sha256: 17c88rbva3iw82yg9srlxjv2ia5wjb9cyqw44hik565f5v9svnyg
 
 source-repository-package
     type: git
     location: https://github.com/input-output-hk/iohk-monitoring-framework
     tag: 808724ff8a19a33d0ed06f9ef59fbd900b08553c
+    --sha256: 0298dpl29gxzs9as9ha6y0w18hqwc00ipa3hzkxv7nlfrjjz8hmz
     subdir: contra-tracer
             iohk-monitoring
             plugins/backend-aggregation
@@ -182,6 +215,7 @@ source-repository-package
     type: git
     location: https://github.com/input-output-hk/ouroboros-network
     tag: d2d219a86cda42787325bb8c20539a75c2667132
+    --sha256: 18xk7r0h2pxrbx76d6flsxifh0a9rz1cj1rjqs1pbs5kdmy8b7kx
     subdir:
       io-sim
       io-classes
@@ -205,6 +239,7 @@ source-repository-package
     type: git
     location: https://github.com/snoyberg/http-client.git
     tag: 1a75bdfca014723dd5d40760fad854b3f0f37156
+    --sha256: 0537bjhk9bzhvl76haswsv7xkkyzrmv5xfph3fydcd953q08hqdb
     subdir: http-client
 
 -- Drops an instance breaking cardano-node.
@@ -235,6 +270,12 @@ constraints:
   -- choose versions that work with base >= 4.12
   , hjsonpointer >= 1.5.0
   , hjsonschema >= 1.10.0
+  -- plutus-apps brings in beam-migrate and hashable. Both define Hashable
+  -- instances for Set. Versions of hashable < 1.3.4.0 don't define instances
+  -- for Set.
+  , hashable < 1.3.4.0
+  -- 0.11.0 removes 'Signer' data type used by playground-common
+  , jwt <= 0.10.1
 
 -- ----------------------------------------------------------------
 -- Flags for dependencies
