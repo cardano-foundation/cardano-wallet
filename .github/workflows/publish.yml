@@ -11,18 +11,21 @@ jobs:
   docs:
     runs-on: ubuntu-20.04
     steps:
-      - name: '📥 Checkout repository'
+      - name: 'Checkout repository 📥'
         uses: actions/checkout@v2
 
-      - name: '🔧 Build emanote site'
+      - name: 'Build emanote site 🔧'
         run: |
           cd docs
           mkdir -p output.docker
-          docker run -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -v $PWD:/data sridca/emanote emanote --layers "/data;/data/.deploy/github" gen /data/output.docker
+          docker run \
+            -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 \
+            --tmpfs /tmp \
+            -v $PWD:/data sridca/emanote \
+            emanote --layers "/data;/data/.deploy/github" gen /data/output.docker
           cp -r output.docker ../_build  # Ditch docker created root-owned files
-          bash ../_build/_emanote-bin/compile-css
 
-      - name: '📸 Build Documentation'
+      - name: 'Build Documentation 📸'
         id: build
         run: |
           if [[ $GITHUB_REF =~ ^refs/tags/v ]]; then
@@ -41,7 +44,7 @@ jobs:
 
             Source commit: ${{ github.sha }}
 
-      - name: '📘 Publish'
+      - name: 'Publish 📘'
         if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}
         uses: peaceiris/actions-gh-pages@v3
         with:
