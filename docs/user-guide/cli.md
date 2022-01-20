@@ -273,8 +273,6 @@ databases, use:
 $ cardano-wallet serve --trace-wallet-db=debug ...
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### recovery-phrase generate
 
 > `cardano-wallet recovery-phrase generate [--size=INT]`
@@ -291,8 +289,6 @@ These words will be used to create a wallet later. You may also ask for a specif
 $ cardano-wallet recovery-phrase generate --size 21
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### wallet list
 
 > `cardano-wallet wallet list [--port=INT]`
@@ -302,8 +298,6 @@ Lists all your wallets:
 ```
 $ cardano-wallet wallet list
 ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### wallet create from recovery-phrase
 
@@ -322,8 +316,6 @@ Enter the passphrase a second time: ****************
 
 after this your new wallet will be created
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### wallet get
 
 > `cardano-wallet wallet get [--port=INT] WALLET_ID`
@@ -333,8 +325,6 @@ Fetches the wallet with specified wallet id:
 ```
 $ cardano-wallet wallet get 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### wallet utxo
 
@@ -384,8 +374,6 @@ which could be plotted as:
           10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳        1000₳
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### wallet utxo-snapshot
 
 > `cardano-wallet wallet utxo-snapshot [--port INT] WALLET_ID`
@@ -433,8 +421,6 @@ Each entry in the list contains the following fields:
 > ⚠ This endpoint was intended to be used for debugging purposes. The
 > output format is subject to change at any time.
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### wallet update name
 
 > `cardano-wallet wallet update name [--port=INT] WALLET_ID STRING`
@@ -444,8 +430,6 @@ Updates name of a wallet given wallet id:
 ```
 $ cardano-wallet wallet update name 2512a00e9653fe49a44a5886202e24d77eeb998f NewName
 ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### wallet update passphrase
 
@@ -460,8 +444,6 @@ Please enter a new passphrase: **********
 Enter the passphrase a second time: **********
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### wallet delete
 
 > `cardano-wallet wallet delete [--port=INT] WALLET_ID`
@@ -471,8 +453,6 @@ Deletes wallet with specified wallet id:
 ```
 $ cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### transaction create
 
@@ -491,8 +471,6 @@ This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1
 
 For more information about the `--metadata` option, see [[TxMetadata]].
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### transaction fees
 
 > `cardano-wallet transaction fees [--port=INT] WALLET_ID [--metadata=JSON] [--ttl=SECONDS] --payment=PAYMENT...`
@@ -507,8 +485,6 @@ $ cardano-wallet transaction fees 2512a00e9653fe49a44a5886202e24d77eeb998f \
 ```
 
 This estimates fees for a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### transaction list
 
@@ -525,8 +501,6 @@ $ cardano-wallet transaction list 2512a00e9653fe49a44a5886202e24d77eeb998f \
 
 This lists all transactions between `2018-09-25T10:15:00Z` and `2019-11-21T10:15:00Z` in `ascending` order.
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### transaction submit
 
 > `cardano-wallet transaction submit [--port INT] BINARY_BLOB`
@@ -539,8 +513,6 @@ $ cardano-wallet transaction submit 00bf02010200000...d21942304
 
 Sends transaction identified by a hex-encoded BINARY_BLOB of externally-signed transaction.
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### transaction forget
 
 > `cardano-wallet transaction forget [--port INT] WALLET_ID TRANSACTION_ID`
@@ -550,8 +522,6 @@ Forget pending transaction for a given wallet:
 ```
 $ cardano-wallet transaction forget 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12
 ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### transaction get
 
@@ -563,8 +533,6 @@ Get a transaction with the specified id:
 $ cardano-wallet transaction get 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### address list
 
 > `cardano-wallet address list [--port=INT] WALLET_ID [--state=STRING]`
@@ -574,8 +542,6 @@ List all known (used or not) addresses and their corresponding status.
 ```
 $ cardano-wallet list addresses 2512a00e9653fe49a44a5886202e24d77eeb998f
 ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### address create
 
@@ -592,7 +558,6 @@ Ok.
     "id": "2w1sdSJu3GVgr1ic6aP3CEwZo9GAhLzigdBvCGY4JzEDRbWV4HUNpZdHf2n5fV41dGjPpisDX77BztujAJ1Xs38zS8aXvN7Qxoe"
 }
 ```
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### address import
 
@@ -600,7 +565,6 @@ Ok.
 
 Import address belonging to random wallet.
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### network information
 
@@ -612,8 +576,6 @@ View network information and syncing progress between the node and the blockchai
 $ cardano-wallet network information
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### network parameters
 
 > `cardano-wallet network parameters [--port=INT] EPOCH_NUMBER`
@@ -623,8 +585,6 @@ View network parameters. EPOCH_NUMBER can be `latest` or valid epoch number (not
 ```
 $ cardano-wallet network parameters latest
 ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### network clock
 
@@ -644,8 +604,6 @@ Ok.
 }
 ```
 > :warning: At this stage the command is not supported on Windows platform. Invoked on Windows will return `status: unavailable` in the response message.
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### key from-recovery-phrase
 
@@ -669,8 +627,6 @@ $ cardano-wallet recovery-phrase generate | cardano-wallet key from-recovery-phr
 xprv12qaxje8hr7fc0t99q94jfnnfexvma22m0urhxgenafqmvw4qda0c8v9rtmk3fpxy9f2g004xj76v4jpd69a40un7sszdnw58qv527zlegvapwaee47uu724q4us4eurh52m027kk0602judjjw58gffvcqzkv2hs
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### key child
 
 Derive child key from root private key. The parent key is read from standard input.
@@ -693,8 +649,6 @@ $ cat root.xprv | cardano-wallet key child 44H/1815H/0H/0
 xprv13parrg5g83utetrwsp563w7hps2chu8mwcwqcrzehql67w9k73fq8utx6m8kgjlhle8claexrtcu068jgwl9zj5jyce6wn2k340ahpmglnq6x8zkt7plaqjgads0nvmj5ahav35m0ss8q95djl0dcee59vvwkaya
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### key public
 
 Extract the public key of an extended private key. Keys can be obtained using <a href="#key-from-recovery-phrase">`key from-recovery-phrase`</a> and <a href="#key-child">`key child`</a>.
@@ -715,8 +669,6 @@ $ cat root.xprv | cardano-wallet key public
 xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ynczj338r7f5kzs43xs2fkmktekd4fgnc8q98
 ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### key inspect
 
 > ```
@@ -728,8 +680,6 @@ xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ync
 >
 > The parent key is read from stdin.
 > ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ### stake-pool list
 
@@ -744,12 +694,8 @@ xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ync
 >                            rewards and the ranking of pools.
 > ```
 
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
 ### version
 
 > `cardano-wallet version`
 
 Show the software version.
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
