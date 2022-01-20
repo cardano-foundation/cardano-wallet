@@ -10,22 +10,29 @@ on:
 jobs:
   docs:
     runs-on: ubuntu-20.04
+    env:
+      DOCS_DIR: _build
     steps:
-      - name: 'Checkout repository 📥'
+      - name: '📥 Checkout repository'
         uses: actions/checkout@v2
 
-      - name: 'Build emanote site 🔧'
-        run: |
-          cd docs
-          mkdir -p output.docker
-          docker run \
-            -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 \
-            --tmpfs /tmp \
-            -v $PWD:/data sridca/emanote \
-            emanote --layers "/data;/data/.deploy/github" gen /data/output.docker
-          cp -r output.docker ../_build  # Ditch docker created root-owned files
+      - name: '❄ Install Nix'
+        uses: cachix/install-nix-action@v16
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            substituters = https://hydra.iohk.io https://cache.nixos.org/
+            trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
-      - name: 'Build Documentation 📸'
+      - name: '❄ Install dependencies'
+        run: 'nix develop .#docs --command emanote --version'
+
+      - name: '🔧 Build emanote site'
+        run: |
+          mkdir -p "$DOCS_DIR"
+          nix develop .#docs -c emanote --layers "docs;docs/.deploy/github" gen "$DOCS_DIR"
+
+      - name: '📸 Build Documentation'
         id: build
         run: |
           if [[ $GITHUB_REF =~ ^refs/tags/v ]]; then
@@ -37,20 +44,20 @@ jobs:
           fi
           echo "::set-output name=commit_message::$commit_message"
 
-          ./scripts/gh/update-docs.sh _build $tag
+          ./scripts/gh/update-docs.sh "$DOCS_DIR" $tag
         env:
           default_commit_message: |
             docs: ${{ github.event.head_commit.message }}
 
             Source commit: ${{ github.sha }}
 
-      - name: 'Publish 📘'
+      - name: '📘 Publish'
         if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.WILLIAM_KING_TOKEN }}
           enable_jekyll: false
-          publish_dir: _build
+          publish_dir: ${{ env.DOCS_DIR }}
           keep_files: true
           user_name: 'William King Noel Bot'
           user_email: 'adrestia@iohk.io'
