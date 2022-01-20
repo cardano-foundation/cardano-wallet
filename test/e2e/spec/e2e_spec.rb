@@ -572,6 +572,10 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
   describe "E2E Shelley" do
     describe "Native Assets" do
       it "I can list native assets" do
+        skip %(Underlying query is too large for token-metadata-server
+              which causes this test to fail as token-metadata-server returns 502.
+              ADP-710 should improve things a bit.)
+
         assets = SHELLEY.assets.get @wid
         expect(assets).to be_correct_and_respond 200
         expect(assets.to_s).to include ASSETS[0]["policy_id"]
