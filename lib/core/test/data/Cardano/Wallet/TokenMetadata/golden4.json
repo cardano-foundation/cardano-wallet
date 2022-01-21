@@ -1,12 +1,12 @@
 {
   "subjects": [
     {
-      "subject": "malformed acryonym - too long",
+      "subject": "malformed ticker - too long",
       "name": {
         "value": "Token7"
       },
       "ticker": {
-        "value": "Token7"
+        "value": "Token77777"
       },
       "description": {
         "value": "description7"
@@ -45,7 +45,7 @@
         "value": "description13"
       },
       "ticker": {
-        "value": "ticker13"
+        "value": "ticker13longlonglong"
       }
     },
     {
