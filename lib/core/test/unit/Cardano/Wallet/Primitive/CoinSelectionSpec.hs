@@ -632,6 +632,8 @@ genSelectionParams :: Gen SelectionParams
 genSelectionParams = SelectionParams
     <$> genAssetsToBurn
     <*> genAssetsToMint
+    <*> genExtraCoinIn
+    <*> genExtraCoinOut
     <*> genOutputsToCover
     <*> genRewardWithdrawal
     <*> genCertificateDepositsTaken
@@ -639,11 +641,16 @@ genSelectionParams = SelectionParams
     <*> genCollateralRequirement
     <*> genUTxOAvailableForCollateral
     <*> genUTxOAvailableForInputs
+  where
+    genExtraCoinIn = pure $ Coin 0
+    genExtraCoinOut = pure $ Coin 0
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkAssetsToBurn
     <:> shrinkAssetsToMint
+    <:> shrinkExtraCoin
+    <:> shrinkExtraCoin
     <:> shrinkOutputsToCover
     <:> shrinkRewardWithdrawal
     <:> shrinkCerticateDepositsTaken
@@ -652,6 +659,8 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> shrinkUTxOAvailableForCollateral
     <:> shrinkUTxOAvailableForInputs
     <:> Nil
+  where
+    shrinkExtraCoin _ = []
 
 --------------------------------------------------------------------------------
 -- Assets to mint and burn

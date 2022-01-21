@@ -206,6 +206,12 @@ data SelectionParams = SelectionParams
     , assetsToMint
         :: !TokenMap
         -- ^ Specifies a set of assets to mint.
+    , extraCoinIn
+        :: !Coin
+       -- ^ Specifies extra 'Coin' in.
+    , extraCoinOut
+        :: !Coin
+        -- ^ Specifies extra 'Coin' out.
     , outputsToCover
         :: ![TxOut]
         -- ^ Specifies a set of outputs that must be paid for.
@@ -440,11 +446,11 @@ toBalanceConstraintsParams (constraints, params) =
         , assetsToMint =
             view #assetsToMint params
         , extraCoinSource =
-            view #rewardWithdrawal params <>
+            view #rewardWithdrawal params <> view #extraCoinIn params <>
             mtimesDefault
                 (view #certificateDepositsReturned params)
                 (view #certificateDepositAmount constraints)
-        , extraCoinSink =
+        , extraCoinSink = view #extraCoinOut params <>
             mtimesDefault
                 (view #certificateDepositsTaken params)
                 (view #certificateDepositAmount constraints)
