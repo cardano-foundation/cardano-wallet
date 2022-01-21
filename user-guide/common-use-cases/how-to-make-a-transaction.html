@@ -42,6 +42,15 @@
   })();
 </script>
 
+<style>
+  p code, li code {
+    background-color: rgb(243,244,246) !important;
+    color: black !important;
+  }
+  pre {
+    background-color: rgb(243,244,246) !important;
+  }
+</style>
 
   
   <link href='tailwind.css' rel='stylesheet' type='text/css' />
@@ -2035,13 +2044,9 @@
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  
+  <h2 id='new-transaction' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>New transaction</h2><div class='px-3 py-1 mb-3 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200'>
     <p class='mb-3'>
-      {{<span xmlhtmlRaw><tabs></span>}}
-    </p>
-  
-    <p class='mb-3'>
-      {{&lt;tab “using cardano-wallet”&gt;}} {{<span xmlhtmlRaw><hint warning></span>}} <strong>Difficulty:</strong> beginner
+      <strong>Difficulty:</strong> beginner
     </p>
   
     <p class='mb-3'>
@@ -2051,11 +2056,11 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          📦 cardano-wallet &gt;= <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>v2020-04-01</code> {{<span xmlhtmlRaw></hint></span>}}
+          📦 cardano-wallet &gt;= <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>v2020-04-01</code>
         </li>
       
     </ul>
-  
+  </div>
     <p class='mb-3'>
       Assuming you have already created a wallet, you can send a transaction by using the following endpoint:
     </p>
@@ -2085,15 +2090,11 @@
     </p>
   
     <p class='mb-3'>
-      For more information about transactions lifecycle, have a look at <span title='Link is broken'><s>[[About-Transactions-Lifecycle]]</s>❌</span>. {{<span xmlhtmlRaw></tab></span>}}
+      For more information about transactions lifecycle, have a look at <span title='Link is broken'><s>[[About-Transactions-Lifecycle]]</s>❌</span>.
     </p>
-  
+  <h2 id='signed-and-serialized-transactions' class='inline-block mt-6 mb-4 text-4xl font-bold text-gray-700 border-b-2'>Signed and serialized transactions</h2><div class='px-3 py-1 mb-3 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200'>
     <p class='mb-3'>
-      {{&lt;tab “using cardano-transactions”&gt;}}
-    </p>
-  
-    <p class='mb-3'>
-      {{<span xmlhtmlRaw><hint warning></span>}} <strong>Difficulty:</strong> advanced
+      <strong>Difficulty:</strong> advanced
     </p>
   
     <p class='mb-3'>
@@ -2107,11 +2108,11 @@
         </li>
       
         <li>
-          📦 cardano-submit-api &gt;= <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2.0.0</code> OR cardano-wallet &gt;= <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>v2020-04-01</code> {{<span xmlhtmlRaw></hint></span>}}
+          📦 cardano-submit-api &gt;= <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>2.0.0</code> OR cardano-wallet &gt;= <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>v2020-04-01</code>
         </li>
       
     </ul>
-  
+  </div>
     <p class='mb-3'>
       Alternatively, <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> and <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-submit-api</code> allows clients to submit already signed and serialized transactions as a raw bytes blob. This can be done by submitting such serialized data as an <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>application/octet-stream</code> to either of:
     </p>
@@ -2133,11 +2134,7 @@
     </p>
   
     <p class='mb-3'>
-      Such transactions can be constructed from raw data using either <a href='https://github.com/input-output-hk/cardano-transactions' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-transactions library or command-line interface</a>. Examples and documentation excerpts are available on the corresponding Github repository. {{<span xmlhtmlRaw></tab></span>}}
-    </p>
-  
-    <p class='mb-3'>
-      {{<span xmlhtmlRaw></tabs></span>}}
+      Such transactions can be constructed from raw data using either <a href='https://github.com/input-output-hk/cardano-transactions' class='text-red-600 hover:underline' target='_blank' rel='noopener'>cardano-transactions library or command-line interface</a>. Examples and documentation excerpts are available on the corresponding Github repository.
     </p>
   
   <!-- What goes in this file will appear below the note body-->

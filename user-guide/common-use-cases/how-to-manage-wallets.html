@@ -42,6 +42,15 @@
   })();
 </script>
 
+<style>
+  p code, li code {
+    background-color: rgb(243,244,246) !important;
+    color: black !important;
+  }
+  pre {
+    background-color: rgb(243,244,246) !important;
+  }
+</style>
 
   
   <link href='tailwind.css' rel='stylesheet' type='text/css' />
@@ -2035,9 +2044,9 @@
 </h1>
             <article class='overflow-auto'>
   <!-- What goes in this file will appear on top of note body-->
-  
+  <div class='px-3 py-1 mb-3 rounded bg-red-100 hover:border-red-400 hover:shadow border-t-8 border-red-200'>
     <p class='mb-3'>
-      {{<span xmlhtmlRaw><hint warning></span>}} <strong>Difficulty:</strong> beginner
+      <strong>Difficulty:</strong> beginner
     </p>
   
     <p class='mb-3'>
@@ -2047,11 +2056,11 @@
     <ul class='my-3 ml-6 space-y-1 list-disc'>
       
         <li>
-          📦 cardano-wallet &gt;= <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>v2020-04-01</code> {{<span xmlhtmlRaw></hint></span>}}
+          📦 cardano-wallet &gt;= <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>v2020-04-01</code>
         </li>
       
     </ul>
-  
+  </div>
     <p class='mb-3'>
       Once you created a wallet you can manage it with <code class='py-0.5 px-1 rounded bg-gray-700 text-sm text-white'>cardano-wallet</code> endpoints. There are several operations available.
     </p>
