@@ -62,6 +62,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromPoint
     , toCardanoTxId
     , toCardanoTxIn
+    , toCardanoUTxO
     , fromCardanoTxIn
     , fromCardanoTxOut
     , fromCardanoWdrls
@@ -358,6 +359,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
@@ -1721,6 +1723,13 @@ toCardanoStakeCredential = Cardano.StakeCredentialByKey
 
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
 toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ intCast c
+
+toCardanoUTxO :: ShelleyBasedEra era -> W.UTxO -> Cardano.UTxO era
+toCardanoUTxO era = Cardano.UTxO
+    . Map.fromList
+    . map (bimap toCardanoTxIn (toCardanoTxOut era))
+    . Map.toList
+    . W.unUTxO
 
 toCardanoTxOut :: ShelleyBasedEra era -> W.TxOut -> Cardano.TxOut ctx era
 toCardanoTxOut era = case era of

@@ -193,6 +193,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoLovelace
     , toCardanoTxIn
     , toCardanoTxOut
+    , toCardanoUTxO
     )
 import Cardano.Wallet.Shelley.Transaction
     ( TxSkeleton (..)
@@ -2145,11 +2146,6 @@ resolvedInputsUTxO era (PartialTx _ resolvedInputs _) =
     convertUTxO (_, _, Just _) =
         error "resolvedInputsUTxO: todo: handle datum hash"
 
-toCardanoUTxO :: UTxO -> Cardano.UTxO Cardano.AlonzoEra
-toCardanoUTxO utxo = Cardano.UTxO $ Map.fromList $ map convertUTxO $ UTxO.toList utxo
-  where
-    convertUTxO (i, o) = (toCardanoTxIn i, toCardanoTxOut Cardano.ShelleyBasedEraAlonzo o)
-
 instance Semigroup (Cardano.UTxO era) where
     Cardano.UTxO a <> Cardano.UTxO b = Cardano.UTxO (a <> b)
 
@@ -2301,7 +2297,7 @@ prop_balanceTransactionBalanced (Wallet' utxo wal pending) (ShowBuildable partia
     = withMaxSuccess 200 $ do
         let combinedUTxO = mconcat
                 [ resolvedInputsUTxO Cardano.ShelleyBasedEraAlonzo partialTx
-                , toCardanoUTxO (view #utxo wal)
+                , toCardanoUTxO Cardano.ShelleyBasedEraAlonzo $ view #utxo wal
                 ]
         let originalBalance = txBalance (sealedTx partialTx) combinedUTxO
         forAllShow (runExceptT $ balanceTransaction

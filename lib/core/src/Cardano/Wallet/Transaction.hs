@@ -74,13 +74,16 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessor
+    ( SealedTx
+    , TokenBundleSizeAssessor
     , Tx (..)
     , TxConstraints
     , TxIn
     , TxMetadata
     , TxOut
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Text
@@ -184,6 +187,20 @@ data TransactionLayer k tx = TransactionLayer
         --
         -- Will estimate how many witnesses there /should be/, so it works even
         -- for unsigned transactions.
+        --
+        -- Returns `Nothing` for ByronEra transactions.
+
+    , evaluateTransactionBalance
+        :: SealedTx
+        -> Node.ProtocolParameters
+        -> UTxO
+        -> [(TxIn, TxOut, Maybe (Hash "Datum"))] -- Extra UTxO
+        -> Maybe Node.Value
+        -- ^ Evaluate the balance of a transaction using the ledger. A valid
+        -- transaction must be balanced.
+        --
+        -- Note that the fee-field of the transaction affects the balance, and
+        -- is not automatically the minimum fee.
         --
         -- Returns `Nothing` for ByronEra transactions.
 
