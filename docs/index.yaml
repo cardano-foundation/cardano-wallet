@@ -5,6 +5,19 @@ page:
   siteTitle: Cardano Wallet
   headHtml: |
     <snippet var="js.fixAnchorLinks" />
+    <style>
+      p code, li code {
+        background-color: rgb(243,244,246) !important;
+        color: black !important;
+      }
+      pre {
+        background-color: rgb(243,244,246) !important;
+      }
+    </style>
+  # NOTE: The template styles <code> tags by adding classes
+  # to the `class` attribute.
+  # I did not find a way to configure this, hence the
+  # CSS styling hack above.
 
 template:
   theme: red
