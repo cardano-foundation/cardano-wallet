@@ -2121,10 +2121,12 @@ constructTransaction
         )
     => ctx
     -> ArgGenChange s
+    -> IO (Set PoolId)
+    -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructTransaction ctx genChange (ApiT wid) body = do
+constructTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
