@@ -142,7 +142,6 @@
           (hsPkgs."wai" or (errorHandler.buildDepError "wai"))
           (hsPkgs."warp" or (errorHandler.buildDepError "warp"))
           (hsPkgs."warp-tls" or (errorHandler.buildDepError "warp-tls"))
-          (hsPkgs."wide-word" or (errorHandler.buildDepError "wide-word"))
           (hsPkgs."x509" or (errorHandler.buildDepError "x509"))
           (hsPkgs."x509-store" or (errorHandler.buildDepError "x509-store"))
           (hsPkgs."x509-validation" or (errorHandler.buildDepError "x509-validation"))
