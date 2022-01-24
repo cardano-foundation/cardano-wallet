@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress (..)
     , ApiAnyCertificate (..)
+    , ApiCertificate (..)
     , ApiCoinSelection (withdrawals)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
@@ -1056,7 +1057,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotEnoughMoney
             ]
 
-    it "TRANS_NEW_JOIN_01a - Can join stakepool" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_JOIN_01a - Can join stakepool and rejoin" $ \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
         pool':_ <- map (view #id) . snd <$> unsafeRequest
@@ -1075,9 +1076,34 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegation
         verify rTx
             [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #deposits) (`shouldSatisfy` (not . null))
             ]
-        -- TODO: sign/submit tx and verify pool is joined
+
+        let apiTx = getFromResponse #transaction rTx
+        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+
+        -- as we are joining for the first time we expect two certificates
+        let stakeKeyDerPath = NE.fromList
+                [ ApiT (DerivationIndex 2147485500)
+                , ApiT (DerivationIndex 2147485463)
+                , ApiT (DerivationIndex 2147483648)
+                , ApiT (DerivationIndex 2)
+                , ApiT (DerivationIndex 0)
+                ]
+        let registerStakeKeyCert =
+                WalletDelegationCertificate $ RegisterRewardAccount stakeKeyDerPath
+        let delegatingCert =
+                WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool'
+
+        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
+        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` [registerStakeKeyCert, delegatingCert])
+            ]
+
+        -- TODO: submit tx and verify pool is joined
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
 
