@@ -641,16 +641,13 @@ genSelectionParams = SelectionParams
     <*> genCollateralRequirement
     <*> genUTxOAvailableForCollateral
     <*> genUTxOAvailableForInputs
-  where
-    genExtraCoinIn = pure $ Coin 0
-    genExtraCoinOut = pure $ Coin 0
 
 shrinkSelectionParams :: SelectionParams -> [SelectionParams]
 shrinkSelectionParams = genericRoundRobinShrink
     <@> shrinkAssetsToBurn
     <:> shrinkAssetsToMint
-    <:> shrinkExtraCoin
-    <:> shrinkExtraCoin
+    <:> shrinkExtraCoinIn
+    <:> shrinkExtraCoinOut
     <:> shrinkOutputsToCover
     <:> shrinkRewardWithdrawal
     <:> shrinkCerticateDepositsTaken
@@ -659,8 +656,6 @@ shrinkSelectionParams = genericRoundRobinShrink
     <:> shrinkUTxOAvailableForCollateral
     <:> shrinkUTxOAvailableForInputs
     <:> Nil
-  where
-    shrinkExtraCoin _ = []
 
 --------------------------------------------------------------------------------
 -- Assets to mint and burn
@@ -677,6 +672,28 @@ shrinkAssetsToMint = shrinkTokenMap
 
 shrinkAssetsToBurn :: TokenMap -> [TokenMap]
 shrinkAssetsToBurn = shrinkTokenMap
+
+--------------------------------------------------------------------------------
+-- Extra coin in and out
+--------------------------------------------------------------------------------
+
+genCoinMostly0 :: Gen Coin
+genCoinMostly0 = frequency
+    [ (70, pure $ Coin 0)
+    , (30, genCoin)
+    ]
+
+genExtraCoinIn :: Gen Coin
+genExtraCoinIn = genCoinMostly0
+
+genExtraCoinOut :: Gen Coin
+genExtraCoinOut = genCoinMostly0
+
+shrinkExtraCoinIn :: Coin -> [Coin]
+shrinkExtraCoinIn = shrinkCoin
+
+shrinkExtraCoinOut :: Coin -> [Coin]
+shrinkExtraCoinOut = shrinkCoin
 
 --------------------------------------------------------------------------------
 -- Outputs to cover
