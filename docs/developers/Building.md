@@ -11,7 +11,7 @@
 | [cabal][] | >= 3.4.0.0 | Optional |
 | [[Nix]] | >= 2.5.1 | Optional |
 
-See [`nix/build-tools-overlay.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/build-tools-overlay.nix#L1) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
+See [`nix/overlays/build-tools.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/overlays/build-tools.nix#L1) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
 
 [stack]: https://haskellstack.org/
 [cabal]: https://www.haskell.org/cabal/download.html
