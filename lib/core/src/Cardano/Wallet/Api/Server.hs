@@ -226,6 +226,7 @@ import Cardano.Wallet.Api.Types
     , ApiForeignStakeKey (..)
     , ApiMintedBurnedTransaction (..)
     , ApiMnemonicT (..)
+    , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
@@ -2126,7 +2127,7 @@ constructTransaction
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) body = do
+constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -2142,20 +2143,35 @@ constructTransaction ctx genChange _knownPools _getPoolStatus (ApiT wid) body = 
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
     ttl <- liftIO $ W.getTxExpiry ti mTTL
-    let txCtx = defaultTransactionCtx
-            { txWithdrawal = wdrl
-            , txMetadata = md
-            , txTimeToLive = ttl
-            --, txDelegationAction --TODO: ADP-1189
-            }
-    let transform s sel =
-            ( W.assignChangeAddresses genChange sel s
-                & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
-            , sel
-            , selectionDelta TokenBundle.getCoin sel
-            )
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        txCtx <- case body ^. #delegations of
+            Nothing -> pure $ defaultTransactionCtx
+                 { txWithdrawal = wdrl
+                 , txMetadata = md
+                 , txTimeToLive = ttl
+                 }
+            Just delegs -> do
+                -- at this moment I want to handle just joining pool
+                let [(Joining (ApiT pid) _)] = NE.toList delegs
+                poolStatus <- liftIO (getPoolStatus pid)
+                pools <- liftIO knownPools
+                curEpoch <- getCurrentEpoch ctx
+                (action, _) <- liftHandler
+                    $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
+                pure $ defaultTransactionCtx
+                    { txWithdrawal = wdrl
+                    , txMetadata = md
+                    , txTimeToLive = ttl
+                    , txDelegationAction = Just action
+                    }
+        let transform s sel =
+                ( W.assignChangeAddresses genChange sel s
+                    & uncurry (W.selectionToUnsignedTx (txWithdrawal txCtx))
+                , sel
+                , selectionDelta TokenBundle.getCoin sel
+                )
+
         (utxoAvailable, wallet, pendingTxs) <-
             liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
