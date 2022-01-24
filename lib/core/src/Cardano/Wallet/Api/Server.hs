@@ -463,6 +463,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrAssignRedeemers (..)
     , ErrSignTx (..)
+    , StakeCredWits (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -1866,21 +1867,32 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
 -------------------------------------------------------------------------------}
 
 signTransaction
-    :: forall ctx s k.
+    :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , WalletKey k
         , IsOwned s k
         , HardDerivation k
+        , Typeable s
+        , Typeable n
         )
     => ctx
     -> ApiT WalletId
     -> ApiSignTransactionPostData
     -> Handler ApiSerialisedTransaction
-signTransaction ctx (ApiT wid) body = do
+signTransaction ctx apiw@(ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let sealedTx = body ^. #transaction . #getApiT
-
+    let apitx = ApiSerialisedTransaction $ body ^. #transaction
+    apiDecoded <- decodeTransaction @_ @s @k @n ctx apiw apitx
+    let isOurDelCert = \case
+            WalletDelegationCertificate _ -> True
+            _ -> False
+    let ourDelegationAction =
+            if (null $ filter isOurDelCert $ apiDecoded ^. #certificates) then
+                ExcludeStakeCred
+            else
+                IncludeStakeCred
     sealedTx' <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         let
             db = wrk ^. W.dbLayer @IO @s @k
@@ -1905,7 +1917,7 @@ signTransaction ctx (ApiT wid) body = do
                         -> Maybe (k 'AddressK XPrv, Passphrase "encryption")
                     keyLookup = isOwned (getState cp) (rootK, pwdP)
 
-                pure $ W.signTransaction tl era keyLookup (rootK, pwdP) utxo sealedTx
+                pure $ W.signTransaction tl ourDelegationAction era keyLookup (rootK, pwdP) utxo sealedTx
 
     -- TODO: The body+witnesses seem redundant with the sealedTx already. What's
     -- the use-case for having them provided separately? In the end, the client

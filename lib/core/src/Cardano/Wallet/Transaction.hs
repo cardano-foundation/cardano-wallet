@@ -27,6 +27,7 @@ module Cardano.Wallet.Transaction
     , withdrawalToCoin
     , TxUpdate (..)
     , TxFeeUpdate(..)
+    , StakeCredWits (..)
 
     -- * Errors
     , ErrSignTx (..)
@@ -118,6 +119,7 @@ data TransactionLayer k tx = TransactionLayer
     , addVkWitnesses
         :: AnyCardanoEra
             -- Era for which the transaction should be created.
+        -> StakeCredWits
         -> (XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
@@ -357,4 +359,8 @@ data ErrUpdateSealedTx
     -- ^ The `SealedTx` couldn't not be updated because the *n* existing
     -- key-witnesses would have been rendered invalid.
     | ErrByronTxNotSupported
+    deriving (Generic, Eq, Show)
+
+data StakeCredWits =
+    IncludeStakeCred | ExcludeStakeCred
     deriving (Generic, Eq, Show)

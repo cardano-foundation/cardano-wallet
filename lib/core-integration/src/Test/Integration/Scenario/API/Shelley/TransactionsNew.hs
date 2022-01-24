@@ -1103,7 +1103,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #certificates (`shouldBe` [registerStakeKeyCert, delegatingCert])
             ]
 
-        -- TODO: submit tx and verify pool is joined
+        -- Submit tx
+        submittedTx <- submitTxWithWid ctx wa signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
 

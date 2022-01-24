@@ -161,6 +161,7 @@ import Cardano.Wallet.Transaction
     , ErrAssignRedeemers (..)
     , ErrMkTransaction (..)
     , ErrUpdateSealedTx (..)
+    , StakeCredWits (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxFeeUpdate (..)
@@ -494,26 +495,33 @@ newTransactionLayer networkId = TransactionLayer
                     mkTx networkId payload ttl stakeCreds keystore wdrl
                         selection delta
 
-    , addVkWitnesses = \_era stakeCreds addressResolver inputResolver sealedTx -> do
+    , addVkWitnesses = \_era usingStakeCreds stakeCreds addressResolver inputResolver sealedTx -> do
         let acctResolver :: RewardAccount -> Maybe (XPrv, Passphrase "encryption")
             acctResolver acct = do
                 let acct' = toRewardAccountRaw $ toXPub $ fst stakeCreds
                 guard (acct == acct') $> stakeCreds
-
+        let switchOn :: forall era. [Cardano.KeyWitness era] -> [Cardano.KeyWitness era]
+            switchOn x = case usingStakeCreds of
+                IncludeStakeCred -> x
+                ExcludeStakeCred -> []
         case cardanoTx sealedTx of
             InAnyCardanoEra ByronEra _ ->
                 sealedTx
             InAnyCardanoEra ShelleyEra (Cardano.Tx body wits) ->
-                signTransaction networkId acctResolver addressResolver inputResolver (body, wits)
+                let wits' = wits ++ switchOn [ mkShelleyWitness body stakeCreds ]
+                in signTransaction networkId acctResolver addressResolver inputResolver (body, wits')
                 & sealedTxFromCardano'
             InAnyCardanoEra AllegraEra (Cardano.Tx body wits) ->
-                signTransaction networkId acctResolver addressResolver inputResolver (body, wits)
+                let wits' = wits ++ switchOn [ mkShelleyWitness body stakeCreds ]
+                in signTransaction networkId acctResolver addressResolver inputResolver (body, wits')
                 & sealedTxFromCardano'
             InAnyCardanoEra MaryEra (Cardano.Tx body wits) ->
-                signTransaction networkId acctResolver addressResolver inputResolver (body, wits)
+                let wits' = wits ++ switchOn [ mkShelleyWitness body stakeCreds ]
+                in signTransaction networkId acctResolver addressResolver inputResolver (body, wits')
                 & sealedTxFromCardano'
             InAnyCardanoEra AlonzoEra (Cardano.Tx body wits) ->
-                signTransaction networkId acctResolver addressResolver inputResolver (body, wits)
+                let wits' = wits ++ switchOn [ mkShelleyWitness body stakeCreds ]
+                in signTransaction networkId acctResolver addressResolver inputResolver (body, wits')
                 & sealedTxFromCardano'
 
     , mkUnsignedTransaction = \era stakeXPub _pp ctx selection -> do
