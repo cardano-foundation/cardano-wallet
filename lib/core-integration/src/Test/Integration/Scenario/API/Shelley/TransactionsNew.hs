@@ -72,6 +72,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
+    , decodePoolIdBech32
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -127,6 +128,8 @@ import Data.Ratio
     ( (%) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( toText )
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
@@ -1055,8 +1058,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_01a - Can join stakepool" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
-
         wa <- fixtureWallet ctx
         pool':_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
@@ -1100,14 +1101,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_01b - Absent pool id" $ \ctx -> runResourceT $ do
 
-        liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
-
         wa <- fixtureWallet ctx
-        let absentPoolId = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k"
+        let absentPoolIdBech32 = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k"
+        (Right absentPoolId) <- pure $ decodePoolIdBech32 absentPoolIdBech32
         let delegation = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{absentPoolId},
+                        "pool": #{absentPoolIdBech32},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -1116,7 +1116,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegation
         verify rTx
             [ expectResponseCode HTTP.status404
-            , expectErrorMessage (errMsg404NoSuchPool (absentPoolId))
+            , expectErrorMessage (errMsg404NoSuchPool (toText absentPoolId))
             ]
 
     it "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
