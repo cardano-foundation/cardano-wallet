@@ -126,7 +126,7 @@ You may also run the exectable directly with:
 $ nix run . -- <cardano wallet arguments>
 ```
 
-or more confortably, for pre-configured networks (`mainnet`, `testnet`, ...):
+or more comfortably, for pre-configured networks (`mainnet`, `testnet`, ...):
 ```console
 $ CARDANO_NODE_SOCKET_PATH=../cardano-node/node.socket
 
@@ -143,12 +143,14 @@ nix build .#hydraJobs.linux.windows.cardano-wallet
 
 #### Building (and running) straight from GitHub
 
-To build another branch, add `/<branch name, tag, or commit hash>`:
+The following command will build the `master` branch, with the resulting executable appearing at `./result/bin/cardano-wallet`. To build another branch, add `/<branch name, tag, or commit hash>` (see [Nix Manual: Flake References](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html#flake-references) for syntax). As before, if the target ref has already been built by [[Hydra]], then it will be fetched from cache rather than built locally.
 
 ```console
-nix build github:input-output-hk/cardano-wallet
-
+$ nix build github:input-output-hk/cardano-wallet
+$ ./result/bin/cardano-wallet version
+v2022-01-18 (git revision: ce772ff33623e2a522dcdc15b1d360815ac1336a)
 ```
+
 
 To run a wallet on mainnet:
 
