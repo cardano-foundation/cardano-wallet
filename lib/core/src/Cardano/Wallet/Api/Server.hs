@@ -2164,13 +2164,22 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                  , txTimeToLive = ttl
                  }
             Just delegs -> do
-                -- at this moment I want to handle just joining pool
-                let [(Joining (ApiT pid) _)] = NE.toList delegs
-                poolStatus <- liftIO (getPoolStatus pid)
-                pools <- liftIO knownPools
-                curEpoch <- getCurrentEpoch ctx
-                (action, _) <- liftHandler
-                    $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
+                -- TODO: Current limitation:
+                -- at this moment we are handling just one delegation action:
+                -- either joining pool, or rejoining or quiting
+                -- When we support multi-account this should be lifted
+                action <- case NE.toList delegs of
+                    [(Joining (ApiT pid) _)] -> do
+                        poolStatus <- liftIO (getPoolStatus pid)
+                        pools <- liftIO knownPools
+                        curEpoch <- getCurrentEpoch ctx
+                        (action, _) <- liftHandler
+                            $ W.joinStakePool @_ @s @k wrk curEpoch pools pid poolStatus wid
+                        pure action
+                    [(Leaving _)] ->
+                        liftHandler $ W.quitStakePool @_ @s @k wrk wid
+                    _ -> error "only one delegation action is possible at this moment"
+
                 pure $ defaultTransactionCtx
                     { txWithdrawal = wdrl
                     , txMetadata = md

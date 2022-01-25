@@ -1203,6 +1203,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     [ expectField #delegation (`shouldBe` delegating pool2 [])
                     ]
 
+        -- quit
+        let delegationQuit = Json [json|{
+                "delegations": [{
+                    "quit": {
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx'' <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default delegationQuit
+        verify rTx''
+            [ expectResponseCode HTTP.status202
+            ]
+
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
 
@@ -1245,8 +1259,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
-
-        liftIO $ pendingWith "ADP-1189 - delegation not implemented in construct ep"
 
         wa <- fixtureWallet ctx
         let delegation = Json [json|{
