@@ -152,6 +152,7 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectField
+    , expectListField
     , expectResponseCode
     , expectSuccess
     , fixtureMultiAssetWallet
@@ -1062,14 +1063,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_JOIN_01a - Can join stakepool and rejoin" $ \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
-        pool':_ <- map (view #id) . snd <$> unsafeRequest
+        pool1:pool2:_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
         let delegation = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{pool'},
+                        "pool": #{pool1},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -1094,7 +1095,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let registerStakeKeyCert =
                 WalletDelegationCertificate $ RegisterRewardAccount stakeKeyDerPath
         let delegatingCert =
-                WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool'
+                WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool1
 
         let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
         let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
@@ -1146,6 +1147,61 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (#balance . #reward)
                     (.> (Quantity 0))
                 ]
+
+        eventually "Wallet is delegating to pool1" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating pool1 [])
+                    ]
+
+        -- join another stake pool
+        let delegationOther = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool2},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx' <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default delegationOther
+        verify rTx'
+            [ expectResponseCode HTTP.status202
+            ]
+        let apiTx' = getFromResponse #transaction rTx'
+        signedTx' <- signTx ctx wa apiTx' [ expectResponseCode HTTP.status202 ]
+        let delegatingCert' =
+                WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool2
+
+        let txCbor' = getFromResponse #transaction (HTTP.status202, Right signedTx')
+        let decodePayload' = Json (toJSON $ ApiSerialisedTransaction txCbor')
+        rDecodedTx' <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayload'
+        verify rDecodedTx'
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` [delegatingCert'])
+            ]
+        submittedTx' <- submitTxWithWid ctx wa signedTx'
+        verify submittedTx'
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        -- Wait for the certificate to be inserted
+        eventually "Certificates are inserted" $ do
+            let ep = Link.listTransactions @'Shelley wa
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                [ expectListField 1
+                    (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectListField 1
+                    (#status . #getApiT) (`shouldBe` InLedger)
+                ]
+
+        eventually "Wallet is delegating to pool2" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating pool2 [])
+                    ]
 
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
