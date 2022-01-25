@@ -153,6 +153,7 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectField
     , expectListField
+    , expectListSize
     , expectResponseCode
     , expectSuccess
     , fixtureMultiAssetWallet
@@ -165,6 +166,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , notDelegating
     , pickAnAsset
     , request
     , rewardWallet
@@ -1062,12 +1064,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_01a - Can join stakepool and rejoin" $ \ctx -> runResourceT $ do
 
-        wa <- fixtureWallet ctx
+        src <- fixtureWallet ctx
+        dest <- emptyWallet ctx
+
         pool1:pool2:_ <- map (view #id) . snd <$> unsafeRequest
             @[ApiStakePool]
             ctx (Link.listStakePools arbitraryStake) Empty
 
-        let delegation = Json [json|{
+        let delegationJoin = Json [json|{
                 "delegations": [{
                     "join": {
                         "pool": #{pool1},
@@ -1075,14 +1079,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default delegation
-        verify rTx
+        rTx1 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
+        verify rTx1
             [ expectResponseCode HTTP.status202
             ]
 
-        let apiTx = getFromResponse #transaction rTx
-        signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+        let apiTx1 = getFromResponse #transaction rTx1
+        signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
 
         -- as we are joining for the first time we expect two certificates
         let stakeKeyDerPath = NE.fromList
@@ -1097,26 +1101,26 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let delegatingCert =
                 WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool1
 
-        let txCbor = getFromResponse #transaction (HTTP.status202, Right signedTx)
-        let decodePayload = Json (toJSON $ ApiSerialisedTransaction txCbor)
-        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wa) Default decodePayload
-        verify rDecodedTx
+        let txCbor1 = getFromResponse #transaction (HTTP.status202, Right signedTx1)
+        let decodePayload1 = Json (toJSON $ ApiSerialisedTransaction txCbor1)
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley src) Default decodePayload1
+        verify rDecodedTx1
             [ expectResponseCode HTTP.status202
             , expectField #certificates (`shouldBe` [registerStakeKeyCert, delegatingCert])
             ]
 
         -- Submit tx
-        submittedTx <- submitTxWithWid ctx wa signedTx
-        verify submittedTx
+        submittedTx1 <- submitTxWithWid ctx src signedTx1
+        verify submittedTx1
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
 
         eventually "Wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
-                (Link.getTransaction @'Shelley wa
-                    (getFromResponse Prelude.id submittedTx))
+                (Link.getTransaction @'Shelley src
+                    (getFromResponse Prelude.id submittedTx1))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -1125,8 +1129,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField #deposit (`shouldBe` Quantity 1000000)
                 ]
 
-        let txId = getFromResponse #id submittedTx
-        let link = Link.getTransaction @'Shelley wa (ApiTxId txId)
+        let txId1 = getFromResponse #id submittedTx1
+        let link = Link.getTransaction @'Shelley src (ApiTxId txId1)
         eventually "delegation transaction is in ledger" $ do
             rSrc <- request @(ApiTransaction n) ctx link Default Empty
             verify rSrc
@@ -1140,22 +1144,25 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         waitForNextEpoch ctx
         waitForNextEpoch ctx
-        eventually "Wallet gets rewards" $ do
-            r <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
-            verify r
-                [ expectField
-                    (#balance . #reward)
-                    (.> (Quantity 0))
-                ]
+        previousBalance1 <-
+            liftIO $ eventually "Wallet gets rewards from pool1" $ do
+                r <- request @ApiWallet ctx (Link.getWallet @'Shelley src)
+                    Default Empty
+                verify r
+                    [ expectField
+                        (#balance . #reward)
+                        (.> (Quantity 0))
+                    ]
+                pure $ getFromResponse (#balance . #available) r
 
         eventually "Wallet is delegating to pool1" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating pool1 [])
                     ]
 
         -- join another stake pool
-        let delegationOther = Json [json|{
+        let delegationRejoin = Json [json|{
                 "delegations": [{
                     "join": {
                         "pool": #{pool2},
@@ -1163,33 +1170,33 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
-        rTx' <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default delegationOther
-        verify rTx'
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationRejoin
+        verify rTx2
             [ expectResponseCode HTTP.status202
             ]
-        let apiTx' = getFromResponse #transaction rTx'
-        signedTx' <- signTx ctx wa apiTx' [ expectResponseCode HTTP.status202 ]
-        let delegatingCert' =
+        let apiTx2 = getFromResponse #transaction rTx2
+        signedTx2 <- signTx ctx src apiTx2 [ expectResponseCode HTTP.status202 ]
+        let delegatingCert2 =
                 WalletDelegationCertificate $ JoinPool stakeKeyDerPath pool2
 
-        let txCbor' = getFromResponse #transaction (HTTP.status202, Right signedTx')
-        let decodePayload' = Json (toJSON $ ApiSerialisedTransaction txCbor')
-        rDecodedTx' <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley wa) Default decodePayload'
-        verify rDecodedTx'
+        let txCbor2 = getFromResponse #transaction (HTTP.status202, Right signedTx2)
+        let decodePayload2 = Json (toJSON $ ApiSerialisedTransaction txCbor2)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley src) Default decodePayload2
+        verify rDecodedTx2
             [ expectResponseCode HTTP.status202
-            , expectField #certificates (`shouldBe` [delegatingCert'])
+            , expectField #certificates (`shouldBe` [delegatingCert2])
             ]
-        submittedTx' <- submitTxWithWid ctx wa signedTx'
-        verify submittedTx'
+        submittedTx2 <- submitTxWithWid ctx src signedTx2
+        verify submittedTx2
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
 
         -- Wait for the certificate to be inserted
         eventually "Certificates are inserted" $ do
-            let ep = Link.listTransactions @'Shelley wa
+            let ep = Link.listTransactions @'Shelley src
             request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
                 [ expectListField 1
                     (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -1197,13 +1204,73 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        previousBalance2 <-
+            liftIO $ eventually "Wallet gets rewards from pool2" $ do
+                r <- request @ApiWallet ctx (Link.getWallet @'Shelley src)
+                    Default Empty
+                verify r
+                    [ expectField
+                        (#balance . #reward)
+                        (.> previousBalance1)
+                    ]
+                pure $ getFromResponse (#balance . #available) r
+
         eventually "Wallet is delegating to pool2" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating pool2 [])
                     ]
 
-        -- quit
+        -- there's currently no withdrawals in the wallet
+        rw1 <- request @[ApiTransaction n] ctx
+            (Link.listTransactions' @'Shelley src (Just 1)
+                Nothing Nothing Nothing)
+            Default Empty
+        verify rw1 [ expectListSize 0 ]
+
+        -- can use rewards with an explicit withdrawal request to self.
+        addrs <- listAddresses @n ctx dest
+        let coin = minUTxOValue (_mainEra ctx) :: Natural
+        let addr = (addrs !! 1) ^. #id
+
+        let payloadWithdrawal = [json|
+                { "payments":
+                    [ { "address": #{addr}
+                      , "amount":
+                        { "quantity": #{coin}
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase},
+                  "withdrawal": "self"
+                }|]
+
+        waitForNextEpoch ctx
+        --TODO: ADP-1192 (take coare of withdrawals in new tx workflow)
+        rTx3 <- request @(ApiTransaction n) ctx
+            (Link.createTransactionOld @'Shelley src)
+            Default (Json payloadWithdrawal)
+        verify rTx3
+            [ expectField #amount (.> (Quantity coin))
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        -- Rewards are have been consumed.
+        eventually "Wallet has consumed rewards" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+                >>= flip verify
+                    [ expectField
+                        (#balance . #reward)
+                        (`shouldBe` (Quantity 0))
+                    , expectField
+                        (#balance . #available)
+                        (.> previousBalance2)
+                    ]
+
+        -- now we can quit
         let delegationQuit = Json [json|{
                 "delegations": [{
                     "quit": {
@@ -1211,12 +1278,34 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
-        rTx'' <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley wa) Default delegationQuit
-        verify rTx''
+        rTx4 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationQuit
+        verify rTx4
             [ expectResponseCode HTTP.status202
             ]
+        let apiTx4 = getFromResponse #transaction rTx4
+        signedTx4 <- signTx ctx src apiTx4 [ expectResponseCode HTTP.status202 ]
+        let quittingCert =
+                WalletDelegationCertificate $ QuitPool stakeKeyDerPath
 
+        let txCbor4 = getFromResponse #transaction (HTTP.status202, Right signedTx4)
+        let decodePayload4 = Json (toJSON $ ApiSerialisedTransaction txCbor4)
+        rDecodedTx4 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley src) Default decodePayload4
+        verify rDecodedTx4
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` [quittingCert])
+            ]
+        submittedTx4 <- submitTxWithWid ctx src signedTx4
+        verify submittedTx4
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        eventually "Wallet is not delegating" $ do
+            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+                >>= flip verify
+                    [ expectField #delegation (`shouldBe` notDelegating [])
+                    ]
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
 
