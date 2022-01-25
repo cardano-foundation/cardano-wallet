@@ -1,0 +1,80 @@
+{
+    "seed": -14350539051048812,
+    "samples": [
+        {
+            "context": "ours",
+            "amount": {
+                "quantity": 55,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 194,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "context": "ours",
+            "amount": {
+                "quantity": 191,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 42,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "context": "ours",
+            "amount": {
+                "quantity": 86,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "context": "ours",
+            "amount": {
+                "quantity": 100,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 193,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 85,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 72,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "context": "ours",
+            "amount": {
+                "quantity": 99,
+                "unit": "lovelace"
+            },
+            "stake_address": "<stake-addr>"
+        }
+    ]
+}
