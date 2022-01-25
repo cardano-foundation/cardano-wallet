@@ -3094,8 +3094,9 @@ data ErrConstructTx
     | ErrConstructTxNoSuchWallet ErrNoSuchWallet
     | ErrConstructTxReadRewardAccount ErrReadRewardAccount
     | ErrConstructTxIncorrectTTL PastHorizonException
+    | ErrConstructTxMultidelegationNotSupported
     | ErrConstructTxNotImplemented String
-      -- ^ Temporary error constructor.
+    -- ^ Temporary error constructor.
     deriving (Show, Eq)
 
 newtype ErrMintBurnAssets

@@ -4032,6 +4032,17 @@ x-errTransactionIsTooBig: &errTransactionIsTooBig
       type: string
       enum: ['transaction_is_too_big']
 
+x-errMultidelegationTransaction: &errMultidelegationTransaction
+  <<: *responsesErr
+  title: created_multidelegation_transaction
+  properties:
+    message:
+      type: string
+      description: Occurs when more than 1 delegation action is included in a transaction.
+    code:
+      type: string
+      enum: ['created_multidelegation_transaction']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5089,6 +5100,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errNotEnoughMoney
             - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
+            - <<: *errMultidelegationTransaction
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

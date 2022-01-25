@@ -2178,7 +2178,8 @@ constructTransaction ctx genChange knownPools getPoolStatus (ApiT wid) body = do
                         pure action
                     [(Leaving _)] ->
                         liftHandler $ W.quitStakePool @_ @s @k wrk wid
-                    _ -> error "only one delegation action is possible at this moment"
+                    _ ->
+                        liftHandler $ throwE ErrConstructTxMultidelegationNotSupported
 
                 pure $ defaultTransactionCtx
                     { txWithdrawal = wdrl
@@ -3891,6 +3892,12 @@ instance IsServerError ErrConstructTx where
             }
         ErrConstructTxReadRewardAccount e -> toServerError e
         ErrConstructTxIncorrectTTL e -> toServerError e
+        ErrConstructTxMultidelegationNotSupported ->
+            apiError err403 CreatedMultidelegationTransaction $ mconcat
+            [ "It looks like I've created a transaction "
+            , "with multiple delegations, which is not supported at this moment."
+            , "Please use at most one delegation action: join, quit or none."
+            ]
         ErrConstructTxNotImplemented _ ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
