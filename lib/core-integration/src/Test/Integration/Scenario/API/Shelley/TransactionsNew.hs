@@ -2067,47 +2067,47 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     let mint = PlutusScenario.currencyTx txOutRef
                     pure (mint, [])
                   )
-                , ( "crowdfunding", \ctx _w -> do
-                      (w, mw) <- second (unsafeMkMnemonic @15) <$> fixtureWalletWithMnemonics (Proxy @"shelley") ctx
+                -- , ( "crowdfunding", \ctx _w -> do
+                --       (w, mw) <- second (unsafeMkMnemonic @15) <$> fixtureWalletWithMnemonics (Proxy @"shelley") ctx
 
-                      -- Generate a public key for contributor
-                      let
-                          rootSk = Shelley.generateKeyFromSeed (SomeMnemonic mw, Nothing) mempty
-                          acctSk = deriveAccountPrivateKey mempty rootSk minBound
-                          addrSk = deriveAddressPrivateKey mempty acctSk UtxoExternal minBound
-                          addrVk = getRawKey $ publicKey addrSk
+                --       -- Generate a public key for contributor
+                --       let
+                --           rootSk = Shelley.generateKeyFromSeed (SomeMnemonic mw, Nothing) mempty
+                --           acctSk = deriveAccountPrivateKey mempty rootSk minBound
+                --           addrSk = deriveAddressPrivateKey mempty acctSk UtxoExternal minBound
+                --           addrVk = getRawKey $ publicKey addrSk
 
-                      let
-                        ada = undefined
+                --       let
+                --         ada = undefined
 
-                        -- campaign :: Crowdfunding.Campaign
-                        -- campaign = Crowdfunding.mkCampaign 1 2 alice
-                        campaign = _
+                --         -- campaign :: Crowdfunding.Campaign
+                --         -- campaign = Crowdfunding.mkCampaign 1 2 alice
+                --         campaign = _
 
-                        startCampaign = _
-                        -- startCampaign contributor value =
-                        --   submitTxConstraints inst
-                        --   $  Constraints.mustPayToTheScript contributor value
-                        --   <> Constraints.mustValidateIn (Interval.to (campaignDeadline cmp))
+                --         startCampaign = _
+                --         -- startCampaign contributor value =
+                --         --   submitTxConstraints inst
+                --         --   $  Constraints.mustPayToTheScript contributor value
+                --         --   <> Constraints.mustValidateIn (Interval.to (campaignDeadline cmp))
 
-                        contribute = undefined
-                        refund = undefined
-                        collect = undefined
+                --         contribute = undefined
+                --         refund = undefined
+                --         collect = undefined
 
-                        -- alice, bob, charlie :: Plutus.PubKeyHash
-                        alice = undefined
-                        bob = undefined
-                        charlie = undefined
+                --         -- alice, bob, charlie :: Plutus.PubKeyHash
+                --         alice = undefined
+                --         bob = undefined
+                --         charlie = undefined
 
-                      -- pure ( startCampaign
-                      --      , [ contribute bob (ada 100)
-                      --        , contribute charlie (ada 60)
-                      --        , refund bob
-                      --        , collect alice
-                      --        ]
-                      --      )
-                      pure _
-                  )
+                --       -- pure ( startCampaign
+                --       --      , [ contribute bob (ada 100)
+                --       --        , contribute charlie (ada 60)
+                --       --        , refund bob
+                --       --        , collect alice
+                --       --        ]
+                --       --      )
+                --       pure _
+                --   )
                 ]
 
         forM_ scenarios $ \(title, setupContract) -> it title $ \ctx -> runResourceT $ do

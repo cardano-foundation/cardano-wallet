@@ -55,8 +55,11 @@ library
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-core
+    , hspec-core
     , cardano-wallet-cli
     , cardano-wallet-core-integration
+    , contra-tracer
+    , cardano-wallet
     , plutus-ledger-api
     , cardano-wallet-core
     , cardano-wallet-launcher
@@ -93,6 +96,7 @@ library
     , resourcet
     , retry
     , say
+    , strict-non-empty
     , scrypt
     , serialise
     , string-interpolate
@@ -107,3 +111,47 @@ library
       src
   exposed-modules:
       Test.PlutusE2E.Base
+
+test-suite integration
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+      base
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-core-integration
+    , cardano-wallet-launcher
+    , cardano-wallet
+    , cardano-wallet-test-utils
+    , contra-tracer
+    , plutus-e2e
+    , directory
+    , either
+    , filepath
+    , hspec
+    , hspec-core
+    , http-client
+    , iohk-monitoring
+    , lobemo-backend-ekg
+    , network-uri
+    , text
+    , text-class
+    , unliftio
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      ../lib/shelley/test/integration
+      test
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.Wallet.Shelley.Faucet
+      Cardano.Wallet.Shelley.Integration
