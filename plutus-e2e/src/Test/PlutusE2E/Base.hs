@@ -33,13 +33,24 @@ import Ledger
     )
 import Ledger.Constraints.OffChain
     ( tx )
-import qualified Data.Vector as Vector
+import Data.Proxy (Proxy(..))
+import Cardano.Wallet.Unsafe
+    ( unsafeMkMnemonic )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..))
 import Plutus.Contracts.Crowdfunding
 import PlutusTx.Prelude hiding (Applicative (..), Semigroup (..), return, (<$>), (>>), (>>=), error)
 import Prelude (Semigroup (..))
+import Control.Arrow
+    ( second )
+import Cardano.Wallet.Primitive.AddressDerivation
+    (HardDerivation (..), Role(..), getRawKey, publicKey)
 
+import qualified Test.Integration.Framework.DSL as DSL
+import qualified Data.Vector as Vector
 import qualified Codec.CBOR.Write as CBORWrite
 import qualified Codec.Serialise.Class as Serialise
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Base16 as Base16
 import qualified Data.HashMap.Strict as HM
@@ -48,8 +59,11 @@ import qualified Ledger.Constraints as Constraints
 import qualified Ledger.Interval as Interval
 import qualified Ledger.Typed.Scripts as Scripts hiding
     ( validatorHash )
+import qualified Plutus.V1.Ledger.Value as Plutus
 import qualified PlutusTx
 import qualified Prelude as Haskell
+import qualified Ledger as Plutus
+import qualified Cardano.Crypto.Wallet
 
 data Crowdfunding
 instance Scripts.ValidatorTypes Crowdfunding where
@@ -71,6 +85,31 @@ theCampaign startTime = Campaign
     , campaignOwner = Haskell.undefined -- Emulator.mockWalletPaymentPubKeyHash (knownWallet 1)
     }
 
+-- newActor :: Context -> Actor
+-- actorWallet :: Actor -> Wallet
+-- actorWalletMnemonics :: Actor -> Mnemonic 15
+-- actorWalletRootKey :: Actor -> k 'RootK XPrv
+-- actorPaymentPublicKey :: Actor -> Plutus.PaymentPublicKey
+-- actorPaymentPublicKeyHash :: Actor -> Plutus.PaymentPublicKeyHash
+-- actorPaymentPrivateKey :: Actor -> Plutus.PaymentPrivateKey
+
+walletToPubKeyHash ctx = do
+    (w, mw) <- second (unsafeMkMnemonic @15) Haskell.<$> DSL.fixtureWalletWithMnemonics (Proxy @"shelley") ctx
+
+    -- Generate a public key for contributor
+    let
+        pw = Haskell.mempty
+        rootSk = Shelley.generateKeyFromSeed (SomeMnemonic mw, Nothing) pw
+        acctSk = deriveAccountPrivateKey pw rootSk Haskell.minBound
+        addrSk = getRawKey $ deriveAddressPrivateKey pw acctSk UtxoExternal Haskell.minBound
+
+    Haskell.pure $ fromWalletToPlutus addrSk
+
+fromWalletToPlutus :: Cardano.Crypto.Wallet.XPrv -> Plutus.PaymentPubKeyHash
+fromWalletToPlutus =
+    Plutus.PaymentPubKeyHash . Plutus.pubKeyHash . Plutus.toPublicKey
+
+-- contribute' :: _ -> Campaign -> PaymentPubKeyHash -> Plutus.Value -> Aeson.Value
 contribute' input cmp contributor value =
     let
         inst = typedValidator cmp
@@ -94,20 +133,21 @@ contribute' input cmp contributor value =
             . Serialise.encode
             $ unbalancedTx ^. tx
     in
-        Aeson.Object $ HM.fromList
-          [ "transaction" .= Aeson.String unbalancedTxHex
-          , "inputs" .= Aeson.toJSON [ Aeson.object
-              [ "id" .= view #id input
-              , "index" .= view #index input
-              , "address" .= view #address input
-              , "amount" .= view #amount input
-              , "assets" .= Aeson.Array Vector.empty
-              ] ]
-         -- The contribution action does not try to spend a UTxO at a script
-         -- address, it only puts funds to the script address, so datum and
-         -- redeemer are not required.
-         , "redeemers" .= (Aeson.toJSON ([] :: [()]))
-         ]
+        Aeson.Null
+        -- Aeson.Object $ HM.fromList
+        --   [ "transaction" .= Aeson.String unbalancedTxHex
+        --   , "inputs" .= Aeson.toJSON [ Aeson.object
+        --       [ "id" .= view #id input
+        --       , "index" .= view #index input
+        --       , "address" .= view #address input
+        --       , "amount" .= view #amount input
+        --       , "assets" .= Aeson.Array Vector.empty
+        --       ] ]
+        --  -- The contribution action does not try to spend a UTxO at a script
+        --  -- address, it only puts funds to the script address, so datum and
+        --  -- redeemer are not required.
+        --  , "redeemers" .= (Aeson.toJSON ([] :: [()]))
+        --  ]
 
     -- Tx in UnbalancedTx has no extra required signatories.
     -- But is available in UnbalancedTx
@@ -116,3 +156,6 @@ contribute' input cmp contributor value =
 
     -- TODO: Add reqSignerHashes to TxUpdate
     -- TODO: Change test DSL to take UnBalancedTxs to handle this natively?
+
+
+            -- w <- fixtureWallet ctx

@@ -23,7 +23,7 @@ library
       OverloadedStrings
   ghc-options: -Wall -Wnoncanonical-monad-instances
                -Wincomplete-uni-patterns -Wincomplete-record-updates
-               -Wredundant-constraints -Widentities -rtsopts
+               -Wredundant-constraints -Widentities
                -- See Plutus Tx readme
                -fobject-code -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
   ghc-options:
@@ -56,6 +56,7 @@ library
     , cardano-ledger-alonzo
     , cardano-ledger-core
     , cardano-wallet-cli
+    , cardano-wallet-core-integration
     , plutus-ledger-api
     , cardano-wallet-core
     , cardano-wallet-launcher

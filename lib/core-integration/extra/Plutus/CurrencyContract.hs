@@ -13,7 +13,7 @@ This includes, but is not limited to, the following packages:
     plutus-core, plutus-tx, plutus-contract, plutus-ledger, plutus-ledger-api
 
 -}
-module CurrencyContract where
+module Plutus.CurrencyContract where
 
 {- HLINT ignore "Avoid restricted qualification" -}
 import Prelude

@@ -3,7 +3,7 @@
 --
 -- This encoding is useful for hex editing compiled and serialised
 -- Plutus contracts.
-module FlatInteger where
+module Plutus.FlatInteger where
 
 import Prelude
 
