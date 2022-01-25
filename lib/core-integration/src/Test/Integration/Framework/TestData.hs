@@ -103,6 +103,7 @@ module Test.Integration.Framework.TestData
     , errMsg403InvalidConstructTx
     , errMsg403ForeignTransaction
     , errMsg403MissingWitsInTransaction
+    , errMsg403MultidelegationTransaction
     ) where
 
 import Prelude
@@ -651,6 +652,13 @@ errMsg403MissingWitsInTransaction expected got = mconcat
     [ "The transaction has ", show expected
     , " inputs and ", show got, " witnesses included."
     , " Submit fully-signed transaction."
+    ]
+
+errMsg403MultidelegationTransaction :: String
+errMsg403MultidelegationTransaction = mconcat
+    [ "It looks like I've created a transaction "
+    , "with multiple delegations, which is not supported at this moment."
+    , "Please use at most one delegation action: join, quit or none."
     ]
 
 --------------------------------------------------------------------------------

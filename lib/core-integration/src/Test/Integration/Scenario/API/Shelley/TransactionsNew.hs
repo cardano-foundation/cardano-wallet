@@ -187,6 +187,7 @@ import Test.Integration.Framework.TestData
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
+    , errMsg403MultidelegationTransaction
     , errMsg403NotDelegating
     , errMsg403NotEnoughMoney
     , errMsg404NoSuchPool
@@ -1345,6 +1346,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status404
             , expectErrorMessage (errMsg404NoSuchPool (toText absentPoolId))
+            ]
+
+    it "TRANS_NEW_JOIN_01c - Multidelegation not supported" $ \ctx -> runResourceT $ do
+
+        wa <- fixtureWallet ctx
+        let pool' = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k" :: Text
+        let delegations = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{pool'},
+                        "stake_key_index": "0H"
+                    }
+                },{
+                    "join": {
+                        "pool": #{pool'},
+                        "stake_key_index": "1H"
+                    }
+                }]
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley wa) Default delegations
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403MultidelegationTransaction
             ]
 
     it "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
