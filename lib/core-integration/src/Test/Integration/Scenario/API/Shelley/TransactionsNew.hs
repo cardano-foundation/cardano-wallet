@@ -43,6 +43,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
+    , ApiTxInput (..)
     , ApiTxInputGeneral (..)
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
@@ -174,6 +175,7 @@ import Test.Integration.Framework.DSL
     , waitForNextEpoch
     , waitForTxImmutability
     , walletId
+    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403Collateral
@@ -1109,6 +1111,42 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
+
+        eventually "Wallet has joined pool and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley wa
+                    (getFromResponse Prelude.id submittedTx))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #deposit (`shouldBe` Quantity 1000000)
+                ]
+
+        let txId = getFromResponse #id submittedTx
+        let link = Link.getTransaction @'Shelley wa (ApiTxId txId)
+        eventually "delegation transaction is in ledger" $ do
+            rSrc <- request @(ApiTransaction n) ctx link Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                , expectField #inputs $ \inputs' -> do
+                    inputs' `shouldSatisfy` all (isJust . source)
+                ]
+
+        waitForNextEpoch ctx
+        waitForNextEpoch ctx
+        eventually "Wallet gets rewards" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
+            verify r
+                [ expectField
+                    (#balance . #reward)
+                    (.> (Quantity 0))
+                ]
+
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
 
